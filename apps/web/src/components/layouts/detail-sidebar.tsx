@@ -2,7 +2,7 @@
 
 import React, { memo, useState } from "react";
 import { Link, usePathname } from "@/i18n/routing";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, Folder, FolderOpen } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,84 +28,234 @@ interface DetailSidebarProps {
   onToggle: () => void;
 }
 
+interface TreeItemProps {
+  item: DetailSidebarItem;
+  level?: number;
+  pathname: string;
+  isLast?: boolean;
+  parentPath?: boolean[];
+}
+
 const TreeItem = memo(function TreeItem({
   item,
   level = 0,
   pathname,
-}: {
-  item: DetailSidebarItem;
-  level?: number;
-  pathname: string;
-}) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  isLast = false,
+  parentPath = [],
+}: TreeItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = item.children && item.children.length > 0;
   const isActive = item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
 
+  // Calculate indent based on level
+  const indentBase = 20; // Base indent in pixels
+  const indent = level * indentBase;
+  const lineOffset = indent - indentBase + 8; // Position for connecting lines
+
   if (hasChildren) {
+    const children = item.children ?? [];
+    const lastChildIndex = children.length - 1;
+
     return (
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-150",
-              "hover:bg-accent hover:text-accent-foreground",
-              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            )}
-            style={{ paddingLeft: `${level * 12 + 12}px` }}
-          >
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200",
-                isExpanded && "rotate-90"
+        <div className="relative">
+          {/* Vertical line from parent (if not root level) */}
+          {level > 0 && (
+            <>
+              {/* Vertical line going up from this item */}
+              <div
+                className="absolute w-px bg-border/60"
+                style={{
+                  left: `${lineOffset}px`,
+                  top: 0,
+                  height: "50%",
+                }}
+              />
+              {/* Horizontal connector line */}
+              <div
+                className="absolute h-px bg-border/60"
+                style={{
+                  left: `${lineOffset}px`,
+                  top: "50%",
+                  width: `${indentBase - 8}px`,
+                  transform: "translateY(-50%)",
+                }}
+              />
+              {/* Vertical line continuation below (if not last) */}
+              {!isLast && (
+                <div
+                  className="absolute w-px bg-border/60"
+                  style={{
+                    left: `${lineOffset}px`,
+                    top: "50%",
+                    height: "100%",
+                  }}
+                />
               )}
-            />
-            {item.icon && (
-              <span className="shrink-0 [&>svg]:h-4 [&>svg]:w-4 text-muted-foreground">
-                {item.icon}
-              </span>
-            )}
-            <span className="flex-1 truncate text-foreground/80">{item.name}</span>
-          </button>
-        </CollapsibleTrigger>
+            </>
+          )}
 
-        <CollapsibleContent>
-          {item.children?.map((child) => (
-            <TreeItem
-              key={child.id}
-              item={child}
-              level={level + 1}
-              pathname={pathname}
-            />
-          ))}
-        </CollapsibleContent>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "group relative z-10 flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+                "hover:bg-accent hover:text-accent-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                isActive && "bg-primary/10 text-primary font-medium"
+              )}
+              style={{ paddingLeft: `${indent + 12}px` }}
+            >
+              {/* Folder icon instead of chevron */}
+              {isExpanded ? (
+                <FolderOpen
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                />
+              ) : (
+                <Folder
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                />
+              )}
+              {item.icon && (
+                <span
+                  className={cn(
+                    "shrink-0 [&>svg]:h-4 [&>svg]:w-4 transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
+                  {item.icon}
+                </span>
+              )}
+              <span
+                className={cn(
+                  "flex-1 truncate transition-colors",
+                  isActive ? "text-primary font-medium" : "text-foreground/80 group-hover:text-foreground"
+                )}
+              >
+                {item.name}
+              </span>
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+            <div className="relative">
+              {/* Vertical line for children group - stops at last child's center */}
+              {children.length > 0 && isExpanded && (
+                <div
+                  className="absolute w-px bg-border/60"
+                  style={{
+                    left: `${indent + 8}px`,
+                    top: 0,
+                    // Stop at the center of the last child
+                    // Each tree item has approximately 40px height (py-2 = 16px + content)
+                    // We want the line to stop at 50% of the last item's height
+                    height: children.length > 1 
+                      ? `calc(100% - 20px)` // Approximate: stop before last item's center
+                      : "20px", // If only one child, stop at its center (half of ~40px)
+                  }}
+                />
+              )}
+
+              {children.map((child, index) => {
+                const isChildLast = index === lastChildIndex;
+                return (
+                  <TreeItem
+                    key={child.id}
+                    item={child}
+                    level={level + 1}
+                    pathname={pathname}
+                    isLast={isChildLast}
+                    parentPath={[...parentPath, !isLast]}
+                  />
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </div>
       </Collapsible>
     );
   }
 
   return (
-    <Link
-      href={item.href || "#"}
-      className={cn(
-        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-150",
-        "hover:bg-accent hover:text-accent-foreground",
-        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        isActive
-          ? "bg-primary/10 text-primary font-medium"
-          : "text-foreground/70"
+    <div className="relative">
+      {/* Connecting lines for leaf nodes */}
+      {level > 0 && (
+        <>
+          {/* Vertical line from parent (going up) */}
+          <div
+            className="absolute w-px bg-border/60"
+            style={{
+              left: `${lineOffset}px`,
+              top: 0,
+              height: "50%",
+            }}
+          />
+          {/* Horizontal connector line (L-shape) */}
+          <div
+            className="absolute h-px bg-border/60"
+            style={{
+              left: `${lineOffset}px`,
+              top: "50%",
+              width: `${indentBase - 8}px`,
+              transform: "translateY(-50%)",
+            }}
+          />
+          {/* Vertical line continuation below (only if NOT last - continues to next sibling) */}
+          {!isLast && (
+            <div
+              className="absolute w-px bg-border/60"
+              style={{
+                left: `${lineOffset}px`,
+                top: "50%",
+                height: "100%",
+              }}
+            />
+          )}
+        </>
       )}
-      style={{ paddingLeft: `${level * 12 + 12}px` }}
-    >
-      {item.icon && (
-        <span className={cn(
-          "shrink-0 [&>svg]:h-4 [&>svg]:w-4",
-          isActive ? "text-primary" : "text-muted-foreground"
-        )}>
-          {item.icon}
+
+      <Link
+        href={item.href || "#"}
+        className={cn(
+          "group relative z-10 flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+          "hover:bg-accent hover:text-accent-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          isActive
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground/70"
+        )}
+        style={{ paddingLeft: `${indent + 12}px` }}
+      >
+        {item.icon && (
+          <span
+            className={cn(
+              "shrink-0 [&>svg]:h-4 [&>svg]:w-4 transition-colors",
+              isActive
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground"
+            )}
+          >
+            {item.icon}
+          </span>
+        )}
+        <span
+          className={cn(
+            "flex-1 truncate transition-colors",
+            isActive
+              ? "text-primary font-medium"
+              : "text-foreground/70 group-hover:text-foreground"
+          )}
+        >
+          {item.name}
         </span>
-      )}
-      <span className="flex-1 truncate">{item.name}</span>
-    </Link>
+      </Link>
+    </div>
   );
 });
 
@@ -120,19 +270,19 @@ export const DetailSidebar = memo(function DetailSidebar({
   return (
     <aside
       className={cn(
-        "fixed left-16 top-0 z-30 h-screen w-56 bg-sidebar transition-transform duration-300 ease-out",
+        "fixed left-16 top-0 z-30 h-screen w-56 bg-sidebar border-r border-sidebar-border transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}
       data-slot="detail-sidebar"
     >
       <div className="flex h-full flex-col">
         {/* Header with collapse button */}
-        <div className="flex h-16 items-center justify-between px-4">
-          <h2 className="text-sm font-semibold text-foreground/90">{title}</h2>
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4 bg-sidebar/95 backdrop-blur supports-backdrop-filter:bg-sidebar/80">
+          <h2 className="text-sm font-semibold text-foreground/90 truncate">{title}</h2>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 rounded-md hover:bg-accent"
+            className="h-7 w-7 shrink-0 rounded-md hover:bg-accent transition-colors"
             onClick={onToggle}
             aria-label="Collapse sidebar"
           >
@@ -140,14 +290,30 @@ export const DetailSidebar = memo(function DetailSidebar({
           </Button>
         </div>
 
-        {/* Menu Items */}
-        <ScrollArea className="flex-1 px-2 pb-4">
-          <div className="space-y-0.5">
-            {items.map((item) => (
-              <TreeItem key={item.id} item={item} pathname={pathname} />
-            ))}
-          </div>
-        </ScrollArea>
+        {/* Menu Items with Professional Scroll Area */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="px-3 py-4 space-y-0.5">
+              {items.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No items available</p>
+                </div>
+              ) : (
+                items.map((item, index) => {
+                  const isLast = index === items.length - 1;
+                  return (
+                    <TreeItem
+                      key={item.id}
+                      item={item}
+                      pathname={pathname}
+                      isLast={isLast}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
     </aside>
   );
