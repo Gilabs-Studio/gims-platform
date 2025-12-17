@@ -51,7 +51,7 @@ const ACTIVE_PARENT_STORAGE_KEY = "active_parent_id";
 function checkViewPermission(menu: MenuWithActions): boolean {
   if (menu.actions && menu.actions.length > 0) {
     const viewAction = menu.actions.find(
-      (action) => action.code.startsWith("VIEW_") && action.access
+      (action) => (action.code === "VIEW" || action.code.startsWith("VIEW_")) && action.access
     );
     if (viewAction) return true;
   }
@@ -92,7 +92,7 @@ function findParentMenuByPath(menus: MenuWithActions[], pathname: string): strin
       return false;
     });
     
-    if (hasMatch) return menu.id;
+    if (hasMatch) return String(menu.id);
   }
   return null;
 }
@@ -541,7 +541,7 @@ export const DashboardLayout = memo(function DashboardLayout({
       const hasChildren = Boolean(menu.children && menu.children.length > 0);
 
       items.push({
-        id: menu.id,
+        id: String(menu.id), // Convert to string for consistency
         name: menu.name,
         icon: getMenuIcon(menu.icon),
         href: menu.url || undefined,
@@ -560,14 +560,14 @@ export const DashboardLayout = memo(function DashboardLayout({
     const menus = permissionsData?.data?.menus;
     if (!menus) return [];
 
-    const parentMenu = menus.find((m) => m.id === activeParentId);
+    const parentMenu = menus.find((m) => String(m.id) === activeParentId);
     if (!parentMenu?.children) return [];
 
     const buildDetailItems = (menuItems: MenuWithActions[]): DetailSidebarItem[] => {
       return menuItems
         .filter((item) => checkViewPermission(item))
         .map((item) => ({
-          id: item.id,
+          id: String(item.id), // Convert to string for consistency
           name: item.name,
           href: item.url || undefined,
           icon: getMenuIcon(item.icon),

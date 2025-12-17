@@ -52,12 +52,12 @@ export default function BlockPage() {
                   "Your role has been removed or your permissions have been revoked. Please contact your administrator.",
               })}
             </p>
-            {user?.role && (
+            {user?.roles && user.roles.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("block.currentRole", {
                   defaultValue: "Current role:",
                 })}{" "}
-                <span className="font-medium">{user.role}</span>
+                <span className="font-medium">{user.roles.map(r => r.name).join(", ")}</span>
               </p>
             )}
           </div>

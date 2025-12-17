@@ -11,6 +11,8 @@
       "description": "Masuk ke akun Anda untuk melanjutkan",
       "emailLabel": "Email",
       "emailPlaceholder": "Masukkan email Anda",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "Masukkan username Anda",
       "passwordLabel": "Kata Sandi",
       "passwordPlaceholder": "Masukkan kata sandi Anda",
       "forgotPassword": "Lupa kata sandi?",

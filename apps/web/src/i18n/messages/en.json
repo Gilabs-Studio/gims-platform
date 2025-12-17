@@ -11,6 +11,8 @@
       "description": "Sign in to your account to continue",
       "emailLabel": "Email",
       "emailPlaceholder": "Enter your email",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "Enter your username",
       "passwordLabel": "Password",
       "passwordPlaceholder": "Enter your password",
       "forgotPassword": "Forgot password?",

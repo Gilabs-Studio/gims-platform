@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api-client";
-import type { LoginRequest, LoginResponse } from "../types";
+import type { LoginRequest, LoginResponse, MenusResponse } from "../types";
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -7,6 +7,11 @@ export const authService = {
       "/auth/login",
       credentials,
     );
+    return response.data;
+  },
+
+  async getMenus(): Promise<MenusResponse> {
+    const response = await apiClient.get<MenusResponse>("/auth/menus");
     return response.data;
   },
 

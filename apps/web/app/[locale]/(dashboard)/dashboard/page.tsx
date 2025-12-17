@@ -57,9 +57,7 @@ function UsersPageContent() {
 export default function UsersPage() {
   return (
     <AuthGuard>
-      <PermissionGuard requiredPermission="VIEW_USERS">
-        <UsersPageContent />
-      </PermissionGuard>
+      <UsersPageContent />
     </AuthGuard>
   );
 }

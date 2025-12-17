@@ -7,5 +7,5 @@ export default async function LocaleRootRedirect({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  redirect(`/${locale}/show`);
+  redirect(`/${locale}/login`);
 }

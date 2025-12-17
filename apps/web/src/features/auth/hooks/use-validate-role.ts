@@ -4,10 +4,9 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
-import { useLogout } from "./use-logout";
-import { roleService } from "@/features/master-data/user-management/services/user-service";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
 /**
  * Hook untuk real-time validation role user
@@ -19,41 +18,67 @@ export function useValidateRole() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const handleLogout = useLogout();
   const t = useTranslations("auth");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastValidatedRef = useRef<boolean>(true);
+  const lastValidatedRef = useRef<boolean | null>(null); // null = not yet validated, true = was valid, false = was invalid
 
-  const { data: validationData, refetch } = useQuery({
+  const { data: validationData, refetch, error: validationError, isLoading: isValidating } = useQuery({
     queryKey: ["validate-role", user?.id],
     queryFn: async () => {
       if (!user?.id) {
         return { is_valid: false };
       }
 
-      // Validate by checking user permissions endpoint
-      // If it returns 404 or error, role is invalid
+      // Validate by checking menus endpoint
+      // If it returns 404 or 401, role is invalid
       try {
-        const { userService } = await import("@/features/master-data/user-management/services/user-service");
-        await userService.getPermissions(user.id);
+        const { authService } = await import("../services/auth-service");
+        await authService.getMenus();
         return { is_valid: true };
       } catch (error: unknown) {
-        // Check if error is 404 or USER_NOT_FOUND
-        const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
+        // Check if error is 404 or 401
+        const axiosError = error as { 
+          response?: { 
+            status?: number; 
+            data?: { error?: { code?: string; message?: string } } 
+          };
+          message?: string;
+          code?: string;
+        };
+
+        // Only treat as invalid if we have a clear auth error response
         if (
           axiosError.response?.status === 404 ||
+          axiosError.response?.status === 401 ||
           axiosError.response?.data?.error?.code === "USER_NOT_FOUND" ||
           axiosError.response?.data?.error?.code === "ROLE_NOT_FOUND"
         ) {
           return { is_valid: false };
         }
-        // For other errors, assume valid (network issues, etc.)
+        
+        // For errors without response (network errors, CORS, etc.) or other errors, assume valid
+        // This prevents false positives from temporary API issues
         return { is_valid: true };
       }
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!user?.roles && user.roles.length > 0,
     refetchInterval: 30000, // Check every 30 seconds
-    retry: false,
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
+      if (
+        axiosError.response?.status === 401 ||
+        axiosError.response?.status === 403 ||
+        axiosError.response?.status === 404 ||
+        axiosError.response?.data?.error?.code === "USER_NOT_FOUND" ||
+        axiosError.response?.data?.error?.code === "ROLE_NOT_FOUND"
+      ) {
+        return false;
+      }
+      // Retry once for network errors
+      return failureCount < 1;
+    },
+    retryDelay: 2000, // Wait 2 seconds before retry
   });
 
   useEffect(() => {
@@ -63,7 +88,7 @@ export function useValidateRole() {
     }
 
     // Only validate if user is authenticated
-    if (!user?.id || !user?.role) {
+    if (!user?.id || !user?.roles || user.roles.length === 0) {
       return;
     }
 
@@ -77,11 +102,19 @@ export function useValidateRole() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [user?.id, user?.role, refetch]);
+  }, [user?.id, user?.roles, refetch]);
 
   useEffect(() => {
-    // Handle role validation result
-    if (validationData && !validationData.is_valid && lastValidatedRef.current) {
+    // Don't redirect on initial load or if still loading
+    // Only redirect if we have a definitive invalid result AND we previously had a valid result
+    // CRITICAL: lastValidatedRef must be explicitly true (not null) to prevent false positives
+    if (
+      validationData && 
+      !validationData.is_valid && 
+      lastValidatedRef.current === true && // Must be explicitly true, not null
+      user?.roles && 
+      user.roles.length > 0 // Only redirect if user actually has roles (prevents false positives)
+    ) {
       lastValidatedRef.current = false;
 
       // Show toast notification
@@ -96,8 +129,7 @@ export function useValidateRole() {
       );
 
       // Get current locale from pathname
-      const pathParts = pathname.split("/").filter(Boolean);
-      const locale = pathParts[0] || "en";
+      const locale = getLocaleFromPathname(pathname);
 
       // Redirect to block page
       const blockPath = `/${locale}/block`;
@@ -110,11 +142,19 @@ export function useValidateRole() {
       }
     } else if (validationData?.is_valid) {
       lastValidatedRef.current = true;
+    } else if (validationData && !validationData.is_valid && lastValidatedRef.current === null) {
+      // First validation failed, but don't redirect yet (might be temporary error)
+      // Don't set lastValidatedRef to false yet - wait for retry or next validation
     }
-  }, [validationData, pathname, router, t]);
+  }, [validationData, pathname, router, t, user?.roles, isValidating, validationError]);
+
+  // Return isValid based on validationData
+  // If validationData is undefined (still loading), return true to prevent false positives
+  // Only return false if we have explicit invalid result
+  const isValid = validationData === undefined ? true : (validationData.is_valid ?? true);
 
   return {
-    isValid: validationData?.is_valid ?? true,
+    isValid,
     isLoading: !validationData,
   };
 }

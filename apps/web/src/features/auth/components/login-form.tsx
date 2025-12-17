@@ -86,7 +86,7 @@ export function LoginForm() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
       rememberMe: false,
     },
@@ -144,18 +144,18 @@ export function LoginForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <FieldGroup className="space-y-4">
                 <Field className="space-y-2">
-                  <FieldLabel htmlFor="email">{t("emailLabel")}</FieldLabel>
+                  <FieldLabel htmlFor="username">{t("usernameLabel") || "Username"}</FieldLabel>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder={t("emailPlaceholder")}
-                    {...register("email")}
+                    id="username"
+                    type="text"
+                    placeholder={t("usernamePlaceholder") || "Enter your username"}
+                    {...register("username")}
                     disabled={isFormLoading}
-                    aria-invalid={!!errors.email}
+                    aria-invalid={!!errors.username}
                     className="h-11"
                   />
-                  {errors.email && (
-                    <FieldError>{errors.email.message}</FieldError>
+                  {errors.username && (
+                    <FieldError>{errors.username.message}</FieldError>
                   )}
                 </Field>
 

@@ -23,21 +23,20 @@ export function useLogin() {
     setError(null);
     try {
       const response = await authService.login({
-        email: data.email,
+        username: data.username,
         password: data.password,
       });
-      if (response.success && response.data) {
-        const { user, token, refresh_token } = response.data;
+      if (response.data) {
+        const { user, token } = response.data;
         if (typeof window !== "undefined") {
           localStorage.setItem("token", token);
-          localStorage.setItem("refreshToken", refresh_token);
           // Set secure cookie for WebSocket and middleware
           setSecureCookie("token", token);
         }
         setUser(user);
         setToken(token);
         useAuthStore.setState({
-          refreshToken: refresh_token,
+          refreshToken: null, // API baru tidak return refresh_token
           isAuthenticated: true,
           error: null,
         });

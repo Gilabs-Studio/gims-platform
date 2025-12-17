@@ -57,7 +57,7 @@ export interface Action {
 }
 
 export interface MenuWithActions {
-  id: string;
+  id: number | string; // Support both number (from API) and string (for compatibility)
   name: string;
   icon: string;
   url: string;

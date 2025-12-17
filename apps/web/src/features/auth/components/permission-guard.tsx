@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "@/i18n/routing";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useValidateRole } from "../hooks/use-validate-role";
+import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
 interface PermissionGuardProps {
   readonly children: React.ReactNode;
@@ -29,18 +30,18 @@ export function PermissionGuard({
   const hasPermission = useHasPermission(requiredPermission);
   
   // Real-time role validation
-  const { isValid: isRoleValid } = useValidateRole();
+  const { isValid: isRoleValid, isLoading: isValidatingRole } = useValidateRole();
 
   useEffect(() => {
-    // Don't redirect while loading
-    if (isLoading) {
+    // Don't redirect while loading permissions or validating role
+    if (isLoading || isValidatingRole) {
       return;
     }
 
     // If role is invalid, redirect to block page
-    if (!isRoleValid) {
-      const pathParts = pathname.split("/").filter(Boolean);
-      const locale = pathParts[0] || "en";
+    // Only redirect if we have explicit invalid result (not during initial load)
+    if (isRoleValid === false) {
+      const locale = getLocaleFromPathname(pathname);
       const blockPath = `/${locale}${fallbackUrl}`;
 
       if (typeof window !== "undefined") {
@@ -53,9 +54,8 @@ export function PermissionGuard({
 
     // If permissions loaded but user doesn't have permission, redirect
     if (permissionsData && !hasPermission) {
-      // Get current locale from pathname (pathname format: /en/... or /id/...)
-      const pathParts = pathname.split("/").filter(Boolean);
-      const locale = pathParts[0] || "en";
+      // Get current locale from pathname
+      const locale = getLocaleFromPathname(pathname);
 
       // Ensure fallbackUrl is absolute (starts with /)
       const absoluteBlockUrl = fallbackUrl.startsWith("/")
@@ -75,20 +75,23 @@ export function PermissionGuard({
   }, [
     hasPermission,
     isLoading,
+    isValidatingRole,
     permissionsData,
     isRoleValid,
     router,
     pathname,
     fallbackUrl,
+    requiredPermission,
   ]);
 
-  // Show nothing while checking permissions
-  if (isLoading) {
+  // Show nothing while checking permissions or validating role
+  if (isLoading || isValidatingRole) {
     return null;
   }
 
   // If role invalid or no permission, don't render children (redirect will happen)
-  if (!isRoleValid || !hasPermission) {
+  // Only check if we have explicit results (not during initial load)
+  if (isRoleValid === false || (permissionsData && !hasPermission)) {
     return null;
   }
 
