@@ -15,7 +15,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="relative h-full w-full overflow-hidden rounded-3xl shadow-2xl">
           <Image
             src="/login.webp"
-            alt="Medico CRM Platform"
+            alt="GIMS Platform"
             fill
             className="object-cover"
             priority
@@ -31,16 +31,16 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             <div className="flex size-10 aspect-square items-center justify-center rounded-xl shadow-lg overflow-hidden">
               <Image
                 src="/logo.webp"
-                alt="Medico"
+                alt="GIMS"
                 width={40}
                 height={40}
                 className="object-contain"
               />
             </div>
             <div className="flex flex-col gap-0.5 leading-none">
-              <span className="text-xl font-bold text-primary">Medico</span>
+              <span className="text-xl font-bold text-primary">GIMS</span>
               <span className="text-xs text-muted-foreground">
-                CRM Platform
+                GILABS Integrated Management System
               </span>
             </div>
           </div>

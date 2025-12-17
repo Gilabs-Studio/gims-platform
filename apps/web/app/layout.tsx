@@ -22,8 +22,8 @@ const headingFont = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "CRM Healthcare Platform",
-  description: "CRM Healthcare/Pharmaceutical Platform",
+  title: "GIMS - GILABS Integrated Management System",
+  description: "GILABS Integrated Management System - Comprehensive business management platform",
 };
 
 export const viewport: Viewport = {

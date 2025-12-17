@@ -1,6 +1,6 @@
-# CRM Healthcare Web
+# GIMS Web
 
-Frontend application untuk CRM Healthcare/Pharmaceutical Platform menggunakan Next.js 16.
+Frontend application untuk GIMS (GILABS Integrated Management System) menggunakan Next.js 16.
 
 ## Tech Stack
 

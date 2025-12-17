@@ -1,6 +1,6 @@
-# CRM Healthcare Platform
+# GIMS - GILABS Integrated Management System
 
-Monorepo untuk CRM Healthcare/Pharmaceutical Platform menggunakan Turborepo.
+Monorepo untuk GIMS (GILABS Integrated Management System) menggunakan Turborepo.
 
 ## Tech Stack
 
@@ -25,7 +25,7 @@ Monorepo untuk CRM Healthcare/Pharmaceutical Platform menggunakan Turborepo.
 ## Struktur Project
 
 ```
-crm-healthcare/
+gims/
 ├── apps/
 │   ├── api/          # Go API backend (Gin)
 │   └── web/          # Next.js frontend
@@ -140,7 +140,7 @@ Server akan berjalan di `http://localhost:8080`
 Di root project (bukan di folder lain), tersedia script helper:
 
 ```bash
-cd D:\Files\Documents\Pekerjaan\Gilabs\crm-healthcare
+cd D:\Files\Documents\Pekerjaan\Gilabs\gims
 pnpm run dev:web-api-docker
 ```
 
