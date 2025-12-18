@@ -466,7 +466,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   useValidateRole();
   
   const commandPalette = useDashboardCommandPalette({
-    menus: permissionsData?.data?.menus,
+    menus: permissionsData?.data?.menus as MenuWithActions[] | undefined,
   });
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
   const pathname = usePathname();
@@ -517,7 +517,7 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   // Build parent items for icon sidebar
   const parentItems: IconSidebarItem[] = useMemo(() => {
-    const menus = permissionsData?.data?.menus;
+    const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
 
     const fallback: IconSidebarItem[] = [
       {
@@ -557,7 +557,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const detailItems: DetailSidebarItem[] = useMemo(() => {
     if (!activeParentId) return [];
 
-    const menus = permissionsData?.data?.menus;
+    const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
     if (!menus) return [];
 
     const parentMenu = menus.find((m) => String(m.id) === activeParentId);
@@ -597,23 +597,58 @@ export const DashboardLayout = memo(function DashboardLayout({
     }
   }, [activeParentId, parentItems]);
 
+  // Track manual parent selection to prevent auto-detect override
+  const manualSelectionRef = React.useRef(false);
+  const previousPathnameRef = React.useRef<string | null>(null);
+
   // Auto-detect active parent based on current path
+  // Only run when pathname actually changes (navigation), not when activeParentId changes manually
   useEffect(() => {
     if (!permissionsData?.data?.menus) return;
 
-    const menus = permissionsData.data.menus;
-    const detectedParent = findParentMenuByPath(menus, pathname);
+    const currentPathname = pathname;
+    const previousPathname = previousPathnameRef.current;
     
-    if (detectedParent && detectedParent !== activeParentId) {
-      React.startTransition(() => {
-        setActiveParentId(detectedParent);
-      });
+    // Only auto-detect when pathname actually changes (user navigated to different page)
+    // Not when user manually selects parent while staying on same page
+    const pathnameChanged = previousPathname !== currentPathname;
+    
+    if (pathnameChanged && !manualSelectionRef.current) {
+      const menus = permissionsData.data.menus as MenuWithActions[];
+      const detectedParent = findParentMenuByPath(menus, currentPathname);
+      
+      if (detectedParent && detectedParent !== activeParentId) {
+        React.startTransition(() => {
+          setActiveParentId(detectedParent);
+        });
+      }
     }
-  }, [pathname, permissionsData, activeParentId]);
+    
+    // Update previous pathname ref
+    previousPathnameRef.current = currentPathname;
+    
+    // Reset manual selection flag after navigation completes
+    if (manualSelectionRef.current && pathnameChanged) {
+      // Delay reset to allow manual selection to take effect first
+      const timer = setTimeout(() => {
+        manualSelectionRef.current = false;
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, permissionsData]);
 
   const handleSelectParent = useCallback((id: string) => {
     const item = parentItems.find((p) => p.id === id);
     if (item) {
+      // Mark as manual selection to prevent auto-detect override
+      manualSelectionRef.current = true;
+      
+      // Reset flag after a delay to allow auto-detect on next navigation
+      setTimeout(() => {
+        manualSelectionRef.current = false;
+      }, 500);
+      
       if (item.hasChildren) {
         setActiveParentId(id);
         setIsDetailSidebarOpen(true);

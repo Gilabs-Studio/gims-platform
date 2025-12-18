@@ -111,14 +111,14 @@ const TreeItem = memo(function TreeItem({
                 <FolderOpen
                   className={cn(
                     "h-4 w-4 shrink-0 transition-colors",
-                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    "text-primary" // Always primary blue when expanded
                   )}
                 />
               ) : (
                 <Folder
                   className={cn(
                     "h-4 w-4 shrink-0 transition-colors",
-                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    "text-primary/50" // Primary blue with 50% opacity when collapsed
                   )}
                 />
               )}
