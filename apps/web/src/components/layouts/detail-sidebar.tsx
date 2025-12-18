@@ -99,7 +99,7 @@ const TreeItem = memo(function TreeItem({
             <button
               type="button"
               className={cn(
-                "group relative z-10 flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+                "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
                 "hover:bg-accent hover:text-accent-foreground",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isActive && "bg-primary/10 text-primary font-medium"
@@ -134,7 +134,7 @@ const TreeItem = memo(function TreeItem({
               )}
               <span
                 className={cn(
-                  "flex-1 truncate transition-colors",
+                  "flex-1 min-w-0 max-w-full break-words transition-colors",
                   isActive ? "text-primary font-medium" : "text-foreground/80 group-hover:text-foreground"
                 )}
               >
@@ -223,7 +223,7 @@ const TreeItem = memo(function TreeItem({
       <Link
         href={item.href || "#"}
         className={cn(
-          "group relative z-10 flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+          "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
           "hover:bg-accent hover:text-accent-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           isActive
@@ -246,7 +246,7 @@ const TreeItem = memo(function TreeItem({
         )}
         <span
           className={cn(
-            "flex-1 truncate transition-colors",
+            "flex-1 min-w-0 max-w-full break-words transition-colors",
             isActive
               ? "text-primary font-medium"
               : "text-foreground/70 group-hover:text-foreground"
@@ -293,7 +293,7 @@ export const DetailSidebar = memo(function DetailSidebar({
         {/* Menu Items with Professional Scroll Area */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
-            <div className="px-3 py-4 space-y-0.5">
+            <div className="pl-1 pr-3 py-4 space-y-0.5">
               {items.length === 0 ? (
                 <div className="flex items-center justify-center py-8 text-center">
                   <p className="text-sm text-muted-foreground">No items available</p>
