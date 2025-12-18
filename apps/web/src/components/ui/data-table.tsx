@@ -323,6 +323,10 @@ export function DataTable<T extends { id: string }>({
                           })
                           .map((column, index) => {
                             const isFirstColumn = index === 0;
+                            // Skip actions column in default mobile layout (it's handled separately)
+                            if (column.id === "actions" && column.actions) {
+                              return null;
+                            }
                             return (
                               <div
                                 key={column.id}
@@ -341,7 +345,9 @@ export function DataTable<T extends { id: string }>({
                                       "font-semibold text-foreground",
                                   )}
                                 >
-                                  {column.accessor(row)}
+                                  {column.actions
+                                    ? renderActions(row, column.actions)
+                                    : column.accessor?.(row) ?? null}
                                 </div>
                               </div>
                             );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, startTransition } from "react";
 import { Edit, Trash2, Plus, Search, Eye, CheckCircle2, Map, Table, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import type { CreateCompanyFormData, UpdateCompanyFormData } from "../schemas/company.schema";
 import { useApproveCompany } from "../hooks/use-companies";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function CompanyList() {
   const {
@@ -65,12 +66,29 @@ export function CompanyList() {
   const [viewMode, setViewMode] = useState<"table" | "map">("map");
   const [selectedMapCompanyId, setSelectedMapCompanyId] = useState<number | null>(null);
   const isMobile = useIsMobile();
-  const [isMapSidebarOpen, setIsMapSidebarOpen] = useState(!isMobile); // Open by default on desktop, closed on mobile
-
-  // Update sidebar state when mobile state changes
+  // Track if user has manually toggled the sidebar
+  const hasManuallyToggledRef = useRef(false);
+  // Derive initial sidebar state from mobile state, but allow manual override
+  const [isMapSidebarOpen, setIsMapSidebarOpen] = useState(() => !isMobile);
+  
+  // Update sidebar state when mobile state changes (only if not manually overridden)
   useEffect(() => {
-    setIsMapSidebarOpen(!isMobile);
+    if (!hasManuallyToggledRef.current) {
+      const expected = !isMobile;
+      // Use startTransition to batch the update and avoid cascading renders
+      startTransition(() => {
+        setIsMapSidebarOpen(expected);
+      });
+    }
+    // Reset manual toggle flag when mobile state changes
+    hasManuallyToggledRef.current = false;
   }, [isMobile]);
+  
+  // Wrapper for manual toggle that sets the ref
+  const handleToggleSidebar = () => {
+    hasManuallyToggledRef.current = true;
+    setIsMapSidebarOpen((prev) => !prev);
+  };
   const t = useTranslations("companyManagement.list");
   const approveCompany = useApproveCompany();
 
@@ -170,6 +188,7 @@ export function CompanyList() {
       id: "actions",
       header: t("actions"),
       sticky: true,
+      accessor: () => null, // Fallback accessor for columns with actions
       actions: [
         ...(hasViewPermission
           ? [
@@ -254,19 +273,19 @@ export function CompanyList() {
               variant={viewMode === "map" ? "default" : "outline"}
               size="sm"
               onClick={() => setViewMode("map")}
-              className="flex-1 h-9"
+              className="flex-1 h-9 min-w-0"
             >
-              <Map className="h-4 w-4 mr-2" />
-              {t("map")}
+              <Map className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">{t("map")}</span>
             </Button>
             <Button
               variant={viewMode === "table" ? "default" : "outline"}
               size="sm"
               onClick={() => setViewMode("table")}
-              className="flex-1 h-9"
+              className="flex-1 h-9 min-w-0"
             >
-              <Table className="h-4 w-4 mr-2" />
-              {t("table")}
+              <Table className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">{t("table")}</span>
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -274,10 +293,10 @@ export function CompanyList() {
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 size="sm"
-                className="flex-1 h-9"
+                className="flex-1 h-9 min-w-0"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("addCompany")}
+                <Plus className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">{t("addCompany")}</span>
               </Button>
             )}
             {hasApprovePermission && hasUnapprovedCompanies && (
@@ -286,10 +305,12 @@ export function CompanyList() {
                 size="sm"
                 onClick={handleApproveAll}
                 disabled={approveAll.isPending}
-                className="h-9"
+                className="h-9 min-w-0 flex-1"
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                {approveAll.isPending ? t("approving") : t("approveAll")}
+                <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">
+                  {approveAll.isPending ? t("approving") : t("approveAll")}
+                </span>
               </Button>
             )}
           </div>
@@ -306,9 +327,9 @@ export function CompanyList() {
           />
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="relative flex-1 max-w-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="relative flex-1 max-w-sm min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("searchPlaceholder")}
@@ -317,54 +338,85 @@ export function CompanyList() {
                 className="pl-10 h-9"
               />
             </div>
-            <div className="flex items-center gap-1 border rounded-md p-1">
-              <Button
-                variant={viewMode === "map" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("map")}
-                className="h-8"
-              >
-                <Map className="h-4 w-4 mr-2" />
-                {t("map")}
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-                className="h-8"
-              >
-                <Table className="h-4 w-4 mr-2" />
-                {t("table")}
-              </Button>
+            <div className="flex items-center gap-1 border rounded-md p-1 shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === "map" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("map")}
+                    className="h-8 min-w-0 overflow-hidden"
+                  >
+                    <Map className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate min-w-0">{t("map")}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("map")}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("table")}
+                    className="h-8 min-w-0 overflow-hidden"
+                  >
+                    <Table className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate min-w-0">{t("table")}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("table")}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <FileOperations
-              onImport={handleImport}
-              onExport={handleExport}
-              onDownloadTemplate={handleDownloadTemplate}
-              hasImportPermission={hasImportPermission}
-              hasExportPermission={hasExportPermission}
-              importLoading={importCompanies.isPending}
-              exportLoading={exportCompanies.isPending}
-              templateLoading={downloadTemplate.isPending}
-            />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="shrink-0">
+              <FileOperations
+                onImport={handleImport}
+                onExport={handleExport}
+                onDownloadTemplate={handleDownloadTemplate}
+                hasImportPermission={hasImportPermission}
+                hasExportPermission={hasExportPermission}
+                importLoading={importCompanies.isPending}
+                exportLoading={exportCompanies.isPending}
+                templateLoading={downloadTemplate.isPending}
+              />
+            </div>
             {hasApprovePermission && hasUnapprovedCompanies && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleApproveAll}
-                disabled={approveAll.isPending}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                {approveAll.isPending ? t("approving") : t("approveAll")}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleApproveAll}
+                    disabled={approveAll.isPending}
+                    className="min-w-0 overflow-hidden shrink"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate min-w-0">
+                      {approveAll.isPending ? t("approving") : t("approveAll")}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {approveAll.isPending ? t("approving") : t("approveAll")}
+                </TooltipContent>
+              </Tooltip>
             )}
             {hasCreatePermission && (
-              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                {t("addCompany")}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    size="sm"
+                    className="min-w-0 overflow-hidden shrink"
+                  >
+                    <Plus className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate min-w-0">{t("addCompany")}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("addCompany")}</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -383,7 +435,10 @@ export function CompanyList() {
             selectedCompanyId={selectedMapCompanyId}
             className="w-80 shrink-0"
             isOpen={isMapSidebarOpen}
-            onClose={isMobile ? () => setIsMapSidebarOpen(false) : undefined}
+            onClose={isMobile ? () => {
+              hasManuallyToggledRef.current = true;
+              setIsMapSidebarOpen(false);
+            } : undefined}
           />
           <div className={cn(
             "relative min-w-0 h-full",
@@ -396,7 +451,7 @@ export function CompanyList() {
               selectedCompanyId={selectedMapCompanyId}
               className="w-full h-full"
               showSidebar={isMapSidebarOpen}
-              onToggleSidebar={() => setIsMapSidebarOpen(!isMapSidebarOpen)}
+              onToggleSidebar={handleToggleSidebar}
             />
           </div>
         </div>
