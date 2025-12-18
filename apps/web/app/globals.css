@@ -270,3 +270,115 @@
     color: hsl(var(--sidebar-dark-foreground));
   }
 }
+
+/* Sonner Toast Custom Styling - Match Theme */
+[data-sonner-toast] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-left-width: 3px !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 200 !important;
+  padding: 12px 16px !important;
+}
+
+[data-sonner-toast] [data-title] {
+  font-weight: 400 !important;
+  color: hsl(var(--card-foreground)) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 13px !important;
+  font-weight: 200 !important;
+  line-height: 1.5 !important;
+  margin-top: 4px !important;
+}
+
+/* Success Toast - Electric Blue accent */
+[data-sonner-toast][data-type="success"] {
+  border-left-color: hsl(var(--brand)) !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] {
+  color: hsl(var(--brand)) !important;
+}
+
+/* Error Toast - Destructive accent */
+[data-sonner-toast][data-type="error"] {
+  border-left-color: hsl(var(--destructive)) !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: hsl(var(--destructive)) !important;
+}
+
+/* Info Toast - Electric Blue accent */
+[data-sonner-toast][data-type="info"] {
+  border-left-color: hsl(var(--brand)) !important;
+}
+
+[data-sonner-toast][data-type="info"] [data-icon] {
+  color: hsl(var(--brand)) !important;
+}
+
+/* Warning Toast - Amber accent */
+[data-sonner-toast][data-type="warning"] {
+  border-left-color: hsl(38 92% 50%) !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-icon] {
+  color: hsl(38 92% 50%) !important;
+}
+
+/* Default Toast (no type) - Border color */
+[data-sonner-toast]:not([data-type]) {
+  border-left-color: hsl(var(--border)) !important;
+}
+
+/* Close button styling */
+[data-sonner-toast] [data-close-button] {
+  color: hsl(var(--muted-foreground)) !important;
+  background-color: transparent !important;
+  border: none !important;
+  opacity: 0.6 !important;
+  transition: opacity 0.2s ease, background-color 0.2s ease !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  opacity: 1 !important;
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Action and cancel buttons */
+[data-sonner-toast] [data-button] {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  font-weight: 400 !important;
+  padding: 6px 12px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+[data-sonner-toast] [data-button]:hover {
+  background-color: hsl(221 83% 48%) !important;
+}
+
+[data-sonner-toast] [data-cancel-button] {
+  background-color: hsl(var(--muted)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+[data-sonner-toast] [data-cancel-button]:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+/* Dark mode adjustments */
+.dark [data-sonner-toast] {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
