@@ -369,7 +369,7 @@ export function CompanyList() {
               </Tooltip>
             </div>
           </div>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 shrink-0">
             <div className="shrink-0">
               <FileOperations
                 onImport={handleImport}
@@ -390,10 +390,10 @@ export function CompanyList() {
                     size="sm"
                     onClick={handleApproveAll}
                     disabled={approveAll.isPending}
-                    className="min-w-0 overflow-hidden shrink"
+                    className="shrink-0"
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
-                    <span className="truncate min-w-0">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span className="hidden xl:inline ml-2">
                       {approveAll.isPending ? t("approving") : t("approveAll")}
                     </span>
                   </Button>
@@ -409,10 +409,10 @@ export function CompanyList() {
                   <Button
                     onClick={() => setIsCreateDialogOpen(true)}
                     size="sm"
-                    className="min-w-0 overflow-hidden shrink"
+                    className="shrink-0"
                   >
-                    <Plus className="h-4 w-4 mr-2 shrink-0" />
-                    <span className="truncate min-w-0">{t("addCompany")}</span>
+                    <Plus className="h-4 w-4 shrink-0" />
+                    <span className="hidden xl:inline ml-2">{t("addCompany")}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t("addCompany")}</TooltipContent>

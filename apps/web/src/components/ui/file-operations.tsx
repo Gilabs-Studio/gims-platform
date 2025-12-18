@@ -92,9 +92,9 @@ export function FileOperations({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className={cn("gap-2", className)}>
-            <MoreVertical className="h-4 w-4" />
-            <span className="hidden sm:inline">File Operations</span>
+          <Button variant="outline" size="sm" className={cn("shrink-0", className)}>
+            <MoreVertical className="h-4 w-4 shrink-0" />
+            <span className="hidden xl:inline ml-2">File Operations</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
