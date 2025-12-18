@@ -29,9 +29,11 @@ import { useLogin } from "../hooks/use-login";
 import type { AuthError } from "../types/errors";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { useRateLimitStore } from "@/lib/stores/useRateLimitStore";
+import { useRouter } from "@/i18n/routing";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
+  const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { handleLogin, isLoading, error, clearError } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
@@ -94,9 +96,11 @@ export function LoginForm() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Redirect handled by useLogin hook
+      // Redirect to dashboard if already authenticated
+      // This prevents authenticated users from accessing login page
+      router.push("/dashboard");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     if (error) {

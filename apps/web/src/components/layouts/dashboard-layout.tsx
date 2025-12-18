@@ -519,7 +519,8 @@ export const DashboardLayout = memo(function DashboardLayout({
   const parentItems: IconSidebarItem[] = useMemo(() => {
     const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
 
-    const fallback: IconSidebarItem[] = [
+    // Always start with Dashboard menu (static)
+    const items: IconSidebarItem[] = [
       {
         id: "dashboard",
         name: "Dashboard",
@@ -529,27 +530,23 @@ export const DashboardLayout = memo(function DashboardLayout({
       },
     ];
 
-    if (!menus || menus.length === 0) {
-      return fallback;
+    // Add menus from permissions if available
+    if (menus && menus.length > 0) {
+      menus.forEach((menu) => {
+        if (!checkViewPermission(menu)) return;
+
+        const hasChildren = Boolean(menu.children && menu.children.length > 0);
+
+        items.push({
+          id: String(menu.id), // Convert to string for consistency
+          name: menu.name,
+          icon: getMenuIcon(menu.icon),
+          href: menu.url || undefined,
+          hasChildren,
+        });
+      });
     }
 
-    const items: IconSidebarItem[] = [];
-
-    menus.forEach((menu) => {
-      if (!checkViewPermission(menu)) return;
-
-      const hasChildren = Boolean(menu.children && menu.children.length > 0);
-
-      items.push({
-        id: String(menu.id), // Convert to string for consistency
-        name: menu.name,
-        icon: getMenuIcon(menu.icon),
-        href: menu.url || undefined,
-        hasChildren,
-      });
-    });
-
-    if (items.length === 0) return fallback;
     return items;
   }, [permissionsData]);
 
