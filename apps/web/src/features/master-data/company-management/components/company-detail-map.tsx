@@ -2,22 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-// Fix untuk default marker icon di Leaflet
-const DefaultIcon = L.icon({
-  iconUrl: typeof icon === "string" ? icon : icon.src,
-  shadowUrl: typeof iconShadow === "string" ? iconShadow : iconShadow.src,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -48,25 +32,48 @@ interface CompanyDetailMapProps {
 export function CompanyDetailMap({ latitude, longitude, companyName }: CompanyDetailMapProps) {
   const [mounted, setMounted] = useState(false);
 
+  // Setup Leaflet CSS and icon only on client-side
   useEffect(() => {
-    setMounted(true);
+    if (typeof window === "undefined") return;
+
+    // Import CSS dynamically
+    // @ts-expect-error - CSS import for Leaflet
+    void import("leaflet/dist/leaflet.css");
+    
+    // Setup Leaflet icon using direct paths from CDN
+    void import("leaflet").then((L) => {
+      const DefaultIcon = L.default.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      });
+      
+      L.default.Marker.prototype.options.icon = DefaultIcon;
+      setMounted(true);
+    });
   }, []);
 
   if (!mounted) {
     return (
-      <div className="h-[400px] flex items-center justify-center bg-muted rounded-md">
+      <div className="h-[300px] sm:h-[400px] flex items-center justify-center bg-muted rounded-md">
         <p className="text-muted-foreground">Loading map...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-[400px] rounded-md border overflow-hidden">
+    <div className="h-[300px] sm:h-[400px] rounded-md border overflow-hidden">
       <MapContainer
         center={[latitude, longitude]}
         zoom={15}
         className="h-full w-full"
         scrollWheelZoom={true}
+        touchZoom={true}
+        doubleClickZoom={true}
+        dragging={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

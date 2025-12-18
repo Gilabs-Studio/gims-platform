@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building, Eye } from "lucide-react";
+import { Building, Eye, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "../badge";
 import { Button } from "../button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { Company } from "@/features/master-data/company-management/types";
 import dynamic from "next/dynamic";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Dynamic import untuk Leaflet (client-side only)
 const MapContainer = dynamic(
@@ -72,6 +73,8 @@ interface CompanyMapViewProps {
   readonly onViewDetail?: (company: Company) => void;
   readonly selectedCompanyId?: number | null;
   readonly className?: string;
+  readonly showSidebar?: boolean;
+  readonly onToggleSidebar?: () => void;
 }
 
 // Default location: Jakarta, Indonesia
@@ -83,8 +86,11 @@ export function CompanyMapView({
   onViewDetail,
   selectedCompanyId,
   className,
+  showSidebar = false,
+  onToggleSidebar,
 }: CompanyMapViewProps) {
   const [mounted, setMounted] = useState(false);
+  const isMobile = useIsMobile();
 
   // Setup Leaflet CSS and icon only on client-side
   useEffect(() => {
@@ -169,11 +175,30 @@ export function CompanyMapView({
 
   return (
     <div className={cn("relative w-full h-full bg-muted", className)}>
+      {/* Mobile Sidebar Toggle Button */}
+      {isMobile && onToggleSidebar && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute top-2 left-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+          onClick={onToggleSidebar}
+          aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
+        >
+          {showSidebar ? (
+            <X className="h-4 w-4" />
+          ) : (
+            <Menu className="h-4 w-4" />
+          )}
+        </Button>
+      )}
       <MapContainer
         center={mapCenter}
         zoom={mapZoom}
         className="h-full w-full z-0"
         scrollWheelZoom={true}
+        touchZoom={true}
+        doubleClickZoom={true}
+        dragging={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -246,6 +271,8 @@ interface CompanyMapSidebarProps {
   readonly onViewDetail?: (company: Company) => void;
   readonly selectedCompanyId?: number | null;
   readonly className?: string;
+  readonly isOpen?: boolean;
+  readonly onClose?: () => void;
 }
 
 export function CompanyMapSidebar({
@@ -254,7 +281,139 @@ export function CompanyMapSidebar({
   onViewDetail,
   selectedCompanyId,
   className,
+  isOpen = true,
+  onClose,
 }: CompanyMapSidebarProps) {
+  const isMobile = useIsMobile();
+
+  // Mobile: Use Sheet/Drawer pattern
+  if (isMobile) {
+    return (
+      <>
+        {/* Backdrop */}
+        {isOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-[999] md:hidden"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+        )}
+        {/* Sidebar */}
+        <div
+          className={cn(
+            "fixed left-0 top-0 h-full w-80 bg-background border-r z-[1000] transition-transform duration-300 ease-in-out md:relative md:z-auto",
+            isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+            className
+          )}
+        >
+          <div className="h-full overflow-y-auto flex flex-col">
+            {/* Mobile Header */}
+            <div className="flex items-center justify-between p-4 border-b md:hidden">
+              <h2 className="font-semibold text-sm">Companies</h2>
+              {onClose && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="cursor-pointer"
+                  aria-label="Close sidebar"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <div className="divide-y flex-1">
+              {companies.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground text-sm">
+                  No companies found
+                </div>
+              ) : (
+                companies.map((company) => (
+                  <div
+                    key={company.id}
+                    className={cn(
+                      "w-full border-b last:border-0",
+                      selectedCompanyId === company.id && "bg-accent border-l-4 border-l-primary"
+                    )}
+                  >
+                    <button
+                      onClick={() => {
+                        onCompanyClick?.(company);
+                        // Close sidebar on mobile after selection
+                        if (isMobile && onClose) {
+                          onClose();
+                        }
+                      }}
+                      className={cn(
+                        "w-full text-left p-4 hover:bg-accent/50 transition-colors cursor-pointer",
+                        selectedCompanyId === company.id && "bg-transparent"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate cursor-pointer">{company.name}</span>
+                          </div>
+                          {company.address && (
+                            <p className="text-xs text-muted-foreground truncate mb-2">
+                              {company.address}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={company.is_approved ? "default" : "secondary"} className="text-xs">
+                              {company.is_approved ? (
+                                <>
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Approved
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Pending
+                                </>
+                              )}
+                            </Badge>
+                            {company.city?.name && (
+                              <span className="text-xs text-muted-foreground">
+                                {company.city.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                    {onViewDetail && (
+                      <div className="px-4 pb-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetail(company);
+                            // Close sidebar on mobile after viewing detail
+                            if (isMobile && onClose) {
+                              onClose();
+                            }
+                          }}
+                        >
+                          <Eye className="h-3 w-3 mr-1.5" />
+                          View Details
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Desktop: Normal sidebar
   return (
     <div className={cn("h-full overflow-y-auto border-r bg-background flex flex-col", className)}>
       <div className="divide-y flex-1">

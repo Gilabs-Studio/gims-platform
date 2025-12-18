@@ -25,6 +25,9 @@
       "deleteTitle": "Hapus Perusahaan",
       "deleteDescription": "Apakah Anda yakin ingin menghapus perusahaan ini? Tindakan ini tidak dapat dibatalkan.",
       "deleteDescriptionWithName": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+      "view": "Lihat",
+      "edit": "Edit",
+      "delete": "Hapus",
       "table": "Tabel",
       "map": "Peta"
     },

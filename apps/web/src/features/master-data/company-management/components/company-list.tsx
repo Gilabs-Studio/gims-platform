@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Edit, Trash2, Plus, Search, Eye, CheckCircle2, Map, Table, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { useCompanyList } from "../hooks/use-company-list";
 import { CompanyForm } from "./company-form";
 import { useHasPermission } from "../hooks/use-has-permission";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import type { Company } from "../types";
 import { useTranslations } from "next-intl";
 import type { CreateCompanyFormData, UpdateCompanyFormData } from "../schemas/company.schema";
@@ -64,6 +65,12 @@ export function CompanyList() {
   const [viewMode, setViewMode] = useState<"table" | "map">("map");
   const [selectedMapCompanyId, setSelectedMapCompanyId] = useState<number | null>(null);
   const isMobile = useIsMobile();
+  const [isMapSidebarOpen, setIsMapSidebarOpen] = useState(!isMobile); // Open by default on desktop, closed on mobile
+
+  // Update sidebar state when mobile state changes
+  useEffect(() => {
+    setIsMapSidebarOpen(!isMobile);
+  }, [isMobile]);
   const t = useTranslations("companyManagement.list");
   const approveCompany = useApproveCompany();
 
@@ -162,48 +169,55 @@ export function CompanyList() {
     {
       id: "actions",
       header: t("actions"),
-      accessor: (row) => (
-        <div className="flex items-center gap-2">
-          {hasViewPermission && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleViewCompany(parseInt(row.id))}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          )}
-          {hasApprovePermission && !row.is_approved && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleApproveCompany(parseInt(row.id))}
-              disabled={approveCompany.isPending}
-              title={t("approve")}
-            >
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            </Button>
-          )}
-          {hasEditPermission && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setEditingCompany(parseInt(row.id))}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          {hasDeletePermission && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeleteClick(parseInt(row.id))}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          )}
-        </div>
-      ),
+      sticky: true,
+      actions: [
+        ...(hasViewPermission
+          ? [
+              {
+                label: t("view"),
+                icon: <Eye className="h-4 w-4" />,
+                onClick: (row: CompanyWithStringId) =>
+                  handleViewCompany(parseInt(row.id)),
+                show: true,
+              },
+            ]
+          : []),
+        ...(hasApprovePermission
+          ? [
+              {
+                label: t("approve"),
+                icon: <CheckCircle2 className="h-4 w-4 text-green-600" />,
+                onClick: (row: CompanyWithStringId) =>
+                  handleApproveCompany(parseInt(row.id)),
+                show: (row: CompanyWithStringId) => !row.is_approved,
+                disabled: approveCompany.isPending,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: CompanyWithStringId) =>
+                  setEditingCompany(parseInt(row.id)),
+                show: true,
+              },
+            ]
+          : []),
+        ...(hasDeletePermission
+          ? [
+              {
+                label: t("delete"),
+                icon: <Trash2 className="h-4 w-4 text-destructive" />,
+                onClick: (row: CompanyWithStringId) =>
+                  handleDeleteClick(parseInt(row.id)),
+                show: false, // Delete in dropdown
+                variant: "destructive" as const,
+              },
+            ]
+          : []),
+      ],
     },
   ];
 
@@ -358,21 +372,31 @@ export function CompanyList() {
 
       {/* Map View - Full Page with Sidebar */}
       {viewMode === "map" && (
-        <div className="flex h-[calc(100vh-12rem)] min-h-[600px] border rounded-lg overflow-hidden bg-background">
+        <div className={cn(
+          "relative h-[calc(100vh-12rem)] min-h-[400px] sm:min-h-[600px] border rounded-lg overflow-hidden bg-background",
+          !isMobile && "flex"
+        )}>
           <CompanyMapSidebar
             companies={companies}
             onCompanyClick={handleMapCompanyClick}
             onViewDetail={handleMapViewDetail}
             selectedCompanyId={selectedMapCompanyId}
             className="w-80 shrink-0"
+            isOpen={isMapSidebarOpen}
+            onClose={isMobile ? () => setIsMapSidebarOpen(false) : undefined}
           />
-          <div className="flex-1 relative min-w-0">
+          <div className={cn(
+            "relative min-w-0 h-full",
+            !isMobile && "flex-1"
+          )}>
             <CompanyMapView
               companies={companies}
               onCompanyClick={handleMapCompanyClick}
               onViewDetail={handleMapViewDetail}
               selectedCompanyId={selectedMapCompanyId}
               className="w-full h-full"
+              showSidebar={isMapSidebarOpen}
+              onToggleSidebar={() => setIsMapSidebarOpen(!isMapSidebarOpen)}
             />
           </div>
         </div>

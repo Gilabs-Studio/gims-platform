@@ -25,6 +25,9 @@
       "deleteTitle": "Delete Company",
       "deleteDescription": "Are you sure you want to delete this company? This action cannot be undone.",
       "deleteDescriptionWithName": "Are you sure you want to delete {name}? This action cannot be undone.",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
       "table": "Table",
       "map": "Map"
     },

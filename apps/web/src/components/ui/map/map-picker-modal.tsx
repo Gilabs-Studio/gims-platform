@@ -12,22 +12,6 @@ import {
   DialogTitle,
 } from "../dialog";
 import dynamic from "next/dynamic";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-// Fix untuk default marker icon di Leaflet
-const DefaultIcon = L.icon({
-  iconUrl: typeof icon === "string" ? icon : icon.src,
-  shadowUrl: typeof iconShadow === "string" ? iconShadow : iconShadow.src,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -77,8 +61,28 @@ export function MapPickerModal({
   const [currentLat, setCurrentLat] = useState(latitude || DEFAULT_LOCATION[0]);
   const [currentLng, setCurrentLng] = useState(longitude || DEFAULT_LOCATION[1]);
 
+  // Setup Leaflet CSS and icon only on client-side
   useEffect(() => {
-    setMounted(true);
+    if (typeof window === "undefined") return;
+
+    // Import CSS dynamically
+    // @ts-expect-error - CSS import for Leaflet
+    void import("leaflet/dist/leaflet.css");
+    
+    // Setup Leaflet icon using direct paths from CDN
+    void import("leaflet").then((L) => {
+      const DefaultIcon = L.default.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      });
+      
+      L.default.Marker.prototype.options.icon = DefaultIcon;
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -106,19 +110,22 @@ export function MapPickerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 sm:p-6">
+        <DialogHeader className="px-6 pt-6 pb-4 sm:px-0 sm:pt-0">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="h-[500px] rounded-md border overflow-hidden relative">
+        <div className="space-y-4 px-6 sm:px-0">
+          <div className="h-[300px] sm:h-[500px] rounded-md border overflow-hidden relative">
             <MapContainer
               center={initialPosition}
               zoom={13}
               className="h-full w-full"
               scrollWheelZoom={true}
+              touchZoom={true}
+              doubleClickZoom={true}
+              dragging={true}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -131,7 +138,7 @@ export function MapPickerModal({
             </MapContainer>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Latitude</label>
               <input
@@ -165,7 +172,7 @@ export function MapPickerModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 pb-6 sm:px-0 sm:pb-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
