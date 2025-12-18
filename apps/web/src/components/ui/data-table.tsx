@@ -21,14 +21,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+export interface ActionItem<T> {
+  label: string;
+  icon?: React.ReactNode;
+  onClick: (row: T) => void;
+  show?: boolean | ((row: T) => boolean); // If false, will be in dropdown menu
+  variant?: "default" | "destructive";
+  disabled?: boolean | ((row: T) => boolean);
+}
 
 export interface Column<T> {
   id: string;
   header: string;
   accessor: (row: T) => React.ReactNode;
   className?: string;
+  sticky?: boolean; // For sticky columns (e.g., actions)
+  actions?: ActionItem<T>[]; // For action column with conditional show
 }
 
 export interface MobileGrid2Layout {
@@ -59,6 +78,80 @@ interface DataTableProps<T> {
   readonly perPageOptions?: readonly number[]; // e.g., [10, 20, 50, 100]
   readonly onResetFilters?: () => void;
   readonly mobileLayout?: MobileLayoutConfig; // Optional mobile layout configuration
+}
+
+// Helper function to render actions with conditional show
+function renderActions<T extends { id: string }>(
+  row: T,
+  actions: ActionItem<T>[],
+): React.ReactNode {
+  const shouldShow = (action: ActionItem<T>): boolean => {
+    if (action.show === undefined) return true;
+    if (typeof action.show === "function") {
+      return action.show(row);
+    }
+    return action.show !== false;
+  };
+
+  const visibleActions = actions.filter((action) => {
+    const show = shouldShow(action);
+    return show === true;
+  });
+  const hiddenActions = actions.filter((action) => {
+    const show = shouldShow(action);
+    return show === false;
+  });
+
+  const isDisabled = (action: ActionItem<T>): boolean => {
+    if (typeof action.disabled === "function") {
+      return action.disabled(row);
+    }
+    return action.disabled ?? false;
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Visible actions */}
+      {visibleActions.map((action, index) => (
+        <Button
+          key={index}
+          variant="ghost"
+          size="icon"
+          onClick={() => action.onClick(row)}
+          disabled={isDisabled(action)}
+          title={action.label}
+          className="cursor-pointer"
+        >
+          {action.icon}
+        </Button>
+      ))}
+
+      {/* Dropdown menu for hidden actions */}
+      {hiddenActions.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="cursor-pointer">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {hiddenActions.map((action, index) => (
+              <DropdownMenuItem
+                key={index}
+                onClick={() => action.onClick(row)}
+                disabled={isDisabled(action)}
+                variant={action.variant}
+                className="cursor-pointer"
+              >
+                {action.icon && <span className="mr-2">{action.icon}</span>}
+                {action.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  );
 }
 
 export function DataTable<T extends { id: string }>({
@@ -129,6 +222,11 @@ export function DataTable<T extends { id: string }>({
                   // Find actions column (always look for it)
                   const actionsColumnIndex = columns.findIndex((col) => col.id === "actions");
                   const actionsColumn = actionsColumnIndex === -1 ? null : columns[actionsColumnIndex];
+                  
+                  // Render actions for mobile
+                  const actionsContent = actionsColumn?.actions
+                    ? renderActions(row, actionsColumn.actions)
+                    : actionsColumn?.accessor(row);
 
                   // If mobile layout is configured, use custom layout
                   if (mobileLayout) {
@@ -168,7 +266,7 @@ export function DataTable<T extends { id: string }>({
                                 </div>
                                 {actionsColumn && (
                                   <div className="shrink-0">
-                                    {actionsColumn.accessor(row)}
+                                    {actionsContent}
                                   </div>
                                 )}
                               </div>
@@ -373,42 +471,59 @@ export function DataTable<T extends { id: string }>({
         </div>
       ) : (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead key={column.id} className={cn(column.className)}>
-                    {column.header}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.length === 0 ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    {emptyMessage}
-                  </TableCell>
+                  {columns.map((column) => (
+                    <TableHead
+                      key={column.id}
+                      className={cn(
+                        column.className,
+                        column.sticky &&
+                          "sticky right-0 bg-background z-10 border-l shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+                        column.id === "actions" && column.sticky && "min-w-[120px]"
+                      )}
+                    >
+                      {column.header}
+                    </TableHead>
+                  ))}
                 </TableRow>
-              ) : (
-                data.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-muted/50">
-                    {columns.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        className={cn(column.className)}
-                      >
-                        {column.accessor(row)}
-                      </TableCell>
-                    ))}
+              </TableHeader>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      {emptyMessage}
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  data.map((row) => (
+                    <TableRow key={row.id} className="hover:bg-muted/50">
+                      {columns.map((column) => (
+                        <TableCell
+                          key={column.id}
+                          className={cn(
+                            column.className,
+                            column.sticky &&
+                              "sticky right-0 bg-background z-10 border-l shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+                            column.id === "actions" && column.sticky && "min-w-[120px]"
+                          )}
+                        >
+                          {column.actions
+                            ? renderActions(row, column.actions)
+                            : column.accessor(row)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
           {pagination && (
             <div className="border-t bg-muted/30 px-6 py-4">
