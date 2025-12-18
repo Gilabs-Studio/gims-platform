@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Building } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "../badge";
+import { Button } from "../button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { Company } from "@/features/master-data/company-management/types";
 import dynamic from "next/dynamic";
@@ -28,25 +29,6 @@ const Popup = dynamic(
   () => import("react-leaflet").then((mod) => mod.Popup),
   { ssr: false }
 );
-
-// Import Leaflet CSS
-import "leaflet/dist/leaflet.css";
-
-// Fix untuk default marker icon di Leaflet
-import L from "leaflet";
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-const DefaultIcon = L.icon({
-  iconUrl: typeof icon === "string" ? icon : icon.src,
-  shadowUrl: typeof iconShadow === "string" ? iconShadow : iconShadow.src,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 // Component untuk handle map navigation (must be inside MapContainer)
 const MapNavigator = dynamic(
@@ -87,6 +69,7 @@ const MapNavigator = dynamic(
 interface CompanyMapViewProps {
   readonly companies: Company[];
   readonly onCompanyClick?: (company: Company) => void;
+  readonly onViewDetail?: (company: Company) => void;
   readonly selectedCompanyId?: number | null;
   readonly className?: string;
 }
@@ -97,9 +80,36 @@ const DEFAULT_LOCATION: [number, number] = [-6.2088, 106.8456];
 export function CompanyMapView({
   companies,
   onCompanyClick,
+  onViewDetail,
   selectedCompanyId,
   className,
 }: CompanyMapViewProps) {
+  const [mounted, setMounted] = useState(false);
+
+  // Setup Leaflet CSS and icon only on client-side
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Import CSS dynamically with type ignore
+    // @ts-expect-error - CSS import for Leaflet
+    void import("leaflet/dist/leaflet.css");
+    
+    // Setup Leaflet icon using direct paths from CDN
+    void import("leaflet").then((L) => {
+      const DefaultIcon = L.default.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      });
+      
+      L.default.Marker.prototype.options.icon = DefaultIcon;
+      setMounted(true);
+    });
+  }, []);
+
   // Calculate initial center and zoom
   const getInitialCenterAndZoom = (): { center: [number, number]; zoom: number } => {
     if (!companies || companies.length === 0) {
@@ -147,6 +157,16 @@ export function CompanyMapView({
     (c) => c.latitude != null && c.longitude != null && !isNaN(Number(c.latitude)) && !isNaN(Number(c.longitude))
   );
 
+  if (!mounted) {
+    return (
+      <div className={cn("relative w-full h-full bg-muted flex items-center justify-center", className)}>
+        <div className="text-center text-muted-foreground">
+          <p className="text-sm">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative w-full h-full bg-muted", className)}>
       <MapContainer
@@ -175,70 +195,13 @@ export function CompanyMapView({
                 },
               }}
             >
-              <Popup>
-                <div className="p-2">
-                  <h3 className="font-semibold text-sm mb-1">{company.name}</h3>
-                  {company.address && (
-                    <p className="text-xs text-muted-foreground mb-1">{company.address}</p>
-                  )}
-                  <Badge variant={company.is_approved ? "default" : "secondary"} className="text-xs">
-                    {company.is_approved ? "Approved" : "Pending"}
-                  </Badge>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
-    </div>
-  );
-}
-
-interface CompanyMapSidebarProps {
-  readonly companies: Company[];
-  readonly onCompanyClick?: (company: Company) => void;
-  readonly selectedCompanyId?: number | null;
-  readonly className?: string;
-}
-
-export function CompanyMapSidebar({
-  companies,
-  onCompanyClick,
-  selectedCompanyId,
-  className,
-}: CompanyMapSidebarProps) {
-  return (
-    <div className={cn("h-full overflow-y-auto border-r bg-background", className)}>
-      <div className="p-4 border-b">
-        <h3 className="font-semibold text-lg">Companies ({companies.length})</h3>
-      </div>
-      <div className="divide-y">
-        {companies.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">
-            No companies found
-          </div>
-        ) : (
-          companies.map((company) => (
-            <button
-              key={company.id}
-              onClick={() => onCompanyClick?.(company)}
-              className={cn(
-                "w-full text-left p-4 hover:bg-accent transition-colors",
-                selectedCompanyId === company.id && "bg-accent border-l-4 border-l-primary"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Building className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">{company.name}</span>
-                  </div>
-                  {company.address && (
-                    <p className="text-xs text-muted-foreground truncate mb-2">
-                      {company.address}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap">
+              <Popup className="min-w-[200px]">
+                <div className="p-3 space-y-2">
+                  <div>
+                    <h3 className="font-semibold text-sm mb-1">{company.name}</h3>
+                    {company.address && (
+                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{company.address}</p>
+                    )}
                     <Badge variant={company.is_approved ? "default" : "secondary"} className="text-xs">
                       {company.is_approved ? (
                         <>
@@ -252,15 +215,120 @@ export function CompanyMapSidebar({
                         </>
                       )}
                     </Badge>
-                    {company.city?.name && (
-                      <span className="text-xs text-muted-foreground">
-                        {company.city.name}
-                      </span>
+                  </div>
+                  {onViewDetail && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetail(company);
+                      }}
+                    >
+                      <Eye className="h-3 w-3 mr-1.5" />
+                      View Details
+                    </Button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+    </div>
+  );
+}
+
+interface CompanyMapSidebarProps {
+  readonly companies: Company[];
+  readonly onCompanyClick?: (company: Company) => void;
+  readonly onViewDetail?: (company: Company) => void;
+  readonly selectedCompanyId?: number | null;
+  readonly className?: string;
+}
+
+export function CompanyMapSidebar({
+  companies,
+  onCompanyClick,
+  onViewDetail,
+  selectedCompanyId,
+  className,
+}: CompanyMapSidebarProps) {
+  return (
+    <div className={cn("h-full overflow-y-auto border-r bg-background flex flex-col", className)}>
+      <div className="divide-y flex-1">
+        {companies.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground text-sm">
+            No companies found
+          </div>
+        ) : (
+          companies.map((company) => (
+            <div
+              key={company.id}
+              className={cn(
+                "w-full border-b last:border-0",
+                selectedCompanyId === company.id && "bg-accent border-l-4 border-l-primary"
+              )}
+            >
+              <button
+                onClick={() => onCompanyClick?.(company)}
+                className={cn(
+                  "w-full text-left p-4 hover:bg-accent/50 transition-colors cursor-pointer",
+                  selectedCompanyId === company.id && "bg-transparent"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium truncate cursor-pointer">{company.name}</span>
+                    </div>
+                    {company.address && (
+                      <p className="text-xs text-muted-foreground truncate mb-2">
+                        {company.address}
+                      </p>
                     )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={company.is_approved ? "default" : "secondary"} className="text-xs">
+                        {company.is_approved ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Approved
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Pending
+                          </>
+                        )}
+                      </Badge>
+                      {company.city?.name && (
+                        <span className="text-xs text-muted-foreground">
+                          {company.city.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              {onViewDetail && (
+                <div className="px-4 pb-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetail(company);
+                    }}
+                  >
+                    <Eye className="h-3 w-3 mr-1.5" />
+                    View Details
+                  </Button>
+                </div>
+              )}
+            </div>
           ))
         )}
       </div>

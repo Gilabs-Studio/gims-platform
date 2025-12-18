@@ -264,6 +264,34 @@ UI/UX Safety Guidelines (CRITICAL - Must Follow)
     </ErrorBoundary>
     ```
 
+11. **Cursor Pointer for Interactive Elements**
+    - **CRITICAL**: All clickable/interactive elements MUST have `cursor-pointer` class or `cursor: pointer` style.
+    - This includes: buttons, links, clickable cards, table rows, list items, icons with onClick handlers, etc.
+    - **ALWAYS** add cursor pointer to:
+      - Clickable text/names (e.g., company names, user names in lists)
+      - Interactive buttons (even if they already have default cursor)
+      - Clickable cards/containers
+      - Table rows with onClick handlers
+      - Any element with `onClick` handler
+    - Use `cursor-pointer` class in Tailwind, or `style={{ cursor: 'pointer' }}` for inline styles.
+    
+    ❌ BAD:
+    ```tsx
+    <button onClick={handleClick}>{name}</button>  // Missing cursor pointer
+    <div onClick={handleClick} className="p-4">{name}</div>  // Missing cursor pointer
+    <span onClick={handleView} className="font-medium">{company.name}</span>  // Missing cursor pointer
+    ```
+    
+    ✅ GOOD:
+    ```tsx
+    <button onClick={handleClick} className="cursor-pointer">{name}</button>
+    <div onClick={handleClick} className="p-4 cursor-pointer hover:bg-accent">{name}</div>
+    <span onClick={handleView} className="font-medium cursor-pointer hover:underline">{company.name}</span>
+    <Button onClick={handleClick} className="cursor-pointer">View Details</Button>
+    ```
+    
+    **Note**: Some components like `<Button>` from shadcn/ui already have cursor pointer by default, but it's good practice to be explicit for custom clickable elements.
+
 **Checklist Before Committing Component Code:**
 - [ ] All nested property accesses use optional chaining (`?.`)
 - [ ] All arrays checked for existence and length before iteration
@@ -275,6 +303,8 @@ UI/UX Safety Guidelines (CRITICAL - Must Follow)
 - [ ] Date operations validate input
 - [ ] String/Number operations handle null/undefined
 - [ ] Component tested with missing/undefined data
+- [ ] All clickable/interactive elements have `cursor-pointer` class
+- [ ] All buttons, links, and clickable cards have proper cursor styling
 
 Smart Suspense usage (Next.js App Router)
 - Prioritize static/above-the-fold UI:

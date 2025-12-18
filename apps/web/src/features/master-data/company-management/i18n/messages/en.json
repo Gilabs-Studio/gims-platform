@@ -2,6 +2,7 @@
   "companyManagement": {
     "list": {
       "title": "Company Management",
+      "subtitle": "Manage and view all company information, locations, and details in one place",
       "name": "Name",
       "city": "City",
       "address": "Address",

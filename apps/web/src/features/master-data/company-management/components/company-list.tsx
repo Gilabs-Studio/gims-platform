@@ -89,6 +89,11 @@ export function CompanyList() {
     // Map will automatically navigate to company location via useEffect in CompanyMapView
   };
 
+  const handleMapViewDetail = (company: Company) => {
+    setViewingCompanyId(company.id);
+    setIsDetailModalOpen(true);
+  };
+
   const handleApproveCompany = async (companyId: number) => {
     try {
       await approveCompany.mutateAsync(companyId);
@@ -109,7 +114,7 @@ export function CompanyList() {
       accessor: (row) => (
         <button
           onClick={() => handleViewCompany(parseInt(row.id))}
-          className="flex items-center gap-3 font-medium text-primary hover:underline"
+          className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer"
         >
           {row.name}
         </button>
@@ -211,7 +216,13 @@ export function CompanyList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("subtitle")}</p>
+      </div>
+
       {/* Header with Search and Actions */}
       {isMobile ? (
         <div className="space-y-3">
@@ -351,13 +362,15 @@ export function CompanyList() {
           <CompanyMapSidebar
             companies={companies}
             onCompanyClick={handleMapCompanyClick}
+            onViewDetail={handleMapViewDetail}
             selectedCompanyId={selectedMapCompanyId}
-                className="w-80 shrink-0"
+            className="w-80 shrink-0"
           />
           <div className="flex-1 relative min-w-0">
             <CompanyMapView
               companies={companies}
               onCompanyClick={handleMapCompanyClick}
+              onViewDetail={handleMapViewDetail}
               selectedCompanyId={selectedMapCompanyId}
               className="w-full h-full"
             />

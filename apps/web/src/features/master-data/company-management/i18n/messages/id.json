@@ -2,6 +2,7 @@
   "companyManagement": {
     "list": {
       "title": "Manajemen Perusahaan",
+      "subtitle": "Kelola dan lihat semua informasi perusahaan, lokasi, dan detail di satu tempat",
       "name": "Nama",
       "city": "Kota",
       "address": "Alamat",
