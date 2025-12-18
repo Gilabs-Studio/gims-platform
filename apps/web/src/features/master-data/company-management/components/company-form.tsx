@@ -23,7 +23,7 @@ import {
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { useCompanyAddData } from "../hooks/use-companies";
 import type { Company } from "../types";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 interface CompanyFormProps {
   readonly company?: Company;
@@ -37,27 +37,32 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
   const { data: addData, isLoading: isLoadingAddData } = useCompanyAddData();
   const t = useTranslations("companyManagement.form");
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
-  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
-  const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
-  const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
+  const [locationDataReady, setLocationDataReady] = useState(false);
 
-  const provinces = addData?.data?.provinces || [];
-  const directors = addData?.data?.directors || [];
+  const provinces = useMemo(() => addData?.data?.provinces || [], [addData?.data?.provinces]);
+  const directors = useMemo(() => addData?.data?.directors || [], [addData?.data?.directors]);
 
   // Helper to find province and city from district
-  const findLocationIds = (districtId: number) => {
-    if (!provinces || !districtId) return { provinceId: 0, cityId: 0 };
-    for (const province of provinces) {
-      for (const city of province.cities || []) {
-        for (const district of city.districts || []) {
-          if (district.id === districtId) {
-            return { provinceId: province.id, cityId: city.id };
+  const findLocationIds = useCallback(
+    (districtId: number) => {
+      if (!provinces || !districtId || provinces.length === 0) {
+        return { provinceId: 0, cityId: 0 };
+      }
+
+      for (const province of provinces) {
+        for (const city of province.cities || []) {
+          for (const district of city.districts || []) {
+            if (district.id === districtId) {
+              return { provinceId: province.id, cityId: city.id };
+            }
           }
         }
       }
-    }
-    return { provinceId: 0, cityId: 0 };
-  };
+
+      return { provinceId: 0, cityId: 0 };
+    },
+    [provinces],
+  );
 
   const {
     register,
@@ -69,9 +74,16 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
   } = useForm<CreateCompanyFormData | UpdateCompanyFormData>({
     resolver: zodResolver(isEdit ? updateCompanySchema : createCompanySchema),
     defaultValues: company
-      ? (() => {
+        ? (() => {
+          // For edit mode, set basic values first
+          // Location IDs will be set in useEffect after addData is available
           const districtId = company.village?.district_id || 0;
-          const { provinceId, cityId } = findLocationIds(districtId);
+
+          // Only calculate location IDs if addData is already available
+          const { provinceId, cityId } = addData?.data?.provinces?.length
+            ? findLocationIds(districtId)
+            : { provinceId: 0, cityId: 0 };
+
           return {
             province_id: provinceId,
             city_id: cityId,
@@ -105,36 +117,52 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
         },
   });
 
-  // Update form when company changes
+  // Reset locationDataReady flag when company changes
   useEffect(() => {
-    if (isEdit && company && addData) {
+    if (isEdit && company) {
+      setLocationDataReady(false);
+    }
+  }, [company, isEdit]);
+
+  // Update form when company and addData are available (for edit mode)
+  useEffect(() => {
+    if (isEdit && company && addData?.data?.provinces?.length && !locationDataReady) {
       const districtId = company.village?.district_id || 0;
       const { provinceId, cityId } = findLocationIds(districtId);
-      reset({
-        province_id: provinceId,
-        city_id: cityId,
-        district_id: districtId,
-        village_id: company.village?.id || 0,
-        director_id: company.director?.id || 0,
-        name: company.name,
-        address: company.address,
-        npwp: company.npwp || "",
-        nib: company.nib || "",
-        telp: company.telp,
-        email: company.email,
-        latitude: company.latitude,
-        longitude: company.longitude,
-      });
-      setSelectedProvinceId(provinceId || null);
-      setSelectedCityId(cityId || null);
-      setSelectedDistrictId(districtId || null);
+
+      reset(
+        {
+          province_id: provinceId,
+          city_id: cityId,
+          district_id: districtId,
+          village_id: company.village?.id || 0,
+          director_id: company.director?.id || 0,
+          name: company.name,
+          address: company.address,
+          npwp: company.npwp || "",
+          nib: company.nib || "",
+          telp: company.telp,
+          email: company.email,
+          latitude: company.latitude,
+          longitude: company.longitude,
+        },
+        { keepDefaultValues: false },
+      );
+
+      // Mark location data as ready to trigger Select re-render
+      setLocationDataReady(true);
+    } else if (isEdit && company && !addData?.data?.provinces?.length) {
+      // Reset flag when addData is not ready
+      setLocationDataReady(false);
     }
-  }, [company, isEdit, addData, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.id, isEdit, addData?.data?.provinces?.length, reset, isLoadingAddData, findLocationIds]);
 
   // Watch form values
   const provinceId = watch("province_id");
   const cityId = watch("city_id");
   const districtId = watch("district_id");
+  const villageId = watch("village_id");
   const latitude = watch("latitude");
   const longitude = watch("longitude");
 
@@ -170,9 +198,6 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
 
   const handleProvinceChange = (value: string) => {
     const id = parseInt(value);
-    setSelectedProvinceId(id);
-    setSelectedCityId(null);
-    setSelectedDistrictId(null);
     setValue("province_id", id, { shouldValidate: true });
     setValue("city_id", 0, { shouldValidate: true });
     setValue("district_id", 0, { shouldValidate: true });
@@ -181,8 +206,6 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
 
   const handleCityChange = (value: string) => {
     const id = parseInt(value);
-    setSelectedCityId(id);
-    setSelectedDistrictId(null);
     setValue("city_id", id, { shouldValidate: true });
     setValue("district_id", 0, { shouldValidate: true });
     setValue("village_id", 0, { shouldValidate: true });
@@ -190,7 +213,6 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
 
   const handleDistrictChange = (value: string) => {
     const id = parseInt(value);
-    setSelectedDistrictId(id);
     setValue("district_id", id, { shouldValidate: true });
     setValue("village_id", 0, { shouldValidate: true });
   };
@@ -301,7 +323,8 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
           <Field orientation="vertical">
             <FieldLabel>{t("provinceLabel")} *</FieldLabel>
             <Select
-              value={provinceId?.toString() || ""}
+              key={isEdit && locationDataReady ? `province-${provinceId}` : "province-initial"}
+              value={provinceId && provinceId > 0 ? provinceId.toString() : ""}
               onValueChange={handleProvinceChange}
             >
               <SelectTrigger>
@@ -321,9 +344,10 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
           <Field orientation="vertical">
             <FieldLabel>{t("cityLabel")} *</FieldLabel>
             <Select
-              value={cityId?.toString() || ""}
+              key={isEdit && locationDataReady ? `city-${cityId}-${provinceId}` : "city-initial"}
+              value={cityId && cityId > 0 ? cityId.toString() : ""}
               onValueChange={handleCityChange}
-              disabled={!provinceId}
+              disabled={!provinceId || provinceId === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder={provinceId ? t("cityPlaceholder") : t("selectProvinceFirst")} />
@@ -342,9 +366,10 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
           <Field orientation="vertical">
             <FieldLabel>{t("districtLabel")} *</FieldLabel>
             <Select
-              value={districtId?.toString() || ""}
+              key={isEdit && locationDataReady ? `district-${districtId}-${cityId}` : "district-initial"}
+              value={districtId && districtId > 0 ? districtId.toString() : ""}
               onValueChange={handleDistrictChange}
-              disabled={!cityId}
+              disabled={!cityId || cityId === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder={cityId ? t("districtPlaceholder") : t("selectCityFirst")} />
@@ -363,9 +388,10 @@ export function CompanyForm({ company, onSubmit, onCancel, isLoading }: CompanyF
           <Field orientation="vertical">
             <FieldLabel>{t("villageLabel")} *</FieldLabel>
             <Select
-              value={watch("village_id")?.toString() || ""}
+              key={isEdit && locationDataReady ? `village-${villageId ?? 0}-${districtId}` : "village-initial"}
+              value={villageId && villageId > 0 ? villageId.toString() : ""}
               onValueChange={(value) => setValue("village_id", parseInt(value), { shouldValidate: true })}
-              disabled={!districtId}
+              disabled={!districtId || districtId === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder={districtId ? t("villagePlaceholder") : t("selectDistrictFirst")} />
