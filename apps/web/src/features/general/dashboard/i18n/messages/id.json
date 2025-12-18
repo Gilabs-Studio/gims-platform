@@ -1,0 +1,50 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "deliveries": {
+      "title": "Pengiriman",
+      "total": "Total",
+      "pending": "Tertunda",
+      "completed": "Selesai",
+      "empty": "Tidak ada data tersedia"
+    },
+    "revenueCosts": {
+      "title": "Pendapatan & Biaya",
+      "empty": "Tidak ada data tersedia"
+    },
+    "balance": {
+      "title": "Saldo",
+      "empty": "Tidak ada data tersedia"
+    },
+    "costsByCategory": {
+      "title": "Biaya per Kategori",
+      "empty": "Tidak ada data tersedia"
+    },
+    "invoices": {
+      "title": "Faktur",
+      "summary": {
+        "total": "Total",
+        "unpaid": "Belum Dibayar",
+        "recentRequests": "Permintaan Terbaru",
+        "paid": "Dibayar"
+      },
+      "tabs": {
+        "all": "Semua",
+        "unpaid": "Belum Dibayar",
+        "recentRequest": "Permintaan Terbaru",
+        "paid": "Dibayar"
+      },
+      "table": {
+        "company": "Perusahaan",
+        "issueDate": "Tanggal Terbit",
+        "contact": "Kontak",
+        "value": "Nilai"
+      },
+      "empty": "Tidak ada faktur ditemukan",
+      "error": "Gagal memuat faktur. Silakan coba lagi."
+    },
+    "error": "Gagal memuat data dashboard. Silakan coba lagi.",
+    "loading": "Memuat..."
+  }
+}
+

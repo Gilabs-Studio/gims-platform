@@ -98,6 +98,13 @@
     --brand: 221 83% 53%;          /* Electric Blue #2563EB */
     --brand-foreground: 0 0% 100%;
     
+    /* Chart colors */
+    --chart-1: 221 83% 53%;        /* Electric Blue #2563EB */
+    --chart-2: 142 76% 36%;        /* Green #10b981 */
+    --chart-3: 38 92% 50%;         /* Amber */
+    --chart-4: 0 84% 60%;          /* Red */
+    --chart-5: 262 83% 58%;        /* Purple */
+    
     --radius: 0.5rem;
 
     /* Sidebar (Detail sidebar + gap) - Dark */
@@ -146,6 +153,13 @@
     --ring: 221 83% 53%;           /* Electric Blue #2563EB */
     --brand: 221 83% 53%;
     --brand-foreground: 0 0% 100%;
+
+    /* Chart colors */
+    --chart-1: 221 83% 53%;        /* Electric Blue #2563EB */
+    --chart-2: 142 76% 36%;        /* Green #10b981 */
+    --chart-3: 38 92% 50%;         /* Amber */
+    --chart-4: 0 84% 60%;          /* Red */
+    --chart-5: 262 83% 58%;        /* Purple */
 
     /* Sidebar (Detail sidebar + gap) - Darker */
     --sidebar: 0 0% 8%;            /* Very dark for detail sidebar and gap */

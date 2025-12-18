@@ -9,6 +9,8 @@ import userManagementEnMessages from "@/features/master-data/user-management/i18
 import userManagementIdMessages from "@/features/master-data/user-management/i18n/messages/id.json";
 import notificationsEnMessages from "@/features/notifications/i18n/messages/en.json";
 import notificationsIdMessages from "@/features/notifications/i18n/messages/id.json";
+import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.json";
+import dashboardIdMessages from "@/features/general/dashboard/i18n/messages/id.json";
 
 // Merge all messages
 const messages = {
@@ -16,11 +18,13 @@ const messages = {
     ...globalEnMessages,
     ...userManagementEnMessages,
     ...notificationsEnMessages,
+    ...dashboardEnMessages,
   },
   id: {
     ...globalIdMessages,
     ...userManagementIdMessages,
     ...notificationsIdMessages,
+    ...dashboardIdMessages,
   },
 } as const;
 

@@ -1,0 +1,50 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "deliveries": {
+      "title": "Deliveries",
+      "total": "Total",
+      "pending": "Pending",
+      "completed": "Completed",
+      "empty": "No data available"
+    },
+    "revenueCosts": {
+      "title": "Revenue & Costs",
+      "empty": "No data available"
+    },
+    "balance": {
+      "title": "Balance",
+      "empty": "No data available"
+    },
+    "costsByCategory": {
+      "title": "Costs by Category",
+      "empty": "No data available"
+    },
+    "invoices": {
+      "title": "Invoices",
+      "summary": {
+        "total": "Total",
+        "unpaid": "Unpaid",
+        "recentRequests": "Requests",
+        "paid": "Paid"
+      },
+      "tabs": {
+        "all": "All",
+        "unpaid": "Unpaid",
+        "recentRequest": "Requests",
+        "paid": "Paid"
+      },
+      "table": {
+        "company": "Company",
+        "issueDate": "Issue Date",
+        "contact": "Contact",
+        "value": "Value"
+      },
+      "empty": "No invoices found",
+      "error": "Failed to load invoices. Please try again."
+    },
+    "error": "Failed to load dashboard data. Please try again.",
+    "loading": "Loading..."
+  }
+}
+
