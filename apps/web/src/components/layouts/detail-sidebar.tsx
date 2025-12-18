@@ -58,37 +58,40 @@ const TreeItem = memo(function TreeItem({
 
     return (
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <div className="relative">
+        <div className="group/line relative">
           {/* Vertical line from parent (if not root level) */}
           {level > 0 && (
             <>
               {/* Vertical line going up from this item */}
               <div
-                className="absolute w-px bg-border/60"
+                className="sidebar-tree-line absolute w-px transition-opacity duration-200 z-20"
                 style={{
                   left: `${lineOffset}px`,
                   top: 0,
                   height: "50%",
+                  backgroundColor: "hsl(var(--primary) / 0.5)",
                 }}
               />
               {/* Horizontal connector line */}
               <div
-                className="absolute h-px bg-border/60"
+                className="sidebar-tree-line absolute h-px transition-opacity duration-200 z-20"
                 style={{
                   left: `${lineOffset}px`,
                   top: "50%",
                   width: `${indentBase - 8}px`,
                   transform: "translateY(-50%)",
+                  backgroundColor: "hsl(var(--primary) / 0.5)",
                 }}
               />
               {/* Vertical line continuation below (if not last) */}
               {!isLast && (
                 <div
-                  className="absolute w-px bg-border/60"
+                  className="sidebar-tree-line absolute w-px transition-opacity duration-200 z-20"
                   style={{
                     left: `${lineOffset}px`,
                     top: "50%",
                     height: "100%",
+                    backgroundColor: "hsl(var(--primary) / 0.5)",
                   }}
                 />
               )}
@@ -99,7 +102,7 @@ const TreeItem = memo(function TreeItem({
             <button
               type="button"
               className={cn(
-                "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+                "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left sidebar-item-hover-gradient",
                 "hover:bg-accent hover:text-accent-foreground",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isActive && "bg-primary/10 text-primary font-medium"
@@ -148,10 +151,11 @@ const TreeItem = memo(function TreeItem({
               {/* Vertical line for children group - stops at last child's center */}
               {children.length > 0 && isExpanded && (
                 <div
-                  className="absolute w-px bg-border/60"
+                  className="sidebar-tree-line absolute w-px transition-opacity duration-200 z-20"
                   style={{
                     left: `${indent + 8}px`,
                     top: 0,
+                    backgroundColor: "hsl(var(--primary) / 0.5)",
                     // Stop at the center of the last child
                     // Each tree item has approximately 40px height (py-2 = 16px + content)
                     // We want the line to stop at 50% of the last item's height
@@ -183,37 +187,40 @@ const TreeItem = memo(function TreeItem({
   }
 
   return (
-    <div className="relative">
+    <div className="group/line relative">
       {/* Connecting lines for leaf nodes */}
       {level > 0 && (
         <>
           {/* Vertical line from parent (going up) */}
           <div
-            className="absolute w-px bg-border/60"
+            className="sidebar-tree-line absolute w-px transition-opacity duration-200 z-20"
             style={{
               left: `${lineOffset}px`,
               top: 0,
               height: "50%",
+              backgroundColor: "hsl(var(--primary) / 0.5)",
             }}
           />
           {/* Horizontal connector line (L-shape) */}
           <div
-            className="absolute h-px bg-border/60"
+            className="sidebar-tree-line absolute h-px transition-opacity duration-200 z-20"
             style={{
               left: `${lineOffset}px`,
               top: "50%",
               width: `${indentBase - 8}px`,
               transform: "translateY(-50%)",
+              backgroundColor: "hsl(var(--primary) / 0.5)",
             }}
           />
           {/* Vertical line continuation below (only if NOT last - continues to next sibling) */}
           {!isLast && (
             <div
-              className="absolute w-px bg-border/60"
+              className="sidebar-tree-line absolute w-px transition-opacity duration-200 z-20"
               style={{
                 left: `${lineOffset}px`,
                 top: "50%",
                 height: "100%",
+                backgroundColor: "hsl(var(--primary) / 0.5)",
               }}
             />
           )}
@@ -223,7 +230,7 @@ const TreeItem = memo(function TreeItem({
       <Link
         href={item.href || "#"}
         className={cn(
-          "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left",
+          "group relative z-10 flex w-full min-w-0 items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm transition-all duration-200 text-left sidebar-item-hover-gradient",
           "hover:bg-accent hover:text-accent-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           isActive
@@ -270,7 +277,7 @@ export const DetailSidebar = memo(function DetailSidebar({
   return (
     <aside
       className={cn(
-        "fixed left-16 top-0 z-30 h-screen w-56 bg-sidebar border-r border-sidebar-border transition-transform duration-300 ease-out",
+        "fixed left-16 top-0 z-30 h-screen w-56 bg-sidebar transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}
       data-slot="detail-sidebar"
