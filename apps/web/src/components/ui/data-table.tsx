@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -48,6 +48,8 @@ export interface Column<T> {
   className?: string;
   sticky?: boolean; // For sticky columns (e.g., actions)
   actions?: ActionItem<T>[]; // For action column with conditional show
+  sortable?: boolean; // Whether this column is sortable
+  sortKey?: string; // The key to use for sorting (defaults to id if not provided)
 }
 
 export interface MobileGrid2Layout {
@@ -78,6 +80,12 @@ interface DataTableProps<T> {
   readonly perPageOptions?: readonly number[]; // e.g., [10, 20, 50, 100]
   readonly onResetFilters?: () => void;
   readonly mobileLayout?: MobileLayoutConfig; // Optional mobile layout configuration
+  readonly sort?: {
+    readonly sort_by?: string;
+    readonly sort_order?: "asc" | "desc";
+  };
+  readonly sortableColumns?: readonly string[]; // List of sortable column keys
+  readonly onSortChange?: (sortBy: string, sortOrder: "asc" | "desc") => void;
 }
 
 // Helper function to render actions with conditional show
@@ -165,8 +173,46 @@ export function DataTable<T extends { id: string }>({
   perPageOptions = [10, 20, 50, 100],
   onResetFilters,
   mobileLayout,
+  sort,
+  sortableColumns,
+  onSortChange,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
+
+  const handleSort = (column: Column<T>) => {
+    if (!onSortChange || !column.sortable) return;
+    
+    const sortKey = column.sortKey || column.id;
+    
+    // Check if column is in sortableColumns list
+    if (sortableColumns && !sortableColumns.includes(sortKey)) return;
+    
+    // Toggle sort order: if already sorting by this column, toggle order; otherwise set to asc
+    if (sort?.sort_by === sortKey) {
+      const newOrder = sort.sort_order === "asc" ? "desc" : "asc";
+      onSortChange(sortKey, newOrder);
+    } else {
+      onSortChange(sortKey, "asc");
+    }
+  };
+
+  const getSortIcon = (column: Column<T>) => {
+    if (!column.sortable) return null;
+    
+    const sortKey = column.sortKey || column.id;
+    
+    // Check if column is in sortableColumns list
+    if (sortableColumns && !sortableColumns.includes(sortKey)) return null;
+    
+    if (sort?.sort_by !== sortKey) {
+      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+    }
+    
+    if (sort.sort_order === "asc") {
+      return <ArrowUp className="h-4 w-4 text-primary" />;
+    }
+    return <ArrowDown className="h-4 w-4 text-primary" />;
+  };
 
   const getMinimalPageNumbers = () => {
     if (!pagination) return [];
@@ -481,19 +527,31 @@ export function DataTable<T extends { id: string }>({
             <Table>
               <TableHeader>
                 <TableRow>
-                  {columns.map((column) => (
-                    <TableHead
-                      key={column.id}
-                      className={cn(
-                        column.className,
-                        column.sticky &&
-                          "sticky right-0 bg-background z-10 border-l shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
-                        column.id === "actions" && column.sticky && "min-w-[120px]"
-                      )}
-                    >
-                      {column.header}
-                    </TableHead>
-                  ))}
+                  {columns.map((column) => {
+                    const isSortable = column.sortable && onSortChange;
+                    const sortKey = column.sortKey || column.id;
+                    const isSortableInMeta = !sortableColumns || sortableColumns.includes(sortKey);
+                    const canSort = isSortable && isSortableInMeta;
+                    
+                    return (
+                      <TableHead
+                        key={column.id}
+                        className={cn(
+                          column.className,
+                          column.sticky &&
+                            "sticky right-0 bg-background z-10 border-l shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+                          column.id === "actions" && column.sticky && "min-w-[120px]",
+                          canSort && "cursor-pointer hover:bg-muted/50 select-none"
+                        )}
+                        onClick={() => canSort && handleSort(column)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{column.header}</span>
+                          {canSort && getSortIcon(column)}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   useCompanies,
@@ -19,6 +19,8 @@ export function useCompanyList() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(undefined);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<number | null>(null);
   const [deletingCompanyId, setDeletingCompanyId] = useState<number | null>(null);
@@ -28,6 +30,8 @@ export function useCompanyList() {
     page,
     limit: perPage,
     search,
+    sort_by: sortBy,
+    sort_order: sortOrder,
   });
   const { data: editingCompanyData } = useCompany(editingCompany);
   const deleteCompany = useDeleteCompany();
@@ -40,6 +44,16 @@ export function useCompanyList() {
 
   const companies = data?.data || [];
   const pagination = data?.meta?.pagination;
+  const sortMeta = data?.meta?.sort;
+  const sortableColumns = data?.meta?.sortable_columns?.available_fields;
+
+  // Sync sort state with meta if available (for initial load)
+  useEffect(() => {
+    if (sortMeta?.sort_by && sortBy === undefined) {
+      setSortBy(sortMeta.sort_by);
+      setSortOrder(sortMeta.sort_order as "asc" | "desc" | undefined);
+    }
+  }, [sortMeta, sortBy]);
 
   const handleCreate = async (formData: CreateCompanyFormData) => {
     try {
@@ -137,6 +151,12 @@ export function useCompanyList() {
     setPage(1);
   };
 
+  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setPage(1); // Reset to first page when sorting changes
+  };
+
   return {
     // State
     page,
@@ -145,6 +165,10 @@ export function useCompanyList() {
     setPerPage: handlePerPageChange,
     search,
     setSearch,
+    sortBy,
+    sortOrder,
+    sortMeta,
+    sortableColumns,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     editingCompany,
@@ -167,6 +191,7 @@ export function useCompanyList() {
     handleExport,
     handleDownloadTemplate,
     handleImport,
+    handleSortChange,
     // Mutations
     deleteCompany,
     createCompany,

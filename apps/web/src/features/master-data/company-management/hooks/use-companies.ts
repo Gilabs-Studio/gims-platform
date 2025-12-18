@@ -9,6 +9,8 @@ export function useCompanies(params?: {
   limit?: number;
   search?: string;
   searchBy?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }) {
   return useQuery({
     queryKey: ["companies", params],

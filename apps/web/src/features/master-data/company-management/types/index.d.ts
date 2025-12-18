@@ -144,6 +144,21 @@ export interface CompanyListResponse {
       search: string;
       searchBy: string;
     };
+    sort?: {
+      sort_by?: string;
+      sort_order?: "asc" | "desc";
+    };
+    filter?: {
+      start_date?: string;
+      end_date?: string;
+    };
+    searchable_columns?: {
+      string_columns?: string[];
+      numeric_columns?: string[];
+    };
+    sortable_columns?: {
+      available_fields?: string[];
+    };
   };
   timestamp?: string;
   request_id?: string;

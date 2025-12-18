@@ -14,6 +14,8 @@ export const companyService = {
     limit?: number;
     search?: string;
     searchBy?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
   }): Promise<CompanyListResponse> {
     const response = await apiClient.get<CompanyListResponse>("/master-data/companies", {
       params,
@@ -60,6 +62,8 @@ export const companyService = {
     limit?: number;
     search?: string;
     searchBy?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
   }): Promise<Blob> {
     const response = await apiClient.get<Blob>("/master-data/companies/export", {
       params,

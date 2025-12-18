@@ -34,6 +34,10 @@ export function CompanyList() {
     setPerPage,
     search,
     setSearch,
+    sortBy,
+    sortOrder,
+    sortMeta,
+    sortableColumns,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     editingCompany,
@@ -52,6 +56,7 @@ export function CompanyList() {
     handleExport,
     handleDownloadTemplate,
     handleImport,
+    handleSortChange,
     deleteCompany,
     createCompany,
     updateCompany,
@@ -144,6 +149,8 @@ export function CompanyList() {
           {row.name}
         </button>
       ),
+      sortable: true,
+      sortKey: "name",
     },
     {
       id: "status",
@@ -173,16 +180,22 @@ export function CompanyList() {
       id: "address",
       header: t("address"),
       accessor: (row) => row.address ?? "-",
+      sortable: true,
+      sortKey: "address",
     },
     {
       id: "telp",
       header: t("telp"),
       accessor: (row) => row.telp ?? "-",
+      sortable: true,
+      sortKey: "telp",
     },
     {
       id: "email",
       header: t("email"),
       accessor: (row) => row.email ?? "-",
+      sortable: true,
+      sortKey: "email",
     },
     {
       id: "actions",
@@ -479,6 +492,16 @@ export function CompanyList() {
           onPageChange={setPage}
           onPerPageChange={setPerPage}
           perPageOptions={[10, 20, 50, 100]}
+          sort={
+            sortBy && sortOrder
+              ? {
+                  sort_by: sortBy,
+                  sort_order: sortOrder,
+                }
+              : undefined
+          }
+          sortableColumns={sortableColumns}
+          onSortChange={handleSortChange}
         />
       )}
 
