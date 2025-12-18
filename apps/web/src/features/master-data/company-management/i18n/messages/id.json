@@ -1,0 +1,132 @@
+{
+  "companyManagement": {
+    "list": {
+      "title": "Manajemen Perusahaan",
+      "name": "Nama",
+      "city": "Kota",
+      "address": "Alamat",
+      "telp": "Telepon",
+      "email": "Email",
+      "status": "Status",
+      "actions": "Aksi",
+      "searchPlaceholder": "Cari perusahaan...",
+      "addCompany": "Tambah Perusahaan",
+      "approveAll": "Setujui Semua",
+      "approve": "Setujui",
+      "approving": "Menyetujui...",
+      "approved": "Disetujui",
+      "pending": "Tertunda",
+      "approvedSuccess": "Perusahaan berhasil disetujui",
+      "empty": "Tidak ada perusahaan ditemukan",
+      "noPermission": "Anda tidak memiliki izin untuk melihat perusahaan",
+      "createTitle": "Buat Perusahaan",
+      "editTitle": "Edit Perusahaan",
+      "deleteTitle": "Hapus Perusahaan",
+      "deleteDescription": "Apakah Anda yakin ingin menghapus perusahaan ini? Tindakan ini tidak dapat dibatalkan.",
+      "deleteDescriptionWithName": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+      "table": "Tabel",
+      "map": "Peta"
+    },
+    "form": {
+      "loading": "Memuat data formulir...",
+      "basicInfo": {
+        "title": "Informasi Dasar"
+      },
+      "contactInfo": {
+        "title": "Informasi Kontak"
+      },
+      "locationInfo": {
+        "title": "Informasi Lokasi"
+      },
+      "coordinates": {
+        "title": "Koordinat Lokasi"
+      },
+      "nameLabel": "Nama Perusahaan",
+      "namePlaceholder": "Masukkan nama perusahaan",
+      "nameDescription": "Masukkan nama perusahaan (2-100 karakter)",
+      "directorLabel": "Direktur",
+      "directorPlaceholder": "Pilih direktur",
+      "addressLabel": "Alamat",
+      "addressPlaceholder": "Masukkan alamat lengkap",
+      "addressDescription": "Masukkan alamat lengkap (5-500 karakter)",
+      "telpLabel": "Nomor Telepon",
+      "telpPlaceholder": "+6281234567890",
+      "telpDescription": "Masukkan nomor telepon dengan kode negara",
+      "emailLabel": "Email",
+      "emailPlaceholder": "perusahaan@contoh.com",
+      "emailDescription": "Masukkan alamat email perusahaan",
+      "npwpPlaceholder": "123456789012345",
+      "npwpDescription": "Masukkan nomor NPWP 15 digit (opsional)",
+      "nibPlaceholder": "1234567890123",
+      "nibDescription": "Masukkan nomor NIB 13 digit (opsional)",
+      "provinceLabel": "Provinsi",
+      "provincePlaceholder": "Pilih provinsi",
+      "cityLabel": "Kota",
+      "cityPlaceholder": "Pilih kota",
+      "selectProvinceFirst": "Pilih provinsi terlebih dahulu",
+      "districtLabel": "Kecamatan",
+      "districtPlaceholder": "Pilih kecamatan",
+      "selectCityFirst": "Pilih kota terlebih dahulu",
+      "villageLabel": "Kelurahan",
+      "villagePlaceholder": "Pilih kelurahan",
+      "selectDistrictFirst": "Pilih kecamatan terlebih dahulu",
+      "latitudeLabel": "Lintang",
+      "latitudePlaceholder": "-6.2088",
+      "latitudeDescription": "Masukkan lintang (-90 hingga 90)",
+      "longitudeLabel": "Bujur",
+      "longitudePlaceholder": "106.8456",
+      "longitudeDescription": "Masukkan bujur (-180 hingga 180)",
+      "pickFromMap": "Pilih dari Peta",
+      "mapPicker": {
+        "title": "Pilih Lokasi Perusahaan",
+        "description": "Klik pada peta atau seret marker untuk mengatur koordinat lokasi perusahaan"
+      },
+      "cancel": "Batal",
+      "submitting": "Mengirim...",
+      "submitCreate": "Buat",
+      "submitUpdate": "Perbarui"
+    },
+    "detailModal": {
+      "title": "Detail Perusahaan",
+      "loadError": "Gagal memuat detail perusahaan",
+      "approved": "Disetujui",
+      "pending": "Tertunda",
+      "approve": "Setujui",
+      "approving": "Menyetujui...",
+      "edit": "Edit",
+      "delete": "Hapus",
+      "toastDeleted": "Perusahaan berhasil dihapus",
+      "toastApproved": "Perusahaan berhasil disetujui",
+      "toastUpdated": "Perusahaan berhasil diperbarui",
+      "editDialogTitle": "Edit Perusahaan",
+      "deleteDialogTitle": "Hapus Perusahaan",
+      "deleteDialogDescription": "Apakah Anda yakin ingin menghapus perusahaan ini? Tindakan ini tidak dapat dibatalkan.",
+      "deleteDialogDescriptionWithName": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+      "deleteDialogItemName": "perusahaan",
+      "companyInfo": {
+        "title": "Informasi Perusahaan",
+        "description": "Informasi dasar tentang perusahaan",
+        "name": "Nama Perusahaan",
+        "email": "Email",
+        "phone": "Telepon",
+        "address": "Alamat",
+        "location": "Lokasi",
+        "director": "Direktur",
+        "npwp": "NPWP",
+        "nib": "NIB"
+      },
+      "location": {
+        "title": "Lokasi",
+        "description": "Lokasi perusahaan di peta"
+      },
+      "metadata": {
+        "title": "Metadata",
+        "createdBy": "Dibuat Oleh",
+        "approvedBy": "Disetujui Oleh",
+        "createdAt": "Dibuat Pada",
+        "updatedAt": "Diperbarui Pada"
+      }
+    }
+  }
+}
+

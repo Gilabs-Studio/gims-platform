@@ -10,15 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  PaginationFirst,
-  PaginationLast,
 } from "@/components/ui/pagination";
 import {
   Select,
@@ -82,31 +75,31 @@ export function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
 
-  const getPageNumbers = () => {
+  const getMinimalPageNumbers = () => {
     if (!pagination) return [];
 
     const totalPages = pagination.total_pages;
     const currentPage = pagination.page;
-    const pages: (number | string)[] = [];
+    const pages: number[] = [];
 
-    if (totalPages <= 7) {
+    // Show max 2 pages: current and next (if exists)
+    // If on first page, show page 1 and 2
+    // If on last page, show previous and current
+    if (totalPages <= 2) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      pages.push(1);
-      if (currentPage > 3) {
-        pages.push("ellipsis-start");
+      if (currentPage === 1) {
+        // First page: show 1 and 2
+        pages.push(1, 2);
+      } else if (currentPage === totalPages) {
+        // Last page: show previous and current
+        pages.push(totalPages - 1, totalPages);
+      } else {
+        // Middle: show current and next
+        pages.push(currentPage, currentPage + 1);
       }
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-      if (currentPage < totalPages - 2) {
-        pages.push("ellipsis-end");
-      }
-      pages.push(totalPages);
     }
     return pages;
   };
@@ -310,44 +303,55 @@ export function DataTable<T extends { id: string }>({
                   </span>
                 </div>
 
-                {/* Pagination controls */}
+                {/* Minimalist Pagination controls */}
                 {pagination.total_pages > 1 && (
                   <div className="flex items-center justify-center gap-1">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={() =>
-                              onPageChange?.(Math.max(1, pagination.page - 1))
-                            }
-                            disabled={!pagination.has_prev || isLoading}
-                            className={cn(
-                              (!pagination.has_prev || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
-                            )}
-                            aria-disabled={!pagination.has_prev || isLoading}
-                          />
-                        </PaginationItem>
+                    <PaginationPrevious
+                      onClick={() =>
+                        onPageChange?.(Math.max(1, pagination.page - 1))
+                      }
+                      disabled={!pagination.has_prev || isLoading}
+                      className={cn(
+                        "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
+                        "disabled:pointer-events-none disabled:opacity-40",
+                        (!pagination.has_prev || isLoading) &&
+                          "pointer-events-none opacity-40 cursor-not-allowed",
+                      )}
+                      aria-disabled={!pagination.has_prev || isLoading}
+                    />
+                    
+                    {getMinimalPageNumbers().map((pageNumber) => {
+                      const isActive = pageNumber === pagination.page;
+                      return (
+                        <button
+                          key={pageNumber}
+                          onClick={() => onPageChange?.(pageNumber)}
+                          disabled={isLoading}
+                          className={cn(
+                            "h-8 min-w-8 px-3 text-sm font-medium rounded-md transition-all duration-200",
+                            "disabled:pointer-events-none disabled:opacity-50",
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                          aria-current={isActive ? "page" : undefined}
+                        >
+                          {pageNumber}
+                        </button>
+                      );
+                    })}
 
-                        <PaginationItem>
-                          <span className="px-3 py-1 text-sm">
-                            Page {pagination.page} of {pagination.total_pages}
-                          </span>
-                        </PaginationItem>
-
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={() => onPageChange?.(pagination.page + 1)}
-                            disabled={!pagination.has_next || isLoading}
-                            className={cn(
-                              (!pagination.has_next || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
-                            )}
-                            aria-disabled={!pagination.has_next || isLoading}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                    <PaginationNext
+                      onClick={() => onPageChange?.(pagination.page + 1)}
+                      disabled={!pagination.has_next || isLoading}
+                      className={cn(
+                        "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
+                        "disabled:pointer-events-none disabled:opacity-40",
+                        (!pagination.has_next || isLoading) &&
+                          "pointer-events-none opacity-40 cursor-not-allowed",
+                      )}
+                      aria-disabled={!pagination.has_next || isLoading}
+                    />
                   </div>
                 )}
               </div>
@@ -463,7 +467,7 @@ export function DataTable<T extends { id: string }>({
                   </p>
                 </div>
 
-                {/* Pagination controls + optional reset filters */}
+                {/* Minimalist Pagination controls + optional reset filters */}
                 {pagination.total_pages > 1 && (
                   <div className="flex items-center gap-3 order-1 lg:order-3">
                     {onResetFilters && (
@@ -475,93 +479,54 @@ export function DataTable<T extends { id: string }>({
                         Reset filters
                       </button>
                     )}
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationFirst
-                            onClick={() => onPageChange?.(1)}
-                            disabled={!pagination.has_prev || isLoading}
+                    <div className="flex items-center gap-1">
+                      <PaginationPrevious
+                        onClick={() =>
+                          onPageChange?.(Math.max(1, pagination.page - 1))
+                        }
+                        disabled={!pagination.has_prev || isLoading}
+                        className={cn(
+                          "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
+                          "disabled:pointer-events-none disabled:opacity-40",
+                          (!pagination.has_prev || isLoading) &&
+                            "pointer-events-none opacity-40 cursor-not-allowed",
+                        )}
+                        aria-disabled={!pagination.has_prev || isLoading}
+                      />
+                      
+                      {getMinimalPageNumbers().map((pageNumber) => {
+                        const isActive = pageNumber === pagination.page;
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => onPageChange?.(pageNumber)}
+                            disabled={isLoading}
                             className={cn(
-                              (!pagination.has_prev || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
+                              "h-8 min-w-8 px-3 text-sm font-medium rounded-md transition-all duration-200",
+                              "disabled:pointer-events-none disabled:opacity-50",
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                             )}
-                            aria-disabled={!pagination.has_prev || isLoading}
-                          />
-                        </PaginationItem>
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      })}
 
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={() =>
-                              onPageChange?.(Math.max(1, pagination.page - 1))
-                            }
-                            disabled={!pagination.has_prev || isLoading}
-                            className={cn(
-                              (!pagination.has_prev || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
-                            )}
-                            aria-disabled={!pagination.has_prev || isLoading}
-                          />
-                        </PaginationItem>
-
-                        {getPageNumbers().map((pageNum) => {
-                          if (
-                            pageNum === "ellipsis-start" ||
-                            pageNum === "ellipsis-end"
-                          ) {
-                            return (
-                              <PaginationItem key={`ellipsis-${pageNum}`}>
-                                <PaginationEllipsis />
-                              </PaginationItem>
-                            );
-                          }
-
-                          const pageNumber = pageNum as number;
-                          const isActive = pageNumber === pagination.page;
-
-                          return (
-                            <PaginationItem key={pageNumber}>
-                              <PaginationLink
-                                onClick={() => onPageChange?.(pageNumber)}
-                                disabled={isLoading}
-                                isActive={isActive}
-                                className={cn(
-                                  isLoading &&
-                                    "pointer-events-none opacity-50 cursor-not-allowed",
-                                )}
-                              >
-                                {pageNumber}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        })}
-
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={() => onPageChange?.(pagination.page + 1)}
-                            disabled={!pagination.has_next || isLoading}
-                            className={cn(
-                              (!pagination.has_next || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
-                            )}
-                            aria-disabled={!pagination.has_next || isLoading}
-                          />
-                        </PaginationItem>
-
-                        <PaginationItem>
-                          <PaginationLast
-                            onClick={() =>
-                              onPageChange?.(pagination.total_pages)
-                            }
-                            disabled={!pagination.has_next || isLoading}
-                            className={cn(
-                              (!pagination.has_next || isLoading) &&
-                                "pointer-events-none opacity-50 cursor-not-allowed",
-                            )}
-                            aria-disabled={!pagination.has_next || isLoading}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                      <PaginationNext
+                        onClick={() => onPageChange?.(pagination.page + 1)}
+                        disabled={!pagination.has_next || isLoading}
+                        className={cn(
+                          "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
+                          "disabled:pointer-events-none disabled:opacity-40",
+                          (!pagination.has_next || isLoading) &&
+                            "pointer-events-none opacity-40 cursor-not-allowed",
+                        )}
+                        aria-disabled={!pagination.has_next || isLoading}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

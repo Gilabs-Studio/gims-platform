@@ -7,6 +7,8 @@ import globalIdMessages from "./messages/id.json";
 // Feature messages
 import userManagementEnMessages from "@/features/master-data/user-management/i18n/messages/en.json";
 import userManagementIdMessages from "@/features/master-data/user-management/i18n/messages/id.json";
+import companyManagementEnMessages from "@/features/master-data/company-management/i18n/messages/en.json";
+import companyManagementIdMessages from "@/features/master-data/company-management/i18n/messages/id.json";
 import notificationsEnMessages from "@/features/notifications/i18n/messages/en.json";
 import notificationsIdMessages from "@/features/notifications/i18n/messages/id.json";
 import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.json";
@@ -17,12 +19,14 @@ const messages = {
   en: {
     ...globalEnMessages,
     ...userManagementEnMessages,
+    ...companyManagementEnMessages,
     ...notificationsEnMessages,
     ...dashboardEnMessages,
   },
   id: {
     ...globalIdMessages,
     ...userManagementIdMessages,
+    ...companyManagementIdMessages,
     ...notificationsIdMessages,
     ...dashboardIdMessages,
   },
