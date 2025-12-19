@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { FileOperations } from "@/components/ui/file-operations";
-import { CompanyMapView, CompanyMapSidebar } from "@/components/ui/map/company-map-view";
+import { CompanyMapView, CompanyMapSidebar } from "@/features/master-data/company-management/components/company-map-view";
 import { CompanyDetailModal } from "./company-detail-modal";
 import { useCompanyList } from "../hooks/use-company-list";
 import { CompanyForm } from "./company-form";

@@ -1,15 +1,15 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../button";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-interface SplitViewSidebarProps<T> {
+interface MapSidebarProps<T extends { id: number | string }> {
   readonly items: T[];
-  readonly selectedItemId?: number | null;
+  readonly selectedItemId?: number | string | null;
   readonly onItemClick?: (item: T) => void;
   readonly onViewDetail?: (item: T) => void;
   readonly renderItem: (item: T) => React.ReactNode;
@@ -18,9 +18,10 @@ interface SplitViewSidebarProps<T> {
   readonly className?: string;
   readonly isOpen?: boolean;
   readonly onClose?: () => void;
+  readonly estimateItemHeight?: number; // Height per item in pixels
 }
 
-export function SplitViewSidebar<T extends { id: number }>({
+export function MapSidebar<T extends { id: number | string }>({
   items,
   selectedItemId,
   onItemClick,
@@ -31,7 +32,8 @@ export function SplitViewSidebar<T extends { id: number }>({
   className,
   isOpen = true,
   onClose,
-}: SplitViewSidebarProps<T>) {
+  estimateItemHeight = 140, // Default height including padding and button
+}: MapSidebarProps<T>) {
   const isMobile = useIsMobile();
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -39,8 +41,12 @@ export function SplitViewSidebar<T extends { id: number }>({
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 120, // Estimated height per item (including padding and button)
+    estimateSize: () => estimateItemHeight,
     overscan: 5, // Render 5 extra items outside viewport
+    measureElement:
+      typeof window !== "undefined" && navigator.userAgent.indexOf("Firefox") === -1
+        ? (element) => element?.getBoundingClientRect().height
+        : undefined, // Firefox has issues with measureElement
   });
 
   // Mobile: Use Sheet/Drawer pattern
@@ -100,12 +106,13 @@ export function SplitViewSidebar<T extends { id: number }>({
                       return (
                         <div
                           key={virtualItem.key}
+                          data-index={virtualItem.index}
+                          ref={virtualizer.measureElement}
                           style={{
                             position: "absolute",
                             top: 0,
                             left: 0,
                             width: "100%",
-                            height: `${virtualItem.size}px`,
                             transform: `translateY(${virtualItem.start}px)`,
                           }}
                         >
@@ -166,12 +173,7 @@ export function SplitViewSidebar<T extends { id: number }>({
 
   // Desktop: Normal sidebar with virtual scrolling
   return (
-    <div
-      className={cn(
-        "h-full w-80 bg-background border-r flex flex-col shrink-0",
-        className
-      )}
-    >
+    <div className={cn("h-full border-r bg-background flex flex-col", className)}>
       {title && (
         <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h2 className="font-semibold text-sm">{title}</h2>
@@ -196,12 +198,13 @@ export function SplitViewSidebar<T extends { id: number }>({
                 return (
                   <div
                     key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       width: "100%",
-                      height: `${virtualItem.size}px`,
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >

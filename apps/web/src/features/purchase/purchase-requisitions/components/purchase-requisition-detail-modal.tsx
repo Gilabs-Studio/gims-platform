@@ -1,9 +1,9 @@
 "use client";
 
-import { Edit, Trash2, CheckCircle2, XCircle, ArrowRight, FileText, Calendar, Building2, ShoppingCart, DollarSign, User, MapPin, Clock, Package } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, ArrowRight, FileText, Calendar, Building2, ShoppingCart, DollarSign, User, Clock, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -12,9 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger, TabsContent, TabsContents } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContents } from "@/components/ui/tabs";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
+import { PurchaseRequisitionDetailTabs } from "./purchase-requisition-detail-tabs";
 import {
   usePurchaseRequisition,
   useDeletePurchaseRequisition,
@@ -334,7 +334,7 @@ export function PurchaseRequisitionDetailModal({
                 </Card>
               </div>
 
-              {/* Tabs for Organized Information */}
+              {/* Tabs for Organized Information - Lazy Loaded */}
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="w-full justify-start">
                   <TabsTrigger value="overview" className="gap-2">
@@ -356,306 +356,7 @@ export function PurchaseRequisitionDetailModal({
                 </TabsList>
 
                 <TabsContents className="mt-6">
-                  {/* Overview Tab */}
-                  <TabsContent value="overview" className="space-y-6 mt-0">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          {tDetail("basicInfo.title")}
-                        </CardTitle>
-                        <CardDescription>Basic purchase requisition information</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              {tDetail("basicInfo.code")}
-                            </label>
-                            <p className="text-sm font-medium">{requisition.code}</p>
-                          </div>
-                          {requisition.supplier && (
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                <Building2 className="h-3 w-3" />
-                                {tDetail("basicInfo.supplier")}
-                              </label>
-                              <p className="text-sm font-medium">{requisition.supplier.name}</p>
-                            </div>
-                          )}
-                          {requisition.business_unit && (
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                <Package className="h-3 w-3" />
-                                {tDetail("basicInfo.businessUnit")}
-                              </label>
-                              <p className="text-sm font-medium">{requisition.business_unit.name}</p>
-                            </div>
-                          )}
-                          {requisition.payment_terms && (
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                {tDetail("basicInfo.paymentTerms")}
-                              </label>
-                              <p className="text-sm font-medium">
-                                {requisition.payment_terms.name} ({requisition.payment_terms.days} days)
-                              </p>
-                            </div>
-                          )}
-                          {requisition.request_date && (
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {tDetail("basicInfo.requestDate")}
-                              </label>
-                              <p className="text-sm font-medium">
-                                {new Date(requisition.request_date).toLocaleDateString("id-ID", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
-                              </p>
-                            </div>
-                          )}
-                          {requisition.user && (
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {tDetail("basicInfo.requestedBy")}
-                              </label>
-                              <p className="text-sm font-medium">{requisition.user.name}</p>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {(requisition.address || requisition.notes) && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <MapPin className="h-5 w-5" />
-                            {tDetail("notes.title")}
-                          </CardTitle>
-                          <CardDescription>Additional notes and delivery address</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {requisition.address && (
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
-                                {tDetail("notes.address")}
-                              </label>
-                              <p className="text-sm font-medium">{requisition.address}</p>
-                            </div>
-                          )}
-                          {requisition.notes && (
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
-                                {tDetail("notes.notes")}
-                              </label>
-                              <p className="text-sm font-medium whitespace-pre-wrap">{requisition.notes}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-
-                  {/* Items Tab */}
-                  <TabsContent value="items" className="space-y-6 mt-0">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <ShoppingCart className="h-5 w-5" />
-                          {tDetail("items.title")}
-                        </CardTitle>
-                        <CardDescription>
-                          {items.length === 0
-                            ? tDetail("items.empty")
-                            : `${items.length} item${items.length > 1 ? "s" : ""} in this requisition`}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {items.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-8">
-                            {tDetail("items.empty")}
-                          </p>
-                        ) : (
-                          <div className="space-y-4">
-                            {items.map((item) => (
-                              <div
-                                key={item.id}
-                                className="border rounded-lg p-4 space-y-3 hover:bg-accent/50 transition-colors"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-base">
-                                      {item.product?.name ?? `Product #${item.product_id}`}
-                                    </p>
-                                    {item.product?.code && (
-                                      <p className="text-sm text-muted-foreground mt-1">
-                                        Code: {item.product.code}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <p className="font-semibold text-base ml-4">
-                                    {formatCurrency(item.subtotal ?? 0)}
-                                  </p>
-                                </div>
-                                <Separator />
-                                <div className="grid grid-cols-3 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground mb-1">{tDetail("items.quantity")}</p>
-                                    <p className="font-medium">{item.quantity}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground mb-1">
-                                      {tDetail("items.purchasePrice")}
-                                    </p>
-                                    <p className="font-medium">{formatCurrency(item.purchase_price ?? 0)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground mb-1">{tDetail("items.discount")}</p>
-                                    <p className="font-medium">{item.discount ?? 0}%</p>
-                                  </div>
-                                </div>
-                                {item.notes && (
-                                  <>
-                                    <Separator />
-                                    <div>
-                                      <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                                      <p className="text-sm">{item.notes}</p>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* Financial Tab */}
-                  <TabsContent value="financial" className="space-y-6 mt-0">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <DollarSign className="h-5 w-5" />
-                          {tDetail("financial.title")}
-                        </CardTitle>
-                        <CardDescription>Financial breakdown and summary</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {tDetail("financial.subtotal")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(requisition.subtotal ?? 0)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {tDetail("financial.taxRate")}
-                            </span>
-                            <span className="text-sm font-medium">{requisition.tax_rate ?? 0}%</span>
-                          </div>
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {tDetail("financial.taxAmount")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(requisition.tax_amount ?? 0)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {tDetail("financial.deliveryCost")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(requisition.delivery_cost ?? 0)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {tDetail("financial.otherCost")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(requisition.other_cost ?? 0)}
-                            </span>
-                          </div>
-                          <Separator />
-                          <div className="flex items-center justify-between py-2">
-                            <span className="text-base font-semibold">{tDetail("financial.totalAmount")}</span>
-                            <span className="text-lg font-bold text-primary">
-                              {formatCurrency(requisition.total_amount ?? 0)}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* Metadata Tab */}
-                  <TabsContent value="metadata" className="space-y-6 mt-0">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          {tDetail("metadata.title")}
-                        </CardTitle>
-                        <CardDescription>System information and audit trail</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {requisition.created_by && (
-                            <div className="flex items-center justify-between py-2 border-b">
-                              <span className="text-sm font-medium text-muted-foreground">
-                                {tDetail("metadata.createdBy")}
-                              </span>
-                              <span className="text-sm font-medium">{requisition.created_by.name}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between py-2 border-b">
-                            <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              {tDetail("metadata.createdAt")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {requisition.created_at
-                                ? new Date(requisition.created_at).toLocaleDateString("id-ID", {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                : "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between py-2">
-                            <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              {tDetail("metadata.updatedAt")}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {requisition.updated_at
-                                ? new Date(requisition.updated_at).toLocaleDateString("id-ID", {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                : "-"}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
+                  <PurchaseRequisitionDetailTabs requisition={requisition} />
                 </TabsContents>
               </Tabs>
             </div>
