@@ -40,6 +40,7 @@ import { useNotificationStore } from "@/features/notifications/stores/use-notifi
 
 import { IconSidebar, type IconSidebarItem } from "./icon-sidebar";
 import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
+import { Breadcrumb } from "@/components/navigation/breadcrumb";
 import { cn } from "@/lib/utils";
 
 const DETAIL_SIDEBAR_STORAGE_KEY = "detail_sidebar_state";
@@ -746,6 +747,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                   Failed to load menu permissions. Showing minimal navigation.
                 </div>
               )}
+              {!isAIChatbotPage && <Breadcrumb />}
               {children}
             </div>
           </div>
