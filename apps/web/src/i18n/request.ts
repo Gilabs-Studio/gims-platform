@@ -15,6 +15,8 @@ import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.j
 import dashboardIdMessages from "@/features/general/dashboard/i18n/messages/id.json";
 import purchaseRequisitionsEnMessages from "@/features/purchase/purchase-requisitions/i18n/messages/en.json";
 import purchaseRequisitionsIdMessages from "@/features/purchase/purchase-requisitions/i18n/messages/id.json";
+import purchaseOrdersEnMessages from "@/features/purchase/purchase-order/i18n/messages/en.json";
+import purchaseOrdersIdMessages from "@/features/purchase/purchase-order/i18n/messages/id.json";
 
 // Merge all messages
 const messages = {
@@ -25,6 +27,7 @@ const messages = {
     ...notificationsEnMessages,
     ...dashboardEnMessages,
     ...purchaseRequisitionsEnMessages,
+    ...purchaseOrdersEnMessages,
   },
   id: {
     ...globalIdMessages,
@@ -33,6 +36,7 @@ const messages = {
     ...notificationsIdMessages,
     ...dashboardIdMessages,
     ...purchaseRequisitionsIdMessages,
+    ...purchaseOrdersIdMessages,
   },
 } as const;
 
