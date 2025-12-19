@@ -12,6 +12,7 @@ export function usePurchaseRequisitions(params?: {
   limit?: number;
   search?: string;
   searchBy?: string;
+  status?: "DRAFT" | "APPROVED" | "REJECTED" | "CONVERTED";
   sort_by?: string;
   sort_order?: "asc" | "desc";
   start_date?: string;

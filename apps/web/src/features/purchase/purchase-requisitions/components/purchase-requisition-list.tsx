@@ -16,6 +16,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import {
   Dialog,
@@ -26,7 +34,6 @@ import {
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { SplitViewSidebar } from "@/components/ui/split-view/split-view-sidebar";
 import { SplitViewContainer } from "@/components/ui/split-view/split-view-container";
-import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
 import { PurchaseRequisitionDetailModal } from "./purchase-requisition-detail-modal";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { usePurchaseRequisitionList } from "../hooks/use-purchase-requisition-list";
@@ -47,6 +54,8 @@ export function PurchaseRequisitionList() {
     setPerPage,
     search,
     setSearch,
+    statusFilter,
+    setStatusFilter,
     sortBy,
     sortOrder,
     sortableColumns,
@@ -310,6 +319,18 @@ export function PurchaseRequisitionList() {
               className="pl-10 h-9"
             />
           </div>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+            <SelectTrigger className="w-full h-9">
+              <SelectValue placeholder={t("filterStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{t("allStatuses")}</SelectItem>
+              <SelectItem value="DRAFT">{t("draft")}</SelectItem>
+              <SelectItem value="APPROVED">{t("approved")}</SelectItem>
+              <SelectItem value="REJECTED">{t("rejected")}</SelectItem>
+              <SelectItem value="CONVERTED">{t("converted")}</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex items-center gap-2">
             <Button
               variant={viewMode === "split" ? "default" : "outline"}
@@ -353,6 +374,18 @@ export function PurchaseRequisitionList() {
                 className="pl-10 h-9"
               />
             </div>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder={t("filterStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">{t("allStatuses")}</SelectItem>
+                <SelectItem value="DRAFT">{t("draft")}</SelectItem>
+                <SelectItem value="APPROVED">{t("approved")}</SelectItem>
+                <SelectItem value="REJECTED">{t("rejected")}</SelectItem>
+                <SelectItem value="CONVERTED">{t("converted")}</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-1 border rounded-md p-1 shrink-0">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -366,7 +399,6 @@ export function PurchaseRequisitionList() {
                     <span className="truncate min-w-0">{t("split")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("split")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -380,7 +412,6 @@ export function PurchaseRequisitionList() {
                     <span className="truncate min-w-0">{t("table")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("table")}</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -411,29 +442,42 @@ export function PurchaseRequisitionList() {
             items={requisitions}
             selectedItemId={selectedSplitRequisitionId}
             onItemClick={handleSplitRequisitionClick}
-            onViewDetail={(item) => {
-              // Optional: Open modal when clicking "View Details" button
-              setModalRequisitionId(item.id);
-            }}
             renderItem={(requisition) => (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium truncate cursor-pointer">
-                        {requisition.code}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate mb-2">
-                      {requisition.supplier?.name ?? "-"}
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {getStatusBadge(requisition.status)}
-                      <span className="text-xs text-muted-foreground">
-                        {formatCurrency(requisition.total_amount ?? 0)}
-                      </span>
-                    </div>
+              <div className="flex items-start gap-3">
+                <Avatar className="h-10 w-10 shrink-0">
+                  <AvatarImage
+                    src={requisition.user?.avatar_url ?? requisition.user?.photo_profile}
+                    alt={requisition.user?.name ?? "User"}
+                  />
+                  <AvatarFallback>
+                    {requisition.user?.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2) ?? "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="font-medium truncate cursor-pointer text-sm">
+                      {requisition.code}
+                    </span>
                   </div>
+                  <p className="text-xs text-muted-foreground truncate mb-2">
+                    {requisition.supplier?.name ?? "-"}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    {getStatusBadge(requisition.status)}
+                    <span className="text-xs text-muted-foreground">
+                      {formatCurrency(requisition.total_amount ?? 0)}
+                    </span>
+                  </div>
+                  {requisition.user && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {requisition.user.name}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -450,11 +494,22 @@ export function PurchaseRequisitionList() {
                 : undefined
             }
           />
-          <div className="flex-1 min-w-0 overflow-y-auto">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {viewingRequisitionId ? (
-              <div className="p-6">
-                <PurchaseRequisitionDetail requisitionId={viewingRequisitionId} />
-              </div>
+              <PurchaseRequisitionDetailModal
+                requisitionId={viewingRequisitionId}
+                open={!!viewingRequisitionId}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setViewingRequisitionId(null);
+                    setSelectedSplitRequisitionId(null);
+                  }
+                }}
+                onRequisitionUpdated={() => {
+                  // List will automatically refresh via query invalidation
+                }}
+                embedded={true}
+              />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 <p>{t("selectRequisition")}</p>

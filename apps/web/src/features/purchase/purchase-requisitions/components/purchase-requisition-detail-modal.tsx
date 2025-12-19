@@ -38,6 +38,7 @@ interface PurchaseRequisitionDetailModalProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onRequisitionUpdated?: () => void;
+  readonly embedded?: boolean; // For split view without dialog overlay
 }
 
 export function PurchaseRequisitionDetailModal({
@@ -45,6 +46,7 @@ export function PurchaseRequisitionDetailModal({
   open,
   onOpenChange,
   onRequisitionUpdated,
+  embedded = false,
 }: PurchaseRequisitionDetailModalProps) {
   const { data, isLoading, error } = usePurchaseRequisition(requisitionId);
   const deleteRequisition = useDeletePurchaseRequisition();
@@ -147,15 +149,20 @@ export function PurchaseRequisitionDetailModal({
     }
   };
 
-  return (
+  const renderContent = () => (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-2xl">{t("title")}</DialogTitle>
-          </DialogHeader>
+      {embedded && (
+        <div className="flex items-center justify-between pb-4">
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+        </div>
+      )}
+      {!embedded && (
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-2xl">{t("title")}</DialogTitle>
+        </DialogHeader>
+      )}
 
-          {isLoading && (
+      {isLoading && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-16 w-16 rounded-xl" />
@@ -653,6 +660,67 @@ export function PurchaseRequisitionDetailModal({
               </Tabs>
             </div>
           )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <div className="h-full overflow-y-auto p-6">
+          {renderContent()}
+        </div>
+        {/* Edit Dialog */}
+        {isEditDialogOpen && requisition && (
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{t("editDialogTitle")}</DialogTitle>
+              </DialogHeader>
+              <PurchaseRequisitionForm
+                requisition={requisition}
+                onSubmit={async (formData) => {
+                  try {
+                    await updateRequisition.mutateAsync({
+                      id: requisitionId!,
+                      data: formData as UpdatePurchaseRequisitionFormData,
+                    });
+                    setIsEditDialogOpen(false);
+                    toast.success(t("toastUpdated"));
+                    onRequisitionUpdated?.();
+                  } catch {
+                    // Error already handled in api-client interceptor
+                  }
+                }}
+                onCancel={() => setIsEditDialogOpen(false)}
+                isLoading={updateRequisition.isPending}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Delete Dialog */}
+        <DeleteDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleDeleteConfirm}
+          title={t("deleteDialogTitle")}
+          description={
+            requisition
+              ? t("deleteDialogDescriptionWithName", { code: requisition.code })
+              : t("deleteDialogDescription")
+          }
+          itemName={t("deleteDialogItemName")}
+          isLoading={deleteRequisition.isPending}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          {renderContent()}
         </DialogContent>
       </Dialog>
 

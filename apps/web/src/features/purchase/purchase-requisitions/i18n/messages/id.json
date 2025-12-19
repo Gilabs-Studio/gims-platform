@@ -33,7 +33,9 @@
       "approved": "Disetujui",
       "rejected": "Ditolak",
       "converted": "Dikonversi",
-      "selectRequisition": "Pilih permintaan pembelian untuk melihat detail"
+      "selectRequisition": "Pilih permintaan pembelian untuk melihat detail",
+      "filterStatus": "Filter berdasarkan Status",
+      "allStatuses": "Semua Status"
     },
     "detail": {
       "title": "Detail Permintaan Pembelian",

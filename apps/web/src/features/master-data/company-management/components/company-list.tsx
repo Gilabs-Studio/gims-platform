@@ -364,7 +364,6 @@ export function CompanyList() {
                     <span className="truncate min-w-0">{t("map")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("map")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -378,7 +377,6 @@ export function CompanyList() {
                     <span className="truncate min-w-0">{t("table")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("table")}</TooltipContent>
               </Tooltip>
             </div>
           </div>

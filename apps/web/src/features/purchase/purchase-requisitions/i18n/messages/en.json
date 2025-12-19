@@ -33,7 +33,9 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "converted": "Converted",
-      "selectRequisition": "Select a purchase requisition to view details"
+      "selectRequisition": "Select a purchase requisition to view details",
+      "filterStatus": "Filter by Status",
+      "allStatuses": "All Statuses"
     },
     "detail": {
       "title": "Purchase Requisition Details",

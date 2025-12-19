@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  PurchaseRequisition,
   PurchaseRequisitionListResponse,
   PurchaseRequisitionResponse,
   PurchaseRequisitionAddDataResponse,
@@ -20,6 +19,7 @@ export const purchaseRequisitionService = {
     limit?: number;
     search?: string;
     searchBy?: string;
+    status?: "DRAFT" | "APPROVED" | "REJECTED" | "CONVERTED";
     sort_by?: string;
     sort_order?: "asc" | "desc";
     start_date?: string;

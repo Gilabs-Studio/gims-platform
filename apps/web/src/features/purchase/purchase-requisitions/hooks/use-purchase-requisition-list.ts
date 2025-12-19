@@ -21,6 +21,7 @@ export function usePurchaseRequisitionList() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"DRAFT" | "APPROVED" | "REJECTED" | "CONVERTED" | "ALL">("ALL");
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(undefined);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -31,6 +32,7 @@ export function usePurchaseRequisitionList() {
     page,
     limit: perPage,
     search,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
   });
@@ -139,6 +141,8 @@ export function usePurchaseRequisitionList() {
     setPerPage: handlePerPageChange,
     search,
     setSearch,
+    statusFilter,
+    setStatusFilter,
     sortBy,
     sortOrder,
     sortMeta,
