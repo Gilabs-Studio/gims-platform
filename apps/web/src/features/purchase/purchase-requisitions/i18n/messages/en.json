@@ -1,0 +1,157 @@
+{
+  "purchaseRequisitions": {
+    "list": {
+      "title": "Purchase Requisitions",
+      "subtitle": "Manage and view all purchase requisitions",
+      "code": "Code",
+      "supplier": "Supplier",
+      "status": "Status",
+      "requestDate": "Request Date",
+      "totalAmount": "Total Amount",
+      "businessUnit": "Business Unit",
+      "paymentTerms": "Payment Terms",
+      "requestedBy": "Requested By",
+      "actions": "Actions",
+      "searchPlaceholder": "Search purchase requisitions...",
+      "addRequisition": "Add Purchase Requisition",
+      "empty": "No purchase requisitions found",
+      "noPermission": "You don't have permission to view purchase requisitions",
+      "createTitle": "Create Purchase Requisition",
+      "editTitle": "Edit Purchase Requisition",
+      "deleteTitle": "Delete Purchase Requisition",
+      "deleteDescription": "Are you sure you want to delete this purchase requisition? This action cannot be undone.",
+      "deleteDescriptionWithName": "Are you sure you want to delete purchase requisition {code}? This action cannot be undone.",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "approve": "Approve",
+      "reject": "Reject",
+      "convert": "Convert to PO",
+      "table": "Table",
+      "split": "Split View",
+      "draft": "Draft",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "converted": "Converted",
+      "selectRequisition": "Select a purchase requisition to view details"
+    },
+    "detail": {
+      "title": "Purchase Requisition Details",
+      "loadError": "Failed to load purchase requisition details",
+      "selectRequisition": "Select a purchase requisition to view details",
+      "draft": "Draft",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "converted": "Converted",
+      "basicInfo": {
+        "title": "Basic Information",
+        "code": "Code",
+        "supplier": "Supplier",
+        "businessUnit": "Business Unit",
+        "paymentTerms": "Payment Terms",
+        "requestDate": "Request Date",
+        "status": "Status",
+        "requestedBy": "Requested By"
+      },
+      "items": {
+        "title": "Items",
+        "product": "Product",
+        "quantity": "Quantity",
+        "purchasePrice": "Purchase Price",
+        "discount": "Discount",
+        "subtotal": "Subtotal",
+        "empty": "No items found"
+      },
+      "financial": {
+        "title": "Financial Summary",
+        "subtotal": "Subtotal",
+        "taxRate": "Tax Rate",
+        "taxAmount": "Tax Amount",
+        "deliveryCost": "Delivery Cost",
+        "otherCost": "Other Cost",
+        "totalAmount": "Total Amount"
+      },
+      "notes": {
+        "title": "Notes",
+        "address": "Address",
+        "notes": "Notes"
+      },
+      "metadata": {
+        "title": "Metadata",
+        "createdBy": "Created By",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At"
+      }
+    },
+    "detailModal": {
+      "title": "Purchase Requisition Details",
+      "edit": "Edit",
+      "delete": "Delete",
+      "approve": "Approve",
+      "reject": "Reject",
+      "convert": "Convert",
+      "approving": "Approving...",
+      "rejecting": "Rejecting...",
+      "converting": "Converting...",
+      "toastDeleted": "Purchase requisition deleted successfully",
+      "toastUpdated": "Purchase requisition updated successfully",
+      "toastApproved": "Purchase requisition approved successfully",
+      "toastRejected": "Purchase requisition rejected successfully",
+      "toastConverted": "Purchase requisition converted to purchase order successfully",
+      "editDialogTitle": "Edit Purchase Requisition",
+      "deleteDialogTitle": "Delete Purchase Requisition",
+      "deleteDialogDescription": "Are you sure you want to delete this purchase requisition? This action cannot be undone.",
+      "deleteDialogDescriptionWithName": "Are you sure you want to delete purchase requisition {code}? This action cannot be undone.",
+      "deleteDialogItemName": "purchase requisition"
+    },
+    "form": {
+      "loading": "Loading form data...",
+      "basicInfo": {
+        "title": "Basic Information"
+      },
+      "itemsInfo": {
+        "title": "Items"
+      },
+      "financialInfo": {
+        "title": "Financial Information"
+      },
+      "supplierLabel": "Supplier",
+      "supplierPlaceholder": "Select supplier",
+      "paymentTermsLabel": "Payment Terms",
+      "paymentTermsPlaceholder": "Select payment terms",
+      "businessUnitLabel": "Business Unit",
+      "businessUnitPlaceholder": "Select business unit",
+      "requestDateLabel": "Request Date",
+      "requestDatePlaceholder": "Select request date",
+      "requestedByLabel": "Requested By",
+      "requestedByPlaceholder": "Select employee",
+      "taxRateLabel": "Tax Rate (%)",
+      "taxRatePlaceholder": "Enter tax rate",
+      "deliveryCostLabel": "Delivery Cost",
+      "deliveryCostPlaceholder": "Enter delivery cost",
+      "otherCostLabel": "Other Cost",
+      "otherCostPlaceholder": "Enter other cost",
+      "addressLabel": "Address",
+      "addressPlaceholder": "Enter address",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Enter notes (optional)",
+      "addItem": "Add Item",
+      "removeItem": "Remove",
+      "productLabel": "Product",
+      "productPlaceholder": "Select product",
+      "quantityLabel": "Quantity",
+      "quantityPlaceholder": "Enter quantity",
+      "purchasePriceLabel": "Purchase Price",
+      "purchasePricePlaceholder": "Enter purchase price",
+      "discountLabel": "Discount (%)",
+      "discountPlaceholder": "Enter discount",
+      "itemNotesLabel": "Item Notes",
+      "itemNotesPlaceholder": "Enter item notes (optional)",
+      "cancel": "Cancel",
+      "submitting": "Submitting...",
+      "submitCreate": "Create",
+      "submitUpdate": "Update"
+    }
+  }
+}
+
