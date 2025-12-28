@@ -2,25 +2,22 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../../master-data/user-management/types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the payment PO URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
     // Check if this menu or its children are related to payment PO
-    // Menu code from seeder: PAYMENT_PO
     const isPaymentPOMenu =
-      menu.code === "PAYMENT_PO" ||
       menu.url?.includes("/purchase/payment") ||
       menu.name?.toLowerCase().includes("payment po") ||
       (menu.children?.some((child) =>
-        child.code === "PAYMENT_PO" ||
         child.url?.includes("/purchase/payment") ||
         child.name?.toLowerCase().includes("payment po")
       ) ?? false);

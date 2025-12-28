@@ -2,14 +2,14 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../user-management/types";
+import type { Menu, MenuAction } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the company URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {

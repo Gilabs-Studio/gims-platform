@@ -14,19 +14,17 @@ export function useRefreshSession() {
     }
     try {
       const response = await authService.refreshToken(currentRefreshToken);
-      if (response.success && response.data) {
-        const { user, token, refresh_token } = response.data;
+      if (response.data) {
+        const { user, token } = response.data;
         if (typeof window !== "undefined") {
           localStorage.setItem("token", token);
-          localStorage.setItem("refreshToken", refresh_token);
           // Update secure cookie
           setSecureCookie("token", token);
         }
         setUser(user);
         setToken(token);
-        // Update refresh token in store
+        // Update auth state
         useAuthStore.setState({
-          refreshToken: refresh_token,
           isAuthenticated: true,
         });
       }

@@ -2,25 +2,22 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../../master-data/user-management/types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the supplier invoices URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
     // Check if this menu or its children are related to supplier invoices
-    // Menu code from seeder: SUPPLIER_INVOICES
     const isSupplierInvoiceMenu =
-      menu.code === "SUPPLIER_INVOICES" ||
       menu.url?.includes("/purchase/supplier-invoices") ||
       menu.name?.toLowerCase().includes("supplier invoices") ||
       (menu.children?.some((child) =>
-        child.code === "SUPPLIER_INVOICES" ||
         child.url?.includes("/purchase/supplier-invoices") ||
         child.name?.toLowerCase().includes("supplier invoices")
       ) ?? false);

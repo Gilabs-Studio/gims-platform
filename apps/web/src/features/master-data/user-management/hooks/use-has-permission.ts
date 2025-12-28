@@ -2,13 +2,13 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "./use-user-permissions";
-import type { MenuWithActions } from "../types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {

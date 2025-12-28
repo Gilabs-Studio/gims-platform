@@ -2,25 +2,22 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../../master-data/user-management/types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the purchase order URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
     // Check if this menu or its children are related to purchase orders
-    // Menu code from seeder: PURCHASE_ORDER
     const isPurchaseOrderMenu =
-      menu.code === "PURCHASE_ORDER" ||
       menu.url?.includes("/purchase/order") ||
       menu.name?.toLowerCase().includes("purchase order") ||
       (menu.children?.some((child) =>
-        child.code === "PURCHASE_ORDER" ||
         child.url?.includes("/purchase/order") ||
         child.name?.toLowerCase().includes("purchase order")
       ) ?? false);

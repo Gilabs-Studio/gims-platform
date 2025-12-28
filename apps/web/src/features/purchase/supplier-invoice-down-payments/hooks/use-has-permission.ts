@@ -2,25 +2,22 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../../master-data/user-management/types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the supplier invoice down payment URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
     // Check if this menu or its children are related to supplier invoice down payments
-    // Menu code from seeder: SUPPLIER_INVOICES_DP
     const isSupplierInvoiceDownPaymentMenu =
-      menu.code === "SUPPLIER_INVOICES_DP" ||
       menu.url?.includes("/purchase/supplier-invoices-dp") ||
       menu.name?.toLowerCase().includes("supplier invoices down payment") ||
       (menu.children?.some((child) =>
-        child.code === "SUPPLIER_INVOICES_DP" ||
         child.url?.includes("/purchase/supplier-invoices-dp") ||
         child.name?.toLowerCase().includes("supplier invoices down payment")
       ) ?? false);

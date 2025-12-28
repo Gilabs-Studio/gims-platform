@@ -2,25 +2,22 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "../../../master-data/user-management/types";
+import type { Menu } from "@/features/auth/types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  * Only searches in menus that match the goods receipt URL pattern
  */
 function findActionByCode(
-  menus: MenuWithActions[],
+  menus: Menu[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
     // Check if this menu or its children are related to goods receipt
-    // Menu code from seeder: GOODS_RECEIPT
     const isGoodsReceiptMenu =
-      menu.code === "GOODS_RECEIPT" ||
       menu.url?.includes("/purchase/goods-receipt") ||
       menu.name?.toLowerCase().includes("goods receipt") ||
       (menu.children?.some((child) =>
-        child.code === "GOODS_RECEIPT" ||
         child.url?.includes("/purchase/goods-receipt") ||
         child.name?.toLowerCase().includes("goods receipt")
       ) ?? false);
