@@ -1,0 +1,91 @@
+{
+  "supplierInvoiceDownPayments": {
+    "list": {
+      "title": "Supplier Invoice Down Payments",
+      "subtitle": "Manage and view all supplier invoice down payments",
+      "code": "Code",
+      "invoiceNumber": "Invoice Number",
+      "purchaseOrder": "Purchase Order",
+      "status": "Status",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "amount": "Amount",
+      "actions": "Actions",
+      "searchPlaceholder": "Search supplier invoice down payments...",
+      "addInvoice": "Add Supplier Invoice Down Payment",
+      "empty": "No supplier invoice down payments found",
+      "noPermission": "You don't have permission to view supplier invoice down payments",
+      "createTitle": "Create Supplier Invoice Down Payment",
+      "editTitle": "Edit Supplier Invoice Down Payment",
+      "deleteTitle": "Delete Supplier Invoice Down Payment",
+      "deleteDescription": "Are you sure you want to delete this supplier invoice down payment? This action cannot be undone.",
+      "deleteDescriptionWithName": "Are you sure you want to delete supplier invoice down payment {code}? This action cannot be undone.",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "pending": "Set to Pending",
+      "table": "Table",
+      "split": "Split View",
+      "draft": "Draft",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "selectInvoice": "Select a supplier invoice down payment to view details",
+      "filterStatus": "Filter by Status",
+      "allStatuses": "All Statuses"
+    },
+    "detail": {
+      "title": "Supplier Invoice Down Payment Details",
+      "loadError": "Failed to load supplier invoice down payment details",
+      "selectInvoice": "Select a supplier invoice down payment to view details",
+      "draft": "Draft",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "purchaseOrder": "Purchase Order",
+      "invoiceNumber": "Invoice Number",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "amount": "Amount",
+      "notes": "Notes"
+    },
+    "detailModal": {
+      "title": "Supplier Invoice Down Payment Details",
+      "edit": "Edit",
+      "delete": "Delete",
+      "pending": "Set to Pending",
+      "settingPending": "Setting to pending...",
+      "toastDeleted": "Supplier invoice down payment deleted successfully",
+      "toastUpdated": "Supplier invoice down payment updated successfully",
+      "toastPending": "Supplier invoice down payment status updated to pending successfully",
+      "editDialogTitle": "Edit Supplier Invoice Down Payment",
+      "deleteDialogTitle": "Delete Supplier Invoice Down Payment",
+      "deleteDialogDescription": "Are you sure you want to delete this supplier invoice down payment? This action cannot be undone.",
+      "deleteDialogDescriptionWithName": "Are you sure you want to delete supplier invoice down payment {code}? This action cannot be undone.",
+      "deleteDialogItemName": "supplier invoice down payment"
+    },
+    "form": {
+      "loading": "Loading form data...",
+      "basicInfo": {
+        "title": "Basic Information"
+      },
+      "financialInfo": {
+        "title": "Financial Information"
+      },
+      "purchaseOrderLabel": "Purchase Order",
+      "purchaseOrderPlaceholder": "Select purchase order",
+      "purchaseOrderTotal": "Purchase Order Total",
+      "invoiceDateLabel": "Invoice Date",
+      "invoiceDatePlaceholder": "Select invoice date",
+      "dueDateLabel": "Due Date",
+      "dueDatePlaceholder": "Select due date",
+      "amountLabel": "Amount",
+      "amountPlaceholder": "Enter amount",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Enter notes (optional)",
+      "cancel": "Cancel",
+      "submitting": "Submitting...",
+      "submitCreate": "Create",
+      "submitUpdate": "Update"
+    }
+  }
+}
+
