@@ -1,0 +1,151 @@
+{
+  "supplierInvoices": {
+    "list": {
+      "title": "Supplier Invoices",
+      "subtitle": "Manage and view all supplier invoices",
+      "code": "Code",
+      "invoiceNumber": "Invoice Number",
+      "purchaseOrder": "Purchase Order",
+      "status": "Status",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "totalAmount": "Total Amount",
+      "actions": "Actions",
+      "searchPlaceholder": "Search supplier invoices...",
+      "addInvoice": "Add Supplier Invoice",
+      "empty": "No supplier invoices found",
+      "noPermission": "You don't have permission to view supplier invoices",
+      "createTitle": "Create Supplier Invoice",
+      "editTitle": "Edit Supplier Invoice",
+      "deleteTitle": "Delete Supplier Invoice",
+      "deleteDescription": "Are you sure you want to delete this supplier invoice? This action cannot be undone.",
+      "deleteDescriptionWithName": "Are you sure you want to delete supplier invoice {code}? This action cannot be undone.",
+      "deleteItemName": "supplier invoice",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "setPending": "Set to Pending",
+      "table": "Table",
+      "split": "Split View",
+      "draft": "Draft",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "partial": "Partial",
+      "overdue": "Overdue",
+      "selectInvoice": "Select a supplier invoice to view details",
+      "filterStatus": "Filter by Status",
+      "allStatuses": "All Statuses"
+    },
+    "detail": {
+      "title": "Supplier Invoice Details",
+      "loadError": "Failed to load supplier invoice details",
+      "selectInvoice": "Select a supplier invoice to view details",
+      "draft": "Draft",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "partial": "Partial",
+      "overdue": "Overdue",
+      "basicInfo": {
+        "title": "Basic Information",
+        "code": "Code",
+        "invoiceNumber": "Invoice Number",
+        "purchaseOrder": "Purchase Order",
+        "supplier": "Supplier",
+        "paymentTerms": "Payment Terms",
+        "invoiceDate": "Invoice Date",
+        "dueDate": "Due Date"
+      },
+      "items": {
+        "title": "Items",
+        "product": "Product",
+        "quantity": "Quantity",
+        "price": "Price",
+        "discount": "Discount",
+        "subtotal": "Subtotal",
+        "empty": "No items found"
+      },
+      "financial": {
+        "title": "Financial Summary",
+        "subtotal": "Subtotal",
+        "taxRate": "Tax Rate",
+        "taxAmount": "Tax Amount",
+        "deliveryCost": "Delivery Cost",
+        "otherCost": "Other Cost",
+        "totalAmount": "Total Amount",
+        "remainingAmount": "Remaining Amount"
+      },
+      "notes": {
+        "title": "Notes",
+        "notes": "Notes"
+      },
+      "metadata": {
+        "title": "Metadata",
+        "createdBy": "Created By",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At"
+      }
+    },
+    "detailModal": {
+      "title": "Supplier Invoice Details",
+      "edit": "Edit",
+      "delete": "Delete",
+      "setPending": "Set to Pending",
+      "settingPending": "Setting to Pending...",
+      "toastDeleted": "Supplier invoice deleted successfully",
+      "toastUpdated": "Supplier invoice updated successfully",
+      "toastSetPending": "Supplier invoice set to pending successfully",
+      "editDialogTitle": "Edit Supplier Invoice",
+      "deleteDialogTitle": "Delete Supplier Invoice",
+      "deleteDialogDescription": "Are you sure you want to delete this supplier invoice? This action cannot be undone.",
+      "deleteDialogDescriptionWithName": "Are you sure you want to delete supplier invoice {code}? This action cannot be undone.",
+      "deleteDialogItemName": "supplier invoice"
+    },
+    "form": {
+      "loading": "Loading form data...",
+      "basicInfo": {
+        "title": "Basic Information"
+      },
+      "itemsInfo": {
+        "title": "Items"
+      },
+      "financialInfo": {
+        "title": "Financial Information"
+      },
+      "purchaseOrderLabel": "Purchase Order",
+      "purchaseOrderPlaceholder": "Select purchase order",
+      "paymentTermsLabel": "Payment Terms",
+      "paymentTermsPlaceholder": "Select payment terms",
+      "invoiceNumberLabel": "Invoice Number",
+      "invoiceNumberPlaceholder": "Enter invoice number",
+      "invoiceDateLabel": "Invoice Date",
+      "invoiceDatePlaceholder": "Select invoice date",
+      "dueDateLabel": "Due Date",
+      "dueDatePlaceholder": "Select due date",
+      "taxRateLabel": "Tax Rate (%)",
+      "taxRatePlaceholder": "Enter tax rate",
+      "deliveryCostLabel": "Delivery Cost",
+      "deliveryCostPlaceholder": "Enter delivery cost",
+      "otherCostLabel": "Other Cost",
+      "otherCostPlaceholder": "Enter other cost",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Enter notes (optional)",
+      "productLabel": "Product",
+      "productPlaceholder": "Select product",
+      "quantityLabel": "Quantity",
+      "quantityPlaceholder": "Enter quantity",
+      "priceLabel": "Price",
+      "pricePlaceholder": "Enter price",
+      "discountLabel": "Discount (%)",
+      "discountPlaceholder": "Enter discount",
+      "subtotalLabel": "Subtotal",
+      "cancel": "Cancel",
+      "submitting": "Submitting...",
+      "submitCreate": "Create",
+      "submitUpdate": "Update"
+    }
+  }
+}
+
+
+
+
