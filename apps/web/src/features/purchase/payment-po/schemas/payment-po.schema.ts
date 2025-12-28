@@ -11,7 +11,7 @@ export const createPaymentPOSchema = z.object({
   payment_date: z.string().min(1, "Payment date is required"),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
   method: z.enum(["CASH", "BANK"], {
-    required_error: "Payment method is required",
+    message: "Payment method is required",
   }),
   notes: z.string().optional(),
   allocations: z.array(paymentAllocationSchema).optional(),

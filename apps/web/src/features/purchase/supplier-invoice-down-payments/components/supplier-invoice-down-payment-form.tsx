@@ -277,7 +277,7 @@ function InvoiceDatePicker({ value, onChange, disabled, placeholder }: DatePicke
         <Calendar
           mode="single"
           selected={date}
-          onSelect={(selectedDate) => {
+          onSelect={(selectedDate: Date | undefined) => {
             if (selectedDate) {
               // Format as YYYY-MM-DD
               const dateString = formatDateToString(selectedDate);
@@ -323,7 +323,7 @@ function DueDatePicker({ value, onChange, disabled, placeholder }: DatePickerPro
         <Calendar
           mode="single"
           selected={date}
-          onSelect={(selectedDate) => {
+          onSelect={(selectedDate: Date | undefined) => {
             if (selectedDate) {
               // Format as YYYY-MM-DD
               const dateString = formatDateToString(selectedDate);

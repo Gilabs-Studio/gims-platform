@@ -67,7 +67,7 @@ export function PurchaseOrderForm({
     resolver: zodResolver(isEdit ? updatePurchaseOrderSchema : createPurchaseOrderSchema),
     defaultValues: order
       ? {
-          supplier_id: order.supplier_id ?? order.supplier.id,
+          supplier_id: order.supplier.id,
           payment_terms_id: order.payment_terms_id,
           business_unit_id: order.business_unit_id,
           order_date: order.order_date,

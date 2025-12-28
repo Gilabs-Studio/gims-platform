@@ -17,7 +17,7 @@ export const purchaseOrderService = {
     limit?: number;
     search?: string;
     searchBy?: string;
-    status?: "DRAFT" | "APPROVED" | "CLOSED";
+    status?: "DRAFT" | "APPROVED" | "REVISED" | "CLOSED";
     sort_by?: string;
     sort_order?: "asc" | "desc";
     start_date?: string;

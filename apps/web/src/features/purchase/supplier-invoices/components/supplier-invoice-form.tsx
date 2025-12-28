@@ -159,7 +159,7 @@ export function SupplierInvoiceForm({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.purchase_order_id && (
+              {"purchase_order_id" in errors && errors.purchase_order_id && (
                 <FieldError>{errors.purchase_order_id.message}</FieldError>
               )}
             </Field>
@@ -462,7 +462,7 @@ function InvoiceDatePicker({ value, onChange, disabled, placeholder }: DatePicke
         <Calendar
           mode="single"
           selected={date}
-          onSelect={(selectedDate) => {
+          onSelect={(selectedDate: Date | undefined) => {
             if (selectedDate) {
               // Format as YYYY-MM-DD
               const dateString = formatDateToString(selectedDate);
@@ -508,7 +508,7 @@ function DueDatePicker({ value, onChange, disabled, placeholder }: DatePickerPro
         <Calendar
           mode="single"
           selected={date}
-          onSelect={(selectedDate) => {
+          onSelect={(selectedDate: Date | undefined) => {
             if (selectedDate) {
               // Format as YYYY-MM-DD
               const dateString = formatDateToString(selectedDate);
