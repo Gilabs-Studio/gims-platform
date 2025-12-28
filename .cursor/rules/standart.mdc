@@ -469,6 +469,7 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
 7. **Dynamic Import untuk Komponen Berat (Code Splitting)**
    - Chart, editor, map, dan komponen berat lainnya = **lazy load**.
    - **CRITICAL**: Untuk page yang butuh client-side logic, gunakan pattern Client Wrapper.
+   - **CRITICAL**: Lazy load list components di page untuk code splitting optimal.
    
    ✅ GOOD Pattern 1 - Simple Dynamic Import:
    ```tsx
@@ -480,7 +481,36 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
    });
    ```
    
-   ✅ GOOD Pattern 2 - Page dengan Client Wrapper (handlers):
+   ✅ GOOD Pattern 2 - Lazy Load List Components di Page:
+   ```tsx
+   // app/purchase/goods-receipt/page.tsx (Server Component)
+   import { Suspense } from "react";
+   import dynamic from "next/dynamic";
+   import { PageMotion } from "@/components/motion";
+   
+   // Lazy load list component for code splitting
+   const GoodsReceiptList = dynamic(
+     () =>
+       import("@/features/purchase/goods-receipt/components/goods-receipt-list").then(
+         (mod) => ({ default: mod.GoodsReceiptList }),
+       ),
+     {
+       loading: () => null, // Use route-level loading.tsx
+     },
+   );
+   
+   export default function GoodsReceiptPage() {
+     return (
+       <PageMotion className="p-6">
+         <Suspense fallback={null}>
+           <GoodsReceiptList />
+         </Suspense>
+       </PageMotion>
+     );
+   }
+   ```
+   
+   ✅ GOOD Pattern 3 - Page dengan Client Wrapper (handlers):
    ```tsx
    // app/admin/merchandise/page.tsx (Server Component)
    import { Suspense } from "react";
@@ -528,12 +558,112 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
    <MerchandisePageClient Component={MerchandiseInventory} />
    ```
    
+   ❌ BAD - Direct import tanpa lazy loading:
+   ```tsx
+   // ❌ List component langsung di-import, tidak ada code splitting
+   import { GoodsReceiptList } from "@/features/purchase/goods-receipt/components/goods-receipt-list";
+   ```
+   
    **Keuntungan:**
    - Code splitting otomatis per route
    - Server Component tetap ringan
    - Client logic terisolasi di wrapper
+   - Bundle size lebih kecil karena list components di-load on-demand
 
-8. **Layout Persisten (Navigation Super Cepat)**
+8. **Lazy Loading Tabs dengan Conditional Rendering**
+   - **CRITICAL**: Tabs harus menggunakan `TabsContent` dengan lazy loading untuk code splitting optimal.
+   - Radix UI Tabs secara otomatis hanya render tab yang aktif (conditional rendering).
+   - Gunakan `lazy()` + `Suspense` untuk setiap tab component.
+   
+   ✅ GOOD - Lazy Loading Tabs Pattern:
+   ```tsx
+   "use client";
+   
+   import { Suspense, lazy } from "react";
+   import { TabsContent } from "@/components/ui/tabs";
+   import { Skeleton } from "@/components/ui/skeleton";
+   
+   // Lazy load tab components for code splitting
+   const OverviewTab = lazy(() =>
+     import("./tabs/overview-tab").then((mod) => ({ default: mod.OverviewTab }))
+   );
+   
+   const ItemsTab = lazy(() =>
+     import("./tabs/items-tab").then((mod) => ({ default: mod.ItemsTab }))
+   );
+   
+   const FinancialTab = lazy(() =>
+     import("./tabs/financial-tab").then((mod) => ({ default: mod.FinancialTab }))
+   );
+   
+   // Tab loading skeleton
+   function TabSkeleton() {
+     return (
+       <div className="space-y-6">
+         <Card>
+           <CardHeader>
+             <Skeleton className="h-6 w-32" />
+           </CardHeader>
+           <CardContent>
+             <Skeleton className="h-4 w-full" />
+           </CardContent>
+         </Card>
+       </div>
+     );
+   }
+   
+   export function DetailTabs({ data }: Props) {
+     return (
+       <>
+         {/* Radix UI Tabs automatically handles conditional rendering */}
+         {/* Only the active TabsContent will be rendered */}
+         <TabsContent value="overview">
+           <Suspense fallback={<TabSkeleton />}>
+             <OverviewTab data={data} />
+           </Suspense>
+         </TabsContent>
+         
+         <TabsContent value="items">
+           <Suspense fallback={<TabSkeleton />}>
+             <ItemsTab data={data} />
+           </Suspense>
+         </TabsContent>
+         
+         <TabsContent value="financial">
+           <Suspense fallback={<TabSkeleton />}>
+             <FinancialTab data={data} />
+           </Suspense>
+         </TabsContent>
+       </>
+     );
+   }
+   ```
+   
+   ❌ BAD - Render semua tabs sekaligus:
+   ```tsx
+   // ❌ Semua tabs di-render sekaligus, tidak ada conditional rendering
+   return (
+     <>
+       <Suspense fallback={<TabSkeleton />}>
+         <OverviewTab data={data} />
+       </Suspense>
+       <Suspense fallback={<TabSkeleton />}>
+         <ItemsTab data={data} />
+       </Suspense>
+       <Suspense fallback={<TabSkeleton />}>
+         <FinancialTab data={data} />
+       </Suspense>
+     </>
+   );
+   ```
+   
+   **Keuntungan:**
+   - Code splitting per tab (bundle lebih kecil)
+   - Hanya tab aktif yang di-load dan render
+   - Initial load lebih cepat
+   - Memory usage lebih efisien
+
+9. **Layout Persisten (Navigation Super Cepat)**
    - Manfaatkan `app/layout.tsx` untuk layout yang tidak perlu reload.
    
    ✅ GOOD:
@@ -553,7 +683,57 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
    - Header tidak re-render
    - Navigasi terasa SPA
 
-9. **Optimasi Bundle & Asset**
+10. **Loading.tsx dengan Motion untuk Smooth Transition**
+    - **CRITICAL**: Route-level `loading.tsx` harus menggunakan `PageMotion` untuk smooth transition.
+    - Gunakan skeleton yang match dengan actual content structure.
+    
+    ✅ GOOD - Loading dengan Motion:
+    ```tsx
+    "use client";
+    
+    import { Skeleton } from "@/components/ui/skeleton";
+    import { PageMotion } from "@/components/motion";
+    
+    export default function GoodsReceiptLoading() {
+      return (
+        <PageMotion className="p-6 space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 flex-1 max-w-sm" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+          <div className="h-[calc(100vh-12rem)] min-h-[400px] border rounded-lg">
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          </div>
+        </PageMotion>
+      );
+    }
+    ```
+    
+    ❌ BAD - Loading tanpa motion:
+    ```tsx
+    // ❌ Tidak ada motion, transition terasa abrupt
+    export default function GoodsReceiptLoading() {
+      return (
+        <div className="p-6 space-y-6">
+          <Skeleton className="h-9 w-64" />
+        </div>
+      );
+    }
+    ```
+    
+    **Keuntungan:**
+    - Smooth transition dari loading ke content
+    - Better perceived performance
+    - Consistent UX dengan page transitions
+
+11. **Optimasi Bundle & Asset**
    - **a. Jangan import library global:**
    
    ❌ BAD:
@@ -570,7 +750,7 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
      - Gunakan `lucide-react`
      - Import per icon (tree-shaking)
 
-10. **Motion Animations untuk Entrance (UX Enhancement)**
+12. **Motion Animations untuk Entrance (UX Enhancement)**
     - Gunakan `framer-motion` untuk smooth entrance animations.
     - **CRITICAL**: Jangan overuse - hanya untuk page transitions dan list items.
     
@@ -637,9 +817,11 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
 - [ ] Client Component kecil & spesifik
 - [ ] `next/link` di semua navigasi
 - [ ] Suspense + Skeleton untuk async components
-- [ ] Route-level `loading.tsx` untuk setiap page
+- [ ] Route-level `loading.tsx` untuk setiap page (dengan PageMotion untuk smooth transition)
 - [ ] Cache fetch / DB dengan benar
 - [ ] Dynamic import untuk komponen berat (dengan Client Wrapper pattern jika perlu)
+- [ ] **Lazy load list components di page dengan `next/dynamic`**
+- [ ] **Tabs menggunakan TabsContent dengan lazy loading (hanya render tab aktif)**
 - [ ] Layout persisten untuk navigasi
 - [ ] Minim global state (hanya untuk UI state)
 - [ ] Motion animations untuk entrance (PageMotion, StaggerContainer)

@@ -1,8 +1,11 @@
+"use client";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageMotion } from "@/components/motion";
 
 export default function PaymentPOLoading() {
   return (
-    <div className="p-6 space-y-6">
+    <PageMotion className="p-6 space-y-6">
       <div className="space-y-2">
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-5 w-96" />
@@ -18,6 +21,6 @@ export default function PaymentPOLoading() {
           <Skeleton key={i} className="h-24" />
         ))}
       </div>
-    </div>
+    </PageMotion>
   );
 }

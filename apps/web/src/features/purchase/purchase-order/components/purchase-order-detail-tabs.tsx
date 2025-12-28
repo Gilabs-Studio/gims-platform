@@ -3,6 +3,7 @@
 import { Suspense, lazy } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TabsContent } from "@/components/ui/tabs";
 import { FileText, ShoppingCart, DollarSign, Calendar } from "lucide-react";
 import type { PurchaseOrder } from "../types";
 import { formatCurrency } from "@/lib/utils";
@@ -56,27 +57,37 @@ export function PurchaseOrderDetailTabs({
   const tDetail = useTranslations("purchaseOrders.detail");
   const items = order?.items ?? order?.purchase_order_items ?? [];
 
+  // Radix UI Tabs automatically handles conditional rendering
+  // Only the active TabsContent will be rendered
   return (
     <>
       {/* Overview Tab - Load immediately (default tab) */}
-      <Suspense fallback={<TabSkeleton />}>
-        <OverviewTab order={order} />
-      </Suspense>
+      <TabsContent value="overview">
+        <Suspense fallback={<TabSkeleton />}>
+          <OverviewTab order={order} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Items Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <ItemsTab order={order} items={items} />
-      </Suspense>
+      {/* Items Tab - Lazy loaded, only render when active */}
+      <TabsContent value="items">
+        <Suspense fallback={<TabSkeleton />}>
+          <ItemsTab order={order} items={items} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Financial Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <FinancialTab order={order} />
-      </Suspense>
+      {/* Financial Tab - Lazy loaded, only render when active */}
+      <TabsContent value="financial">
+        <Suspense fallback={<TabSkeleton />}>
+          <FinancialTab order={order} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Metadata Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <MetadataTab order={order} />
-      </Suspense>
+      {/* Metadata Tab - Lazy loaded, only render when active */}
+      <TabsContent value="metadata">
+        <Suspense fallback={<TabSkeleton />}>
+          <MetadataTab order={order} />
+        </Suspense>
+      </TabsContent>
     </>
   );
 }

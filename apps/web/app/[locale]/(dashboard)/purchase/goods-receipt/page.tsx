@@ -1,6 +1,17 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { PageMotion } from "@/components/motion";
-import { GoodsReceiptList } from "@/features/purchase/goods-receipt/components/goods-receipt-list";
+
+// Lazy load list component for code splitting
+const GoodsReceiptList = dynamic(
+  () =>
+    import("@/features/purchase/goods-receipt/components/goods-receipt-list").then(
+      (mod) => ({ default: mod.GoodsReceiptList }),
+    ),
+  {
+    loading: () => null, // Use route-level loading.tsx
+  },
+);
 
 export default function GoodsReceiptPage() {
   return (

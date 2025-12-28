@@ -5,6 +5,16 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
+// Bundle Analyzer - only load when ANALYZE=true
+let withBundleAnalyzer = (config: NextConfig) => config;
+if (process.env.ANALYZE === "true") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const bundleAnalyzer = require("@next/bundle-analyzer")({
+    enabled: true,
+  });
+  withBundleAnalyzer = bundleAnalyzer;
+}
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -105,4 +115,4 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 };
 
-export default withNextIntl(nextConfig);
+export default withNextIntl(withBundleAnalyzer(nextConfig));

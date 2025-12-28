@@ -3,6 +3,7 @@
 import { Suspense, lazy } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TabsContent } from "@/components/ui/tabs";
 import type { SupplierInvoice } from "../types";
 
 // Lazy load tab components for code splitting
@@ -47,27 +48,37 @@ export function SupplierInvoiceDetailTabs({
 }: SupplierInvoiceDetailTabsProps) {
   const items = invoice?.items ?? [];
 
+  // Radix UI Tabs automatically handles conditional rendering
+  // Only the active TabsContent will be rendered
   return (
     <>
       {/* Overview Tab - Load immediately (default tab) */}
-      <Suspense fallback={<TabSkeleton />}>
-        <OverviewTab invoice={invoice} />
-      </Suspense>
+      <TabsContent value="overview">
+        <Suspense fallback={<TabSkeleton />}>
+          <OverviewTab invoice={invoice} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Items Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <ItemsTab invoice={invoice} items={items} />
-      </Suspense>
+      {/* Items Tab - Lazy loaded, only render when active */}
+      <TabsContent value="items">
+        <Suspense fallback={<TabSkeleton />}>
+          <ItemsTab invoice={invoice} items={items} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Financial Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <FinancialTab invoice={invoice} />
-      </Suspense>
+      {/* Financial Tab - Lazy loaded, only render when active */}
+      <TabsContent value="financial">
+        <Suspense fallback={<TabSkeleton />}>
+          <FinancialTab invoice={invoice} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Metadata Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <MetadataTab invoice={invoice} />
-      </Suspense>
+      {/* Metadata Tab - Lazy loaded, only render when active */}
+      <TabsContent value="metadata">
+        <Suspense fallback={<TabSkeleton />}>
+          <MetadataTab invoice={invoice} />
+        </Suspense>
+      </TabsContent>
     </>
   );
 }

@@ -3,6 +3,7 @@
 import { Suspense, lazy } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TabsContent } from "@/components/ui/tabs";
 import { FileText, DollarSign, Calendar } from "lucide-react";
 import type { PaymentPO } from "../types";
 import { useTranslations } from "next-intl";
@@ -51,24 +52,30 @@ export function PaymentPODetailTabs({
   const tDetail = useTranslations("paymentPO.detail");
   const allocations = paymentPO?.allocations ?? [];
 
+  // Radix UI Tabs automatically handles conditional rendering
+  // Only the active TabsContent will be rendered
   return (
     <>
       {/* Overview Tab - Load immediately (default tab) */}
-      <Suspense fallback={<TabSkeleton />}>
-        <OverviewTab paymentPO={paymentPO} />
-      </Suspense>
+      <TabsContent value="overview">
+        <Suspense fallback={<TabSkeleton />}>
+          <OverviewTab paymentPO={paymentPO} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Allocations Tab - Lazy loaded */}
-      {allocations.length > 0 && (
+      {/* Allocations Tab - Lazy loaded, only render when active */}
+      <TabsContent value="allocations">
         <Suspense fallback={<TabSkeleton />}>
           <AllocationsTab paymentPO={paymentPO} allocations={allocations} />
         </Suspense>
-      )}
+      </TabsContent>
 
-      {/* Metadata Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <MetadataTab paymentPO={paymentPO} />
-      </Suspense>
+      {/* Metadata Tab - Lazy loaded, only render when active */}
+      <TabsContent value="metadata">
+        <Suspense fallback={<TabSkeleton />}>
+          <MetadataTab paymentPO={paymentPO} />
+        </Suspense>
+      </TabsContent>
     </>
   );
 }

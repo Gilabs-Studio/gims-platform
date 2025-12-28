@@ -1,13 +1,10 @@
 "use client";
 
 import { Suspense, lazy } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, ShoppingCart, DollarSign, Calendar } from "lucide-react";
+import { TabsContent } from "@/components/ui/tabs";
 import type { PurchaseRequisition } from "../types";
-import { formatCurrency } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
-import { useTranslations } from "next-intl";
 
 // Lazy load tab components for code splitting
 const OverviewTab = lazy(() =>
@@ -53,30 +50,39 @@ function TabSkeleton() {
 export function PurchaseRequisitionDetailTabs({
   requisition,
 }: PurchaseRequisitionDetailTabsProps) {
-  const tDetail = useTranslations("purchaseRequisitions.detail");
   const items = requisition?.items ?? [];
 
+  // Radix UI Tabs automatically handles conditional rendering
+  // Only the active TabsContent will be rendered
   return (
     <>
       {/* Overview Tab - Load immediately (default tab) */}
-      <Suspense fallback={<TabSkeleton />}>
-        <OverviewTab requisition={requisition} />
-      </Suspense>
+      <TabsContent value="overview">
+        <Suspense fallback={<TabSkeleton />}>
+          <OverviewTab requisition={requisition} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Items Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <ItemsTab requisition={requisition} items={items} />
-      </Suspense>
+      {/* Items Tab - Lazy loaded, only render when active */}
+      <TabsContent value="items">
+        <Suspense fallback={<TabSkeleton />}>
+          <ItemsTab requisition={requisition} items={items} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Financial Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <FinancialTab requisition={requisition} />
-      </Suspense>
+      {/* Financial Tab - Lazy loaded, only render when active */}
+      <TabsContent value="financial">
+        <Suspense fallback={<TabSkeleton />}>
+          <FinancialTab requisition={requisition} />
+        </Suspense>
+      </TabsContent>
 
-      {/* Metadata Tab - Lazy loaded */}
-      <Suspense fallback={<TabSkeleton />}>
-        <MetadataTab requisition={requisition} />
-      </Suspense>
+      {/* Metadata Tab - Lazy loaded, only render when active */}
+      <TabsContent value="metadata">
+        <Suspense fallback={<TabSkeleton />}>
+          <MetadataTab requisition={requisition} />
+        </Suspense>
+      </TabsContent>
     </>
   );
 }

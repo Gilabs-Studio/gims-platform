@@ -1,6 +1,17 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { PageMotion } from "@/components/motion";
-import { PurchaseRequisitionList } from "@/features/purchase/purchase-requisitions/components/purchase-requisition-list";
+
+// Lazy load list component for code splitting
+const PurchaseRequisitionList = dynamic(
+  () =>
+    import("@/features/purchase/purchase-requisitions/components/purchase-requisition-list").then(
+      (mod) => ({ default: mod.PurchaseRequisitionList }),
+    ),
+  {
+    loading: () => null, // Use route-level loading.tsx
+  },
+);
 
 export default function PurchaseRequisitionsPage() {
   return (

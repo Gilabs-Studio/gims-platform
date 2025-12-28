@@ -1,6 +1,17 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { PageMotion } from "@/components/motion";
-import { SupplierInvoiceList } from "@/features/purchase/supplier-invoices/components/supplier-invoice-list";
+
+// Lazy load list component for code splitting
+const SupplierInvoiceList = dynamic(
+  () =>
+    import("@/features/purchase/supplier-invoices/components/supplier-invoice-list").then(
+      (mod) => ({ default: mod.SupplierInvoiceList }),
+    ),
+  {
+    loading: () => null, // Use route-level loading.tsx
+  },
+);
 
 export default function SupplierInvoicesPage() {
   return (
