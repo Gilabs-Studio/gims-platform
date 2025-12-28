@@ -41,7 +41,7 @@ export function useDashboardCommandPalette(
       children.forEach((child) => {
         if (child.url) {
           allItems.push({
-            id: child.id,
+            id: String(child.id),
             name: child.name,
             href: child.url,
             icon: child.icon,
@@ -60,7 +60,7 @@ export function useDashboardCommandPalette(
 
       if (menu.url) {
         allItems.push({
-          id: menu.id,
+          id: String(menu.id),
           name: menu.name,
           href: menu.url,
           icon: menu.icon,

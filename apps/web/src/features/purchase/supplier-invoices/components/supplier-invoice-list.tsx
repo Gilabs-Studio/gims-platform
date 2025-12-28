@@ -381,14 +381,16 @@ export function SupplierInvoiceList() {
           isLoading={isLoading}
           pagination={pagination ? {
             page: pagination.page,
+            per_page: pagination.limit,
             total: pagination.total,
-            limit: pagination.limit,
-            onPageChange: setPage,
-            onPerPageChange: setPerPage,
+            total_pages: Math.ceil(pagination.total / pagination.limit),
+            has_next: pagination.page < Math.ceil(pagination.total / pagination.limit),
+            has_prev: pagination.page > 1,
           } : undefined}
+          onPageChange={setPage}
+          onPerPageChange={setPerPage}
           sortableColumns={sortableColumns}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
+          sort={sortBy && sortOrder ? { sort_by: sortBy, sort_order: sortOrder } : undefined}
           onSortChange={handleSortChange}
           emptyMessage={t("empty")}
         />
@@ -469,7 +471,9 @@ export function SupplierInvoiceList() {
             <DialogTitle>{t("createTitle")}</DialogTitle>
           </DialogHeader>
           <SupplierInvoiceForm
-            onSubmit={handleCreate}
+            onSubmit={async (data) => {
+              await handleCreate(data as CreateSupplierInvoiceFormData);
+            }}
             onCancel={() => setIsCreateDialogOpen(false)}
             isLoading={createInvoice.isPending}
           />

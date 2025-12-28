@@ -324,11 +324,11 @@ apiClient.interceptors.response.use(
                 setSecureCookie("token", token);
               }
 
-              // Update auth store with user data and tokens
+              // Update auth store with tokens only (user structure from refresh token is different)
               import("@/features/auth/stores/use-auth-store").then(
                 ({ useAuthStore }) => {
                   useAuthStore.getState().setToken(token);
-                  useAuthStore.getState().setUser(user);
+                  // User will be updated on next login or when explicitly fetched
                   useAuthStore.setState({
                     refreshToken: refresh_token,
                     isAuthenticated: true,
