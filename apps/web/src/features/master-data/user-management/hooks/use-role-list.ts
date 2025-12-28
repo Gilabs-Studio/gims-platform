@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import {
   useRoles,
@@ -25,7 +25,7 @@ export function useRoleList() {
   const { data: editingRoleData } = useRole(editingRole || "");
   const roleForEdit = editingRoleData;
 
-  const handleCreate = async (formData: CreateRoleFormData) => {
+  const handleCreate = useCallback(async (formData: CreateRoleFormData) => {
     try {
       await createRole.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -33,9 +33,9 @@ export function useRoleList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createRole]);
 
-  const handleUpdate = async (formData: UpdateRoleFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdateRoleFormData) => {
     if (editingRole) {
       try {
         await updateRole.mutateAsync({ id: editingRole, data: formData });
@@ -45,16 +45,16 @@ export function useRoleList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingRole, updateRole]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteRole.mutateAsync(id);
       toast.success("Role deleted successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [deleteRole]);
 
   return {
     // State

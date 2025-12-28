@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import type { SupplierInvoice } from "../../types";
@@ -14,6 +15,25 @@ interface FinancialTabProps {
 
 export function FinancialTab({ invoice }: FinancialTabProps) {
   const tDetail = useTranslations("supplierInvoices.detail");
+
+  // Memoize financial values to prevent recalculation
+  const financialValues = useMemo(() => ({
+    subTotal: invoice.sub_total ?? 0,
+    taxRate: invoice.tax_rate ?? 0,
+    taxAmount: invoice.tax_amount ?? 0,
+    deliveryCost: invoice.delivery_cost ?? 0,
+    otherCost: invoice.other_cost ?? 0,
+    amount: invoice.amount ?? 0,
+    remainingAmount: invoice.remaining_amount,
+  }), [
+    invoice.sub_total,
+    invoice.tax_rate,
+    invoice.tax_amount,
+    invoice.delivery_cost,
+    invoice.other_cost,
+    invoice.amount,
+    invoice.remaining_amount,
+  ]);
 
   return (
     <TabsContent value="financial" className="space-y-6 mt-0">
@@ -32,21 +52,21 @@ export function FinancialTab({ invoice }: FinancialTabProps) {
                 {tDetail("financial.subtotal")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(invoice.sub_total ?? 0)}
+                {formatCurrency(financialValues.subTotal)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-sm font-medium text-muted-foreground">
                 {tDetail("financial.taxRate")}
               </span>
-              <span className="text-sm font-medium">{invoice.tax_rate ?? 0}%</span>
+              <span className="text-sm font-medium">{financialValues.taxRate}%</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-sm font-medium text-muted-foreground">
                 {tDetail("financial.taxAmount")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(invoice.tax_amount ?? 0)}
+                {formatCurrency(financialValues.taxAmount)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
@@ -54,7 +74,7 @@ export function FinancialTab({ invoice }: FinancialTabProps) {
                 {tDetail("financial.deliveryCost")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(invoice.delivery_cost ?? 0)}
+                {formatCurrency(financialValues.deliveryCost)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
@@ -62,17 +82,17 @@ export function FinancialTab({ invoice }: FinancialTabProps) {
                 {tDetail("financial.otherCost")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(invoice.other_cost ?? 0)}
+                {formatCurrency(financialValues.otherCost)}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between py-2">
               <span className="text-base font-semibold">{tDetail("financial.totalAmount")}</span>
               <span className="text-lg font-bold text-primary">
-                {formatCurrency(invoice.amount ?? 0)}
+                {formatCurrency(financialValues.amount)}
               </span>
             </div>
-            {invoice.remaining_amount !== undefined && invoice.remaining_amount > 0 && (
+            {financialValues.remainingAmount !== undefined && financialValues.remainingAmount > 0 && (
               <>
                 <Separator />
                 <div className="flex items-center justify-between py-2">
@@ -80,7 +100,7 @@ export function FinancialTab({ invoice }: FinancialTabProps) {
                     {tDetail("financial.remainingAmount")}
                   </span>
                   <span className="text-sm font-medium">
-                    {formatCurrency(invoice.remaining_amount)}
+                    {formatCurrency(financialValues.remainingAmount)}
                   </span>
                 </div>
               </>

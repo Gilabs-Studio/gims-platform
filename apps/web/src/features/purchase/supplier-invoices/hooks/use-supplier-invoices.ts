@@ -54,6 +54,35 @@ export function useCreateSupplierInvoice() {
   return useMutation({
     mutationFn: (data: CreateSupplierInvoiceFormData) =>
       supplierInvoiceService.create(data),
+    onMutate: async (newInvoice) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoices"] });
+      const previousInvoices = queryClient.getQueriesData({ queryKey: ["supplier-invoices"] });
+      queryClient.setQueriesData({ queryKey: ["supplier-invoices"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              { id: Date.now(), ...newInvoice, status: "DRAFT", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
+            },
+          },
+        };
+      });
+      return { previousInvoices };
+    },
+    onError: (err, newInvoice, context) => {
+      if (context?.previousInvoices) {
+        context.previousInvoices.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
     },
@@ -71,6 +100,39 @@ export function useUpdateSupplierInvoice() {
       id: number;
       data: UpdateSupplierInvoiceFormData;
     }) => supplierInvoiceService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoices"] });
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoices", id] });
+      const previousInvoices = queryClient.getQueriesData({ queryKey: ["supplier-invoices"] });
+      const previousInvoice = queryClient.getQueryData(["supplier-invoices", id]);
+      queryClient.setQueriesData({ queryKey: ["supplier-invoices"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+      queryClient.setQueryData(["supplier-invoices", id], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: { ...old.data, ...updateData, updated_at: new Date().toISOString() } };
+      });
+      return { previousInvoices, previousInvoice };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousInvoices) {
+        context.previousInvoices.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousInvoice) {
+        queryClient.setQueryData(["supplier-invoices", variables.id], context.previousInvoice);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
       queryClient.invalidateQueries({
@@ -85,6 +147,32 @@ export function useDeleteSupplierInvoice() {
 
   return useMutation({
     mutationFn: (id: number) => supplierInvoiceService.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoices"] });
+      const previousInvoices = queryClient.getQueriesData({ queryKey: ["supplier-invoices"] });
+      queryClient.setQueriesData({ queryKey: ["supplier-invoices"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
+            },
+          },
+        };
+      });
+      return { previousInvoices };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousInvoices) {
+        context.previousInvoices.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
     },

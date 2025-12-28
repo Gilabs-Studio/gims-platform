@@ -47,6 +47,35 @@ export function useCreateCompany() {
 
   return useMutation({
     mutationFn: (data: CreateCompanyFormData) => companyService.create(data),
+    onMutate: async (newCompany) => {
+      await queryClient.cancelQueries({ queryKey: ["companies"] });
+      const previousCompanies = queryClient.getQueriesData({ queryKey: ["companies"] });
+      queryClient.setQueriesData({ queryKey: ["companies"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              { id: Date.now(), ...newCompany, approved: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
+            },
+          },
+        };
+      });
+      return { previousCompanies };
+    },
+    onError: (err, newCompany, context) => {
+      if (context?.previousCompanies) {
+        context.previousCompanies.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
     },
@@ -59,6 +88,39 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateCompanyFormData }) =>
       companyService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      await queryClient.cancelQueries({ queryKey: ["companies"] });
+      await queryClient.cancelQueries({ queryKey: ["companies", id] });
+      const previousCompanies = queryClient.getQueriesData({ queryKey: ["companies"] });
+      const previousCompany = queryClient.getQueryData(["companies", id]);
+      queryClient.setQueriesData({ queryKey: ["companies"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+      queryClient.setQueryData(["companies", id], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: { ...old.data, ...updateData, updated_at: new Date().toISOString() } };
+      });
+      return { previousCompanies, previousCompany };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCompanies) {
+        context.previousCompanies.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousCompany) {
+        queryClient.setQueryData(["companies", variables.id], context.previousCompany);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["companies", variables.id] });
@@ -71,6 +133,32 @@ export function useDeleteCompany() {
 
   return useMutation({
     mutationFn: (id: number) => companyService.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["companies"] });
+      const previousCompanies = queryClient.getQueriesData({ queryKey: ["companies"] });
+      queryClient.setQueriesData({ queryKey: ["companies"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
+            },
+          },
+        };
+      });
+      return { previousCompanies };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousCompanies) {
+        context.previousCompanies.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
     },

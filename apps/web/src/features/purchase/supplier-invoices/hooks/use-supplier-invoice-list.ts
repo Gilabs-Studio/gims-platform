@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSupplierInvoices,
   useDeleteSupplierInvoice,
@@ -28,10 +29,13 @@ export function useSupplierInvoiceList() {
   const [editingInvoice, setEditingInvoice] = useState<number | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, isLoading } = useSupplierInvoices({
     page,
     limit: perPage,
-    search,
+    search: debouncedSearch,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
@@ -55,7 +59,7 @@ export function useSupplierInvoiceList() {
     }
   }, [sortMeta, sortBy]);
 
-  const handleCreate = async (formData: CreateSupplierInvoiceFormData) => {
+  const handleCreate = useCallback(async (formData: CreateSupplierInvoiceFormData) => {
     try {
       await createInvoice.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -63,9 +67,9 @@ export function useSupplierInvoiceList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createInvoice]);
 
-  const handleUpdate = async (formData: UpdateSupplierInvoiceFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdateSupplierInvoiceFormData) => {
     if (editingInvoice) {
       try {
         await updateInvoice.mutateAsync({ id: editingInvoice, data: formData });
@@ -75,13 +79,13 @@ export function useSupplierInvoiceList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingInvoice, updateInvoice]);
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setDeletingInvoiceId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingInvoiceId) {
       try {
         await deleteInvoice.mutateAsync(deletingInvoiceId);
@@ -91,27 +95,27 @@ export function useSupplierInvoiceList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingInvoiceId, deleteInvoice]);
 
-  const handleSetPending = async (id: number) => {
+  const handleSetPending = useCallback(async (id: number) => {
     try {
       await setPendingInvoice.mutateAsync(id);
       toast.success("Supplier invoice set to pending successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [setPendingInvoice]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1);
-  };
+  }, []);
 
-  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "asc" | "desc") => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setPage(1); // Reset to first page when sorting changes
-  };
+  }, []);
 
   return {
     // State

@@ -644,12 +644,282 @@ Performance Optimization for Dashboard/Admin Apps (CRITICAL)
 - [ ] Minim global state (hanya untuk UI state)
 - [ ] Motion animations untuk entrance (PageMotion, StaggerContainer)
 - [ ] Code splitting dengan dynamic import di client wrapper (bukan pass component sebagai prop)
+- [ ] React.memo, useMemo, useCallback untuk optimasi re-render
+- [ ] Virtual scrolling untuk large lists (useVirtualizer)
+- [ ] Optimistic updates di TanStack Query mutations
+- [ ] Debouncing untuk search/filter inputs
+- [ ] TanStack Query staleTime/gcTime configuration optimal
 
 **Target Hasil Realistis:**
 - Navigasi page: **< 100ms**
 - JS bundle turun **40–70%**
 - TTI jauh lebih cepat
 - Dashboard terasa native-app
+
+React Hooks Rules & Performance Optimization (CRITICAL)
+- **CRITICAL**: Semua optimisasi performance HARUS mengikuti Rules of Hooks. Pelanggaran akan menyebabkan error runtime.
+
+1. **Rules of Hooks - NEVER Violate**
+   - **NEVER** call hooks conditionally (inside if statements, loops, or nested functions).
+   - **NEVER** call hooks inside JSX (props, render functions, etc.).
+   - **ALWAYS** call all hooks at the top level of component, before any early returns.
+   - **ALWAYS** call hooks in the same order on every render.
+   
+   ❌ BAD - Hook di dalam JSX:
+   ```tsx
+   <SplitViewSidebar
+     renderItem={useCallback((item) => <ItemCard item={item} />, [])}  // ❌ Hook di dalam JSX prop
+   />
+   ```
+   
+   ❌ BAD - Hook setelah early return:
+   ```tsx
+   export function Component() {
+     if (!hasPermission) {
+       return <NoPermission />;  // ❌ Early return sebelum hooks
+     }
+     const data = useQuery(...);  // ❌ Hook dipanggil setelah early return
+   }
+   ```
+   
+   ✅ GOOD - Hook di top level, sebelum early return:
+   ```tsx
+   export function Component() {
+     // Semua hooks dipanggil di top level
+     const data = useQuery(...);
+     const hasPermission = useHasPermission("VIEW");
+     const handleClick = useCallback(() => {}, []);
+     const memoizedValue = useMemo(() => compute(), [deps]);
+     
+     // Early return SETELAH semua hooks
+     if (!hasPermission) {
+       return <NoPermission />;
+     }
+     
+     // RenderItem callback dipanggil di top level, bukan di JSX
+     const renderItem = useCallback((item) => (
+       <ItemCard item={item} />
+     ), []);
+     
+     return (
+       <SplitViewSidebar renderItem={renderItem} />
+     );
+   }
+   ```
+
+2. **useMemo & useCallback - Stable Dependencies**
+   - **ALWAYS** ensure dependency arrays are stable and consistent across renders.
+   - **NEVER** include function references that change on every render unless wrapped in useCallback.
+   - **ALWAYS** include all dependencies that are used inside the memoized value/callback.
+   
+   ❌ BAD - Dependency array berubah-ubah:
+   ```tsx
+   const columns = useMemo(() => [
+     { accessor: (row) => getStatusBadge(row.status) }
+   ], [getStatusBadge, hasPermission, handleClick, mutation.isPending]);  // ❌ Bisa berubah urutan/ukuran
+   ```
+   
+   ✅ GOOD - Stable dependencies dengan useCallback:
+   ```tsx
+   // Stabilkan function references dulu
+   const getStatusBadge = useCallback((status) => { /* ... */ }, [t]);
+   const handleClick = useCallback((id) => { /* ... */ }, []);
+   
+   // Baru gunakan di useMemo dengan dependencies yang stabil
+   const columns = useMemo(() => [
+     { accessor: (row) => getStatusBadge(row.status) }
+   ], [getStatusBadge, hasPermission, handleClick, mutation.isPending]);
+   ```
+
+3. **React.memo untuk Component Optimization**
+   - Gunakan `React.memo` untuk component yang sering re-render tapi props jarang berubah.
+   - **ALWAYS** provide custom comparison function untuk complex props.
+   - **NEVER** wrap component yang props-nya selalu berubah (akan sia-sia).
+   
+   ✅ GOOD - Memoized component dengan custom comparison:
+   ```tsx
+   const ItemCard = memo(({ item, getStatusBadge }: Props) => {
+     return <div>{getStatusBadge(item.status)}</div>;
+   }, (prev, next) => 
+     prev.item.id === next.item.id &&
+     prev.item.status === next.item.status &&
+     prev.getStatusBadge === next.getStatusBadge
+   );
+   ItemCard.displayName = "ItemCard";
+   ```
+
+4. **Virtual Scrolling untuk Large Lists**
+   - Gunakan `@tanstack/react-virtual` untuk list dengan ribuan item.
+   - **ALWAYS** set `estimateSize` yang akurat untuk performa optimal.
+   - **ALWAYS** use `overscan` untuk smooth scrolling.
+   
+   ✅ GOOD - Virtual scrolling pattern:
+   ```tsx
+   import { useVirtualizer } from "@tanstack/react-virtual";
+   
+   export function ItemsTab({ items }: Props) {
+     const parentRef = useRef<HTMLDivElement>(null);
+     
+     const virtualizer = useVirtualizer({
+       count: items.length,
+       getScrollElement: () => parentRef.current,
+       estimateSize: () => 160, // Estimated height per item
+       overscan: 5,
+     });
+     
+     return (
+       <div ref={parentRef} className="h-[600px] overflow-auto">
+         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+           {virtualizer.getVirtualItems().map((virtualItem) => {
+             const item = items[virtualItem.index];
+             return (
+               <div
+                 key={virtualItem.key}
+                 style={{
+                   position: "absolute",
+                   top: 0,
+                   left: 0,
+                   width: "100%",
+                   transform: `translateY(${virtualItem.start}px)`,
+                 }}
+               >
+                 <ItemCard item={item} />
+               </div>
+             );
+           })}
+         </div>
+       </div>
+     );
+   }
+   ```
+
+5. **Optimistic Updates di TanStack Query**
+   - Implement `onMutate`, `onError`, `onSettled` untuk immediate UI feedback.
+   - **ALWAYS** cancel queries dan save previous state untuk rollback.
+   - **ALWAYS** invalidate queries di `onSuccess` untuk sync dengan server.
+   
+   ✅ GOOD - Optimistic update pattern:
+   ```tsx
+   export function useCreateItem() {
+     const queryClient = useQueryClient();
+     
+     return useMutation({
+       mutationFn: (data: CreateData) => itemService.create(data),
+       onMutate: async (newItem) => {
+         // Cancel outgoing queries
+         await queryClient.cancelQueries({ queryKey: ["items"] });
+         
+         // Snapshot previous value
+         const previousItems = queryClient.getQueriesData({ queryKey: ["items"] });
+         
+         // Optimistically update cache
+         queryClient.setQueriesData({ queryKey: ["items"] }, (old: any) => {
+           if (!old?.data) return old;
+           return {
+             ...old,
+             data: {
+               ...old.data,
+               data: [{ id: Date.now(), ...newItem }, ...(old.data.data || [])],
+               meta: { ...old.data.meta, pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 } },
+             },
+           };
+         });
+         
+         return { previousItems };
+       },
+       onError: (err, newItem, context) => {
+         // Rollback on error
+         if (context?.previousItems) {
+           context.previousItems.forEach(([queryKey, data]) => {
+             queryClient.setQueryData(queryKey, data);
+           });
+         }
+       },
+       onSuccess: () => {
+         // Invalidate untuk sync dengan server
+         queryClient.invalidateQueries({ queryKey: ["items"] });
+       },
+     });
+   }
+   ```
+
+6. **Debouncing untuk Search/Filter**
+   - **ALWAYS** debounce search inputs untuk mengurangi API calls.
+   - Gunakan `useDebounce` hook atau `lodash/debounce`.
+   - Default delay: 300-500ms untuk search, 100-200ms untuk filter.
+   
+   ✅ GOOD - Debounced search:
+   ```tsx
+   import { useDebounce } from "@/hooks/use-debounce";
+   
+   export function useItemList() {
+     const [search, setSearch] = useState("");
+     const debouncedSearch = useDebounce(search, 300);
+     
+     const { data } = useQuery({
+       queryKey: ["items", { search: debouncedSearch }],
+       queryFn: () => itemService.list({ search: debouncedSearch }),
+     });
+     
+     return { search, setSearch, data };
+   }
+   ```
+
+7. **TanStack Query Configuration**
+   - Set `staleTime` untuk mengurangi unnecessary refetches (default: 5 minutes untuk list data).
+   - Set `gcTime` (garbage collection time) untuk cache retention (default: 10 minutes).
+   - Enable `refetchOnMount` dan `refetchOnReconnect` untuk data freshness.
+   
+   ✅ GOOD - Optimal QueryClient config:
+   ```tsx
+   const queryClient = new QueryClient({
+     defaultOptions: {
+       queries: {
+         staleTime: 5 * 60 * 1000, // 5 minutes
+         gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+         refetchOnMount: true,
+         refetchOnReconnect: true,
+         refetchOnWindowFocus: false, // Disable untuk dashboard apps
+       },
+     },
+   });
+   ```
+
+8. **useMemo untuk Expensive Calculations**
+   - Gunakan `useMemo` untuk calculations yang expensive (filtering, sorting, mapping large arrays).
+   - **ALWAYS** include all dependencies yang digunakan dalam calculation.
+   - **NEVER** use `useMemo` untuk simple calculations (overhead lebih besar dari benefit).
+   
+   ✅ GOOD - Memoized expensive calculations:
+   ```tsx
+   // Expensive: mapping + filtering large array
+   const itemsWithStringId = useMemo(
+     () => items.map((item) => ({ ...item, id: item.id.toString() })),
+     [items]
+   );
+   
+   // Expensive: complex filtering + sorting
+   const filteredAndSorted = useMemo(() => {
+     return items
+       .filter(item => item.status === statusFilter)
+       .sort((a, b) => {
+         if (sortOrder === "asc") return a[sortBy] - b[sortBy];
+         return b[sortBy] - a[sortBy];
+       });
+   }, [items, statusFilter, sortBy, sortOrder]);
+   ```
+
+**React Hooks Performance Checklist:**
+- [ ] Semua hooks dipanggil di top level component (sebelum early return)
+- [ ] Tidak ada hooks di dalam JSX props atau conditional statements
+- [ ] useCallback untuk function references yang digunakan di dependency arrays
+- [ ] useMemo untuk expensive calculations dan stable references
+- [ ] React.memo untuk components yang sering re-render dengan props stabil
+- [ ] Virtual scrolling untuk lists dengan > 100 items
+- [ ] Optimistic updates di mutations untuk immediate feedback
+- [ ] Debouncing untuk search/filter inputs
+- [ ] TanStack Query staleTime/gcTime configured optimal
+- [ ] Dependency arrays stabil dan konsisten
 
 Backend Standards (Go + Gin)
 - Use layered architecture: Handler → Service → Repository.

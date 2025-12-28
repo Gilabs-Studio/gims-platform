@@ -54,6 +54,35 @@ export function useCreatePaymentPO() {
   return useMutation({
     mutationFn: (data: CreatePaymentPOFormData) =>
       paymentPOService.create(data),
+    onMutate: async (newPaymentPO) => {
+      await queryClient.cancelQueries({ queryKey: ["payment-pos"] });
+      const previousPaymentPOs = queryClient.getQueriesData({ queryKey: ["payment-pos"] });
+      queryClient.setQueriesData({ queryKey: ["payment-pos"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              { id: Date.now(), ...newPaymentPO, status: "PENDING", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
+            },
+          },
+        };
+      });
+      return { previousPaymentPOs };
+    },
+    onError: (err, newPaymentPO, context) => {
+      if (context?.previousPaymentPOs) {
+        context.previousPaymentPOs.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment-pos"] });
     },
@@ -71,6 +100,39 @@ export function useUpdatePaymentPO() {
       id: number;
       data: UpdatePaymentPOFormData;
     }) => paymentPOService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      await queryClient.cancelQueries({ queryKey: ["payment-pos"] });
+      await queryClient.cancelQueries({ queryKey: ["payment-pos", id] });
+      const previousPaymentPOs = queryClient.getQueriesData({ queryKey: ["payment-pos"] });
+      const previousPaymentPO = queryClient.getQueryData(["payment-pos", id]);
+      queryClient.setQueriesData({ queryKey: ["payment-pos"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+      queryClient.setQueryData(["payment-pos", id], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: { ...old.data, ...updateData, updated_at: new Date().toISOString() } };
+      });
+      return { previousPaymentPOs, previousPaymentPO };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousPaymentPOs) {
+        context.previousPaymentPOs.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousPaymentPO) {
+        queryClient.setQueryData(["payment-pos", variables.id], context.previousPaymentPO);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["payment-pos"] });
       queryClient.invalidateQueries({
@@ -85,6 +147,32 @@ export function useDeletePaymentPO() {
 
   return useMutation({
     mutationFn: (id: number) => paymentPOService.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["payment-pos"] });
+      const previousPaymentPOs = queryClient.getQueriesData({ queryKey: ["payment-pos"] });
+      queryClient.setQueriesData({ queryKey: ["payment-pos"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
+            },
+          },
+        };
+      });
+      return { previousPaymentPOs };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousPaymentPOs) {
+        context.previousPaymentPOs.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment-pos"] });
     },

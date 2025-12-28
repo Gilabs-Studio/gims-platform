@@ -54,6 +54,35 @@ export function useCreateSupplierInvoiceDownPayment() {
   return useMutation({
     mutationFn: (data: CreateSupplierInvoiceDownPaymentFormData) =>
       supplierInvoiceDownPaymentService.create(data),
+    onMutate: async (newDownPayment) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoice-down-payments"] });
+      const previousDownPayments = queryClient.getQueriesData({ queryKey: ["supplier-invoice-down-payments"] });
+      queryClient.setQueriesData({ queryKey: ["supplier-invoice-down-payments"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              { id: Date.now(), ...newDownPayment, status: "DRAFT", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
+            },
+          },
+        };
+      });
+      return { previousDownPayments };
+    },
+    onError: (err, newDownPayment, context) => {
+      if (context?.previousDownPayments) {
+        context.previousDownPayments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoice-down-payments"] });
     },
@@ -71,6 +100,39 @@ export function useUpdateSupplierInvoiceDownPayment() {
       id: number;
       data: UpdateSupplierInvoiceDownPaymentFormData;
     }) => supplierInvoiceDownPaymentService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoice-down-payments"] });
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoice-down-payments", id] });
+      const previousDownPayments = queryClient.getQueriesData({ queryKey: ["supplier-invoice-down-payments"] });
+      const previousDownPayment = queryClient.getQueryData(["supplier-invoice-down-payments", id]);
+      queryClient.setQueriesData({ queryKey: ["supplier-invoice-down-payments"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+      queryClient.setQueryData(["supplier-invoice-down-payments", id], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: { ...old.data, ...updateData, updated_at: new Date().toISOString() } };
+      });
+      return { previousDownPayments, previousDownPayment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousDownPayments) {
+        context.previousDownPayments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousDownPayment) {
+        queryClient.setQueryData(["supplier-invoice-down-payments", variables.id], context.previousDownPayment);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoice-down-payments"] });
       queryClient.invalidateQueries({
@@ -85,6 +147,32 @@ export function useDeleteSupplierInvoiceDownPayment() {
 
   return useMutation({
     mutationFn: (id: number) => supplierInvoiceDownPaymentService.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["supplier-invoice-down-payments"] });
+      const previousDownPayments = queryClient.getQueriesData({ queryKey: ["supplier-invoice-down-payments"] });
+      queryClient.setQueriesData({ queryKey: ["supplier-invoice-down-payments"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
+            },
+          },
+        };
+      });
+      return { previousDownPayments };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousDownPayments) {
+        context.previousDownPayments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-invoice-down-payments"] });
     },

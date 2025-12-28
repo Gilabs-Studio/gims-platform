@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   usePaymentPOs,
   useDeletePaymentPO,
@@ -26,10 +27,13 @@ export function usePaymentPOList() {
   const [editingPaymentPO, setEditingPaymentPO] = useState<number | null>(null);
   const [deletingPaymentPOId, setDeletingPaymentPOId] = useState<number | null>(null);
 
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, isLoading } = usePaymentPOs({
     page,
     limit: perPage,
-    search,
+    search: debouncedSearch,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
@@ -53,7 +57,7 @@ export function usePaymentPOList() {
     }
   }, [sortMeta, sortBy]);
 
-  const handleCreate = async (formData: CreatePaymentPOFormData) => {
+  const handleCreate = useCallback(async (formData: CreatePaymentPOFormData) => {
     try {
       await createPaymentPO.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -61,9 +65,9 @@ export function usePaymentPOList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createPaymentPO]);
 
-  const handleUpdate = async (formData: UpdatePaymentPOFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdatePaymentPOFormData) => {
     if (editingPaymentPO) {
       try {
         await updatePaymentPO.mutateAsync({ id: editingPaymentPO, data: formData });
@@ -73,13 +77,13 @@ export function usePaymentPOList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingPaymentPO, updatePaymentPO]);
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setDeletingPaymentPOId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingPaymentPOId) {
       try {
         await deletePaymentPO.mutateAsync(deletingPaymentPOId);
@@ -89,27 +93,27 @@ export function usePaymentPOList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingPaymentPOId, deletePaymentPO]);
 
-  const handleConfirm = async (id: number) => {
+  const handleConfirm = useCallback(async (id: number) => {
     try {
       await confirmPaymentPO.mutateAsync(id);
       toast.success("Payment PO confirmed successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [confirmPaymentPO]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1);
-  };
+  }, []);
 
-  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "asc" | "desc") => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setPage(1); // Reset to first page when sorting changes
-  };
+  }, []);
 
   return {
     // State

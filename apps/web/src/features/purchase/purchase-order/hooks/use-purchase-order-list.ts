@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   usePurchaseOrders,
   useDeletePurchaseOrder,
@@ -26,10 +27,13 @@ export function usePurchaseOrderList() {
   const [editingOrder, setEditingOrder] = useState<number | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<number | null>(null);
 
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, isLoading } = usePurchaseOrders({
     page,
     limit: perPage,
-    search,
+    search: debouncedSearch,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
@@ -53,7 +57,7 @@ export function usePurchaseOrderList() {
     }
   }, [sortMeta, sortBy]);
 
-  const handleCreate = async (formData: CreatePurchaseOrderFormData) => {
+  const handleCreate = useCallback(async (formData: CreatePurchaseOrderFormData) => {
     try {
       await createOrder.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -61,9 +65,9 @@ export function usePurchaseOrderList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createOrder]);
 
-  const handleUpdate = async (formData: UpdatePurchaseOrderFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdatePurchaseOrderFormData) => {
     if (editingOrder) {
       try {
         await updateOrder.mutateAsync({ id: editingOrder, data: formData });
@@ -73,13 +77,13 @@ export function usePurchaseOrderList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingOrder, updateOrder]);
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setDeletingOrderId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingOrderId) {
       try {
         await deleteOrder.mutateAsync(deletingOrderId);
@@ -89,27 +93,27 @@ export function usePurchaseOrderList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingOrderId, deleteOrder]);
 
-  const handleConfirm = async (id: number) => {
+  const handleConfirm = useCallback(async (id: number) => {
     try {
       await confirmOrder.mutateAsync(id);
       toast.success("Purchase order confirmed successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [confirmOrder]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1);
-  };
+  }, []);
 
-  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "asc" | "desc") => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setPage(1); // Reset to first page when sorting changes
-  };
+  }, []);
 
   return {
     // State

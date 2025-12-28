@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import type { PurchaseOrder } from "../../types";
@@ -15,13 +16,24 @@ interface FinancialTabProps {
 export function FinancialTab({ order }: FinancialTabProps) {
   const tDetail = useTranslations("purchaseOrders.detail");
 
-  // Calculate subtotal from items if not provided
-  const subtotal = order.items?.reduce((sum, item) => sum + (item.subtotal ?? 0), 0) ?? 0;
-  const taxRate = order.tax_rate ?? 0;
-  const taxAmount = subtotal * (taxRate / 100);
-  const deliveryCost = order.delivery_cost ?? 0;
-  const otherCost = order.other_cost ?? 0;
-  const totalAmount = order.total_amount ?? (subtotal + taxAmount + deliveryCost + otherCost);
+  // Memoize calculations to prevent recalculation on every render
+  const { subtotal, taxRate, taxAmount, deliveryCost, otherCost, totalAmount } = useMemo(() => {
+    const calcSubtotal = order.items?.reduce((sum, item) => sum + (item.subtotal ?? 0), 0) ?? 0;
+    const calcTaxRate = order.tax_rate ?? 0;
+    const calcTaxAmount = calcSubtotal * (calcTaxRate / 100);
+    const calcDeliveryCost = order.delivery_cost ?? 0;
+    const calcOtherCost = order.other_cost ?? 0;
+    const calcTotalAmount = order.total_amount ?? (calcSubtotal + calcTaxAmount + calcDeliveryCost + calcOtherCost);
+    
+    return {
+      subtotal: calcSubtotal,
+      taxRate: calcTaxRate,
+      taxAmount: calcTaxAmount,
+      deliveryCost: calcDeliveryCost,
+      otherCost: calcOtherCost,
+      totalAmount: calcTotalAmount,
+    };
+  }, [order.items, order.tax_rate, order.delivery_cost, order.other_cost, order.total_amount]);
 
   return (
     <TabsContent value="financial" className="space-y-6 mt-0">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useCompanies,
   useDeleteCompany,
@@ -26,10 +27,13 @@ export function useCompanyList() {
   const [deletingCompanyId, setDeletingCompanyId] = useState<number | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, isLoading } = useCompanies({
     page,
     limit: perPage,
-    search,
+    search: debouncedSearch,
     sort_by: sortBy,
     sort_order: sortOrder,
   });
@@ -55,7 +59,7 @@ export function useCompanyList() {
     }
   }, [sortMeta, sortBy]);
 
-  const handleCreate = async (formData: CreateCompanyFormData) => {
+  const handleCreate = useCallback(async (formData: CreateCompanyFormData) => {
     try {
       await createCompany.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -63,9 +67,9 @@ export function useCompanyList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createCompany]);
 
-  const handleUpdate = async (formData: UpdateCompanyFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdateCompanyFormData) => {
     if (editingCompany) {
       try {
         await updateCompany.mutateAsync({ id: editingCompany, data: formData });
@@ -75,13 +79,13 @@ export function useCompanyList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingCompany, updateCompany]);
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setDeletingCompanyId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingCompanyId) {
       try {
         await deleteCompany.mutateAsync(deletingCompanyId);
@@ -91,18 +95,18 @@ export function useCompanyList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingCompanyId, deleteCompany]);
 
-  const handleApproveAll = async () => {
+  const handleApproveAll = useCallback(async () => {
     try {
       await approveAll.mutateAsync();
       toast.success("All companies approved successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [approveAll]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       const blob = await exportCompanies.mutateAsync();
       const url = window.URL.createObjectURL(blob);
@@ -117,9 +121,9 @@ export function useCompanyList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [exportCompanies]);
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = useCallback(async () => {
     try {
       const blob = await downloadTemplate.mutateAsync();
       const url = window.URL.createObjectURL(blob);
@@ -134,9 +138,9 @@ export function useCompanyList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [downloadTemplate]);
 
-  const handleImport = async (file: File) => {
+  const handleImport = useCallback(async (file: File) => {
     try {
       await importCompanies.mutateAsync(file);
       setIsImportDialogOpen(false);
@@ -144,18 +148,18 @@ export function useCompanyList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [importCompanies]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1);
-  };
+  }, []);
 
-  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "asc" | "desc") => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setPage(1); // Reset to first page when sorting changes
-  };
+  }, []);
 
   return {
     // State

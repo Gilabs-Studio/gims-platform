@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, startTransition } from "react";
+import { useState, useEffect, useRef, startTransition, useMemo, useCallback, memo } from "react";
 import {
   Edit,
   Trash2,
@@ -47,6 +47,64 @@ import type {
 } from "../schemas/purchase-order.schema";
 import { formatCurrency } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Memoized sidebar item component
+const OrderSidebarItem = memo(({ 
+  order, 
+  getStatusBadge,
+}: { 
+  order: PurchaseOrder; 
+  getStatusBadge: (status: PurchaseOrder["status"]) => React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-start gap-3">
+      <Avatar className="h-10 w-10 shrink-0">
+        <AvatarImage
+          src={order.created_by?.avatar_url ?? order.created_by?.photo_profile}
+          alt={order.created_by?.name ?? "User"}
+        />
+        <AvatarFallback>
+          {order.created_by?.name
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2) ?? "PO"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="font-medium truncate cursor-pointer text-sm">
+            {order.code}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate mb-2">
+          {order.supplier?.name ?? order.supplier?.code ?? "-"}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {getStatusBadge(order.status)}
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(order.total_amount ?? 0)}
+          </span>
+        </div>
+        {order.created_by && (
+          <p className="text-xs text-muted-foreground truncate">
+            {order.created_by.name}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}, (prev, next) => 
+  prev.order.id === next.order.id &&
+  prev.order.status === next.order.status &&
+  prev.order.code === next.order.code &&
+  prev.order.total_amount === next.order.total_amount &&
+  prev.order.supplier?.name === next.order.supplier?.name &&
+  prev.order.supplier?.code === next.order.supplier?.code &&
+  prev.order.created_by?.name === next.order.created_by?.name
+);
+OrderSidebarItem.displayName = "OrderSidebarItem";
 
 export function PurchaseOrderList() {
   const {
@@ -109,18 +167,16 @@ export function PurchaseOrderList() {
   const hasApprovePermission = useHasPermission("APPROVE");
   const hasDetailPermission = useHasPermission("DETAIL");
 
-  const handleViewOrder = (orderId: number) => {
-    // For table view, open modal
+  const handleViewOrder = useCallback((orderId: number) => {
     setModalOrderId(orderId);
-  };
+  }, []);
 
-  const handleSplitOrderClick = (order: PurchaseOrder) => {
-    // For split view, show in container
+  const handleSplitOrderClick = useCallback((order: PurchaseOrder) => {
     setSelectedSplitOrderId(order.id);
     setViewingOrderId(order.id);
-  };
+  }, []);
 
-  const getStatusBadge = (status: PurchaseOrder["status"]) => {
+  const getStatusBadge = useCallback((status: PurchaseOrder["status"]) => {
     switch (status) {
       case "DRAFT":
         return (
@@ -153,13 +209,22 @@ export function PurchaseOrderList() {
       default:
         return <Badge>{status}</Badge>;
     }
-  };
+  }, [t]);
 
-  // Map orders to have string id for DataTable compatibility
-  const ordersWithStringId = orders.map((o) => ({ ...o, id: o.id.toString() }));
+  // Map orders to have string id for DataTable compatibility - Memoized
+  const ordersWithStringId = useMemo(
+    () => orders.map((o) => ({ ...o, id: o.id.toString() })),
+    [orders]
+  );
   type OrderWithStringId = Omit<PurchaseOrder, "id"> & { id: string };
 
-  const columns: Column<OrderWithStringId>[] = [
+  // Memoize renderItem callback - MUST be outside JSX to follow Rules of Hooks
+  const renderSidebarItem = useCallback((order: PurchaseOrder) => (
+    <OrderSidebarItem order={order} getStatusBadge={getStatusBadge} />
+  ), [getStatusBadge]);
+
+  // Memoize columns definition
+  const columns: Column<OrderWithStringId>[] = useMemo(() => [
     {
       id: "code",
       header: t("code"),
@@ -255,7 +320,7 @@ export function PurchaseOrderList() {
           : []),
       ],
     },
-  ];
+  ], [t, handleViewOrder, getStatusBadge, hasViewPermission, hasDetailPermission, hasApprovePermission, hasEditPermission, hasDeletePermission, handleConfirm, confirmOrder.isPending, setEditingOrder, handleDeleteClick]);
 
   if (!hasViewPermission) {
     return (
@@ -407,45 +472,7 @@ export function PurchaseOrderList() {
             items={orders}
             selectedItemId={selectedSplitOrderId}
             onItemClick={handleSplitOrderClick}
-            renderItem={(order) => (
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarImage
-                    src={order.created_by?.avatar_url ?? order.created_by?.photo_profile}
-                    alt={order.created_by?.name ?? "User"}
-                  />
-                  <AvatarFallback>
-                    {order.created_by?.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2) ?? "PO"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="font-medium truncate cursor-pointer text-sm">
-                      {order.code}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mb-2">
-                    {order.supplier?.name ?? order.supplier?.code ?? "-"}
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    {getStatusBadge(order.status)}
-                    <span className="text-xs text-muted-foreground">
-                      {formatCurrency(order.total_amount ?? 0)}
-                    </span>
-                  </div>
-                  {order.created_by && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {order.created_by.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+            renderItem={renderSidebarItem}
             emptyMessage={t("empty")}
             title={t("title")}
             className="w-80 shrink-0"

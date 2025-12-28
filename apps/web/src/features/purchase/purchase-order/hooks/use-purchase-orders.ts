@@ -54,6 +54,35 @@ export function useCreatePurchaseOrder() {
   return useMutation({
     mutationFn: (data: CreatePurchaseOrderFormData) =>
       purchaseOrderService.create(data),
+    onMutate: async (newOrder) => {
+      await queryClient.cancelQueries({ queryKey: ["purchase-orders"] });
+      const previousOrders = queryClient.getQueriesData({ queryKey: ["purchase-orders"] });
+      queryClient.setQueriesData({ queryKey: ["purchase-orders"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              { id: Date.now(), ...newOrder, status: "DRAFT", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
+            },
+          },
+        };
+      });
+      return { previousOrders };
+    },
+    onError: (err, newOrder, context) => {
+      if (context?.previousOrders) {
+        context.previousOrders.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
@@ -71,6 +100,39 @@ export function useUpdatePurchaseOrder() {
       id: number;
       data: UpdatePurchaseOrderFormData;
     }) => purchaseOrderService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      await queryClient.cancelQueries({ queryKey: ["purchase-orders"] });
+      await queryClient.cancelQueries({ queryKey: ["purchase-orders", id] });
+      const previousOrders = queryClient.getQueriesData({ queryKey: ["purchase-orders"] });
+      const previousOrder = queryClient.getQueryData(["purchase-orders", id]);
+      queryClient.setQueriesData({ queryKey: ["purchase-orders"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+      queryClient.setQueryData(["purchase-orders", id], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: { ...old.data, ...updateData, updated_at: new Date().toISOString() } };
+      });
+      return { previousOrders, previousOrder };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousOrders) {
+        context.previousOrders.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousOrder) {
+        queryClient.setQueryData(["purchase-orders", variables.id], context.previousOrder);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({
@@ -85,6 +147,32 @@ export function useDeletePurchaseOrder() {
 
   return useMutation({
     mutationFn: (id: number) => purchaseOrderService.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["purchase-orders"] });
+      const previousOrders = queryClient.getQueriesData({ queryKey: ["purchase-orders"] });
+      queryClient.setQueriesData({ queryKey: ["purchase-orders"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
+            },
+          },
+        };
+      });
+      return { previousOrders };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousOrders) {
+        context.previousOrders.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import type { PurchaseRequisition } from "../../types";
@@ -14,6 +15,23 @@ interface FinancialTabProps {
 
 export function FinancialTab({ requisition }: FinancialTabProps) {
   const tDetail = useTranslations("purchaseRequisitions.detail");
+
+  // Memoize financial values to prevent recalculation
+  const financialValues = useMemo(() => ({
+    subtotal: requisition.subtotal ?? 0,
+    taxRate: requisition.tax_rate ?? 0,
+    taxAmount: requisition.tax_amount ?? 0,
+    deliveryCost: requisition.delivery_cost ?? 0,
+    otherCost: requisition.other_cost ?? 0,
+    totalAmount: requisition.total_amount ?? 0,
+  }), [
+    requisition.subtotal,
+    requisition.tax_rate,
+    requisition.tax_amount,
+    requisition.delivery_cost,
+    requisition.other_cost,
+    requisition.total_amount,
+  ]);
 
   return (
     <TabsContent value="financial" className="space-y-6 mt-0">
@@ -32,21 +50,21 @@ export function FinancialTab({ requisition }: FinancialTabProps) {
                 {tDetail("financial.subtotal")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(requisition.subtotal ?? 0)}
+                {formatCurrency(financialValues.subtotal)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-sm font-medium text-muted-foreground">
                 {tDetail("financial.taxRate")}
               </span>
-              <span className="text-sm font-medium">{requisition.tax_rate ?? 0}%</span>
+              <span className="text-sm font-medium">{financialValues.taxRate}%</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-sm font-medium text-muted-foreground">
                 {tDetail("financial.taxAmount")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(requisition.tax_amount ?? 0)}
+                {formatCurrency(financialValues.taxAmount)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
@@ -54,7 +72,7 @@ export function FinancialTab({ requisition }: FinancialTabProps) {
                 {tDetail("financial.deliveryCost")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(requisition.delivery_cost ?? 0)}
+                {formatCurrency(financialValues.deliveryCost)}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
@@ -62,14 +80,14 @@ export function FinancialTab({ requisition }: FinancialTabProps) {
                 {tDetail("financial.otherCost")}
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(requisition.other_cost ?? 0)}
+                {formatCurrency(financialValues.otherCost)}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between py-2">
               <span className="text-base font-semibold">{tDetail("financial.totalAmount")}</span>
               <span className="text-lg font-bold text-primary">
-                {formatCurrency(requisition.total_amount ?? 0)}
+                {formatCurrency(financialValues.totalAmount)}
               </span>
             </div>
           </div>

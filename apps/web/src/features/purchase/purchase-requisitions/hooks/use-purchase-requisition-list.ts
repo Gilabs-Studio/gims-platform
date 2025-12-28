@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   usePurchaseRequisitions,
   useDeletePurchaseRequisition,
@@ -28,10 +29,13 @@ export function usePurchaseRequisitionList() {
   const [editingRequisition, setEditingRequisition] = useState<number | null>(null);
   const [deletingRequisitionId, setDeletingRequisitionId] = useState<number | null>(null);
 
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, isLoading } = usePurchaseRequisitions({
     page,
     limit: perPage,
-    search,
+    search: debouncedSearch,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
@@ -57,7 +61,7 @@ export function usePurchaseRequisitionList() {
     }
   }, [sortMeta, sortBy]);
 
-  const handleCreate = async (formData: CreatePurchaseRequisitionFormData) => {
+  const handleCreate = useCallback(async (formData: CreatePurchaseRequisitionFormData) => {
     try {
       await createRequisition.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -65,9 +69,9 @@ export function usePurchaseRequisitionList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createRequisition]);
 
-  const handleUpdate = async (formData: UpdatePurchaseRequisitionFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdatePurchaseRequisitionFormData) => {
     if (editingRequisition) {
       try {
         await updateRequisition.mutateAsync({ id: editingRequisition, data: formData });
@@ -77,13 +81,13 @@ export function usePurchaseRequisitionList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingRequisition, updateRequisition]);
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setDeletingRequisitionId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingRequisitionId) {
       try {
         await deleteRequisition.mutateAsync(deletingRequisitionId);
@@ -93,45 +97,45 @@ export function usePurchaseRequisitionList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingRequisitionId, deleteRequisition]);
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = useCallback(async (id: number) => {
     try {
       await approveRequisition.mutateAsync(id);
       toast.success("Purchase requisition approved successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [approveRequisition]);
 
-  const handleReject = async (id: number) => {
+  const handleReject = useCallback(async (id: number) => {
     try {
       await rejectRequisition.mutateAsync(id);
       toast.success("Purchase requisition rejected successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [rejectRequisition]);
 
-  const handleConvert = async (id: number) => {
+  const handleConvert = useCallback(async (id: number) => {
     try {
       await convertRequisition.mutateAsync(id);
       toast.success("Purchase requisition converted to purchase order successfully");
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [convertRequisition]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1);
-  };
+  }, []);
 
-  const handleSortChange = (newSortBy: string, newSortOrder: "asc" | "desc") => {
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "asc" | "desc") => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setPage(1); // Reset to first page when sorting changes
-  };
+  }, []);
 
   return {
     // State

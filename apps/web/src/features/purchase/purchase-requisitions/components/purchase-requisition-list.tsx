@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, startTransition } from "react";
+import { useState, useEffect, useRef, startTransition, useMemo, useCallback, memo } from "react";
 import {
   Edit,
   Trash2,
@@ -47,6 +47,63 @@ import type {
 } from "../schemas/purchase-requisition.schema";
 import { formatCurrency } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Memoized sidebar item component
+const RequisitionSidebarItem = memo(({ 
+  requisition, 
+  getStatusBadge,
+}: { 
+  requisition: PurchaseRequisition; 
+  getStatusBadge: (status: PurchaseRequisition["status"]) => React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-start gap-3">
+      <Avatar className="h-10 w-10 shrink-0">
+        <AvatarImage
+          src={requisition.user?.avatar_url ?? requisition.user?.photo_profile}
+          alt={requisition.user?.name ?? "User"}
+        />
+        <AvatarFallback>
+          {requisition.user?.name
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2) ?? "U"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="font-medium truncate cursor-pointer text-sm">
+            {requisition.code}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate mb-2">
+          {requisition.supplier?.name ?? "-"}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {getStatusBadge(requisition.status)}
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(requisition.total_amount ?? 0)}
+          </span>
+        </div>
+        {requisition.user && (
+          <p className="text-xs text-muted-foreground truncate">
+            {requisition.user.name}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}, (prev, next) => 
+  prev.requisition.id === next.requisition.id &&
+  prev.requisition.status === next.requisition.status &&
+  prev.requisition.code === next.requisition.code &&
+  prev.requisition.total_amount === next.requisition.total_amount &&
+  prev.requisition.supplier?.name === next.requisition.supplier?.name &&
+  prev.requisition.user?.name === next.requisition.user?.name
+);
+RequisitionSidebarItem.displayName = "RequisitionSidebarItem";
 
 export function PurchaseRequisitionList() {
   const {
@@ -114,18 +171,16 @@ export function PurchaseRequisitionList() {
   const hasRejectPermission = useHasPermission("REJECT");
   const hasConvertPermission = useHasPermission("CONVERT");
 
-  const handleViewRequisition = (requisitionId: number) => {
-    // For table view, open modal
+  const handleViewRequisition = useCallback((requisitionId: number) => {
     setModalRequisitionId(requisitionId);
-  };
+  }, []);
 
-  const handleSplitRequisitionClick = (requisition: PurchaseRequisition) => {
-    // For split view, show in container
+  const handleSplitRequisitionClick = useCallback((requisition: PurchaseRequisition) => {
     setSelectedSplitRequisitionId(requisition.id);
     setViewingRequisitionId(requisition.id);
-  };
+  }, []);
 
-  const getStatusBadge = (status: PurchaseRequisition["status"]) => {
+  const getStatusBadge = useCallback((status: PurchaseRequisition["status"]) => {
     switch (status) {
       case "DRAFT":
         return (
@@ -158,13 +213,22 @@ export function PurchaseRequisitionList() {
       default:
         return <Badge>{status}</Badge>;
     }
-  };
+  }, [t]);
 
-  // Map requisitions to have string id for DataTable compatibility
-  const requisitionsWithStringId = requisitions.map((r) => ({ ...r, id: r.id.toString() }));
+  // Map requisitions to have string id for DataTable compatibility - Memoized
+  const requisitionsWithStringId = useMemo(
+    () => requisitions.map((r) => ({ ...r, id: r.id.toString() })),
+    [requisitions]
+  );
   type RequisitionWithStringId = Omit<PurchaseRequisition, "id"> & { id: string };
 
-  const columns: Column<RequisitionWithStringId>[] = [
+  // Memoize renderItem callback - MUST be outside JSX to follow Rules of Hooks
+  const renderSidebarItem = useCallback((requisition: PurchaseRequisition) => (
+    <RequisitionSidebarItem requisition={requisition} getStatusBadge={getStatusBadge} />
+  ), [getStatusBadge]);
+
+  // Memoize columns definition - Stable dependencies only
+  const columns: Column<RequisitionWithStringId>[] = useMemo(() => [
     {
       id: "code",
       header: t("code"),
@@ -289,7 +353,25 @@ export function PurchaseRequisitionList() {
           : []),
       ],
     },
-  ];
+  ], [
+    t,
+    handleViewRequisition,
+    getStatusBadge,
+    hasViewPermission,
+    hasApprovePermission,
+    hasRejectPermission,
+    hasConvertPermission,
+    hasEditPermission,
+    hasDeletePermission,
+    handleApprove,
+    approveRequisition.isPending,
+    handleReject,
+    rejectRequisition.isPending,
+    handleConvert,
+    convertRequisition.isPending,
+    setEditingRequisition,
+    handleDeleteClick,
+  ]);
 
   if (!hasViewPermission) {
     return (
@@ -442,45 +524,7 @@ export function PurchaseRequisitionList() {
             items={requisitions}
             selectedItemId={selectedSplitRequisitionId}
             onItemClick={handleSplitRequisitionClick}
-            renderItem={(requisition) => (
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarImage
-                    src={requisition.user?.avatar_url ?? requisition.user?.photo_profile}
-                    alt={requisition.user?.name ?? "User"}
-                  />
-                  <AvatarFallback>
-                    {requisition.user?.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2) ?? "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="font-medium truncate cursor-pointer text-sm">
-                      {requisition.code}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mb-2">
-                    {requisition.supplier?.name ?? "-"}
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    {getStatusBadge(requisition.status)}
-                    <span className="text-xs text-muted-foreground">
-                      {formatCurrency(requisition.total_amount ?? 0)}
-                    </span>
-                  </div>
-                  {requisition.user && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {requisition.user.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+            renderItem={renderSidebarItem}
             emptyMessage={t("empty")}
             title={t("title")}
             className="w-80 shrink-0"

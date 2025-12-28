@@ -54,6 +54,52 @@ export function useCreateGoodsReceipt() {
   return useMutation({
     mutationFn: (data: CreateGoodsReceiptFormData) =>
       goodsReceiptService.create(data),
+    onMutate: async (newGoodsReceipt) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["goods-receipts"] });
+
+      // Snapshot the previous value
+      const previousGoodsReceipts = queryClient.getQueriesData({ queryKey: ["goods-receipts"] });
+
+      // Optimistically update to the new value
+      queryClient.setQueriesData({ queryKey: ["goods-receipts"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: [
+              {
+                id: Date.now(), // Temporary ID
+                ...newGoodsReceipt,
+                status: "PENDING",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              ...(old.data.data || []),
+            ],
+            meta: {
+              ...old.data.meta,
+              pagination: {
+                ...old.data.meta?.pagination,
+                total: (old.data.meta?.pagination?.total || 0) + 1,
+              },
+            },
+          },
+        };
+      });
+
+      // Return context with snapshot value
+      return { previousGoodsReceipts };
+    },
+    onError: (err, newGoodsReceipt, context) => {
+      // Rollback to previous value on error
+      if (context?.previousGoodsReceipts) {
+        context.previousGoodsReceipts.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
     },
@@ -71,6 +117,51 @@ export function useUpdateGoodsReceipt() {
       id: number;
       data: UpdateGoodsReceiptFormData;
     }) => goodsReceiptService.update(id, data),
+    onMutate: async ({ id, data: updateData }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["goods-receipts"] });
+      await queryClient.cancelQueries({ queryKey: ["goods-receipts", id] });
+
+      // Snapshot previous values
+      const previousGoodsReceipts = queryClient.getQueriesData({ queryKey: ["goods-receipts"] });
+      const previousGoodsReceipt = queryClient.getQueryData(["goods-receipts", id]);
+
+      // Optimistically update list
+      queryClient.setQueriesData({ queryKey: ["goods-receipts"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((item: any) =>
+              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+            ),
+          },
+        };
+      });
+
+      // Optimistically update detail
+      queryClient.setQueryData(["goods-receipts", id], (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: { ...old.data, ...updateData, updated_at: new Date().toISOString() },
+        };
+      });
+
+      return { previousGoodsReceipts, previousGoodsReceipt };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousGoodsReceipts) {
+        context.previousGoodsReceipts.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousGoodsReceipt) {
+        queryClient.setQueryData(["goods-receipts", variables.id], context.previousGoodsReceipt);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
       queryClient.invalidateQueries({
@@ -85,6 +176,42 @@ export function useDeleteGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: number) => goodsReceiptService.delete(id),
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["goods-receipts"] });
+
+      // Snapshot previous value
+      const previousGoodsReceipts = queryClient.getQueriesData({ queryKey: ["goods-receipts"] });
+
+      // Optimistically remove from list
+      queryClient.setQueriesData({ queryKey: ["goods-receipts"] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.filter((item: any) => item.id !== id),
+            meta: {
+              ...old.data.meta,
+              pagination: {
+                ...old.data.meta?.pagination,
+                total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1),
+              },
+            },
+          },
+        };
+      });
+
+      return { previousGoodsReceipts };
+    },
+    onError: (err, id, context) => {
+      // Rollback on error
+      if (context?.previousGoodsReceipts) {
+        context.previousGoodsReceipts.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
     },

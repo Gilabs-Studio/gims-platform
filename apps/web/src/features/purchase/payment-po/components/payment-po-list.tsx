@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, startTransition } from "react";
+import { useState, useEffect, useRef, startTransition, useMemo, useCallback, memo } from "react";
 import {
   Edit,
   Trash2,
@@ -46,6 +46,50 @@ import type {
 } from "../schemas/payment-po.schema";
 import { formatCurrency } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Memoized sidebar item component
+const PaymentPOSidebarItem = memo(({ 
+  paymentPO, 
+  getStatusBadge,
+  getMethodBadge,
+}: { 
+  paymentPO: PaymentPO; 
+  getStatusBadge: (status: PaymentPO["status"]) => React.ReactNode;
+  getMethodBadge: (method: PaymentPO["method"]) => React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="font-medium truncate cursor-pointer text-sm">
+            #{paymentPO.id}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate mb-2">
+          {paymentPO.invoice?.invoice_number ?? "-"}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {getStatusBadge(paymentPO.status)}
+          {getMethodBadge(paymentPO.method)}
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(paymentPO.amount ?? 0)}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate">
+          {paymentPO.bank_account?.name ?? "-"}
+        </p>
+      </div>
+    </div>
+  );
+}, (prev, next) => 
+  prev.paymentPO.id === next.paymentPO.id &&
+  prev.paymentPO.status === next.paymentPO.status &&
+  prev.paymentPO.method === next.paymentPO.method &&
+  prev.paymentPO.amount === next.paymentPO.amount &&
+  prev.paymentPO.invoice?.invoice_number === next.paymentPO.invoice?.invoice_number &&
+  prev.paymentPO.bank_account?.name === next.paymentPO.bank_account?.name
+);
+PaymentPOSidebarItem.displayName = "PaymentPOSidebarItem";
 
 export function PaymentPOList() {
   const {
@@ -107,18 +151,16 @@ export function PaymentPOList() {
   const hasDeletePermission = useHasPermission("DELETE");
   const hasApprovePermission = useHasPermission("APPROVE");
 
-  const handleViewPaymentPO = (paymentPOId: number) => {
-    // For table view, open modal
+  const handleViewPaymentPO = useCallback((paymentPOId: number) => {
     setModalPaymentPOId(paymentPOId);
-  };
+  }, []);
 
-  const handleSplitPaymentPOClick = (paymentPO: PaymentPO) => {
-    // For split view, show in container
+  const handleSplitPaymentPOClick = useCallback((paymentPO: PaymentPO) => {
     setSelectedSplitPaymentPOId(paymentPO.id);
     setViewingPaymentPOId(paymentPO.id);
-  };
+  }, []);
 
-  const getStatusBadge = (status: PaymentPO["status"]) => {
+  const getStatusBadge = useCallback((status: PaymentPO["status"]) => {
     switch (status) {
       case "PENDING":
         return (
@@ -137,9 +179,9 @@ export function PaymentPOList() {
       default:
         return <Badge>{status}</Badge>;
     }
-  };
+  }, [t]);
 
-  const getMethodBadge = (method: PaymentPO["method"]) => {
+  const getMethodBadge = useCallback((method: PaymentPO["method"]) => {
     switch (method) {
       case "CASH":
         return (
@@ -157,13 +199,26 @@ export function PaymentPOList() {
       default:
         return <Badge variant="outline">{method}</Badge>;
     }
-  };
+  }, [t]);
 
-  // Map paymentPOs to have string id for DataTable compatibility
-  const paymentPOsWithStringId = paymentPOs.map((r) => ({ ...r, id: r.id.toString() }));
+  // Map paymentPOs to have string id for DataTable compatibility - Memoized
+  const paymentPOsWithStringId = useMemo(
+    () => paymentPOs.map((r) => ({ ...r, id: r.id.toString() })),
+    [paymentPOs]
+  );
   type PaymentPOWithStringId = Omit<PaymentPO, "id"> & { id: string };
 
-  const columns: Column<PaymentPOWithStringId>[] = [
+  // Memoize renderItem callback - MUST be outside JSX to follow Rules of Hooks
+  const renderSidebarItem = useCallback((paymentPO: PaymentPO) => (
+    <PaymentPOSidebarItem 
+      paymentPO={paymentPO} 
+      getStatusBadge={getStatusBadge}
+      getMethodBadge={getMethodBadge}
+    />
+  ), [getStatusBadge, getMethodBadge]);
+
+  // Memoize columns definition
+  const columns: Column<PaymentPOWithStringId>[] = useMemo(() => [
     {
       id: "id",
       header: t("id"),
@@ -265,7 +320,7 @@ export function PaymentPOList() {
           : []),
       ],
     },
-  ];
+  ], [t, handleViewPaymentPO, getStatusBadge, getMethodBadge, hasViewPermission, hasApprovePermission, hasEditPermission, hasDeletePermission, handleConfirm, confirmPaymentPO.isPending, setEditingPaymentPO, handleDeleteClick]);
 
   if (!hasViewPermission) {
     return (
@@ -420,30 +475,7 @@ export function PaymentPOList() {
             items={paymentPOs}
             selectedItemId={selectedSplitPaymentPOId}
             onItemClick={handleSplitPaymentPOClick}
-            renderItem={(paymentPO) => (
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="font-medium truncate cursor-pointer text-sm">
-                      #{paymentPO.id}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mb-2">
-                    {paymentPO.invoice?.invoice_number ?? "-"}
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    {getStatusBadge(paymentPO.status)}
-                    {getMethodBadge(paymentPO.method)}
-                    <span className="text-xs text-muted-foreground">
-                      {formatCurrency(paymentPO.amount ?? 0)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {paymentPO.bank_account?.name ?? "-"}
-                  </p>
-                </div>
-              </div>
-            )}
+            renderItem={renderSidebarItem}
             emptyMessage={t("empty")}
             title={t("title")}
             className="w-80 shrink-0"

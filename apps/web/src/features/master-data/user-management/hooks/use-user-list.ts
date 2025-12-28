@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useUsers, useDeleteUser, useUser, useCreateUser, useUpdateUser } from "./use-users";
 import { useRoles } from "./use-users";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
@@ -16,7 +17,10 @@ export function useUserList() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
-  const { data, isLoading } = useUsers({ page, per_page: perPage, search, status, role_id: roleId });
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(search, 500);
+
+  const { data, isLoading } = useUsers({ page, per_page: perPage, search: debouncedSearch, status, role_id: roleId });
   const { data: rolesData } = useRoles();
   const { data: editingUserData } = useUser(editingUser || "");
   const deleteUser = useDeleteUser();
@@ -27,7 +31,7 @@ export function useUserList() {
   const pagination = data?.meta?.pagination;
   const roles = rolesData?.data || [];
 
-  const handleCreate = async (formData: CreateUserFormData) => {
+  const handleCreate = useCallback(async (formData: CreateUserFormData) => {
     try {
       await createUser.mutateAsync(formData);
       setIsCreateDialogOpen(false);
@@ -35,9 +39,9 @@ export function useUserList() {
     } catch (error) {
       // Error already handled in api-client interceptor
     }
-  };
+  }, [createUser]);
 
-  const handleUpdate = async (formData: UpdateUserFormData) => {
+  const handleUpdate = useCallback(async (formData: UpdateUserFormData) => {
     if (editingUser) {
       try {
         await updateUser.mutateAsync({ id: editingUser, data: formData });
@@ -47,13 +51,13 @@ export function useUserList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [editingUser, updateUser]);
 
-  const handleDeleteClick = (id: string) => {
+  const handleDeleteClick = useCallback((id: string) => {
     setDeletingUserId(id);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deletingUserId) {
       try {
         await deleteUser.mutateAsync(deletingUserId);
@@ -63,12 +67,12 @@ export function useUserList() {
         // Error already handled in api-client interceptor
       }
     }
-  };
+  }, [deletingUserId, deleteUser]);
 
-  const handlePerPageChange = (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1); // Reset to first page when changing per page
-  };
+  }, []);
 
   return {
     // State

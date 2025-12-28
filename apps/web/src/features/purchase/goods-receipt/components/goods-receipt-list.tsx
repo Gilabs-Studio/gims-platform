@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, startTransition } from "react";
+import { useState, useEffect, useRef, startTransition, useMemo, useCallback, memo } from "react";
 import {
   Edit,
   Trash2,
@@ -48,6 +48,59 @@ import type {
 } from "../schemas/goods-receipt.schema";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+
+// Memoized sidebar item component to prevent unnecessary re-renders
+const GoodsReceiptSidebarItem = memo(({ 
+  goodsReceipt, 
+  getStatusBadge 
+}: { 
+  goodsReceipt: GoodsReceipt; 
+  getStatusBadge: (status: GoodsReceipt["status"]) => React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-start gap-3">
+      <Avatar className="h-10 w-10 shrink-0">
+        <AvatarImage
+          src={goodsReceipt.received_by?.avatar_url ?? goodsReceipt.received_by?.photo_profile}
+          alt={goodsReceipt.received_by?.name ?? "User"}
+        />
+        <AvatarFallback>
+          {goodsReceipt.received_by?.name
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2) ?? "U"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="font-medium truncate cursor-pointer text-sm">
+            {goodsReceipt.code}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate mb-2">
+          {goodsReceipt.warehouse?.name ?? "-"}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {getStatusBadge(goodsReceipt.status)}
+        </div>
+        {goodsReceipt.received_by && (
+          <p className="text-xs text-muted-foreground truncate">
+            {goodsReceipt.received_by.name}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}, (prev, next) => 
+  prev.goodsReceipt.id === next.goodsReceipt.id &&
+  prev.goodsReceipt.status === next.goodsReceipt.status &&
+  prev.goodsReceipt.code === next.goodsReceipt.code &&
+  prev.goodsReceipt.warehouse?.name === next.goodsReceipt.warehouse?.name &&
+  prev.goodsReceipt.received_by?.name === next.goodsReceipt.received_by?.name
+);
+GoodsReceiptSidebarItem.displayName = "GoodsReceiptSidebarItem";
 
 export function GoodsReceiptList() {
   const {
@@ -112,17 +165,17 @@ export function GoodsReceiptList() {
   const hasDeletePermission = useHasPermission("DELETE");
   const hasApprovePermission = useHasPermission("APPROVE");
 
-  const handleViewGoodsReceipt = (goodsReceiptId: number) => {
+  const handleViewGoodsReceipt = useCallback((goodsReceiptId: number) => {
     setModalGoodsReceiptId(goodsReceiptId);
     setIsDetailModalOpen(true);
-  };
+  }, []);
 
-  const handleSplitGoodsReceiptClick = (goodsReceipt: GoodsReceipt) => {
+  const handleSplitGoodsReceiptClick = useCallback((goodsReceipt: GoodsReceipt) => {
     setSelectedSplitGoodsReceiptId(goodsReceipt.id);
     setViewingGoodsReceiptId(goodsReceipt.id);
-  };
+  }, []);
 
-  const getStatusBadge = (status: GoodsReceipt["status"]) => {
+  const getStatusBadge = useCallback((status: GoodsReceipt["status"]) => {
     switch (status) {
       case "PENDING":
         return (
@@ -148,13 +201,22 @@ export function GoodsReceiptList() {
       default:
         return <Badge>{status}</Badge>;
     }
-  };
+  }, [t]);
 
-  // Map goods receipts to have string id for DataTable compatibility
-  const goodsReceiptsWithStringId = goodsReceipts.map((r) => ({ ...r, id: r.id.toString() }));
+  // Map goods receipts to have string id for DataTable compatibility - Memoized
+  const goodsReceiptsWithStringId = useMemo(
+    () => goodsReceipts.map((r) => ({ ...r, id: r.id.toString() })),
+    [goodsReceipts]
+  );
   type GoodsReceiptWithStringId = Omit<GoodsReceipt, "id"> & { id: string };
 
-  const columns: Column<GoodsReceiptWithStringId>[] = [
+  // Memoize renderItem callback - MUST be outside JSX to follow Rules of Hooks
+  const renderSidebarItem = useCallback((goodsReceipt: GoodsReceipt) => (
+    <GoodsReceiptSidebarItem goodsReceipt={goodsReceipt} getStatusBadge={getStatusBadge} />
+  ), [getStatusBadge]);
+
+  // Memoize columns definition to prevent recreation on every render
+  const columns: Column<GoodsReceiptWithStringId>[] = useMemo(() => [
     {
       id: "code",
       header: t("code"),
@@ -253,7 +315,7 @@ export function GoodsReceiptList() {
           : []),
       ],
     },
-  ];
+  ], [t, handleViewGoodsReceipt, getStatusBadge, hasViewPermission, hasApprovePermission, hasEditPermission, hasDeletePermission, handleConfirm, confirmGoodsReceipt.isPending, setEditingGoodsReceipt, handleDeleteClick]);
 
   if (!hasViewPermission) {
     return (
@@ -412,42 +474,7 @@ export function GoodsReceiptList() {
             items={goodsReceipts}
             selectedItemId={selectedSplitGoodsReceiptId}
             onItemClick={handleSplitGoodsReceiptClick}
-            renderItem={(goodsReceipt) => (
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarImage
-                    src={goodsReceipt.received_by?.avatar_url ?? goodsReceipt.received_by?.photo_profile}
-                    alt={goodsReceipt.received_by?.name ?? "User"}
-                  />
-                  <AvatarFallback>
-                    {goodsReceipt.received_by?.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2) ?? "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="font-medium truncate cursor-pointer text-sm">
-                      {goodsReceipt.code}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mb-2">
-                    {goodsReceipt.warehouse?.name ?? "-"}
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    {getStatusBadge(goodsReceipt.status)}
-                  </div>
-                  {goodsReceipt.received_by && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {goodsReceipt.received_by.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+            renderItem={renderSidebarItem}
             emptyMessage={t("empty")}
             title={t("title")}
             className="w-80 shrink-0"
