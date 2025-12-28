@@ -17,6 +17,8 @@ import purchaseRequisitionsEnMessages from "@/features/purchase/purchase-requisi
 import purchaseRequisitionsIdMessages from "@/features/purchase/purchase-requisitions/i18n/messages/id.json";
 import purchaseOrdersEnMessages from "@/features/purchase/purchase-order/i18n/messages/en.json";
 import purchaseOrdersIdMessages from "@/features/purchase/purchase-order/i18n/messages/id.json";
+import goodsReceiptsEnMessages from "@/features/purchase/goods-receipt/i18n/messages/en.json";
+import goodsReceiptsIdMessages from "@/features/purchase/goods-receipt/i18n/messages/id.json";
 
 // Merge all messages
 const messages = {
@@ -28,6 +30,7 @@ const messages = {
     ...dashboardEnMessages,
     ...purchaseRequisitionsEnMessages,
     ...purchaseOrdersEnMessages,
+    ...goodsReceiptsEnMessages,
   },
   id: {
     ...globalIdMessages,
@@ -37,6 +40,7 @@ const messages = {
     ...dashboardIdMessages,
     ...purchaseRequisitionsIdMessages,
     ...purchaseOrdersIdMessages,
+    ...goodsReceiptsIdMessages,
   },
 } as const;
 
