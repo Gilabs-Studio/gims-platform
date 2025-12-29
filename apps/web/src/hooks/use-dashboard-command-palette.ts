@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import type { MenuWithActions } from "@/features/master-data/user-management/types";
+import { isValidRoute } from "@/lib/route-validator";
 
 export interface CommandMenuItem {
   readonly id: string;
@@ -39,7 +40,8 @@ export function useDashboardCommandPalette(
 
     const walkChildren = (children: MenuWithActions[], group: string) => {
       children.forEach((child) => {
-        if (child.url) {
+        // Only add menu item if URL exists and is a valid route
+        if (child.url && isValidRoute(child.url)) {
           allItems.push({
             id: String(child.id),
             name: child.name,
@@ -58,7 +60,8 @@ export function useDashboardCommandPalette(
     menus.forEach((menu) => {
       const group = menu.url === "/dashboard" ? "Dashboards" : menu.name;
 
-      if (menu.url) {
+      // Only add menu item if URL exists and is a valid route
+      if (menu.url && isValidRoute(menu.url)) {
         allItems.push({
           id: String(menu.id),
           name: menu.name,
@@ -84,7 +87,11 @@ export function useDashboardCommandPalette(
 
   const onSelectItem = useCallback(
     (href: string) => {
-      if (!href) return;
+      // Validate route before navigation
+      if (!href || !isValidRoute(href)) {
+        console.warn(`Invalid route: ${href}`);
+        return;
+      }
       router.push(href);
       setIsOpen(false);
     },
