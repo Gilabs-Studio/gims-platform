@@ -50,7 +50,7 @@ export function SplitViewSidebar<T extends { id: number }>({
         {/* Backdrop */}
         {isOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-[999] md:hidden"
+            className="fixed inset-0 bg-black/50 z-999 md:hidden"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -58,7 +58,7 @@ export function SplitViewSidebar<T extends { id: number }>({
         {/* Sidebar */}
         <div
           className={cn(
-            "fixed left-0 top-0 h-full w-80 bg-background border-r z-[1000] transition-transform duration-300 ease-in-out md:relative md:z-auto",
+            "fixed left-0 top-0 h-full w-80 bg-background border-r z-1000 transition-transform duration-300 ease-in-out md:relative md:z-auto",
             isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
             className
           )}

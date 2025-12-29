@@ -45,8 +45,6 @@ const DEFAULT_ZOOM = 13;
 export function MapView<T>({
   markers,
   renderMarkers,
-  onMarkerClick,
-  selectedMarkerId,
   className,
   showSidebar = false,
   onToggleSidebar,
@@ -145,7 +143,7 @@ export function MapView<T>({
         <Button
           variant="outline"
           size="icon"
-          className="absolute top-2 left-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+          className="absolute top-2 left-2 z-1000 bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
           onClick={onToggleSidebar}
           aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
         >
