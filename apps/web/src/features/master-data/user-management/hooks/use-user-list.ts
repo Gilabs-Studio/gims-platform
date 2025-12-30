@@ -9,27 +9,37 @@ import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.sch
 
 export function useUserList() {
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
+  const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("");
-  const [roleId, setRoleId] = useState<string>("");
+  const [searchBy, setSearchBy] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<number | string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<number | string | null>(null);
 
   // Debounce search input to reduce API calls
   const debouncedSearch = useDebounce(search, 500);
 
-  const { data, isLoading } = useUsers({ page, per_page: perPage, search: debouncedSearch, status, role_id: roleId });
+  const { data, isLoading } = useUsers({ 
+    page, 
+    limit, 
+    search: debouncedSearch, 
+    searchBy: searchBy || undefined,
+    sort_by: sortBy,
+    sort_order: sortOrder,
+  });
   const { data: rolesData } = useRoles();
-  const { data: editingUserData } = useUser(editingUser || "");
+  const { data: editingUserData } = useUser(editingUser || 0);
   const deleteUser = useDeleteUser();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
 
-  const users = data?.data || [];
+  const users = data?.data ?? [];
   const pagination = data?.meta?.pagination;
-  const roles = rolesData?.data || [];
+  const roles = rolesData?.data ?? [];
+  const searchableColumns = data?.meta?.searchable_columns;
+  const sortableColumns = data?.meta?.sortable_columns;
 
   const handleCreate = useCallback(async (formData: CreateUserFormData) => {
     try {
@@ -53,7 +63,7 @@ export function useUserList() {
     }
   }, [editingUser, updateUser]);
 
-  const handleDeleteClick = useCallback((id: string) => {
+  const handleDeleteClick = useCallback((id: number | string) => {
     setDeletingUserId(id);
   }, []);
 
@@ -69,23 +79,25 @@ export function useUserList() {
     }
   }, [deletingUserId, deleteUser]);
 
-  const handlePerPageChange = useCallback((newPerPage: number) => {
-    setPerPage(newPerPage);
-    setPage(1); // Reset to first page when changing per page
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1); // Reset to first page when changing limit
   }, []);
 
   return {
     // State
     page,
     setPage,
-    perPage,
-    setPerPage: handlePerPageChange,
+    limit,
+    setLimit: handleLimitChange,
     search,
     setSearch,
-    status,
-    setStatus,
-    roleId,
-    setRoleId,
+    searchBy,
+    setSearchBy,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     editingUser,
@@ -96,6 +108,8 @@ export function useUserList() {
     users,
     pagination,
     roles,
+    searchableColumns,
+    sortableColumns,
     editingUserData,
     isLoading,
     // Actions

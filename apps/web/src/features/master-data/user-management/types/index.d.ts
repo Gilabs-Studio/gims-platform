@@ -1,23 +1,18 @@
 export interface User {
-  id: string;
-  email: string;
+  id: number | string; // Support both number (from API) and string (for DataTable compatibility)
   name: string;
-  avatar_url?: string;
-  role_id: string;
-  role?: Role;
-  status: "active" | "inactive";
+  username: string;
+  photo_profile?: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  roles?: Role[];
 }
 
 export interface Role {
-  id: string;
+  id: number | string; // Support both number (from API) and string (for compatibility)
   name: string;
-  code: string;
   description?: string;
-  status: "active" | "inactive";
-  is_protected?: boolean;
-  permissions?: Permission[];
   created_at: string;
   updated_at: string;
 }
@@ -71,42 +66,73 @@ export interface UserPermissionsResponse {
 }
 
 export interface ListUsersResponse {
-  success: boolean;
   data: User[];
   meta: {
-    pagination: {
-      page: number;
-      per_page: number;
-      total: number;
-      total_pages: number;
-      has_next: boolean;
-      has_prev: boolean;
+    filter?: {
+      end_date?: string;
+      start_date?: string;
     };
-    filters?: Record<string, unknown>;
+    pagination: {
+      limit: number;
+      page: number;
+      total: number;
+    };
+    search?: {
+      search?: string;
+      searchBy?: string;
+    };
+    searchable_columns?: {
+      numeric_columns?: string[];
+      string_columns?: string[];
+    };
+    sort?: {
+      sort_by?: string;
+      sort_order?: "asc" | "desc";
+    };
+    sortable_columns?: {
+      available_fields?: string[];
+    };
   };
-  timestamp: string;
-  request_id: string;
 }
 
 export interface UserResponse {
-  success: boolean;
   data: User;
-  timestamp: string;
-  request_id: string;
+  message?: string;
 }
 
 export interface RoleResponse {
-  success: boolean;
   data: Role;
-  timestamp: string;
-  request_id: string;
+  message?: string;
 }
 
 export interface ListRolesResponse {
-  success: boolean;
   data: Role[];
-  timestamp: string;
-  request_id: string;
+  meta?: {
+    filter?: {
+      end_date?: string;
+      start_date?: string;
+    };
+    pagination?: {
+      limit: number;
+      page: number;
+      total: number;
+    };
+    search?: {
+      search?: string;
+      searchBy?: string;
+    };
+    searchable_columns?: {
+      numeric_columns?: string[];
+      string_columns?: string[];
+    };
+    sort?: {
+      sort_by?: string;
+      sort_order?: "asc" | "desc";
+    };
+    sortable_columns?: {
+      available_fields?: string[];
+    };
+  };
 }
 
 export interface PermissionResponse {

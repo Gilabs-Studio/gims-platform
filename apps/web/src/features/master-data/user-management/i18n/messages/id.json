@@ -6,6 +6,8 @@
     }
   },
   "userManagement": {
+    "title": "Manajemen Pengguna",
+    "description": "Kelola pengguna, role, dan permission dalam satu tempat",
     "tabs": {
       "users": "Pengguna",
       "roles": "Role",

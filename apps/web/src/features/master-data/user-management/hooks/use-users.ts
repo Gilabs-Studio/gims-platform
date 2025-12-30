@@ -6,10 +6,11 @@ import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.sch
 
 export function useUsers(params?: {
   page?: number;
-  per_page?: number;
+  limit?: number;
   search?: string;
-  status?: string;
-  role_id?: string;
+  searchBy?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }) {
   return useQuery({
     queryKey: ["users", params],
@@ -27,7 +28,7 @@ export function useUsers(params?: {
   });
 }
 
-export function useUser(id: string) {
+export function useUser(id: number | string) {
   return useQuery({
     queryKey: ["users", id],
     queryFn: () => userService.getById(id),
@@ -47,16 +48,13 @@ export function useCreateUser() {
         if (!old?.data) return old;
         return {
           ...old,
-          data: {
-            ...old.data,
-            data: [
-              { id: `temp-${Date.now()}`, ...newUser, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-              ...(old.data.data || []),
-            ],
-            meta: {
-              ...old.data.meta,
-              pagination: { ...old.data.meta?.pagination, total: (old.data.meta?.pagination?.total || 0) + 1 },
-            },
+          data: [
+            { id: Date.now(), ...newUser, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), is_active: true },
+            ...(old.data || []),
+          ],
+          meta: {
+            ...old.meta,
+            pagination: { ...old.meta?.pagination, total: (old.meta?.pagination?.total || 0) + 1 },
           },
         };
       });
@@ -79,7 +77,7 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateUserFormData }) =>
+    mutationFn: ({ id, data }: { id: number | string; data: UpdateUserFormData }) =>
       userService.update(id, data),
     onMutate: async ({ id, data: updateData }) => {
       await queryClient.cancelQueries({ queryKey: ["users"] });
@@ -87,15 +85,12 @@ export function useUpdateUser() {
       const previousUsers = queryClient.getQueriesData({ queryKey: ["users"] });
       const previousUser = queryClient.getQueryData(["users", id]);
       queryClient.setQueriesData({ queryKey: ["users"] }, (old: any) => {
-        if (!old?.data?.data) return old;
+        if (!old?.data) return old;
         return {
           ...old,
-          data: {
-            ...old.data,
-            data: old.data.data.map((item: any) =>
-              item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
-            ),
-          },
+          data: old.data.map((item: any) =>
+            item.id === id ? { ...item, ...updateData, updated_at: new Date().toISOString() } : item
+          ),
         };
       });
       queryClient.setQueryData(["users", id], (old: any) => {
@@ -125,21 +120,18 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => userService.delete(id),
+    mutationFn: (id: number | string) => userService.delete(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["users"] });
       const previousUsers = queryClient.getQueriesData({ queryKey: ["users"] });
       queryClient.setQueriesData({ queryKey: ["users"] }, (old: any) => {
-        if (!old?.data?.data) return old;
+        if (!old?.data) return old;
         return {
           ...old,
-          data: {
-            ...old.data,
-            data: old.data.data.filter((item: any) => item.id !== id),
-            meta: {
-              ...old.data.meta,
-              pagination: { ...old.data.meta?.pagination, total: Math.max(0, (old.data.meta?.pagination?.total || 0) - 1) },
-            },
+          data: old.data.filter((item: any) => item.id !== id),
+          meta: {
+            ...old.meta,
+            pagination: { ...old.meta?.pagination, total: Math.max(0, (old.meta?.pagination?.total || 0) - 1) },
           },
         };
       });
@@ -158,7 +150,7 @@ export function useDeleteUser() {
   });
 }
 
-export function useUserPermissions(userId: string) {
+export function useUserPermissions(userId: number | string) {
   return useQuery({
     queryKey: ["users", userId, "permissions"],
     queryFn: () => userService.getPermissions(userId),
@@ -173,7 +165,7 @@ export function useRoles() {
   });
 }
 
-export function useRole(id: string) {
+export function useRole(id: number | string) {
   return useQuery({
     queryKey: ["roles", id],
     queryFn: () => roleService.getById(id),

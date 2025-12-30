@@ -6,6 +6,8 @@
     }
   },
   "userManagement": {
+    "title": "User Management",
+    "description": "Manage users, roles, and permissions in one place",
     "tabs": {
       "users": "Users",
       "roles": "Roles",

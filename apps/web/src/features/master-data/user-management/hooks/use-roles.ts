@@ -11,7 +11,7 @@ export function useRoles() {
   });
 }
 
-export function useRole(id: string) {
+export function useRole(id: number | string) {
   return useQuery({
     queryKey: ["role", id],
     queryFn: () => roleService.getById(id),
@@ -32,7 +32,7 @@ export function useCreateRole() {
         return {
           ...old,
           data: [
-            { id: `temp-${Date.now()}`, ...newRole, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { id: Date.now(), ...newRole, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             ...(old.data || []),
           ],
         };
@@ -54,7 +54,7 @@ export function useUpdateRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateRoleFormData }) =>
+    mutationFn: ({ id, data }: { id: number | string; data: UpdateRoleFormData }) =>
       roleService.update(id, data),
     onMutate: async ({ id, data: updateData }) => {
       await queryClient.cancelQueries({ queryKey: ["roles"] });
@@ -95,7 +95,7 @@ export function useDeleteRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => roleService.delete(id),
+    mutationFn: (id: number | string) => roleService.delete(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["roles"] });
       const previousRoles = queryClient.getQueryData(["roles"]);
@@ -115,19 +115,6 @@ export function useDeleteRole() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
-    },
-  });
-}
-
-export function useAssignPermissionsToRole() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ roleId, permissionIds }: { roleId: string; permissionIds: string[] }) =>
-      roleService.assignPermissions(roleId, permissionIds),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["roles"] });
-      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
     },
   });
 }

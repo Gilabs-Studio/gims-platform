@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api-client";
-import type { User, ListUsersResponse, UserResponse } from "../types";
+import type { ListUsersResponse, UserResponse, RoleResponse } from "../types";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import type { ListRolesResponse, Role } from "../types";
 import type { ListPermissionsResponse, Permission, UserPermissionsApiResponse } from "../types";
@@ -7,37 +7,51 @@ import type { ListPermissionsResponse, Permission, UserPermissionsApiResponse } 
 export const userService = {
   async list(params?: {
     page?: number;
-    per_page?: number;
+    limit?: number;
     search?: string;
-    status?: string;
-    role_id?: string;
+    searchBy?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
   }): Promise<ListUsersResponse> {
-    const response = await apiClient.get<ListUsersResponse>("/users", { params });
+    const response = await apiClient.get<ListUsersResponse>("/master-data/users", { params });
     return response.data;
   },
 
-  async getById(id: string): Promise<UserResponse> {
-    const response = await apiClient.get<UserResponse>(`/users/${id}`);
+  async getById(id: number | string): Promise<UserResponse> {
+    const response = await apiClient.get<UserResponse>(`/master-data/users/${id}`);
     return response.data;
   },
 
   async create(data: CreateUserFormData): Promise<UserResponse> {
-    const response = await apiClient.post<UserResponse>("/users", data);
+    const response = await apiClient.post<UserResponse>("/master-data/users", data);
     return response.data;
   },
 
-  async update(id: string, data: UpdateUserFormData): Promise<UserResponse> {
-    const response = await apiClient.put<UserResponse>(`/users/${id}`, data);
+  async update(id: number | string, data: UpdateUserFormData): Promise<UserResponse> {
+    const response = await apiClient.put<UserResponse>(`/master-data/users/${id}`, data);
     return response.data;
   },
 
-  async delete(id: string): Promise<void> {
-    await apiClient.delete(`/users/${id}`);
+  async delete(id: number | string): Promise<{ message: string }> {
+    const response = await apiClient.delete<{ message: string }>(`/master-data/users/${id}`);
+    return response.data;
   },
 
-  async getPermissions(userId: string): Promise<UserPermissionsApiResponse> {
+  async getPermissions(userId: number | string): Promise<UserPermissionsApiResponse> {
     const response = await apiClient.get<UserPermissionsApiResponse>(
-      `/users/${userId}/permissions`
+      `/master-data/users/${userId}/permissions`
+    );
+    return response.data;
+  },
+
+  async getAddData(): Promise<{ data: { roles: Role[] } }> {
+    const response = await apiClient.get<{ data: { roles: Role[] } }>("/master-data/users/add");
+    return response.data;
+  },
+
+  async getStats(): Promise<{ data: { total: number }; message: string }> {
+    const response = await apiClient.get<{ data: { total: number }; message: string }>(
+      "/master-data/users/stats"
     );
     return response.data;
   },
@@ -45,59 +59,46 @@ export const userService = {
 
 export const roleService = {
   async list(): Promise<ListRolesResponse> {
-    const response = await apiClient.get<ListRolesResponse>("/roles");
+    const response = await apiClient.get<ListRolesResponse>("/master-data/roles");
     return response.data;
   },
 
-  async getById(id: string): Promise<Role> {
-    const response = await apiClient.get<{ success: boolean; data: Role }>(`/roles/${id}`);
-    return response.data.data;
+  async getById(id: number | string): Promise<RoleResponse> {
+    const response = await apiClient.get<RoleResponse>(`/master-data/roles/${id}`);
+    return response.data;
   },
 
-  async create(data: { name: string; code: string; description?: string; status?: string }): Promise<Role> {
-    const response = await apiClient.post<{ success: boolean; data: Role }>("/roles", data);
-    return response.data.data;
+  async create(data: { name: string; description?: string }): Promise<RoleResponse> {
+    const response = await apiClient.post<RoleResponse>("/master-data/roles", data);
+    return response.data;
   },
 
-  async update(
-    id: string,
-    data: { name?: string; code?: string; description?: string; status?: string }
-  ): Promise<Role> {
-    const response = await apiClient.put<{ success: boolean; data: Role }>(`/roles/${id}`, data);
-    return response.data.data;
+  async update(id: number | string, data: { name?: string; description?: string }): Promise<RoleResponse> {
+    const response = await apiClient.put<RoleResponse>(`/master-data/roles/${id}`, data);
+    return response.data;
   },
 
-  async delete(id: string): Promise<void> {
-    await apiClient.delete(`/roles/${id}`);
+  async delete(id: number | string): Promise<{ message: string }> {
+    const response = await apiClient.delete<{ message: string }>(`/master-data/roles/${id}`);
+    return response.data;
   },
 
-  async assignPermissions(roleId: string, permissionIds: string[]): Promise<Role> {
-    const response = await apiClient.put<{ success: boolean; data: Role }>(
-      `/roles/${roleId}/permissions`,
-      { permission_ids: permissionIds }
+  async getStats(): Promise<{ data: { total: number }; message: string }> {
+    const response = await apiClient.get<{ data: { total: number }; message: string }>(
+      "/master-data/roles/stats"
     );
-    return response.data.data;
-  },
-
-  async validateUserRole(userId: string, roleId: string): Promise<{ is_valid: boolean }> {
-    const response = await apiClient.get<{ success: boolean; data: { is_valid: boolean } }>(
-      `/roles/validate/${userId}`,
-      { params: { role_id: roleId } }
-    );
-    return response.data.data;
+    return response.data;
   },
 };
 
 export const permissionService = {
   async list(): Promise<ListPermissionsResponse> {
-    const response = await apiClient.get<ListPermissionsResponse>("/permissions");
+    const response = await apiClient.get<ListPermissionsResponse>("/master-data/permissions");
     return response.data;
   },
 
-  async getById(id: string): Promise<Permission> {
-    const response = await apiClient.get<{ success: boolean; data: Permission }>(
-      `/permissions/${id}`
-    );
+  async getById(id: number | string): Promise<Permission> {
+    const response = await apiClient.get<{ data: Permission }>(`/master-data/permissions/${id}`);
     return response.data.data;
   },
 };

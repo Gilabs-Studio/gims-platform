@@ -21,7 +21,7 @@ import type { User as UserType } from "../types";
 import { useTranslations } from "next-intl";
 
 interface UserDetailModalProps {
-  readonly userId: string | null;
+  readonly userId: number | string | null;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onUserUpdated?: () => void;
@@ -50,11 +50,11 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
   };
 
   const getAvatarUrl = (user: UserType) => {
-    if (user.avatar_url) {
-      return user.avatar_url;
+    if (user.photo_profile) {
+      return user.photo_profile;
     }
-    // Always use dicebear with email as seed
-    return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(user.email)}`;
+    // Always use dicebear with username as seed
+    return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(user.username)}`;
   };
 
   return (
@@ -105,7 +105,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                 </Avatar>
                 <div className="flex-1">
                   <h2 className="text-2xl font-semibold tracking-tight">{user.name}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
+                  <p className="text-sm text-muted-foreground mt-1">@{user.username}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -149,9 +149,9 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Mail className="h-4 w-4" />
-                        <span>{t("userInfo.email")}</span>
+                        <span>Username</span>
                       </div>
-                      <div className="text-base font-medium">{user.email}</div>
+                      <div className="text-base font-medium">@{user.username}</div>
                     </div>
 
                     <div className="space-y-2">
@@ -159,10 +159,18 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                         <Shield className="h-4 w-4" />
                         <span>{t("userInfo.role")}</span>
                       </div>
-                      <div>
-                        <Badge variant="outline" className="font-normal">
-                          {user.role?.name || "N/A"}
-                        </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles && user.roles.length > 0 ? (
+                          user.roles.map((role) => (
+                            <Badge key={role.id} variant="outline" className="font-normal">
+                              {role.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline" className="font-normal text-muted-foreground">
+                            N/A
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
@@ -171,8 +179,8 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                         <span>{t("userInfo.status")}</span>
                       </div>
                       <div>
-                        <Badge variant={user.status === "active" ? "active" : "inactive"}>
-                          {user.status}
+                        <Badge variant={user.is_active ? "active" : "inactive"}>
+                          {user.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </div>
                     </div>
@@ -205,7 +213,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
               </Card>
 
               {/* Role Information */}
-              {user.role && (
+              {user.roles && user.roles.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>{t("roleInfo.title")}</CardTitle>
@@ -214,54 +222,26 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Shield className="h-4 w-4" />
-                        <span>{t("roleInfo.name")}</span>
-                      </div>
-                      <div className="text-base font-medium">{user.role.name}</div>
-                    </div>
-
-                    {user.role.description && (
-                      <div className="space-y-2">
-                        <div className="text-sm text-muted-foreground">
-                          {t("roleInfo.descriptionLabel")}
+                    {user.roles.map((role) => (
+                      <div key={role.id} className="space-y-2 border-b last:border-0 pb-4 last:pb-0">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Shield className="h-4 w-4" />
+                            <span>{t("roleInfo.name")}</span>
+                          </div>
+                          <div className="text-base font-medium">{role.name}</div>
                         </div>
-                        <div className="text-base">{user.role.description}</div>
-                      </div>
-                    )}
 
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">
-                        {t("roleInfo.code")}
+                        {role.description && (
+                          <div className="space-y-2">
+                            <div className="text-sm text-muted-foreground">
+                              {t("roleInfo.descriptionLabel")}
+                            </div>
+                            <div className="text-base">{role.description}</div>
+                          </div>
+                        )}
                       </div>
-                      <Badge variant="outline" className="font-mono">
-                        {user.role.code}
-                      </Badge>
-                    </div>
-
-                    {user.role.permissions && user.role.permissions.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="text-sm font-medium">
-                          {t("roleInfo.permissions", {
-                            count: user.role.permissions.length,
-                          })}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {user.role.permissions.map((permission) => (
-                            <Badge key={permission.id} variant="outline" className="font-normal">
-                              {permission.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {(!user.role.permissions || user.role.permissions.length === 0) && (
-                      <div className="text-sm text-muted-foreground">
-                        {t("roleInfo.noPermissions")}
-                      </div>
-                    )}
+                    ))}
                   </CardContent>
                 </Card>
               )}

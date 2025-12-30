@@ -1,23 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, Plus, Search, Eye, SlidersHorizontal } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { DataTable, type Column } from "@/components/ui/data-table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useUserList } from "../hooks/use-user-list";
 import { UserForm } from "./user-form";
 import { UserDetailModal } from "./user-detail-modal";
-import { UserListMobileFilters } from "./user-list-mobile-filters";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
   Dialog,
@@ -35,20 +27,15 @@ export function UserList() {
   const {
     page,
     setPage,
-    setPerPage,
+    setLimit,
     search,
     setSearch,
-    status,
-    setStatus,
-    roleId,
-    setRoleId,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     editingUser,
     setEditingUser,
     users,
     pagination,
-    roles,
     editingUserData,
     isLoading,
     handleCreate,
@@ -62,9 +49,8 @@ export function UserList() {
     updateUser,
   } = useUserList();
 
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<number | string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
   
@@ -72,19 +58,22 @@ export function UserList() {
   const hasCreatePermission = useHasPermission("CREATE_USERS");
   const hasEditPermission = useHasPermission("EDIT_USERS");
   const hasDeletePermission = useHasPermission("DELETE_USERS");
-  
-  // Check if any filters are active
-  const hasActiveFilters = status !== "" || roleId !== "";
+
+  // Transform users to ensure id is string for DataTable compatibility
+  const transformedUsers = users.map(user => ({
+    ...user,
+    id: String(user.id),
+  }));
 
   const getAvatarUrl = (user: User) => {
-    if (user.avatar_url) {
-      return user.avatar_url;
+    if (user.photo_profile) {
+      return user.photo_profile;
     }
-    // Always use dicebear with email as seed
-    return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(user.email)}`;
+    // Always use dicebear with username as seed
+    return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(user.username)}`;
   };
 
-  const handleViewUser = (userId: string) => {
+  const handleViewUser = (userId: number | string) => {
     setViewingUserId(userId);
     setIsDetailModalOpen(true);
   };
@@ -96,7 +85,7 @@ export function UserList() {
       accessor: (row) => (
         <button
           onClick={() => handleViewUser(row.id)}
-          className="flex items-center gap-3 font-medium text-primary hover:underline"
+          className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer"
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={getAvatarUrl(row)} alt={row.name} />
@@ -107,27 +96,37 @@ export function UserList() {
       className: "w-[200px]",
     },
     {
-      id: "email",
-      header: t("email"),
+      id: "username",
+      header: "Username",
       accessor: (row) => (
-        <span className="text-muted-foreground">{row.email}</span>
+        <span className="text-muted-foreground">{row.username ?? "N/A"}</span>
       ),
     },
     {
       id: "role",
       header: t("role"),
       accessor: (row) => (
-        <Badge variant="outline" className="font-normal">
-          {row.role?.name || "N/A"}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          {row.roles && row.roles.length > 0 ? (
+            row.roles.map((role) => (
+              <Badge key={role.id} variant="outline" className="font-normal">
+                {role.name}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="outline" className="font-normal text-muted-foreground">
+              N/A
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
       id: "status",
       header: t("status"),
       accessor: (row) => (
-        <Badge variant={row.status === "active" ? "active" : "inactive"}>
-          {row.status}
+        <Badge variant={row.is_active ? "active" : "inactive"}>
+          {row.is_active ? "Active" : "Inactive"}
         </Badge>
       ),
       className: "w-[100px]",
@@ -140,7 +139,7 @@ export function UserList() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8"
+            className="h-8 w-8 cursor-pointer"
             title="View Details"
             onClick={() => handleViewUser(row.id)}
           >
@@ -151,7 +150,7 @@ export function UserList() {
               variant="ghost"
               size="icon-sm"
               onClick={() => setEditingUser(row.id)}
-              className="h-8 w-8"
+              className="h-8 w-8 cursor-pointer"
               title="Edit"
             >
               <Edit className="h-3.5 w-3.5" />
@@ -162,7 +161,7 @@ export function UserList() {
               variant="ghost"
               size="icon-sm"
               onClick={() => handleDeleteClick(row.id)}
-              className="h-8 w-8 text-destructive hover:text-destructive"
+              className="h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
               title="Delete"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -176,12 +175,7 @@ export function UserList() {
 
   const handleResetFilters = () => {
     setSearch("");
-    setStatus("");
-    setRoleId("");
     setPage(1);
-    if (isMobile) {
-      setIsFilterSheetOpen(false);
-    }
   };
 
   return (
@@ -203,26 +197,14 @@ export function UserList() {
           
           {/* Action Buttons Row */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsFilterSheetOpen(true)}
-              className="flex-1 h-9"
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
-              {t("filterTitle")}
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {[status, roleId].filter(Boolean).length}
-                </Badge>
-              )}
-            </Button>
             {hasCreatePermission && (
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 size="sm"
-                className="h-9 px-3"
+                className="h-9 px-3 cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-2" />
+                {t("addUser")}
               </Button>
             )}
           </div>
@@ -240,38 +222,9 @@ export function UserList() {
                 className="pl-10 h-9"
               />
             </div>
-            <Select 
-              value={status || "all"} 
-              onValueChange={(value) => setStatus(value === "all" ? "" : value)}
-            >
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder={t("allStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allStatus")}</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select 
-              value={roleId || "all"} 
-              onValueChange={(value) => setRoleId(value === "all" ? "" : value)}
-            >
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder={t("allRoles")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allRoles")}</SelectItem>
-              {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                  </SelectItem>
-              ))}
-              </SelectContent>
-            </Select>
           </div>
           {hasCreatePermission && (
-            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="cursor-pointer">
               <Plus className="h-4 w-4 mr-2" />
               {t("addUser")}
             </Button>
@@ -279,40 +232,23 @@ export function UserList() {
         </div>
       )}
 
-      {/* Mobile Filter Drawer */}
-      {isMobile && (
-        <UserListMobileFilters
-          open={isFilterSheetOpen}
-          onOpenChange={setIsFilterSheetOpen}
-          status={status}
-          roleId={roleId}
-          roles={roles}
-          onStatusChange={(value) => setStatus(value === "all" ? "" : value)}
-          onRoleChange={(value) => setRoleId(value === "all" ? "" : value)}
-          onReset={handleResetFilters}
-        />
-      )}
 
       {/* Table */}
       <DataTable
         columns={columns}
-        data={users}
+        data={transformedUsers}
         isLoading={isLoading}
         emptyMessage={t("empty")}
-        pagination={
-          pagination
-            ? {
-                page: pagination.page,
-                per_page: pagination.per_page,
-                total: pagination.total,
-                total_pages: pagination.total_pages,
-                has_next: pagination.has_next,
-                has_prev: pagination.has_prev,
-              }
-            : undefined
-        }
+        pagination={pagination ? {
+          page: pagination.page,
+          per_page: pagination.limit,
+          total: pagination.total,
+          total_pages: Math.ceil(pagination.total / pagination.limit),
+          has_next: pagination.page < Math.ceil(pagination.total / pagination.limit),
+          has_prev: pagination.page > 1,
+        } : undefined}
         onPageChange={setPage}
-        onPerPageChange={setPerPage}
+        onPerPageChange={setLimit}
         perPageOptions={[10, 20, 50, 100]}
         onResetFilters={handleResetFilters}
         mobileLayout={{

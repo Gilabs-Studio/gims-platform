@@ -13,7 +13,6 @@ import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.sch
 
 export function useRoleList() {
   const [editingRole, setEditingRole] = useState<string | null>(null);
-  const [assigningPermissions, setAssigningPermissions] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const { data, isLoading } = useRoles();
@@ -60,8 +59,6 @@ export function useRoleList() {
     // State
     editingRole,
     setEditingRole,
-    assigningPermissions,
-    setAssigningPermissions,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     // Data

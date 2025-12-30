@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, Plus, Settings } from "lucide-react";
+import { Edit, Trash2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useRoleList } from "../hooks/use-role-list";
@@ -15,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AssignPermissionsDialog } from "./assign-permissions-dialog";
 import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.schema";
 import type { Role } from "../types";
 
@@ -23,8 +21,6 @@ export function RoleList() {
   const {
     editingRole,
     setEditingRole,
-    assigningPermissions,
-    setAssigningPermissions,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     roles,
@@ -38,7 +34,7 @@ export function RoleList() {
     updateRole,
   } = useRoleList();
   
-  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
+  const [deletingRoleId, setDeletingRoleId] = useState<number | string | null>(null);
   const t = useTranslations("userManagement.roleList");
 
   const columns: Column<Role>[] = [
@@ -46,18 +42,9 @@ export function RoleList() {
       id: "name",
       header: t("name"),
       accessor: (row) => (
-        <span className="font-medium">{row.name}</span>
+        <span className="font-medium cursor-pointer">{row.name}</span>
       ),
       className: "w-[200px]",
-    },
-    {
-      id: "code",
-      header: t("code"),
-      accessor: (row) => (
-        <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-          {row.code}
-        </code>
-      ),
     },
     {
       id: "description",
@@ -69,61 +56,19 @@ export function RoleList() {
       ),
     },
     {
-      id: "status",
-      header: t("status"),
-      accessor: (row) => (
-        <Badge variant={row.status === "active" ? "active" : "inactive"}>
-          {row.status}
-        </Badge>
-      ),
-      className: "w-[100px]",
-    },
-    {
-      id: "permissions",
-      header: t("permissions"),
-      accessor: (row) => (
-        <Badge variant="outline" className="font-normal">
-          {row.permissions?.length || 0}
-        </Badge>
-      ),
-      className: "w-[120px]",
-    },
-    {
       id: "actions",
       header: t("actions"),
       accessor: (row) => {
-        // Check if role is protected - either by is_protected flag or by code (admin/superadmin)
-        const isProtected = (row.is_protected ?? false) || row.code === "admin" || row.code === "superadmin";
-        
         return (
           <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => {
-                if (!isProtected) {
-                  setEditingRole(row.id);
-                }
-              }}
-              disabled={isProtected}
-              className={isProtected 
-                ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
-                : "h-8 w-8"
-              }
-              title={isProtected ? "This role is protected and cannot be edited" : "Edit"}
-              aria-disabled={isProtected}
+              onClick={() => setEditingRole(row.id)}
+              className="h-8 w-8 cursor-pointer"
+              title="Edit"
             >
               <Edit className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setAssigningPermissions(row.id)}
-              className="h-8 w-8"
-              aria-label={t("assignPermissionsTitle")}
-              title="Assign Permissions"
-            >
-              <Settings className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -131,17 +76,10 @@ export function RoleList() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!isProtected) {
-                  setDeletingRoleId(row.id);
-                }
+                setDeletingRoleId(row.id);
               }}
-              disabled={isProtected}
-              className={isProtected 
-                ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
-                : "h-8 w-8 text-destructive hover:text-destructive"
-              }
-              title={isProtected ? "This role is protected and cannot be deleted" : "Delete"}
-              aria-disabled={isProtected}
+              className="h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
+              title="Delete"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -215,14 +153,6 @@ export function RoleList() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Assign Permissions Dialog */}
-      {assigningPermissions && (
-        <AssignPermissionsDialog
-          roleId={assigningPermissions}
-          onClose={() => setAssigningPermissions(null)}
-        />
-      )}
 
       {/* Delete Dialog */}
       <DeleteDialog

@@ -1,18 +1,21 @@
 import { z } from "zod";
 
 export const createUserSchema = z.object({
-  email: z.string().email("Invalid email format"),
+  name: z.string().min(1, "Name is required"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  name: z.string().min(3, "Name must be at least 3 characters"),
-  role_id: z.string().uuid("Invalid role ID"),
-  status: z.enum(["active", "inactive"]).optional().default("active"),
+  is_active: z.boolean().default(true),
+  photo_profile: z.instanceof(File).optional(),
+  role_ids: z.array(z.number()).min(1, "At least one role is required"),
 });
 
 export const updateUserSchema = z.object({
-  email: z.string().email("Invalid email format").optional(),
-  name: z.string().min(3, "Name must be at least 3 characters").optional(),
-  role_id: z.string().uuid("Invalid role ID").optional(),
-  status: z.enum(["active", "inactive"]).optional(),
+  name: z.string().min(1, "Name is required").optional(),
+  username: z.string().min(3, "Username must be at least 3 characters").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  is_active: z.boolean().optional(),
+  photo_profile: z.instanceof(File).optional(),
+  role_ids: z.array(z.number()).optional(),
 });
 
 export type CreateUserFormData = z.infer<typeof createUserSchema>;
