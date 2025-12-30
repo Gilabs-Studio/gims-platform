@@ -1,0 +1,135 @@
+{
+  "menuManagement": {
+    "title": "Manajemen Menu",
+    "subtitle": "Kelola menu sistem dan hierarki navigasi",
+    "list": {
+      "title": "Daftar Menu",
+      "searchPlaceholder": "Cari menu...",
+      "createButton": "Buat Menu",
+      "noData": "Tidak ada menu ditemukan",
+      "noDataDescription": "Mulai dengan membuat item menu pertama Anda",
+      "columns": {
+        "name": "Nama Menu",
+        "code": "Kode",
+        "urlPath": "Path URL",
+        "icon": "Ikon",
+        "orderNo": "Urutan",
+        "isActive": "Status",
+        "parent": "Menu Induk",
+        "actions": "Aksi"
+      },
+      "status": {
+        "active": "Aktif",
+        "inactive": "Nonaktif"
+      },
+      "actions": {
+        "view": "Lihat Detail",
+        "edit": "Edit Menu",
+        "delete": "Hapus Menu"
+      },
+      "tree": {
+        "expand": "Perluas",
+        "collapse": "Ciutkan",
+        "noChildren": "Tidak ada sub-menu"
+      }
+    },
+    "form": {
+      "create": {
+        "title": "Buat Menu Baru",
+        "description": "Tambahkan item menu baru ke sistem"
+      },
+      "edit": {
+        "title": "Edit Menu",
+        "description": "Perbarui informasi menu"
+      },
+      "fields": {
+        "name": {
+          "label": "Nama Menu",
+          "placeholder": "Masukkan nama menu",
+          "description": "Nama tampilan untuk item menu"
+        },
+        "code": {
+          "label": "Kode Menu",
+          "placeholder": "KODE_MENU",
+          "description": "Kode unik untuk menu (huruf besar dengan garis bawah)"
+        },
+        "urlPath": {
+          "label": "Path URL",
+          "placeholder": "/data-master/menu",
+          "description": "Path navigasi untuk menu ini"
+        },
+        "icon": {
+          "label": "Ikon",
+          "placeholder": "menu",
+          "description": "Nama ikon Lucide",
+          "search": "Cari ikon...",
+          "noResults": "Tidak ada ikon ditemukan"
+        },
+        "orderNo": {
+          "label": "Nomor Urut",
+          "placeholder": "1",
+          "description": "Urutan tampilan (angka lebih kecil muncul pertama)"
+        },
+        "isActive": {
+          "label": "Status Aktif",
+          "description": "Aktifkan atau nonaktifkan item menu ini"
+        },
+        "parentId": {
+          "label": "Menu Induk",
+          "placeholder": "Pilih menu induk",
+          "description": "Kosongkan untuk menu root",
+          "noParent": "Tidak Ada Induk (Menu Root)"
+        }
+      },
+      "buttons": {
+        "submit": "Simpan Menu",
+        "cancel": "Batal",
+        "submitting": "Menyimpan..."
+      }
+    },
+    "delete": {
+      "title": "Hapus Menu",
+      "description": "Apakah Anda yakin ingin menghapus menu ini? Tindakan ini tidak dapat dibatalkan.",
+      "warning": "Ini juga akan menghapus semua sub-menu dan izin terkait.",
+      "confirmButton": "Hapus Menu",
+      "cancelButton": "Batal"
+    },
+    "detail": {
+      "title": "Detail Menu",
+      "sections": {
+        "basic": "Informasi Dasar",
+        "hierarchy": "Hierarki Menu",
+        "permissions": "Izin"
+      },
+      "fields": {
+        "id": "ID Menu",
+        "name": "Nama",
+        "code": "Kode",
+        "urlPath": "Path URL",
+        "icon": "Ikon",
+        "orderNo": "Nomor Urut",
+        "isActive": "Status",
+        "parent": "Menu Induk",
+        "createdAt": "Dibuat Pada",
+        "updatedAt": "Diperbarui Pada",
+        "children": "Sub-menu"
+      }
+    },
+    "permissions": {
+      "noPermission": "Anda tidak memiliki izin untuk melakukan tindakan ini",
+      "view": "Lihat menu",
+      "create": "Buat menu",
+      "edit": "Edit menu",
+      "delete": "Hapus menu",
+      "detail": "Lihat detail menu"
+    },
+    "messages": {
+      "createSuccess": "Menu berhasil dibuat",
+      "updateSuccess": "Menu berhasil diperbarui",
+      "deleteSuccess": "Menu berhasil dihapus",
+      "createError": "Gagal membuat menu",
+      "updateError": "Gagal memperbarui menu",
+      "deleteError": "Gagal menghapus menu"
+    }
+  }
+}

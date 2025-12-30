@@ -27,6 +27,8 @@ import supplierInvoiceDownPaymentsEnMessages from "@/features/purchase/supplier-
 import supplierInvoiceDownPaymentsIdMessages from "@/features/purchase/supplier-invoice-down-payments/i18n/messages/id.json";
 import suppliersEnMessages from "@/features/master-data/partner/suppliers/i18n/messages/en.json";
 import suppliersIdMessages from "@/features/master-data/partner/suppliers/i18n/messages/id.json";
+import menuManagementEnMessages from "@/features/master-data/user-management/menu/i18n/messages/en.json";
+import menuManagementIdMessages from "@/features/master-data/user-management/menu/i18n/messages/id.json";
 
 // Merge all messages
 const messages = {
@@ -43,6 +45,7 @@ const messages = {
     ...supplierInvoicesEnMessages,
     ...supplierInvoiceDownPaymentsEnMessages,
     ...suppliersEnMessages,
+    ...menuManagementEnMessages,
   },
   id: {
     ...globalIdMessages,
@@ -57,6 +60,7 @@ const messages = {
     ...supplierInvoicesIdMessages,
     ...suppliersIdMessages,
     ...supplierInvoiceDownPaymentsIdMessages,
+    ...menuManagementIdMessages,
   },
 } as const;
 
