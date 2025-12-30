@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 // Lazy load the UserList component for code splitting
 const UserList = lazy(() =>
-  import("@/features/master-data/user-management/components/user-list").then((mod) => ({
+  import("@/features/master-data/user-management/user/components/user-list").then((mod) => ({
     default: mod.UserList,
   }))
 );

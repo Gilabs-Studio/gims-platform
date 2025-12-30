@@ -5,8 +5,8 @@ import type { Locale } from "@/types/locale";
 import globalEnMessages from "./messages/en.json";
 import globalIdMessages from "./messages/id.json";
 // Feature messages
-import userManagementEnMessages from "@/features/master-data/user-management/i18n/messages/en.json";
-import userManagementIdMessages from "@/features/master-data/user-management/i18n/messages/id.json";
+import userManagementEnMessages from "@/features/master-data/user-management/user/i18n/messages/en.json";
+import userManagementIdMessages from "@/features/master-data/user-management/user/i18n/messages/id.json";
 import companyManagementEnMessages from "@/features/master-data/company-management/i18n/messages/en.json";
 import companyManagementIdMessages from "@/features/master-data/company-management/i18n/messages/id.json";
 import notificationsEnMessages from "@/features/notifications/i18n/messages/en.json";

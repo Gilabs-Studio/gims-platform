@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 // Lazy load the RoleList component for code splitting
 const RoleList = lazy(() =>
-  import("@/features/master-data/user-management/components/role-list").then((mod) => ({
+  import("@/features/master-data/user-management/user/components/role-list").then((mod) => ({
     default: mod.RoleList,
   }))
 );

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { usePathname } from "@/i18n/routing";
-import type { MenuWithActions } from "@/features/master-data/user-management/types";
+import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
 
 export interface BreadcrumbItem {
   readonly label: string;

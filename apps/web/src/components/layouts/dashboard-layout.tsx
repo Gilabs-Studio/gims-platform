@@ -9,9 +9,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
+import { useUserPermissions } from "@/features/master-data/user-management/user/hooks/use-user-permissions";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
-import type { MenuWithActions } from "@/features/master-data/user-management/types";
+import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

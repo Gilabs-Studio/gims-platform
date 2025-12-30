@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 // Lazy load the PermissionList component for code splitting
 const PermissionList = lazy(() =>
-  import("@/features/master-data/user-management/components/permission-list").then((mod) => ({
+  import("@/features/master-data/user-management/user/components/permission-list").then((mod) => ({
     default: mod.PermissionList,
   }))
 );

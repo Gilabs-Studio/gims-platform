@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useUserPermissions } from "../../user-management/hooks/use-user-permissions";
+import { useUserPermissions } from "../../user-management/user/hooks/use-user-permissions";
 import type { Menu, MenuAction } from "@/features/auth/types";
 
 /**

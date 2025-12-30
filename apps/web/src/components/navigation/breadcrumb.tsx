@@ -3,8 +3,8 @@
 import { Link } from "@/i18n/routing";
 import { ChevronRight } from "lucide-react";
 import { useBreadcrumb } from "@/hooks/use-breadcrumb";
-import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "@/features/master-data/user-management/types";
+import { useUserPermissions } from "@/features/master-data/user-management/user/hooks/use-user-permissions";
+import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { cn } from "@/lib/utils";
 
