@@ -4,7 +4,7 @@ import { DashboardPageClient } from "./dashboard-page-client";
 
 export default function DashboardPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <DashboardPageClient />
       </Suspense>

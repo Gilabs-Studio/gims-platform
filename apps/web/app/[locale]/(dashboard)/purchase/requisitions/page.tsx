@@ -15,7 +15,7 @@ const PurchaseRequisitionList = dynamic(
 
 export default function PurchaseRequisitionsPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <PurchaseRequisitionList />
       </Suspense>

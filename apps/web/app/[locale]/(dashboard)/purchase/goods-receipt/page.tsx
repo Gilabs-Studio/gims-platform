@@ -15,7 +15,7 @@ const GoodsReceiptList = dynamic(
 
 export default function GoodsReceiptPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <GoodsReceiptList />
       </Suspense>

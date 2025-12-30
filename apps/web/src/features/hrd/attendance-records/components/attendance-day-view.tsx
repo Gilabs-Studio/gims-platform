@@ -79,7 +79,7 @@ export function AttendanceDayView({
 
       {/* Events List */}
       <ScrollArea className="flex-1">
-        <div className="p-6">
+        <div>
           {events.length === 0 ? (
             <Card className="flex flex-col items-center justify-center p-12">
               <div className="rounded-full bg-muted p-4">

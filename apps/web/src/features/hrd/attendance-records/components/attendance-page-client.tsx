@@ -152,7 +152,7 @@ function AttendanceCalendarContent() {
 export default function AttendancePageClient() {
   return (
     <PageMotion>
-      <div className="flex h-full flex-col gap-6 p-6">
+      <div className="flex h-full flex-col gap-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>

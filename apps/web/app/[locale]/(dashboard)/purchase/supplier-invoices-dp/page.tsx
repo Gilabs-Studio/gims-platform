@@ -15,7 +15,7 @@ const SupplierInvoiceDownPaymentList = dynamic(
 
 export default function SupplierInvoiceDownPaymentsPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <SupplierInvoiceDownPaymentList />
       </Suspense>

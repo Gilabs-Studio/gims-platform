@@ -15,7 +15,7 @@ const SupplierInvoiceList = dynamic(
 
 export default function SupplierInvoicesPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <SupplierInvoiceList />
       </Suspense>

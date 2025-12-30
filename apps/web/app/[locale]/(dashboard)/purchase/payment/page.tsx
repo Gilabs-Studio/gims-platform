@@ -15,7 +15,7 @@ const PaymentPOList = dynamic(
 
 export default function PaymentPOPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <PaymentPOList />
       </Suspense>

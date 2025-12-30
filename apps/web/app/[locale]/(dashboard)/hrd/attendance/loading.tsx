@@ -5,7 +5,7 @@ import { PageMotion } from "@/components/motion/page-motion";
 export default function AttendanceLoading() {
   return (
     <PageMotion>
-      <div className="flex h-full flex-col gap-6 p-6">
+      <div className="flex h-full flex-col gap-6">
         {/* Page Header Skeleton */}
         <div className="space-y-2">
           <Skeleton className="h-10 w-64" />

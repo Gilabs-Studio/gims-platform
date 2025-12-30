@@ -41,7 +41,7 @@ function SupplierListSkeleton() {
 
 export default function SupplierPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={<SupplierListSkeleton />}>
         <SupplierList />
       </Suspense>

@@ -15,7 +15,7 @@ const PurchaseOrderList = dynamic(
 
 export default function PurchaseOrderPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <PurchaseOrderList />
       </Suspense>

@@ -4,7 +4,7 @@ import { CompanyList } from "@/features/master-data/company-management/component
 
 export default function CompanyPage() {
   return (
-    <PageMotion className="p-6">
+    <PageMotion>
       <Suspense fallback={null}>
         <CompanyList />
       </Suspense>
