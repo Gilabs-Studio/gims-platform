@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Clock, User, FileText, Loader2 } from "lucide-react";
 import {
@@ -54,9 +54,9 @@ export function AttendanceRecordForm({
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors },
-  } = useForm<AttendanceRecordFormData>({
+  } = useForm({
     resolver: zodResolver(attendanceRecordSchema),
     defaultValues: event
       ? {
@@ -77,7 +77,13 @@ export function AttendanceRecordForm({
         },
   });
 
-  const handleFormSubmit: SubmitHandler<AttendanceRecordFormData> = async (data) => {
+  const employeeIdValue = useWatch({ control, name: "employee_id" }) as number | undefined;
+  const dateValue = useWatch({ control, name: "date" }) as Date | undefined;
+  const statusValue = useWatch({ control, name: "status" }) as AttendanceRecordFormData["status"] | undefined;
+  const checkInTime = useWatch({ control, name: "check_in_time" }) as Date | null | undefined;
+  const checkOutTime = useWatch({ control, name: "check_out_time" }) as Date | null | undefined;
+
+  const handleFormSubmit = async (data: AttendanceRecordFormData) => {
     await onSubmit(data);
   };
 
@@ -105,7 +111,7 @@ export function AttendanceRecordForm({
           <Field orientation="vertical">
             <FieldLabel>Employee *</FieldLabel>
             <Select
-              value={watch("employee_id")?.toString() || ""}
+              value={employeeIdValue?.toString() || ""}
               onValueChange={(value) => setValue("employee_id", parseInt(value), { shouldValidate: true })}
             >
               <SelectTrigger>
@@ -127,7 +133,7 @@ export function AttendanceRecordForm({
             <FieldLabel>Date *</FieldLabel>
             <Input
               type="date"
-              value={watch("date") ? format(watch("date") as Date, "yyyy-MM-dd") : ""}
+              value={dateValue ? format(dateValue as Date, "yyyy-MM-dd") : ""}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value) : new Date();
                 setValue("date", date, { shouldValidate: true });
@@ -149,7 +155,7 @@ export function AttendanceRecordForm({
         <Field orientation="vertical">
           <FieldLabel>Status *</FieldLabel>
           <Select
-            value={watch("status") || ""}
+            value={statusValue || ""}
             onValueChange={(value) => setValue("status", value as AttendanceRecordFormData["status"], { shouldValidate: true })}
           >
             <SelectTrigger>
@@ -173,8 +179,8 @@ export function AttendanceRecordForm({
             <Input
               type="time"
               value={
-                watch("check_in_time")
-                  ? format(watch("check_in_time") as Date, "HH:mm")
+                checkInTime
+                  ? format(checkInTime as Date, "HH:mm")
                   : ""
               }
               onChange={(e) => {
@@ -197,8 +203,8 @@ export function AttendanceRecordForm({
             <Input
               type="time"
               value={
-                watch("check_out_time")
-                  ? format(watch("check_out_time") as Date, "HH:mm")
+                checkOutTime
+                  ? format(checkOutTime as Date, "HH:mm")
                   : ""
               }
               onChange={(e) => {
