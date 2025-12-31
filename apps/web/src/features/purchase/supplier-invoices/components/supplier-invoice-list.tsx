@@ -227,6 +227,7 @@ export function SupplierInvoiceList() {
       sticky: true,
       accessor: () => null,
       actions: [
+        // Always visible actions
         ...(hasViewPermission || hasDetailPermission
           ? [
               {
@@ -234,6 +235,16 @@ export function SupplierInvoiceList() {
                 icon: <Eye className="h-4 w-4" />,
                 onClick: (row: InvoiceWithStringId) => handleViewInvoice(parseInt(row.id)),
                 show: true,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: InvoiceWithStringId) => setEditingInvoice(parseInt(row.id)),
+                show: (row: InvoiceWithStringId) => row.status === "DRAFT",
               },
             ]
           : []),
@@ -248,23 +259,14 @@ export function SupplierInvoiceList() {
               },
             ]
           : []),
-        ...(hasEditPermission
-          ? [
-              {
-                label: t("edit"),
-                icon: <Edit className="h-4 w-4" />,
-                onClick: (row: InvoiceWithStringId) => setEditingInvoice(parseInt(row.id)),
-                show: (row: InvoiceWithStringId) => row.status === "DRAFT",
-              },
-            ]
-          : []),
+        // Hidden in dropdown menu
         ...(hasDeletePermission
           ? [
               {
                 label: t("delete"),
                 icon: <Trash2 className="h-4 w-4 text-destructive" />,
                 onClick: (row: InvoiceWithStringId) => handleDeleteClick(parseInt(row.id)),
-                show: (row: InvoiceWithStringId) => row.status === "DRAFT",
+                show: false,
                 variant: "destructive" as const,
               },
             ]

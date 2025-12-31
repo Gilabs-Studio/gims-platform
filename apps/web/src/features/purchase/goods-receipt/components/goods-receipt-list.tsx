@@ -267,6 +267,7 @@ export function GoodsReceiptList() {
       sticky: true,
       accessor: () => null,
       actions: [
+        // Always visible actions
         ...(hasViewPermission
           ? [
               {
@@ -275,6 +276,17 @@ export function GoodsReceiptList() {
                 onClick: (row: GoodsReceiptWithStringId) =>
                   handleViewGoodsReceipt(parseInt(row.id)),
                 show: true,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: GoodsReceiptWithStringId) =>
+                  setEditingGoodsReceipt(parseInt(row.id)),
+                show: (row: GoodsReceiptWithStringId) => row.status === "PENDING",
               },
             ]
           : []),
@@ -290,17 +302,7 @@ export function GoodsReceiptList() {
               },
             ]
           : []),
-        ...(hasEditPermission
-          ? [
-              {
-                label: t("edit"),
-                icon: <Edit className="h-4 w-4" />,
-                onClick: (row: GoodsReceiptWithStringId) =>
-                  setEditingGoodsReceipt(parseInt(row.id)),
-                show: (row: GoodsReceiptWithStringId) => row.status === "PENDING",
-              },
-            ]
-          : []),
+        // Hidden in dropdown menu
         ...(hasDeletePermission
           ? [
               {
@@ -308,7 +310,7 @@ export function GoodsReceiptList() {
                 icon: <Trash2 className="h-4 w-4 text-destructive" />,
                 onClick: (row: GoodsReceiptWithStringId) =>
                   handleDeleteClick(parseInt(row.id)),
-                show: (row: GoodsReceiptWithStringId) => row.status === "PENDING",
+                show: false,
                 variant: "destructive" as const,
               },
             ]

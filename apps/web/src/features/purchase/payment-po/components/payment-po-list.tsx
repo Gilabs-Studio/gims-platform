@@ -276,6 +276,7 @@ export function PaymentPOList() {
       sticky: true,
       accessor: () => null,
       actions: [
+        // Always visible actions
         ...(hasViewPermission
           ? [
               {
@@ -283,6 +284,16 @@ export function PaymentPOList() {
                 icon: <Eye className="h-4 w-4" />,
                 onClick: (row: PaymentPOWithStringId) => handleViewPaymentPO(parseInt(row.id)),
                 show: true,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: PaymentPOWithStringId) => setEditingPaymentPO(parseInt(row.id)),
+                show: (row: PaymentPOWithStringId) => row.status === "PENDING",
               },
             ]
           : []),
@@ -297,23 +308,14 @@ export function PaymentPOList() {
               },
             ]
           : []),
-        ...(hasEditPermission
-          ? [
-              {
-                label: t("edit"),
-                icon: <Edit className="h-4 w-4" />,
-                onClick: (row: PaymentPOWithStringId) => setEditingPaymentPO(parseInt(row.id)),
-                show: (row: PaymentPOWithStringId) => row.status === "PENDING",
-              },
-            ]
-          : []),
+        // Hidden in dropdown menu
         ...(hasDeletePermission
           ? [
               {
                 label: t("delete"),
                 icon: <Trash2 className="h-4 w-4 text-destructive" />,
                 onClick: (row: PaymentPOWithStringId) => handleDeleteClick(parseInt(row.id)),
-                show: (row: PaymentPOWithStringId) => row.status === "PENDING",
+                show: false,
                 variant: "destructive" as const,
               },
             ]

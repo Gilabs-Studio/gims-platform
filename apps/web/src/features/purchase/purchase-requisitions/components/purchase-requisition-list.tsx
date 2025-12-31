@@ -281,6 +281,7 @@ export function PurchaseRequisitionList() {
       sticky: true,
       accessor: () => null,
       actions: [
+        // Always visible actions
         ...(hasViewPermission
           ? [
               {
@@ -289,6 +290,17 @@ export function PurchaseRequisitionList() {
                 onClick: (row: RequisitionWithStringId) =>
                   handleViewRequisition(parseInt(row.id)),
                 show: true,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: RequisitionWithStringId) =>
+                  setEditingRequisition(parseInt(row.id)),
+                show: (row: RequisitionWithStringId) => row.status === "DRAFT",
               },
             ]
           : []),
@@ -304,18 +316,6 @@ export function PurchaseRequisitionList() {
               },
             ]
           : []),
-        ...(hasRejectPermission
-          ? [
-              {
-                label: t("reject"),
-                icon: <XCircle className="h-4 w-4 text-red-600" />,
-                onClick: (row: RequisitionWithStringId) =>
-                  handleReject(parseInt(row.id)),
-                show: (row: RequisitionWithStringId) => row.status === "DRAFT",
-                disabled: rejectRequisition.isPending,
-              },
-            ]
-          : []),
         ...(hasConvertPermission
           ? [
               {
@@ -328,14 +328,16 @@ export function PurchaseRequisitionList() {
               },
             ]
           : []),
-        ...(hasEditPermission
+        // Hidden in dropdown menu
+        ...(hasRejectPermission
           ? [
               {
-                label: t("edit"),
-                icon: <Edit className="h-4 w-4" />,
+                label: t("reject"),
+                icon: <XCircle className="h-4 w-4 text-red-600" />,
                 onClick: (row: RequisitionWithStringId) =>
-                  setEditingRequisition(parseInt(row.id)),
-                show: (row: RequisitionWithStringId) => row.status === "DRAFT",
+                  handleReject(parseInt(row.id)),
+                show: false,
+                disabled: rejectRequisition.isPending,
               },
             ]
           : []),
@@ -346,7 +348,7 @@ export function PurchaseRequisitionList() {
                 icon: <Trash2 className="h-4 w-4 text-destructive" />,
                 onClick: (row: RequisitionWithStringId) =>
                   handleDeleteClick(parseInt(row.id)),
-                show: (row: RequisitionWithStringId) => row.status === "DRAFT",
+                show: false,
                 variant: "destructive" as const,
               },
             ]

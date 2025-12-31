@@ -272,6 +272,7 @@ export function PurchaseOrderList() {
       sticky: true,
       accessor: () => null,
       actions: [
+        // Always visible actions
         ...(hasViewPermission || hasDetailPermission
           ? [
               {
@@ -280,6 +281,17 @@ export function PurchaseOrderList() {
                 onClick: (row: OrderWithStringId) =>
                   handleViewOrder(parseInt(row.id)),
                 show: true,
+              },
+            ]
+          : []),
+        ...(hasEditPermission
+          ? [
+              {
+                label: t("edit"),
+                icon: <Edit className="h-4 w-4" />,
+                onClick: (row: OrderWithStringId) =>
+                  setEditingOrder(parseInt(row.id)),
+                show: (row: OrderWithStringId) => row.status === "DRAFT",
               },
             ]
           : []),
@@ -295,17 +307,7 @@ export function PurchaseOrderList() {
               },
             ]
           : []),
-        ...(hasEditPermission
-          ? [
-              {
-                label: t("edit"),
-                icon: <Edit className="h-4 w-4" />,
-                onClick: (row: OrderWithStringId) =>
-                  setEditingOrder(parseInt(row.id)),
-                show: (row: OrderWithStringId) => row.status === "DRAFT",
-              },
-            ]
-          : []),
+        // Hidden in dropdown menu
         ...(hasDeletePermission
           ? [
               {
@@ -313,7 +315,7 @@ export function PurchaseOrderList() {
                 icon: <Trash2 className="h-4 w-4 text-destructive" />,
                 onClick: (row: OrderWithStringId) =>
                   handleDeleteClick(parseInt(row.id)),
-                show: (row: OrderWithStringId) => row.status === "DRAFT",
+                show: false,
                 variant: "destructive" as const,
               },
             ]
