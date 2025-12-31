@@ -15,6 +15,8 @@
       "menus": "Menus"
     },
     "list": {
+      "title": "User Management",
+      "subtitle": "Manage and view all users, their roles, and permissions in one place",
       "name": "Name",
       "email": "Email",
       "role": "Role",
@@ -120,6 +122,8 @@
       "submitting": "Saving..."
     },
     "roleList": {
+      "title": "Role Management",
+      "subtitle": "Manage and configure roles and their permissions for the system",
       "addRole": "Add Role",
       "name": "Name",
       "code": "Code",

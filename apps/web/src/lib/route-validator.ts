@@ -15,6 +15,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/data-master/partner/supplier",
   "/data-master/company/company",
   "/data-master/user-management/user",
+  "/data-master/user-management/menu",
+  "/data-master/user-management/role",
   // HRD routes
   "/hrd/attendance",
 ] as const;

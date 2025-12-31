@@ -91,7 +91,13 @@ export function RoleList() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("subtitle")}</p>
+      </div>
+
       {/* Header with Actions */}
       <div className="flex items-center justify-end">
         <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
