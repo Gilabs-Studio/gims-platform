@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -156,14 +157,14 @@ export function GoodsReceiptDetailModal({
       {!isLoading && !error && goodsReceipt && (
         <div className="space-y-6">
           {/* Enhanced Header Section */}
-          <div className="flex items-start justify-between gap-4 pb-4 border-b">
-            <div className="flex items-start gap-4 flex-1">
-              <div className="h-20 w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10">
-                <Package className="h-10 w-10 text-primary" />
+          <div className="flex flex-col lg:flex-row lg:items-start gap-4 pb-4 border-b">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shrink-0">
+                <Package className="h-8 w-8 lg:h-10 lg:w-10 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight mb-2">{goodsReceipt.code}</h2>
-                <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl lg:text-2xl font-bold tracking-tight mb-2 truncate">{goodsReceipt.code}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(goodsReceipt.status)}
                   {goodsReceipt.warehouse && (
                     <Badge variant="outline" className="text-xs">
@@ -180,56 +181,86 @@ export function GoodsReceiptDetailModal({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 flex-wrap lg:flex-nowrap">
               {hasApprovePermission && goodsReceipt.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConfirm}
-                  disabled={confirmGoodsReceipt.isPending}
-                  className="gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {confirmGoodsReceipt.isPending ? t("confirming") : tList("confirm")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConfirm}
+                      disabled={confirmGoodsReceipt.isPending}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">
+                        {confirmGoodsReceipt.isPending ? t("confirming") : tList("confirm")}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{confirmGoodsReceipt.isPending ? t("confirming") : tList("confirm")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasEditPermission && goodsReceipt.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Edit className="h-4 w-4" />
-                  {t("edit")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("edit")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasDeletePermission && goodsReceipt.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="gap-2 text-destructive hover:text-destructive cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("delete")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-destructive hover:text-destructive cursor-pointer px-2 lg:px-3"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("delete")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
 
-          {/* Quick Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Quick Info Cards - Compact & Responsive */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {goodsReceipt.warehouse && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Warehouse className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Warehouse className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Warehouse</p>
-                      <p className="text-sm font-medium truncate">{goodsReceipt.warehouse.name}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Warehouse</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{goodsReceipt.warehouse.name}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{goodsReceipt.warehouse.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
@@ -237,14 +268,21 @@ export function GoodsReceiptDetailModal({
             )}
             {goodsReceipt.purchase_order && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <ShoppingCart className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <ShoppingCart className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Purchase Order</p>
-                      <p className="text-sm font-medium truncate">{goodsReceipt.purchase_order.code}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Purchase Order</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{goodsReceipt.purchase_order.code}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{goodsReceipt.purchase_order.code}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
@@ -252,14 +290,21 @@ export function GoodsReceiptDetailModal({
             )}
             {goodsReceipt.received_by && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <User className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Received By</p>
-                      <p className="text-sm font-medium truncate">{goodsReceipt.received_by.name}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Received By</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{goodsReceipt.received_by.name}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{goodsReceipt.received_by.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>

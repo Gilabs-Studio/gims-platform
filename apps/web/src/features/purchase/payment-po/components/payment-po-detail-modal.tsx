@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -173,14 +174,14 @@ export function PaymentPODetailModal({
       {!isLoading && !error && paymentPO && (
         <div className="space-y-6">
           {/* Enhanced Header Section */}
-          <div className="flex items-start justify-between gap-4 pb-4 border-b">
-            <div className="flex items-start gap-4 flex-1">
-              <div className="h-20 w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10">
-                <CreditCard className="h-10 w-10 text-primary" />
+          <div className="flex flex-col lg:flex-row lg:items-start gap-4 pb-4 border-b">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shrink-0">
+                <CreditCard className="h-8 w-8 lg:h-10 lg:w-10 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight mb-2">#{paymentPO.id}</h2>
-                <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl lg:text-2xl font-bold tracking-tight mb-2 truncate">#{paymentPO.id}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(paymentPO.status)}
                   {getMethodBadge(paymentPO.method)}
                   {paymentPO.invoice?.purchase_order && (
@@ -192,93 +193,137 @@ export function PaymentPODetailModal({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 flex-wrap lg:flex-nowrap">
               {hasApprovePermission && paymentPO.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConfirm}
-                  disabled={confirmPaymentPO.isPending}
-                  className="gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {confirmPaymentPO.isPending ? t("confirming") : tList("confirm")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConfirm}
+                      disabled={confirmPaymentPO.isPending}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">
+                        {confirmPaymentPO.isPending ? t("confirming") : tList("confirm")}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{confirmPaymentPO.isPending ? t("confirming") : tList("confirm")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasEditPermission && paymentPO.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Edit className="h-4 w-4" />
-                  {t("edit")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("edit")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasDeletePermission && paymentPO.status === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="gap-2 text-destructive hover:text-destructive cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("delete")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-destructive hover:text-destructive cursor-pointer px-2 lg:px-3"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("delete")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
 
-          {/* Quick Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Quick Info Cards - Compact & Responsive */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Card className="border-l-4 border-l-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <FileText className="h-5 w-5 text-primary" />
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">
                       {tDetail("invoice")}
                     </p>
-                    <p className="text-sm font-medium truncate">
-                      {paymentPO.invoice?.invoice_number ?? "-"}
-                    </p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs font-semibold truncate cursor-default">
+                          {paymentPO.invoice?.invoice_number ?? "-"}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{paymentPO.invoice?.invoice_number ?? "-"}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card className="border-l-4 border-l-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <CreditCard className="h-5 w-5 text-primary" />
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <CreditCard className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">
                       {tDetail("bankAccount")}
                     </p>
-                    <p className="text-sm font-medium truncate">
-                      {paymentPO.bank_account?.name ?? "-"}
-                    </p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs font-semibold truncate cursor-default">
+                          {paymentPO.bank_account?.name ?? "-"}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{paymentPO.bank_account?.name ?? "-"}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card className="border-l-4 border-l-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <DollarSign className="h-5 w-5 text-primary" />
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <DollarSign className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">
                       {tDetail("amount")}
                     </p>
-                    <p className="text-sm font-medium">
-                      {formatCurrency(paymentPO.amount ?? 0)}
-                    </p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs font-bold truncate cursor-default tabular-nums">
+                          {formatCurrency(paymentPO.amount ?? 0)}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="tabular-nums">{formatCurrency(paymentPO.amount ?? 0)}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </CardContent>

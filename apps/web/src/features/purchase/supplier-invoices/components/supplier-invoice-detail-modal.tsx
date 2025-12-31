@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -172,14 +173,14 @@ export function SupplierInvoiceDetailModal({
       {!isLoading && !error && invoice && (
         <div className="space-y-6">
           {/* Enhanced Header Section */}
-          <div className="flex items-start justify-between gap-4 pb-4 border-b">
-            <div className="flex items-start gap-4 flex-1">
-              <div className="h-20 w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10">
-                <FileText className="h-10 w-10 text-primary" />
+          <div className="flex flex-col lg:flex-row lg:items-start gap-4 pb-4 border-b">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shrink-0">
+                <FileText className="h-8 w-8 lg:h-10 lg:w-10 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight mb-2">{invoice.code}</h2>
-                <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl lg:text-2xl font-bold tracking-tight mb-2 truncate">{invoice.code}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(invoice.status)}
                   {invoice.purchase_order?.supplier && (
                     <Badge variant="outline" className="text-xs">
@@ -190,40 +191,63 @@ export function SupplierInvoiceDetailModal({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 flex-wrap lg:flex-nowrap">
               {hasApprovePermission && invoice.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSetPending}
-                  disabled={setPendingInvoice.isPending}
-                  className="gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {setPendingInvoice.isPending ? t("settingPending") : tList("setPending")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSetPending}
+                      disabled={setPendingInvoice.isPending}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">
+                        {setPendingInvoice.isPending ? t("settingPending") : tList("setPending")}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{setPendingInvoice.isPending ? t("settingPending") : tList("setPending")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasEditPermission && invoice.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Edit className="h-4 w-4" />
-                  {t("edit")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("edit")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasDeletePermission && invoice.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="gap-2 text-destructive hover:text-destructive cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("delete")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-destructive hover:text-destructive cursor-pointer px-2 lg:px-3"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("delete")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>

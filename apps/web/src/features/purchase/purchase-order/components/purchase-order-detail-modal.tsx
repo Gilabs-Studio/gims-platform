@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -222,14 +223,14 @@ export function PurchaseOrderDetailModal({
       {!isLoading && !error && order && (
         <div className="space-y-6">
           {/* Enhanced Header Section */}
-          <div className="flex items-start justify-between gap-4 pb-4 border-b">
-            <div className="flex items-start gap-4 flex-1">
-              <div className="h-20 w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10">
-                <FileText className="h-10 w-10 text-primary" />
+          <div className="flex flex-col lg:flex-row lg:items-start gap-4 pb-4 border-b">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shrink-0">
+                <FileText className="h-8 w-8 lg:h-10 lg:w-10 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight mb-2">{order.code}</h2>
-                <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl lg:text-2xl font-bold tracking-tight mb-2 truncate">{order.code}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(order.status)}
                   {order.supplier && (
                     <Badge variant="outline" className="text-xs">
@@ -240,56 +241,86 @@ export function PurchaseOrderDetailModal({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 flex-wrap lg:flex-nowrap">
               {hasApprovePermission && order.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConfirm}
-                  disabled={confirmOrder.isPending}
-                  className="gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {confirmOrder.isPending ? t("confirming") : tList("confirm")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConfirm}
+                      disabled={confirmOrder.isPending}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">
+                        {confirmOrder.isPending ? t("confirming") : tList("confirm")}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{confirmOrder.isPending ? t("confirming") : tList("confirm")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasEditPermission && order.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Edit className="h-4 w-4" />
-                  {t("edit")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer px-2 lg:px-3"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("edit")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("edit")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {hasDeletePermission && order.status === "DRAFT" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="gap-2 text-destructive hover:text-destructive cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("delete")}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-destructive hover:text-destructive cursor-pointer px-2 lg:px-3"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden xl:inline ml-2">{t("delete")}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="xl:hidden">
+                    <p>{t("delete")}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
 
-          {/* Quick Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Quick Info Cards - Compact & Responsive */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {order.supplier && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Building2 className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Supplier</p>
-                      <p className="text-sm font-medium truncate">{order.supplier.name ?? order.supplier.code}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Supplier</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{order.supplier.name ?? order.supplier.code}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{order.supplier.name ?? order.supplier.code}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
@@ -297,14 +328,21 @@ export function PurchaseOrderDetailModal({
             )}
             {order.business_unit && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Package className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Package className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Business Unit</p>
-                      <p className="text-sm font-medium truncate">{order.business_unit.name}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Business Unit</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{order.business_unit.name}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{order.business_unit.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
@@ -312,28 +350,44 @@ export function PurchaseOrderDetailModal({
             )}
             {order.created_by && (
               <Card className="border-l-4 border-l-primary/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <User className="h-5 w-5 text-primary" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Created By</p>
-                      <p className="text-sm font-medium truncate">{order.created_by.name}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Created By</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs font-semibold truncate cursor-default">{order.created_by.name}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{order.created_by.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
             <Card className="border-l-4 border-l-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <DollarSign className="h-5 w-5 text-primary" />
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <DollarSign className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Total Amount</p>
-                    <p className="text-sm font-medium">{formatCurrency(order.total_amount ?? 0)}</p>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5 uppercase tracking-wide">Total Amount</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs font-bold truncate cursor-default tabular-nums">
+                          {formatCurrency(order.total_amount ?? 0)}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="tabular-nums">{formatCurrency(order.total_amount ?? 0)}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </CardContent>
