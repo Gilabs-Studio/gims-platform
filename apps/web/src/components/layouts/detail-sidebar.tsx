@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useState } from "react";
+import React, { memo, useState, useEffect } from "react";
 import { Link, usePathname } from "@/i18n/routing";
 import { ChevronLeft, Folder, FolderOpen } from "lucide-react";
 
@@ -36,6 +36,21 @@ interface TreeItemProps {
   parentPath?: boolean[];
 }
 
+/**
+ * Check if the current item or any of its children contains the active path
+ */
+function hasActiveChild(item: DetailSidebarItem, pathname: string): boolean {
+  if (item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`))) {
+    return true;
+  }
+  
+  if (item.children) {
+    return item.children.some(child => hasActiveChild(child, pathname));
+  }
+  
+  return false;
+}
+
 const TreeItem = memo(function TreeItem({
   item,
   level = 0,
@@ -43,9 +58,18 @@ const TreeItem = memo(function TreeItem({
   isLast = false,
   parentPath = [],
 }: TreeItemProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = item.children && item.children.length > 0;
   const isActive = item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const shouldBeExpanded = hasChildren && hasActiveChild(item, pathname);
+  
+  const [isExpanded, setIsExpanded] = useState(shouldBeExpanded);
+  
+  // Auto-expand folders that contain the active item
+  useEffect(() => {
+    if (shouldBeExpanded && !isExpanded) {
+      setIsExpanded(true);
+    }
+  }, [shouldBeExpanded, isExpanded]);
 
   // Calculate indent based on level
   const indentBase = 20; // Base indent in pixels
