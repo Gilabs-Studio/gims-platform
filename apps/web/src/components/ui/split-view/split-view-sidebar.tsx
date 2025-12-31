@@ -18,6 +18,7 @@ interface SplitViewSidebarProps<T> {
   readonly className?: string;
   readonly isOpen?: boolean;
   readonly onClose?: () => void;
+  readonly filterContent?: React.ReactNode;
 }
 
 export function SplitViewSidebar<T extends { id: number }>({
@@ -31,6 +32,7 @@ export function SplitViewSidebar<T extends { id: number }>({
   className,
   isOpen = true,
   onClose,
+  filterContent,
 }: SplitViewSidebarProps<T>) {
   const isMobile = useIsMobile();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -65,22 +67,25 @@ export function SplitViewSidebar<T extends { id: number }>({
         >
           <div className="h-full flex flex-col">
             {/* Mobile Header */}
-            {title && (
-              <div className="flex items-center justify-between p-4 border-b md:hidden shrink-0">
-                <h2 className="font-semibold text-sm">{title}</h2>
-                {onClose && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="cursor-pointer"
-                    aria-label="Close sidebar"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
+            <div className="border-b md:hidden shrink-0">
+              {title && (
+                <div className="flex items-center justify-between p-4">
+                  <h2 className="font-semibold text-sm">{title}</h2>
+                  {onClose && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onClose}
+                      className="cursor-pointer"
+                      aria-label="Close sidebar"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
+              {filterContent && <div className="px-4 pb-3">{filterContent}</div>}
+            </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               {items.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">
@@ -172,11 +177,14 @@ export function SplitViewSidebar<T extends { id: number }>({
         className
       )}
     >
-      {title && (
-        <div className="flex items-center justify-between p-4 border-b shrink-0">
-          <h2 className="font-semibold text-sm">{title}</h2>
-        </div>
-      )}
+      <div className="border-b shrink-0">
+        {title && (
+          <div className="flex items-center justify-between p-4">
+            <h2 className="font-semibold text-sm">{title}</h2>
+          </div>
+        )}
+        {filterContent && <div className="px-4 pb-3">{filterContent}</div>}
+      </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {items.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground text-sm">

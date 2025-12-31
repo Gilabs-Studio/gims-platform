@@ -489,6 +489,19 @@ export function GoodsReceiptList() {
                   }
                 : undefined
             }
+            filterContent={
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder={t("filterStatus")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t("allStatuses")}</SelectItem>
+                  <SelectItem value="PENDING">{t("pending")}</SelectItem>
+                  <SelectItem value="RECEIVED">{t("received")}</SelectItem>
+                  <SelectItem value="PARTIAL">{t("partial")}</SelectItem>
+                </SelectContent>
+              </Select>
+            }
           />
           <div className="flex-1 min-w-0 overflow-hidden">
             {selectedSplitGoodsReceiptId ? (
