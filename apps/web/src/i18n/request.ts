@@ -29,6 +29,8 @@ import suppliersEnMessages from "@/features/master-data/partner/suppliers/i18n/m
 import suppliersIdMessages from "@/features/master-data/partner/suppliers/i18n/messages/id.json";
 import menuManagementEnMessages from "@/features/master-data/user-management/menu/i18n/messages/en.json";
 import menuManagementIdMessages from "@/features/master-data/user-management/menu/i18n/messages/id.json";
+import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/messages/en.json";
+import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
 
 // Merge all messages
 const messages = {
@@ -46,6 +48,7 @@ const messages = {
     ...supplierInvoiceDownPaymentsEnMessages,
     ...suppliersEnMessages,
     ...menuManagementEnMessages,
+    ...stockValuationsEnMessages,
   },
   id: {
     ...globalIdMessages,
@@ -61,6 +64,7 @@ const messages = {
     ...suppliersIdMessages,
     ...supplierInvoiceDownPaymentsIdMessages,
     ...menuManagementIdMessages,
+    ...stockValuationsIdMessages,
   },
 } as const;
 

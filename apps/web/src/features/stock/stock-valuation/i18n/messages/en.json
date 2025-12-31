@@ -1,0 +1,69 @@
+{
+  "stockValuations": {
+    "title": "Stock Valuation",
+    "description": "Monitor stock movements and valuation analysis",
+    "dateRange": "Date Range",
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "errors": {
+      "noPermission": "Access Denied",
+      "noPermissionDescription": "You don't have permission to view stock valuation data."
+    },
+    "filters": {
+      "movementType": "Movement Type",
+      "referenceType": "Reference Type",
+      "warehouse": "Warehouse",
+      "product": "Product",
+      "all": "All",
+      "in": "In",
+      "out": "Out",
+      "po": "Purchase Order",
+      "so": "Sales Order",
+      "adjustment": "Adjustment",
+      "transfer": "Transfer",
+      "return": "Return"
+    },
+    "stats": {
+      "totalMovements": "Total Movements",
+      "totalMovementsDesc": "Stock transactions",
+      "netQuantity": "Net Quantity",
+      "netQuantityDesc": "In - Out balance",
+      "netValue": "Net Value",
+      "netValueDesc": "Total stock value",
+      "averageUnitCost": "Average Unit Cost",
+      "averageUnitCostDesc": "HPP average"
+    },
+    "chart": {
+      "title": "Stock Movement Timeline",
+      "quantity": "Quantity",
+      "value": "Value",
+      "movements": "Movements",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "breakdown": {
+      "title": "Movement Breakdown",
+      "inMovements": "Incoming",
+      "outMovements": "Outgoing",
+      "inQuantity": "In Quantity",
+      "outQuantity": "Out Quantity",
+      "inValue": "In Value",
+      "outValue": "Out Value"
+    },
+    "recentMovements": {
+      "title": "Recent Movements",
+      "viewAll": "View All",
+      "noData": "No movements found",
+      "product": "Product",
+      "warehouse": "Warehouse",
+      "quantity": "Qty",
+      "value": "Value",
+      "date": "Date",
+      "type": "Type"
+    },
+    "loading": "Loading stock valuation data...",
+    "error": "Failed to load stock valuation data"
+  }
+}
