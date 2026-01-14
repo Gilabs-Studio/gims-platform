@@ -1,0 +1,1027 @@
+{
+  "info": {
+    "name": "Enterprise API Template",
+    "description": "Enterprise-level API with optimized RBAC and response structure",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "postman"
+  },
+	"item": [
+		{
+			"name": "Auth",
+			"description": "Authentication endpoints with enterprise-level JWT and permission versioning",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/ping",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ping"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get CSRF Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extract CSRF token from cookies",
+									"const cookie = pm.cookies.get(\"csrf_token\");",
+									"if (cookie) {",
+									"    pm.environment.set(\"csrf_token\", cookie);",
+									"    console.log(\"CSRF Token extracted:\", cookie);",
+									"} else {",
+									"    console.warn(\"CSRF Cookie not found\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/csrf",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"csrf"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Auth Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();",
+									"",
+									"if (response.success && response.data.token) {",
+									"    pm.environment.set(\"token\", response.data.token);",
+									"    pm.environment.set(\"refresh_token\", response.data.refresh_token);",
+									"    pm.environment.set(\"permission_hash\", response.data.user.permissions.hash);",
+									"    pm.environment.set(\"permission_version\", response.data.user.permissions.version);",
+									"    console.log(\"Auth successful - Token saved\");",
+									"    console.log(\"Permission Hash:\", response.data.user.permissions.hash);",
+									"} else {",
+									"    console.warn(\"Login failed\");",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\" : \"admin@example.com\",\n    \"password\" : \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Enterprise login response with grouped permissions and permission hash for cache validation.\n\n**Response Structure:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"uuid\",\n      \"email\": \"admin@example.com\",\n      \"name\": \"Admin User\",\n      \"role\": {\n        \"code\": \"admin\",\n        \"name\": \"Admin\",\n        \"level\": 10,\n        \"is_admin\": true\n      },\n      \"permissions\": {\n        \"version\": 1,\n        \"hash\": \"a1b2c3\",\n        \"grouped\": {\n          \"user\": [\"read\", \"write\", \"manage\"],\n          \"role\": [\"read\", \"manage\"]\n        },\n        \"count\": 25,\n        \"is_admin\": true\n      }\n    },\n    \"token\": \"jwt_access_token\",\n    \"refresh_token\": \"jwt_refresh_token\",\n    \"expires_in\": 900,\n    \"refresh_in\": 604800,\n    \"token_type\": \"Bearer\"\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Menus",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/menus",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"menus"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Auth Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();",
+									"",
+									"if (response.success && response.data.token) {",
+									"    pm.environment.set(\"token\", response.data.token);",
+									"    pm.environment.set(\"refresh_token\", response.data.refresh_token);",
+									"    pm.environment.set(\"permission_hash\", response.data.permission_hash);",
+									"    console.log(\"Token refreshed successfully\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\" : \"{{refresh_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refresh token endpoint returns minimal response (no full user data).\nFrontend should use cached user data and only update tokens.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"token\": \"new_jwt_token\",\n    \"refresh_token\": \"new_refresh_token\",\n    \"expires_in\": 900,\n    \"refresh_in\": 604800,\n    \"token_type\": \"Bearer\",\n    \"permission_hash\": \"a1b2c3\"\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Auth Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\",\n    \"all_devices\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logout from current device or all devices.\n\n**Request Body:**\n- `refresh_token`: Current refresh token to revoke\n- `all_devices`: Set to `true` to logout from all devices"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"description": "User management endpoints with coarse-grained permissions (user.read, user.write, user.manage)",
+			"item": [
+				{
+					"name": "Get Users List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users?page=1&limit=10&sort_by=created_at&sort_order=desc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "sort_by",
+									"value": "created_at"
+								},
+								{
+									"key": "sort_order",
+									"value": "desc"
+								}
+							]
+						},
+						"description": "Requires: `user.read` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User By Id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Requires: `user.read` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"johndoe@example.com\",\n  \"password\": \"password123\",\n  \"role_id\": \"{{role_id}}\",\n  \"status\": \"active\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Requires: `user.write` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe Updated\",\n  \"email\": \"johndoe@example.com\",\n  \"status\": \"active\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Requires: `user.write` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Requires: `user.manage` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Permissions",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/:id/permissions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								":id",
+								"permissions"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Requires: `user.read` permission"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Roles",
+			"description": "Role management with enterprise RBAC hierarchy",
+			"item": [
+				{
+					"name": "Get Roles List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Requires: `role.read` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Role By Id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{role_id}}"
+								}
+							]
+						},
+						"description": "Requires: `role.read` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Manager\",\n  \"code\": \"manager\",\n  \"description\": \"Manager role with team oversight\",\n  \"level\": 20,\n  \"is_admin\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/roles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles"
+							]
+						},
+						"description": "Requires: `role.write` permission\n\n**Role Levels (lower = higher privilege):**\n- 1: Super Admin\n- 10: Admin\n- 20: Manager\n- 30: Specialist\n- 50: Staff\n- 100: Viewer"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Senior Manager\",\n  \"description\": \"Senior manager with extended permissions\",\n  \"level\": 15\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/roles/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{role_id}}"
+								}
+							]
+						},
+						"description": "Requires: `role.write` permission"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/roles/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{role_id}}"
+								}
+							]
+						},
+						"description": "Requires: `role.manage` permission\n\n**Note:** Protected roles (is_protected=true) cannot be deleted"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Permissions to Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-CSRF-Token",
+								"value": "{{csrf_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "csrf_token={{csrf_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"permission_ids\": [\"uuid-1\", \"uuid-2\", \"uuid-3\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/roles/:id/permissions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles",
+								":id",
+								"permissions"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{role_id}}"
+								}
+							]
+						},
+						"description": "Requires: `role.manage` permission\n\n**Note:** This increments the role's permission_version, invalidating cached permissions"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Current User Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"roles",
+								"validate"
+							]
+						},
+						"description": "Validates current user's role and permission hash"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Permissions",
+			"description": "Permission management with coarse-grained naming (module.action)",
+			"item": [
+				{
+					"name": "Get Permissions List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/permissions?page=1&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"permissions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Returns permissions with enterprise naming convention.\n\n**Permission Format:** `module.action`\n\nExamples:\n- `user.read` - View users\n- `user.write` - Create/edit users\n- `user.manage` - Full user management\n- `deal.approve` - Approve deals\n- `report.export` - Export reports"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Permission By Id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/permissions/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"permissions",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{permission_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Permissions Grouped by Module",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/permissions/grouped",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"permissions",
+								"grouped"
+							]
+						},
+						"description": "Returns permissions grouped by module for UI rendering.\n\n**Response:**\n```json\n{\n  \"user\": [\"read\", \"write\", \"manage\"],\n  \"role\": [\"read\", \"write\", \"manage\"],\n  \"deal\": [\"read\", \"write\", \"manage\", \"approve\", \"export\"]\n}\n```"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "permission_hash",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "permission_version",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "role_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

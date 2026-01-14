@@ -1,0 +1,1339 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#455a64', 'secondaryColor': '#fff3e0', 'tertiaryColor': '#f3e5f5'}}}%%
+
+erDiagram
+    %% ============================================================
+    %% ERP DATABASE RELATIONS DIAGRAM
+    %% Module: Master Data, Sales, Purchase, Stock, Finance, HRD
+    %% Excluded: CRM, Customer, Admin
+    %% ============================================================
+
+    %% ============================================================
+    %% MASTER DATA - GEOGRAPHIC HIERARCHY
+    %% ============================================================
+    
+    Country {
+        uint ID PK
+        string Name
+    }
+    
+    Province {
+        uint ID PK
+        uint CountryID FK
+        string Name
+    }
+    
+    City {
+        uint ID PK
+        uint ProvinceID FK
+        string Name
+    }
+    
+    District {
+        uint ID PK
+        uint CityID FK
+        string Name
+    }
+    
+    Village {
+        uint ID PK
+        uint DistrictID FK
+        string Name
+    }
+    
+    Country ||--o{ Province : "has"
+    Province ||--o{ City : "has"
+    City ||--o{ District : "has"
+    District ||--o{ Village : "has"
+    
+    %% ============================================================
+    %% MASTER DATA - ORGANIZATION
+    %% ============================================================
+    
+    Company {
+        uint ID PK
+        uint VillageID FK
+        uint DirectorID FK
+        string Name
+        string Address
+        string Email
+        string NPWP
+        string NIB
+        bool IsApproved
+        uint CreatedBy FK
+        uint ApprovedBy FK
+    }
+    
+    Division {
+        uint ID PK
+        string Name
+    }
+    
+    JobPosition {
+        uint ID PK
+        string Name
+    }
+    
+    BusinessUnit {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    BusinessType {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    Area {
+        uint ID PK
+        string Name
+    }
+    
+    AreaSupervisor {
+        uint ID PK
+        string Name
+    }
+    
+    AreaSupervisorArea {
+        uint AreaSupervisorID PK
+        uint AreaID PK
+    }
+    
+    AreaSupervisor ||--o{ AreaSupervisorArea : "manages"
+    Area ||--o{ AreaSupervisorArea : "supervised_by"
+    Village ||--o{ Company : "located_in"
+    
+    %% ============================================================
+    %% MASTER DATA - EMPLOYEE
+    %% ============================================================
+    
+    Employee {
+        uint ID PK
+        uint UserID FK
+        uint DivisionID FK
+        uint JobPositionID FK
+        uint VillageID FK
+        uint CompanyID FK
+        string NIP
+        string Address
+        string Phone
+        date JoinDate
+        date EndDate
+        string ContractNo
+        string NPWP
+        string Status
+        string Gender
+        date BirthDate
+        string PTKPStatus
+        string ContractStatus
+        bool IsApproved
+        uint CreatedBy FK
+        uint ApprovedBy FK
+        uint ReplacementFor FK
+        int TotalLeaveQuota
+        bool IsDisability
+    }
+    
+    EmployeeArea {
+        uint ID PK
+        uint EmployeeID FK
+        uint AreaID FK
+    }
+    
+    Division ||--o{ Employee : "has"
+    JobPosition ||--o{ Employee : "has"
+    Village ||--o{ Employee : "lives_in"
+    Company ||--o{ Employee : "employs"
+    Employee ||--o{ EmployeeArea : "assigned_to"
+    Area ||--o{ EmployeeArea : "has"
+    Employee ||--o| Employee : "replaces"
+    
+    %% ============================================================
+    %% MASTER DATA - SUPPLIER
+    %% ============================================================
+    
+    SupplierType {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    Supplier {
+        uint ID PK
+        uint VillageID FK
+        uint UserID FK
+        uint SupplierTypeID FK
+        string Name
+        string InvoiceName
+        string NPWP
+        string Email
+        string Address
+        string Type
+        bool IsApproved
+        uint CreatedBy FK
+        uint ApprovedBy FK
+    }
+    
+    SupplierPhoneNumber {
+        uint ID PK
+        uint SupplierID FK
+        string Name
+        string Number
+    }
+    
+    SupplierBank {
+        uint ID PK
+        uint SupplierID FK
+        uint BankID FK
+        string AccountName
+        string AccountNumber
+    }
+    
+    Bank {
+        uint ID PK
+        string Name
+    }
+    
+    Village ||--o{ Supplier : "located_in"
+    SupplierType ||--o{ Supplier : "categorizes"
+    Supplier ||--o{ SupplierPhoneNumber : "has"
+    Supplier ||--o{ SupplierBank : "has"
+    Bank ||--o{ SupplierBank : "used_by"
+    
+    %% ============================================================
+    %% MASTER DATA - PRODUCT
+    %% ============================================================
+    
+    ProductCategory {
+        uint ID PK
+        string Name
+    }
+    
+    ProductBrand {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    ProductSegment {
+        uint ID PK
+        string Name
+    }
+    
+    ProductType {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    UnitOfMeasure {
+        uint ID PK
+        string Name
+        string Abbreviation
+    }
+    
+    Packaging {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    ProcurementType {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    Product {
+        uint ID PK
+        uint ProductCategoryID FK
+        uint ProductBrandID FK
+        uint UnitOfMeasureID FK
+        uint SupplierID FK
+        uint BusinessUnitID FK
+        uint ProductSegmentID FK
+        uint ProductTypeID FK
+        uint PackagingID FK
+        uint ProcurementTypeID FK
+        string Name
+        string Code
+        string CatalogNumber
+        decimal CostPrice
+        decimal CurrentHpp
+        decimal SellingPrice
+        string Description
+        int MinStock
+        int MaxStock
+        bool IsApproved
+        uint CreatedBy FK
+        uint ApprovedBy FK
+    }
+    
+    ProductCategory ||--o{ Product : "contains"
+    ProductBrand ||--o{ Product : "brands"
+    UnitOfMeasure ||--o{ Product : "measured_in"
+    Supplier ||--o{ Product : "supplies"
+    BusinessUnit ||--o{ Product : "belongs_to"
+    ProductSegment ||--o{ Product : "segmented_by"
+    ProductType ||--o{ Product : "typed_as"
+    Packaging ||--o{ Product : "packaged_as"
+    ProcurementType ||--o{ Product : "procured_by"
+    
+    %% ============================================================
+    %% MASTER DATA - WAREHOUSE
+    %% ============================================================
+    
+    Warehouse {
+        uint ID PK
+        uint VillageID FK
+        string Name
+        string Address
+        decimal Latitude
+        decimal Longitude
+    }
+    
+    Village ||--o{ Warehouse : "contains"
+    
+    %% ============================================================
+    %% MASTER DATA - PAYMENT & COURIER
+    %% ============================================================
+    
+    PaymentTerms {
+        uint ID PK
+        string Name
+        string Description
+        int Days
+        bool IsActive
+    }
+    
+    CourierAgency {
+        uint ID PK
+        string Name
+        string Description
+    }
+    
+    SOSource {
+        uint ID PK
+        string Name
+        string Icon
+    }
+    
+    Leave {
+        uint ID PK
+        string Name
+        string Gender
+        int Quota
+        string Description
+        bool IsCutAnnualLeave
+    }
+    
+    %% ============================================================
+    %% SALES - QUOTATION
+    %% ============================================================
+    
+    SalesQuotation {
+        uint ID PK
+        string Code
+        uint CustomerID FK
+        uint PaymentTermsID FK
+        uint EmployeeID FK
+        uint BusinessUnitID FK
+        uint BusinessTypeID FK
+        date QuotationDate
+        string Status
+        uint CreatedBy FK
+        decimal Subtotal
+        decimal TaxAmount
+        decimal TaxRate
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal TotalAmount
+        uint SalesVisitDetailID FK
+        uint CrmOpportunityID FK
+    }
+    
+    SalesQuotationItem {
+        uint ID PK
+        uint SalesQuotationID FK
+        uint ProductID FK
+        int Quantity
+        decimal Price
+        decimal Discount
+        decimal Subtotal
+    }
+    
+    PaymentTerms ||--o{ SalesQuotation : "terms_for"
+    Employee ||--o{ SalesQuotation : "created_by"
+    BusinessUnit ||--o{ SalesQuotation : "belongs_to"
+    BusinessType ||--o| SalesQuotation : "typed_as"
+    SalesQuotation ||--o{ SalesQuotationItem : "contains"
+    Product ||--o{ SalesQuotationItem : "quoted"
+    
+    %% ============================================================
+    %% SALES - ORDER
+    %% ============================================================
+    
+    SalesOrder {
+        uint ID PK
+        uint CustomerID FK
+        uint PaymentTermsID FK
+        uint EmployeeID FK
+        uint BusinessUnitID FK
+        uint AreaID FK
+        uint AreaSupervisorID FK
+        uint BusinessTypeID FK
+        uint SOSourceID FK
+        uint SalesQuotationID FK
+        uint SalesVisitDetailID FK
+        uint CrmOpportunityID FK
+        string Code
+        string OrderDate
+        string DueDate
+        string DeliveryDate
+        string Status
+        uint CreatedBy FK
+        decimal Subtotal
+        decimal TaxAmount
+        decimal TaxRate
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal TotalAmount
+        string POCustomerNumber
+    }
+    
+    SalesOrderItem {
+        uint ID PK
+        uint SalesOrderID FK
+        uint ProductID FK
+        int Quantity
+        decimal Price
+        decimal Discount
+        decimal Subtotal
+    }
+    
+    PaymentTerms ||--o{ SalesOrder : "terms_for"
+    Employee ||--o{ SalesOrder : "handles"
+    BusinessUnit ||--o{ SalesOrder : "belongs_to"
+    Area ||--o| SalesOrder : "area_of"
+    AreaSupervisor ||--o| SalesOrder : "supervised_by"
+    BusinessType ||--o| SalesOrder : "typed_as"
+    SOSource ||--o| SalesOrder : "sourced_from"
+    SalesQuotation ||--o| SalesOrder : "converted_to"
+    SalesOrder ||--o{ SalesOrderItem : "contains"
+    Product ||--o{ SalesOrderItem : "sold"
+    
+    %% ============================================================
+    %% SALES - DELIVERY ORDER
+    %% ============================================================
+    
+    DeliveryOrder {
+        uint ID PK
+        uint SalesOrderID FK
+        string Code
+        date DeliveryDate
+        string Status
+        uint DeliveredByID FK
+        string DeliveryType
+        uint CourierAgencyID FK
+        string TrackingNumber
+        string ReceiverName
+        string InstallationStatus
+        string FunctionTestStatus
+        string AcceptedStatus
+        uint CreatedBy FK
+    }
+    
+    DeliveryOrderItem {
+        uint ID PK
+        uint DeliveryOrderID FK
+        uint ProductID FK
+        int Quantity
+        uint InventoryBatchID FK
+        date ExpiredDate
+    }
+    
+    SalesOrder ||--o{ DeliveryOrder : "delivered_by"
+    Employee ||--o| DeliveryOrder : "delivered_by"
+    CourierAgency ||--o| DeliveryOrder : "shipped_by"
+    DeliveryOrder ||--o{ DeliveryOrderItem : "contains"
+    Product ||--o{ DeliveryOrderItem : "delivered"
+    
+    %% ============================================================
+    %% SALES - CUSTOMER INVOICE
+    %% ============================================================
+    
+    CustomerInvoice {
+        uint ID PK
+        uint SalesOrderID FK
+        uint PaymentTermsID FK
+        string Code
+        string InvoiceNumber
+        string Type
+        string InvoiceDate
+        string DueDate
+        decimal TaxRate
+        decimal TaxAmount
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal SubTotal
+        decimal Amount
+        string Status
+        timestamp PaymentAt
+        uint CreatedBy FK
+        uint TaxInvoiceID FK
+    }
+    
+    CustomerInvoiceItem {
+        uint ID PK
+        uint CustomerInvoiceID FK
+        uint ProductID FK
+        decimal Quantity
+        decimal Price
+        decimal Discount
+        decimal Subtotal
+        decimal HPPAmount
+    }
+    
+    SalesOrder ||--o{ CustomerInvoice : "invoiced_as"
+    PaymentTerms ||--o| CustomerInvoice : "terms_for"
+    CustomerInvoice ||--o{ CustomerInvoiceItem : "contains"
+    Product ||--o{ CustomerInvoiceItem : "billed"
+    
+    %% ============================================================
+    %% SALES - VISIT & ESTIMATION
+    %% ============================================================
+    
+    SalesVisit {
+        uint ID PK
+        string Code
+        uint CustomerID FK
+        date VisitDate
+        string VisitTime
+        string Description
+        string Activity
+        string Status
+        uint MarketingID FK
+        decimal TotalValue
+        string Sentiment
+        string VisitFrequency
+        string ProjectType
+        string CustomerLevel
+        uint CustomerSegmentID FK
+        uint CustomerTypeID FK
+    }
+    
+    SalesVisitDetail {
+        uint ID PK
+        uint VisitID FK
+        uint ProductID FK
+        decimal Quantity
+        decimal Price
+        string Description
+        uint SalesQuotationID FK
+        uint SalesOrderID FK
+        string CustomerNeedStatus
+        string CustomerNeedResponse
+    }
+    
+    SalesVisitProgressHistory {
+        uint ID PK
+        uint SalesVisitID FK
+        string FromProgress
+        string ToProgress
+        uint ChangedBy FK
+        timestamp ChangedAt
+        string Reason
+    }
+    
+    SalesVisitInterestQuestion {
+        uint ID PK
+        string Question
+        string QuestionKey
+        bool IsActive
+        int SortOrder
+    }
+    
+    SalesVisitInterestQuestionOption {
+        uint ID PK
+        uint QuestionID FK
+        string OptionText
+        decimal Weight
+        bool IsActive
+        int SortOrder
+    }
+    
+    SalesVisitInterestAnswer {
+        uint ID PK
+        uint VisitID FK
+        uint QuestionID FK
+        uint OptionID FK
+        decimal Weight
+    }
+    
+    SalesEstimation {
+        uint ID PK
+        string Code
+        uint CustomerID FK
+        uint CustomerSegmentID FK
+        uint CustomerTypeID FK
+        string CustomerLevel
+        date EstimationDate
+        string Status
+        uint SalesVisitDetailID FK
+        uint CrmOpportunityID FK
+        decimal TotalAmount
+        decimal EstimatedMonthlyValue
+        int EstimatedPurchaseCycle
+        uint CreatedBy FK
+        uint ApprovedBy FK
+        uint QuotationID FK
+        uint SalesOrderID FK
+    }
+    
+    SalesEstimationItem {
+        uint ID PK
+        uint EstimationID FK
+        uint ProductID FK
+        decimal Quantity
+        decimal Price
+        decimal Subtotal
+    }
+    
+    Employee ||--o{ SalesVisit : "visits"
+    SalesVisit ||--o{ SalesVisitDetail : "details"
+    Product ||--o{ SalesVisitDetail : "discussed"
+    SalesVisit ||--o{ SalesVisitProgressHistory : "tracks"
+    SalesVisitInterestQuestion ||--o{ SalesVisitInterestQuestionOption : "has"
+    SalesVisit ||--o{ SalesVisitInterestAnswer : "answered_in"
+    SalesVisitInterestQuestion ||--o{ SalesVisitInterestAnswer : "answered"
+    SalesVisitInterestQuestionOption ||--o{ SalesVisitInterestAnswer : "selected"
+    SalesEstimation ||--o{ SalesEstimationItem : "estimates"
+    Product ||--o{ SalesEstimationItem : "estimated"
+    SalesVisitDetail ||--o| SalesQuotation : "generates"
+    SalesVisitDetail ||--o| SalesOrder : "generates"
+    
+    %% ============================================================
+    %% SALES - TARGET
+    %% ============================================================
+    
+    YearlyTarget {
+        uint ID PK
+        int Year
+        uint AreaID FK
+        decimal Total
+    }
+    
+    TargetDetail {
+        uint ID PK
+        uint YearlyID FK
+        string Type
+        string Reference
+        int Month
+        decimal Percentage
+        decimal Total
+    }
+    
+    MonthlyTarget {
+        uint ID PK
+        string Area
+        string Month
+        int Year
+        uint CustomerID FK
+        string Customer
+        string ProductCode
+        string ProductName
+        decimal Quantity
+        decimal PriceList
+        decimal Total
+        string Status
+    }
+    
+    Area ||--o{ YearlyTarget : "targeted"
+    YearlyTarget ||--o{ TargetDetail : "breaks_down"
+    
+    %% ============================================================
+    %% PURCHASE - REQUISITION
+    %% ============================================================
+    
+    PurchaseRequisition {
+        uint ID PK
+        string Code
+        uint SupplierID FK
+        uint PaymentTermsID FK
+        uint BusinessUnitID FK
+        string RequestDate
+        string Address
+        string Status
+        decimal TaxRate
+        decimal TaxAmount
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal Subtotal
+        decimal TotalAmount
+        uint EmployeeID FK
+    }
+    
+    PurchaseRequisitionItem {
+        uint ID PK
+        uint PurchaseRequisitionID FK
+        uint ProductID FK
+        int Quantity
+        decimal PurchasePrice
+        decimal Discount
+        decimal Subtotal
+    }
+    
+    Supplier ||--o{ PurchaseRequisition : "requested_from"
+    PaymentTerms ||--o{ PurchaseRequisition : "terms_for"
+    BusinessUnit ||--o{ PurchaseRequisition : "requested_by"
+    Employee ||--o{ PurchaseRequisition : "requested_by"
+    PurchaseRequisition ||--o{ PurchaseRequisitionItem : "contains"
+    Product ||--o{ PurchaseRequisitionItem : "requested"
+    
+    %% ============================================================
+    %% PURCHASE - ORDER
+    %% ============================================================
+    
+    PurchaseOrder {
+        uint ID PK
+        string Code
+        uint SupplierID FK
+        uint PurchaseRequisitionsID FK
+        uint SalesOrderID FK
+        uint PaymentTermsID FK
+        uint BusinessUnitID FK
+        string Address
+        string DueDate
+        string OrderDate
+        string Status
+        bool IsIndent
+        decimal TaxRate
+        decimal TaxAmount
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal SubTotal
+        decimal TotalAmount
+        uint CreatedBy FK
+    }
+    
+    PurchaseOrderItem {
+        uint ID PK
+        uint PurchaseOrderID FK
+        uint ProductID FK
+        int Quantity
+        decimal Price
+        decimal Discount
+        decimal Subtotal
+    }
+    
+    Supplier ||--o{ PurchaseOrder : "supplies"
+    PurchaseRequisition ||--o| PurchaseOrder : "converted_to"
+    SalesOrder ||--o| PurchaseOrder : "triggers"
+    PaymentTerms ||--o{ PurchaseOrder : "terms_for"
+    BusinessUnit ||--o{ PurchaseOrder : "ordered_by"
+    PurchaseOrder ||--o{ PurchaseOrderItem : "contains"
+    Product ||--o{ PurchaseOrderItem : "ordered"
+    
+    %% ============================================================
+    %% PURCHASE - GOODS RECEIPT
+    %% ============================================================
+    
+    GoodsReceipt {
+        uint ID PK
+        uint PurchaseOrderID FK
+        uint WarehouseID FK
+        string Code
+        date ReceiptDate
+        string Status
+        uint ReceivedBy FK
+    }
+    
+    GoodsReceiptItem {
+        uint ID PK
+        uint GoodsReceiptID FK
+        uint ProductID FK
+        uint InventoryBatchID FK
+        string LotNumber
+        date ExpiredDate
+        int Quantity
+    }
+    
+    PurchaseOrder ||--o{ GoodsReceipt : "received_as"
+    Warehouse ||--o{ GoodsReceipt : "stored_in"
+    Employee ||--o{ GoodsReceipt : "received_by"
+    GoodsReceipt ||--o{ GoodsReceiptItem : "contains"
+    Product ||--o{ GoodsReceiptItem : "received"
+    
+    %% ============================================================
+    %% PURCHASE - SUPPLIER INVOICE
+    %% ============================================================
+    
+    SupplierInvoice {
+        uint ID PK
+        uint PurchaseOrderID FK
+        uint PaymentTermsID FK
+        string Code
+        string InvoiceNumber
+        string Type
+        string InvoiceDate
+        string DueDate
+        decimal TaxRate
+        decimal TaxAmount
+        decimal DeliveryCost
+        decimal OtherCost
+        decimal SubTotal
+        decimal Amount
+        string Status
+        uint CreatedBy FK
+        uint TaxInvoiceID FK
+    }
+    
+    SupplierInvoiceItem {
+        uint ID PK
+        uint SupplierInvoiceID FK
+        uint ProductID FK
+        int Quantity
+        decimal Price
+        decimal Discount
+        decimal SubTotal
+    }
+    
+    PurchaseOrder ||--o{ SupplierInvoice : "invoiced_as"
+    PaymentTerms ||--o| SupplierInvoice : "terms_for"
+    SupplierInvoice ||--o{ SupplierInvoiceItem : "contains"
+    Product ||--o{ SupplierInvoiceItem : "billed"
+    
+    %% ============================================================
+    %% STOCK - INVENTORY
+    %% ============================================================
+    
+    InventoryBatch {
+        uint ID PK
+        string Code
+        string LotNumber
+        uint ProductID FK
+        uint WarehouseID FK
+        date ExpiredDate
+        int Quantity
+        timestamp ReceivedAt
+    }
+    
+    StockMovement {
+        uint ID PK
+        uint ProductID FK
+        uint WarehouseID FK
+        uint InventoryBatchID FK
+        string MovementType
+        int Quantity
+        string ReferenceType
+        uint ReferenceID FK
+        decimal UnitCost
+        decimal TotalCost
+        decimal HppAvg
+        int Stock
+    }
+    
+    Product ||--o{ InventoryBatch : "stocked_as"
+    Warehouse ||--o{ InventoryBatch : "stores"
+    InventoryBatch ||--o{ StockMovement : "moves"
+    Product ||--o{ StockMovement : "moved"
+    Warehouse ||--o{ StockMovement : "from_to"
+    DeliveryOrderItem }o--|| InventoryBatch : "from"
+    GoodsReceiptItem }o--o| InventoryBatch : "creates"
+    
+    %% ============================================================
+    %% STOCK - OPNAME
+    %% ============================================================
+    
+    StockOpname {
+        uint ID PK
+        uint WarehouseID FK
+        date OpnameDate
+        string Status
+        uint CreatedBy FK
+    }
+    
+    StockOpnameItem {
+        uint ID PK
+        uint StockOpnameID FK
+        uint InventoryBatchID FK
+        uint ProductID FK
+        int SystemQuantity
+        int CountedQuantity
+        int Difference
+        date ExpiredDate
+    }
+    
+    Warehouse ||--o{ StockOpname : "audited"
+    StockOpname ||--o{ StockOpnameItem : "contains"
+    InventoryBatch ||--o| StockOpnameItem : "counted"
+    Product ||--o| StockOpnameItem : "counted"
+    
+    %% ============================================================
+    %% FINANCE - CHART OF ACCOUNTS
+    %% ============================================================
+    
+    ChartOfAccount {
+        uint ID PK
+        string Code
+        string Name
+        string Type
+        uint ParentID FK
+    }
+    
+    ChartOfAccount ||--o{ ChartOfAccount : "parent_of"
+    
+    %% ============================================================
+    %% FINANCE - JOURNAL
+    %% ============================================================
+    
+    JournalEntry {
+        uint ID PK
+        date EntryDate
+        string Description
+        string ReferenceType
+        uint ReferenceID FK
+    }
+    
+    JournalLine {
+        uint ID PK
+        uint JournalEntryID FK
+        uint ChartOfAccountID FK
+        decimal Debit
+        decimal Credit
+    }
+    
+    JournalEntry ||--o{ JournalLine : "contains"
+    ChartOfAccount ||--o{ JournalLine : "posted_to"
+    
+    %% ============================================================
+    %% FINANCE - BANK ACCOUNT
+    %% ============================================================
+    
+    BankAccount {
+        uint ID PK
+        uint ChartOfAccountID FK
+        uint VillageID FK
+        string Name
+        string AccountNumber
+        string AccountHolder
+        string Currency
+        bool IsActive
+        string BankAddress
+        string BankPhone
+    }
+    
+    ChartOfAccount ||--o{ BankAccount : "linked_to"
+    Village ||--o{ BankAccount : "located_in"
+    
+    %% ============================================================
+    %% FINANCE - PAYMENT
+    %% ============================================================
+    
+    Payment {
+        uint ID PK
+        uint ReferenceID FK
+        string ReferenceType
+        date PaymentDate
+        uint BankAccountID FK
+        decimal Amount
+        decimal RemainingAmount
+        string Method
+        string Status
+        uint CreatedBy FK
+    }
+    
+    PaymentAllocation {
+        uint ID PK
+        uint PaymentID FK
+        uint ChartOfAccountID FK
+        decimal Amount
+    }
+    
+    BankAccount ||--o| Payment : "paid_from"
+    Payment ||--o{ PaymentAllocation : "allocated_to"
+    ChartOfAccount ||--o{ PaymentAllocation : "allocated_to"
+    
+    %% ============================================================
+    %% FINANCE - TAX INVOICE
+    %% ============================================================
+    
+    TaxInvoice {
+        uint ID PK
+        uint CustomerInvoiceID FK
+        uint SupplierInvoiceID FK
+        string TaxInvoiceNumber
+        string TaxInvoiceDate
+        string Status
+        uint CreatedBy FK
+    }
+    
+    CustomerInvoice ||--o| TaxInvoice : "has"
+    SupplierInvoice ||--o| TaxInvoice : "has"
+    
+    %% ============================================================
+    %% FINANCE - NON-TRADE PAYABLE
+    %% ============================================================
+    
+    NonTradePayable {
+        uint ID PK
+        string Code
+        string ReferenceType
+        uint ReferenceID FK
+        uint ChartOfAccountID FK
+        string Description
+        decimal Amount
+        date Date
+        date DueDate
+        string Status
+    }
+    
+    ChartOfAccount ||--o{ NonTradePayable : "expensed_to"
+    
+    %% ============================================================
+    %% FINANCE - BUDGET
+    %% ============================================================
+    
+    Budget {
+        uint ID PK
+        uint DivisionID FK
+        string Name
+        string PeriodType
+        date PeriodStart
+        date PeriodEnd
+        uint CreatedBy FK
+        string Status
+    }
+    
+    BudgetItem {
+        uint ID PK
+        uint BudgetID FK
+        uint ChartOfAccountID FK
+        decimal PlannedAmount
+        uint Month
+        uint Year
+    }
+    
+    Division ||--o{ Budget : "budgeted"
+    Budget ||--o{ BudgetItem : "contains"
+    ChartOfAccount ||--o{ BudgetItem : "budgeted_to"
+    
+    %% ============================================================
+    %% FINANCE - CASH BANK JOURNAL
+    %% ============================================================
+    
+    CashBankJournal {
+        uint ID PK
+        date EntryDate
+        string Description
+        string Type
+        uint PrimaryChartOfAccountID FK
+        string Status
+        uint JournalEntryID FK
+    }
+    
+    CashBankJournalLine {
+        uint ID PK
+        uint CashBankJournalID FK
+        uint ChartOfAccountID FK
+        decimal Amount
+    }
+    
+    ChartOfAccount ||--o{ CashBankJournal : "primary"
+    JournalEntry ||--o| CashBankJournal : "posted_as"
+    CashBankJournal ||--o{ CashBankJournalLine : "contains"
+    ChartOfAccount ||--o{ CashBankJournalLine : "allocated_to"
+    
+    %% ============================================================
+    %% FINANCE - FINANCIAL CLOSING
+    %% ============================================================
+    
+    FinancialClosing {
+        uint ID PK
+        date ClosingDate
+        string Status
+        string Description
+        uint CreatedBy FK
+    }
+    
+    %% ============================================================
+    %% FINANCE - ASSET MANAGEMENT
+    %% ============================================================
+    
+    AssetCategory {
+        uint ID PK
+        string Name
+        string Type
+        string DepreciationMethod
+        decimal DepreciationRate
+        int UsefulLife
+        bool IsDepreciable
+    }
+    
+    AssetLocation {
+        uint ID PK
+        uint CityID FK
+        string Name
+        string Address
+        decimal Latitude
+        decimal Longitude
+    }
+    
+    Asset {
+        uint ID PK
+        uint AssetCategoryID FK
+        uint AssetLocationID FK
+        string Code
+        string Name
+        date AcquisitionDate
+        decimal AcquisitionCost
+        decimal AccumulatedDepreciation
+        decimal CurrentValue
+        string Status
+        string Description
+    }
+    
+    AssetDepreciation {
+        uint ID PK
+        uint AssetID FK
+        date Period
+        decimal DepreciationAmount
+        decimal AccumulatedDepreciation
+        decimal BookValue
+        uint JournalEntryID FK
+        string Status
+    }
+    
+    AssetTransaction {
+        uint ID PK
+        uint AssetID FK
+        string TransactionType
+        date TransactionDate
+        decimal TransactionAmount
+        string Description
+        string Status
+    }
+    
+    City ||--o{ AssetLocation : "located_in"
+    AssetCategory ||--o{ Asset : "categorizes"
+    AssetLocation ||--o{ Asset : "stores"
+    Asset ||--o{ AssetDepreciation : "depreciated"
+    Asset ||--o{ AssetTransaction : "transacted"
+    JournalEntry ||--o| AssetDepreciation : "posted_as"
+    
+    %% ============================================================
+    %% FINANCE - UP COUNTRY COST
+    %% ============================================================
+    
+    UpCountryCost {
+        uint ID PK
+        string Code
+        string Purpose
+        string Location
+        string StartDate
+        string EndDate
+        string Status
+        uint CreatedBy FK
+    }
+    
+    UpCountryCostEmployee {
+        uint ID PK
+        uint UpCountryCostID FK
+        uint EmployeeID FK
+    }
+    
+    UpCountryCostItem {
+        uint ID PK
+        uint UpCountryCostID FK
+        string CostType
+        string Description
+        decimal Amount
+    }
+    
+    UpCountryCost ||--o{ UpCountryCostEmployee : "involves"
+    Employee ||--o{ UpCountryCostEmployee : "travels"
+    UpCountryCost ||--o{ UpCountryCostItem : "costs"
+    
+    %% ============================================================
+    %% FINANCE - SALARY
+    %% ============================================================
+    
+    SalaryStructure {
+        uint ID PK
+        uint EmployeeID FK
+        date EffectiveDate
+        decimal BasicSalary
+        string Notes
+        string Status
+    }
+    
+    Employee ||--o{ SalaryStructure : "has"
+    
+    %% ============================================================
+    %% HRD - ATTENDANCE
+    %% ============================================================
+    
+    AttendanceRecord {
+        uint ID PK
+        uint EmployeeID FK
+        string CheckInType
+        string CheckOutType
+        date Date
+        timestamp CheckInTime
+        timestamp CheckOutTime
+        string Status
+        string Note
+    }
+    
+    Employee ||--o{ AttendanceRecord : "records"
+    
+    %% ============================================================
+    %% HRD - LEAVE
+    %% ============================================================
+    
+    LeaveRequest {
+        uint ID PK
+        uint EmployeeID FK
+        uint LeaveID FK
+        date StartDate
+        date EndDate
+        string Reason
+        string Status
+        uint ApprovedBy FK
+    }
+    
+    Employee ||--o{ LeaveRequest : "requests"
+    Leave ||--o{ LeaveRequest : "type_of"
+    
+    %% ============================================================
+    %% HRD - EMPLOYEE DOCUMENTS
+    %% ============================================================
+    
+    EmployeeContract {
+        uint ID PK
+        uint EmployeeID FK
+        string ContractNo
+        date StartDate
+        date EndDate
+        string ContractFile
+    }
+    
+    EmployeeEducationHistory {
+        uint ID PK
+        uint EmployeeID FK
+        string Degree
+        string Major
+        string Institution
+        int YearStart
+        int YearEnd
+        string DiplomaFileURL
+    }
+    
+    EmployeeCertification {
+        uint ID PK
+        uint EmployeeID FK
+        string CertificateName
+        string IssuedBy
+        date IssueDate
+        date ExpiryDate
+        string CertificateFile
+    }
+    
+    EmployeeAsset {
+        uint ID PK
+        uint EmployeeID FK
+        string Name
+        date BorrowDate
+        date ReturnDate
+        string Status
+        string Notes
+    }
+    
+    Employee ||--o{ EmployeeContract : "has"
+    Employee ||--o{ EmployeeEducationHistory : "has"
+    Employee ||--o{ EmployeeCertification : "earned"
+    Employee ||--o{ EmployeeAsset : "borrows"
+    
+    %% ============================================================
+    %% HRD - EVALUATION
+    %% ============================================================
+    
+    EvaluationGroup {
+        uint ID PK
+        string Name
+        string Description
+        string Status
+    }
+    
+    EvaluationCriteria {
+        uint ID PK
+        uint EvaluationGroupID FK
+        string Name
+        decimal Weight
+    }
+    
+    EmployeeEvaluation {
+        uint ID PK
+        string Name
+        string Description
+        uint EmployeeID FK
+        uint EvaluatedBy FK
+        date PeriodStart
+        date PeriodEnd
+        decimal OverallScore
+        string Comments
+        string Status
+    }
+    
+    EmployeeEvaluationCriteria {
+        uint ID PK
+        uint EmployeeEvaluationID FK
+        string Name
+        decimal Weight
+        decimal Score
+    }
+    
+    EvaluationGroup ||--o{ EvaluationCriteria : "contains"
+    Employee ||--o{ EmployeeEvaluation : "evaluated"
+    EmployeeEvaluation ||--o{ EmployeeEvaluationCriteria : "scored_by"
+    
+    %% ============================================================
+    %% HRD - RECRUITMENT
+    %% ============================================================
+    
+    RecruitmentRequest {
+        uint ID PK
+        uint RequestedBy FK
+        uint DepartmentID FK
+        uint PositionID FK
+        date RequestDate
+        int RequiredCount
+        date ExpectedStartDate
+        string JobDescription
+        string Qualifications
+        string Status
+        uint ApprovedBy FK
+    }
+    
+    Division ||--o{ RecruitmentRequest : "requests"
+    JobPosition ||--o{ RecruitmentRequest : "for"
+    
+    %% ============================================================
+    %% HRD - WORK SCHEDULE & HOLIDAY
+    %% ============================================================
+    
+    WorkSchedule {
+        uint ID PK
+        string DayOfWeek
+        string StartTime
+        string EndTime
+        bool IsWorkDay
+    }
+    
+    Holiday {
+        uint ID PK
+        date Date
+        string Description
+        bool IsNational
+    }

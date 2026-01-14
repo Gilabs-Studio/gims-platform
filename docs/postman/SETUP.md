@@ -6,7 +6,7 @@
 
 1. Buka Postman
 2. Klik **Import** di sidebar kiri
-3. Pilih file `CRM-Healthcare-API.postman_collection.json`
+3. Pilih file `postman.json`
 4. Klik **Import**
 
 ### Method 2: Import via URL (jika collection di-host)
@@ -21,7 +21,7 @@
 
 1. Klik **Environments** di sidebar kiri
 2. Klik **+** untuk membuat environment baru
-3. Beri nama: `CRM Healthcare - Local`
+3. Beri nama: `Web Application - Local`
 4. Tambahkan variables:
 
 | Variable        | Initial Value           | Current Value           |

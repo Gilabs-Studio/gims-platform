@@ -1,16 +1,16 @@
-# Postman Collection - CRM Healthcare API
+# Postman Collection - Web Application API
 
-Dokumentasi Postman collection untuk CRM Healthcare API.
+Dokumentasi Postman collection untuk Web Application API.
 
 ## Setup
 
 1. **Import Collection**
    - Buka Postman
    - Klik Import
-   - Pilih file `CRM-Healthcare-API.postman_collection.json`
+   - Pilih file `postman.json`
 
 2. **Setup Environment Variables**
-   - Buat environment baru dengan nama "CRM Healthcare - Local"
+   - Buat environment baru dengan nama "Web Application - Local"
    - Set variable:
      - `base_url`: `http://localhost:8080`
    - Set variable:

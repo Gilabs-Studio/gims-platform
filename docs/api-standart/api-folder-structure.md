@@ -1,955 +1,658 @@
-# API Folder Structure Standards
-## WebApp Ticketing Platform - Backend API
+# Architecture Proposal (Go Monolith With Vertical Slices)
 
-**Versi**: 1.0  
-**Status**: Active  
-**Last Updated**: 2025
+Dokumen ini adalah standarisasi arsitektur layanan backend berbasis Go. Desain mengikuti pola vertical slice per domain, dengan layer yang jelas (data, domain, presentation) dan core cross-cutting (config, database, router, middleware).
 
----
+Tujuan:
+- Konsistensi struktur proyek dan penamaan file.
+- Skalabel, mudah di-maintain, dan mudah menambah fitur/domain baru.
+- Siap untuk pengembangan lokal, pengujian, dan deployment multi-lingkungan (dev/staging/prod).
 
-## 📋 Daftar Isi
-
-1. [Overview](#overview)
-2. [Prinsip Feature-Based Structure](#prinsip-feature-based-structure)
-3. [Struktur Folder Lengkap](#struktur-folder-lengkap)
-4. [Step-by-Step: Membuat Module Baru](#step-by-step-membuat-module-baru)
-5. [Template Code untuk Setiap Layer](#template-code-untuk-setiap-layer)
-6. [Naming Conventions](#naming-conventions)
-7. [Best Practices](#best-practices)
-8. [Checklist Module Baru](#checklist-module-baru)
-9. [Contoh Implementasi](#contoh-implementasi)
+Ringkasan:
+- Bahasa: Go (100%)
+- Eksekutables: API server (HTTP), worker background, seeder, generator.
+- Infrastruktur inti: konfigurasi, koneksi DB, migrasi & seeding, router, middleware.
+- Domain vertical slice: data (models, repositories, seeders), domain (dto, mapper, usecase), presentation (handler, router).
+- Orkestrasi: Dockerfile, docker-compose per lingkungan.
+- Migrasi: Atlas (berbasis SQL dengan timestamp).
+- Testing: unit dan e2e.
 
 ---
 
-## Overview
+## 1. High-Level Architecture
 
-Dokumentasi ini menjelaskan **standar struktur folder** untuk membuat module/fitur baru di API. Semua module mengikuti **Feature-Based Structure** yang konsisten untuk memastikan:
+Komponen:
+- cmd/api: Entry point HTTP API.
+- cmd/<worker>: Worker untuk job background (opsional; contoh: attendance-worker).
+- cmd/seed: Runner seeding data.
+- cmd/gen: Generator scaffolding (opsional).
+- internal/core: Concern lintas domain (config, database, router, middleware, utils, constants).
+- internal/<domain>: Vertical slice per domain (data → domain → presentation).
 
-- **Konsistensi**: Struktur folder sama di semua module
-- **Scalability**: Mudah menambah module baru tanpa mengganggu yang sudah ada
-- **Maintainability**: File terkait satu feature terorganisir dengan baik
-- **Navigability**: Developer mudah menemukan file terkait satu feature
-
----
-
-## Prinsip Feature-Based Structure
-
-### ✅ Feature-Based (Recommended)
-
-Setiap feature memiliki folder sendiri di setiap layer:
-
+Alur request (sederhana):
 ```
-internal/
-├── domain/
-│   └── feature_name/
-│       └── entity.go
-├── repository/
-│   ├── interfaces/
-│   │   └── feature_name/
-│   │       └── repository.go
-│   └── postgres/
-│       └── feature_name/
-│           └── repository.go
-├── service/
-│   └── feature_name/
-│       └── service.go
-└── api/
-    ├── handlers/
-    │   └── feature_name/
-    │       └── handler.go
-    └── routes/
-        └── feature_name/
-            └── routes.go
+Client → Router → Middleware → Handler → Usecase → Repository → Database
+                       │
+                     (DTO/Validation, Mapper)
 ```
 
-**Keuntungan**:
-- ✅ File terkait satu feature terorganisir
-- ✅ Package names lebih ringkas (`package feature_name` bukan `package feature_name_handler`)
-- ✅ Mudah menemukan semua file terkait satu feature
-- ✅ Scalable untuk project besar
+Diagram data flow (ASCII):
+```
++--------+     +---------+     +----------+     +----------+     +---------+
+| Client | --> |  Router | --> | Middleware| --> | Handler  | --> | Usecase |
++--------+     +---------+     +----------+     +----------+     +----+----+
+                                                                     |
+                                                                     v
+                                                               +-----+------+
+                                                               | Repository |
+                                                               +-----+------+
+                                                                     |
+                                                                     v
+                                                                +----+-----+
+                                                                | Database |
+                                                                +----------+
+```
+
+Prinsip:
+- Separation of concerns per layer.
+- Domain-first (entity dan usecase mandiri dari framework).
+- Dependency mengalir dari luar ke dalam (presentation → domain → data).
+- Cross-cutting (auth, config, logging) tersentral di core.
 
 ---
 
-## Struktur Folder Lengkap
+## 2. Project Structure
 
-### Struktur untuk Module Baru: `ticket`
-
+Struktur direktori utama:
 ```
-apps/api/
-├── internal/
-│   ├── domain/
-│   │   └── ticket/                    # Domain Layer
-│   │       └── entity.go              # Entity, DTOs, Request/Response models
-│   │
-│   ├── repository/
-│   │   ├── interfaces/
-│   │   │   └── ticket/                # Repository Interface
-│   │   │       └── repository.go      # Interface contract
-│   │   └── postgres/
-│   │       └── ticket/                 # Repository Implementation
-│   │           └── repository.go     # PostgreSQL implementation
-│   │
-│   ├── service/
-│   │   └── ticket/                     # Service Layer
-│   │       └── service.go              # Business logic
-│   │
-│   └── api/
-│       ├── handlers/
-│       │   └── ticket/                 # HTTP Handlers
-│       │       └── handler.go          # Request handlers
-│       └── routes/
-│           └── ticket/                 # Route Definitions
-│               └── routes.go           # Route setup
-│
-└── seeders/
-    └── ticket/                         # Database Seeders (optional)
-        └── seeder.go                   # Initial data seeder
+.
+├─ cmd/
+│  ├─ api/                  # HTTP server entry point
+│  ├─ <worker-name>/        # Worker background (opsional)
+│  ├─ gen/                  # Generator scaffolding (opsional)
+│  └─ seed/                 # Seeder runner
+├─ internal/
+│  ├─ core/
+│  │  ├─ constants/
+│  │  ├─ events/                # Domain events (user_events.go, role_events.go, etc.)
+│  │  ├─ infrastructure/
+│  │  │  ├─ config/
+│  │  │  ├─ database/       # connection.go, migrate.go, seed.go
+│  │  │  ├─ events/         # Event infrastructure (types.go, publisher.go, noop_publisher.go)
+│  │  │  ├─ redis/          # redis.go (client init)
+│  │  │  └─ router/
+│  │  ├─ middleware/
+│  │  └─ utils/
+│  └─ <domain>/
+│     ├─ data/
+│     │  ├─ models/
+│     │  ├─ repositories/
+│     │  └─ seeders/
+│     ├─ domain/
+│     │  ├─ dto/
+│     │  ├─ mapper/
+│     │  └─ usecase/
+│     └─ presentation/
+│        ├─ handler/
+│        ├─ router/         # <entity>_routers.go
+│        └─ routers.go      # aggregator router domain
+├─ migrations/              # Atlas SQL migrations (timestamped)
+├─ templates/               # scaffolding templates (dto/handler/repository/routers/usecase)
+├─ test/
+│  └─ e2e/
+├─ .env.example
+├─ Dockerfile(.dev/.test/.worker)
+├─ docker-compose(.dev/.staging/.prod/.test).yml
+├─ go.mod / go.sum
+└─ README.md
 ```
 
 ---
 
-## Step-by-Step: Membuat Module Baru
+## 3. Domain Module Layout (Vertical Slice)
 
-### Step 1: Buat Domain Entity
+Contoh domain: `master-data`
 
-**Lokasi**: `internal/domain/ticket/entity.go`
+```
+internal/master-data/
+├─ data/
+│  ├─ models/
+│  │  └─ product.go
+│  ├─ repositories/
+│  │  └─ product_repository.go
+│  └─ seeders/
+│     └─ product_seeder.go
+├─ domain/
+│  ├─ dto/
+│  │  └─ product_dto.go
+│  ├─ mapper/
+│  │  └─ product_mapper.go
+│  └─ usecase/
+│     └─ product_usecase.go
+└─ presentation/
+│  ├─ handler/
+│  │  └─ product_handler.go
+│  ├─ router/
+│  │  └─ product_routers.go
+│  └─ routers.go
+```
 
+### 3.1 Contoh DTO
 ```go
-package ticket
+// internal/master-data/domain/dto/product_dto.go
+package dto
+
+type CreateProductRequest struct {
+    Name        string  `json:"name" binding:"required,min=3"`
+    SKU         string  `json:"sku" binding:"required,alphanum"`
+    CategoryID  string  `json:"category_id" binding:"required,uuid"`
+    Price       float64 `json:"price" binding:"required,gt=0"`
+    Description string  `json:"description"`
+}
+
+type ProductResponse struct {
+    ID         string  `json:"id"`
+    Name       string  `json:"name"`
+    SKU        string  `json:"sku"`
+    CategoryID string  `json:"category_id"`
+    Price      float64 `json:"price"`
+    CreatedAt  string  `json:"created_at"`
+    UpdatedAt  string  `json:"updated_at"`
+}
+```
+
+### 3.2 Contoh Model
+```go
+// internal/master-data/data/models/product.go
+package models
+
+import "time"
+
+type Product struct {
+    ID         string    `gorm:"type:uuid;primaryKey"`
+    Name       string    `gorm:"size:255;not null"`
+    SKU        string    `gorm:"size:64;uniqueIndex;not null"`
+    CategoryID string    `gorm:"type:uuid;index"`
+    Price      float64   `gorm:"not null"`
+    Description string   `gorm:"type:text"`
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+```
+
+### 3.3 Mapper
+```go
+// internal/master-data/domain/mapper/product_mapper.go
+package mapper
 
 import (
+    "internal/master-data/data/models"
+    "internal/master-data/domain/dto"
+)
+
+func ToProductResponse(m *models.Product) dto.ProductResponse {
+    return dto.ProductResponse{
+        ID:         m.ID,
+        Name:       m.Name,
+        SKU:        m.SKU,
+        CategoryID: m.CategoryID,
+        Price:      m.Price,
+        CreatedAt:  m.CreatedAt.Format(time.RFC3339),
+        UpdatedAt:  m.UpdatedAt.Format(time.RFC3339),
+    }
+}
+```
+
+### 3.4 Repository
+```go
+// internal/master-data/data/repositories/product_repository.go
+package repositories
+
+import (
+    "context"
+
+    "gorm.io/gorm"
+    "internal/master-data/data/models"
+)
+
+type ProductRepository interface {
+    Create(ctx context.Context, p *models.Product) error
+    FindByID(ctx context.Context, id string) (*models.Product, error)
+    List(ctx context.Context, limit, offset int, q string) ([]models.Product, int64, error)
+    Update(ctx context.Context, p *models.Product) error
+    Delete(ctx context.Context, id string) error
+}
+
+type productRepository struct{ db *gorm.DB }
+
+func NewProductRepository(db *gorm.DB) ProductRepository {
+    return &productRepository{db: db}
+}
+
+func (r *productRepository) Create(ctx context.Context, p *models.Product) error {
+    return r.db.WithContext(ctx).Create(p).Error
+}
+```
+
+### 3.5 Usecase
+```go
+// internal/master-data/domain/usecase/product_usecase.go
+package usecase
+
+import (
+    "context"
+    "errors"
     "time"
+
     "github.com/google/uuid"
-    "gorm.io/gorm"
+    "internal/master-data/data/models"
+    "internal/master-data/data/repositories"
+    "internal/master-data/domain/dto"
+    "internal/master-data/domain/mapper"
 )
 
-// Ticket represents a ticket entity
-type Ticket struct {
-    ID          string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-    Code        string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"code"`
-    Title       string    `gorm:"type:varchar(255);not null" json:"title"`
-    Description string    `gorm:"type:text" json:"description"`
-    Status      string    `gorm:"type:varchar(50);default:'pending'" json:"status"`
-    CreatedAt   time.Time `json:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at"`
-    DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+type ProductUsecase interface {
+    Create(ctx context.Context, req dto.CreateProductRequest) (dto.ProductResponse, error)
+    // ... List, Get, Update, Delete
 }
 
-// TableName specifies the table name
-func (Ticket) TableName() string {
-    return "tickets"
+type productUsecase struct {
+    repo repositories.ProductRepository
 }
 
-// BeforeCreate hook to generate UUID
-func (t *Ticket) BeforeCreate(tx *gorm.DB) error {
-    if t.ID == "" {
-        t.ID = uuid.New().String()
+func NewProductUsecase(repo repositories.ProductRepository) ProductUsecase {
+    return &productUsecase{repo: repo}
+}
+
+func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductRequest) (dto.ProductResponse, error) {
+    if req.Price <= 0 {
+        return dto.ProductResponse{}, errors.New("price must be > 0")
     }
-    return nil
-}
-
-// TicketResponse represents ticket response DTO
-type TicketResponse struct {
-    ID          string    `json:"id"`
-    Code        string    `json:"code"`
-    Title       string    `json:"title"`
-    Description string    `json:"description"`
-    Status      string    `json:"status"`
-    CreatedAt   time.Time `json:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at"`
-}
-
-// ToTicketResponse converts Ticket to TicketResponse
-func (t *Ticket) ToTicketResponse() *TicketResponse {
-    return &TicketResponse{
-        ID:          t.ID,
-        Code:        t.Code,
-        Title:       t.Title,
-        Description: t.Description,
-        Status:      t.Status,
-        CreatedAt:   t.CreatedAt,
-        UpdatedAt:   t.UpdatedAt,
-    }
-}
-
-// CreateTicketRequest represents create ticket request
-type CreateTicketRequest struct {
-    Code        string `json:"code" binding:"required"`
-    Title       string `json:"title" binding:"required"`
-    Description string `json:"description"`
-}
-
-// UpdateTicketRequest represents update ticket request
-type UpdateTicketRequest struct {
-    Title       string `json:"title"`
-    Description string `json:"description"`
-    Status      string `json:"status"`
-}
-```
-
-### Step 2: Buat Repository Interface
-
-**Lokasi**: `internal/repository/interfaces/ticket/repository.go`
-
-```go
-package ticket
-
-import (
-    "github.com/gilabs/webapp-ticket-konser/api/internal/domain/ticket"
-)
-
-// Repository defines the interface for ticket repository operations
-type Repository interface {
-    // FindByID finds a ticket by ID
-    FindByID(id string) (*ticket.Ticket, error)
-    
-    // FindByCode finds a ticket by code
-    FindByCode(code string) (*ticket.Ticket, error)
-    
-    // Create creates a new ticket
-    Create(t *ticket.Ticket) error
-    
-    // Update updates a ticket
-    Update(t *ticket.Ticket) error
-    
-    // Delete soft deletes a ticket
-    Delete(id string) error
-    
-    // List lists all tickets
-    List() ([]*ticket.Ticket, error)
-}
-```
-
-### Step 3: Buat Repository Implementation
-
-**Lokasi**: `internal/repository/postgres/ticket/repository.go`
-
-```go
-package ticket
-
-import (
-    "errors"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/domain/ticket"
-    ticketrepo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/interfaces/ticket"
-    "gorm.io/gorm"
-)
-
-var (
-    ErrTicketNotFound = errors.New("ticket not found")
-)
-
-type Repository struct {
-    db *gorm.DB
-}
-
-// NewRepository creates a new ticket repository
-func NewRepository(db *gorm.DB) ticketrepo.Repository {
-    return &Repository{
-        db: db,
-    }
-}
-
-// FindByID finds a ticket by ID
-func (r *Repository) FindByID(id string) (*ticket.Ticket, error) {
-    var t ticket.Ticket
-    if err := r.db.Where("id = ?", id).First(&t).Error; err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, ErrTicketNotFound
-        }
-        return nil, err
-    }
-    return &t, nil
-}
-
-// FindByCode finds a ticket by code
-func (r *Repository) FindByCode(code string) (*ticket.Ticket, error) {
-    var t ticket.Ticket
-    if err := r.db.Where("code = ?", code).First(&t).Error; err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, ErrTicketNotFound
-        }
-        return nil, err
-    }
-    return &t, nil
-}
-
-// Create creates a new ticket
-func (r *Repository) Create(t *ticket.Ticket) error {
-    return r.db.Create(t).Error
-}
-
-// Update updates a ticket
-func (r *Repository) Update(t *ticket.Ticket) error {
-    return r.db.Save(t).Error
-}
-
-// Delete soft deletes a ticket
-func (r *Repository) Delete(id string) error {
-    return r.db.Where("id = ?", id).Delete(&ticket.Ticket{}).Error
-}
-
-// List lists all tickets
-func (r *Repository) List() ([]*ticket.Ticket, error) {
-    var tickets []*ticket.Ticket
-    if err := r.db.Find(&tickets).Error; err != nil {
-        return nil, err
-    }
-    return tickets, nil
-}
-```
-
-### Step 4: Buat Service Layer
-
-**Lokasi**: `internal/service/ticket/service.go`
-
-```go
-package ticket
-
-import (
-    "errors"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/domain/ticket"
-    ticketrepo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/interfaces/ticket"
-    "gorm.io/gorm"
-)
-
-var (
-    ErrTicketNotFound      = errors.New("ticket not found")
-    ErrTicketAlreadyExists = errors.New("ticket already exists")
-)
-
-type Service struct {
-    repo ticketrepo.Repository
-}
-
-func NewService(repo ticketrepo.Repository) *Service {
-    return &Service{
-        repo: repo,
-    }
-}
-
-// GetByID returns a ticket by ID
-func (s *Service) GetByID(id string) (*ticket.TicketResponse, error) {
-    t, err := s.repo.FindByID(id)
-    if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, ErrTicketNotFound
-        }
-        return nil, err
-    }
-    return t.ToTicketResponse(), nil
-}
-
-// Create creates a new ticket
-func (s *Service) Create(req *ticket.CreateTicketRequest) (*ticket.TicketResponse, error) {
-    // Check if code already exists
-    _, err := s.repo.FindByCode(req.Code)
-    if err == nil {
-        return nil, ErrTicketAlreadyExists
-    }
-    if !errors.Is(err, gorm.ErrRecordNotFound) {
-        return nil, err
-    }
-
-    // Create ticket
-    t := &ticket.Ticket{
-        Code:        req.Code,
-        Title:       req.Title,
+    m := &models.Product{
+        ID:          uuid.NewString(),
+        Name:        req.Name,
+        SKU:         req.SKU,
+        CategoryID:  req.CategoryID,
+        Price:       req.Price,
         Description: req.Description,
-        Status:      "pending",
+        CreatedAt:   time.Now(),
+        UpdatedAt:   time.Now(),
     }
-
-    if err := s.repo.Create(t); err != nil {
-        return nil, err
+    if err := u.repo.Create(ctx, m); err != nil {
+        return dto.ProductResponse{}, err
     }
-
-    // Reload to get generated fields
-    createdTicket, err := s.repo.FindByID(t.ID)
-    if err != nil {
-        return nil, err
-    }
-
-    return createdTicket.ToTicketResponse(), nil
-}
-
-// Update updates a ticket
-func (s *Service) Update(id string, req *ticket.UpdateTicketRequest) (*ticket.TicketResponse, error) {
-    // Find ticket
-    t, err := s.repo.FindByID(id)
-    if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, ErrTicketNotFound
-        }
-        return nil, err
-    }
-
-    // Update fields
-    if req.Title != "" {
-        t.Title = req.Title
-    }
-    if req.Description != "" {
-        t.Description = req.Description
-    }
-    if req.Status != "" {
-        t.Status = req.Status
-    }
-
-    if err := s.repo.Update(t); err != nil {
-        return nil, err
-    }
-
-    // Reload
-    updatedTicket, err := s.repo.FindByID(t.ID)
-    if err != nil {
-        return nil, err
-    }
-
-    return updatedTicket.ToTicketResponse(), nil
-}
-
-// Delete deletes a ticket
-func (s *Service) Delete(id string) error {
-    _, err := s.repo.FindByID(id)
-    if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return ErrTicketNotFound
-        }
-        return err
-    }
-
-    return s.repo.Delete(id)
-}
-
-// List lists all tickets
-func (s *Service) List() ([]*ticket.TicketResponse, error) {
-    tickets, err := s.repo.List()
-    if err != nil {
-        return nil, err
-    }
-
-    responses := make([]*ticket.TicketResponse, len(tickets))
-    for i, t := range tickets {
-        responses[i] = t.ToTicketResponse()
-    }
-
-    return responses, nil
+    return mapper.ToProductResponse(m), nil
 }
 ```
 
-### Step 5: Buat Handler
-
-**Lokasi**: `internal/api/handlers/ticket/handler.go`
-
+### 3.6 Handler
 ```go
-package ticket
+// internal/master-data/presentation/handler/product_handler.go
+package handler
+
+import (
+    "net/http"
+
+    "github.com/gin-gonic/gin"
+    "internal/master-data/domain/dto"
+    "internal/master-data/domain/usecase"
+)
+
+type ProductHandler struct {
+    uc usecase.ProductUsecase
+}
+
+func NewProductHandler(uc usecase.ProductUsecase) *ProductHandler {
+    return &ProductHandler{uc: uc}
+}
+
+func (h *ProductHandler) Create(c *gin.Context) {
+    var req dto.CreateProductRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "detail": err.Error()})
+        return
+    }
+    res, err := h.uc.Create(c.Request.Context(), req)
+    if err != nil {
+        c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusCreated, res)
+}
+```
+
+### 3.7 Router per Entity
+```go
+// internal/master-data/presentation/router/product_routers.go
+package router
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/domain/ticket"
-    ticketservice "github.com/gilabs/webapp-ticket-konser/api/internal/service/ticket"
-    "github.com/gilabs/webapp-ticket-konser/api/pkg/errors"
-    "github.com/gilabs/webapp-ticket-konser/api/pkg/response"
+    "internal/master-data/presentation/handler"
 )
 
-type Handler struct {
-    ticketService *ticketservice.Service
-}
-
-func NewHandler(ticketService *ticketservice.Service) *Handler {
-    return &Handler{
-        ticketService: ticketService,
-    }
-}
-
-// GetByID gets a ticket by ID
-// GET /api/v1/tickets/:id
-func (h *Handler) GetByID(c *gin.Context) {
-    id := c.Param("id")
-    if id == "" {
-        errors.BadRequestResponse(c, "INVALID_REQUEST", map[string]interface{}{
-            "field": "id",
-            "reason": "ID is required",
-        }, nil)
-        return
-    }
-
-    ticket, err := h.ticketService.GetByID(id)
-    if err != nil {
-        if err == ticketservice.ErrTicketNotFound {
-            errors.NotFoundResponse(c, "TICKET_NOT_FOUND", map[string]interface{}{
-                "id": id,
-            }, nil)
-            return
-        }
-        errors.InternalServerErrorResponse(c, "")
-        return
-    }
-
-    response.SuccessResponse(c, ticket, nil)
-}
-
-// Create creates a new ticket
-// POST /api/v1/tickets
-func (h *Handler) Create(c *gin.Context) {
-    var req ticket.CreateTicketRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        errors.BadRequestResponse(c, "VALIDATION_ERROR", map[string]interface{}{
-            "reason": err.Error(),
-        }, nil)
-        return
-    }
-
-    ticket, err := h.ticketService.Create(&req)
-    if err != nil {
-        if err == ticketservice.ErrTicketAlreadyExists {
-            errors.ConflictResponse(c, "TICKET_ALREADY_EXISTS", map[string]interface{}{
-                "code": req.Code,
-            }, nil)
-            return
-        }
-        errors.InternalServerErrorResponse(c, "")
-        return
-    }
-
-    response.SuccessResponse(c, ticket, nil)
-}
-
-// Update updates a ticket
-// PUT /api/v1/tickets/:id
-func (h *Handler) Update(c *gin.Context) {
-    id := c.Param("id")
-    if id == "" {
-        errors.BadRequestResponse(c, "INVALID_REQUEST", map[string]interface{}{
-            "field": "id",
-            "reason": "ID is required",
-        }, nil)
-        return
-    }
-
-    var req ticket.UpdateTicketRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        errors.BadRequestResponse(c, "VALIDATION_ERROR", map[string]interface{}{
-            "reason": err.Error(),
-        }, nil)
-        return
-    }
-
-    ticket, err := h.ticketService.Update(id, &req)
-    if err != nil {
-        if err == ticketservice.ErrTicketNotFound {
-            errors.NotFoundResponse(c, "TICKET_NOT_FOUND", map[string]interface{}{
-                "id": id,
-            }, nil)
-            return
-        }
-        errors.InternalServerErrorResponse(c, "")
-        return
-    }
-
-    response.SuccessResponse(c, ticket, nil)
-}
-
-// Delete deletes a ticket
-// DELETE /api/v1/tickets/:id
-func (h *Handler) Delete(c *gin.Context) {
-    id := c.Param("id")
-    if id == "" {
-        errors.BadRequestResponse(c, "INVALID_REQUEST", map[string]interface{}{
-            "field": "id",
-            "reason": "ID is required",
-        }, nil)
-        return
-    }
-
-    err := h.ticketService.Delete(id)
-    if err != nil {
-        if err == ticketservice.ErrTicketNotFound {
-            errors.NotFoundResponse(c, "TICKET_NOT_FOUND", map[string]interface{}{
-                "id": id,
-            }, nil)
-            return
-        }
-        errors.InternalServerErrorResponse(c, "")
-        return
-    }
-
-    response.SuccessResponse(c, gin.H{"message": "Ticket deleted successfully"}, nil)
-}
-
-// List lists all tickets
-// GET /api/v1/tickets
-func (h *Handler) List(c *gin.Context) {
-    tickets, err := h.ticketService.List()
-    if err != nil {
-        errors.InternalServerErrorResponse(c, "")
-        return
-    }
-
-    response.SuccessResponse(c, tickets, nil)
+func RegisterProductRoutes(rg *gin.RouterGroup, h *handler.ProductHandler) {
+    g := rg.Group("/products")
+    g.POST("", h.Create)
+    // g.GET("", h.List)
+    // g.GET("/:id", h.GetByID)
+    // g.PUT("/:id", h.Update)
+    // g.DELETE("/:id", h.Delete)
 }
 ```
 
-### Step 6: Buat Routes
-
-**Lokasi**: `internal/api/routes/ticket/routes.go`
-
+### 3.8 Aggregator Router Domain
 ```go
-package ticket
+// internal/master-data/presentation/routers.go
+package presentation
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/api/handlers/ticket"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/api/middleware"
-    "github.com/gilabs/webapp-ticket-konser/api/internal/repository/interfaces/role"
-    "github.com/gilabs/webapp-ticket-konser/api/pkg/jwt"
+    "gorm.io/gorm"
+
+    "internal/master-data/data/repositories"
+    "internal/master-data/domain/usecase"
+    "internal/master-data/presentation/handler"
+    "internal/master-data/presentation/router"
 )
 
-func SetupRoutes(
-    router *gin.RouterGroup,
-    ticketHandler *ticket.Handler,
-    roleRepo role.Repository,
-    jwtManager *jwt.JWTManager,
-) {
-    // Public ticket routes (for authenticated users)
-    ticketRoutes := router.Group("/tickets")
-    ticketRoutes.Use(middleware.AuthMiddleware(jwtManager))
-    {
-        ticketRoutes.GET("", ticketHandler.List)           // Get all tickets
-        ticketRoutes.GET("/:id", ticketHandler.GetByID)   // Get ticket by ID
-    }
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB) {
+    // Wiring dependency (di domain ini)
+    productRepo := repositories.NewProductRepository(db)
+    productUC := usecase.NewProductUsecase(productRepo)
+    productH := handler.NewProductHandler(productUC)
 
-    // Admin only routes
-    adminRoutes := router.Group("/admin/tickets")
-    adminRoutes.Use(middleware.AuthMiddleware(jwtManager))
-    adminRoutes.Use(middleware.RequirePermission("ticket.read", roleRepo))
-    {
-        adminRoutes.POST("", ticketHandler.Create)        // Create ticket (admin)
-        adminRoutes.PUT("/:id", ticketHandler.Update)     // Update ticket (admin)
-        adminRoutes.DELETE("/:id", ticketHandler.Delete) // Delete ticket (admin)
-    }
+    // Group path untuk domain master-data
+    group := api.Group("/master-data")
+    router.RegisterProductRoutes(group, productH)
+    // Tambahkan entity lain di sini...
 }
-```
-
-### Step 7: Register di main.go
-
-**Lokasi**: `cmd/server/main.go`
-
-Tambahkan import dan setup:
-
-```go
-// Import handlers
-tickethandler "github.com/gilabs/webapp-ticket-konser/api/internal/api/handlers/ticket"
-
-// Import routes
-ticketroutes "github.com/gilabs/webapp-ticket-konser/api/internal/api/routes/ticket"
-
-// Import repositories
-ticketrepo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/postgres/ticket"
-
-// Import services
-ticketservice "github.com/gilabs/webapp-ticket-konser/api/internal/service/ticket"
-```
-
-Di dalam `main()` function:
-
-```go
-// Setup repositories
-ticketRepo := ticketrepo.NewRepository(database.DB)
-
-// Setup services
-ticketService := ticketservice.NewService(ticketRepo)
-
-// Setup handlers
-ticketHandler := tickethandler.NewHandler(ticketService)
-
-// Setup router
-router := setupRouter(
-    jwtManager,
-    authHandler,
-    menuHandler,
-    ticketHandler,  // Add this
-    roleRepo,
-)
-```
-
-Update `setupRouter()` function:
-
-```go
-func setupRouter(
-    jwtManager *jwt.JWTManager,
-    authHandler *authhandler.Handler,
-    menuHandler *menuhandler.Handler,
-    ticketHandler *tickethandler.Handler,  // Add this
-    roleRepo role.Repository,
-) *gin.Engine {
-    // ... existing code ...
-
-    // API v1 routes
-    v1 := router.Group("/api/v1")
-    {
-        // ... existing routes ...
-
-        // Ticket routes
-        ticketroutes.SetupRoutes(v1, ticketHandler, roleRepo, jwtManager)
-    }
-
-    return router
-}
-```
-
-### Step 8: Update Database Migration
-
-**Lokasi**: `internal/database/database.go`
-
-Tambahkan entity ke `AutoMigrate()`:
-
-```go
-func AutoMigrate() error {
-    return database.DB.AutoMigrate(
-        // ... existing entities ...
-        &ticket.Ticket{},
-    )
-}
-```
-
-Jangan lupa import:
-
-```go
-"github.com/gilabs/webapp-ticket-konser/api/internal/domain/ticket"
 ```
 
 ---
 
-## Naming Conventions
+## 4. Core Layer
 
-### Folder Names
-- ✅ **Kebab-case**: `ticket-management`, `user-profile`
-- ✅ **Singular**: `ticket` (bukan `tickets`)
-- ✅ **Lowercase**: `ticket` (bukan `Ticket`)
-
-### Package Names
-- ✅ **Lowercase**: `package ticket` (bukan `package Ticket`)
-- ✅ **Singular**: `package ticket` (bukan `package tickets`)
-- ✅ **No underscores**: `package ticket` (bukan `package ticket_management`)
-
-### File Names
-- ✅ **Snake_case**: `handler.go`, `repository.go`, `service.go`
-- ✅ **Descriptive**: `handler.go` (bukan `h.go`)
-
-### Type Names
-- ✅ **PascalCase**: `Ticket`, `TicketResponse`, `CreateTicketRequest`
-- ✅ **Descriptive**: `TicketHandler` (bukan `TH`)
-
-### Function Names
-- ✅ **PascalCase** untuk exported: `NewHandler`, `GetByID`
-- ✅ **camelCase** untuk unexported: `validateRequest`
-- ✅ **Verb-based**: `Create`, `Update`, `Delete`, `GetByID`
-
----
-
-## Best Practices
-
-### 1. Dependency Injection
-
-✅ **GOOD**: Inject dependencies via constructor
-
+### 4.1 Config
+- Single source of truth untuk konfigurasi aplikasi (ENV-first).
+- Bentuk:
+  - App: PORT, ENV, LOG_LEVEL
+  - Database: DB_DSN/DB_HOST/DB_NAME/DB_USER/DB_PASS
+  - Security: JWT_SECRET, ALLOW_ORIGINS
+- Rekomendasi: var binding + fallback default + validasi awal.
 ```go
-func NewHandler(ticketService *ticketservice.Service) *Handler {
-    return &Handler{
-        ticketService: ticketService,
-    }
-}
-```
-
-❌ **BAD**: Create dependencies inside handler
-
-```go
-func (h *Handler) Create(c *gin.Context) {
-    repo := ticketrepo.NewRepository(database.DB) // BAD!
+// internal/core/infrastructure/config/config.go
+type Config struct {
+    AppEnv   string
+    HTTPPort string
+    DBDSN    string
+    JWTSecret string
     // ...
 }
 ```
 
-### 2. Error Handling
+### 4.2 Database
+- Satu paket koneksi (`connection.go`) yang mengembalikan *gorm.DB.
+- Migrations (Atlas) dipanggil saat startup (opsional) berdasarkan ENV.
+- Seeding per environment (seed.go, production_seed.go).
+- Transaksi ditangani di usecase bila perlu (pass *gorm.DB tx).
 
-✅ **GOOD**: Use custom errors from service
+### 4.3 Router
+- Inisialisasi Gin/Fiber (contoh: Gin).
+- Versioning: prefix `/api/v1`.
+- Registrasi per domain: panggil `<domain>/presentation.RegisterRoutes`.
+- Middlewares global: logging, recovery, CORS, auth (opsional).
+
+### 4.4 Middleware
+- Auth: verifikasi token, inject user context.
+- Authorize: cek permission berdasarkan role/action.
+- RequestID, Rate limiting (opsional), CORS.
+
+---
+
+## 5. Konvensi Penamaan
+
+- Go files: lower_snake_case untuk multi-kata.
+  - Contoh: `auth_middleware.go`, `production_seed.go`, `connection.go`, `router.go`.
+- Domain directories: singular, deskriptif; jika multi-kata bisa memakai tanda hubung (mis. `master-data`).
+- Router per entity: `<entity>_routers.go`
+- Handler per entity: `<entity>_handler.go`
+- Usecase per entity: `<entity>_usecase.go`
+- Repository per entity: `<entity>_repository.go`
+- DTO per entity: `<entity>_dto.go`
+- Mapper per entity: `<entity>_mapper.go`
+- Migrations (Atlas): `YYYYMMDDhhmmss_<optional-description>.sql`
+  - Contoh: `20260101120000_add_products.sql`
+- Docker Compose variants: `docker-compose.<env>.yml`
+  - Contoh: `docker-compose.prod.yml`, `docker-compose.staging.yml`, `docker-compose.test.yml`
+- Aset: deskriptif sesuai konteks (mis. `mika-logo.jpeg`, `header_company.jpeg`)
+
+---
+
+## 6. Error Handling & Response
+
+Standar respons JSON mengikuti [API Response Standards](./api-response-standards.md).
+
+Contoh ringkas:
+```json
+// Sukses (collection)
+{
+  "data": [{ "id": "..." }],
+  "meta": { "page": 1, "size": 10, "total": 100 }
+}
+
+// Sukses (single)
+{ "data": { "id": "...", "name": "..." } }
+
+// Error
+{ "error": "validation_error", "detail": "field 'name' is required" }
+```
+
+Pedoman:
+- Validasi input di handler (binding tags) → 400.
+- Bisnis rule violation → 422.
+- Not found → 404.
+- Internal error → 500.
+- Gunakan kode error yang konsisten untuk diobservasi/logging.
+
+---
+
+## 7. Testing Strategy
+
+- Unit test:
+  - Usecase: mock repository.
+  - Repository: gunakan test DB (in-memory/isolated schema).
+- E2E test (test/e2e):
+  - Jalankan service dengan docker-compose.test.yml.
+  - Seed data minimal.
+  - Uji alur utama (create → get → update → delete).
+- Contoh file:
+  - `internal/<domain>/domain/usecase/product_usecase_test.go`
+  - `test/e2e/product_flow_test.go`
+
+---
+
+## 8. Migrations (Atlas)
+
+- Penamaan waktu: `YYYYMMDDhhmmss` agar kronologis.
+- Satu perubahan skema per file (kecil, mudah direview/rollback).
+- Simpan checksum di `migrations/atlas.sum`.
+- Lifecycle:
+  - Dev: jalankan otomatis saat startup (opsional).
+  - Staging/Prod: jalankan langkah terkontrol di pipeline.
+
+Contoh:
+```
+migrations/
+├─ 20260101120000_initial_schema.sql
+├─ 20260105103000_add_products.sql
+└─ atlas.sum
+```
+
+---
+
+## 9. Seeding
+
+- `seed.go`: data dasar (mis. role, permission).
+- `production_seed.go`: seeding aman untuk production (idempotent).
+- Domain-specific seeders di `internal/<domain>/data/seeders/`.
+
+---
+
+## 10. Observability
+
+- Logging terstruktur (level, trace/request_id, user_id).
+- Metrics (Prometheus): HTTP latency, DB latency, error rate (opsional).
+- Tracing (OpenTelemetry) untuk jalur kritikal (opsional).
+
+---
+
+## 11. Security
+
+- Secrets via ENV (jangan commit .env real).
+- JWT untuk auth, role/permission untuk authorize.
+- Validasi input ketat (binding & custom validator).
+- CORS ketat sesuai origin.
+- Sanitasi output; hindari leak detail internal pada error.
+
+---
+
+## 12. Performance & Scalability
+
+- Pagination default di listing endpoints.
+- Indeks DB via migrasi untuk kolom pencarian/relasi.
+- Hindari N+1 (preload yang diperlukan).
+- Cache layer (opsional) untuk lookup statis (mis: Redis).
+
+---
+
+## 13. CI/CD (Garis Besar)
+
+- Pipeline:
+  - Lint + Format
+  - Unit test
+  - Build image (API/worker)
+  - Migrate DB (terkontrol)
+  - Deploy ke staging
+  - E2E smoke test
+  - Manual approval → Prod
+- GitHub Actions contoh job:
+  - go build/test
+  - docker buildx
+  - atlas migrate apply (dengan guard)
+
+---
+
+## 14. Local Development
+
+- Live reload: air (`.air.toml`).
+- Jalankan:
+```
+go run ./cmd/api
+# atau
+docker compose up api db
+```
+- ENV: salin `.env.example` → `.env` dan sesuaikan.
+- Makefile (opsional) untuk perintah umum:
+```
+make run
+make test
+make migrate
+make seed
+```
+
+---
+
+## 15. Background Jobs
+
+- Struktur `cmd/<worker>` + paket usecase spesifik job.
+- Queue: Redis/DB (opsional).
+- Scheduling: cron (opsional) atau external scheduler.
+
+---
+
+## 16. API Versioning & Deprecation
+
+- Prefix route: `/api/v1`.
+- Perubahan breaking → `/api/v2`.
+- Deprecation policy: tandai endpoint deprecated + grace period.
+
+---
+
+## 17. Checklist Tambah Entity Baru (Template)
+
+1) Model
+- [ ] Buat `internal/<domain>/data/models/<entity>.go`
+- [ ] Tambah migrasi: `migrations/YYYYMMDDhhmmss_add_<entity>.sql`
+
+2) Repository
+- [ ] Buat `internal/<domain>/data/repositories/<entity>_repository.go`
+- [ ] Tambahkan method: Create, FindByID, List(pagination), Update, Delete
+
+3) DTO & Mapper
+- [ ] `internal/<domain>/domain/dto/<entity>_dto.go`
+- [ ] `internal/<domain>/domain/mapper/<entity>_mapper.go`
+
+4) Usecase
+- [ ] `internal/<domain>/domain/usecase/<entity>_usecase.go`
+- [ ] Unit test
+
+5) Handler & Router
+- [ ] `internal/<domain>/presentation/handler/<entity>_handler.go`
+- [ ] `internal/<domain>/presentation/router/<entity>_routers.go`
+- [ ] Daftarkan di `internal/<domain>/presentation/routers.go`
+
+6) E2E Test
+- [ ] `test/e2e/<entity>_flow_test.go`
+
+7) Docs
+- [ ] Update README / docs domain
+
+---
+
+## 18. Contoh Registrasi Global (Router Core)
 
 ```go
-if err == ticketservice.ErrTicketNotFound {
-    errors.NotFoundResponse(c, "TICKET_NOT_FOUND", ...)
-    return
+// internal/core/infrastructure/router/router.go
+func Register(r *gin.Engine, db *gorm.DB) {
+    api := r.Group("/api/v1")
+
+    // domain master-data
+    masterdata.RegisterRoutes(r, api, db)
+
+    // domain lain ...
 }
 ```
 
-❌ **BAD**: Return raw database errors
+---
 
-```go
-if err != nil {
-    c.JSON(500, err.Error()) // BAD!
-    return
-}
-```
+## 19. Template Scaffolding (Opsional)
 
-### 3. Response Format
+Direktori `templates/`:
+- dto.tmpl
+- handler.tmpl
+- repository.tmpl
+- routers.tmpl
+- usecase.tmpl
 
-✅ **GOOD**: Use standard response helpers
+Contoh variabel template:
+- {{.Entity}}: Product
+- {{.EntityVar}}: product
+- {{.Package}}: master-data
 
-```go
-response.SuccessResponse(c, ticket, nil)
-errors.NotFoundResponse(c, "TICKET_NOT_FOUND", ...)
-```
-
-❌ **BAD**: Manual JSON response
-
-```go
-c.JSON(200, gin.H{"data": ticket}) // BAD!
-```
-
-### 4. Package Aliases
-
-✅ **GOOD**: Use aliases to avoid conflicts
-
-```go
-ticketrepo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/interfaces/ticket"
-ticketservice "github.com/gilabs/webapp-ticket-konser/api/internal/service/ticket"
-```
-
-### 5. Interface-Based Design
-
-✅ **GOOD**: Service depends on interface, not implementation
-
-```go
-type Service struct {
-    repo ticketrepo.Repository  // Interface, not concrete type
-}
-```
+Generator `cmd/gen` dapat menggantikan placeholder dan menulis file ke path yang tepat.
 
 ---
 
-## Checklist Module Baru
+## 20. Contoh Konvensi Routing (REST)
 
-Gunakan checklist ini untuk memastikan semua layer sudah dibuat:
-
-### Domain Layer
-- [ ] `internal/domain/{feature}/entity.go` dibuat
-- [ ] Entity struct dengan GORM tags
-- [ ] Response DTO struct
-- [ ] Request DTO structs (Create, Update, List)
-- [ ] `ToResponse()` method untuk convert entity ke DTO
-- [ ] `TableName()` method
-- [ ] `BeforeCreate()` hook untuk UUID generation
-
-### Repository Interface
-- [ ] `internal/repository/interfaces/{feature}/repository.go` dibuat
-- [ ] Interface `Repository` didefinisikan
-- [ ] Semua method yang diperlukan didefinisikan
-- [ ] Method signatures menggunakan domain types
-
-### Repository Implementation
-- [ ] `internal/repository/postgres/{feature}/repository.go` dibuat
-- [ ] Struct `Repository` dengan `db *gorm.DB`
-- [ ] `NewRepository()` constructor
-- [ ] Semua method dari interface diimplementasikan
-- [ ] Error handling untuk `gorm.ErrRecordNotFound`
-- [ ] Custom error variables didefinisikan
-
-### Service Layer
-- [ ] `internal/service/{feature}/service.go` dibuat
-- [ ] Struct `Service` dengan repository dependency
-- [ ] `NewService()` constructor
-- [ ] Business logic methods
-- [ ] Error handling dan custom errors
-- [ ] Validation logic
-
-### Handler Layer
-- [ ] `internal/api/handlers/{feature}/handler.go` dibuat
-- [ ] Struct `Handler` dengan service dependency
-- [ ] `NewHandler()` constructor
-- [ ] HTTP handler methods untuk setiap endpoint
-- [ ] Request validation
-- [ ] Error handling dengan standard responses
-- [ ] Response formatting dengan `response.SuccessResponse()`
-
-### Routes Layer
-- [ ] `internal/api/routes/{feature}/routes.go` dibuat
-- [ ] `SetupRoutes()` function
-- [ ] Route groups (public, admin, etc.)
-- [ ] Middleware (auth, permission) jika diperlukan
-- [ ] Route paths mengikuti RESTful conventions
-
-### Main.go Registration
-- [ ] Import semua packages yang diperlukan
-- [ ] Repository diinisialisasi
-- [ ] Service diinisialisasi
-- [ ] Handler diinisialisasi
-- [ ] Routes di-register di router
-- [ ] Entity ditambahkan ke `AutoMigrate()`
-
-### Optional: Seeder
-- [ ] `seeders/{feature}/seeder.go` dibuat (jika diperlukan)
-- [ ] `Seed()` function
-- [ ] Ditambahkan ke `seeders/seed_all.go`
-
-### Testing
-- [ ] Unit tests untuk service layer
-- [ ] Integration tests untuk endpoints
-- [ ] Error cases di-test
+- Collection:
+  - GET `/api/v1/<domain>/<entities>?page=1&size=10&q=foo`
+  - POST `/api/v1/<domain>/<entities>`
+- Item:
+  - GET `/api/v1/<domain>/<entities>/:id`
+  - PUT `/api/v1/<domain>/<entities>/:id`
+  - DELETE `/api/v1/<domain>/<entities>/:id`
 
 ---
 
-## Contoh Implementasi
-
-Lihat implementasi yang sudah ada sebagai referensi:
-
-- **Auth Module**: `internal/domain/auth/`, `internal/service/auth/`, `internal/api/handlers/auth/`
-- **Menu Module**: `internal/domain/menu/`, `internal/service/menu/`, `internal/api/handlers/menu/`
-- **User Module**: `internal/domain/user/`, `internal/service/user/`, `internal/api/handlers/user/`
-
----
-
-## Quick Reference
-
-### Import Paths Pattern
-
-```go
-// Domain
-"github.com/gilabs/webapp-ticket-konser/api/internal/domain/{feature}"
-
-// Repository Interface
-{feature}repo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/interfaces/{feature}"
-
-// Repository Implementation
-{feature}repo "github.com/gilabs/webapp-ticket-konser/api/internal/repository/postgres/{feature}"
-
-// Service
-{feature}service "github.com/gilabs/webapp-ticket-konser/api/internal/service/{feature}"
-
-// Handler
-{feature}handler "github.com/gilabs/webapp-ticket-konser/api/internal/api/handlers/{feature}"
-
-// Routes
-{feature}routes "github.com/gilabs/webapp-ticket-konser/api/internal/api/routes/{feature}"
-```
-
-### File Structure Template
-
-```
-{feature}/
-├── entity.go          (Domain)
-├── repository.go     (Interface)
-├── repository.go     (Implementation)
-├── service.go        (Service)
-├── handler.go        (Handler)
-└── routes.go         (Routes)
-```
-
----
-
-**Last Updated**: 2025  
-**Maintained By**: Development Team  
-**Related Documents**: 
-- [API Response Standards](./api-response-standards.md)
-- [API Error Codes](./api-error-codes.md)
-- [API Structure Documentation](../../apps/api/STRUCTURE.md)
-
-
-
+Dengan arsitektur ini, setiap domain berdiri mandiri (vertical slice), dependency tertata rapi, penamaan konsisten, dan siap untuk skala pengembangan tim. Dokumen ini dapat digunakan sebagai blueprint untuk memulai proyek Go baru atau menstandarkan proyek yang sudah berjalan.
