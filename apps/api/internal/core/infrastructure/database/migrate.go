@@ -6,8 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
 	core "github.com/gilabs/crm-healthcare/api/internal/core/data/models"
+	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
+	geographic "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
 	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
 	refreshToken "github.com/gilabs/crm-healthcare/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
@@ -47,6 +48,12 @@ func AutoMigrate() error {
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
 		&core.AuditLog{},
+		// Geographic entities (Sprint 1)
+		&geographic.Country{},
+		&geographic.Province{},
+		&geographic.City{},
+		&geographic.District{},
+		&geographic.Village{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

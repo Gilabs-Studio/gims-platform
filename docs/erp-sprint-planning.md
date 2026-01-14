@@ -26,36 +26,41 @@
 
 ### Deliverables
 
-- [ ] **API:** Geographic CRUD endpoints
-- [ ] **Frontend:** Geographic management pages
+- [x] **API:** Geographic CRUD endpoints
+- [x] **Frontend:** Geographic management pages
 
 ### API Tasks
 
-- [ ] `Country` - Model, Repository, DTO, Usecase, Handler, Router
-- [ ] `Province` - Model, Repository, DTO, Usecase, Handler, Router
-- [ ] `City` - Model, Repository, DTO, Usecase, Handler, Router
-- [ ] `District` - Model, Repository, DTO, Usecase, Handler, Router
-- [ ] `Village` - Model, Repository, DTO, Usecase, Handler, Router
-- [ ] Migration SQL for geographic tables
-- [ ] Seeder for geographic data (Indonesia)
+- [x] `Country` - Model, Repository, DTO, Usecase, Handler, Router
+- [x] `Province` - Model, Repository, DTO, Usecase, Handler, Router
+- [x] `City` - Model, Repository, DTO, Usecase, Handler, Router
+- [x] `District` - Model, Repository, DTO, Usecase, Handler, Router
+- [x] `Village` - Model, Repository, DTO, Usecase, Handler, Router
+- [x] Migration SQL for geographic tables
+- [x] Seeder for geographic data (Indonesia)
 
 ### Frontend Tasks
 
-- [ ] Countries list page with DataTable
-- [ ] Provinces list page with country filter
-- [ ] Cities list page with province filter
-- [ ] Districts list page with city filter
-- [ ] Villages list page with district filter
-- [ ] Create/Edit forms for each entity
-- [ ] Cascading select component (Country → Province → City → District → Village)
+- [x] Countries list page with DataTable
+- [x] Provinces list page with country filter
+- [x] Cities list page with province filter
+- [x] Districts list page with city filter
+- [x] Villages list page with district filter
+- [x] Create/Edit forms for each entity
+- [x] Cascading select component (Country → Province → City → District → Village)
 
 ### Success Criteria
 
-- [ ] All 5 geographic endpoints return paginated data with search
-- [ ] Cascading filter works correctly (Province shows only when Country selected)
-- [ ] CRUD operations complete without errors
-- [ ] Loading states and empty states display correctly
-- [ ] Form validation prevents invalid submissions
+- [x] All 5 geographic endpoints return paginated data with search
+- [x] Cascading filter works correctly (Province shows only when Country selected)
+- [x] CRUD operations complete without errors
+- [x] Loading states and empty states display correctly
+- [x] Form validation prevents invalid submissions
+
+### Integration Requirements
+
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -114,6 +119,11 @@ erDiagram
 - [ ] Approval actions require authorized user
 - [ ] Company detail shows complete address (using geographic cascade)
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -166,6 +176,11 @@ erDiagram
 - [ ] Employee can be assigned to multiple areas
 - [ ] Employee replacement shows linked employee
 - [ ] Leave quota calculated based on employee type
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -243,6 +258,11 @@ erDiagram
 - [ ] Min/Max stock warnings display correctly
 - [ ] All approval workflows function correctly
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -307,6 +327,11 @@ erDiagram
 - [ ] Status workflow: Draft → Sent → Approved/Rejected → Converted
 - [ ] Quotation can be converted to Sales Order
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -370,6 +395,11 @@ erDiagram
 - [ ] Partial delivery creates multiple DOs
 - [ ] DO updates InventoryBatch quantities
 - [ ] Tracking number links to courier
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -446,6 +476,11 @@ erDiagram
 - [ ] Interest survey scoring works correctly
 - [ ] Target achievement shows real vs plan
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -510,6 +545,11 @@ erDiagram
 - [ ] GR updates Product.CurrentHpp (weighted average)
 - [ ] Supplier Invoice matches PO and GR
 - [ ] 3-way match validates quantities and prices
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -578,6 +618,11 @@ erDiagram
 - [ ] Low stock alert when Qty < Product.MinStock
 - [ ] Expiry alert for batches expiring within 30 days
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -639,6 +684,11 @@ erDiagram
 - [ ] Posted journals cannot be edited
 - [ ] Trial Balance shows all accounts with balances
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -695,6 +745,11 @@ erDiagram
 - [ ] AR Aging groups by 0-30, 31-60, 61-90, >90 days
 - [ ] Budget approval required before posting
 - [ ] Budget vs Actual shows variance
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -761,6 +816,11 @@ erDiagram
 - [ ] Period closing prevents backdated entries
 - [ ] Tax Invoice links to Customer/Supplier Invoice
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -819,6 +879,11 @@ erDiagram
 - [ ] Holidays marked as non-working days
 - [ ] Attendance summary shows present/absent/late counts
 
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
+
 ### Table Relations
 
 ```mermaid
@@ -874,6 +939,11 @@ erDiagram
 - [ ] Contract end date triggers alert
 - [ ] Documents support file upload
 - [ ] Asset return tracking (borrowed/returned)
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -934,6 +1004,11 @@ erDiagram
 - [ ] Evaluation period validation
 - [ ] Recruitment approval workflow complete
 - [ ] Position filling status tracked
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -997,6 +1072,11 @@ erDiagram
 - [ ] Dashboard shows key metrics
 - [ ] Settings changes take effect immediately
 - [ ] Company profile reflects in printed documents
+
+### Integration Requirements
+
+- [ ] Permission integration check (RBAC)
+- [ ] i18n integration check (request.ts)
 
 ### Business Logic
 

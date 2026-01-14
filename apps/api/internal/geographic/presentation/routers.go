@@ -1,0 +1,44 @@
+package presentation
+
+import (
+	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/repositories"
+	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/usecase"
+	"github.com/gilabs/crm-healthcare/api/internal/geographic/presentation/handler"
+	"github.com/gilabs/crm-healthcare/api/internal/geographic/presentation/router"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+// RegisterRoutes registers all geographic domain routes
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB) {
+	// Initialize repositories
+	countryRepo := repositories.NewCountryRepository(db)
+	provinceRepo := repositories.NewProvinceRepository(db)
+	cityRepo := repositories.NewCityRepository(db)
+	districtRepo := repositories.NewDistrictRepository(db)
+	villageRepo := repositories.NewVillageRepository(db)
+
+	// Initialize usecases
+	countryUC := usecase.NewCountryUsecase(countryRepo)
+	provinceUC := usecase.NewProvinceUsecase(provinceRepo, countryRepo)
+	cityUC := usecase.NewCityUsecase(cityRepo, provinceRepo)
+	districtUC := usecase.NewDistrictUsecase(districtRepo, cityRepo)
+	villageUC := usecase.NewVillageUsecase(villageRepo, districtRepo)
+
+	// Initialize handlers
+	countryH := handler.NewCountryHandler(countryUC)
+	provinceH := handler.NewProvinceHandler(provinceUC)
+	cityH := handler.NewCityHandler(cityUC)
+	districtH := handler.NewDistrictHandler(districtUC)
+	villageH := handler.NewVillageHandler(villageUC)
+
+	// Create geographic group under API
+	group := api.Group("/geographic")
+
+	// Register routes
+	router.RegisterCountryRoutes(group, countryH)
+	router.RegisterProvinceRoutes(group, provinceH)
+	router.RegisterCityRoutes(group, cityH)
+	router.RegisterDistrictRoutes(group, districtH)
+	router.RegisterVillageRoutes(group, villageH)
+}

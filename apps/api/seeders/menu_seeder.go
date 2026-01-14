@@ -172,11 +172,11 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Countries", "flag", "/master-data/countries", 1},
-		{"Provinces", "map", "/master-data/provinces", 2},
-		{"Cities", "building", "/master-data/cities", 3},
-		{"Districts", "map-pin", "/master-data/districts", 4},
-		{"Villages", "home", "/master-data/villages", 5},
+		{"Countries", "flag", "/data-master/geographic/countries", 1},
+		{"Provinces", "map", "/data-master/geographic/provinces", 2},
+		{"Cities", "building", "/data-master/geographic/cities", 3},
+		{"Districts", "map-pin", "/data-master/geographic/districts", 4},
+		{"Villages", "home", "/data-master/geographic/villages", 5},
 	}
 	for _, child := range geographicChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &geographicMenu.ID, child.order); err != nil {

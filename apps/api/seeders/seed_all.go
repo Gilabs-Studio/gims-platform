@@ -2,7 +2,7 @@ package seeders
 
 // SeedAll runs all seeders
 func SeedAll() error {
-	// Seed in order: roles -> menus -> permissions -> users
+	// Seed in order: roles -> menus -> permissions -> users -> geographic
 	if err := SeedRoles(); err != nil {
 		return err
 	}
@@ -21,6 +21,11 @@ func SeedAll() error {
 	}
 
 	if err := SeedUsers(); err != nil {
+		return err
+	}
+
+	// Geographic seeder (Sprint 1)
+	if err := SeedGeographic(); err != nil {
 		return err
 	}
 

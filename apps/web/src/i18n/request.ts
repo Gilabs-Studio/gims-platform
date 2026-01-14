@@ -31,6 +31,8 @@ import menuManagementEnMessages from "@/features/master-data/user-management/men
 import menuManagementIdMessages from "@/features/master-data/user-management/menu/i18n/messages/id.json";
 import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/messages/en.json";
 import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
+import { geographicEn } from "@/features/master-data/geographic/i18n/en";
+import { geographicId } from "@/features/master-data/geographic/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -49,6 +51,7 @@ const messages = {
     ...suppliersEnMessages,
     ...menuManagementEnMessages,
     ...stockValuationsEnMessages,
+    ...geographicEn,
   },
   id: {
     ...globalIdMessages,
@@ -65,6 +68,7 @@ const messages = {
     ...supplierInvoiceDownPaymentsIdMessages,
     ...menuManagementIdMessages,
     ...stockValuationsIdMessages,
+    ...geographicId,
   },
 } as const;
 

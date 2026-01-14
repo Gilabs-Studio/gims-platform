@@ -46,6 +46,8 @@ import (
 	userUsecase "github.com/gilabs/crm-healthcare/api/internal/user/domain/usecase"
 	userHandler "github.com/gilabs/crm-healthcare/api/internal/user/presentation/handler"
 	userRouter "github.com/gilabs/crm-healthcare/api/internal/user/presentation/router"
+
+	geographicPresentation "github.com/gilabs/crm-healthcare/api/internal/geographic/presentation"
 )
 
 func main() {
@@ -231,6 +233,9 @@ func main() {
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
 		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)
 		coreRouter.RegisterUploadRoutes(v1, jwtManager, permissionService)
+
+		// Geographic module (Sprint 1)
+		geographicPresentation.RegisterRoutes(r, v1, database.DB)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown
