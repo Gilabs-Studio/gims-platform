@@ -41,6 +41,7 @@ export interface MenuAction {
   id: number;
   code: string;
   name: string;
+  action?: string;
   access: boolean;
 }
 

@@ -27,6 +27,7 @@ type ActionResponse struct {
 	ID     string `json:"id"`
 	Code   string `json:"code"`
 	Name   string `json:"name"`
+	Action string `json:"action"` // Generic action type (VIEW, CREATE, etc.)
 	Access bool   `json:"access"`
 }
 

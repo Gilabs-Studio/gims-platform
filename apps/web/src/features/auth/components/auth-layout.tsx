@@ -19,6 +19,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             fill
             className="object-cover"
             priority
+            suppressHydrationWarning
           />
         </div>
       </div>
@@ -35,6 +36,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 width={40}
                 height={40}
                 className="object-contain"
+                suppressHydrationWarning
               />
             </div>
             <div className="flex flex-col gap-0.5 leading-none">

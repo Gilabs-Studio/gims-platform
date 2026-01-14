@@ -177,6 +177,7 @@ func (r *permissionRepository) buildMenuWithActions(menu models.Menu, permission
 			ID:     p.ID,
 			Code:   p.Code,
 			Name:   p.Name,
+			Action: p.Action,
 			Access: access,
 		})
 	}

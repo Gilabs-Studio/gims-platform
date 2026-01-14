@@ -48,6 +48,7 @@ export interface Action {
   id: string;
   code: string;
   name: string;
+  action?: string; // Generic action type (VIEW, CREATE, etc.)
   access: boolean;
 }
 

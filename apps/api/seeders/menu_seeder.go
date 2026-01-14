@@ -7,7 +7,32 @@ import (
 	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
 )
 
-// SeedMenus seeds initial menus based on the provided structure
+// createMenu is a helper function to create a menu and return it
+func createMenu(menu *permission.Menu) error {
+	if err := database.DB.Create(menu).Error; err != nil {
+		return err
+	}
+	log.Printf("Created menu: %s", menu.Name)
+	return nil
+}
+
+// createChildMenu creates a child menu under a parent
+func createChildMenu(name, icon, url string, parentID *string, order int) (*permission.Menu, error) {
+	menu := &permission.Menu{
+		Name:     name,
+		Icon:     icon,
+		URL:      url,
+		ParentID: parentID,
+		Order:    order,
+		Status:   "active",
+	}
+	if err := createMenu(menu); err != nil {
+		return nil, err
+	}
+	return menu, nil
+}
+
+// SeedMenus seeds initial ERP menus based on database structure
 func SeedMenus() error {
 	// Check if menus already exist
 	var count int64
@@ -17,472 +42,430 @@ func SeedMenus() error {
 		return nil
 	}
 
-	// Base path for frontend routes (for i18n support, keep URLs locale-agnostic).
-	// Frontend akan menambahkan prefix locale sendiri (mis. "/en" atau "/id").
-	basePath := ""
+	log.Println("Seeding ERP menu structure...")
 
-	// Create Dashboard menu (root level)
-	dashboardMenu := permission.Menu{
+	// ============================================================
+	// ROOT LEVEL MENUS
+	// ============================================================
+
+	// 1. Dashboard
+	dashboardMenu := &permission.Menu{
 		Name:   "Dashboard",
 		Icon:   "layout-dashboard",
-		URL:    basePath + "/dashboard",
+		URL:    "/dashboard",
 		Order:  1,
 		Status: "active",
 	}
-	if err := database.DB.Create(&dashboardMenu).Error; err != nil {
+	if err := createMenu(dashboardMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", dashboardMenu.Name)
 
-	// Create root menu: Data Master
-	dataMasterMenu := permission.Menu{
-		Name:   "Data Master",
+	// 2. Master Data
+	masterDataMenu := &permission.Menu{
+		Name:   "Master Data",
 		Icon:   "database",
-		URL:    basePath + "/data-master",
+		URL:    "/master-data",
 		Order:  2,
 		Status: "active",
 	}
-	if err := database.DB.Create(&dataMasterMenu).Error; err != nil {
+	if err := createMenu(masterDataMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", dataMasterMenu.Name)
 
-	// Create Users menu under Data Master
-	userPageMenu := permission.Menu{
-		Name:     "Users",
-		Icon:     "users",
-		URL:      basePath + "/master-data/users",
-		ParentID: &dataMasterMenu.ID,
-		Order:    1,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&userPageMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", userPageMenu.Name)
-
-	// Create Sales CRM root menu
-	salesCRMMenu := permission.Menu{
-		Name:   "Sales CRM",
-		Icon:   "briefcase",
-		URL:    basePath + "/sales-crm",
+	// 3. Sales
+	salesMenu := &permission.Menu{
+		Name:   "Sales",
+		Icon:   "shopping-cart",
+		URL:    "/sales",
 		Order:  3,
 		Status: "active",
 	}
-	if err := database.DB.Create(&salesCRMMenu).Error; err != nil {
+	if err := createMenu(salesMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", salesCRMMenu.Name)
 
-	// Create Accounts menu under Sales CRM
-	accountsMenu := permission.Menu{
-		Name:     "Accounts",
-		Icon:     "building-2",
-		URL:      basePath + "/accounts",
-		ParentID: &salesCRMMenu.ID,
-		Order:    1,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&accountsMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", accountsMenu.Name)
-
-	// Create Leads menu under Sales CRM
-	leadsMenu := permission.Menu{
-		Name:     "Lead Management",
-		Icon:     "user-plus",
-		URL:      basePath + "/leads",
-		ParentID: &salesCRMMenu.ID,
-		Order:    2,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&leadsMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", leadsMenu.Name)
-
-	// Create Pipeline menu under Sales CRM
-	pipelineMenu := permission.Menu{
-		Name:     "Pipeline",
-		Icon:     "trending-up",
-		URL:      basePath + "/pipeline",
-		ParentID: &salesCRMMenu.ID,
-		Order:    3,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&pipelineMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", pipelineMenu.Name)
-
-	// Create Visit Reports menu under Sales CRM
-	visitReportsMenu := permission.Menu{
-		Name:     "Visit Reports",
-		Icon:     "map-pin",
-		URL:      basePath + "/visit-reports",
-		ParentID: &salesCRMMenu.ID,
-		Order:    4,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&visitReportsMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", visitReportsMenu.Name)
-
-	// Create Tasks menu under Sales CRM
-	tasksMenu := permission.Menu{
-		Name:     "Tasks",
-		Icon:     "clipboard-list",
-		URL:      basePath + "/tasks",
-		ParentID: &salesCRMMenu.ID,
-		Order:    5,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&tasksMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", tasksMenu.Name)
-
-	// Create Products menu under Data Master (single entry, internal tabs handle sub-sections)
-	productsMenu := permission.Menu{
-		Name:     "Products",
-		Icon:     "package",
-		URL:      basePath + "/products",
-		ParentID: &dataMasterMenu.ID,
-		Order:    2,
-		Status:   "active",
-	}
-	if err := database.DB.Create(&productsMenu).Error; err != nil {
-		return err
-	}
-	log.Printf("Created menu: %s", productsMenu.Name)
-
-	// Create Reports menu (root level)
-	reportsMenu := permission.Menu{
-		Name:   "Reports",
-		Icon:   "file-text",
-		URL:    basePath + "/reports",
+	// 4. Purchase
+	purchaseMenu := &permission.Menu{
+		Name:   "Purchase",
+		Icon:   "truck",
+		URL:    "/purchase",
 		Order:  4,
 		Status: "active",
 	}
-	if err := database.DB.Create(&reportsMenu).Error; err != nil {
+	if err := createMenu(purchaseMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", reportsMenu.Name)
 
-	// Create AI Assistant root menu
-	aiMenu := permission.Menu{
-		Name:   "AI Assistant",
-		Icon:   "sparkles",
-		URL:    basePath + "/ai-assistant",
+	// 5. Stock
+	stockMenu := &permission.Menu{
+		Name:   "Stock",
+		Icon:   "warehouse",
+		URL:    "/stock",
 		Order:  5,
 		Status: "active",
 	}
-	if err := database.DB.Create(&aiMenu).Error; err != nil {
+	if err := createMenu(stockMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", aiMenu.Name)
 
-	// Create AI Chatbot menu under AI Assistant
-	aiChatbotMenu := permission.Menu{
-		Name:     "AI Chatbot",
-		Icon:     "ai-chatbot",
-		URL:      basePath + "/ai-chatbot",
-		ParentID: &aiMenu.ID,
-		Order:    1,
-		Status:   "active",
+	// 6. Finance
+	financeMenu := &permission.Menu{
+		Name:   "Finance",
+		Icon:   "credit-card",
+		URL:    "/finance",
+		Order:  6,
+		Status: "active",
 	}
-	if err := database.DB.Create(&aiChatbotMenu).Error; err != nil {
+	if err := createMenu(financeMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", aiChatbotMenu.Name)
 
-	// Create AI Settings menu under AI Assistant
-	aiSettingsMenu := permission.Menu{
-		Name:     "AI Settings",
-		Icon:     "ai-settings",
-		URL:      basePath + "/ai-settings",
-		ParentID: &aiMenu.ID,
-		Order:    2,
-		Status:   "active",
+	// 7. HRD
+	hrdMenu := &permission.Menu{
+		Name:   "HRD",
+		Icon:   "users",
+		URL:    "/hrd",
+		Order:  7,
+		Status: "active",
 	}
-	if err := database.DB.Create(&aiSettingsMenu).Error; err != nil {
+	if err := createMenu(hrdMenu); err != nil {
 		return err
 	}
-	log.Printf("Created menu: %s", aiSettingsMenu.Name)
 
-	log.Println("Menus seeded successfully")
+	// 8. Reports
+	reportsMenu := &permission.Menu{
+		Name:   "Reports",
+		Icon:   "bar-chart-3",
+		URL:    "/reports",
+		Order:  8,
+		Status: "active",
+	}
+	if err := createMenu(reportsMenu); err != nil {
+		return err
+	}
+
+	// 9. AI Assistant
+	aiMenu := &permission.Menu{
+		Name:   "AI Assistant",
+		Icon:   "sparkles",
+		URL:    "/ai-assistant",
+		Order:  9,
+		Status: "active",
+	}
+	if err := createMenu(aiMenu); err != nil {
+		return err
+	}
+
+	// ============================================================
+	// MASTER DATA SUB-MENUS
+	// ============================================================
+
+	// Geographic Group
+	geographicMenu, err := createChildMenu("Geographic", "globe", "/master-data/geographic", &masterDataMenu.ID, 1)
+	if err != nil {
+		return err
+	}
+
+	geographicChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Countries", "flag", "/master-data/countries", 1},
+		{"Provinces", "map", "/master-data/provinces", 2},
+		{"Cities", "building", "/master-data/cities", 3},
+		{"Districts", "map-pin", "/master-data/districts", 4},
+		{"Villages", "home", "/master-data/villages", 5},
+	}
+	for _, child := range geographicChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &geographicMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Organization Group
+	organizationMenu, err := createChildMenu("Organization", "building-2", "/master-data/organization", &masterDataMenu.ID, 2)
+	if err != nil {
+		return err
+	}
+
+	organizationChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Company", "briefcase", "/master-data/company", 1},
+		{"Divisions", "layers", "/master-data/divisions", 2},
+		{"Job Positions", "user-cog", "/master-data/job-positions", 3},
+		{"Business Units", "grid", "/master-data/business-units", 4},
+		{"Business Types", "tag", "/master-data/business-types", 5},
+		{"Areas", "map", "/master-data/areas", 6},
+		{"Area Supervisors", "user-check", "/master-data/area-supervisors", 7},
+	}
+	for _, child := range organizationChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &organizationMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Employee
+	if _, err := createChildMenu("Employees", "users", "/master-data/employees", &masterDataMenu.ID, 3); err != nil {
+		return err
+	}
+
+	// Supplier Group
+	supplierMenu, err := createChildMenu("Supplier", "truck", "/master-data/supplier", &masterDataMenu.ID, 4)
+	if err != nil {
+		return err
+	}
+
+	supplierChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Suppliers", "building-2", "/master-data/suppliers", 1},
+		{"Supplier Types", "tag", "/master-data/supplier-types", 2},
+		{"Banks", "landmark", "/master-data/banks", 3},
+	}
+	for _, child := range supplierChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &supplierMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Product Group
+	productMenu, err := createChildMenu("Product", "package", "/master-data/product", &masterDataMenu.ID, 5)
+	if err != nil {
+		return err
+	}
+
+	productChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Products", "package", "/master-data/products", 1},
+		{"Categories", "folder-tree", "/master-data/product-categories", 2},
+		{"Brands", "star", "/master-data/product-brands", 3},
+		{"Segments", "pie-chart", "/master-data/product-segments", 4},
+		{"Types", "tag", "/master-data/product-types", 5},
+		{"Packaging", "box", "/master-data/packaging", 6},
+		{"Unit of Measure", "ruler", "/master-data/uom", 7},
+		{"Procurement Types", "shopping-bag", "/master-data/procurement-types", 8},
+	}
+	for _, child := range productChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &productMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Warehouse
+	if _, err := createChildMenu("Warehouses", "warehouse", "/master-data/warehouses", &masterDataMenu.ID, 6); err != nil {
+		return err
+	}
+
+	// Payment & Courier
+	paymentMenu, err := createChildMenu("Payment & Courier", "credit-card", "/master-data/payment-courier", &masterDataMenu.ID, 7)
+	if err != nil {
+		return err
+	}
+
+	paymentChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Payment Terms", "clock", "/master-data/payment-terms", 1},
+		{"Courier Agencies", "truck", "/master-data/courier-agencies", 2},
+		{"SO Sources", "file-text", "/master-data/so-sources", 3},
+	}
+	for _, child := range paymentChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &paymentMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Leave Types
+	if _, err := createChildMenu("Leave Types", "calendar", "/master-data/leave-types", &masterDataMenu.ID, 8); err != nil {
+		return err
+	}
+
+	// Users (RBAC)
+	if _, err := createChildMenu("Users", "users", "/master-data/users", &masterDataMenu.ID, 99); err != nil {
+		return err
+	}
+
+	// ============================================================
+	// SALES SUB-MENUS
+	// ============================================================
+
+	salesChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Quotations", "file-text", "/sales/quotations", 1},
+		{"Sales Orders", "shopping-cart", "/sales/orders", 2},
+		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
+		{"Customer Invoices", "receipt", "/sales/invoices", 4},
+		{"Visit Reports", "map-pin", "/sales/visits", 5},
+		{"Sales Estimation", "calculator", "/sales/estimations", 6},
+		{"Sales Target", "target", "/sales/targets", 7},
+	}
+	for _, child := range salesChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &salesMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// PURCHASE SUB-MENUS
+	// ============================================================
+
+	purchaseChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Requisitions", "clipboard-list", "/purchase/requisitions", 1},
+		{"Purchase Orders", "file-text", "/purchase/orders", 2},
+		{"Goods Receipt", "package", "/purchase/goods-receipt", 3},
+		{"Supplier Invoices", "receipt", "/purchase/invoices", 4},
+	}
+	for _, child := range purchaseChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &purchaseMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// STOCK SUB-MENUS
+	// ============================================================
+
+	stockChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Inventory", "package", "/stock/inventory", 1},
+		{"Stock Movement", "arrow-right-left", "/stock/movements", 2},
+		{"Stock Opname", "clipboard-check", "/stock/opname", 3},
+	}
+	for _, child := range stockChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &stockMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// FINANCE SUB-MENUS
+	// ============================================================
+
+	financeChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Chart of Accounts", "list", "/finance/coa", 1},
+		{"Journal Entries", "book-open", "/finance/journals", 2},
+		{"Bank Accounts", "landmark", "/finance/bank-accounts", 3},
+		{"Payments", "credit-card", "/finance/payments", 4},
+		{"Tax Invoices", "file-text", "/finance/tax-invoices", 5},
+		{"Non-Trade Payables", "file-minus", "/finance/non-trade-payables", 6},
+		{"Budget", "pie-chart", "/finance/budget", 7},
+		{"Cash Bank Journal", "book", "/finance/cash-bank", 8},
+		{"Financial Closing", "lock", "/finance/closing", 9},
+		{"Asset Management", "briefcase", "/finance/assets", 10},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 11},
+		{"Salary", "dollar-sign", "/finance/salary", 12},
+	}
+	for _, child := range financeChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// HRD SUB-MENUS
+	// ============================================================
+
+	hrdChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Attendance", "clock", "/hrd/attendance", 1},
+		{"Leave Requests", "calendar", "/hrd/leave-requests", 2},
+		{"Evaluation", "star", "/hrd/evaluation", 5},
+		{"Recruitment", "user-plus", "/hrd/recruitment", 6},
+		{"Work Schedule", "calendar", "/hrd/work-schedule", 7},
+		{"Holidays", "calendar", "/hrd/holidays", 8},
+	}
+	for _, child := range hrdChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &hrdMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Employee Documents Group
+	empDocsMenu, err := createChildMenu("Employee Documents", "folder", "/hrd/documents", &hrdMenu.ID, 3)
+	if err != nil {
+		return err
+	}
+
+	empDocsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Contracts", "file-text", "/hrd/contracts", 1},
+		{"Education History", "graduation-cap", "/hrd/education", 2},
+		{"Certifications", "award", "/hrd/certifications", 3},
+		{"Employee Assets", "package", "/hrd/employee-assets", 4},
+	}
+	for _, child := range empDocsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &empDocsMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// AI ASSISTANT SUB-MENUS
+	// ============================================================
+
+	aiChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"AI Chatbot", "bot", "/ai-chatbot", 1},
+		{"AI Settings", "settings", "/ai-settings", 2},
+	}
+	for _, child := range aiChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &aiMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	log.Println("ERP menus seeded successfully")
 	return nil
 }
 
-// UpdateMenuStructure updates existing menu structure to fix Users menu location
+// UpdateMenuStructure updates existing menu structure (migration helper)
 func UpdateMenuStructure() error {
-	log.Println("Updating menu structure...")
-
-	// Find Data Master menu
-	var dataMasterMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/data-master").First(&dataMasterMenu).Error; err != nil {
-		log.Printf("Data Master menu not found, skipping update: %v", err)
-		return nil
-	}
-
-	// Find Users menu with old URL (/users) or old parent (Healthcare)
-	var userPageMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/master-data/users").First(&userPageMenu).Error; err == nil {
-		// Users menu exists, update parent to Data Master directly
-		log.Printf("Updating Users menu parent to Data Master")
-		userPageMenu.ParentID = &dataMasterMenu.ID
-		userPageMenu.Order = 1
-		if err := database.DB.Save(&userPageMenu).Error; err != nil {
-			return err
-		}
-		log.Printf("Updated Users menu parent to Data Master")
-	} else if err := database.DB.Where("url = ?", "/users").First(&userPageMenu).Error; err == nil {
-		// Users menu exists with old URL, need to migrate
-		log.Printf("Migrating Users menu from /users to /master-data/users")
-
-		// Update Users menu URL and parent to Data Master
-		userPageMenu.URL = "/master-data/users"
-		userPageMenu.ParentID = &dataMasterMenu.ID
-		userPageMenu.Order = 1
-		if err := database.DB.Save(&userPageMenu).Error; err != nil {
-			return err
-		}
-		log.Printf("Updated Users menu URL to /master-data/users and parent to Data Master")
-	}
-
-	// Find and delete Healthcare menu if it exists
-	var healthcareMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/master-data").First(&healthcareMenu).Error; err == nil {
-		// Check if Healthcare menu has any children
-		var childCount int64
-		database.DB.Model(&permission.Menu{}).Where("parent_id = ?", healthcareMenu.ID).Count(&childCount)
-
-		if childCount == 0 {
-			// Delete Healthcare menu if it has no children
-			if err := database.DB.Delete(&healthcareMenu).Error; err != nil {
-				log.Printf("Warning: Failed to delete Healthcare menu: %v", err)
-			} else {
-				log.Printf("Deleted Healthcare menu")
-			}
-		}
-	}
-
-	// Find and delete Company Management menu and its children if they exist
-	var companyMgmtMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/data-master/company").First(&companyMgmtMenu).Error; err == nil {
-		// Find and delete all children of Company Management
-		var children []permission.Menu
-		database.DB.Where("parent_id = ?", companyMgmtMenu.ID).Find(&children)
-		for _, child := range children {
-			if err := database.DB.Delete(&child).Error; err != nil {
-				log.Printf("Warning: Failed to delete menu %s: %v", child.Name, err)
-			} else {
-				log.Printf("Deleted menu: %s", child.Name)
-			}
-		}
-
-		// Delete Company Management menu
-		if err := database.DB.Delete(&companyMgmtMenu).Error; err != nil {
-			log.Printf("Warning: Failed to delete Company Management menu: %v", err)
-		} else {
-			log.Printf("Deleted Company Management menu")
-		}
-	}
-
-	// Find and delete System menu if it exists and has no children
-	var systemMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/system").First(&systemMenu).Error; err == nil {
-		// Check if System menu has any children
-		var childCount int64
-		database.DB.Model(&permission.Menu{}).Where("parent_id = ?", systemMenu.ID).Count(&childCount)
-
-		if childCount == 0 {
-			// Delete System menu if it has no children
-			if err := database.DB.Delete(&systemMenu).Error; err != nil {
-				log.Printf("Warning: Failed to delete System menu: %v", err)
-			} else {
-				log.Printf("Deleted System menu")
-			}
-		}
-	}
-
-	// Add Leads menu if it doesn't exist
-	var leadsMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/leads").First(&leadsMenu).Error; err != nil {
-		// Leads menu doesn't exist, create it
-		var salesCRMMenu permission.Menu
-		if err := database.DB.Where("url = ?", "/sales-crm").First(&salesCRMMenu).Error; err == nil {
-			leadsMenu = permission.Menu{
-				Name:     "Lead Management",
-				Icon:     "user-plus",
-				URL:      "/leads",
-				ParentID: &salesCRMMenu.ID,
-				Order:    2,
-				Status:   "active",
-			}
-			if err := database.DB.Create(&leadsMenu).Error; err != nil {
-				log.Printf("Warning: Failed to create Leads menu: %v", err)
-			} else {
-				log.Printf("Created Leads menu")
-			}
-		}
-	}
-
-	// Add Pipeline menu if it doesn't exist
-	var pipelineMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/pipeline").First(&pipelineMenu).Error; err != nil {
-		// Pipeline menu doesn't exist, create it
-		var salesCRMMenu permission.Menu
-		if err := database.DB.Where("url = ?", "/sales-crm").First(&salesCRMMenu).Error; err == nil {
-			pipelineMenu = permission.Menu{
-				Name:     "Pipeline",
-				Icon:     "trending-up",
-				URL:      "/pipeline",
-				ParentID: &salesCRMMenu.ID,
-				Order:    3,
-				Status:   "active",
-			}
-			if err := database.DB.Create(&pipelineMenu).Error; err != nil {
-				log.Printf("Warning: Failed to create Pipeline menu: %v", err)
-			} else {
-				log.Printf("Created Pipeline menu")
-			}
-		}
-	}
-
-	// Add Tasks menu if it doesn't exist
-	var tasksMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/tasks").First(&tasksMenu).Error; err != nil {
-		var salesCRMMenu permission.Menu
-		if err := database.DB.Where("url = ?", "/sales-crm").First(&salesCRMMenu).Error; err == nil {
-			tasksMenu = permission.Menu{
-				Name:     "Tasks",
-				Icon:     "clipboard-list",
-				URL:      "/tasks",
-				ParentID: &salesCRMMenu.ID,
-				Order:    4,
-				Status:   "active",
-			}
-			if err := database.DB.Create(&tasksMenu).Error; err != nil {
-				log.Printf("Warning: Failed to create Tasks menu: %v", err)
-			} else {
-				log.Printf("Created Tasks menu")
-			}
-		}
-	}
-
-	// Add Products menu if it doesn't exist
-	var productsMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/products").First(&productsMenu).Error; err != nil {
-		// Products menu doesn't exist at all: create under Data Master
-		var dataMaster permission.Menu
-		if err := database.DB.Where("url = ?", "/data-master").First(&dataMaster).Error; err == nil {
-			productsMenu = permission.Menu{
-				Name:     "Products",
-				Icon:     "package",
-				URL:      "/products",
-				ParentID: &dataMaster.ID,
-				Order:    2,
-				Status:   "active",
-			}
-			if err := database.DB.Create(&productsMenu).Error; err != nil {
-				log.Printf("Warning: Failed to create Products menu: %v", err)
-			} else {
-				log.Printf("Created Products menu under Data Master")
-			}
-		}
-	} else {
-		// Products menu exists (mungkin masih di bawah Sales CRM) -> pastikan parent-nya Data Master
-		var dataMaster permission.Menu
-		if err := database.DB.Where("url = ?", "/data-master").First(&dataMaster).Error; err == nil {
-			if productsMenu.ParentID == nil || *productsMenu.ParentID != dataMaster.ID {
-				productsMenu.ParentID = &dataMaster.ID
-				productsMenu.Order = 2
-				if err := database.DB.Save(&productsMenu).Error; err != nil {
-					log.Printf("Warning: Failed to move Products menu under Data Master: %v", err)
-				} else {
-					log.Printf("Moved Products menu under Data Master")
-				}
-			}
-		}
-	}
-
-	// Remove Product Categories menu from navigation if it exists
-	var productCategoriesMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/product-categories").First(&productCategoriesMenu).Error; err == nil {
-		if err := database.DB.Delete(&productCategoriesMenu).Error; err != nil {
-			log.Printf("Warning: Failed to delete Product Categories menu: %v", err)
-		} else {
-			log.Printf("Deleted Product Categories menu from navigation")
-		}
-	}
-
-	// Remove legacy Products child menu (/products/list) if it exists,
-	// so sidebar only shows a single 'Products' entry that internally uses tabs.
-	var productsListMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/products/list").First(&productsListMenu).Error; err == nil {
-		if err := database.DB.Delete(&productsListMenu).Error; err != nil {
-			log.Printf("Warning: Failed to delete Products list child menu: %v", err)
-		} else {
-			log.Printf("Deleted legacy Products list child menu from navigation")
-		}
-	}
-
-	// Add AI Assistant menu if it doesn't exist
-	var aiMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/ai-assistant").First(&aiMenu).Error; err != nil {
-		aiMenu = permission.Menu{
-			Name:   "AI Assistant",
-			Icon:   "sparkles",
-			URL:    "/ai-assistant",
-			Order:  5,
-			Status: "active",
-		}
-		if err := database.DB.Create(&aiMenu).Error; err != nil {
-			log.Printf("Warning: Failed to create AI Assistant menu: %v", err)
-		} else {
-			log.Printf("Created AI Assistant menu")
-		}
-	}
-
-	// Add AI Chatbot menu if it doesn't exist
-	var aiChatbotMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/ai-chatbot").First(&aiChatbotMenu).Error; err != nil {
-		aiChatbotMenu = permission.Menu{
-			Name:     "AI Chatbot",
-			Icon:     "ai-chatbot",
-			URL:      "/ai-chatbot",
-			ParentID: &aiMenu.ID,
-			Order:    1,
-			Status:   "active",
-		}
-		if err := database.DB.Create(&aiChatbotMenu).Error; err != nil {
-			log.Printf("Warning: Failed to create AI Chatbot menu: %v", err)
-		} else {
-			log.Printf("Created AI Chatbot menu")
-		}
-	}
-
-	// Add AI Settings menu if it doesn't exist
-	var aiSettingsMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/ai-settings").First(&aiSettingsMenu).Error; err != nil {
-		aiSettingsMenu = permission.Menu{
-			Name:     "AI Settings",
-			Icon:     "ai-settings",
-			URL:      "/ai-settings",
-			ParentID: &aiMenu.ID,
-			Order:    2,
-			Status:   "active",
-		}
-		if err := database.DB.Create(&aiSettingsMenu).Error; err != nil {
-			log.Printf("Warning: Failed to create AI Settings menu: %v", err)
-		} else {
-			log.Printf("Created AI Settings menu")
-		}
-	}
-
-	log.Println("Menu structure updated successfully")
+	log.Println("Menu structure update completed (no changes needed for fresh seed)")
 	return nil
 }

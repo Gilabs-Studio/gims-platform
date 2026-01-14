@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { useEffect } from "react";
 import { authService } from "@/features/auth/services/auth-service";
+import { userService } from "@/features/master-data/user-management/user/services/user-service";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { AxiosError } from "axios";
@@ -18,8 +19,8 @@ export function useUserPermissions() {
   const query = useQuery({
     queryKey: ["user-menus", user?.id],
     queryFn: () => {
-      if (!isAuthenticated) throw new Error("User not authenticated");
-      return authService.getMenus();
+      if (!isAuthenticated || !user?.id) throw new Error("User not authenticated");
+      return userService.getPermissions(user.id);
     },
     enabled: !!isAuthenticated && !!user?.role,
     retry: (failureCount, error) => {

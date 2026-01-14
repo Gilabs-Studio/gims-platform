@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { useUserPermissions } from "@/features/master-data/user-management/user/hooks/use-user-permissions";
+import { useNavigation } from "@/hooks/use-navigation";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
 import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,7 +52,12 @@ const ACTIVE_PARENT_STORAGE_KEY = "active_parent_id";
 function checkViewPermission(menu: MenuWithActions): boolean {
   if (menu.actions && menu.actions.length > 0) {
     const viewAction = menu.actions.find(
-      (action) => (action.code === "VIEW" || action.code.startsWith("VIEW_")) && action.access
+      (action) => {
+        // Check generic action type first (new API)
+        if (action.action === "VIEW") return action.access;
+        // Fallback to code check (old API or specific codes)
+        return (action.code === "VIEW" || action.code.startsWith("VIEW_")) && action.access;
+      }
     );
     if (viewAction) return true;
   }
@@ -461,13 +466,13 @@ export const DashboardLayout = memo(function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const { user } = useAuthStore();
-  const { data: permissionsData, error } = useUserPermissions();
+  const { menus } = useNavigation();
   
   // Real-time role validation - auto logout if role deleted or invalid
   useValidateRole();
   
   const commandPalette = useDashboardCommandPalette({
-    menus: permissionsData?.data?.menus as MenuWithActions[] | undefined,
+    menus,
   });
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
   const pathname = usePathname();
@@ -518,18 +523,10 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   // Build parent items for icon sidebar
   const parentItems: IconSidebarItem[] = useMemo(() => {
-    const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
+    // menus from outer scope
 
-    // Always start with Dashboard menu (static)
-    const items: IconSidebarItem[] = [
-      {
-        id: "dashboard",
-        name: "Dashboard",
-        icon: getMenuIcon("layout-dashboard"),
-        href: "/dashboard",
-        hasChildren: false,
-      },
-    ];
+    // Start with empty items, all menus come from navigation config
+    const items: IconSidebarItem[] = [];
 
     // Add menus from permissions if available
     if (menus && menus.length > 0) {
@@ -549,13 +546,12 @@ export const DashboardLayout = memo(function DashboardLayout({
     }
 
     return items;
-  }, [permissionsData]);
+  }, [menus]);
 
   // Build detail items for selected parent
   const detailItems: DetailSidebarItem[] = useMemo(() => {
     if (!activeParentId) return [];
 
-    const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
     if (!menus) return [];
 
     const parentMenu = menus.find((m) => String(m.id) === activeParentId);
@@ -574,7 +570,7 @@ export const DashboardLayout = memo(function DashboardLayout({
     };
 
     return buildDetailItems(parentMenu.children);
-  }, [activeParentId, permissionsData]);
+  }, [activeParentId, menus]);
 
   // Get active parent title
   const activeParentTitle = useMemo(() => {
@@ -602,7 +598,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   // Auto-detect active parent based on current path
   // Only run when pathname actually changes (navigation), not when activeParentId changes manually
   useEffect(() => {
-    if (!permissionsData?.data?.menus) return;
+    if (!menus) return;
 
     const currentPathname = pathname;
     const previousPathname = previousPathnameRef.current;
@@ -612,7 +608,6 @@ export const DashboardLayout = memo(function DashboardLayout({
     const pathnameChanged = previousPathname !== currentPathname;
     
     if (pathnameChanged && !manualSelectionRef.current) {
-      const menus = permissionsData.data.menus as MenuWithActions[];
       const detectedParent = findParentMenuByPath(menus, currentPathname);
       
       if (detectedParent && detectedParent !== activeParentId) {
@@ -634,7 +629,7 @@ export const DashboardLayout = memo(function DashboardLayout({
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, permissionsData]);
+  }, [pathname, menus]);
 
   const handleSelectParent = useCallback((id: string) => {
     const item = parentItems.find((p) => p.id === id);
@@ -742,11 +737,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 isAIChatbotPage ? "gap-0 p-0 h-screen" : "gap-4 p-4 md:p-6"
               }`}
             >
-              {!isAIChatbotPage && error && (
-                <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                  Failed to load menu permissions. Showing minimal navigation.
-                </div>
-              )}
+
               {!isAIChatbotPage && <Breadcrumb />}
               {children}
             </div>

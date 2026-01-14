@@ -1,0 +1,182 @@
+export interface NavItem {
+  id?: string;
+  name: string;
+  icon: string; // string key for lib/menu-icons.tsx
+  url: string;
+  permission?: string;
+  children?: NavItem[];
+}
+
+export const navigationConfig: NavItem[] = [
+  {
+    name: "Dashboard",
+    icon: "dashboard",
+    url: "/dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    name: "Master Data",
+    icon: "database",
+    url: "/master-data",
+    children: [
+      {
+        name: "Geographic",
+        url: "/master-data/geographic",
+        icon: "globe",
+        children: [
+          { name: "Countries", url: "/master-data/countries", icon: "flag", permission: "country.read" },
+          { name: "Provinces", url: "/master-data/provinces", icon: "map", permission: "province.read" },
+          { name: "Cities", url: "/master-data/cities", icon: "building-2", permission: "city.read" },
+          { name: "Districts", url: "/master-data/districts", icon: "map-pin", permission: "district.read" },
+          { name: "Villages", url: "/master-data/villages", icon: "map-pin", permission: "village.read" },
+        ],
+      },
+      {
+        name: "Organization",
+        url: "/master-data/organization",
+        icon: "building",
+        children: [
+          { name: "Company", url: "/master-data/company", icon: "building", permission: "company.read" },
+          { name: "Divisions", url: "/master-data/divisions", icon: "layers", permission: "division.read" },
+          { name: "Job Positions", url: "/master-data/job-positions", icon: "user-cog", permission: "job_position.read" },
+          { name: "Business Units", url: "/master-data/business-units", icon: "layout-list", permission: "business_unit.read" },
+          { name: "Business Types", url: "/master-data/business-types", icon: "tag", permission: "business_type.read" },
+          { name: "Areas", url: "/master-data/areas", icon: "map", permission: "area.read" },
+          { name: "Area Supervisors", url: "/master-data/area-supervisors", icon: "user-check", permission: "area_supervisor.read" },
+        ],
+      },
+      { name: "Employees", url: "/master-data/employees", icon: "users", permission: "employee.read" },
+      {
+        name: "Supplier",
+        url: "/master-data/supplier",
+        icon: "truck",
+        children: [
+          { name: "Suppliers", url: "/master-data/suppliers", icon: "truck", permission: "supplier.read" },
+          { name: "Supplier Types", url: "/master-data/supplier-types", icon: "tag", permission: "supplier_type.read" },
+          { name: "Banks", url: "/master-data/banks", icon: "landmark", permission: "bank.read" },
+        ],
+      },
+      {
+        name: "Product",
+        url: "/master-data/product",
+        icon: "package",
+        children: [
+          { name: "Products", url: "/master-data/products", icon: "package", permission: "product.read" },
+          { name: "Categories", url: "/master-data/product-categories", icon: "folder-tree", permission: "product_category.read" },
+          { name: "Brands", url: "/master-data/product-brands", icon: "tag", permission: "product_brand.read" },
+          { name: "Segments", url: "/master-data/product-segments", icon: "percent", permission: "product_segment.read" },
+          { name: "Types", url: "/master-data/product-types", icon: "tag", permission: "product_type.read" },
+          { name: "Packaging", url: "/master-data/packaging", icon: "box", permission: "packaging.read" },
+          { name: "Unit of Measure", url: "/master-data/uom", icon: "hammer", permission: "uom.read" },
+          { name: "Procurement Types", url: "/master-data/procurement-types", icon: "shopping-cart", permission: "procurement_type.read" },
+        ],
+      },
+      { name: "Warehouses", url: "/master-data/warehouses", icon: "warehouse", permission: "warehouse.read" },
+      {
+        name: "Payment & Courier",
+        url: "/master-data/payment-courier",
+        icon: "credit-card",
+        children: [
+          { name: "Payment Terms", url: "/master-data/payment-terms", icon: "clock", permission: "payment_term.read" },
+          { name: "Courier Agencies", url: "/master-data/courier-agencies", icon: "truck", permission: "courier_agency.read" },
+          { name: "SO Sources", url: "/master-data/so-sources", icon: "file-text", permission: "so_source.read" },
+        ],
+      },
+      { name: "Leave Types", url: "/master-data/leave-types", icon: "calendar", permission: "leave_type.read" },
+      { name: "Users", url: "/master-data/users", icon: "users", permission: "user.read" },
+    ],
+  },
+  {
+    name: "Sales",
+    icon: "shopping-cart",
+    url: "/sales",
+    children: [
+      { name: "Quotations", url: "/sales/quotations", icon: "file-text", permission: "sales_quotation.read" },
+      { name: "Sales Orders", url: "/sales/orders", icon: "shopping-cart", permission: "sales_order.read" },
+      { name: "Delivery Orders", url: "/sales/delivery-orders", icon: "truck", permission: "delivery_order.read" },
+      { name: "Customer Invoices", url: "/sales/invoices", icon: "receipt", permission: "customer_invoice.read" },
+      { name: "Visit Reports", url: "/sales/visits", icon: "map-pin", permission: "sales_visit.read" },
+      { name: "Sales Estimation", url: "/sales/estimations", icon: "bar-chart-3", permission: "sales_estimation.read" },
+      { name: "Sales Target", url: "/sales/targets", icon: "check-square", permission: "sales_target.read" },
+    ],
+  },
+  {
+    name: "Purchase",
+    icon: "truck",
+    url: "/purchase",
+    children: [
+      { name: "Requisitions", url: "/purchase/requisitions", icon: "clipboard-list", permission: "purchase_requisition.read" },
+      { name: "Purchase Orders", url: "/purchase/orders", icon: "shopping-cart", permission: "purchase_order.read" },
+      { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
+      { name: "Supplier Invoices", url: "/purchase/invoices", icon: "receipt", permission: "supplier_invoice.read" },
+    ],
+  },
+  {
+    name: "Stock",
+    icon: "warehouse",
+    url: "/stock",
+    children: [
+      { name: "Inventory", url: "/stock/inventory", icon: "box", permission: "inventory.read" },
+      { name: "Stock Movement", url: "/stock/movements", icon: "arrow-right-left", permission: "stock_movement.read" },
+      { name: "Stock Opname", url: "/stock/opname", icon: "clipboard-list", permission: "stock_opname.read" },
+    ],
+  },
+  {
+    name: "Finance",
+    icon: "credit-card",
+    url: "/finance",
+    children: [
+      { name: "Chart of Accounts", url: "/finance/coa", icon: "book-open", permission: "coa.read" },
+      { name: "Journal Entries", url: "/finance/journals", icon: "file-text", permission: "journal.read" },
+      { name: "Bank Accounts", url: "/finance/bank-accounts", icon: "landmark", permission: "bank_account.read" },
+      { name: "Payments", url: "/finance/payments", icon: "credit-card", permission: "payment.read" },
+      { name: "Tax Invoices", url: "/finance/tax-invoices", icon: "receipt", permission: "tax_invoice.read" },
+      { name: "Non-Trade Payables", url: "/finance/non-trade-payables", icon: "file-text", permission: "non_trade_payable.read" },
+      { name: "Budget", url: "/finance/budget", icon: "percent", permission: "budget.read" },
+      { name: "Cash Bank Journal", url: "/finance/cash-bank", icon: "banknote", permission: "cash_bank.read" },
+      { name: "Financial Closing", url: "/finance/closing", icon: "shield-check", permission: "financial_closing.read" },
+      { name: "Asset Management", url: "/finance/assets", icon: "building-2", permission: "asset.read" },
+      { name: "Up Country Cost", url: "/finance/up-country-cost", icon: "map-pin", permission: "up_country_cost.read" },
+      { name: "Salary", url: "/finance/salary", icon: "coins", permission: "salary.read" },
+    ],
+  },
+  {
+    name: "HRD",
+    icon: "users",
+    url: "/hrd",
+    children: [
+      { name: "Attendance", url: "/hrd/attendance", icon: "clock", permission: "attendance.read" },
+      { name: "Leave Requests", url: "/hrd/leave-requests", icon: "calendar", permission: "leave_request.read" },
+      {
+        name: "Employee Documents",
+        url: "/hrd/documents",
+        icon: "folder",
+        children: [
+          { name: "Contracts", url: "/hrd/contracts", icon: "file-text", permission: "employee_contract.read" },
+          { name: "Education History", url: "/hrd/education", icon: "graduation-cap", permission: "education_history.read" },
+          { name: "Certifications", url: "/hrd/certifications", icon: "file-check", permission: "certification.read" },
+          { name: "Employee Assets", url: "/hrd/employee-assets", icon: "box", permission: "employee_asset.read" },
+        ],
+      },
+      { name: "Evaluation", url: "/hrd/evaluation", icon: "check-square", permission: "evaluation.read" },
+      { name: "Recruitment", url: "/hrd/recruitment", icon: "user-plus", permission: "recruitment.read" },
+      { name: "Work Schedule", url: "/hrd/work-schedule", icon: "calendar-check", permission: "work_schedule.read" },
+      { name: "Holidays", url: "/hrd/holidays", icon: "calendar", permission: "holiday.read" },
+    ],
+  },
+  {
+    name: "Reports",
+    icon: "bar-chart-3",
+    url: "/reports",
+    permission: "report.view",
+  },
+  {
+    name: "AI Assistant",
+    icon: "bot",
+    url: "/ai-assistant",
+    children: [
+      { name: "Chatbot", url: "/ai-chatbot", icon: "bot", permission: "ai_chatbot.view" },
+      { name: "Settings", url: "/ai-settings", icon: "settings", permission: "ai_settings.view" },
+    ],
+  },
+];

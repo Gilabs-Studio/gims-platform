@@ -59,6 +59,24 @@ import {
   TrendingDown,
   ShoppingBag,
   Star,
+  Flag,
+  Folder,
+  Award,
+  GraduationCap,
+  UserCog,
+  Landmark,
+  Lock,
+  ClipboardCheck,
+  FileCheck,
+  Wallet,
+  Coins,
+  CalendarCheck,
+  Building,
+  Percent,
+  LayoutList,
+  CheckSquare,
+  Banknote,
+  Hammer,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -66,9 +84,9 @@ const iconMap: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard className="h-4 w-4" />,
   "layout-dashboard": <LayoutDashboard className="h-4 w-4" />,
 
-  // Data Master icons
+  // Data Master / Database icons
   database: <Database className="h-4 w-4" />,
-  building: <Building2 className="h-4 w-4" />,
+  building: <Building className="h-4 w-4" />,
   "building-2": <Building2 className="h-4 w-4" />,
   grid: <Grid className="h-4 w-4" />,
   briefcase: <Briefcase className="h-4 w-4" />,
@@ -127,32 +145,81 @@ const iconMap: Record<string, React.ReactNode> = {
   trendingup: <TrendingUp className="h-4 w-4" />,
   contact: <Contact className="h-4 w-4" />,
 
-  // Other icons
+  // Calendar & Time icons
   calendar: <Calendar className="h-4 w-4" />,
+  "calendar-check": <CalendarCheck className="h-4 w-4" />,
+  calendarcheck: <CalendarCheck className="h-4 w-4" />,
+
+  // File & Document icons
   filetext: <FileText className="h-4 w-4" />,
   "file-text": <FileText className="h-4 w-4" />,
+  "file-check": <FileCheck className="h-4 w-4" />,
+  filecheck: <FileCheck className="h-4 w-4" />,
+
+  // Product & Package icons
   pill: <Pill className="h-4 w-4" />,
   package: <Package className="h-4 w-4" />,
+
+  // Shopping & Commerce icons
   shoppingcart: <ShoppingCart className="h-4 w-4" />,
   "shopping-cart": <ShoppingCart className="h-4 w-4" />,
   receipt: <Receipt className="h-4 w-4" />,
+
+  // Chart & Analytics icons
   barchart3: <BarChart3 className="h-4 w-4" />,
   "bar-chart-3": <BarChart3 className="h-4 w-4" />,
+
+  // Activity & Health icons
   activity: <Activity className="h-4 w-4" />,
   stethoscope: <Stethoscope className="h-4 w-4" />,
+
+  // Clipboard icons
   clipboardlist: <ClipboardList className="h-4 w-4" />,
+  "clipboard-list": <ClipboardList className="h-4 w-4" />,
+  "clipboard-check": <ClipboardCheck className="h-4 w-4" />,
+  clipboardcheck: <ClipboardCheck className="h-4 w-4" />,
+
+  // Warehouse & Logistics icons
   warehouse: <Warehouse className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,
+
+  // Navigation & Location icons
   foldertree: <FolderTree className="h-4 w-4" />,
+  "folder-tree": <FolderTree className="h-4 w-4" />,
   mappin: <MapPin className="h-4 w-4" />,
+  "map-pin": <MapPin className="h-4 w-4" />,
   ruler: <Ruler className="h-4 w-4" />,
   store: <Store className="h-4 w-4" />,
-  "map-pin": <MapPin className="h-4 w-4" />,
-  "clipboard-list": <ClipboardList className="h-4 w-4" />,
+  flag: <Flag className="h-4 w-4" />,
+
+  // AI & Bot icons
   bot: <Bot className="h-4 w-4" />,
   sparkles: <Sparkles className="h-4 w-4" />,
   "ai-chatbot": <Bot className="h-4 w-4" />,
   "ai-settings": <Sparkles className="h-4 w-4" />,
+
+  // Folder & Organization icons
+  folder: <Folder className="h-4 w-4" />,
+
+  // Finance & Money icons
+  landmark: <Landmark className="h-4 w-4" />,
+  wallet: <Wallet className="h-4 w-4" />,
+  coins: <Coins className="h-4 w-4" />,
+
+  // Security icons
+  lock: <Lock className="h-4 w-4" />,
+
+  // HRD & Employee icons
+  "user-cog": <UserCog className="h-4 w-4" />,
+  usercog: <UserCog className="h-4 w-4" />,
+  "graduation-cap": <GraduationCap className="h-4 w-4" />,
+  graduationcap: <GraduationCap className="h-4 w-4" />,
+  award: <Award className="h-4 w-4" />,
+  percent: <Percent className="h-4 w-4" />,
+  "layout-list": <LayoutList className="h-4 w-4" />,
+  "check-square": <CheckSquare className="h-4 w-4" />,
+  banknote: <Banknote className="h-4 w-4" />,
+  hammer: <Hammer className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

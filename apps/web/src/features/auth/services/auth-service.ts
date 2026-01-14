@@ -18,10 +18,7 @@ export const authService = {
     return response.data;
   },
 
-  async getMenus(): Promise<MenusResponse> {
-    const response = await apiClient.get<MenusResponse>("/auth/menus");
-    return response.data;
-  },
+
 
   /**
    * Refresh access token using refresh token cookie.

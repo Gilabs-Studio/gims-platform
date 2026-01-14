@@ -8,7 +8,16 @@ import (
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
 )
 
-// SeedPermissions seeds initial permissions based on the provided structure
+// permissionDef defines a permission with its menu URL, code, name, action, and resource
+type permissionDef struct {
+	menuURL  string
+	code     string
+	name     string
+	action   string
+	resource string
+}
+
+// SeedPermissions seeds initial permissions for all ERP menus
 func SeedPermissions() error {
 	// Check if permissions already exist
 	var count int64
@@ -18,210 +27,451 @@ func SeedPermissions() error {
 		return nil
 	}
 
-	// Get menus
-	var dashboardMenu permission.Menu
-	var userPageMenu permission.Menu
-	var salesCRMMenu, accountsMenu, leadsMenu, pipelineMenu, tasksMenu, productsMenu permission.Menu
-	var visitReportsMenu permission.Menu
-	var reportsMenu permission.Menu
-	var aiMenu, aiChatbotMenu, aiSettingsMenu permission.Menu
+	log.Println("Seeding ERP permissions...")
 
-	// Base path harus sama dengan yang digunakan di menu_seeder (locale-agnostic).
-	basePath := ""
+	// Define all permissions grouped by module
+	permissions := []permissionDef{
+		// Dashboard
+		{"/dashboard", "dashboard.view", "View Dashboard", "VIEW", "dashboard"},
 
-	database.DB.Where("url = ?", basePath+"/dashboard").First(&dashboardMenu)
-	database.DB.Where("url = ?", basePath+"/master-data/users").First(&userPageMenu)
-	database.DB.Where("url = ?", basePath+"/sales-crm").First(&salesCRMMenu)
-	database.DB.Where("url = ?", basePath+"/accounts").First(&accountsMenu)
-	database.DB.Where("url = ?", basePath+"/visit-reports").First(&visitReportsMenu)
-	database.DB.Where("url = ?", basePath+"/ai-assistant").First(&aiMenu)
-	database.DB.Where("url = ?", basePath+"/ai-chatbot").First(&aiChatbotMenu)
-	database.DB.Where("url = ?", basePath+"/ai-settings").First(&aiSettingsMenu)
+		// Master Data - Geographic
+		{"/master-data/countries", "country.read", "View Countries", "VIEW", "country"},
+		{"/master-data/countries", "country.create", "Create Countries", "CREATE", "country"},
+		{"/master-data/countries", "country.update", "Edit Countries", "EDIT", "country"},
+		{"/master-data/countries", "country.delete", "Delete Countries", "DELETE", "country"},
 
-	// Get or create Leads menu
-	if err := database.DB.Where("url = ?", basePath+"/leads").First(&leadsMenu).Error; err != nil {
-		// Leads menu doesn't exist, create it (salesCRMMenu already loaded above)
-		leadsMenu = permission.Menu{
-			Name:     "Lead Management",
-			Icon:     "user-plus",
-			URL:      basePath + "/leads",
-			ParentID: &salesCRMMenu.ID,
-			Order:    2,
-			Status:   "active",
-		}
-		if err := database.DB.Create(&leadsMenu).Error; err != nil {
-			log.Printf("Warning: Failed to create Leads menu: %v", err)
-		} else {
-			log.Printf("Created Leads menu in permission seeder")
-		}
+		{"/master-data/provinces", "province.read", "View Provinces", "VIEW", "province"},
+		{"/master-data/provinces", "province.create", "Create Provinces", "CREATE", "province"},
+		{"/master-data/provinces", "province.update", "Edit Provinces", "EDIT", "province"},
+		{"/master-data/provinces", "province.delete", "Delete Provinces", "DELETE", "province"},
+
+		{"/master-data/cities", "city.read", "View Cities", "VIEW", "city"},
+		{"/master-data/cities", "city.create", "Create Cities", "CREATE", "city"},
+		{"/master-data/cities", "city.update", "Edit Cities", "EDIT", "city"},
+		{"/master-data/cities", "city.delete", "Delete Cities", "DELETE", "city"},
+
+		{"/master-data/districts", "district.read", "View Districts", "VIEW", "district"},
+		{"/master-data/districts", "district.create", "Create Districts", "CREATE", "district"},
+		{"/master-data/districts", "district.update", "Edit Districts", "EDIT", "district"},
+		{"/master-data/districts", "district.delete", "Delete Districts", "DELETE", "district"},
+
+		{"/master-data/villages", "village.read", "View Villages", "VIEW", "village"},
+		{"/master-data/villages", "village.create", "Create Villages", "CREATE", "village"},
+		{"/master-data/villages", "village.update", "Edit Villages", "EDIT", "village"},
+		{"/master-data/villages", "village.delete", "Delete Villages", "DELETE", "village"},
+
+		// Master Data - Organization
+		{"/master-data/company", "company.read", "View Company", "VIEW", "company"},
+		{"/master-data/company", "company.create", "Create Company", "CREATE", "company"},
+		{"/master-data/company", "company.update", "Edit Company", "EDIT", "company"},
+		{"/master-data/company", "company.delete", "Delete Company", "DELETE", "company"},
+		{"/master-data/company", "company.approve", "Approve Company", "APPROVE", "company"},
+
+		{"/master-data/divisions", "division.read", "View Divisions", "VIEW", "division"},
+		{"/master-data/divisions", "division.create", "Create Divisions", "CREATE", "division"},
+		{"/master-data/divisions", "division.update", "Edit Divisions", "EDIT", "division"},
+		{"/master-data/divisions", "division.delete", "Delete Divisions", "DELETE", "division"},
+
+		{"/master-data/job-positions", "job_position.read", "View Job Positions", "VIEW", "job_position"},
+		{"/master-data/job-positions", "job_position.create", "Create Job Positions", "CREATE", "job_position"},
+		{"/master-data/job-positions", "job_position.update", "Edit Job Positions", "EDIT", "job_position"},
+		{"/master-data/job-positions", "job_position.delete", "Delete Job Positions", "DELETE", "job_position"},
+
+		{"/master-data/business-units", "business_unit.read", "View Business Units", "VIEW", "business_unit"},
+		{"/master-data/business-units", "business_unit.create", "Create Business Units", "CREATE", "business_unit"},
+		{"/master-data/business-units", "business_unit.update", "Edit Business Units", "EDIT", "business_unit"},
+		{"/master-data/business-units", "business_unit.delete", "Delete Business Units", "DELETE", "business_unit"},
+
+		{"/master-data/business-types", "business_type.read", "View Business Types", "VIEW", "business_type"},
+		{"/master-data/business-types", "business_type.create", "Create Business Types", "CREATE", "business_type"},
+		{"/master-data/business-types", "business_type.update", "Edit Business Types", "EDIT", "business_type"},
+		{"/master-data/business-types", "business_type.delete", "Delete Business Types", "DELETE", "business_type"},
+
+		{"/master-data/areas", "area.read", "View Areas", "VIEW", "area"},
+		{"/master-data/areas", "area.create", "Create Areas", "CREATE", "area"},
+		{"/master-data/areas", "area.update", "Edit Areas", "EDIT", "area"},
+		{"/master-data/areas", "area.delete", "Delete Areas", "DELETE", "area"},
+
+		{"/master-data/area-supervisors", "area_supervisor.read", "View Area Supervisors", "VIEW", "area_supervisor"},
+		{"/master-data/area-supervisors", "area_supervisor.create", "Create Area Supervisors", "CREATE", "area_supervisor"},
+		{"/master-data/area-supervisors", "area_supervisor.update", "Edit Area Supervisors", "EDIT", "area_supervisor"},
+		{"/master-data/area-supervisors", "area_supervisor.delete", "Delete Area Supervisors", "DELETE", "area_supervisor"},
+
+		// Master Data - Employee
+		{"/master-data/employees", "employee.read", "View Employees", "VIEW", "employee"},
+		{"/master-data/employees", "employee.create", "Create Employees", "CREATE", "employee"},
+		{"/master-data/employees", "employee.update", "Edit Employees", "EDIT", "employee"},
+		{"/master-data/employees", "employee.delete", "Delete Employees", "DELETE", "employee"},
+		{"/master-data/employees", "employee.approve", "Approve Employees", "APPROVE", "employee"},
+
+		// Master Data - Supplier
+		{"/master-data/suppliers", "supplier.read", "View Suppliers", "VIEW", "supplier"},
+		{"/master-data/suppliers", "supplier.create", "Create Suppliers", "CREATE", "supplier"},
+		{"/master-data/suppliers", "supplier.update", "Edit Suppliers", "EDIT", "supplier"},
+		{"/master-data/suppliers", "supplier.delete", "Delete Suppliers", "DELETE", "supplier"},
+		{"/master-data/suppliers", "supplier.approve", "Approve Suppliers", "APPROVE", "supplier"},
+
+		{"/master-data/supplier-types", "supplier_type.read", "View Supplier Types", "VIEW", "supplier_type"},
+		{"/master-data/supplier-types", "supplier_type.create", "Create Supplier Types", "CREATE", "supplier_type"},
+		{"/master-data/supplier-types", "supplier_type.update", "Edit Supplier Types", "EDIT", "supplier_type"},
+		{"/master-data/supplier-types", "supplier_type.delete", "Delete Supplier Types", "DELETE", "supplier_type"},
+
+		{"/master-data/banks", "bank.read", "View Banks", "VIEW", "bank"},
+		{"/master-data/banks", "bank.create", "Create Banks", "CREATE", "bank"},
+		{"/master-data/banks", "bank.update", "Edit Banks", "EDIT", "bank"},
+		{"/master-data/banks", "bank.delete", "Delete Banks", "DELETE", "bank"},
+
+		// Master Data - Product
+		{"/master-data/products", "product.read", "View Products", "VIEW", "product"},
+		{"/master-data/products", "product.create", "Create Products", "CREATE", "product"},
+		{"/master-data/products", "product.update", "Edit Products", "EDIT", "product"},
+		{"/master-data/products", "product.delete", "Delete Products", "DELETE", "product"},
+		{"/master-data/products", "product.approve", "Approve Products", "APPROVE", "product"},
+
+		{"/master-data/product-categories", "product_category.read", "View Product Categories", "VIEW", "product_category"},
+		{"/master-data/product-categories", "product_category.create", "Create Product Categories", "CREATE", "product_category"},
+		{"/master-data/product-categories", "product_category.update", "Edit Product Categories", "EDIT", "product_category"},
+		{"/master-data/product-categories", "product_category.delete", "Delete Product Categories", "DELETE", "product_category"},
+
+		{"/master-data/product-brands", "product_brand.read", "View Product Brands", "VIEW", "product_brand"},
+		{"/master-data/product-brands", "product_brand.create", "Create Product Brands", "CREATE", "product_brand"},
+		{"/master-data/product-brands", "product_brand.update", "Edit Product Brands", "EDIT", "product_brand"},
+		{"/master-data/product-brands", "product_brand.delete", "Delete Product Brands", "DELETE", "product_brand"},
+
+		{"/master-data/product-segments", "product_segment.read", "View Product Segments", "VIEW", "product_segment"},
+		{"/master-data/product-segments", "product_segment.create", "Create Product Segments", "CREATE", "product_segment"},
+		{"/master-data/product-segments", "product_segment.update", "Edit Product Segments", "EDIT", "product_segment"},
+		{"/master-data/product-segments", "product_segment.delete", "Delete Product Segments", "DELETE", "product_segment"},
+
+		{"/master-data/product-types", "product_type.read", "View Product Types", "VIEW", "product_type"},
+		{"/master-data/product-types", "product_type.create", "Create Product Types", "CREATE", "product_type"},
+		{"/master-data/product-types", "product_type.update", "Edit Product Types", "EDIT", "product_type"},
+		{"/master-data/product-types", "product_type.delete", "Delete Product Types", "DELETE", "product_type"},
+
+		{"/master-data/packaging", "packaging.read", "View Packaging", "VIEW", "packaging"},
+		{"/master-data/packaging", "packaging.create", "Create Packaging", "CREATE", "packaging"},
+		{"/master-data/packaging", "packaging.update", "Edit Packaging", "EDIT", "packaging"},
+		{"/master-data/packaging", "packaging.delete", "Delete Packaging", "DELETE", "packaging"},
+
+		{"/master-data/uom", "uom.read", "View Units of Measure", "VIEW", "uom"},
+		{"/master-data/uom", "uom.create", "Create Units of Measure", "CREATE", "uom"},
+		{"/master-data/uom", "uom.update", "Edit Units of Measure", "EDIT", "uom"},
+		{"/master-data/uom", "uom.delete", "Delete Units of Measure", "DELETE", "uom"},
+
+		{"/master-data/procurement-types", "procurement_type.read", "View Procurement Types", "VIEW", "procurement_type"},
+		{"/master-data/procurement-types", "procurement_type.create", "Create Procurement Types", "CREATE", "procurement_type"},
+		{"/master-data/procurement-types", "procurement_type.update", "Edit Procurement Types", "EDIT", "procurement_type"},
+		{"/master-data/procurement-types", "procurement_type.delete", "Delete Procurement Types", "DELETE", "procurement_type"},
+
+		// Master Data - Warehouse
+		{"/master-data/warehouses", "warehouse.read", "View Warehouses", "VIEW", "warehouse"},
+		{"/master-data/warehouses", "warehouse.create", "Create Warehouses", "CREATE", "warehouse"},
+		{"/master-data/warehouses", "warehouse.update", "Edit Warehouses", "EDIT", "warehouse"},
+		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
+
+		// Master Data - Payment & Courier
+		{"/master-data/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.delete", "Delete Payment Terms", "DELETE", "payment_term"},
+
+		{"/master-data/courier-agencies", "courier_agency.read", "View Courier Agencies", "VIEW", "courier_agency"},
+		{"/master-data/courier-agencies", "courier_agency.create", "Create Courier Agencies", "CREATE", "courier_agency"},
+		{"/master-data/courier-agencies", "courier_agency.update", "Edit Courier Agencies", "EDIT", "courier_agency"},
+		{"/master-data/courier-agencies", "courier_agency.delete", "Delete Courier Agencies", "DELETE", "courier_agency"},
+
+		{"/master-data/so-sources", "so_source.read", "View SO Sources", "VIEW", "so_source"},
+		{"/master-data/so-sources", "so_source.create", "Create SO Sources", "CREATE", "so_source"},
+		{"/master-data/so-sources", "so_source.update", "Edit SO Sources", "EDIT", "so_source"},
+		{"/master-data/so-sources", "so_source.delete", "Delete SO Sources", "DELETE", "so_source"},
+
+		// Master Data - Leave Types
+		{"/master-data/leave-types", "leave_type.read", "View Leave Types", "VIEW", "leave_type"},
+		{"/master-data/leave-types", "leave_type.create", "Create Leave Types", "CREATE", "leave_type"},
+		{"/master-data/leave-types", "leave_type.update", "Edit Leave Types", "EDIT", "leave_type"},
+		{"/master-data/leave-types", "leave_type.delete", "Delete Leave Types", "DELETE", "leave_type"},
+
+		// Master Data - Users (RBAC)
+		{"/master-data/users", "user.read", "View Users", "VIEW", "user"},
+		{"/master-data/users", "user.create", "Create Users", "CREATE", "user"},
+		{"/master-data/users", "user.update", "Edit Users", "EDIT", "user"},
+		{"/master-data/users", "user.delete", "Delete Users", "DELETE", "user"},
+		{"/master-data/users", "role.read", "View Roles", "VIEW", "role"},
+		{"/master-data/users", "role.create", "Create Roles", "CREATE", "role"},
+		{"/master-data/users", "role.update", "Update Roles", "EDIT", "role"},
+		{"/master-data/users", "role.delete", "Delete Roles", "DELETE", "role"},
+		{"/master-data/users", "role.assign_permissions", "Assign Permissions", "ASSIGN", "role"},
+		{"/master-data/users", "permission.read", "View Permissions", "VIEW", "permission"},
+
+		// Sales
+		{"/sales/quotations", "sales_quotation.read", "View Sales Quotations", "VIEW", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.create", "Create Sales Quotations", "CREATE", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.update", "Edit Sales Quotations", "EDIT", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.delete", "Delete Sales Quotations", "DELETE", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.approve", "Approve Sales Quotations", "APPROVE", "sales_quotation"},
+
+		{"/sales/orders", "sales_order.read", "View Sales Orders", "VIEW", "sales_order"},
+		{"/sales/orders", "sales_order.create", "Create Sales Orders", "CREATE", "sales_order"},
+		{"/sales/orders", "sales_order.update", "Edit Sales Orders", "EDIT", "sales_order"},
+		{"/sales/orders", "sales_order.delete", "Delete Sales Orders", "DELETE", "sales_order"},
+		{"/sales/orders", "sales_order.approve", "Approve Sales Orders", "APPROVE", "sales_order"},
+
+		{"/sales/delivery-orders", "delivery_order.read", "View Delivery Orders", "VIEW", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.update", "Edit Delivery Orders", "EDIT", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.delete", "Delete Delivery Orders", "DELETE", "delivery_order"},
+
+		{"/sales/invoices", "customer_invoice.read", "View Customer Invoices", "VIEW", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.create", "Create Customer Invoices", "CREATE", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.update", "Edit Customer Invoices", "EDIT", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
+
+		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
+		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
+		{"/sales/visits", "sales_visit.update", "Edit Sales Visits", "EDIT", "sales_visit"},
+		{"/sales/visits", "sales_visit.delete", "Delete Sales Visits", "DELETE", "sales_visit"},
+		{"/sales/visits", "sales_visit.approve", "Approve Sales Visits", "APPROVE", "sales_visit"},
+
+		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
+
+		{"/sales/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
+		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
+		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
+		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+
+		// Purchase
+		{"/purchase/requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
+		{"/purchase/requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
+		{"/purchase/requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
+		{"/purchase/requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
+		{"/purchase/requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
+
+		{"/purchase/orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
+		{"/purchase/orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
+		{"/purchase/orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
+		{"/purchase/orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
+		{"/purchase/orders", "purchase_order.approve", "Approve Purchase Orders", "APPROVE", "purchase_order"},
+
+		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.create", "Create Goods Receipts", "CREATE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.update", "Edit Goods Receipts", "EDIT", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.delete", "Delete Goods Receipts", "DELETE", "goods_receipt"},
+
+		{"/purchase/invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
+		{"/purchase/invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
+		{"/purchase/invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
+		{"/purchase/invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
+
+		// Stock
+		{"/stock/inventory", "inventory.read", "View Inventory", "VIEW", "inventory"},
+		{"/stock/inventory", "inventory.create", "Create Inventory", "CREATE", "inventory"},
+		{"/stock/inventory", "inventory.update", "Edit Inventory", "EDIT", "inventory"},
+		{"/stock/inventory", "inventory.delete", "Delete Inventory", "DELETE", "inventory"},
+
+		{"/stock/movements", "stock_movement.read", "View Stock Movements", "VIEW", "stock_movement"},
+		{"/stock/movements", "stock_movement.create", "Create Stock Movements", "CREATE", "stock_movement"},
+		{"/stock/movements", "stock_movement.update", "Edit Stock Movements", "EDIT", "stock_movement"},
+
+		{"/stock/opname", "stock_opname.read", "View Stock Opname", "VIEW", "stock_opname"},
+		{"/stock/opname", "stock_opname.create", "Create Stock Opname", "CREATE", "stock_opname"},
+		{"/stock/opname", "stock_opname.update", "Edit Stock Opname", "EDIT", "stock_opname"},
+		{"/stock/opname", "stock_opname.approve", "Approve Stock Opname", "APPROVE", "stock_opname"},
+
+		// Finance
+		{"/finance/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},
+		{"/finance/coa", "coa.create", "Create Chart of Accounts", "CREATE", "coa"},
+		{"/finance/coa", "coa.update", "Edit Chart of Accounts", "EDIT", "coa"},
+		{"/finance/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
+
+		{"/finance/journals", "journal.read", "View Journal Entries", "VIEW", "journal"},
+		{"/finance/journals", "journal.create", "Create Journal Entries", "CREATE", "journal"},
+		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
+		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
+		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
+
+		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
+
+		{"/finance/payments", "payment.read", "View Payments", "VIEW", "payment"},
+		{"/finance/payments", "payment.create", "Create Payments", "CREATE", "payment"},
+		{"/finance/payments", "payment.update", "Edit Payments", "EDIT", "payment"},
+		{"/finance/payments", "payment.delete", "Delete Payments", "DELETE", "payment"},
+		{"/finance/payments", "payment.approve", "Approve Payments", "APPROVE", "payment"},
+
+		{"/finance/tax-invoices", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
+		{"/finance/tax-invoices", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
+		{"/finance/tax-invoices", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
+		{"/finance/tax-invoices", "tax_invoice.delete", "Delete Tax Invoices", "DELETE", "tax_invoice"},
+
+		{"/finance/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
+
+		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
+		{"/finance/budget", "budget.create", "Create Budget", "CREATE", "budget"},
+		{"/finance/budget", "budget.update", "Edit Budget", "EDIT", "budget"},
+		{"/finance/budget", "budget.delete", "Delete Budget", "DELETE", "budget"},
+		{"/finance/budget", "budget.approve", "Approve Budget", "APPROVE", "budget"},
+
+		{"/finance/cash-bank", "cash_bank.read", "View Cash Bank Journal", "VIEW", "cash_bank"},
+		{"/finance/cash-bank", "cash_bank.create", "Create Cash Bank Journal", "CREATE", "cash_bank"},
+		{"/finance/cash-bank", "cash_bank.update", "Edit Cash Bank Journal", "EDIT", "cash_bank"},
+		{"/finance/cash-bank", "cash_bank.delete", "Delete Cash Bank Journal", "DELETE", "cash_bank"},
+
+		{"/finance/closing", "financial_closing.read", "View Financial Closing", "VIEW", "financial_closing"},
+		{"/finance/closing", "financial_closing.create", "Create Financial Closing", "CREATE", "financial_closing"},
+		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
+
+		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
+		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
+		{"/finance/assets", "asset.update", "Edit Assets", "EDIT", "asset"},
+		{"/finance/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
+		{"/finance/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
+
+		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.delete", "Delete Up Country Cost", "DELETE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.approve", "Approve Up Country Cost", "APPROVE", "up_country_cost"},
+
+		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
+		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
+		{"/finance/salary", "salary.update", "Edit Salary", "EDIT", "salary"},
+		{"/finance/salary", "salary.delete", "Delete Salary", "DELETE", "salary"},
+
+		// HRD
+		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
+		{"/hrd/attendance", "attendance.create", "Create Attendance", "CREATE", "attendance"},
+		{"/hrd/attendance", "attendance.update", "Edit Attendance", "EDIT", "attendance"},
+		{"/hrd/attendance", "attendance.delete", "Delete Attendance", "DELETE", "attendance"},
+
+		{"/hrd/leave-requests", "leave_request.read", "View Leave Requests", "VIEW", "leave_request"},
+		{"/hrd/leave-requests", "leave_request.create", "Create Leave Requests", "CREATE", "leave_request"},
+		{"/hrd/leave-requests", "leave_request.update", "Edit Leave Requests", "EDIT", "leave_request"},
+		{"/hrd/leave-requests", "leave_request.delete", "Delete Leave Requests", "DELETE", "leave_request"},
+		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
+		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
+
+		{"/hrd/contracts", "employee_contract.read", "View Employee Contracts", "VIEW", "employee_contract"},
+		{"/hrd/contracts", "employee_contract.create", "Create Employee Contracts", "CREATE", "employee_contract"},
+		{"/hrd/contracts", "employee_contract.update", "Edit Employee Contracts", "EDIT", "employee_contract"},
+		{"/hrd/contracts", "employee_contract.delete", "Delete Employee Contracts", "DELETE", "employee_contract"},
+
+		{"/hrd/education", "education_history.read", "View Education History", "VIEW", "education_history"},
+		{"/hrd/education", "education_history.create", "Create Education History", "CREATE", "education_history"},
+		{"/hrd/education", "education_history.update", "Edit Education History", "EDIT", "education_history"},
+		{"/hrd/education", "education_history.delete", "Delete Education History", "DELETE", "education_history"},
+
+		{"/hrd/certifications", "certification.read", "View Certifications", "VIEW", "certification"},
+		{"/hrd/certifications", "certification.create", "Create Certifications", "CREATE", "certification"},
+		{"/hrd/certifications", "certification.update", "Edit Certifications", "EDIT", "certification"},
+		{"/hrd/certifications", "certification.delete", "Delete Certifications", "DELETE", "certification"},
+
+		{"/hrd/employee-assets", "employee_asset.read", "View Employee Assets", "VIEW", "employee_asset"},
+		{"/hrd/employee-assets", "employee_asset.create", "Create Employee Assets", "CREATE", "employee_asset"},
+		{"/hrd/employee-assets", "employee_asset.update", "Edit Employee Assets", "EDIT", "employee_asset"},
+		{"/hrd/employee-assets", "employee_asset.delete", "Delete Employee Assets", "DELETE", "employee_asset"},
+
+		{"/hrd/evaluation", "evaluation.read", "View Evaluations", "VIEW", "evaluation"},
+		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
+		{"/hrd/evaluation", "evaluation.update", "Edit Evaluations", "EDIT", "evaluation"},
+		{"/hrd/evaluation", "evaluation.delete", "Delete Evaluations", "DELETE", "evaluation"},
+
+		{"/hrd/recruitment", "recruitment.read", "View Recruitment", "VIEW", "recruitment"},
+		{"/hrd/recruitment", "recruitment.create", "Create Recruitment", "CREATE", "recruitment"},
+		{"/hrd/recruitment", "recruitment.update", "Edit Recruitment", "EDIT", "recruitment"},
+		{"/hrd/recruitment", "recruitment.delete", "Delete Recruitment", "DELETE", "recruitment"},
+		{"/hrd/recruitment", "recruitment.approve", "Approve Recruitment", "APPROVE", "recruitment"},
+
+		{"/hrd/work-schedule", "work_schedule.read", "View Work Schedule", "VIEW", "work_schedule"},
+		{"/hrd/work-schedule", "work_schedule.create", "Create Work Schedule", "CREATE", "work_schedule"},
+		{"/hrd/work-schedule", "work_schedule.update", "Edit Work Schedule", "EDIT", "work_schedule"},
+		{"/hrd/work-schedule", "work_schedule.delete", "Delete Work Schedule", "DELETE", "work_schedule"},
+
+		{"/hrd/holidays", "holiday.read", "View Holidays", "VIEW", "holiday"},
+		{"/hrd/holidays", "holiday.create", "Create Holidays", "CREATE", "holiday"},
+		{"/hrd/holidays", "holiday.update", "Edit Holidays", "EDIT", "holiday"},
+		{"/hrd/holidays", "holiday.delete", "Delete Holidays", "DELETE", "holiday"},
+
+		// Reports
+		{"/reports", "report.view", "View Reports", "VIEW", "report"},
+		{"/reports", "report.generate", "Generate Reports", "CREATE", "report"},
+		{"/reports", "report.export", "Export Reports", "EXPORT", "report"},
+
+		// AI Assistant
+		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
+		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
+		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
 	}
 
-	// Get or create Pipeline menu
-	if err := database.DB.Where("url = ?", basePath+"/pipeline").First(&pipelineMenu).Error; err != nil {
-		// Pipeline menu doesn't exist, create it (salesCRMMenu already loaded above)
-		pipelineMenu = permission.Menu{
-			Name:     "Pipeline",
-			Icon:     "trending-up",
-			URL:      basePath + "/pipeline",
-			ParentID: &salesCRMMenu.ID,
-			Order:    3,
-			Status:   "active",
-		}
-		if err := database.DB.Create(&pipelineMenu).Error; err != nil {
-			log.Printf("Warning: Failed to create Pipeline menu: %v", err)
-		} else {
-			log.Printf("Created Pipeline menu in permission seeder")
-		}
+	// Build menu URL to ID map
+	menuMap := make(map[string]string)
+	var allMenus []permission.Menu
+	if err := database.DB.Find(&allMenus).Error; err != nil {
+		return err
 	}
-	database.DB.Where("url = ?", basePath+"/tasks").First(&tasksMenu)
-	database.DB.Where("url = ?", basePath+"/products").First(&productsMenu)
-	database.DB.Where("url = ?", basePath+"/reports").First(&reportsMenu)
-
-	// Define actions for each menu
-	actions := []struct {
-		menuID   string
-		code     string
-		name     string
-		action   string
-		resource string // Added resource field
-		menu     *permission.Menu
-	}{
-		// Dashboard actions
-		{dashboardMenu.ID, "dashboard.view", "View Dashboard", "VIEW", "dashboard", &dashboardMenu},
-
-		// Users page actions
-		{userPageMenu.ID, "user.read", "View Users", "VIEW", "user", &userPageMenu},
-		{userPageMenu.ID, "user.create", "Create Users", "CREATE", "user", &userPageMenu},
-		{userPageMenu.ID, "user.update", "Edit Users", "EDIT", "user", &userPageMenu},
-		{userPageMenu.ID, "user.delete", "Delete Users", "DELETE", "user", &userPageMenu},
-		
-		// Roles & Permissions (managed under users usually or separate)
-		{userPageMenu.ID, "role.read", "View Roles", "VIEW", "role", &userPageMenu},
-		{userPageMenu.ID, "role.create", "Create Roles", "CREATE", "role", &userPageMenu},
-		{userPageMenu.ID, "role.update", "Update Roles", "EDIT", "role", &userPageMenu},
-		{userPageMenu.ID, "role.delete", "Delete Roles", "DELETE", "role", &userPageMenu},
-		{userPageMenu.ID, "role.assign_permissions", "Assign Permissions", "ASSIGN", "role", &userPageMenu},
-		{userPageMenu.ID, "permission.read", "View Permissions", "VIEW", "permission", &userPageMenu},
-
-		// Sales CRM actions
-		{salesCRMMenu.ID, "sales_crm.view", "View Sales CRM", "VIEW", "sales_crm", &salesCRMMenu},
-
-		// Accounts actions
-		{accountsMenu.ID, "account.read", "View Accounts", "VIEW", "account", &accountsMenu},
-		{accountsMenu.ID, "account.create", "Create Accounts", "CREATE", "account", &accountsMenu},
-		{accountsMenu.ID, "account.update", "Edit Accounts", "EDIT", "account", &accountsMenu},
-		{accountsMenu.ID, "account.delete", "Delete Accounts", "DELETE", "account", &accountsMenu},
-		// {accountsMenu.ID, "account.detail", "Detail Accounts", "DETAIL", "account", &accountsMenu}, // Covered by read usually
-		{accountsMenu.ID, "category.manage", "Manage Categories", "CATEGORY", "category", &accountsMenu},
-		{accountsMenu.ID, "contact_role.manage", "Manage Contact Roles", "ROLE", "contact_role", &accountsMenu},
-
-		// Leads actions
-		{leadsMenu.ID, "lead.read", "View Leads", "VIEW", "lead", &leadsMenu},
-		{leadsMenu.ID, "lead.create", "Create Leads", "CREATE", "lead", &leadsMenu},
-		{leadsMenu.ID, "lead.update", "Edit Leads", "EDIT", "lead", &leadsMenu},
-		{leadsMenu.ID, "lead.delete", "Delete Leads", "DELETE", "lead", &leadsMenu},
-		{leadsMenu.ID, "lead.convert", "Convert Leads", "CONVERT", "lead", &leadsMenu},
-		// {leadsMenu.ID, "lead.create_account", "Create Account From Lead", "CREATE_ACCOUNT", "lead", &leadsMenu},
-		{leadsMenu.ID, "lead.analytics", "View Lead Analytics", "ANALYTICS", "lead", &leadsMenu},
-
-		// Pipeline actions
-		{pipelineMenu.ID, "pipeline.view", "View Pipeline", "VIEW", "pipeline", &pipelineMenu},
-		{pipelineMenu.ID, "deal.create", "Create Deals", "CREATE", "deal", &pipelineMenu},
-		{pipelineMenu.ID, "deal.update", "Edit Deals", "EDIT", "deal", &pipelineMenu},
-		{pipelineMenu.ID, "deal.delete", "Delete Deals", "DELETE", "deal", &pipelineMenu},
-		{pipelineMenu.ID, "deal.move", "Move Deals", "MOVE", "deal", &pipelineMenu},
-		{pipelineMenu.ID, "deal_summary.view", "View Summary", "SUMMARY", "deal_summary", &pipelineMenu},
-		{pipelineMenu.ID, "deal_forecast.view", "View Forecast", "FORECAST", "deal_forecast", &pipelineMenu},
-		{pipelineMenu.ID, "pipeline_stage.manage", "Manage Pipeline Stages", "STAGES", "pipeline_stage", &pipelineMenu},
-
-		// Task & Reminder actions
-		{tasksMenu.ID, "task.read", "View Tasks", "VIEW", "task", &tasksMenu},
-		{tasksMenu.ID, "task.create", "Create Tasks", "CREATE", "task", &tasksMenu},
-		{tasksMenu.ID, "task.update", "Edit Tasks", "EDIT", "task", &tasksMenu},
-		{tasksMenu.ID, "task.delete", "Delete Tasks", "DELETE", "task", &tasksMenu},
-		{tasksMenu.ID, "task.assign", "Assign Tasks", "ASSIGN", "task", &tasksMenu},
-
-		// Visit Reports actions
-		{visitReportsMenu.ID, "visit_report.read", "View Visit Reports", "VIEW", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "visit_report.create", "Create Visit Reports", "CREATE", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "visit_report.update", "Edit Visit Reports", "EDIT", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "visit_report.delete", "Delete Visit Reports", "DELETE", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "visit_report.approve", "Approve Visit Reports", "APPROVE", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "visit_report.reject", "Reject Visit Reports", "REJECT", "visit_report", &visitReportsMenu},
-		{visitReportsMenu.ID, "activity_type.manage", "Manage Activity Types", "ACTIVITY", "activity_type", &visitReportsMenu},
-
-		// Products actions
-		{productsMenu.ID, "product.read", "View Products", "VIEW", "product", &productsMenu},
-		{productsMenu.ID, "product.create", "Create Products", "CREATE", "product", &productsMenu},
-		{productsMenu.ID, "product.update", "Edit Products", "EDIT", "product", &productsMenu},
-		{productsMenu.ID, "product.delete", "Delete Products", "DELETE", "product", &productsMenu},
-
-		// Product Categories actions
-		{productsMenu.ID, "product_category.read", "View Product Categories", "VIEW", "product_category", &productsMenu},
-		{productsMenu.ID, "product_category.create", "Create Product Categories", "CREATE", "product_category", &productsMenu},
-		{productsMenu.ID, "product_category.update", "Edit Product Categories", "EDIT", "product_category", &productsMenu},
-		{productsMenu.ID, "product_category.delete", "Delete Product Categories", "DELETE", "product_category", &productsMenu},
-
-		// Reports actions
-		{reportsMenu.ID, "report.view", "View Reports", "VIEW", "report", &reportsMenu},
-		{reportsMenu.ID, "report.generate", "Generate Reports", "CREATE", "report", &reportsMenu},
-		{reportsMenu.ID, "report.export", "Export Reports", "EXPORT", "report", &reportsMenu},
-
-		// AI Chatbot actions
-		{aiChatbotMenu.ID, "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot", &aiChatbotMenu},
-
-		// AI Settings actions
-		{aiSettingsMenu.ID, "ai_settings.view", "View AI Settings", "VIEW", "ai_settings", &aiSettingsMenu},
-		{aiSettingsMenu.ID, "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings", &aiSettingsMenu},
+	for _, m := range allMenus {
+		menuMap[m.URL] = m.ID
 	}
 
 	// Create permissions
 	var permissionIDs []string
-	for _, act := range actions {
+	for _, p := range permissions {
+		menuID, exists := menuMap[p.menuURL]
+		if !exists {
+			log.Printf("Warning: Menu not found for URL %s, skipping permission %s", p.menuURL, p.code)
+			continue
+		}
+
 		perm := permission.Permission{
-			Name:     act.name,
-			Code:     act.code,
-			MenuID:   &act.menuID,
-			Action:   act.action,
-			Resource: act.resource, // Populate Resource
+			Name:     p.name,
+			Code:     p.code,
+			MenuID:   &menuID,
+			Action:   p.action,
+			Resource: p.resource,
 		}
 		if err := database.DB.Create(&perm).Error; err != nil {
-			return err
+			log.Printf("Warning: Failed to create permission %s: %v", p.code, err)
+			continue
 		}
 		permissionIDs = append(permissionIDs, perm.ID)
-		log.Printf("Created permission: %s (%s)", perm.Name, perm.Code)
 	}
+
+	log.Printf("Created %d permissions", len(permissionIDs))
 
 	// Assign all permissions to admin role
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
-		return err
-	}
-
-	// Assign all permissions to admin
-	for _, permID := range permissionIDs {
-		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-			adminRole.ID, permID,
-		).Error; err != nil {
-			return err
+		log.Printf("Warning: Admin role not found: %v", err)
+	} else {
+		for _, permID := range permissionIDs {
+			if err := database.DB.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+				adminRole.ID, permID,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign permission to admin: %v", err)
+			}
 		}
+		log.Printf("Assigned %d permissions to admin role", len(permissionIDs))
 	}
 
-	log.Printf("Assigned %d permissions to admin role", len(permissionIDs))
-
-	// Always sync all permissions to admin role (even if permissions already exist)
+	// Sync all permissions to admin role
 	if err := SyncAdminPermissions(); err != nil {
 		log.Printf("Warning: Failed to sync admin permissions: %v", err)
 	}
 
-	// Assign VIEW permissions only to viewer role (read-only access)
+	// Assign VIEW permissions to viewer role
 	var viewerRole role.Role
 	if err := database.DB.Where("code = ?", "viewer").First(&viewerRole).Error; err == nil {
-		// Get all VIEW permissions only
 		var viewPermissions []permission.Permission
 		if err := database.DB.Where("action = ?", "VIEW").Find(&viewPermissions).Error; err == nil {
-			viewerPermissionCount := 0
+			viewerCount := 0
 			for _, perm := range viewPermissions {
 				if err := database.DB.Exec(
 					"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
@@ -229,34 +479,29 @@ func SeedPermissions() error {
 				).Error; err != nil {
 					log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
 				} else {
-					viewerPermissionCount++
+					viewerCount++
 				}
 			}
-			log.Printf("Assigned %d VIEW permissions to viewer role", viewerPermissionCount)
+			log.Printf("Assigned %d VIEW permissions to viewer role", viewerCount)
 		}
-	} else {
-		log.Printf("Warning: Viewer role not found, skipping viewer permission assignment: %v", err)
 	}
 
-	log.Println("Permissions seeded successfully")
+	log.Println("ERP permissions seeded successfully")
 	return nil
 }
 
 // SyncAdminPermissions syncs all existing permissions to admin role
-// This ensures admin always has access to all permissions, including newly added ones
 func SyncAdminPermissions() error {
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
 		return err
 	}
 
-	// Get all permissions from database
 	var allPermissions []permission.Permission
 	if err := database.DB.Find(&allPermissions).Error; err != nil {
 		return err
 	}
 
-	// Assign all permissions to admin (skip if already exists)
 	assignedCount := 0
 	for _, perm := range allPermissions {
 		if err := database.DB.Exec(
