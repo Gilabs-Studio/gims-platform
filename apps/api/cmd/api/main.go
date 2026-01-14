@@ -236,10 +236,10 @@ func main() {
 		coreRouter.RegisterUploadRoutes(v1, jwtManager, permissionService)
 
 		// Geographic module (Sprint 1)
-		geographicPresentation.RegisterRoutes(r, v1, database.DB)
+		geographicPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Organization module (Sprint 2)
-		organizationPresentation.RegisterRoutes(r, v1, database.DB)
+		organizationPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

@@ -225,6 +225,9 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
           toast.error(msg.title, { description: msg.description });
+          import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
+            useAuthStore.getState().setUser(null);
+          });
           setTimeout(() => {
             window.location.href = "/";
           }, 1000);
@@ -291,6 +294,9 @@ apiClient.interceptors.response.use(
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
               toast.error(msg.title, { description: msg.description });
+              import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
+                useAuthStore.getState().setUser(null);
+              });
               setTimeout(() => {
                 window.location.href = "/";
               }, 1000);

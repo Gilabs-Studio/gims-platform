@@ -29,11 +29,11 @@ export function useValidateRole() {
         return { is_valid: false };
       }
 
-      // Validate by checking menus endpoint
+      // Validate by checking permissions endpoint
       // If it returns 404 or 401, role is invalid
       try {
-        const { authService } = await import("../services/auth-service");
-        await authService.getMenus();
+        const { userService } = await import("@/features/master-data/user-management/user/services/user-service");
+        await userService.getPermissions(user.id);
         return { is_valid: true };
       } catch (error: unknown) {
         // Check if error is 404 or 401
@@ -61,7 +61,7 @@ export function useValidateRole() {
         return { is_valid: true };
       }
     },
-    enabled: !!user?.id && !!user?.roles && user.roles.length > 0,
+    enabled: !!user?.id && !!user?.role,
     refetchInterval: 30000, // Check every 30 seconds
     retry: (failureCount, error) => {
       // Don't retry on auth errors
@@ -88,7 +88,7 @@ export function useValidateRole() {
     }
 
     // Only validate if user is authenticated
-    if (!user?.id || !user?.roles || user.roles.length === 0) {
+    if (!user?.id || !user?.role) {
       return;
     }
 
@@ -102,7 +102,7 @@ export function useValidateRole() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [user?.id, user?.roles, refetch]);
+  }, [user?.id, user?.role, refetch]);
 
   useEffect(() => {
     // Don't redirect on initial load or if still loading
@@ -112,8 +112,7 @@ export function useValidateRole() {
       validationData && 
       !validationData.is_valid && 
       lastValidatedRef.current === true && // Must be explicitly true, not null
-      user?.roles && 
-      user.roles.length > 0 // Only redirect if user actually has roles (prevents false positives)
+      user?.role // Only redirect if user actually has role (prevents false positives)
     ) {
       lastValidatedRef.current = false;
 
@@ -142,11 +141,8 @@ export function useValidateRole() {
       }
     } else if (validationData?.is_valid) {
       lastValidatedRef.current = true;
-    } else if (validationData && !validationData.is_valid && lastValidatedRef.current === null) {
-      // First validation failed, but don't redirect yet (might be temporary error)
-      // Don't set lastValidatedRef to false yet - wait for retry or next validation
     }
-  }, [validationData, pathname, router, t, user?.roles, isValidating, validationError]);
+  }, [validationData, pathname, router, t, user?.role, isValidating, validationError]);
 
   // Return isValid based on validationData
   // If validationData is undefined (still loading), return true to prevent false positives
