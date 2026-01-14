@@ -1,0 +1,73 @@
+package mapper
+
+import (
+	"github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
+	"github.com/gilabs/crm-healthcare/api/internal/permission/domain/dto"
+)
+
+// ToPermissionResponse converts Permission to PermissionResponse (simplified)
+func ToPermissionResponse(p *models.Permission) *dto.PermissionResponse {
+	resp := &dto.PermissionResponse{
+		ID:     p.ID,
+		Name:   p.Name,
+		Code:   p.Code,
+		MenuID: p.MenuID,
+	}
+	if p.Menu != nil {
+		resp.Menu = ToMenuResponse(p.Menu)
+	}
+	return resp
+}
+
+// ToMenuResponse converts Menu to MenuResponse (recursive for children and parent)
+func ToMenuResponse(m *models.Menu) *dto.MenuResponse {
+	resp := &dto.MenuResponse{
+		ID:       m.ID,
+		Name:     m.Name,
+		Icon:     m.Icon,
+		URL:      m.URL,
+		ParentID: m.ParentID,
+		Order:    m.Order,
+		Status:   m.Status,
+	}
+	
+	// Include parent info
+	if m.Parent != nil {
+		resp.Parent = &dto.MenuResponse{
+			ID:       m.Parent.ID,
+			Name:     m.Parent.Name,
+			Icon:     m.Parent.Icon,
+			URL:      m.Parent.URL,
+			ParentID: m.Parent.ParentID,
+			Order:    m.Parent.Order,
+			Status:   m.Parent.Status,
+		}
+	}
+	
+	// Include children
+	if len(m.Children) > 0 {
+		resp.Children = make([]dto.MenuResponse, len(m.Children))
+		for i, child := range m.Children {
+			resp.Children[i] = *ToMenuResponse(&child)
+		}
+	}
+	return resp
+}
+
+// ToMenuCategoryResponse converts Menu to MenuCategoryResponse for category grouping
+func ToMenuCategoryResponse(m *models.Menu) *dto.MenuCategoryResponse {
+	resp := &dto.MenuCategoryResponse{
+		ID:    m.ID,
+		Name:  m.Name,
+		Icon:  m.Icon,
+		Order: m.Order,
+	}
+	
+	if len(m.Children) > 0 {
+		resp.Children = make([]dto.MenuCategoryResponse, len(m.Children))
+		for i, child := range m.Children {
+			resp.Children[i] = *ToMenuCategoryResponse(&child)
+		}
+	}
+	return resp
+}

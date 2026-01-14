@@ -1,0 +1,106 @@
+package middleware
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
+	"github.com/gin-gonic/gin"
+)
+
+// RequirePermission check strictly against loaded permissions
+func RequirePermission(requiredPermission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Validate permission string is not empty
+		if requiredPermission == "" {
+			errors.ForbiddenResponse(c, "invalid permission check", nil)
+			c.Abort()
+			return
+		}
+
+		// Get user role from context
+		roleCode, exists := c.Get("user_role")
+		if !exists {
+			errors.UnauthorizedResponse(c, "authentication required")
+			c.Abort()
+			return
+		}
+
+		// Admin bypass
+		if roleCode == "admin" {
+			c.Next()
+			return
+		}
+
+		// Get permissions map
+		perms, exists := c.Get("user_permissions")
+		if !exists {
+			errors.ForbiddenResponse(c, "permission check failed", nil)
+			c.Abort()
+			return
+		}
+
+		permMap, ok := perms.(map[string]bool)
+		if !ok {
+			errors.ForbiddenResponse(c, "permission format error", nil)
+			c.Abort()
+			return
+		}
+
+		if !permMap[requiredPermission] {
+			errors.ForbiddenResponse(c, fmt.Sprintf("Missing permission: %s", requiredPermission), nil)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// PermissionMiddleware is deprecated, use RequirePermission
+func PermissionMiddleware(permission string) gin.HandlerFunc {
+	return RequirePermission(permission)
+}
+
+// RoleMiddleware checks if user has one of the required roles
+func RoleMiddleware(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userRole, exists := c.Get("user_role")
+		if !exists {
+			errors.UnauthorizedResponse(c, "authentication required")
+			c.Abort()
+			return
+		}
+
+		// Convert to string
+		roleStr, ok := userRole.(string)
+		if !ok {
+			errors.UnauthorizedResponse(c, "invalid role format")
+			c.Abort()
+			return
+		}
+
+		// Admin always has access
+		if roleStr == "admin" {
+			c.Next()
+			return
+		}
+
+		// Check if user role matches any of the allowed roles
+		allowed := false
+		for _, role := range roles {
+			if role == roleStr {
+				allowed = true
+				break
+			}
+		}
+
+		if !allowed {
+			errors.ForbiddenResponse(c, "Required one of: "+strings.Join(roles, ", "), []string{roleStr})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
