@@ -1,0 +1,70 @@
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { areaService } from "../services/organization-service";
+import type {
+  ListOrganizationParams,
+  CreateAreaData,
+  UpdateAreaData,
+} from "../types";
+
+export const areaKeys = {
+  all: ["areas"] as const,
+  lists: () => [...areaKeys.all, "list"] as const,
+  list: (params?: ListOrganizationParams) =>
+    [...areaKeys.lists(), params] as const,
+  details: () => [...areaKeys.all, "detail"] as const,
+  detail: (id: string) => [...areaKeys.details(), id] as const,
+};
+
+export function useAreas(params?: ListOrganizationParams) {
+  return useQuery({
+    queryKey: areaKeys.list(params),
+    queryFn: () => areaService.list(params),
+  });
+}
+
+export function useArea(id: string) {
+  return useQuery({
+    queryKey: areaKeys.detail(id),
+    queryFn: () => areaService.getById(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateArea() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateAreaData) => areaService.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateArea() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateAreaData }) =>
+      areaService.update(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: areaKeys.detail(variables.id),
+      });
+    },
+  });
+}
+
+export function useDeleteArea() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => areaService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+    },
+  });
+}

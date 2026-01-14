@@ -1,0 +1,56 @@
+package models
+
+import (
+	"time"
+
+	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// CompanyStatus represents the approval status of a company
+type CompanyStatus string
+
+const (
+	CompanyStatusDraft    CompanyStatus = "draft"
+	CompanyStatusPending  CompanyStatus = "pending"
+	CompanyStatusApproved CompanyStatus = "approved"
+	CompanyStatusRejected CompanyStatus = "rejected"
+)
+
+// Company represents a company entity with approval workflow
+type Company struct {
+	ID         string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Name       string         `gorm:"type:varchar(200);not null;index" json:"name"`
+	Address    string         `gorm:"type:text" json:"address"`
+	Email      string         `gorm:"type:varchar(100)" json:"email"`
+	Phone      string         `gorm:"type:varchar(20)" json:"phone"`
+	NPWP       string         `gorm:"type:varchar(30)" json:"npwp"`
+	NIB        string         `gorm:"type:varchar(30)" json:"nib"`
+	VillageID  *string        `gorm:"type:uuid;index" json:"village_id"`
+	Village    *models.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
+	DirectorID *string        `gorm:"type:uuid;index" json:"director_id"` // Employee FK (Sprint 3)
+	// Approval workflow
+	Status     CompanyStatus  `gorm:"type:varchar(20);default:'draft';index" json:"status"`
+	IsApproved bool           `gorm:"default:false;index" json:"is_approved"`
+	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`
+	ApprovedBy *string        `gorm:"type:uuid" json:"approved_by"`
+	ApprovedAt *time.Time     `json:"approved_at"`
+	IsActive   bool           `gorm:"default:true;index" json:"is_active"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// TableName specifies the table name for Company
+func (Company) TableName() string {
+	return "companies"
+}
+
+// BeforeCreate hook to generate UUID
+func (c *Company) BeforeCreate(tx *gorm.DB) error {
+	if c.ID == "" {
+		c.ID = uuid.New().String()
+	}
+	return nil
+}

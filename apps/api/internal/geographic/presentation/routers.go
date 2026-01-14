@@ -1,6 +1,8 @@
 package presentation
 
 import (
+	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
 	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/repositories"
 	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/usecase"
 	"github.com/gilabs/crm-healthcare/api/internal/geographic/presentation/handler"
@@ -10,7 +12,9 @@ import (
 )
 
 // RegisterRoutes registers all geographic domain routes
-func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB) {
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
+	GetPermissions(roleCode string) ([]string, error)
+}) {
 	// Initialize repositories
 	countryRepo := repositories.NewCountryRepository(db)
 	provinceRepo := repositories.NewProvinceRepository(db)
@@ -34,6 +38,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB) {
 
 	// Create geographic group under API
 	group := api.Group("/geographic")
+	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 
 	// Register routes
 	router.RegisterCountryRoutes(group, countryH)

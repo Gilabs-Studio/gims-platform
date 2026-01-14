@@ -48,6 +48,7 @@ import (
 	userRouter "github.com/gilabs/crm-healthcare/api/internal/user/presentation/router"
 
 	geographicPresentation "github.com/gilabs/crm-healthcare/api/internal/geographic/presentation"
+	organizationPresentation "github.com/gilabs/crm-healthcare/api/internal/organization/presentation"
 )
 
 func main() {
@@ -236,6 +237,9 @@ func main() {
 
 		// Geographic module (Sprint 1)
 		geographicPresentation.RegisterRoutes(r, v1, database.DB)
+
+		// Organization module (Sprint 2)
+		organizationPresentation.RegisterRoutes(r, v1, database.DB)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

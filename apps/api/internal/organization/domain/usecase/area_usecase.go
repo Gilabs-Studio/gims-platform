@@ -1,0 +1,150 @@
+package usecase
+
+import (
+	"context"
+	"errors"
+
+	"github.com/gilabs/crm-healthcare/api/internal/core/utils"
+	"github.com/gilabs/crm-healthcare/api/internal/organization/data/repositories"
+	"github.com/gilabs/crm-healthcare/api/internal/organization/domain/dto"
+	"github.com/gilabs/crm-healthcare/api/internal/organization/domain/mapper"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrAreaNotFound       = errors.New("area not found")
+	ErrAreaAlreadyExists  = errors.New("area with this name already exists")
+	ErrAreaHasSupervisors = errors.New("cannot delete area with assigned supervisors")
+)
+
+// AreaUsecase defines the interface for area business logic
+type AreaUsecase interface {
+	List(ctx context.Context, req *dto.ListAreasRequest) ([]dto.AreaResponse, *utils.PaginationResult, error)
+	GetByID(ctx context.Context, id string) (*dto.AreaResponse, error)
+	Create(ctx context.Context, req *dto.CreateAreaRequest) (*dto.AreaResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdateAreaRequest) (*dto.AreaResponse, error)
+	Delete(ctx context.Context, id string) error
+}
+
+type areaUsecase struct {
+	areaRepo repositories.AreaRepository
+}
+
+// NewAreaUsecase creates a new AreaUsecase
+func NewAreaUsecase(areaRepo repositories.AreaRepository) AreaUsecase {
+	return &areaUsecase{areaRepo: areaRepo}
+}
+
+func (u *areaUsecase) List(ctx context.Context, req *dto.ListAreasRequest) ([]dto.AreaResponse, *utils.PaginationResult, error) {
+	areas, total, err := u.areaRepo.List(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	responses := mapper.ToAreaResponses(areas)
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	pagination := &utils.PaginationResult{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      int(total),
+		TotalPages: int((total + int64(perPage) - 1) / int64(perPage)),
+	}
+
+	return responses, pagination, nil
+}
+
+func (u *areaUsecase) GetByID(ctx context.Context, id string) (*dto.AreaResponse, error) {
+	area, err := u.areaRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrAreaNotFound
+		}
+		return nil, err
+	}
+
+	return mapper.ToAreaResponse(area), nil
+}
+
+func (u *areaUsecase) Create(ctx context.Context, req *dto.CreateAreaRequest) (*dto.AreaResponse, error) {
+	existing, err := u.areaRepo.FindByName(ctx, req.Name)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, ErrAreaAlreadyExists
+	}
+
+	area := mapper.AreaFromCreateRequest(req)
+	if err := u.areaRepo.Create(ctx, area); err != nil {
+		return nil, err
+	}
+
+	return mapper.ToAreaResponse(area), nil
+}
+
+func (u *areaUsecase) Update(ctx context.Context, id string, req *dto.UpdateAreaRequest) (*dto.AreaResponse, error) {
+	area, err := u.areaRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrAreaNotFound
+		}
+		return nil, err
+	}
+
+	if req.Name != "" && req.Name != area.Name {
+		existing, err := u.areaRepo.FindByName(ctx, req.Name)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		if existing != nil && existing.ID != id {
+			return nil, ErrAreaAlreadyExists
+		}
+		area.Name = req.Name
+	}
+
+	if req.Description != "" {
+		area.Description = req.Description
+	}
+	if req.IsActive != nil {
+		area.IsActive = *req.IsActive
+	}
+
+	if err := u.areaRepo.Update(ctx, area); err != nil {
+		return nil, err
+	}
+
+	return mapper.ToAreaResponse(area), nil
+}
+
+func (u *areaUsecase) Delete(ctx context.Context, id string) error {
+	_, err := u.areaRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrAreaNotFound
+		}
+		return err
+	}
+
+	// Check if area has supervisors
+	hasSupervisors, err := u.areaRepo.HasSupervisors(ctx, id)
+	if err != nil {
+		return err
+	}
+	if hasSupervisors {
+		return ErrAreaHasSupervisors
+	}
+
+	return u.areaRepo.Delete(ctx, id)
+}

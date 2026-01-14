@@ -33,6 +33,8 @@ import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/mes
 import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
 import { geographicEn } from "@/features/master-data/geographic/i18n/en";
 import { geographicId } from "@/features/master-data/geographic/i18n/id";
+import { organizationEn } from "@/features/master-data/organization/i18n/en";
+import { organizationId } from "@/features/master-data/organization/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -52,6 +54,7 @@ const messages = {
     ...menuManagementEnMessages,
     ...stockValuationsEnMessages,
     ...geographicEn,
+    organization: organizationEn,
   },
   id: {
     ...globalIdMessages,
@@ -69,6 +72,7 @@ const messages = {
     ...menuManagementIdMessages,
     ...stockValuationsIdMessages,
     ...geographicId,
+    organization: organizationId,
   },
 } as const;
 
