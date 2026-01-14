@@ -1,33 +1,31 @@
+// Auth types aligned with new API
+
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface LoginResponse {
+  success: boolean;
   data: {
-    token: string;
     user: User;
+    access_token: string; // Empty in strict mode (HttpOnly cookies)
+    refresh_token: string; // Empty in strict mode (HttpOnly cookies)
   };
 }
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
-  username: string;
-  photo_profile: string;
+  email: string;
   avatar_url: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  roles: Role[];
+  role: Role;
+  permissions: string[];
 }
 
 export interface Role {
-  id: number;
+  code: string;
   name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Menu {
@@ -47,6 +45,7 @@ export interface MenuAction {
 }
 
 export interface MenusResponse {
+  success: boolean;
   data: {
     menus: Menu[];
   };
@@ -54,8 +53,6 @@ export interface MenusResponse {
 
 export interface AuthState {
   user: User | null;
-  token: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;

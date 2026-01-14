@@ -3,14 +3,12 @@ import { useAuthStore } from "../stores/use-auth-store";
 import { authService } from "../services/auth-service";
 import type { LoginFormData } from "../schemas/login.schema";
 import type { AuthError } from "../types/errors";
-import { useState } from "react";
-import { setSecureCookie } from "@/lib/cookie";
+import { useState, useEffect } from "react";
 
 export function useLogin() {
   const router = useRouter();
   const {
     setUser,
-    setToken,
     isLoading: storeIsLoading,
     error: storeError,
     clearError,
@@ -18,29 +16,33 @@ export function useLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prefetch CSRF token on mount
+  useEffect(() => {
+    authService.prefetchCSRFToken().catch(() => {
+      // Ignore CSRF prefetch errors - will retry on login
+    });
+  }, []);
+
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
     setError(null);
     try {
+      // Ensure CSRF token is set
+      await authService.prefetchCSRFToken();
+
       const response = await authService.login({
-        username: data.username,
+        email: data.email,
         password: data.password,
       });
-      if (response.data) {
-        const { user, token } = response.data;
-        if (typeof window !== "undefined") {
-          localStorage.setItem("token", token);
-          // Set secure cookie for WebSocket and middleware
-          setSecureCookie("token", token);
-        }
+
+      if (response.success && response.data) {
+        const { user } = response.data;
         setUser(user);
-        setToken(token);
         useAuthStore.setState({
-          refreshToken: null, // API baru tidak return refresh_token
           isAuthenticated: true,
           error: null,
         });
-        // Redirect ke dashboard dengan locale aktif
+        // Redirect to dashboard
         router.push("/dashboard");
       }
     } catch (err) {

@@ -1,37 +1,25 @@
 import { useAuthStore } from "../stores/use-auth-store";
 import { authService } from "../services/auth-service";
 import { useLogout } from "./use-logout";
-import { setSecureCookie } from "@/lib/cookie";
 
 export function useRefreshSession() {
-  const { refreshToken, setUser, setToken } = useAuthStore();
+  const { setUser } = useAuthStore();
   const handleLogout = useLogout();
 
   const refreshSession = async () => {
-    const currentRefreshToken = refreshToken;
-    if (!currentRefreshToken) {
-      throw new Error("No refresh token available");
-    }
     try {
-      const response = await authService.refreshToken(currentRefreshToken);
-      if (response.data) {
-        const { user, token } = response.data;
-        if (typeof window !== "undefined") {
-          localStorage.setItem("token", token);
-          // Update secure cookie
-          setSecureCookie("token", token);
-        }
+      // Browser automatically sends HttpOnly refresh_token cookie
+      const response = await authService.refreshToken();
+
+      if (response.success && response.data) {
+        const { user } = response.data;
         setUser(user);
-        setToken(token);
-        // Update auth state
-        useAuthStore.setState({
-          isAuthenticated: true,
-        });
+        useAuthStore.setState({ isAuthenticated: true });
       }
-    } catch (error) {
+    } catch {
       // Refresh failed, logout user
       await handleLogout();
-      throw error;
+      throw new Error("Session refresh failed");
     }
   };
 

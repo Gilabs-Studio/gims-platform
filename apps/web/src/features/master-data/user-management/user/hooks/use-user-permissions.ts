@@ -21,7 +21,7 @@ export function useUserPermissions() {
       if (!isAuthenticated) throw new Error("User not authenticated");
       return authService.getMenus();
     },
-    enabled: !!isAuthenticated && !!user?.roles && user.roles.length > 0,
+    enabled: !!isAuthenticated && !!user?.role,
     retry: (failureCount, error) => {
       // Don't retry on auth errors (401, 403) or specific error codes
       const axiosError = error as AxiosError<{
@@ -46,7 +46,7 @@ export function useUserPermissions() {
   // Handle errors - role deleted, user not found, or permissions revoked
   useEffect(() => {
     // Only redirect if user has roles (prevents false positives on initial load)
-    if (query.error && user?.roles && user.roles.length > 0) {
+    if (query.error && user?.role) {
       const error = query.error as AxiosError<{
         success?: false;
         error?: {
@@ -80,7 +80,7 @@ export function useUserPermissions() {
       }
       // For other errors (network, 500, etc.), don't redirect - let component handle it
     }
-  }, [query.error, query.isLoading, query.isFetching, query.data, router, user?.roles]);
+  }, [query.error, query.isLoading, query.isFetching, query.data, router, user?.role]);
 
   return query;
 }

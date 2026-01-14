@@ -2,6 +2,14 @@ import apiClient from "@/lib/api-client";
 import type { LoginRequest, LoginResponse, MenusResponse } from "../types";
 
 export const authService = {
+  /**
+   * Prefetch CSRF token from the API.
+   * This sets the csrf_token cookie for use in subsequent requests.
+   */
+  async prefetchCSRFToken(): Promise<void> {
+    await apiClient.get("/auth/csrf");
+  },
+
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(
       "/auth/login",
@@ -15,10 +23,12 @@ export const authService = {
     return response.data;
   },
 
-  async refreshToken(refreshToken: string): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>("/auth/refresh", {
-      refresh_token: refreshToken,
-    });
+  /**
+   * Refresh access token using refresh token cookie.
+   * Browser automatically sends HttpOnly refresh_token cookie.
+   */
+  async refreshToken(): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
     return response.data;
   },
 

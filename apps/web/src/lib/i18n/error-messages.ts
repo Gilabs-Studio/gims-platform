@@ -26,6 +26,7 @@ interface ErrorMessages {
     rateLimit: { title: string; description: string };
     unexpectedError: { title: string; description: string };
     invalidFormat: { title: string; description: string };
+    csrfError: { title: string; description: string };
   };
 }
 
@@ -147,6 +148,10 @@ async function loadErrorMessages(locale: Locale): Promise<ErrorMessages> {
         invalidFormat: {
           title: "Invalid Response Format",
           description: "The server returned an unexpected response.",
+        },
+        csrfError: {
+          title: "Session Expired",
+          description: "Your session has expired. Please refresh the page and try again.",
         },
       },
     };
@@ -273,6 +278,11 @@ export function getErrorMessagesSync(): ErrorMessages {
         title: "Invalid Response Format",
         description:
           "The server returned an unexpected response format. Please contact support.",
+      },
+      csrfError: {
+        title: "Session Expired",
+        description:
+          "Your session has expired. Please refresh the page and try again.",
       },
     },
   };
