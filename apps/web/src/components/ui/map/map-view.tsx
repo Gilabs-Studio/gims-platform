@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Layers, Map, Satellite, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../dropdown-menu";
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "next-themes";
 
 // Dynamic import untuk Leaflet (client-side only)
 const MapContainer = dynamic(
@@ -25,6 +32,28 @@ export interface MapMarker<T> {
   data: T;
 }
 
+// Map tile providers
+type MapStyle = "auto" | "street" | "light" | "dark" | "satellite";
+
+const TILE_LAYERS: Record<Exclude<MapStyle, "auto">, { url: string; attribution: string }> = {
+  street: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  light: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  dark: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  },
+};
+
 interface MapViewProps<T> {
   readonly markers: MapMarker<T>[];
   readonly renderMarkers: (markers: MapMarker<T>[]) => React.ReactNode;
@@ -35,7 +64,8 @@ interface MapViewProps<T> {
   readonly onToggleSidebar?: () => void;
   readonly defaultCenter?: [number, number];
   readonly defaultZoom?: number;
-  readonly children?: React.ReactNode; // For custom components like MapNavigator
+  readonly children?: React.ReactNode;
+  readonly showLayerControl?: boolean;
 }
 
 // Default location: Jakarta, Indonesia
@@ -51,9 +81,12 @@ export function MapView<T>({
   defaultCenter = DEFAULT_LOCATION,
   defaultZoom = DEFAULT_ZOOM,
   children,
+  showLayerControl = true,
 }: MapViewProps<T>) {
   const [mounted, setMounted] = useState(false);
+  const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
   const isMobile = useIsMobile();
+  const { resolvedTheme } = useTheme();
 
   // Setup Leaflet CSS and icon only on client-side
   useEffect(() => {
@@ -78,6 +111,23 @@ export function MapView<T>({
       setMounted(true);
     });
   }, []);
+
+  // Get the active tile layer based on style and theme
+  const getActiveTileLayer = () => {
+    if (mapStyle === "light") {
+      return TILE_LAYERS.street;
+    }
+    if (mapStyle === "satellite") {
+      return TILE_LAYERS.satellite;
+    }
+    if (mapStyle === "dark") {
+      return TILE_LAYERS.dark;
+    }
+    // Auto mode - follow system theme
+    return resolvedTheme === "dark" ? TILE_LAYERS.dark : TILE_LAYERS.street;
+  };
+
+  const activeTileLayer = getActiveTileLayer();
 
   // Calculate initial center and zoom
   const getInitialCenterAndZoom = (): { center: [number, number]; zoom: number } => {
@@ -143,7 +193,7 @@ export function MapView<T>({
         <Button
           variant="outline"
           size="icon"
-          className="absolute top-2 left-2 z-1000 bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+          className="absolute top-2 left-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
           onClick={onToggleSidebar}
           aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
         >
@@ -154,6 +204,56 @@ export function MapView<T>({
           )}
         </Button>
       )}
+
+      {/* Layer Control */}
+      {showLayerControl && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-2 right-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+            >
+              <Layers className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem 
+              onClick={() => setMapStyle("auto")}
+              className={cn("cursor-pointer", mapStyle === "auto" && "bg-accent")}
+            >
+              {resolvedTheme === "dark" ? (
+                <Moon className="h-4 w-4 mr-2" />
+              ) : (
+                <Sun className="h-4 w-4 mr-2" />
+              )}
+              Auto
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => setMapStyle("street")}
+              className={cn("cursor-pointer", mapStyle === "street" && "bg-accent")}
+            >
+              <Map className="h-4 w-4 mr-2" />
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => setMapStyle("dark")}
+              className={cn("cursor-pointer", mapStyle === "dark" && "bg-accent")}
+            >
+              <Moon className="h-4 w-4 mr-2" />
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => setMapStyle("satellite")}
+              className={cn("cursor-pointer", mapStyle === "satellite" && "bg-accent")}
+            >
+              <Satellite className="h-4 w-4 mr-2" />
+              Satellite
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
       <MapContainer
         center={mapCenter}
         zoom={mapZoom}
@@ -164,8 +264,9 @@ export function MapView<T>({
         dragging={true}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={`${mapStyle}-${resolvedTheme}`}
+          attribution={activeTileLayer.attribution}
+          url={activeTileLayer.url}
         />
         {children}
         {renderMarkers(validMarkers)}
@@ -173,4 +274,3 @@ export function MapView<T>({
     </div>
   );
 }
-
