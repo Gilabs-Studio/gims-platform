@@ -11,11 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useDistricts, useDeleteDistrict } from "../hooks/use-districts";
+import { useDistricts, useDeleteDistrict } from "../../hooks/use-districts";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { useCities } from "../hooks/use-cities";
+import { useCities } from "../../hooks/use-cities";
 import { DistrictForm } from "./district-form";
-import type { District } from "../types";
+import type { District } from "../../types";
 
 export function DistrictList() {
   const t = useTranslations("geographic");

@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CountryList = dynamic(
-  () => import("@/features/master-data/geographic/components/country-list").then((mod) => ({ default: mod.CountryList })),
+  () => import("@/features/master-data/geographic/components/countries/country-list").then((mod) => ({ default: mod.CountryList })),
   { loading: () => null }
 );
 

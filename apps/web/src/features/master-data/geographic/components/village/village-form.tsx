@@ -10,22 +10,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateCity, useUpdateCity } from "../hooks/use-cities";
-import { getCitySchema, type CreateCityFormData } from "../schemas/geographic.schema";
-import type { City, Province } from "../types";
+import { useCreateVillage, useUpdateVillage } from "../../hooks/use-villages";
+import { getVillageSchema, type CreateVillageFormData } from "../../schemas/geographic.schema";
+import type { Village, District } from "../../types";
 
-export interface CityFormProps {
+export interface VillageFormProps {
   open: boolean;
   onClose: () => void;
-  city?: City | null;
-  provinces: Province[];
+  village?: Village | null;
+  districts: District[];
 }
 
-export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
+export function VillageForm({ open, onClose, village, districts }: VillageFormProps) {
   const t = useTranslations("geographic");
-  const isEditing = !!city;
-  const createCity = useCreateCity();
-  const updateCity = useUpdateCity();
+  const isEditing = !!village;
+  const createVillage = useCreateVillage();
+  const updateVillage = useUpdateVillage();
 
   const {
     register,
@@ -34,34 +34,34 @@ export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
     watch,
     reset,
     formState: { errors },
-  } = useForm<CreateCityFormData>({
-    resolver: zodResolver(getCitySchema(t)),
-    defaultValues: { name: "", code: "", province_id: "", type: "city", is_active: true },
+  } = useForm<CreateVillageFormData>({
+    resolver: zodResolver(getVillageSchema(t)),
+    defaultValues: { name: "", code: "", district_id: "", postal_code: "", type: "village", is_active: true },
   });
 
   useEffect(() => {
-    if (city) {
-      reset({ name: city.name, code: city.code, province_id: city.province_id, type: city.type, is_active: city.is_active });
+    if (village) {
+      reset({ name: village.name, code: village.code, district_id: village.district_id, postal_code: village.postal_code ?? "", type: village.type, is_active: village.is_active });
     } else {
-      reset({ name: "", code: "", province_id: "", type: "city", is_active: true });
+      reset({ name: "", code: "", district_id: "", postal_code: "", type: "village", is_active: true });
     }
-  }, [city, reset]);
+  }, [village, reset]);
 
-  const onSubmit = async (data: CreateCityFormData) => {
+  const onSubmit = async (data: CreateVillageFormData) => {
     try {
-      if (isEditing && city) {
-        await updateCity.mutateAsync({ id: city.id, data });
+      if (isEditing && village) {
+        await updateVillage.mutateAsync({ id: village.id, data });
       } else {
-        await createCity.mutateAsync(data);
+        await createVillage.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save city:", error);
+      console.error("Failed to save village:", error);
     }
   };
 
-  const isLoading = createCity.isPending || updateCity.isPending;
-  const provinceId = watch("province_id");
+  const isLoading = createVillage.isPending || updateVillage.isPending;
+  const districtId = watch("district_id");
   const type = watch("type");
   const isActive = watch("is_active");
 
@@ -69,45 +69,51 @@ export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? t("city.edit") : t("city.add")}</DialogTitle>
+          <DialogTitle>{isEditing ? t("village.edit") : t("village.add")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("province.title")}</FieldLabel>
-            <Select onValueChange={(val) => setValue("province_id", val)} value={provinceId}>
+            <FieldLabel>{t("district.title")}</FieldLabel>
+            <Select onValueChange={(val) => setValue("district_id", val)} value={districtId}>
               <SelectTrigger>
-                <SelectValue placeholder={t("city.selectProvince")} />
+                <SelectValue placeholder={t("village.selectDistrict")} />
               </SelectTrigger>
               <SelectContent>
-                {provinces.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                {districts.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.province_id && <FieldError>{errors.province_id.message}</FieldError>}
+            {errors.district_id && <FieldError>{errors.district_id.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("city.name")}</FieldLabel>
-            <Input placeholder="e.g. Kota Bandung" {...register("name")} />
+            <FieldLabel>{t("village.name")}</FieldLabel>
+            <Input placeholder="e.g. Lebak Siliwangi" {...register("name")} />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("city.code")}</FieldLabel>
-            <Input placeholder="e.g. ID-JB-BDG" {...register("code")} />
+            <FieldLabel>{t("village.code")}</FieldLabel>
+            <Input placeholder="e.g. ID-JB-BDG-CBL-LS" {...register("code")} />
             {errors.code && <FieldError>{errors.code.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("city.type")}</FieldLabel>
-            <Select onValueChange={(val) => setValue("type", val as "city" | "regency")} value={type}>
+            <FieldLabel>{t("village.postalCode")}</FieldLabel>
+            <Input placeholder="e.g. 40132" {...register("postal_code")} />
+            {errors.postal_code && <FieldError>{errors.postal_code.message}</FieldError>}
+          </Field>
+
+          <Field orientation="vertical">
+            <FieldLabel>{t("village.type")}</FieldLabel>
+            <Select onValueChange={(val) => setValue("type", val as "village" | "kelurahan")} value={type}>
               <SelectTrigger>
                 <SelectValue placeholder={t("common.select")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="city">{t("city.types.city")}</SelectItem>
-                <SelectItem value="regency">{t("city.types.regency")}</SelectItem>
+                <SelectItem value="village">{t("village.types.village")}</SelectItem>
+                <SelectItem value="kelurahan">{t("village.types.kelurahan")}</SelectItem>
               </SelectContent>
             </Select>
             {errors.type && <FieldError>{errors.type.message}</FieldError>}

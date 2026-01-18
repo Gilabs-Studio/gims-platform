@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ProvinceList = dynamic(
-  () => import("@/features/master-data/geographic/components/province-list").then((mod) => ({ default: mod.ProvinceList })),
+  () => import("@/features/master-data/geographic/components/province/province-list").then((mod) => ({ default: mod.ProvinceList })),
   { loading: () => null }
 );
 

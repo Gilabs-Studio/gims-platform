@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const VillageList = dynamic(
-  () => import("@/features/master-data/geographic/components/village-list").then((mod) => ({ default: mod.VillageList })),
+  () => import("@/features/master-data/geographic/components/village/village-list").then((mod) => ({ default: mod.VillageList })),
   { loading: () => null }
 );
 

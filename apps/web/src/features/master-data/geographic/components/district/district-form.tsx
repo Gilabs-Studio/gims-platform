@@ -10,22 +10,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateProvince, useUpdateProvince } from "../hooks/use-provinces";
-import { getProvinceSchema, type CreateProvinceFormData } from "../schemas/geographic.schema";
-import type { Province, Country } from "../types";
+import { useCreateDistrict, useUpdateDistrict } from "../../hooks/use-districts";
+import { getDistrictSchema, type CreateDistrictFormData } from "../../schemas/geographic.schema";
+import type { District, City } from "../../types";
 
-interface ProvinceFormProps {
+export interface DistrictFormProps {
   open: boolean;
   onClose: () => void;
-  province?: Province | null;
-  countries: Country[];
+  district?: District | null;
+  cities: City[];
 }
 
-export function ProvinceForm({ open, onClose, province, countries }: ProvinceFormProps) {
+export function DistrictForm({ open, onClose, district, cities }: DistrictFormProps) {
   const t = useTranslations("geographic");
-  const isEditing = !!province;
-  const createProvince = useCreateProvince();
-  const updateProvince = useUpdateProvince();
+  const isEditing = !!district;
+  const createDistrict = useCreateDistrict();
+  const updateDistrict = useUpdateDistrict();
 
   const {
     register,
@@ -34,67 +34,67 @@ export function ProvinceForm({ open, onClose, province, countries }: ProvinceFor
     watch,
     reset,
     formState: { errors },
-  } = useForm<CreateProvinceFormData>({
-    resolver: zodResolver(getProvinceSchema(t)),
-    defaultValues: { name: "", code: "", country_id: "", is_active: true },
+  } = useForm<CreateDistrictFormData>({
+    resolver: zodResolver(getDistrictSchema(t)),
+    defaultValues: { name: "", code: "", city_id: "", is_active: true },
   });
 
   useEffect(() => {
-    if (province) {
-      reset({ name: province.name, code: province.code, country_id: province.country_id, is_active: province.is_active });
+    if (district) {
+      reset({ name: district.name, code: district.code, city_id: district.city_id, is_active: district.is_active });
     } else {
-      reset({ name: "", code: "", country_id: "", is_active: true });
+      reset({ name: "", code: "", city_id: "", is_active: true });
     }
-  }, [province, reset]);
+  }, [district, reset]);
 
-  const onSubmit = async (data: CreateProvinceFormData) => {
+  const onSubmit = async (data: CreateDistrictFormData) => {
     try {
-      if (isEditing && province) {
-        await updateProvince.mutateAsync({ id: province.id, data });
+      if (isEditing && district) {
+        await updateDistrict.mutateAsync({ id: district.id, data });
       } else {
-        await createProvince.mutateAsync(data);
+        await createDistrict.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save province:", error);
+      console.error("Failed to save district:", error);
     }
   };
 
-  const isLoading = createProvince.isPending || updateProvince.isPending;
-  const countryId = watch("country_id");
+  const isLoading = createDistrict.isPending || updateDistrict.isPending;
+  const cityId = watch("city_id");
   const isActive = watch("is_active");
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? t("province.edit") : t("province.add")}</DialogTitle>
+          <DialogTitle>{isEditing ? t("district.edit") : t("district.add")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("country.title")}</FieldLabel>
-            <Select onValueChange={(val) => setValue("country_id", val)} value={countryId}>
+            <FieldLabel>{t("city.title")}</FieldLabel>
+            <Select onValueChange={(val) => setValue("city_id", val)} value={cityId}>
               <SelectTrigger>
-                <SelectValue placeholder={t("province.selectCountry")} />
+                <SelectValue placeholder={t("district.selectCity")} />
               </SelectTrigger>
               <SelectContent>
-                {countries.map((c) => (
+                {cities.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.country_id && <FieldError>{errors.country_id.message}</FieldError>}
+            {errors.city_id && <FieldError>{errors.city_id.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("province.name")}</FieldLabel>
-            <Input placeholder="e.g. Jawa Barat" {...register("name")} />
+            <FieldLabel>{t("district.name")}</FieldLabel>
+            <Input placeholder="e.g. Coblong" {...register("name")} />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("province.code")}</FieldLabel>
-            <Input placeholder="e.g. ID-JB" {...register("code")} />
+            <FieldLabel>{t("district.code")}</FieldLabel>
+            <Input placeholder="e.g. ID-JB-BDG-CBL" {...register("code")} />
             {errors.code && <FieldError>{errors.code.message}</FieldError>}
           </Field>
 

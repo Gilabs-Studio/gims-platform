@@ -9,9 +9,9 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateCountry, useUpdateCountry } from "../hooks/use-countries";
-import { getCountrySchema, type CreateCountryFormData } from "../schemas/geographic.schema";
-import type { Country } from "../types";
+import { useCreateCountry, useUpdateCountry } from "../../hooks/use-countries";
+import { getCountrySchema, type CreateCountryFormData } from "../../schemas/geographic.schema";
+import type { Country } from "../../types";
 
 interface CountryFormProps {
   open: boolean;
