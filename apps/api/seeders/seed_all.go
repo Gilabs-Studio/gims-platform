@@ -29,6 +29,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Organization seeder (Sprint 2)
+	if err := SeedOrganization(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

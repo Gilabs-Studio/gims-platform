@@ -94,6 +94,15 @@ export const getCompanySchema = (t?: TranslationFn) => z.object({
   npwp: z.string().max(30, getMsg(t, "validation.npwpMaxLength")).optional().or(z.literal("")),
   nib: z.string().max(30, getMsg(t, "validation.nibMaxLength")).optional().or(z.literal("")),
   village_id: z.string().uuid().optional().or(z.literal("")).nullable(),
+  // Location cascade fields (not sent to API directly in create/update DTO if using village_id, but needed for form state)
+  province_id: z.string().or(z.number()).optional(),
+  city_id: z.string().or(z.number()).optional(),
+  district_id: z.string().or(z.number()).optional(),
+  
+  // Coordinates
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+  
   director_id: z.string().uuid().optional().or(z.literal("")).nullable(),
   is_active: z.boolean(),
 });

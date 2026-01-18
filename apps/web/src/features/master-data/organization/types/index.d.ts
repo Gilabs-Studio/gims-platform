@@ -78,8 +78,26 @@ export interface Company {
   npwp?: string;
   nib?: string;
   village_id?: string;
-  village?: Village;
+  village?: {
+    id: string;
+    name: string;
+    district?: {
+      id: string;
+      name: string;
+      city?: {
+        id: string;
+        name: string;
+        province?: {
+          id: string;
+          name: string;
+        }
+      }
+    }
+  };
+  latitude?: number | null;
+  longitude?: number | null;
   director_id?: string;
+  director?: { id: string; name: string };
   status: CompanyStatus;
   is_approved: boolean;
   created_by?: string;
@@ -90,7 +108,121 @@ export interface Company {
   updated_at: string;
 }
 
-// List request params - base type
+export interface CreateCompanyData {
+  name: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  npwp?: string;
+  nib?: string;
+  village_id?: string;
+  director_id?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_active?: boolean;
+}
+
+export interface UpdateCompanyData {
+  name?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  npwp?: string;
+  nib?: string;
+  village_id?: string;
+  director_id?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_active?: boolean;
+}
+
+export interface ApproveCompanyData {
+  action: "approve" | "reject";
+  reason?: string;
+}
+
+// -- Restored Types --
+
+export interface CreateDivisionData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateDivisionData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface CreateJobPositionData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateJobPositionData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface CreateBusinessUnitData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateBusinessUnitData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface CreateBusinessTypeData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateBusinessTypeData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface CreateAreaData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateAreaData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface CreateAreaSupervisorData {
+  name: string;
+  email?: string;
+  phone?: string;
+  area_ids?: string[];
+  is_active?: boolean;
+}
+
+export interface UpdateAreaSupervisorData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  area_ids?: string[];
+  is_active?: boolean;
+}
+
+export interface AssignAreasData {
+  area_ids: string[];
+}
+
 export interface ListOrganizationParams {
   page?: number;
   per_page?: number;
@@ -104,7 +236,6 @@ export interface ListCompaniesParams extends ListOrganizationParams {
   village_id?: string;
 }
 
-// Pagination meta
 export interface PaginationMeta {
   page: number;
   per_page: number;
@@ -114,7 +245,6 @@ export interface PaginationMeta {
   has_prev: boolean;
 }
 
-// API Response types
 export interface OrganizationListResponse<T> {
   success: boolean;
   data: T[];
@@ -136,120 +266,4 @@ export interface OrganizationSingleResponse<T> {
   };
   timestamp: string;
   request_id: string;
-}
-
-// Form data types - Division
-export interface CreateDivisionData {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateDivisionData {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-// Form data types - JobPosition
-export interface CreateJobPositionData {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateJobPositionData {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-// Form data types - BusinessUnit
-export interface CreateBusinessUnitData {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateBusinessUnitData {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-// Form data types - BusinessType
-export interface CreateBusinessTypeData {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateBusinessTypeData {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-// Form data types - Area
-export interface CreateAreaData {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateAreaData {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
-
-// Form data types - AreaSupervisor
-export interface CreateAreaSupervisorData {
-  name: string;
-  email?: string;
-  phone?: string;
-  area_ids?: string[];
-  is_active?: boolean;
-}
-
-export interface UpdateAreaSupervisorData {
-  name?: string;
-  email?: string;
-  phone?: string;
-  area_ids?: string[];
-  is_active?: boolean;
-}
-
-export interface AssignAreasData {
-  area_ids: string[];
-}
-
-// Form data types - Company
-export interface CreateCompanyData {
-  name: string;
-  address?: string;
-  email?: string;
-  phone?: string;
-  npwp?: string;
-  nib?: string;
-  village_id?: string;
-  director_id?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateCompanyData {
-  name?: string;
-  address?: string;
-  email?: string;
-  phone?: string;
-  npwp?: string;
-  nib?: string;
-  village_id?: string;
-  director_id?: string;
-  is_active?: boolean;
-}
-
-export interface ApproveCompanyData {
-  action: "approve" | "reject";
-  reason?: string;
 }

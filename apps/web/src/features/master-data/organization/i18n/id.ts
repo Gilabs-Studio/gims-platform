@@ -176,6 +176,16 @@ export const organizationId: OrganizationTranslations = {
     submitSuccess: "Perusahaan diajukan untuk persetujuan",
     approveSuccess: "Perusahaan berhasil disetujui",
     rejectSuccess: "Perusahaan ditolak",
+    pickFromMap: "Pilih dari Peta",
+    mapPicker: {
+      title: "Pilih Lokasi",
+      description: "Klik pada peta untuk memilih lokasi koordinat",
+    },
+    sections: {
+      basicInfo: "Informasi Dasar",
+      location: "Lokasi",
+      coordinates: "Koordinat Peta",
+    },
     status: {
       draft: "Draft",
       pending: "Menunggu Persetujuan",
@@ -200,6 +210,9 @@ export const organizationId: OrganizationTranslations = {
       npwpPlaceholder: "Masukkan nomor NPWP",
       nib: "NIB",
       nibPlaceholder: "Masukkan nomor NIB",
+      province: "Provinsi",
+      city: "Kota/Kabupaten",
+      district: "Kecamatan",
       village: "Desa/Kelurahan",
       villagePlaceholder: "Pilih desa/kelurahan",
       director: "Direktur",
@@ -207,6 +220,8 @@ export const organizationId: OrganizationTranslations = {
       isActive: "Aktif",
       rejectReason: "Alasan Penolakan",
       rejectReasonPlaceholder: "Masukkan alasan penolakan (opsional)",
+      latitude: "Latitude",
+      longitude: "Longitude",
     },
   },
   validation: {

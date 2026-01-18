@@ -174,6 +174,16 @@ export const organizationEn = {
     submitSuccess: "Company submitted for approval",
     approveSuccess: "Company approved successfully",
     rejectSuccess: "Company rejected",
+    pickFromMap: "Pick from Map",
+    mapPicker: {
+      title: "Pick Location",
+      description: "Click on the map to select coordinate location",
+    },
+    sections: {
+      basicInfo: "Basic Information",
+      location: "Location",
+      coordinates: "Map Coordinates",
+    },
     status: {
       draft: "Draft",
       pending: "Pending Approval",
@@ -198,6 +208,9 @@ export const organizationEn = {
       npwpPlaceholder: "Enter NPWP number",
       nib: "NIB",
       nibPlaceholder: "Enter NIB number",
+      province: "Province",
+      city: "City/Regency",
+      district: "District",
       village: "Village/Kelurahan",
       villagePlaceholder: "Select village",
       director: "Director",
@@ -205,6 +218,8 @@ export const organizationEn = {
       isActive: "Active",
       rejectReason: "Rejection Reason",
       rejectReasonPlaceholder: "Enter reason for rejection (optional)",
+      latitude: "Latitude",
+      longitude: "Longitude",
     },
   },
   validation: {
