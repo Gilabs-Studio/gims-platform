@@ -7,8 +7,32 @@ import (
 	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
 )
 
-// createMenu is a helper function to create a menu and return it
+// createMenu is a helper function to create or update a menu
 func createMenu(menu *permission.Menu) error {
+	var existing permission.Menu
+	query := database.DB.Where("name = ?", menu.Name)
+	if menu.ParentID != nil {
+		query = query.Where("parent_id = ?", *menu.ParentID)
+	} else {
+		query = query.Where("parent_id IS NULL")
+	}
+
+	if err := query.First(&existing).Error; err == nil {
+		// Found existing menu, update it
+		menu.ID = existing.ID // Important: keep the ID for children
+		if err := database.DB.Model(&existing).Updates(map[string]interface{}{
+			"icon":   menu.Icon,
+			"url":    menu.URL,
+			"order":  menu.Order,
+			"status": menu.Status,
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Updated menu: %s", menu.Name)
+		return nil
+	}
+
+	// Create new
 	if err := database.DB.Create(menu).Error; err != nil {
 		return err
 	}
@@ -34,13 +58,7 @@ func createChildMenu(name, icon, url string, parentID *string, order int) (*perm
 
 // SeedMenus seeds initial ERP menus based on database structure
 func SeedMenus() error {
-	// Check if menus already exist
-	var count int64
-	database.DB.Model(&permission.Menu{}).Count(&count)
-	if count > 0 {
-		log.Println("Menus already seeded, skipping...")
-		return nil
-	}
+
 
 	log.Println("Seeding ERP menu structure...")
 
@@ -172,11 +190,11 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Countries", "flag", "/data-master/geographic/countries", 1},
-		{"Provinces", "map", "/data-master/geographic/provinces", 2},
-		{"Cities", "building", "/data-master/geographic/cities", 3},
-		{"Districts", "map-pin", "/data-master/geographic/districts", 4},
-		{"Villages", "home", "/data-master/geographic/villages", 5},
+		{"Countries", "flag", "/master-data/geographic/countries", 1},
+		{"Provinces", "map", "/master-data/geographic/provinces", 2},
+		{"Cities", "building", "/master-data/geographic/cities", 3},
+		{"Districts", "map-pin", "/master-data/geographic/districts", 4},
+		{"Villages", "home", "/master-data/geographic/villages", 5},
 	}
 	for _, child := range geographicChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &geographicMenu.ID, child.order); err != nil {
