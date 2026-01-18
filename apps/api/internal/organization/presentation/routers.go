@@ -23,6 +23,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaRepo := repositories.NewAreaRepository(db)
 	areaSupervisorRepo := repositories.NewAreaSupervisorRepository(db)
 	companyRepo := repositories.NewCompanyRepository(db)
+	employeeRepo := repositories.NewEmployeeRepository(db)
+	employeeAreaRepo := repositories.NewEmployeeAreaRepository(db)
 
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
@@ -32,6 +34,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaUC := usecase.NewAreaUsecase(areaRepo)
 	areaSupervisorUC := usecase.NewAreaSupervisorUsecase(areaSupervisorRepo, areaRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)
@@ -41,8 +44,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaH := handler.NewAreaHandler(areaUC)
 	areaSupervisorH := handler.NewAreaSupervisorHandler(areaSupervisorUC)
 	companyH := handler.NewCompanyHandler(companyUC)
+	employeeH := handler.NewEmployeeHandler(employeeUC)
 
-	// Create organization group under API
+	// Create organization group under API with auth middleware
 	group := api.Group("/organization")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 
@@ -54,4 +58,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAreaRoutes(group, areaH)
 	router.RegisterAreaSupervisorRoutes(group, areaSupervisorH)
 	router.RegisterCompanyRoutes(group, companyH)
+	router.RegisterEmployeeRoutes(group, employeeH)
 }

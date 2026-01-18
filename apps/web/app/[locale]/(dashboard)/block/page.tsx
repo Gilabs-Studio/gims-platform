@@ -1,32 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "@/i18n/routing";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { useLogout } from "@/features/auth/hooks/use-logout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ShieldX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export default function BlockPage() {
-  const router = useRouter();
   const { user } = useAuthStore();
-  const handleLogout = useLogout();
   const t = useTranslations("auth");
-
-  useEffect(() => {
-    // Auto logout after 5 seconds if user still doesn't have valid role
-    const timer = setTimeout(() => {
-      handleLogout();
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [handleLogout]);
-
-  const handleGoToLogin = () => {
-    handleLogout();
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -52,23 +33,15 @@ export default function BlockPage() {
                   "Your role has been removed or your permissions have been revoked. Please contact your administrator.",
               })}
             </p>
-            {user?.roles && user.roles.length > 0 && (
+            {user?.role && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("block.currentRole", {
                   defaultValue: "Current role:",
                 })}{" "}
-                <span className="font-medium">{user.roles.map(r => r.name).join(", ")}</span>
+                <span className="font-medium">{user.role.name}</span>
               </p>
             )}
           </div>
-          <Button onClick={handleGoToLogin} className="w-full" variant="default">
-            {t("block.goToLogin", { defaultValue: "Go to Login" })}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            {t("block.autoLogout", {
-              defaultValue: "You will be automatically logged out in a few seconds.",
-            })}
-          </p>
         </CardContent>
       </Card>
     </div>

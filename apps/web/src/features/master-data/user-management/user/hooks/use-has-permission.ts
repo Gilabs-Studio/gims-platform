@@ -2,13 +2,14 @@
 
 import { useMemo } from "react";
 import { useUserPermissions } from "./use-user-permissions";
-import type { Menu } from "@/features/auth/types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import type { MenuWithActions, Action } from "../types";
 
 /**
  * Recursively searches through menus and their children to find an action by code
  */
 function findActionByCode(
-  menus: Menu[],
+  menus: MenuWithActions[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {
@@ -38,16 +39,23 @@ function findActionByCode(
  * @returns boolean indicating if user has the permission
  */
 export function useHasPermission(permissionCode: string): boolean {
+  const { user } = useAuthStore();
   const { data: permissionsData } = useUserPermissions();
 
   const hasPermission = useMemo(() => {
+    // 1. Check flat permissions from Auth Store (Primary)
+    if (user?.permissions?.includes(permissionCode)) {
+      return true;
+    }
+
+    // 2. Check nested menus (Legacy/Fallback)
     if (!permissionsData?.data?.menus) {
       return false;
     }
 
     const action = findActionByCode(permissionsData.data.menus, permissionCode);
     return action?.access ?? false;
-  }, [permissionsData, permissionCode]);
+  }, [user, permissionsData, permissionCode]);
 
   return hasPermission;
 }

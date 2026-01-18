@@ -64,6 +64,9 @@ func AutoMigrate() error {
 		&organization.AreaSupervisor{},
 		&organization.AreaSupervisorArea{},
 		&organization.Company{},
+		// Employee entities (Sprint 3)
+		&organization.Employee{},
+		&organization.EmployeeArea{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

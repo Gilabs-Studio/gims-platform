@@ -33,6 +33,8 @@ import { geographicEn } from "@/features/master-data/geographic/i18n/en";
 import { geographicId } from "@/features/master-data/geographic/i18n/id";
 import { organizationEn } from "@/features/master-data/organization/i18n/en";
 import { organizationId } from "@/features/master-data/organization/i18n/id";
+import { employeeEn } from "@/features/master-data/employee/i18n/en";
+import { employeeId } from "@/features/master-data/employee/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -52,6 +54,7 @@ const messages = {
     ...stockValuationsEnMessages,
     ...geographicEn,
     organization: organizationEn,
+    employee: employeeEn,
   },
   id: {
     ...globalIdMessages,
@@ -69,6 +72,7 @@ const messages = {
     ...stockValuationsIdMessages,
     ...geographicId,
     organization: organizationId,
+    employee: employeeId,
   },
 } as const;
 
