@@ -22,6 +22,8 @@ export const organizationId: OrganizationTranslations = {
     description_field: "Deskripsi",
     createdAt: "Dibuat Pada",
     updatedAt: "Diperbarui Pada",
+    success_update: "Berhasil memperbarui {name}",
+    error_update: "Gagal memperbarui",
   },
   division: {
     title: "Divisi",

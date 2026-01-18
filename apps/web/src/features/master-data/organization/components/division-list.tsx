@@ -25,10 +25,13 @@ import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import {
   useDivisions,
   useDeleteDivision,
+  useUpdateDivision,
 } from "../hooks/use-divisions";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DivisionForm } from "./division-form";
 import type { Division } from "../types";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 export function DivisionList() {
   const t = useTranslations("organization");
@@ -49,6 +52,7 @@ export function DivisionList() {
   const canDelete = useUserPermission("division.delete");
 
   const deleteDivision = useDeleteDivision();
+  const updateDivision = useUpdateDivision();
 
   const divisions = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -62,6 +66,24 @@ export function DivisionList() {
     if (deletingId) {
       await deleteDivision.mutateAsync(deletingId);
       setDeletingId(null);
+    }
+  };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+    name: string,
+  ) => {
+    try {
+      await updateDivision.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(
+        t("common.success_update", { name: name })
+      );
+    } catch (error) {
+      toast.error(t("common.error_update"));
     }
   };
 
@@ -160,13 +182,25 @@ export function DivisionList() {
                     {division.description || "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={division.is_active ? "default" : "secondary"}
-                    >
-                      {division.is_active
-                        ? t("common.active")
-                        : t("common.inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={division.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            division.id,
+                            division.is_active,
+                            division.name,
+                          )
+                        }
+                        disabled={updateDivision.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {division.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
