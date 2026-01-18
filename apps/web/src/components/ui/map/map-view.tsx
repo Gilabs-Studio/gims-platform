@@ -38,6 +38,12 @@ const MapInner = dynamic(() => import("./map-inner"), {
   ),
 }) as <T>(props: MapViewProps<T>) => React.ReactElement;
 
+export const MarkerClusterGroup = dynamic(
+  () => import("./marker-cluster-group"),
+  { ssr: false }
+);
+
+
 export function MapView<T>(props: MapViewProps<T>) {
   return (
     <div className={cn("relative w-full h-full", props.className)}>

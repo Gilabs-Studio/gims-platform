@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { Supplier } from "@/features/master-data/partner/suppliers/types";
 import dynamic from "next/dynamic";
-import { MapView, type MapMarker } from "@/components/ui/map/map-view";
+import { MapView, type MapMarker, MarkerClusterGroup } from "@/components/ui/map/map-view";
 import { MapSidebar } from "@/components/ui/map/map-sidebar";
 
 // Dynamic import untuk Leaflet (client-side only)
@@ -90,62 +90,64 @@ export function SupplierMapView({
   const renderMarkers = (markers: MapMarker<Supplier>[]) => {
     return (
       <>
-        {markers.map((marker) => {
-          const supplier = marker.data;
-          const lat = Number(marker.latitude);
-          const lng = Number(marker.longitude);
-          if (isNaN(lat) || isNaN(lng)) return null;
+        <MarkerClusterGroup chunkedLoading>
+          {markers.map((marker) => {
+            const supplier = marker.data;
+            const lat = Number(marker.latitude);
+            const lng = Number(marker.longitude);
+            if (isNaN(lat) || isNaN(lng)) return null;
 
-          return (
-            <Marker
-              key={marker.id}
-              position={[lat, lng]}
-              eventHandlers={{
-                click: () => {
-                  onSupplierClick?.(supplier);
-                },
-              }}
-            >
-              <Popup className="min-w-[200px]">
-                <div className="p-3 space-y-2">
-                  <div>
-                    <h3 className="font-semibold text-sm mb-1">{supplier.name}</h3>
-                    {supplier.address && (
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{supplier.address}</p>
-                    )}
-                    <Badge variant={supplier.is_approved ? "default" : "secondary"} className="text-xs">
-                      {supplier.is_approved ? (
-                        <>
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Approved
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Pending
-                        </>
+            return (
+              <Marker
+                key={marker.id}
+                position={[lat, lng]}
+                eventHandlers={{
+                  click: () => {
+                    onSupplierClick?.(supplier);
+                  },
+                }}
+              >
+                <Popup className="min-w-[200px]">
+                  <div className="p-3 space-y-2">
+                    <div>
+                      <h3 className="font-semibold text-sm mb-1">{supplier.name}</h3>
+                      {supplier.address && (
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{supplier.address}</p>
                       )}
-                    </Badge>
+                      <Badge variant={supplier.is_approved ? "default" : "secondary"} className="text-xs">
+                        {supplier.is_approved ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Approved
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Pending
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                    {onViewDetail && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetail(supplier);
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1.5" />
+                        View Details
+                      </Button>
+                    )}
                   </div>
-                  {onViewDetail && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewDetail(supplier);
-                      }}
-                    >
-                      <Eye className="h-3 w-3 mr-1.5" />
-                      View Details
-                    </Button>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MarkerClusterGroup>
       </>
     );
   };
@@ -154,7 +156,6 @@ export function SupplierMapView({
     <MapView
       markers={markers}
       renderMarkers={renderMarkers}
-      onMarkerClick={(marker) => onSupplierClick?.(marker.data)}
       selectedMarkerId={selectedSupplierId}
       className={className}
       showSidebar={showSidebar}

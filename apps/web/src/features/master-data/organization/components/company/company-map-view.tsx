@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapView, type MapMarker } from "@/components/ui/map/map-view";
+import { MapView, type MapMarker, MarkerClusterGroup } from "@/components/ui/map/map-view";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -192,53 +192,55 @@ export function CompanyMapView() {
   // Render markers on map
   const renderMarkers = (markerList: MapMarker<Company>[]) => (
     <>
-      {markerList.map((marker) => {
-        const company = marker.data;
-        const isSelected = selectedCompanyId === marker.id;
-        return (
-          <Marker
-            key={marker.id}
-            position={[marker.latitude, marker.longitude]}
-            eventHandlers={{
-              click: () => setSelectedCompanyId(String(marker.id)),
-            }}
-          >
-            <Popup>
-              <div className="p-2 min-w-[220px]">
-                <h3 className="font-bold text-sm mb-1">{company.name}</h3>
-                {company.address && (
-                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                    {company.address}
-                  </p>
-                )}
-                <Badge className={cn("text-xs mb-2", statusColors[company.status])}>
-                  {t(`company.status.${company.status}`)}
-                </Badge>
-                <div className="flex flex-col gap-1 mt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full cursor-pointer"
-                    onClick={() => handleView(company)}
-                  >
-                    View Details
-                  </Button>
-                  {canUpdate && (
+      <MarkerClusterGroup chunkedLoading>
+        {markerList.map((marker) => {
+          const company = marker.data;
+          const isSelected = selectedCompanyId === marker.id;
+          return (
+            <Marker
+              key={marker.id}
+              position={[marker.latitude, marker.longitude]}
+              eventHandlers={{
+                click: () => setSelectedCompanyId(String(marker.id)),
+              }}
+            >
+              <Popup>
+                <div className="p-2 min-w-[220px]">
+                  <h3 className="font-bold text-sm mb-1">{company.name}</h3>
+                  {company.address && (
+                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                      {company.address}
+                    </p>
+                  )}
+                  <Badge className={cn("text-xs mb-2", statusColors[company.status])}>
+                    {t(`company.status.${company.status}`)}
+                  </Badge>
+                  <div className="flex flex-col gap-1 mt-2">
                     <Button
                       size="sm"
-                      variant="secondary"
+                      variant="outline"
                       className="w-full cursor-pointer"
-                      onClick={() => handleEdit(company)}
+                      onClick={() => handleView(company)}
                     >
-                      {t("common.edit")}
+                      View Details
                     </Button>
-                  )}
+                    {canUpdate && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full cursor-pointer"
+                        onClick={() => handleEdit(company)}
+                      >
+                        {t("common.edit")}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MarkerClusterGroup>
     </>
   );
 
