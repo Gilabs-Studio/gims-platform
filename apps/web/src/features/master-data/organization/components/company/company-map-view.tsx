@@ -86,7 +86,7 @@ export function CompanyMapView() {
 
   // Data fetching
   const { data, isLoading, refetch } = useCompanies({
-    per_page: 200, // Get more for map
+    per_page: 100, // Get max allowed for map
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
