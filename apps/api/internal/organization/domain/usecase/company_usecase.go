@@ -133,6 +133,12 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 	if req.IsActive != nil {
 		company.IsActive = *req.IsActive
 	}
+	if req.Latitude != nil {
+		company.Latitude = req.Latitude
+	}
+	if req.Longitude != nil {
+		company.Longitude = req.Longitude
+	}
 
 	if err := u.companyRepo.Update(ctx, company); err != nil {
 		return nil, err

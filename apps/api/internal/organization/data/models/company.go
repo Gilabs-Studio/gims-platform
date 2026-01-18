@@ -28,6 +28,8 @@ type Company struct {
 	NPWP       string         `gorm:"type:varchar(30)" json:"npwp"`
 	NIB        string         `gorm:"type:varchar(30)" json:"nib"`
 	VillageID  *string        `gorm:"type:uuid;index" json:"village_id"`
+	Latitude   *float64       `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude  *float64       `gorm:"type:decimal(11,8)" json:"longitude"`
 	Village    *models.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 	DirectorID *string        `gorm:"type:uuid;index" json:"director_id"` // Employee FK (Sprint 3)
 	// Approval workflow

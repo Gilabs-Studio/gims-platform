@@ -1,10 +1,11 @@
 "use client";
 
+import { Drawer } from "@/components/ui/drawer";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, MapPin, Navigation, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
-import { cn } from "@/lib/utils";
 
 import { useCreateCompany, useUpdateCompany } from "../../hooks/use-companies";
 import { useProvinces } from "../../../geographic/hooks/use-provinces";
@@ -58,6 +58,7 @@ export function CompanySidePanel({
     reset,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<CompanyFormData>({
     resolver: zodResolver(getCompanySchema(t)),
@@ -170,8 +171,8 @@ export function CompanySidePanel({
   };
 
   const handleCoordinateSelect = (lat: number, lng: number) => {
-    setValue("latitude", lat, { shouldValidate: true });
-    setValue("longitude", lng, { shouldValidate: true });
+    setValue("latitude", lat, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    setValue("longitude", lng, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
   };
 
   const handleProvinceChange = (val: string) => {
@@ -203,37 +204,14 @@ export function CompanySidePanel({
 
   return (
     <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Side Panel */}
-      <div
-        className={cn(
-          "fixed right-0 top-0 h-full w-full sm:w-[420px] bg-background border-l shadow-xl z-50 transition-transform duration-300 ease-out",
-          isOpen ? "translate-x-0" : "translate-x-full"
-        )}
+      <Drawer
+        open={isOpen}
+        onOpenChange={(open) => !open && onClose()}
+        title={panelTitle}
+        side="right"
+        defaultWidth={500}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
-          <h2 className="font-semibold text-lg truncate">{panelTitle}</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="cursor-pointer shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="h-[calc(100%-65px)] overflow-y-auto p-4">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
             {/* Basic Info */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium border-b pb-2">
@@ -415,22 +393,38 @@ export function CompanySidePanel({
               <div className="grid grid-cols-2 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.latitude")}</FieldLabel>
-                  <Input
-                    type="number"
-                    step="any"
-                    {...register("latitude", { valueAsNumber: true })}
-                    placeholder="-6.2088"
-                    disabled={isViewing}
+                  <Controller
+                    control={control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="-6.2088"
+                        disabled={isViewing}
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      />
+                    )}
                   />
                 </Field>
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.longitude")}</FieldLabel>
-                  <Input
-                    type="number"
-                    step="any"
-                    {...register("longitude", { valueAsNumber: true })}
-                    placeholder="106.8456"
-                    disabled={isViewing}
+                  <Controller
+                    control={control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="106.8456"
+                        disabled={isViewing}
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      />
+                    )}
                   />
                 </Field>
               </div>
@@ -452,7 +446,7 @@ export function CompanySidePanel({
 
             {/* Actions */}
             {!isViewing && (
-              <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-background pb-2">
+              <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-background pb-2 z-10">
                 <Button
                   type="button"
                   variant="outline"
@@ -475,9 +469,8 @@ export function CompanySidePanel({
                 </Button>
               </div>
             )}
-          </form>
-        </div>
-      </div>
+        </form>
+      </Drawer>
 
       <MapPickerModal
         open={isMapPickerOpen}

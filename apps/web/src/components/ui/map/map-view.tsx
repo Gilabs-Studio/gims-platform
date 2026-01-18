@@ -13,6 +13,7 @@ import {
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "next-themes";
+import { useMap } from "react-leaflet";
 
 // Dynamic import untuk Leaflet (client-side only)
 const MapContainer = dynamic(
@@ -72,6 +73,20 @@ interface MapViewProps<T> {
 const DEFAULT_LOCATION: [number, number] = [-6.2088, 106.8456];
 const DEFAULT_ZOOM = 13;
 
+// Component to handle map movement
+function MapFlyTo({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.flyTo(center, zoom, {
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+  }, [center, zoom, map]);
+  
+  return null;
+}
+
 export function MapView<T>({
   markers,
   renderMarkers,
@@ -82,6 +97,7 @@ export function MapView<T>({
   defaultZoom = DEFAULT_ZOOM,
   children,
   showLayerControl = true,
+  selectedMarkerId,
 }: MapViewProps<T>) {
   const [mounted, setMounted] = useState(false);
   const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
@@ -129,15 +145,15 @@ export function MapView<T>({
 
   const activeTileLayer = getActiveTileLayer();
 
+  const validMarkers = markers.filter(
+    (m) => m.latitude != null && m.longitude != null && !isNaN(Number(m.latitude)) && !isNaN(Number(m.longitude))
+  );
+
   // Calculate initial center and zoom
   const getInitialCenterAndZoom = (): { center: [number, number]; zoom: number } => {
     if (!markers || markers.length === 0) {
       return { center: defaultCenter, zoom: defaultZoom };
     }
-
-    const validMarkers = markers.filter(
-      (m) => m.latitude != null && m.longitude != null && !isNaN(Number(m.latitude)) && !isNaN(Number(m.longitude))
-    );
 
     if (validMarkers.length === 0) {
       return { center: defaultCenter, zoom: defaultZoom };
@@ -172,9 +188,20 @@ export function MapView<T>({
 
   const { center: mapCenter, zoom: mapZoom } = getInitialCenterAndZoom();
 
-  const validMarkers = markers.filter(
-    (m) => m.latitude != null && m.longitude != null && !isNaN(Number(m.latitude)) && !isNaN(Number(m.longitude))
-  );
+  // Find center and zoom for selected marker
+  const getSelectedCenterAndZoom = () => {
+    if (!selectedMarkerId) return null;
+    const selected = validMarkers.find((m) => m.id === selectedMarkerId);
+    if (!selected) return null;
+    return { 
+      center: [Number(selected.latitude), Number(selected.longitude)] as [number, number], 
+      zoom: 16 
+    };
+  };
+
+  const selectedView = getSelectedCenterAndZoom();
+  const effectiveCenter = selectedView?.center ?? mapCenter;
+  const effectiveZoom = selectedView?.zoom ?? mapZoom;
 
   if (!mounted) {
     return (
@@ -193,7 +220,7 @@ export function MapView<T>({
         <Button
           variant="outline"
           size="icon"
-          className="absolute top-2 left-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+          className="absolute top-2 left-2 z-10 bg-background/90 backdrop-blur-sm shadow-md cursor-pointer hover:bg-background"
           onClick={onToggleSidebar}
           aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
         >
@@ -212,12 +239,13 @@ export function MapView<T>({
             <Button
               variant="outline"
               size="icon"
-              className="absolute top-2 right-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer"
+              className="absolute top-2 right-2 z-10 bg-background/90 backdrop-blur-sm shadow-md cursor-pointer hover:bg-background"
             >
               <Layers className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-40 z-50">
+            {/* ... items ... */}
             <DropdownMenuItem 
               onClick={() => setMapStyle("auto")}
               className={cn("cursor-pointer", mapStyle === "auto" && "bg-accent")}
@@ -255,8 +283,8 @@ export function MapView<T>({
       )}
 
       <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
+        center={effectiveCenter}
+        zoom={effectiveZoom}
         className="h-full w-full z-0"
         scrollWheelZoom={true}
         touchZoom={true}
@@ -268,6 +296,7 @@ export function MapView<T>({
           attribution={activeTileLayer.attribution}
           url={activeTileLayer.url}
         />
+        <MapFlyTo center={effectiveCenter} zoom={effectiveZoom} />
         {children}
         {renderMarkers(validMarkers)}
       </MapContainer>

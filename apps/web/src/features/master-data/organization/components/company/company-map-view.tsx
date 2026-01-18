@@ -41,6 +41,7 @@ import {
 import type { Company, CompanyStatus } from "../../types";
 import { CompanyCard } from "./company-card";
 import { CompanySidePanel } from "./company-side-panel";
+import { CompanyDetailDialog } from "./company-detail-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
@@ -75,6 +76,8 @@ export function CompanyMapView() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [viewingCompany, setViewingCompany] = useState<Company | null>(null);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -97,17 +100,22 @@ export function CompanyMapView() {
 
   const companies = data?.data ?? [];
 
-  // Filter companies with valid coordinates for map
+  // Filter companies with valid coordinates for map & ensure they are numbers
   const markers: MapMarker<Company>[] = useMemo(
-    () =>
-      companies
-        .filter((c) => c.latitude != null && c.longitude != null)
+    () => {
+      const m = companies
+        .filter((c) => {
+          return c.latitude != null && c.longitude != null;
+        })
         .map((c) => ({
           id: c.id,
-          latitude: c.latitude!,
-          longitude: c.longitude!,
+          // Explicitly cast to Number to prevent string coordinate issues
+          latitude: Number(c.latitude),
+          longitude: Number(c.longitude),
           data: c,
-        })),
+        }));
+      return m;
+    },
     [companies]
   );
 
@@ -135,8 +143,8 @@ export function CompanyMapView() {
   };
 
   const handleView = (company: Company) => {
-    setEditingCompany(company);
-    setPanelMode("view");
+    setViewingCompany(company);
+    setIsDetailOpen(true);
   };
 
   const handleClosePanel = () => {
@@ -350,6 +358,11 @@ export function CompanyMapView() {
                   isSelected={selectedCompanyId === company.id}
                   onClick={() => handleCompanyClick(company)}
                   t={t}
+                  onDetail={() => handleView(company)}
+                  onEdit={() => handleEdit(company)}
+                  onDelete={() => setDeletingId(company.id)}
+                  canUpdate={canUpdate}
+                  canDelete={canDelete}
                 />
               ))}
             </>
@@ -416,6 +429,17 @@ export function CompanyMapView() {
         isLoading={deleteCompany.isPending}
         title={t("company.deleteTitle")}
         description={t("company.deleteConfirm")}
+      />
+
+      {/* Detail Dialog */}
+      <CompanyDetailDialog
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        company={viewingCompany}
+        onEdit={(company) => {
+          setIsDetailOpen(false);
+          handleEdit(company);
+        }}
       />
     </div>
   );

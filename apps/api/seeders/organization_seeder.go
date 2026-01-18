@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
+	geographicModels "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
 	"github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
 )
 
@@ -152,6 +153,63 @@ func SeedOrganization() error {
 		}
 	} else {
 		log.Println("Area supervisors already seeded, skipping...")
+	}
+
+	// 7. Seed Companies
+	var companyCount int64
+	db.Model(&models.Company{}).Count(&companyCount)
+	if companyCount == 0 {
+		log.Println("Seeding companies...")
+
+		var village geographicModels.Village
+		// Try to find a village to link (optional)
+		db.First(&village)
+
+		var villageID *string
+		if village.ID != "" {
+			id := village.ID
+			villageID = &id
+		}
+
+		lat := -6.2088
+		lng := 106.8456
+
+		companies := []models.Company{
+			{
+				Name:       "PT. GiLabs Healthcare",
+				Address:    "Menara BCA, Jl. M.H. Thamrin No.1, Jakarta Pusat",
+				Email:      "contact@gilabs.com",
+				Phone:      "021-2358-1234",
+				NPWP:       "01.234.567.8-012.000",
+				NIB:        "1234567890123",
+				VillageID:  villageID,
+				Latitude:   &lat,
+				Longitude:  &lng,
+				Status:     models.CompanyStatusApproved,
+				IsApproved: true,
+				IsActive:   true,
+			},
+		}
+		for i := range companies {
+			if err := db.Create(&companies[i]).Error; err != nil {
+				return err
+			}
+		}
+	} else {
+		log.Println("Companies already seeded, skipping...")
+		
+		// Update existing companies with null coordinates
+		lat := -6.2088
+		lng := 106.8456
+		result := db.Model(&models.Company{}).
+			Where("latitude IS NULL OR longitude IS NULL").
+			Updates(map[string]interface{}{
+				"latitude":  lat,
+				"longitude": lng,
+			})
+		if result.RowsAffected > 0 {
+			log.Printf("Updated %d companies with default coordinates", result.RowsAffected)
+		}
 	}
 
 	log.Println("Organization data seeded successfully!")
