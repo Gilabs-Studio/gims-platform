@@ -375,6 +375,11 @@ apiClient.interceptors.response.use(
         }
       }
 
+      // Show toast with countdown
+      const countdown = useRateLimitStore.getState().getCountdownText();
+      const msg = formatError("backend", "rateLimit", { countdown });
+      toast.error(msg.title, { description: msg.description });
+
       return Promise.reject(customError);
     } else if (status >= 500) {
       const msg = formatError("backend", "serverError");

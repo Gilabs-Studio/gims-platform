@@ -18,8 +18,14 @@ export function useAuthGuard() {
         try {
           const { authService } = await import("../services/auth-service");
           await authService.verifySession();
-        } catch (error) {
+        } catch (error: any) {
           console.error("[AuthGuard] Session verification failed:", error);
+          
+          // Don't logout on rate limit (429)
+          if (error?.response?.status === 429) {
+            return;
+          }
+
           // If verification fails (e.g. invalid cookie), logout locally
           setUser(null);
         }
