@@ -10,21 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateBusinessUnit, useUpdateBusinessUnit } from "../hooks/use-business-units";
-import { getBusinessUnitSchema, type BusinessUnitFormData } from "../schemas/organization.schema";
-import type { BusinessUnit } from "../types";
+import { useCreateJobPosition, useUpdateJobPosition } from "../../hooks/use-job-positions";
+import { JobPositionFormData, getJobPositionSchema } from "../../schemas/organization.schema";
+import { JobPosition } from "../../types";
 
-interface BusinessUnitFormProps {
+interface JobPositionFormProps {
   open: boolean;
   onClose: () => void;
-  businessUnit?: BusinessUnit | null;
+  jobPosition?: JobPosition | null;
 }
 
-export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFormProps) {
+export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormProps) {
   const t = useTranslations("organization");
-  const isEditing = !!businessUnit;
-  const createBusinessUnit = useCreateBusinessUnit();
-  const updateBusinessUnit = useUpdateBusinessUnit();
+  const isEditing = !!jobPosition;
+  const createJobPosition = useCreateJobPosition();
+  const updateJobPosition = useUpdateJobPosition();
 
   const {
     register,
@@ -33,8 +33,8 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
     watch,
     setValue,
     formState: { errors },
-  } = useForm<BusinessUnitFormData>({
-    resolver: zodResolver(getBusinessUnitSchema(t)),
+  } = useForm<JobPositionFormData>({
+    resolver: zodResolver(getJobPositionSchema(t)),
     defaultValues: {
       name: "",
       description: "",
@@ -43,11 +43,11 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
   });
 
   useEffect(() => {
-    if (businessUnit) {
+    if (jobPosition) {
       reset({
-        name: businessUnit.name,
-        description: businessUnit.description ?? "",
-        is_active: businessUnit.is_active,
+        name: jobPosition.name,
+        description: jobPosition.description ?? "",
+        is_active: jobPosition.is_active,
       });
     } else {
       reset({
@@ -56,22 +56,22 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
         is_active: true,
       });
     }
-  }, [businessUnit, reset]);
+  }, [jobPosition, reset]);
 
-  const onSubmit = async (data: BusinessUnitFormData) => {
+  const onSubmit = async (data: JobPositionFormData) => {
     try {
-      if (isEditing && businessUnit) {
-        await updateBusinessUnit.mutateAsync({ id: businessUnit.id, data });
+      if (isEditing && jobPosition) {
+        await updateJobPosition.mutateAsync({ id: jobPosition.id, data });
       } else {
-        await createBusinessUnit.mutateAsync(data);
+        await createJobPosition.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save business unit:", error);
+      console.error("Failed to save job position:", error);
     }
   };
 
-  const isLoading = createBusinessUnit.isPending || updateBusinessUnit.isPending;
+  const isLoading = createJobPosition.isPending || updateJobPosition.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -79,23 +79,23 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? t("businessUnit.editTitle") : t("businessUnit.createTitle")}
+            {isEditing ? t("jobPosition.editTitle") : t("jobPosition.createTitle")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("businessUnit.form.name")}</FieldLabel>
+            <FieldLabel>{t("jobPosition.form.name")}</FieldLabel>
             <Input
-              placeholder={t("businessUnit.form.namePlaceholder")}
+              placeholder={t("jobPosition.form.namePlaceholder")}
               {...register("name")}
             />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("businessUnit.form.description")}</FieldLabel>
+            <FieldLabel>{t("jobPosition.form.description")}</FieldLabel>
             <Textarea
-              placeholder={t("businessUnit.form.descriptionPlaceholder")}
+              placeholder={t("jobPosition.form.descriptionPlaceholder")}
               {...register("description")}
               rows={3}
             />
@@ -108,7 +108,7 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
             orientation="horizontal"
             className="flex items-center justify-between rounded-lg border p-3"
           >
-            <FieldLabel>{t("businessUnit.form.isActive")}</FieldLabel>
+            <FieldLabel>{t("jobPosition.form.isActive")}</FieldLabel>
             <Switch
               checked={isActive}
               onCheckedChange={(val) => setValue("is_active", val)}

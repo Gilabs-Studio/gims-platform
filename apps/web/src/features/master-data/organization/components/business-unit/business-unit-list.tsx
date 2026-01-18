@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -22,49 +21,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import {
-  useDivisions,
-  useDeleteDivision,
-  useUpdateDivision,
-} from "../hooks/use-divisions";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { DivisionForm } from "./division-form";
-import type { Division } from "../types";
+import { BusinessUnitForm } from "./business-unit-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useBusinessUnits, useDeleteBusinessUnit, useUpdateBusinessUnit } from "../../hooks/use-business-units";
+import { BusinessUnit } from "../../types";
 
-export function DivisionList() {
+export function BusinessUnitList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingDivision, setEditingDivision] = useState<Division | null>(null);
+  const [editingBusinessUnit, setEditingBusinessUnit] = useState<BusinessUnit | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useDivisions({
+  const { data, isLoading, isError } = useBusinessUnits({
     page,
     per_page: 10,
     search: search || undefined,
   });
 
-  const canCreate = useUserPermission("division.create");
-  const canUpdate = useUserPermission("division.update");
-  const canDelete = useUserPermission("division.delete");
+  const canCreate = useUserPermission("business_unit.create");
+  const canUpdate = useUserPermission("business_unit.update");
+  const canDelete = useUserPermission("business_unit.delete");
 
-  const deleteDivision = useDeleteDivision();
-  const updateDivision = useUpdateDivision();
+  const deleteBusinessUnit = useDeleteBusinessUnit();
+  const updateBusinessUnit = useUpdateBusinessUnit();
 
-  const divisions = data?.data ?? [];
+  const businessUnits = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
-  const handleEdit = (division: Division) => {
-    setEditingDivision(division);
+  const handleEdit = (businessUnit: BusinessUnit) => {
+    setEditingBusinessUnit(businessUnit);
     setIsFormOpen(true);
   };
 
   const handleDelete = async () => {
     if (deletingId) {
-      await deleteDivision.mutateAsync(deletingId);
+      await deleteBusinessUnit.mutateAsync(deletingId);
       setDeletingId(null);
     }
   };
@@ -75,13 +70,11 @@ export function DivisionList() {
     name: string,
   ) => {
     try {
-      await updateDivision.mutateAsync({
+      await updateBusinessUnit.mutateAsync({
         id,
         data: { is_active: !currentStatus },
       });
-      toast.success(
-        t("common.success_update", { name: name })
-      );
+      toast.success(t("common.success_update", { name: name }));
     } catch (error) {
       toast.error(t("common.error_update"));
     }
@@ -89,7 +82,7 @@ export function DivisionList() {
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setEditingDivision(null);
+    setEditingBusinessUnit(null);
   };
 
   if (isError) {
@@ -106,10 +99,10 @@ export function DivisionList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            {t("division.title")}
+            {t("businessUnit.title")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {t("division.description")}
+            {t("businessUnit.description")}
           </p>
         </div>
         {canCreate && (
@@ -168,35 +161,35 @@ export function DivisionList() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : divisions.length === 0 ? (
+            ) : businessUnits.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  {t("division.empty")}
+                  {t("businessUnit.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              divisions.map((division) => (
-                <TableRow key={division.id}>
-                  <TableCell className="font-medium">{division.name}</TableCell>
+              businessUnits.map((businessUnit) => (
+                <TableRow key={businessUnit.id}>
+                  <TableCell className="font-medium">{businessUnit.name}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {division.description || "-"}
+                    {businessUnit.description || "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={division.is_active}
+                        checked={businessUnit.is_active}
                         onCheckedChange={() =>
                           handleStatusChange(
-                            division.id,
-                            division.is_active,
-                            division.name,
+                            businessUnit.id,
+                            businessUnit.is_active,
+                            businessUnit.name,
                           )
                         }
-                        disabled={updateDivision.isPending || !canUpdate}
+                        disabled={updateBusinessUnit.isPending || !canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {division.is_active
+                        {businessUnit.is_active
                           ? t("common.active")
                           : t("common.inactive")}
                       </span>
@@ -215,7 +208,7 @@ export function DivisionList() {
                       <DropdownMenuContent align="end">
                         {canUpdate && (
                           <DropdownMenuItem
-                            onClick={() => handleEdit(division)}
+                            onClick={() => handleEdit(businessUnit)}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
@@ -224,7 +217,7 @@ export function DivisionList() {
                         )}
                         {canDelete && (
                           <DropdownMenuItem
-                            onClick={() => setDeletingId(division.id)}
+                            onClick={() => setDeletingId(businessUnit.id)}
                             className="cursor-pointer text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -271,10 +264,10 @@ export function DivisionList() {
       )}
 
       {/* Form Dialog */}
-      <DivisionForm
+      <BusinessUnitForm
         open={isFormOpen}
         onClose={handleFormClose}
-        division={editingDivision}
+        businessUnit={editingBusinessUnit}
       />
 
       {/* Delete Dialog */}
@@ -282,9 +275,9 @@ export function DivisionList() {
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}
         onConfirm={handleDelete}
-        isLoading={deleteDivision.isPending}
-        title={t("division.deleteTitle")}
-        description={t("division.deleteConfirm")}
+        isLoading={deleteBusinessUnit.isPending}
+        title={t("businessUnit.deleteTitle")}
+        description={t("businessUnit.deleteConfirm")}
       />
     </div>
   );

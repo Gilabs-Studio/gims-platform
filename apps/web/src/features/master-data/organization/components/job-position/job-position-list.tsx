@@ -21,16 +21,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import {
-  useJobPositions,
-  useDeleteJobPosition,
-  useUpdateJobPosition,
-} from "../hooks/use-job-positions";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { JobPositionForm } from "./job-position-form";
-import type { JobPosition } from "../types";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useJobPositions, useDeleteJobPosition, useUpdateJobPosition } from "../../hooks/use-job-positions";
+import { JobPosition } from "../../types";
 
 export function JobPositionList() {
   const t = useTranslations("organization");

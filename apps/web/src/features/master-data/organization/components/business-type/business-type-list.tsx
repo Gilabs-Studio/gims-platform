@@ -21,16 +21,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import {
-  useBusinessTypes,
-  useDeleteBusinessType,
-  useUpdateBusinessType,
-} from "../hooks/use-business-types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { BusinessTypeForm } from "./business-type-form";
-import type { BusinessType } from "../types";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useBusinessTypes, useDeleteBusinessType, useUpdateBusinessType } from "../../hooks/use-business-types";
+import { BusinessType } from "../../types";
 
 export function BusinessTypeList() {
   const t = useTranslations("organization");

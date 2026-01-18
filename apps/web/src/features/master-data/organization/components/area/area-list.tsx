@@ -21,49 +21,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import {
-  useBusinessUnits,
-  useDeleteBusinessUnit,
-  useUpdateBusinessUnit,
-} from "../hooks/use-business-units";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { BusinessUnitForm } from "./business-unit-form";
-import type { BusinessUnit } from "../types";
+import { AreaForm } from "./area-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useAreas, useDeleteArea, useUpdateArea } from "../../hooks/use-areas";
+import { Area } from "../../types";
 
-export function BusinessUnitList() {
+export function AreaList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingBusinessUnit, setEditingBusinessUnit] = useState<BusinessUnit | null>(null);
+  const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useBusinessUnits({
+  const { data, isLoading, isError } = useAreas({
     page,
     per_page: 10,
     search: search || undefined,
   });
 
-  const canCreate = useUserPermission("business_unit.create");
-  const canUpdate = useUserPermission("business_unit.update");
-  const canDelete = useUserPermission("business_unit.delete");
+  const canCreate = useUserPermission("area.create");
+  const canUpdate = useUserPermission("area.update");
+  const canDelete = useUserPermission("area.delete");
 
-  const deleteBusinessUnit = useDeleteBusinessUnit();
-  const updateBusinessUnit = useUpdateBusinessUnit();
+  const deleteArea = useDeleteArea();
+  const updateArea = useUpdateArea();
 
-  const businessUnits = data?.data ?? [];
+  const areas = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
-  const handleEdit = (businessUnit: BusinessUnit) => {
-    setEditingBusinessUnit(businessUnit);
+  const handleEdit = (area: Area) => {
+    setEditingArea(area);
     setIsFormOpen(true);
   };
 
   const handleDelete = async () => {
     if (deletingId) {
-      await deleteBusinessUnit.mutateAsync(deletingId);
+      await deleteArea.mutateAsync(deletingId);
       setDeletingId(null);
     }
   };
@@ -74,7 +70,7 @@ export function BusinessUnitList() {
     name: string,
   ) => {
     try {
-      await updateBusinessUnit.mutateAsync({
+      await updateArea.mutateAsync({
         id,
         data: { is_active: !currentStatus },
       });
@@ -86,7 +82,7 @@ export function BusinessUnitList() {
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setEditingBusinessUnit(null);
+    setEditingArea(null);
   };
 
   if (isError) {
@@ -103,10 +99,10 @@ export function BusinessUnitList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            {t("businessUnit.title")}
+            {t("area.title")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {t("businessUnit.description")}
+            {t("area.description")}
           </p>
         </div>
         {canCreate && (
@@ -165,35 +161,35 @@ export function BusinessUnitList() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : businessUnits.length === 0 ? (
+            ) : areas.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  {t("businessUnit.empty")}
+                  {t("area.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              businessUnits.map((businessUnit) => (
-                <TableRow key={businessUnit.id}>
-                  <TableCell className="font-medium">{businessUnit.name}</TableCell>
+              areas.map((area) => (
+                <TableRow key={area.id}>
+                  <TableCell className="font-medium">{area.name}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {businessUnit.description || "-"}
+                    {area.description || "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={businessUnit.is_active}
+                        checked={area.is_active}
                         onCheckedChange={() =>
                           handleStatusChange(
-                            businessUnit.id,
-                            businessUnit.is_active,
-                            businessUnit.name,
+                            area.id,
+                            area.is_active,
+                            area.name,
                           )
                         }
-                        disabled={updateBusinessUnit.isPending || !canUpdate}
+                        disabled={updateArea.isPending || !canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {businessUnit.is_active
+                        {area.is_active
                           ? t("common.active")
                           : t("common.inactive")}
                       </span>
@@ -212,7 +208,7 @@ export function BusinessUnitList() {
                       <DropdownMenuContent align="end">
                         {canUpdate && (
                           <DropdownMenuItem
-                            onClick={() => handleEdit(businessUnit)}
+                            onClick={() => handleEdit(area)}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
@@ -221,7 +217,7 @@ export function BusinessUnitList() {
                         )}
                         {canDelete && (
                           <DropdownMenuItem
-                            onClick={() => setDeletingId(businessUnit.id)}
+                            onClick={() => setDeletingId(area.id)}
                             className="cursor-pointer text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -268,10 +264,10 @@ export function BusinessUnitList() {
       )}
 
       {/* Form Dialog */}
-      <BusinessUnitForm
+      <AreaForm
         open={isFormOpen}
         onClose={handleFormClose}
-        businessUnit={editingBusinessUnit}
+        area={editingArea}
       />
 
       {/* Delete Dialog */}
@@ -279,9 +275,9 @@ export function BusinessUnitList() {
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}
         onConfirm={handleDelete}
-        isLoading={deleteBusinessUnit.isPending}
-        title={t("businessUnit.deleteTitle")}
-        description={t("businessUnit.deleteConfirm")}
+        isLoading={deleteArea.isPending}
+        title={t("area.deleteTitle")}
+        description={t("area.deleteConfirm")}
       />
     </div>
   );

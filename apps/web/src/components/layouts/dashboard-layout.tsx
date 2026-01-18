@@ -658,6 +658,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, []);
 
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
+  const isFullScreenMapPage = pathname?.includes("/master-data/company");
 
   // Check if current parent has children (should show detail sidebar)
   const shouldShowDetailSidebar = useMemo(() => {
@@ -723,7 +724,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           style={{ marginLeft: contentMarginLeft }}
         >
           <div className="min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]">
-            {!isAIChatbotPage && (
+            {!isAIChatbotPage && !isFullScreenMapPage && (
               <Header
                 userName={userName}
                 avatarUrl={primaryAvatarUrl}
@@ -734,11 +735,11 @@ export const DashboardLayout = memo(function DashboardLayout({
 
             <div
               className={`flex flex-1 flex-col ${
-                isAIChatbotPage ? "gap-0 p-0 h-screen" : "gap-4 p-4 md:p-6"
+                isAIChatbotPage || isFullScreenMapPage ? "gap-0 p-0 h-[calc(100vh-1px)]" : "gap-4 p-4 md:p-6"
               }`}
             >
 
-              {!isAIChatbotPage && <Breadcrumb />}
+              {!isAIChatbotPage && !isFullScreenMapPage && <Breadcrumb />}
               {children}
             </div>
           </div>

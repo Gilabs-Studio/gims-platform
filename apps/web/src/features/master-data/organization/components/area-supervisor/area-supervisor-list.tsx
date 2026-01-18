@@ -22,16 +22,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, MapPin } from "lucide-react";
-import {
-  useAreaSupervisors,
-  useDeleteAreaSupervisor,
-  useUpdateAreaSupervisor,
-} from "../hooks/use-area-supervisors";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { AreaSupervisorForm } from "./area-supervisor-form";
-import type { AreaSupervisor } from "../types";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useAreaSupervisors, useDeleteAreaSupervisor, useUpdateAreaSupervisor } from "../../hooks/use-area-supervisors";
+import { AreaSupervisor } from "../../types";
 
 export function AreaSupervisorList() {
   const t = useTranslations("organization");

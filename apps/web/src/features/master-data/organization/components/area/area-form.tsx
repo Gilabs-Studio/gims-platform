@@ -10,21 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateBusinessType, useUpdateBusinessType } from "../hooks/use-business-types";
-import { getBusinessTypeSchema, type BusinessTypeFormData } from "../schemas/organization.schema";
-import type { BusinessType } from "../types";
+import { useCreateArea, useUpdateArea } from "../../hooks/use-areas";
+import { AreaFormData, getAreaSchema } from "../../schemas/organization.schema";
+import { Area } from "../../types";
 
-interface BusinessTypeFormProps {
+interface AreaFormProps {
   open: boolean;
   onClose: () => void;
-  businessType?: BusinessType | null;
+  area?: Area | null;
 }
 
-export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFormProps) {
+export function AreaForm({ open, onClose, area }: AreaFormProps) {
   const t = useTranslations("organization");
-  const isEditing = !!businessType;
-  const createBusinessType = useCreateBusinessType();
-  const updateBusinessType = useUpdateBusinessType();
+  const isEditing = !!area;
+  const createArea = useCreateArea();
+  const updateArea = useUpdateArea();
 
   const {
     register,
@@ -33,8 +33,8 @@ export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFo
     watch,
     setValue,
     formState: { errors },
-  } = useForm<BusinessTypeFormData>({
-    resolver: zodResolver(getBusinessTypeSchema(t)),
+  } = useForm<AreaFormData>({
+    resolver: zodResolver(getAreaSchema(t)),
     defaultValues: {
       name: "",
       description: "",
@@ -43,11 +43,11 @@ export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFo
   });
 
   useEffect(() => {
-    if (businessType) {
+    if (area) {
       reset({
-        name: businessType.name,
-        description: businessType.description ?? "",
-        is_active: businessType.is_active,
+        name: area.name,
+        description: area.description ?? "",
+        is_active: area.is_active,
       });
     } else {
       reset({
@@ -56,22 +56,22 @@ export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFo
         is_active: true,
       });
     }
-  }, [businessType, reset]);
+  }, [area, reset]);
 
-  const onSubmit = async (data: BusinessTypeFormData) => {
+  const onSubmit = async (data: AreaFormData) => {
     try {
-      if (isEditing && businessType) {
-        await updateBusinessType.mutateAsync({ id: businessType.id, data });
+      if (isEditing && area) {
+        await updateArea.mutateAsync({ id: area.id, data });
       } else {
-        await createBusinessType.mutateAsync(data);
+        await createArea.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save business type:", error);
+      console.error("Failed to save area:", error);
     }
   };
 
-  const isLoading = createBusinessType.isPending || updateBusinessType.isPending;
+  const isLoading = createArea.isPending || updateArea.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -79,23 +79,23 @@ export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFo
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? t("businessType.editTitle") : t("businessType.createTitle")}
+            {isEditing ? t("area.editTitle") : t("area.createTitle")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("businessType.form.name")}</FieldLabel>
+            <FieldLabel>{t("area.form.name")}</FieldLabel>
             <Input
-              placeholder={t("businessType.form.namePlaceholder")}
+              placeholder={t("area.form.namePlaceholder")}
               {...register("name")}
             />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("businessType.form.description")}</FieldLabel>
+            <FieldLabel>{t("area.form.description")}</FieldLabel>
             <Textarea
-              placeholder={t("businessType.form.descriptionPlaceholder")}
+              placeholder={t("area.form.descriptionPlaceholder")}
               {...register("description")}
               rows={3}
             />
@@ -108,7 +108,7 @@ export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFo
             orientation="horizontal"
             className="flex items-center justify-between rounded-lg border p-3"
           >
-            <FieldLabel>{t("businessType.form.isActive")}</FieldLabel>
+            <FieldLabel>{t("area.form.isActive")}</FieldLabel>
             <Switch
               checked={isActive}
               onCheckedChange={(val) => setValue("is_active", val)}

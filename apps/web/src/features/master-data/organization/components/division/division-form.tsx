@@ -10,21 +10,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateJobPosition, useUpdateJobPosition } from "../hooks/use-job-positions";
-import { getJobPositionSchema, type JobPositionFormData } from "../schemas/organization.schema";
-import type { JobPosition } from "../types";
+import { Division } from "../../types";
+import { useCreateDivision, useUpdateDivision } from "../../hooks/use-divisions";
+import { DivisionFormData } from "../../schemas/organization.schema";
+import { getDivisionSchema } from "../../schemas/organization.schema";
 
-interface JobPositionFormProps {
+interface DivisionFormProps {
   open: boolean;
   onClose: () => void;
-  jobPosition?: JobPosition | null;
+  division?: Division | null;
 }
 
-export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormProps) {
+export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
   const t = useTranslations("organization");
-  const isEditing = !!jobPosition;
-  const createJobPosition = useCreateJobPosition();
-  const updateJobPosition = useUpdateJobPosition();
+  const isEditing = !!division;
+  const createDivision = useCreateDivision();
+  const updateDivision = useUpdateDivision();
 
   const {
     register,
@@ -33,8 +34,8 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
     watch,
     setValue,
     formState: { errors },
-  } = useForm<JobPositionFormData>({
-    resolver: zodResolver(getJobPositionSchema(t)),
+  } = useForm<DivisionFormData>({
+    resolver: zodResolver(getDivisionSchema(t)),
     defaultValues: {
       name: "",
       description: "",
@@ -43,11 +44,11 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
   });
 
   useEffect(() => {
-    if (jobPosition) {
+    if (division) {
       reset({
-        name: jobPosition.name,
-        description: jobPosition.description ?? "",
-        is_active: jobPosition.is_active,
+        name: division.name,
+        description: division.description ?? "",
+        is_active: division.is_active,
       });
     } else {
       reset({
@@ -56,22 +57,22 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
         is_active: true,
       });
     }
-  }, [jobPosition, reset]);
+  }, [division, reset]);
 
-  const onSubmit = async (data: JobPositionFormData) => {
+  const onSubmit = async (data: DivisionFormData) => {
     try {
-      if (isEditing && jobPosition) {
-        await updateJobPosition.mutateAsync({ id: jobPosition.id, data });
+      if (isEditing && division) {
+        await updateDivision.mutateAsync({ id: division.id, data });
       } else {
-        await createJobPosition.mutateAsync(data);
+        await createDivision.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save job position:", error);
+      console.error("Failed to save division:", error);
     }
   };
 
-  const isLoading = createJobPosition.isPending || updateJobPosition.isPending;
+  const isLoading = createDivision.isPending || updateDivision.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -79,23 +80,23 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? t("jobPosition.editTitle") : t("jobPosition.createTitle")}
+            {isEditing ? t("division.editTitle") : t("division.createTitle")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("jobPosition.form.name")}</FieldLabel>
+            <FieldLabel>{t("division.form.name")}</FieldLabel>
             <Input
-              placeholder={t("jobPosition.form.namePlaceholder")}
+              placeholder={t("division.form.namePlaceholder")}
               {...register("name")}
             />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("jobPosition.form.description")}</FieldLabel>
+            <FieldLabel>{t("division.form.description")}</FieldLabel>
             <Textarea
-              placeholder={t("jobPosition.form.descriptionPlaceholder")}
+              placeholder={t("division.form.descriptionPlaceholder")}
               {...register("description")}
               rows={3}
             />
@@ -108,7 +109,7 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
             orientation="horizontal"
             className="flex items-center justify-between rounded-lg border p-3"
           >
-            <FieldLabel>{t("jobPosition.form.isActive")}</FieldLabel>
+            <FieldLabel>{t("division.form.isActive")}</FieldLabel>
             <Switch
               checked={isActive}
               onCheckedChange={(val) => setValue("is_active", val)}

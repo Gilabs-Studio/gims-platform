@@ -1,45 +1,43 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-export default function CompaniesLoading() {
+export default function CompanyLoading() {
   return (
-    <PageMotion className="p-6">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-4 w-64" />
+    <div className="h-full w-full flex overflow-hidden">
+      {/* Sidebar Skeleton */}
+      <div className="w-80 border-r shrink-0 hidden lg:flex flex-col">
+        {/* Header */}
+        <div className="border-b p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-32" />
           </div>
-          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-9 w-full" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 flex-1" />
+            <Skeleton className="h-9 w-24" />
+          </div>
         </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-32" />
+        {/* List */}
+        <div className="flex-1 p-4 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="p-4 border-b space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+          ))}
         </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="h-4 w-16" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </PageMotion>
+      
+      {/* Map Skeleton */}
+      <div className="flex-1 bg-muted flex items-center justify-center">
+        <div className="text-center">
+          <Skeleton className="h-8 w-8 mx-auto mb-2 rounded-full" />
+          <Skeleton className="h-4 w-24 mx-auto" />
+        </div>
+      </div>
+    </div>
   );
 }

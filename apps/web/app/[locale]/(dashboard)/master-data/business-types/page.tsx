@@ -5,7 +5,7 @@ import { PageMotion } from "@/components/motion";
 // Lazy load list component for code splitting
 const BusinessTypeList = dynamic(
   () =>
-    import("@/features/master-data/organization/components/business-type-list").then(
+    import("@/features/master-data/organization/components/business-type").then(
       (mod) => ({ default: mod.BusinessTypeList }),
     ),
   {

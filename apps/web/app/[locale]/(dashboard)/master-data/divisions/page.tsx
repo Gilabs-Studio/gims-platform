@@ -5,7 +5,7 @@ import { PageMotion } from "@/components/motion";
 // Lazy load list component for code splitting
 const DivisionList = dynamic(
   () =>
-    import("@/features/master-data/organization/components/division-list").then(
+    import("@/features/master-data/organization/components/division").then(
       (mod) => ({ default: mod.DivisionList }),
     ),
   {

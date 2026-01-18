@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -21,49 +22,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import {
-  useAreas,
-  useDeleteArea,
-  useUpdateArea,
-} from "../hooks/use-areas";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { AreaForm } from "./area-form";
-import type { Area } from "../types";
+import { DivisionForm } from "./division-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Division } from "../../types";
+import { useDivisions, useDeleteDivision, useUpdateDivision } from "../../hooks/use-divisions";
 
-export function AreaList() {
+export function DivisionList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState<Area | null>(null);
+  const [editingDivision, setEditingDivision] = useState<Division | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useAreas({
+  const { data, isLoading, isError } = useDivisions({
     page,
     per_page: 10,
     search: search || undefined,
   });
 
-  const canCreate = useUserPermission("area.create");
-  const canUpdate = useUserPermission("area.update");
-  const canDelete = useUserPermission("area.delete");
+  const canCreate = useUserPermission("division.create");
+  const canUpdate = useUserPermission("division.update");
+  const canDelete = useUserPermission("division.delete");
 
-  const deleteArea = useDeleteArea();
-  const updateArea = useUpdateArea();
+  const deleteDivision = useDeleteDivision();
+  const updateDivision = useUpdateDivision();
 
-  const areas = data?.data ?? [];
+  const divisions = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
-  const handleEdit = (area: Area) => {
-    setEditingArea(area);
+  const handleEdit = (division: Division) => {
+    setEditingDivision(division);
     setIsFormOpen(true);
   };
 
   const handleDelete = async () => {
     if (deletingId) {
-      await deleteArea.mutateAsync(deletingId);
+      await deleteDivision.mutateAsync(deletingId);
       setDeletingId(null);
     }
   };
@@ -74,11 +71,13 @@ export function AreaList() {
     name: string,
   ) => {
     try {
-      await updateArea.mutateAsync({
+      await updateDivision.mutateAsync({
         id,
         data: { is_active: !currentStatus },
       });
-      toast.success(t("common.success_update", { name: name }));
+      toast.success(
+        t("common.success_update", { name: name })
+      );
     } catch (error) {
       toast.error(t("common.error_update"));
     }
@@ -86,7 +85,7 @@ export function AreaList() {
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setEditingArea(null);
+    setEditingDivision(null);
   };
 
   if (isError) {
@@ -103,10 +102,10 @@ export function AreaList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            {t("area.title")}
+            {t("division.title")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {t("area.description")}
+            {t("division.description")}
           </p>
         </div>
         {canCreate && (
@@ -165,35 +164,35 @@ export function AreaList() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : areas.length === 0 ? (
+            ) : divisions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  {t("area.empty")}
+                  {t("division.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              areas.map((area) => (
-                <TableRow key={area.id}>
-                  <TableCell className="font-medium">{area.name}</TableCell>
+              divisions.map((division) => (
+                <TableRow key={division.id}>
+                  <TableCell className="font-medium">{division.name}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {area.description || "-"}
+                    {division.description || "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={area.is_active}
+                        checked={division.is_active}
                         onCheckedChange={() =>
                           handleStatusChange(
-                            area.id,
-                            area.is_active,
-                            area.name,
+                            division.id,
+                            division.is_active,
+                            division.name,
                           )
                         }
-                        disabled={updateArea.isPending || !canUpdate}
+                        disabled={updateDivision.isPending || !canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {area.is_active
+                        {division.is_active
                           ? t("common.active")
                           : t("common.inactive")}
                       </span>
@@ -212,7 +211,7 @@ export function AreaList() {
                       <DropdownMenuContent align="end">
                         {canUpdate && (
                           <DropdownMenuItem
-                            onClick={() => handleEdit(area)}
+                            onClick={() => handleEdit(division)}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
@@ -221,7 +220,7 @@ export function AreaList() {
                         )}
                         {canDelete && (
                           <DropdownMenuItem
-                            onClick={() => setDeletingId(area.id)}
+                            onClick={() => setDeletingId(division.id)}
                             className="cursor-pointer text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -268,10 +267,10 @@ export function AreaList() {
       )}
 
       {/* Form Dialog */}
-      <AreaForm
+      <DivisionForm
         open={isFormOpen}
         onClose={handleFormClose}
-        area={editingArea}
+        division={editingDivision}
       />
 
       {/* Delete Dialog */}
@@ -279,9 +278,9 @@ export function AreaList() {
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}
         onConfirm={handleDelete}
-        isLoading={deleteArea.isPending}
-        title={t("area.deleteTitle")}
-        description={t("area.deleteConfirm")}
+        isLoading={deleteDivision.isPending}
+        title={t("division.deleteTitle")}
+        description={t("division.deleteConfirm")}
       />
     </div>
   );

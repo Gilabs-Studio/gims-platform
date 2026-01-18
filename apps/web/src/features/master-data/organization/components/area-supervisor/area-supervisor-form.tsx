@@ -14,10 +14,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X } from "lucide-react";
-import { useCreateAreaSupervisor, useUpdateAreaSupervisor } from "../hooks/use-area-supervisors";
-import { useAreas } from "../hooks/use-areas";
-import { getAreaSupervisorSchema, type AreaSupervisorFormData } from "../schemas/organization.schema";
-import type { AreaSupervisor, Area } from "../types";
+import { useCreateAreaSupervisor, useUpdateAreaSupervisor } from "../../hooks/use-area-supervisors";
+import { useAreas } from "../../hooks/use-areas";
+import { AreaSupervisorFormData, getAreaSupervisorSchema } from "../../schemas/organization.schema";
+import { AreaSupervisor } from "../../types";
 
 interface AreaSupervisorFormProps {
   open: boolean;

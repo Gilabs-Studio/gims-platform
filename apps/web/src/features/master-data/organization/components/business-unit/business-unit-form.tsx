@@ -10,21 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateDivision, useUpdateDivision } from "../hooks/use-divisions";
-import { getDivisionSchema, type DivisionFormData } from "../schemas/organization.schema";
-import type { Division } from "../types";
+import { useCreateBusinessUnit, useUpdateBusinessUnit } from "../../hooks/use-business-units";
+import { BusinessUnitFormData, getBusinessUnitSchema } from "../../schemas/organization.schema";
+import { BusinessUnit } from "../../types";
 
-interface DivisionFormProps {
+interface BusinessUnitFormProps {
   open: boolean;
   onClose: () => void;
-  division?: Division | null;
+  businessUnit?: BusinessUnit | null;
 }
 
-export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
+export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFormProps) {
   const t = useTranslations("organization");
-  const isEditing = !!division;
-  const createDivision = useCreateDivision();
-  const updateDivision = useUpdateDivision();
+  const isEditing = !!businessUnit;
+  const createBusinessUnit = useCreateBusinessUnit();
+  const updateBusinessUnit = useUpdateBusinessUnit();
 
   const {
     register,
@@ -33,8 +33,8 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<DivisionFormData>({
-    resolver: zodResolver(getDivisionSchema(t)),
+  } = useForm<BusinessUnitFormData>({
+    resolver: zodResolver(getBusinessUnitSchema(t)),
     defaultValues: {
       name: "",
       description: "",
@@ -43,11 +43,11 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
   });
 
   useEffect(() => {
-    if (division) {
+    if (businessUnit) {
       reset({
-        name: division.name,
-        description: division.description ?? "",
-        is_active: division.is_active,
+        name: businessUnit.name,
+        description: businessUnit.description ?? "",
+        is_active: businessUnit.is_active,
       });
     } else {
       reset({
@@ -56,22 +56,22 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
         is_active: true,
       });
     }
-  }, [division, reset]);
+  }, [businessUnit, reset]);
 
-  const onSubmit = async (data: DivisionFormData) => {
+  const onSubmit = async (data: BusinessUnitFormData) => {
     try {
-      if (isEditing && division) {
-        await updateDivision.mutateAsync({ id: division.id, data });
+      if (isEditing && businessUnit) {
+        await updateBusinessUnit.mutateAsync({ id: businessUnit.id, data });
       } else {
-        await createDivision.mutateAsync(data);
+        await createBusinessUnit.mutateAsync(data);
       }
       onClose();
     } catch (error) {
-      console.error("Failed to save division:", error);
+      console.error("Failed to save business unit:", error);
     }
   };
 
-  const isLoading = createDivision.isPending || updateDivision.isPending;
+  const isLoading = createBusinessUnit.isPending || updateBusinessUnit.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -79,23 +79,23 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? t("division.editTitle") : t("division.createTitle")}
+            {isEditing ? t("businessUnit.editTitle") : t("businessUnit.createTitle")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("division.form.name")}</FieldLabel>
+            <FieldLabel>{t("businessUnit.form.name")}</FieldLabel>
             <Input
-              placeholder={t("division.form.namePlaceholder")}
+              placeholder={t("businessUnit.form.namePlaceholder")}
               {...register("name")}
             />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("division.form.description")}</FieldLabel>
+            <FieldLabel>{t("businessUnit.form.description")}</FieldLabel>
             <Textarea
-              placeholder={t("division.form.descriptionPlaceholder")}
+              placeholder={t("businessUnit.form.descriptionPlaceholder")}
               {...register("description")}
               rows={3}
             />
@@ -108,7 +108,7 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
             orientation="horizontal"
             className="flex items-center justify-between rounded-lg border p-3"
           >
-            <FieldLabel>{t("division.form.isActive")}</FieldLabel>
+            <FieldLabel>{t("businessUnit.form.isActive")}</FieldLabel>
             <Switch
               checked={isActive}
               onCheckedChange={(val) => setValue("is_active", val)}

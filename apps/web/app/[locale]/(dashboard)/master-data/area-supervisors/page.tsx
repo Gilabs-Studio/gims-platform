@@ -5,7 +5,7 @@ import { PageMotion } from "@/components/motion";
 // Lazy load list component for code splitting
 const AreaSupervisorList = dynamic(
   () =>
-    import("@/features/master-data/organization/components/area-supervisor-list").then(
+    import("@/features/master-data/organization/components/area-supervisor").then(
       (mod) => ({ default: mod.AreaSupervisorList }),
     ),
   {
