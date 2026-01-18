@@ -13,12 +13,16 @@ const DivisionList = dynamic(
   },
 );
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function DivisionsPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <DivisionList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="division.read">
+      <PageMotion>
+        <Suspense fallback={null}>
+          <DivisionList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }

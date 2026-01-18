@@ -39,12 +39,16 @@ function SupplierListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function SupplierPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={<SupplierListSkeleton />}>
-        <SupplierList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="supplier.read">
+      <PageMotion>
+        <Suspense fallback={<SupplierListSkeleton />}>
+          <SupplierList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }

@@ -34,10 +34,14 @@ function RoleListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function RoleManagementPage() {
   return (
-    <Suspense fallback={<RoleListSkeleton />}>
-      <RoleList />
-    </Suspense>
+    <PermissionGuard requiredPermission="role.read">
+      <Suspense fallback={<RoleListSkeleton />}>
+        <RoleList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

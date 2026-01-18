@@ -13,13 +13,17 @@ const PurchaseRequisitionList = dynamic(
   },
 );
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function PurchaseRequisitionsPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <PurchaseRequisitionList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="purchase_requisition.read">
+      <PageMotion>
+        <Suspense fallback={null}>
+          <PurchaseRequisitionList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }
 

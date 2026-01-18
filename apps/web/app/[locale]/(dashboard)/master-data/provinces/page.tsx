@@ -27,10 +27,14 @@ function ProvinceListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function ProvincesPage() {
   return (
-    <Suspense fallback={<ProvinceListSkeleton />}>
-      <ProvinceList />
-    </Suspense>
+    <PermissionGuard requiredPermission="province.read">
+      <Suspense fallback={<ProvinceListSkeleton />}>
+        <ProvinceList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

@@ -25,10 +25,14 @@ function CountryListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function CountriesPage() {
   return (
-    <Suspense fallback={<CountryListSkeleton />}>
-      <CountryList />
-    </Suspense>
+    <PermissionGuard requiredPermission="country.read">
+      <Suspense fallback={<CountryListSkeleton />}>
+        <CountryList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

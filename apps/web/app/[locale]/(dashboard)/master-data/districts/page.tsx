@@ -27,10 +27,14 @@ function DistrictListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function DistrictsPage() {
   return (
-    <Suspense fallback={<DistrictListSkeleton />}>
-      <DistrictList />
-    </Suspense>
+    <PermissionGuard requiredPermission="district.read">
+      <Suspense fallback={<DistrictListSkeleton />}>
+        <DistrictList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

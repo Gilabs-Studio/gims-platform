@@ -13,13 +13,17 @@ const SupplierInvoiceList = dynamic(
   },
 );
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function SupplierInvoicesPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <SupplierInvoiceList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="supplier_invoice.read">
+      <PageMotion>
+        <Suspense fallback={null}>
+          <SupplierInvoiceList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }
 

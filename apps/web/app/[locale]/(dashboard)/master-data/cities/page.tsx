@@ -27,10 +27,14 @@ function CityListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function CitiesPage() {
   return (
-    <Suspense fallback={<CityListSkeleton />}>
-      <CityList />
-    </Suspense>
+    <PermissionGuard requiredPermission="city.read">
+      <Suspense fallback={<CityListSkeleton />}>
+        <CityList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

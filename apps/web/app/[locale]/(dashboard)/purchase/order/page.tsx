@@ -13,13 +13,17 @@ const PurchaseOrderList = dynamic(
   },
 );
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function PurchaseOrderPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <PurchaseOrderList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="purchase_order.read">
+      <PageMotion>
+        <Suspense fallback={null}>
+          <PurchaseOrderList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }
 

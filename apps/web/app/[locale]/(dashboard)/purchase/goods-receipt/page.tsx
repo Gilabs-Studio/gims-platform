@@ -13,13 +13,17 @@ const GoodsReceiptList = dynamic(
   },
 );
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function GoodsReceiptPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <GoodsReceiptList />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="goods_receipt.read">
+      <PageMotion>
+        <Suspense fallback={null}>
+          <GoodsReceiptList />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }
 

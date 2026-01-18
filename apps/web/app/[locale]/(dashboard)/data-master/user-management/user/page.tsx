@@ -34,10 +34,14 @@ function UserListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function UserManagementPage() {
   return (
-    <Suspense fallback={<UserListSkeleton />}>
-      <UserList />
-    </Suspense>
+    <PermissionGuard requiredPermission="user.read">
+      <Suspense fallback={<UserListSkeleton />}>
+        <UserList />
+      </Suspense>
+    </PermissionGuard>
   );
 }

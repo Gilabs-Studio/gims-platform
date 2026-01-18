@@ -27,10 +27,14 @@ function VillageListSkeleton() {
   );
 }
 
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+
 export default function VillagesPage() {
   return (
-    <Suspense fallback={<VillageListSkeleton />}>
-      <VillageList />
-    </Suspense>
+    <PermissionGuard requiredPermission="village.read">
+      <Suspense fallback={<VillageListSkeleton />}>
+        <VillageList />
+      </Suspense>
+    </PermissionGuard>
   );
 }
