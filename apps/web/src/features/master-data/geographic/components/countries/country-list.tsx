@@ -23,6 +23,7 @@ import {
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useCountries, useDeleteCountry } from "../../hooks/use-countries";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CountryForm } from "./country-form";
 import type { Country } from "../../types";
@@ -30,6 +31,7 @@ import type { Country } from "../../types";
 export function CountryList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
@@ -38,7 +40,7 @@ export function CountryList() {
   const { data, isLoading, isError } = useCountries({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("country.create");

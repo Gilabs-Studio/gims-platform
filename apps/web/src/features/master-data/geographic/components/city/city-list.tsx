@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useCities, useDeleteCity } from "../../hooks/use-cities";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useProvinces } from "../../hooks/use-provinces";
 import { CityForm } from "./city-form";
@@ -20,6 +21,7 @@ import type { City } from "../../types";
 export function CityList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [provinceId, setProvinceId] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -30,7 +32,7 @@ export function CityList() {
   const provinces = provincesData?.data ?? [];
 
   const { data, isLoading, isError } = useCities({
-    page, per_page: 10, search: search || undefined, province_id: provinceId || undefined,
+    page, per_page: 10, search: debouncedSearch || undefined, province_id: provinceId || undefined,
   });
 
   const canCreate = useUserPermission("city.create");

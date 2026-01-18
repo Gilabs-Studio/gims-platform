@@ -26,11 +26,13 @@ import { AreaForm } from "./area-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useAreas, useDeleteArea, useUpdateArea } from "../../hooks/use-areas";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Area } from "../../types";
 
 export function AreaList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
@@ -39,7 +41,7 @@ export function AreaList() {
   const { data, isLoading, isError } = useAreas({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("area.create");

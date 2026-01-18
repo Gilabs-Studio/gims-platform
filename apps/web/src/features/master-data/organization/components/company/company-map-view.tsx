@@ -66,12 +66,15 @@ const statusColors: Record<CompanyStatus, string> = {
 
 type PanelMode = "create" | "edit" | "view" | null;
 
+import { useDebounce } from "@/hooks/use-debounce";
+
 export function CompanyMapView() {
   const t = useTranslations("organization");
   const isMobile = useIsMobile();
 
   // State
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [statusFilter, setStatusFilter] = useState<CompanyStatus | "all">("all");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
@@ -90,7 +93,7 @@ export function CompanyMapView() {
   // Data fetching
   const { data, isLoading, refetch } = useCompanies({
     per_page: 100, // Get max allowed for map
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
 

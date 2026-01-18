@@ -30,6 +30,7 @@ import {
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useProvinces, useDeleteProvince } from "../../hooks/use-provinces";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useCountries } from "../../hooks/use-countries";
 import { ProvinceForm } from "./province-form";
@@ -38,6 +39,7 @@ import type { Province } from "../../types";
 export function ProvinceList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [countryId, setCountryId] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -50,7 +52,7 @@ export function ProvinceList() {
   const { data, isLoading, isError } = useProvinces({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     country_id: countryId || undefined,
   });
 

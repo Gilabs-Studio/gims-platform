@@ -26,11 +26,13 @@ import { BusinessTypeForm } from "./business-type-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useBusinessTypes, useDeleteBusinessType, useUpdateBusinessType } from "../../hooks/use-business-types";
+import { useDebounce } from "@/hooks/use-debounce";
 import { BusinessType } from "../../types";
 
 export function BusinessTypeList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBusinessType, setEditingBusinessType] = useState<BusinessType | null>(null);
@@ -39,7 +41,7 @@ export function BusinessTypeList() {
   const { data, isLoading, isError } = useBusinessTypes({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("business_type.create");

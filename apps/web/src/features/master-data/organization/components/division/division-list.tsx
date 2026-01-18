@@ -28,10 +28,12 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Division } from "../../types";
 import { useDivisions, useDeleteDivision, useUpdateDivision } from "../../hooks/use-divisions";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export function DivisionList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDivision, setEditingDivision] = useState<Division | null>(null);
@@ -40,7 +42,7 @@ export function DivisionList() {
   const { data, isLoading, isError } = useDivisions({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("division.create");

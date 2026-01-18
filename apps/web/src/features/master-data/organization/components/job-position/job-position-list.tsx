@@ -26,11 +26,13 @@ import { JobPositionForm } from "./job-position-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useJobPositions, useDeleteJobPosition, useUpdateJobPosition } from "../../hooks/use-job-positions";
+import { useDebounce } from "@/hooks/use-debounce";
 import { JobPosition } from "../../types";
 
 export function JobPositionList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingJobPosition, setEditingJobPosition] = useState<JobPosition | null>(null);
@@ -39,7 +41,7 @@ export function JobPositionList() {
   const { data, isLoading, isError } = useJobPositions({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("job_position.create");

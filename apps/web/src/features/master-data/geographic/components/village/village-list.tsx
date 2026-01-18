@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useVillages, useDeleteVillage } from "../../hooks/use-villages";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDistricts } from "../../hooks/use-districts";
 import { VillageForm } from "./village-form";
@@ -20,6 +21,7 @@ import type { Village } from "../../types";
 export function VillageList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [districtId, setDistrictId] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -30,7 +32,7 @@ export function VillageList() {
   const districts = districtsData?.data ?? [];
 
   const { data, isLoading, isError } = useVillages({
-    page, per_page: 10, search: search || undefined, district_id: districtId || undefined,
+    page, per_page: 10, search: debouncedSearch || undefined, district_id: districtId || undefined,
   });
 
   const canCreate = useUserPermission("village.create");

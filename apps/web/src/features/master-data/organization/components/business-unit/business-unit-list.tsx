@@ -26,11 +26,13 @@ import { BusinessUnitForm } from "./business-unit-form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useBusinessUnits, useDeleteBusinessUnit, useUpdateBusinessUnit } from "../../hooks/use-business-units";
+import { useDebounce } from "@/hooks/use-debounce";
 import { BusinessUnit } from "../../types";
 
 export function BusinessUnitList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBusinessUnit, setEditingBusinessUnit] = useState<BusinessUnit | null>(null);
@@ -39,7 +41,7 @@ export function BusinessUnitList() {
   const { data, isLoading, isError } = useBusinessUnits({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const canCreate = useUserPermission("business_unit.create");
