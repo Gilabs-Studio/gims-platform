@@ -29,6 +29,14 @@ export const authService = {
     return response.data;
   },
 
+  /**
+   * Verify session validity by attempting to refresh the token.
+   * This ensures the HttpOnly cookie is present and valid.
+   */
+  async verifySession(): Promise<void> {
+    await this.refreshToken();
+  },
+
   async logout(): Promise<void> {
     await apiClient.post("/auth/logout");
   },
