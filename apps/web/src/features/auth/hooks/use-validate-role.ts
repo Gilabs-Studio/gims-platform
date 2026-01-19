@@ -19,7 +19,6 @@ export function useValidateRole() {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const t = useTranslations("auth");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastValidatedRef = useRef<boolean | null>(null); // null = not yet validated, true = was valid, false = was invalid
 
   const { data: validationData, refetch, error: validationError, isLoading: isValidating } = useQuery({
@@ -62,7 +61,6 @@ export function useValidateRole() {
       }
     },
     enabled: !!user?.id && !!user?.role,
-    refetchInterval: 30000, // Check every 30 seconds
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
@@ -81,28 +79,8 @@ export function useValidateRole() {
     retryDelay: 2000, // Wait 2 seconds before retry
   });
 
-  useEffect(() => {
-    // Clear previous interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
+  // Effect to handle validation result
 
-    // Only validate if user is authenticated
-    if (!user?.id || !user?.role) {
-      return;
-    }
-
-    // Set up interval to check role validity
-    intervalRef.current = setInterval(() => {
-      refetch();
-    }, 30000); // Check every 30 seconds
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [user?.id, user?.role, refetch]);
 
   useEffect(() => {
     // Don't redirect on initial load or if still loading
