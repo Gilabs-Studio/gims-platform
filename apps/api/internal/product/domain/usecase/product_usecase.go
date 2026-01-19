@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/crm-healthcare/api/internal/product/data/models"
@@ -24,12 +26,16 @@ type ProductUsecase interface {
 }
 
 type productUsecase struct {
-	repo repositories.ProductRepository
+	repo         repositories.ProductRepository
+	categoryRepo repositories.ProductCategoryRepository
 }
 
 // NewProductUsecase creates a new ProductUsecase
-func NewProductUsecase(repo repositories.ProductRepository) ProductUsecase {
-	return &productUsecase{repo: repo}
+func NewProductUsecase(repo repositories.ProductRepository, categoryRepo repositories.ProductCategoryRepository) ProductUsecase {
+	return &productUsecase{
+		repo:         repo,
+		categoryRepo: categoryRepo,
+	}
 }
 
 func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductRequest, userID string) (dto.ProductResponse, error) {
@@ -38,39 +44,60 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		isActive = *req.IsActive
 	}
 
+	// Generate Product Code
+	prefix := "PRD"
+	if req.CategoryID != nil {
+		category, err := u.categoryRepo.FindByID(ctx, *req.CategoryID)
+		if err == nil && category != nil {
+			// Generate prefix from Category Name (uppercase, no spaces, max 3 chars)
+			cleanedName := strings.ReplaceAll(strings.ToUpper(category.Name), " ", "")
+			runes := []rune(cleanedName)
+			if len(runes) >= 3 {
+				prefix = string(runes[:3])
+			} else if len(runes) > 0 {
+				prefix = string(runes)
+			}
+		}
+	}
+
+	// Format: PREFIX-YYYYMMDD-RAND4 (e.g., MED-20231023-A1B2)
+	timestamp := time.Now().Format("20060102")
+	randomSuffix := strings.ToUpper(uuid.New().String()[:4])
+	generatedCode := fmt.Sprintf("%s-%s-%s", prefix, timestamp, randomSuffix)
+
 	product := &models.Product{
-		ID:                uuid.New().String(),
-		Code:              req.Code,
-		Name:              req.Name,
-		Description:       req.Description,
+		ID:                     uuid.New().String(),
+		Code:                   generatedCode,
+		Name:                   req.Name,
+		Description:            req.Description,
 		ManufacturerPartNumber: req.ManufacturerPartNumber,
-		CategoryID:        req.CategoryID,
-		BrandID:           req.BrandID,
-		SegmentID:         req.SegmentID,
-		TypeID:            req.TypeID,
-		UomID:             req.UomID,
-		PurchaseUomID:     req.PurchaseUomID,
-		PurchaseUomConversion: req.PurchaseUomConversion,
-		PackagingID:       req.PackagingID,
-		ProcurementTypeID: req.ProcurementTypeID,
-		SupplierID:        req.SupplierID,
-		BusinessUnitID:    req.BusinessUnitID,
-		CostPrice:         req.CostPrice,
-		SellingPrice:      req.SellingPrice,
-		MinStock:          req.MinStock,
-		MaxStock:          req.MaxStock,
-		TaxType:           req.TaxType,
-		IsTaxInclusive:    req.IsTaxInclusive,
-		LeadTimeDays:      req.LeadTimeDays,
-		Barcode:           req.Barcode,
-		Sku:               req.Sku,
-		Weight:            req.Weight,
-		Volume:            req.Volume,
-		Notes:             req.Notes,
-		Status:            models.ProductStatusDraft,
-		IsApproved:        false,
-		CreatedBy:         &userID,
-		IsActive:          isActive,
+		CategoryID:             req.CategoryID,
+		BrandID:                req.BrandID,
+		SegmentID:              req.SegmentID,
+		TypeID:                 req.TypeID,
+		UomID:                  req.UomID,
+		PurchaseUomID:          req.PurchaseUomID,
+		PurchaseUomConversion:  req.PurchaseUomConversion,
+		PackagingID:            req.PackagingID,
+		ProcurementTypeID:      req.ProcurementTypeID,
+		SupplierID:             req.SupplierID,
+		BusinessUnitID:         req.BusinessUnitID,
+		CostPrice:              req.CostPrice,
+		SellingPrice:           req.SellingPrice,
+		MinStock:               req.MinStock,
+		MaxStock:               req.MaxStock,
+		TaxType:                req.TaxType,
+		IsTaxInclusive:         req.IsTaxInclusive,
+		LeadTimeDays:           req.LeadTimeDays,
+		Barcode:                req.Barcode,
+		Sku:                    generatedCode,
+		Weight:                 req.Weight,
+		Volume:                 req.Volume,
+		Notes:                  req.Notes,
+		Status:                 models.ProductStatusApproved,
+		IsApproved:             true,
+		CreatedBy:              &userID,
+		IsActive:               isActive,
 	}
 
 	if err := u.repo.Create(ctx, product); err != nil {
@@ -108,10 +135,6 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 		return dto.ProductResponse{}, err
 	}
 
-	// Only allow updates on draft or rejected products
-	if product.Status != models.ProductStatusDraft && product.Status != models.ProductStatusRejected {
-		return dto.ProductResponse{}, errors.New("can only update draft or rejected products")
-	}
 
 	if req.Code != "" {
 		product.Code = req.Code

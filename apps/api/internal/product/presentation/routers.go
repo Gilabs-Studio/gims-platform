@@ -33,7 +33,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	uomUC := usecase.NewUnitOfMeasureUsecase(uomRepo)
 	packagingUC := usecase.NewPackagingUsecase(packagingRepo)
 	procurementTypeUC := usecase.NewProcurementTypeUsecase(procurementTypeRepo)
-	productUC := usecase.NewProductUsecase(productRepo)
+	productUC := usecase.NewProductUsecase(productRepo, categoryRepo)
 
 	// Initialize handlers
 	categoryH := handler.NewProductCategoryHandler(categoryUC)

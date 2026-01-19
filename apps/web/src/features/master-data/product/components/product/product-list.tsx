@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import {
   useProducts,
   useDeleteProduct,
@@ -51,17 +52,27 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { Product } from "../../types";
 import { ProductDialog } from "./product-dialog";
+import { ProductDetailDialog } from "./product-detail-dialog";
 
 export function ProductList() {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
-  
+
+  // Permission checks
+  const canCreate = useUserPermission("product.create");
+  const canEdit = useUserPermission("product.update");
+  const canDelete = useUserPermission("product.delete");
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  
+  // View detail dialog state
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [viewingItem, setViewingItem] = useState<Product | null>(null);
 
   const { data, isLoading, isError, refetch } = useProducts({
     page,
@@ -86,6 +97,11 @@ export function ProductList() {
     setDialogOpen(true);
   };
 
+  const handleView = (item: Product) => {
+    setViewingItem(item);
+    setDetailDialogOpen(true);
+  };
+
   const handleDelete = async () => {
     if (!deleteId) return;
 
@@ -108,9 +124,7 @@ export function ProductList() {
         id,
         data: { is_active: !currentStatus },
       });
-      toast.success(
-        name + " status updated"
-      );
+      toast.success(name + " status updated");
     } catch {
       toast.error(tCommon("error"));
     }
@@ -128,21 +142,6 @@ export function ProductList() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingItem(null);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "draft":
-        return <Badge variant="secondary">Draft</Badge>;
-      case "pending":
-        return <Badge className="bg-orange-500 hover:bg-orange-600">Pending</Badge>;
-      case "approved":
-        return <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" /> Approved</Badge>;
-      case "rejected":
-        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
   };
 
   if (isError) {
@@ -168,10 +167,12 @@ export function ProductList() {
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        <Button onClick={handleCreate} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" />
-          {t("create")}
-        </Button>
+        {canCreate && (
+          <Button onClick={handleCreate} className="cursor-pointer">
+            <Plus className="mr-2 h-4 w-4" />
+            {t("create")}
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -200,7 +201,6 @@ export function ProductList() {
               <TableHead>{t("form.category")}</TableHead>
               <TableHead>{t("form.brand")}</TableHead>
               <TableHead>{t("form.uom")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
               <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
             </TableRow>
@@ -215,14 +215,13 @@ export function ProductList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
@@ -233,8 +232,17 @@ export function ProductList() {
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.code}</TableCell>
                   <TableCell>
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-xs text-muted-foreground">{item.manufacturer_part_number}</div>
+                    <div 
+                      className="font-medium cursor-pointer hover:underline"
+                      onClick={() => handleView(item)}
+                    >
+                      {item.name}
+                    </div>
+                    {item.manufacturer_part_number && (
+                      <div className="text-xs text-muted-foreground">
+                        {item.manufacturer_part_number}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">{item.category?.name ?? "-"}</TableCell>
                   <TableCell className="text-sm">{item.brand?.name ?? "-"}</TableCell>
@@ -243,21 +251,19 @@ export function ProductList() {
                       {item.uom?.symbol ?? item.uom?.name ?? "-"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                       <Switch
+                      <Switch
                         checked={item.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(
-                            item.id,
-                            item.is_active,
-                            item.name,
-                          )
+                          handleStatusChange(item.id, item.is_active, item.name)
                         }
-                        disabled={updateMutation.isPending}
+                        disabled={updateMutation.isPending || !canEdit}
                         className="cursor-pointer"
                       />
+                      <span className="text-sm text-muted-foreground">
+                        {item.is_active ? tCommon("active") : tCommon("inactive")}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -268,35 +274,39 @@ export function ProductList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {/* View Details - always available */}
                         <DropdownMenuItem
-                          onClick={() => handleEdit(item)}
+                          onClick={() => handleView(item)}
                           className="cursor-pointer"
                         >
-                          {item.status === "draft" || item.status === "rejected" ? (
-                            <><Pencil className="mr-2 h-4 w-4" /> Edit</>
-                          ) : (
-                            <><Eye className="mr-2 h-4 w-4" /> View</>
-                          )}
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
                         </DropdownMenuItem>
-                        
-                        {(item.status === "draft" || item.status === "rejected") && (
+
+                        {/* Edit - permission required */}
+                        {canEdit && (
                           <DropdownMenuItem
-                            onClick={() => handleSubmit(item.id)}
-                            className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            onClick={() => handleEdit(item)}
+                            className="cursor-pointer"
                           >
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Submit
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
                           </DropdownMenuItem>
                         )}
-                        
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setDeleteId(item.id)}
-                          className="cursor-pointer text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+
+
+                        {canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteId(item.id)}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -347,13 +357,21 @@ export function ProductList() {
         </div>
       )}
 
-      {/* Dialogs */}
+      {/* Edit Dialog */}
       <ProductDialog
         open={dialogOpen}
         onOpenChange={handleDialogClose}
         editingItem={editingItem}
-      /> 
+      />
 
+      {/* View Detail Dialog */}
+      <ProductDetailDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        product={viewingItem}
+      />
+
+      {/* Delete Dialog */}
       <DeleteDialog
         open={!!deleteId}
         onOpenChange={(open) => !open && setDeleteId(null)}

@@ -5,7 +5,7 @@ import "time"
 // === Product DTOs ===
 
 type CreateProductRequest struct {
-	Code              string  `json:"code" binding:"required,min=2,max=50"`
+	Code              string  `json:"code"`
 	Name              string  `json:"name" binding:"required,min=2,max=200"`
 	ManufacturerPartNumber string `json:"manufacturer_part_number"`
 	Description       string  `json:"description"`

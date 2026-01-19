@@ -49,6 +49,7 @@ func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Pr
 		Preload("Segment").
 		Preload("Type").
 		Preload("Uom").
+		Preload("PurchaseUom").
 		Preload("Packaging").
 		Preload("ProcurementType").
 		Preload("Supplier").
@@ -128,6 +129,7 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 		Preload("Segment").
 		Preload("Type").
 		Preload("Uom").
+		Preload("PurchaseUom").
 		Preload("Packaging").
 		Preload("ProcurementType").
 		Preload("Supplier").
