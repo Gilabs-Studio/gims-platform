@@ -149,39 +149,39 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Employee management with approval
-- [ ] **Frontend:** Employee management pages
+- [x] **API:** Employee management with approval
+- [x] **Frontend:** Employee management pages
 
 ### API Tasks
 
-- [ ] `Employee` - CRUD + Approve + List with filters
-- [ ] `EmployeeArea` - Assign employee to areas
-- [ ] Employee search with multiple filters (division, position, area)
-- [ ] Employee approval workflow
-- [ ] Employee replacement logic (ReplacementFor field)
-- [ ] Migration SQL
+- [x] `Employee` - CRUD + Approve + List with filters
+- [x] `EmployeeArea` - Assign employee to areas
+- [x] Employee search with multiple filters (division, position, area)
+- [x] Employee approval workflow
+- [x] Employee replacement logic (ReplacementFor field)
+- [x] Migration SQL
 
 ### Frontend Tasks
 
-- [ ] Employee list with advanced filters
-- [ ] Employee detail page with tabs (Profile, Areas, Documents)
-- [ ] Employee form with all fields
-- [ ] Employee area assignment component
-- [ ] Employee approval actions
-- [ ] Employee status display (Active, Inactive, Contract End)
+- [x] Employee list with advanced filters
+- [x] Employee detail page with tabs (Profile, Areas, Documents)
+- [x] Employee form with all fields
+- [x] Employee area assignment component
+- [x] Employee approval actions
+- [x] Employee status display (Active, Inactive, Contract End)
 
 ### Success Criteria
 
-- [ ] Employee can be filtered by Division, Position, Area
-- [ ] Employee approval workflow works correctly
-- [ ] Employee can be assigned to multiple areas
-- [ ] Employee replacement shows linked employee
-- [ ] Leave quota calculated based on employee type
+- [x] Employee can be filtered by Division, Position, Area
+- [x] Employee approval workflow works correctly
+- [x] Employee can be assigned to multiple areas
+- [x] Employee replacement shows linked employee
+- [x] Leave quota calculated based on employee type
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 
@@ -218,11 +218,11 @@ erDiagram
 ### API Tasks
 
 #### Supplier
-- [ ] `SupplierType` - CRUD
-- [ ] `Supplier` - CRUD + Approve
-- [ ] `SupplierPhoneNumber` - Nested CRUD
-- [ ] `SupplierBank` - Nested CRUD
-- [ ] `Bank` - CRUD
+- [x] `SupplierType` - CRUD
+- [x] `Supplier` - CRUD + Approve
+- [x] `SupplierPhoneNumber` - Nested CRUD
+- [x] `SupplierBank` - Nested CRUD
+- [x] `Bank` - CRUD
 
 #### Product
 - [ ] `ProductCategory` - CRUD
@@ -243,8 +243,8 @@ erDiagram
 
 ### Frontend Tasks
 
-- [ ] Supplier management with inline phone numbers
-- [ ] Supplier bank accounts management
+- [x] Supplier management with inline phone numbers
+- [x] Supplier bank accounts management
 - [ ] Product catalog with category tree
 - [ ] Product form with all relations
 - [ ] Warehouse management

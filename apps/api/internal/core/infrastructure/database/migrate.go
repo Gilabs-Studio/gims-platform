@@ -13,6 +13,7 @@ import (
 	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
 	refreshToken "github.com/gilabs/crm-healthcare/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
+	supplier "github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
 	user "github.com/gilabs/crm-healthcare/api/internal/user/data/models"
 )
 
@@ -67,6 +68,12 @@ func AutoMigrate() error {
 		// Employee entities (Sprint 3)
 		&organization.Employee{},
 		&organization.EmployeeArea{},
+		// Supplier entities (Sprint 4)
+		&supplier.SupplierType{},
+		&supplier.Bank{},
+		&supplier.Supplier{},
+		&supplier.SupplierPhoneNumber{},
+		&supplier.SupplierBank{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

@@ -1,0 +1,32 @@
+package router
+
+import (
+	"github.com/gilabs/crm-healthcare/api/internal/supplier/presentation/handler"
+	"github.com/gin-gonic/gin"
+)
+
+// RegisterSupplierRoutes registers supplier routes
+func RegisterSupplierRoutes(rg *gin.RouterGroup, h *handler.SupplierHandler) {
+	g := rg.Group("/suppliers")
+	{
+		g.POST("", h.Create)
+		g.GET("", h.List)
+		g.GET("/:id", h.GetByID)
+		g.PUT("/:id", h.Update)
+		g.DELETE("/:id", h.Delete)
+		
+		// Approval workflow
+		g.POST("/:id/submit", h.Submit)
+		g.POST("/:id/approve", h.Approve)
+		
+		// Nested phone numbers
+		g.POST("/:id/phone-numbers", h.AddPhoneNumber)
+		g.PUT("/:id/phone-numbers/:phoneId", h.UpdatePhoneNumber)
+		g.DELETE("/:id/phone-numbers/:phoneId", h.DeletePhoneNumber)
+		
+		// Nested bank accounts
+		g.POST("/:id/bank-accounts", h.AddBankAccount)
+		g.PUT("/:id/bank-accounts/:bankId", h.UpdateBankAccount)
+		g.DELETE("/:id/bank-accounts/:bankId", h.DeleteBankAccount)
+	}
+}

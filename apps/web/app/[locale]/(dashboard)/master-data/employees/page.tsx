@@ -16,7 +16,7 @@ const EmployeeList = dynamic(
 export default function EmployeesPage() {
   return (
     <PermissionGuard requiredPermission="employee.read">
-      <PageMotion className="p-6">
+      <PageMotion>
         <Suspense fallback={null}>
           <EmployeeList />
         </Suspense>

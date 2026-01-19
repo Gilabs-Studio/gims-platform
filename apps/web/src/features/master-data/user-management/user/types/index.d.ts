@@ -18,10 +18,10 @@ export interface Role {
 }
 
 export interface Permission {
-  id: string;
+  id: number | string;
   name: string;
   code: string;
-  menu_id?: string;
+  menu_id?: number | string;
   menu?: Menu;
   action: string;
   description?: string;
@@ -31,11 +31,11 @@ export interface Permission {
 }
 
 export interface Menu {
-  id: string;
+  id: number | string;
   name: string;
   icon: string;
   url: string;
-  parent_id?: string;
+  parent_id?: number | string | null;
   children?: Menu[];
   actions?: Action[];
   order: number;
@@ -45,7 +45,7 @@ export interface Menu {
 }
 
 export interface Action {
-  id: string;
+  id: number | string;
   code: string;
   name: string;
   action?: string; // Generic action type (VIEW, CREATE, etc.)
