@@ -65,12 +65,19 @@ export function CompanyDetailDialog({
           {/* Status Badge */}
           <div className="flex items-center gap-2">
             <Badge
-              variant={company.is_active ? "default" : "secondary"}
-              className={company.is_active ? "bg-green-500 hover:bg-green-600" : ""}
+              variant={company.is_active ? "active" : "inactive"}
             >
               {company.is_active ? "Active" : "Inactive"}
             </Badge>
-            <Badge variant="outline">{t(`company.status.${company.status}`)}</Badge>
+            <Badge 
+              variant={
+                company.status === 'approved' ? 'success' :
+                company.status === 'pending' ? 'warning' :
+                company.status === 'rejected' ? 'destructive' : 'secondary'
+              }
+            >
+              {t(`company.status.${company.status}`)}
+            </Badge>
           </div>
 
           {/* Basic Info */}

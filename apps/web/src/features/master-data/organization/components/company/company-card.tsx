@@ -5,12 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Company, CompanyStatus } from "../../types";
 
-const statusColors: Record<CompanyStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
+
 
 interface CompanyCardProps {
   readonly company: Company;
@@ -56,7 +51,14 @@ export function CompanyCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={cn("text-xs", statusColors[company.status])}>
+            <Badge 
+              className="text-xs"
+              variant={
+                company.status === 'approved' ? 'success' :
+                company.status === 'pending' ? 'warning' :
+                company.status === 'rejected' ? 'destructive' : 'secondary'
+              }
+            >
               {t(`company.status.${company.status}`)}
             </Badge>
             {company.latitude != null && company.longitude != null && (

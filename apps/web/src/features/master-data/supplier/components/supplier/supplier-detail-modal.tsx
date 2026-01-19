@@ -88,13 +88,8 @@ export function SupplierDetailModal({
                   <span>•</span>
                   <span>{supplier.supplier_type?.name || "-"}</span>
                   <span>•</span>
-                  <Badge
-                    variant={supplier.is_active ? "default" : "secondary"}
-                    className={
-                      supplier.is_active
-                        ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20"
-                        : ""
-                    }
+                  <Badge 
+                    variant={supplier.is_active ? "active" : "inactive"}
                   >
                     {supplier.is_active ? tCommon("active") : tCommon("inactive")}
                   </Badge>

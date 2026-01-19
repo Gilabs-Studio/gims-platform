@@ -131,10 +131,10 @@ export function SupplierList() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<string, "secondary" | "warning" | "success" | "destructive"> = {
       draft: "secondary",
-      pending: "outline",
-      approved: "default",
+      pending: "warning",
+      approved: "success",
       rejected: "destructive",
     };
     

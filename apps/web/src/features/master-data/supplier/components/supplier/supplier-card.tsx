@@ -5,12 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Supplier, SupplierStatus } from "../../types";
 
-const statusColors: Record<SupplierStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
+
 
 interface SupplierCardProps {
   readonly supplier: Supplier;
@@ -61,7 +56,14 @@ export function SupplierCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={cn("text-xs", statusColors[supplier.status])}>
+            <Badge 
+              className="text-xs" 
+              variant={
+                supplier.status === 'approved' ? 'success' :
+                supplier.status === 'pending' ? 'warning' :
+                supplier.status === 'rejected' ? 'destructive' : 'secondary'
+              }
+            >
               {t(`status.${supplier.status}`)}
             </Badge>
             {supplier.supplier_type && (
