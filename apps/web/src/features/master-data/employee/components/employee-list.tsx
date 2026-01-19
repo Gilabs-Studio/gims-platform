@@ -338,14 +338,21 @@ export function EmployeeList() {
                   <TableCell>{employee.job_position?.name ?? "-"}</TableCell>
                   <TableCell>{getStatusBadge(employee.status)}</TableCell>
                   <TableCell>
-                    <Switch
-                      checked={employee.is_active}
-                      onCheckedChange={() =>
-                        handleStatusChange(employee.id, employee.is_active, employee.name)
-                      }
-                      disabled={!canUpdate}
-                      className="cursor-pointer"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={employee.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(employee.id, employee.is_active, employee.name)
+                        }
+                        disabled={!canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {employee.is_active
+                          ? t("columns.isActive") // Reusing 'Active' label or similar if available, or just hardcode/use common
+                          : "Inactive" /* Ideally use tCommon or t corresponding keys. Division uses t("common.active") */}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

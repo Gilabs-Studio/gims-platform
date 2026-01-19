@@ -42,7 +42,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSupplierTypes,
   useDeleteSupplierType,
+  useUpdateSupplierType,
 } from "../../hooks/use-supplier-types";
+import { Switch } from "@/components/ui/switch";
 import type { SupplierType } from "../../types";
 import { SupplierTypeDialog } from "./supplier-type-dialog";
 
@@ -64,6 +66,7 @@ export function SupplierTypeList() {
   });
 
   const deleteMutation = useDeleteSupplierType();
+  const updateMutation = useUpdateSupplierType();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -87,6 +90,24 @@ export function SupplierTypeList() {
       setDeleteId(null);
     } catch {
       toast.error("Failed to delete supplier type");
+    }
+  };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+    name: string,
+  ) => {
+    try {
+      await updateMutation.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(
+        tCommon("success_update", { name })
+      );
+    } catch {
+      toast.error(tCommon("error_update"));
     }
   };
 
@@ -178,11 +199,25 @@ export function SupplierTypeList() {
                     {item.description ?? "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={item.is_active ? "default" : "secondary"}
-                    >
-                      {item.is_active ? tCommon("active") : tCommon("inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={item.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            item.id,
+                            item.is_active,
+                            item.name,
+                          )
+                        }
+                        disabled={updateMutation.isPending}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {item.is_active
+                          ? tCommon("active")
+                          : tCommon("inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

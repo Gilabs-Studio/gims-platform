@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useBanks, useDeleteBank } from "../../hooks/use-banks";
+import { useBanks, useDeleteBank, useUpdateBank } from "../../hooks/use-banks";
+import { Switch } from "@/components/ui/switch";
 import type { Bank } from "../../types";
 import { BankDialog } from "./bank-dialog";
 
@@ -62,6 +63,7 @@ export function BankList() {
   });
 
   const deleteMutation = useDeleteBank();
+  const updateMutation = useUpdateBank();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -85,6 +87,24 @@ export function BankList() {
       setDeleteId(null);
     } catch {
       toast.error("Failed to delete bank");
+    }
+  };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+    name: string,
+  ) => {
+    try {
+      await updateMutation.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(
+        tCommon("success_update", { name })
+      );
+    } catch {
+      toast.error(tCommon("error_update"));
     }
   };
 
@@ -181,11 +201,25 @@ export function BankList() {
                     {item.swift_code ?? "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={item.is_active ? "default" : "secondary"}
-                    >
-                      {item.is_active ? tCommon("active") : tCommon("inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={item.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            item.id,
+                            item.is_active,
+                            item.name,
+                          )
+                        }
+                        disabled={updateMutation.isPending}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {item.is_active
+                          ? tCommon("active")
+                          : tCommon("inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

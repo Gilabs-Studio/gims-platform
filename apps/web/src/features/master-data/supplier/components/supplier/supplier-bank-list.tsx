@@ -273,7 +273,11 @@ export function SupplierBankList({
             <DialogTitle>{editingItem ? t("editTitle") : t("addTitle")}</DialogTitle>
           </DialogHeader>
           <form
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void handleSubmit(onSubmit)(e);
+            }}
             className="space-y-4"
           >
             <Field>
@@ -335,7 +339,7 @@ export function SupplierBankList({
                 {tCommon("cancel")}
               </Button>
               <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
-                {tCommon("save")}
+                {editingItem ? tCommon("save") : tCommon("create")}
               </Button>
             </div>
           </form>
