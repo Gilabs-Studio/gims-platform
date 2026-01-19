@@ -11,6 +11,7 @@ import (
 	geographic "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
 	organization "github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
 	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
+	product "github.com/gilabs/crm-healthcare/api/internal/product/data/models"
 	refreshToken "github.com/gilabs/crm-healthcare/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
 	supplier "github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
@@ -74,6 +75,15 @@ func AutoMigrate() error {
 		&supplier.Supplier{},
 		&supplier.SupplierPhoneNumber{},
 		&supplier.SupplierBank{},
+		// Product entities (Sprint 4)
+		&product.ProductCategory{},
+		&product.ProductBrand{},
+		&product.ProductSegment{},
+		&product.ProductType{},
+		&product.UnitOfMeasure{},
+		&product.Packaging{},
+		&product.ProcurementType{},
+		&product.Product{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

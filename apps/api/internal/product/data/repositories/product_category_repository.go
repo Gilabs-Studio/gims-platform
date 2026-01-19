@@ -1,0 +1,95 @@
+package repositories
+
+import (
+	"context"
+
+	"github.com/gilabs/crm-healthcare/api/internal/product/data/models"
+	"gorm.io/gorm"
+)
+
+// ProductCategoryRepository defines the interface for product category data access
+type ProductCategoryRepository interface {
+	Create(ctx context.Context, category *models.ProductCategory) error
+	FindByID(ctx context.Context, id string) (*models.ProductCategory, error)
+	List(ctx context.Context, params ListParams) ([]models.ProductCategory, int64, error)
+	Update(ctx context.Context, category *models.ProductCategory) error
+	Delete(ctx context.Context, id string) error
+}
+
+type productCategoryRepository struct {
+	db *gorm.DB
+}
+
+// NewProductCategoryRepository creates a new instance of ProductCategoryRepository
+func NewProductCategoryRepository(db *gorm.DB) ProductCategoryRepository {
+	return &productCategoryRepository{db: db}
+}
+
+func (r *productCategoryRepository) Create(ctx context.Context, category *models.ProductCategory) error {
+	return r.db.WithContext(ctx).Create(category).Error
+}
+
+func (r *productCategoryRepository) FindByID(ctx context.Context, id string) (*models.ProductCategory, error) {
+	var category models.ProductCategory
+	err := r.db.WithContext(ctx).Preload("Parent").First(&category, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
+func (r *productCategoryRepository) List(ctx context.Context, params ListParams) ([]models.ProductCategory, int64, error) {
+	var categories []models.ProductCategory
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.ProductCategory{})
+
+	// Apply search filter
+	if params.Search != "" {
+		search := "%" + params.Search + "%"
+		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
+	}
+
+	// Count total before pagination
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	if params.SortBy != "" {
+		order := params.SortBy
+		if params.SortDir == "desc" {
+			order += " DESC"
+		} else {
+			order += " ASC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("name ASC")
+	}
+
+	// Apply pagination
+	if params.Limit > 0 {
+		query = query.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		query = query.Offset(params.Offset)
+	}
+
+	// Preload parent for display
+	query = query.Preload("Parent")
+
+	if err := query.Find(&categories).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return categories, total, nil
+}
+
+func (r *productCategoryRepository) Update(ctx context.Context, category *models.ProductCategory) error {
+	return r.db.WithContext(ctx).Save(category).Error
+}
+
+func (r *productCategoryRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.ProductCategory{}, "id = ?", id).Error
+}

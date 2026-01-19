@@ -49,6 +49,7 @@ import (
 
 	geographicPresentation "github.com/gilabs/crm-healthcare/api/internal/geographic/presentation"
 	organizationPresentation "github.com/gilabs/crm-healthcare/api/internal/organization/presentation"
+	productPresentation "github.com/gilabs/crm-healthcare/api/internal/product/presentation"
 	supplierPresentation "github.com/gilabs/crm-healthcare/api/internal/supplier/presentation"
 )
 
@@ -244,6 +245,9 @@ func main() {
 
 		// Supplier module (Sprint 4)
 		supplierPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Product module (Sprint 4)
+		productPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown
