@@ -19,6 +19,8 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		NPWP:           m.NPWP,
 		ContactPerson:  m.ContactPerson,
 		Notes:          m.Notes,
+		Latitude:       m.Latitude,
+		Longitude:      m.Longitude,
 		Status:         string(m.Status),
 		IsApproved:     m.IsApproved,
 		CreatedBy:      m.CreatedBy,

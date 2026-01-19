@@ -138,6 +138,8 @@ export interface Supplier {
   npwp?: string;
   contact_person?: string;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   status: SupplierStatus;
   is_approved: boolean;
   created_by?: string;
@@ -161,6 +163,8 @@ export interface CreateSupplierData {
   npwp?: string;
   contact_person?: string;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_active?: boolean;
   phone_numbers?: CreatePhoneNumberData[];
   bank_accounts?: CreateSupplierBankData[];
@@ -177,6 +181,8 @@ export interface UpdateSupplierData {
   npwp?: string;
   contact_person?: string;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_active?: boolean;
 }
 

@@ -185,6 +185,31 @@ export function SupplierDetailModal({
                           value={supplier.address}
                           className="col-span-full"
                         />
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Area
+                          </p>
+                          <p className="text-sm font-medium">
+                            {[
+                              supplier.village?.name,
+                              supplier.village?.district?.name,
+                              supplier.village?.district?.city?.name,
+                              supplier.village?.district?.city?.province?.name,
+                            ]
+                              .filter(Boolean)
+                              .join(", ") || "-"}
+                          </p>
+                        </div>
+                        {(supplier.latitude != null || supplier.longitude != null) && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                              {t("sections.coordinates")}
+                            </p>
+                            <p className="font-mono text-xs text-muted-foreground bg-muted p-1 rounded w-fit">
+                              {supplier.latitude ?? "-"}, {supplier.longitude ?? "-"}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </section>
 

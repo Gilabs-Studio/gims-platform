@@ -15,6 +15,8 @@ type CreateSupplierRequest struct {
 	NPWP           string                        `json:"npwp" binding:"max=30"`
 	ContactPerson  string                        `json:"contact_person" binding:"max=100"`
 	Notes          string                        `json:"notes" binding:"max=1000"`
+	Latitude       *float64                      `json:"latitude" binding:"omitempty,min=-90,max=90"`
+	Longitude      *float64                      `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool                         `json:"is_active"`
 	PhoneNumbers   []CreatePhoneNumberRequest    `json:"phone_numbers"`
 	BankAccounts   []CreateSupplierBankRequest   `json:"bank_accounts"`
@@ -28,10 +30,12 @@ type UpdateSupplierRequest struct {
 	VillageID      string `json:"village_id" binding:"omitempty,uuid"`
 	Email          string `json:"email" binding:"omitempty,email,max=100"`
 	Website        string `json:"website" binding:"max=200"`
-	NPWP           string `json:"npwp" binding:"max=30"`
-	ContactPerson  string `json:"contact_person" binding:"max=100"`
-	Notes          string `json:"notes" binding:"max=1000"`
-	IsActive       *bool  `json:"is_active"`
+	NPWP           string   `json:"npwp" binding:"max=30"`
+	ContactPerson  string   `json:"contact_person" binding:"max=100"`
+	Notes          string   `json:"notes" binding:"max=1000"`
+	Latitude       *float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
+	Longitude      *float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
+	IsActive       *bool    `json:"is_active"`
 }
 
 type ApproveSupplierRequest struct {
@@ -53,6 +57,8 @@ type SupplierResponse struct {
 	NPWP           string                      `json:"npwp"`
 	ContactPerson  string                      `json:"contact_person"`
 	Notes          string                      `json:"notes"`
+	Latitude       *float64                    `json:"latitude"`
+	Longitude      *float64                    `json:"longitude"`
 	Status         string                      `json:"status"`
 	IsApproved     bool                        `json:"is_approved"`
 	CreatedBy      *string                     `json:"created_by"`

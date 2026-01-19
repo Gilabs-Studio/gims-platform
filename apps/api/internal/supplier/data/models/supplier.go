@@ -33,6 +33,9 @@ type Supplier struct {
 	NPWP           string          `gorm:"type:varchar(30)" json:"npwp"`
 	ContactPerson  string          `gorm:"type:varchar(100)" json:"contact_person"`
 	Notes          string          `gorm:"type:text" json:"notes"`
+	// Location coordinates
+	Latitude       *float64        `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude      *float64        `gorm:"type:decimal(11,8)" json:"longitude"`
 	// Approval workflow
 	Status     SupplierStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	IsApproved bool           `gorm:"default:false;index" json:"is_approved"`

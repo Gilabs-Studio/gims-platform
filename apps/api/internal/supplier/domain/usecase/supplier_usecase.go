@@ -62,6 +62,8 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		NPWP:          req.NPWP,
 		ContactPerson: req.ContactPerson,
 		Notes:         req.Notes,
+		Latitude:      req.Latitude,
+		Longitude:     req.Longitude,
 		Status:        models.SupplierStatusDraft,
 		IsApproved:    false,
 		CreatedBy:     &userID,
@@ -141,8 +143,8 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 		return dto.SupplierResponse{}, err
 	}
 
-	// Only allow updates to draft or rejected suppliers
-	if supplier.Status != models.SupplierStatusDraft && supplier.Status != models.SupplierStatusRejected {
+	// Only allow updates to draft, rejected, or approved suppliers
+	if supplier.Status != models.SupplierStatusDraft && supplier.Status != models.SupplierStatusRejected && supplier.Status != models.SupplierStatusApproved {
 		return dto.SupplierResponse{}, errors.New("cannot update supplier in current status")
 	}
 
@@ -180,6 +182,12 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 	}
 	if req.VillageID != "" {
 		supplier.VillageID = &req.VillageID
+	}
+	if req.Latitude != nil {
+		supplier.Latitude = req.Latitude
+	}
+	if req.Longitude != nil {
+		supplier.Longitude = req.Longitude
 	}
 	if req.IsActive != nil {
 		supplier.IsActive = *req.IsActive
