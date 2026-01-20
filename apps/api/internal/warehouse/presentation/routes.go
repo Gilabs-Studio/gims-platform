@@ -1,0 +1,29 @@
+package presentation
+
+import (
+	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
+	"github.com/gilabs/crm-healthcare/api/internal/warehouse/data/repositories"
+	"github.com/gilabs/crm-healthcare/api/internal/warehouse/domain/usecase"
+	"github.com/gilabs/crm-healthcare/api/internal/warehouse/presentation/handler"
+	"github.com/gilabs/crm-healthcare/api/internal/warehouse/presentation/router"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+// RegisterRoutes registers all warehouse domain routes
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
+	GetPermissions(roleCode string) ([]string, error)
+}) {
+	// Initialize layers
+	repo := repositories.NewWarehouseRepository(db)
+	uc := usecase.NewWarehouseUsecase(repo)
+	h := handler.NewWarehouseHandler(uc)
+
+	// Create warehouse group under API with auth middleware
+	group := api.Group("/warehouse")
+	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+
+	// Register routes
+	router.RegisterWarehouseRoutes(group, h)
+}

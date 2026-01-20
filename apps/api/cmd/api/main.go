@@ -51,6 +51,7 @@ import (
 	organizationPresentation "github.com/gilabs/crm-healthcare/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/crm-healthcare/api/internal/product/presentation"
 	supplierPresentation "github.com/gilabs/crm-healthcare/api/internal/supplier/presentation"
+	warehousePresentation "github.com/gilabs/crm-healthcare/api/internal/warehouse/presentation"
 )
 
 func main() {
@@ -248,6 +249,9 @@ func main() {
 
 		// Product module (Sprint 4)
 		productPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Warehouse module (Sprint 4)
+		warehousePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

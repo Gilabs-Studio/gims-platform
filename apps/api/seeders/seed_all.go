@@ -49,6 +49,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Warehouse seeder (Sprint 4)
+	if err := SeedWarehouse(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

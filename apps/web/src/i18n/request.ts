@@ -39,6 +39,8 @@ import { supplierEn } from "@/features/master-data/supplier/i18n/en";
 import { supplierId } from "@/features/master-data/supplier/i18n/id";
 import { productEn } from "@/features/master-data/product/i18n/en";
 import { productId } from "@/features/master-data/product/i18n/id";
+import { warehouseEn } from "@/features/master-data/warehouse/i18n/en";
+import { warehouseId } from "@/features/master-data/warehouse/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -61,6 +63,7 @@ const messages = {
     employee: employeeEn,
     supplier: supplierEn,
     product: productEn,
+    warehouse: warehouseEn,
   },
   id: {
     ...globalIdMessages,
@@ -81,6 +84,7 @@ const messages = {
     employee: employeeId,
     supplier: supplierId,
     product: productId,
+    warehouse: warehouseId,
   },
 } as const;
 

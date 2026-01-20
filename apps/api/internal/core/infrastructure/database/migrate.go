@@ -16,6 +16,7 @@ import (
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
 	supplier "github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
 	user "github.com/gilabs/crm-healthcare/api/internal/user/data/models"
+	warehouse "github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
 )
 
 // AutoMigrate runs database migrations
@@ -84,6 +85,8 @@ func AutoMigrate() error {
 		&product.Packaging{},
 		&product.ProcurementType{},
 		&product.Product{},
+		// Warehouse entities (Sprint 4)
+		&warehouse.Warehouse{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

@@ -3,6 +3,7 @@ module github.com/gilabs/crm-healthcare/api
 go 1.25.4
 
 require (
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.28.0
@@ -16,11 +17,11 @@ require (
 	golang.org/x/crypto v0.45.0
 	golang.org/x/time v0.12.0
 	gorm.io/driver/postgres v1.6.0
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )
 
 require (
-	github.com/alicebob/miniredis/v2 v2.35.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.2 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
@@ -64,5 +65,4 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/sqlite v1.6.0 // indirect
 )
