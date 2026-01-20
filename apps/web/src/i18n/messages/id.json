@@ -1,4 +1,26 @@
 {
+  "common": {
+    "title": "Pengaturan Global",
+    "loading": "Memuat...",
+    "error": "Terjadi kesalahan",
+    "retry": "Coba Lagi",
+    "noData": "Data tidak ditemukan",
+    "search": "Cari...",
+    "actions": "Aksi",
+    "active": "Aktif",
+    "inactive": "Tidak Aktif",
+    "edit": "Ubah",
+    "delete": "Hapus",
+    "create": "Buat",
+    "save": "Simpan",
+    "saving": "Menyimpan...",
+    "cancel": "Batal",
+    "back": "Kembali",
+    "confirm": "Konfirmasi",
+    "close": "Tutup",
+    "yes": "Ya",
+    "no": "Tidak"
+  },
   "notFound": {
     "label": "404",
     "title": "Halaman Tidak Ditemukan",

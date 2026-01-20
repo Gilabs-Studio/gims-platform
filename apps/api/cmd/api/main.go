@@ -47,6 +47,7 @@ import (
 	userHandler "github.com/gilabs/crm-healthcare/api/internal/user/presentation/handler"
 	userRouter "github.com/gilabs/crm-healthcare/api/internal/user/presentation/router"
 
+	corePresentation "github.com/gilabs/crm-healthcare/api/internal/core/presentation"
 	geographicPresentation "github.com/gilabs/crm-healthcare/api/internal/geographic/presentation"
 	organizationPresentation "github.com/gilabs/crm-healthcare/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/crm-healthcare/api/internal/product/presentation"
@@ -252,6 +253,9 @@ func main() {
 
 		// Warehouse module (Sprint 4)
 		warehousePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Core Master Data (Sprint 4 - PaymentTerms, CourierAgency, SOSource, LeaveType)
+		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

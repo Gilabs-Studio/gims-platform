@@ -87,6 +87,11 @@ func AutoMigrate() error {
 		&product.Product{},
 		// Warehouse entities (Sprint 4)
 		&warehouse.Warehouse{},
+		// Core Master Data entities (Sprint 4)
+		&core.PaymentTerms{},
+		&core.CourierAgency{},
+		&core.SOSource{},
+		&core.LeaveType{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

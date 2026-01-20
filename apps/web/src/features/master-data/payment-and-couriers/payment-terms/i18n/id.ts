@@ -1,0 +1,21 @@
+export const paymentTermId = {
+  title: "Termin Pembayaran",
+  description: "Kelola konfigurasi termin pembayaran",
+  create: "Tambah Termin Pembayaran",
+  edit: "Edit Termin Pembayaran",
+  deleted: "Termin pembayaran berhasil dihapus",
+  created: "Termin pembayaran berhasil dibuat",
+  updated: "Termin pembayaran berhasil diperbarui",
+  empty: "Tidak ada termin pembayaran ditemukan",
+  form: {
+    code: "Kode",
+    codePlaceholder: "Masukkan kode (contoh: NET30)",
+    name: "Nama",
+    namePlaceholder: "Masukkan nama",
+    days: "Hari",
+    daysPlaceholder: "Masukkan jumlah hari",
+    description: "Deskripsi",
+    descriptionPlaceholder: "Masukkan deskripsi",
+    isActive: "Aktif",
+  },
+};

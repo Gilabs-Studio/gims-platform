@@ -41,6 +41,14 @@ import { productEn } from "@/features/master-data/product/i18n/en";
 import { productId } from "@/features/master-data/product/i18n/id";
 import { warehouseEn } from "@/features/master-data/warehouse/i18n/en";
 import { warehouseId } from "@/features/master-data/warehouse/i18n/id";
+import { paymentTermEn } from "@/features/master-data/payment-and-couriers/payment-terms/i18n/en";
+import { paymentTermId } from "@/features/master-data/payment-and-couriers/payment-terms/i18n/id";
+import { courierAgencyEn } from "@/features/master-data/payment-and-couriers/courier-agency/i18n/en";
+import { courierAgencyId } from "@/features/master-data/payment-and-couriers/courier-agency/i18n/id";
+import { soSourceEn } from "@/features/master-data/payment-and-couriers/so-source/i18n/en";
+import { soSourceId } from "@/features/master-data/payment-and-couriers/so-source/i18n/id";
+import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
+import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -64,6 +72,10 @@ const messages = {
     supplier: supplierEn,
     product: productEn,
     warehouse: warehouseEn,
+    paymentTerm: paymentTermEn,
+    courierAgency: courierAgencyEn,
+    soSource: soSourceEn,
+    leaveType: leaveTypeEn,
   },
   id: {
     ...globalIdMessages,
@@ -85,6 +97,10 @@ const messages = {
     supplier: supplierId,
     product: productId,
     warehouse: warehouseId,
+    paymentTerm: paymentTermId,
+    courierAgency: courierAgencyId,
+    soSource: soSourceId,
+    leaveType: leaveTypeId,
   },
 } as const;
 

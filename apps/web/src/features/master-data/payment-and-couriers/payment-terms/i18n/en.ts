@@ -1,0 +1,21 @@
+export const paymentTermEn = {
+  title: "Payment Terms",
+  description: "Manage payment terms configuration",
+  create: "Add Payment Term",
+  edit: "Edit Payment Term",
+  deleted: "Payment term deleted successfully",
+  created: "Payment term created successfully",
+  updated: "Payment term updated successfully",
+  empty: "No payment terms found",
+  form: {
+    code: "Code",
+    codePlaceholder: "Enter code (e.g., NET30)",
+    name: "Name",
+    namePlaceholder: "Enter name",
+    days: "Days",
+    daysPlaceholder: "Enter number of days",
+    description: "Description",
+    descriptionPlaceholder: "Enter description",
+    isActive: "Active",
+  },
+};

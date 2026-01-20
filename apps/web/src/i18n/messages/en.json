@@ -1,4 +1,26 @@
 {
+  "common": {
+    "title": "Global Settings",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "noData": "No data found",
+    "search": "Search...",
+    "actions": "Actions",
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "back": "Back",
+    "confirm": "Confirm",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
   "notFound": {
     "label": "404",
     "title": "Page Not Found",

@@ -1,0 +1,22 @@
+export const leaveTypeEn = {
+  title: "Leave Types",
+  description: "Manage employee leave types",
+  create: "Add Leave Type",
+  edit: "Edit Leave Type",
+  deleted: "Leave type deleted successfully",
+  created: "Leave type created successfully",
+  updated: "Leave type updated successfully",
+  empty: "No leave types found",
+  form: {
+    code: "Code",
+    codePlaceholder: "Enter code",
+    name: "Name",
+    namePlaceholder: "Enter name",
+    description: "Description",
+    descriptionPlaceholder: "Enter description",
+    maxDays: "Max Days",
+    maxDaysPlaceholder: "Enter max days",
+    isPaid: "Paid Leave",
+    isActive: "Active",
+  },
+};

@@ -1,0 +1,22 @@
+export const leaveTypeId = {
+  title: "Jenis Cuti",
+  description: "Kelola jenis cuti karyawan",
+  create: "Tambah Jenis Cuti",
+  edit: "Edit Jenis Cuti",
+  deleted: "Jenis cuti berhasil dihapus",
+  created: "Jenis cuti berhasil dibuat",
+  updated: "Jenis cuti berhasil diperbarui",
+  empty: "Tidak ada jenis cuti ditemukan",
+  form: {
+    code: "Kode",
+    codePlaceholder: "Masukkan kode",
+    name: "Nama",
+    namePlaceholder: "Masukkan nama",
+    description: "Deskripsi",
+    descriptionPlaceholder: "Masukkan deskripsi",
+    maxDays: "Maks Hari",
+    maxDaysPlaceholder: "Masukkan maks hari",
+    isPaid: "Cuti Dibayar",
+    isActive: "Aktif",
+  },
+};
