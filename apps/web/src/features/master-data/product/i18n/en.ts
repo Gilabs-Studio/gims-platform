@@ -140,6 +140,7 @@ export const productEn = {
     title: "Products",
     singular: "Product",
     description: "Manage products",
+    search: "Search products...",
     create: "Create Product",
     edit: "Edit Product",
     delete: "Delete Product",

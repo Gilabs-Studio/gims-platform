@@ -240,16 +240,12 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 }
 
 func (u *productUsecase) Delete(ctx context.Context, id string) error {
-	product, err := u.repo.FindByID(ctx, id)
+	_, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("product not found")
 	}
 
-	// Only allow deletion of draft products
-	if product.Status != models.ProductStatusDraft {
-		return errors.New("can only delete draft products")
-	}
-
+	// Soft delete product
 	return u.repo.Delete(ctx, id)
 }
 

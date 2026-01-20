@@ -140,6 +140,7 @@ export const productId = {
     title: "Produk",
     singular: "Produk",
     description: "Kelola produk",
+    search: "Cari produk...",
     create: "Buat Produk",
     edit: "Edit Produk",
     delete: "Hapus Produk",

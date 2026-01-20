@@ -181,3 +181,88 @@ func (h *ProductCategoryHandler) Delete(c *gin.Context) {
 
 	response.SuccessResponseDeleted(c, "product_category", id, meta)
 }
+
+// GetTree handles GET /product-categories/tree
+// Returns hierarchical category tree structure with optional product counts
+// Query params:
+//   - parent_id: string (optional) - start from specific parent, nil for root
+//   - depth: int (optional) - max depth to load, 0 = unlimited (default: 0)
+//   - include_count: bool (optional) - include product count per category (default: true)
+//   - only_active: bool (optional) - only include active categories (default: false)
+func (h *ProductCategoryHandler) GetTree(c *gin.Context) {
+	params := dto.CategoryTreeParams{
+		IncludeCount: true, // default true
+		OnlyActive:   false,
+		MaxDepth:     0, // unlimited
+	}
+
+	// Parse parent_id
+	if parentID := c.Query("parent_id"); parentID != "" {
+		params.ParentID = &parentID
+	}
+
+	// Parse depth
+	if depthStr := c.Query("depth"); depthStr != "" {
+		if depth, err := strconv.Atoi(depthStr); err == nil && depth >= 0 {
+			params.MaxDepth = depth
+		}
+	}
+
+	// Parse include_count
+	if includeCount := c.Query("include_count"); includeCount == "false" {
+		params.IncludeCount = false
+	}
+
+	// Parse only_active
+	if onlyActive := c.Query("only_active"); onlyActive == "true" {
+		params.OnlyActive = true
+	}
+
+	results, err := h.uc.GetTree(c.Request.Context(), params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, results, nil)
+}
+
+// GetChildren handles GET /product-categories/:id/children
+// Returns direct children of a category (for lazy loading)
+// Query params:
+//   - include_count: bool (optional) - include product count per category (default: true)
+//   - only_active: bool (optional) - only include active categories (default: false)
+func (h *ProductCategoryHandler) GetChildren(c *gin.Context) {
+	parentID := c.Param("id")
+	if parentID == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "Parent ID is required",
+		}, nil)
+		return
+	}
+
+	params := dto.CategoryTreeParams{
+		IncludeCount: true,
+		OnlyActive:   false,
+		MaxDepth:     1, // Only direct children
+	}
+
+	// Parse include_count
+	if includeCount := c.Query("include_count"); includeCount == "false" {
+		params.IncludeCount = false
+	}
+
+	// Parse only_active
+	if onlyActive := c.Query("only_active"); onlyActive == "true" {
+		params.OnlyActive = true
+	}
+
+	results, err := h.uc.GetChildren(c.Request.Context(), parentID, params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, results, nil)
+}
+

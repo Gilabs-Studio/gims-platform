@@ -28,6 +28,26 @@ export interface UpdateProductCategoryData {
   is_active?: boolean;
 }
 
+// === Category Tree Types ===
+export interface CategoryTreeNode {
+  id: string;
+  name: string;
+  description: string;
+  parent_id?: string | null;
+  product_count: number;
+  children: CategoryTreeNode[];
+  has_children: boolean;
+  is_active: boolean;
+  level: number;
+}
+
+export interface CategoryTreeParams {
+  parent_id?: string;
+  depth?: number;
+  include_count?: boolean;
+  only_active?: boolean;
+}
+
 // === ProductBrand ===
 export interface ProductBrand {
   id: string;

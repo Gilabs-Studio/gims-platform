@@ -14,6 +14,11 @@ type ProductCategoryRepository interface {
 	List(ctx context.Context, params ListParams) ([]models.ProductCategory, int64, error)
 	Update(ctx context.Context, category *models.ProductCategory) error
 	Delete(ctx context.Context, id string) error
+	// Tree methods
+	GetRootCategories(ctx context.Context, onlyActive bool) ([]models.ProductCategory, error)
+	GetChildrenByParentID(ctx context.Context, parentID string, onlyActive bool) ([]models.ProductCategory, error)
+	HasChildren(ctx context.Context, categoryID string) (bool, error)
+	CountProductsByCategory(ctx context.Context, categoryID string) (int64, error)
 }
 
 type productCategoryRepository struct {
@@ -93,3 +98,48 @@ func (r *productCategoryRepository) Update(ctx context.Context, category *models
 func (r *productCategoryRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.ProductCategory{}, "id = ?", id).Error
 }
+
+// GetRootCategories returns all categories without a parent (root level)
+func (r *productCategoryRepository) GetRootCategories(ctx context.Context, onlyActive bool) ([]models.ProductCategory, error) {
+	var categories []models.ProductCategory
+	query := r.db.WithContext(ctx).Where("parent_id IS NULL")
+	if onlyActive {
+		query = query.Where("is_active = ?", true)
+	}
+	query = query.Order("name ASC")
+
+	if err := query.Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+// GetChildrenByParentID returns all direct children of a category
+func (r *productCategoryRepository) GetChildrenByParentID(ctx context.Context, parentID string, onlyActive bool) ([]models.ProductCategory, error) {
+	var categories []models.ProductCategory
+	query := r.db.WithContext(ctx).Where("parent_id = ?", parentID)
+	if onlyActive {
+		query = query.Where("is_active = ?", true)
+	}
+	query = query.Order("name ASC")
+
+	if err := query.Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+// HasChildren checks if a category has any children
+func (r *productCategoryRepository) HasChildren(ctx context.Context, categoryID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.ProductCategory{}).Where("parent_id = ?", categoryID).Count(&count).Error
+	return count > 0, err
+}
+
+// CountProductsByCategory counts products in a specific category
+func (r *productCategoryRepository) CountProductsByCategory(ctx context.Context, categoryID string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.Product{}).Where("category_id = ?", categoryID).Count(&count).Error
+	return count, err
+}
+

@@ -18,6 +18,9 @@ type ProductCategoryUsecase interface {
 	List(ctx context.Context, params repositories.ListParams) ([]dto.ProductCategoryResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateProductCategoryRequest) (dto.ProductCategoryResponse, error)
 	Delete(ctx context.Context, id string) error
+	// Tree methods
+	GetTree(ctx context.Context, params dto.CategoryTreeParams) ([]dto.CategoryTreeResponse, error)
+	GetChildren(ctx context.Context, parentID string, params dto.CategoryTreeParams) ([]dto.CategoryTreeResponse, error)
 }
 
 type productCategoryUsecase struct {
@@ -99,3 +102,85 @@ func (u *productCategoryUsecase) Delete(ctx context.Context, id string) error {
 	}
 	return u.repo.Delete(ctx, id)
 }
+
+// GetTree returns hierarchical category tree starting from root
+func (u *productCategoryUsecase) GetTree(ctx context.Context, params dto.CategoryTreeParams) ([]dto.CategoryTreeResponse, error) {
+	var categories []models.ProductCategory
+	var err error
+
+	if params.ParentID != nil {
+		// Get children of specific parent
+		categories, err = u.repo.GetChildrenByParentID(ctx, *params.ParentID, params.OnlyActive)
+	} else {
+		// Get root categories
+		categories, err = u.repo.GetRootCategories(ctx, params.OnlyActive)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return u.buildTree(ctx, categories, params, 0)
+}
+
+// GetChildren returns direct children of a category
+func (u *productCategoryUsecase) GetChildren(ctx context.Context, parentID string, params dto.CategoryTreeParams) ([]dto.CategoryTreeResponse, error) {
+	categories, err := u.repo.GetChildrenByParentID(ctx, parentID, params.OnlyActive)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.buildTree(ctx, categories, params, 1)
+}
+
+// buildTree recursively builds tree structure from categories
+func (u *productCategoryUsecase) buildTree(ctx context.Context, categories []models.ProductCategory, params dto.CategoryTreeParams, level int) ([]dto.CategoryTreeResponse, error) {
+	result := make([]dto.CategoryTreeResponse, 0, len(categories))
+
+	for _, cat := range categories {
+		node := dto.CategoryTreeResponse{
+			ID:          cat.ID,
+			Name:        cat.Name,
+			Description: cat.Description,
+			ParentID:    cat.ParentID,
+			IsActive:    cat.IsActive,
+			Level:       level,
+			Children:    []dto.CategoryTreeResponse{}, // Always initialize as empty array for JSON
+		}
+
+		// Check if has children
+		hasChildren, err := u.repo.HasChildren(ctx, cat.ID)
+		if err != nil {
+			return nil, err
+		}
+		node.HasChildren = hasChildren
+
+		// Get product count if requested
+		if params.IncludeCount {
+			count, err := u.repo.CountProductsByCategory(ctx, cat.ID)
+			if err != nil {
+				return nil, err
+			}
+			node.ProductCount = count
+		}
+
+		// Recursively load children if depth allows
+		// MaxDepth 0 = unlimited, otherwise stop at MaxDepth
+		if hasChildren && (params.MaxDepth == 0 || level < params.MaxDepth-1) {
+			children, err := u.repo.GetChildrenByParentID(ctx, cat.ID, params.OnlyActive)
+			if err != nil {
+				return nil, err
+			}
+			childNodes, err := u.buildTree(ctx, children, params, level+1)
+			if err != nil {
+				return nil, err
+			}
+			node.Children = childNodes
+		}
+
+		result = append(result, node)
+	}
+
+	return result, nil
+}
+

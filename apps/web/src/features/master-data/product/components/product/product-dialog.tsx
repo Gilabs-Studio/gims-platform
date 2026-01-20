@@ -26,11 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
 import {
   useCreateProduct,
   useUpdateProduct,
 } from "../../hooks/use-products";
-import { useProductCategories } from "../../hooks/use-product-categories";
 import { useProductBrands } from "../../hooks/use-product-brands";
 import { useProductSegments } from "../../hooks/use-product-segments";
 import { useProductTypes } from "../../hooks/use-product-types";
@@ -76,8 +76,7 @@ export function ProductDialog({
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
 
-  // Fetch Lookup Data
-  const { data: categories } = useProductCategories({ per_page: 100, sort: "name" });
+  // Fetch Lookup Data (removed categories - now using CategoryTreePicker)
   const { data: brands } = useProductBrands({ per_page: 100, sort: "name" });
   const { data: segments } = useProductSegments({ per_page: 100, sort: "name" });
   const { data: types } = useProductTypes({ per_page: 100, sort: "name" });
@@ -295,21 +294,13 @@ export function ProductDialog({
               <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>{t("form.category")}</FieldLabel>
-                  <Select
-                    value={categoryId ?? ""}
-                    onValueChange={(val) => setValue("category_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories?.data?.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategoryTreePicker
+                    value={categoryId ?? null}
+                    onChange={(id) => setValue("category_id", id ?? undefined)}
+                    placeholder="Select Category..."
+                    showProductCount
+                    clearable
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.brand")}</FieldLabel>

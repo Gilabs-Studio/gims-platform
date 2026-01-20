@@ -225,17 +225,17 @@ erDiagram
 - [x] `Bank` - CRUD
 
 #### Product
-- [ ] `ProductCategory` - CRUD
-- [ ] `ProductBrand` - CRUD
-- [ ] `ProductSegment` - CRUD
-- [ ] `ProductType` - CRUD
-- [ ] `UnitOfMeasure` - CRUD
-- [ ] `Packaging` - CRUD
-- [ ] `ProcurementType` - CRUD
-- [ ] `Product` - CRUD + Approve + Stock info
+- [x] `ProductCategory` - CRUD
+- [x] `ProductBrand` - CRUD
+- [x] `ProductSegment` - CRUD
+- [x] `ProductType` - CRUD
+- [x] `UnitOfMeasure` - CRUD
+- [x] `Packaging` - CRUD
+- [x] `ProcurementType` - CRUD
+- [x] `Product` - CRUD + Approve + Stock info
 
 #### Others
-- [ ] `Warehouse` - CRUD
+- [x] `Warehouse` - CRUD
 - [ ] `PaymentTerms` - CRUD
 - [ ] `CourierAgency` - CRUD
 - [ ] `SOSource` - CRUD
@@ -246,8 +246,8 @@ erDiagram
 - [x] Supplier management with inline phone numbers
 - [x] Supplier bank accounts management
 - [ ] Product catalog with category tree
-- [ ] Product form with all relations
-- [ ] Warehouse management
+- [x] Product form with all relations
+- [x] Warehouse management
 - [ ] Payment terms configuration
 - [ ] All lookup tables (Category, Brand, UoM, etc.)
 

@@ -4,6 +4,8 @@ import type {
   ProductCategory,
   CreateProductCategoryData,
   UpdateProductCategoryData,
+  CategoryTreeNode,
+  CategoryTreeParams,
   ProductBrand,
   CreateProductBrandData,
   UpdateProductBrandData,
@@ -71,6 +73,23 @@ export const productCategoryService = {
   delete: async (id: string): Promise<ApiResponse<void>> => {
     const response = await apiClient.delete<ApiResponse<void>>(
       `${BASE_URL}/product-categories/${id}`
+    );
+    return response.data;
+  },
+
+  // Tree methods
+  getTree: async (params?: CategoryTreeParams): Promise<ApiResponse<CategoryTreeNode[]>> => {
+    const response = await apiClient.get<ApiResponse<CategoryTreeNode[]>>(
+      `${BASE_URL}/product-categories/tree`,
+      { params }
+    );
+    return response.data;
+  },
+
+  getChildren: async (parentId: string, params?: Omit<CategoryTreeParams, 'parent_id'>): Promise<ApiResponse<CategoryTreeNode[]>> => {
+    const response = await apiClient.get<ApiResponse<CategoryTreeNode[]>>(
+      `${BASE_URL}/product-categories/${parentId}/children`,
+      { params }
     );
     return response.data;
   },
