@@ -292,7 +292,7 @@ export interface CreateProductData {
   code: string;
   name: string;
   description?: string;
-  image_url?: string;
+  image_url?: string | null;
   category_id?: string | null;
   brand_id?: string | null;
   segment_id?: string | null;
@@ -325,7 +325,7 @@ export interface UpdateProductData {
   name?: string;
   name?: string;
   description?: string;
-  image_url?: string;
+  image_url?: string | null;
   category_id?: string | null;
   brand_id?: string | null;
   segment_id?: string | null;

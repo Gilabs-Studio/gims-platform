@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, XCircle, Clock, FileEdit } from "lucide-react";
+import { resolveImageUrl } from "@/lib/utils";
 import type { Product } from "../../types";
 
 interface ProductDetailDialogProps {
@@ -107,7 +108,7 @@ export function ProductDetailDialog({
             <div className="w-32 h-32 shrink-0 bg-muted rounded-lg border flex items-center justify-center overflow-hidden">
               {product.image_url ? (
                 <img
-                  src={product.image_url}
+                  src={resolveImageUrl(product.image_url)}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />

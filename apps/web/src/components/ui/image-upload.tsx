@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Upload, X, Loader2, ImagePlus } from "lucide-react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, resolveImageUrl } from "@/lib/utils";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +54,11 @@ export function ImageUpload({
 
   // Sync internal preview with external value
   React.useEffect(() => {
-    setPreview(value ?? null);
+    if (value) {
+      setPreview(resolveImageUrl(value) ?? null);
+    } else {
+      setPreview(null);
+    }
   }, [value]);
 
   const onDrop = React.useCallback(
@@ -99,7 +103,7 @@ export function ImageUpload({
           throw new Error(labels.uploadFailed ?? "Upload failed");
         }
       } catch (err) {
-        setPreview(value ?? null); // Revert
+        setPreview(value ? (resolveImageUrl(value) ?? null) : null); // Revert
         toast.error(labels.uploadFailed ?? "Upload failed", {
           description: "Something went wrong while uploading the image.",
         });

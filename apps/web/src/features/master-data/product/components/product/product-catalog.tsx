@@ -26,7 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, resolveImageUrl } from "@/lib/utils";
 import { CategoryTree } from "@/components/ui/category-tree";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -517,7 +517,7 @@ export function ProductCatalog() {
                     <div className="relative aspect-4/3 w-full bg-muted border-b">
                       {product.image_url ? (
                         <img 
-                          src={product.image_url} 
+                          src={resolveImageUrl(product.image_url)} 
                           alt={product.name} 
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
                         />

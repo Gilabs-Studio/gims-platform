@@ -185,7 +185,7 @@ export function ProductDialog({
       const payload = {
         ...data,
         code: data.code ?? "",
-        image_url: data.image_url ?? undefined,
+        image_url: data.image_url ?? undefined, 
         category_id: data.category_id || null,
         brand_id: data.brand_id || null,
         segment_id: data.segment_id || null,
@@ -255,7 +255,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{isEditing ? t("edit") : t("create")}</DialogTitle>
         </DialogHeader>
@@ -272,7 +272,7 @@ export function ProductDialog({
                   <FieldLabel>{t("image")}</FieldLabel>
                   <ImageUpload
                     value={watch("image_url")}
-                    onChange={(url) => setValue("image_url", url)}
+                    onChange={(url) => setValue("image_url", url || null, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                     disabled={isSubmitting}
                     labels={{
                       dragActive: tCommon("dragActive"),
