@@ -1,6 +1,7 @@
 package seeders
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
@@ -166,48 +167,84 @@ func SeedProduct() error {
 	if productCount == 0 {
 		log.Println("Seeding products...")
 
+		// Helper to find reference or return error
+		findRef := func(dest interface{}, name string, label string) error {
+			if err := db.Where("name = ?", name).First(dest).Error; err != nil {
+				return fmt.Errorf("failed to find %s '%s': %w", label, name, err)
+			}
+			return nil
+		}
+
 		// Get references
 		var prescriptionCategory models.ProductCategory
-		db.Where("name = ?", "Prescription Drugs").First(&prescriptionCategory)
+		if err := findRef(&prescriptionCategory, "Prescription Drugs", "category"); err != nil {
+			return err
+		}
 
 		var otcCategory models.ProductCategory
-		db.Where("name = ?", "Over-the-Counter").First(&otcCategory)
+		if err := findRef(&otcCategory, "Over-the-Counter", "category"); err != nil {
+			return err
+		}
 
 		var medDeviceCategory models.ProductCategory
-		db.Where("name = ?", "Medical Devices").First(&medDeviceCategory)
+		if err := findRef(&medDeviceCategory, "Medical Devices", "category"); err != nil {
+			return err
+		}
 
 		var kalbeBrand models.ProductBrand
-		db.Where("name = ?", "Kalbe Farma").First(&kalbeBrand)
+		if err := findRef(&kalbeBrand, "Kalbe Farma", "brand"); err != nil {
+			return err
+		}
 
 		var kimiaFarmaBrand models.ProductBrand
-		db.Where("name = ?", "Kimia Farma").First(&kimiaFarmaBrand)
+		if err := findRef(&kimiaFarmaBrand, "Kimia Farma", "brand"); err != nil {
+			return err
+		}
 
 		var ethicalSegment models.ProductSegment
-		db.Where("name = ?", "Ethical").First(&ethicalSegment)
+		if err := findRef(&ethicalSegment, "Ethical", "segment"); err != nil {
+			return err
+		}
 
 		var otcSegment models.ProductSegment
-		db.Where("name = ?", "OTC").First(&otcSegment)
+		if err := findRef(&otcSegment, "OTC", "segment"); err != nil {
+			return err
+		}
 
 		var medicineType models.ProductType
-		db.Where("name = ?", "Medicine").First(&medicineType)
+		if err := findRef(&medicineType, "Medicine", "type"); err != nil {
+			return err
+		}
 
 		var deviceType models.ProductType
-		db.Where("name = ?", "Device").First(&deviceType)
+		if err := findRef(&deviceType, "Device", "type"); err != nil {
+			return err
+		}
 
 		var pcsUom models.UnitOfMeasure
-		db.Where("name = ?", "Piece").First(&pcsUom)
+		if err := findRef(&pcsUom, "Piece", "uom"); err != nil {
+			return err
+		}
 
 		var boxUom models.UnitOfMeasure
-		db.Where("name = ?", "Box").First(&boxUom)
+		if err := findRef(&boxUom, "Box", "uom"); err != nil {
+			return err
+		}
 
 		var stripUom models.UnitOfMeasure
-		db.Where("name = ?", "Strip").First(&stripUom)
+		if err := findRef(&stripUom, "Strip", "uom"); err != nil {
+			return err
+		}
 
 		var buyProcurement models.ProcurementType
-		db.Where("name = ?", "Buy").First(&buyProcurement)
+		if err := findRef(&buyProcurement, "Buy", "procurement type"); err != nil {
+			return err
+		}
 
 		var blisterPackaging models.Packaging
-		db.Where("name = ?", "Blister Pack").First(&blisterPackaging)
+		if err := findRef(&blisterPackaging, "Blister Pack", "packaging"); err != nil {
+			return err
+		}
 
 		// Helper to get pointer
 		strPtr := func(s string) *string {

@@ -34,6 +34,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Employee seeder (Sprint 3)
+	if err := SeedEmployees(); err != nil {
+		return err
+	}
+
 	// Supplier seeder (Sprint 4)
 	if err := SeedSupplier(); err != nil {
 		return err
