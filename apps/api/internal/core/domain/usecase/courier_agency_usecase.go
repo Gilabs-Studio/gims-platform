@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/repositories"
@@ -35,9 +36,18 @@ func (u *courierAgencyUsecase) Create(ctx context.Context, req dto.CreateCourier
 		isActive = *req.IsActive
 	}
 
+	id := uuid.New().String()
+	slug := "GEN"
+	if len(req.Name) >= 3 {
+		slug = req.Name[:3]
+	} else {
+		slug = req.Name
+	}
+	code := fmt.Sprintf("CA-%s-%s", slug, id[:4])
+
 	courierAgency := &models.CourierAgency{
-		ID:          uuid.New().String(),
-		Code:        req.Code,
+		ID:          id,
+		Code:        code,
 		Name:        req.Name,
 		Description: req.Description,
 		Phone:       req.Phone,

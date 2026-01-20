@@ -23,7 +23,6 @@ import { useCreateCourierAgency, useUpdateCourierAgency } from "../hooks/use-cou
 import type { CourierAgency } from "../types";
 
 const courierAgencySchema = z.object({
-  code: z.string().min(2).max(20),
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   phone: z.string().max(20).optional(),
@@ -61,7 +60,6 @@ export function CourierAgencyDialog({
   } = useForm<FormData>({
     resolver: zodResolver(courierAgencySchema),
     defaultValues: {
-      code: "",
       name: "",
       description: "",
       phone: "",
@@ -74,7 +72,6 @@ export function CourierAgencyDialog({
   useEffect(() => {
     if (editingItem) {
       reset({
-        code: editingItem.code,
         name: editingItem.name,
         description: editingItem.description ?? "",
         phone: editingItem.phone ?? "",
@@ -84,7 +81,6 @@ export function CourierAgencyDialog({
       });
     } else {
       reset({
-        code: "",
         name: "",
         description: "",
         phone: "",
@@ -124,12 +120,7 @@ export function CourierAgencyDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <FieldLabel>{t("form.code")}</FieldLabel>
-              <Input placeholder={t("form.codePlaceholder")} {...register("code")} />
-              {errors.code && <FieldError>{errors.code.message}</FieldError>}
-            </Field>
+          <div className="grid grid-cols-1 gap-4">
             <Field>
               <FieldLabel>{t("form.name")}</FieldLabel>
               <Input placeholder={t("form.namePlaceholder")} {...register("name")} />

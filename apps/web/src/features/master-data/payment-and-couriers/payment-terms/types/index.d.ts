@@ -14,7 +14,6 @@ export interface PaymentTerms {
 }
 
 export interface CreatePaymentTermsData {
-  code: string;
   name: string;
   description?: string;
   days?: number;

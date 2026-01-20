@@ -16,7 +16,6 @@ export interface CourierAgency {
 }
 
 export interface CreateCourierAgencyData {
-  code: string;
   name: string;
   description?: string;
   phone?: string;

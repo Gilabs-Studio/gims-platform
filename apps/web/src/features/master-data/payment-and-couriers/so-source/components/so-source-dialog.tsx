@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useCreateSOSource, useUpdateSOSource } from "../hooks/use-so-source";
 import type { SOSource } from "../types";
 
-const schema = z.object({ code: z.string().min(2).max(20), name: z.string().min(2).max(100), description: z.string().max(500).optional(), is_active: z.boolean().default(true) });
+const schema = z.object({ name: z.string().min(2).max(100), description: z.string().max(500).optional(), is_active: z.boolean().default(true) });
 type FormData = z.infer<typeof schema>;
 
 export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: SOSource | null }) {
@@ -26,12 +26,12 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
   
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({ 
     resolver: zodResolver(schema), 
-    defaultValues: { code: "", name: "", description: "", is_active: true } 
+    defaultValues: { name: "", description: "", is_active: true } 
   });
 
   useEffect(() => {
-    if (editingItem) reset({ code: editingItem.code, name: editingItem.name, description: editingItem.description ?? "", is_active: editingItem.is_active });
-    else reset({ code: "", name: "", description: "", is_active: true });
+    if (editingItem) reset({ name: editingItem.name, description: editingItem.description ?? "", is_active: editingItem.is_active });
+    else reset({ name: "", description: "", is_active: true });
   }, [editingItem, reset, open]);
 
   const onSubmit = async (data: FormData) => {
@@ -50,11 +50,7 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader><DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle><DialogDescription>{t("description")}</DialogDescription></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Field>
-            <FieldLabel>{t("form.code")}</FieldLabel>
-            <Input placeholder={t("form.codePlaceholder")} {...register("code")} />
-            {errors.code && <FieldError>{errors.code.message}</FieldError>}
-          </Field>
+
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input placeholder={t("form.namePlaceholder")} {...register("name")} />

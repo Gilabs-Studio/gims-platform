@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/repositories"
@@ -40,9 +41,18 @@ func (u *leaveTypeUsecase) Create(ctx context.Context, req dto.CreateLeaveTypeRe
 		isPaid = *req.IsPaid
 	}
 
+	id := uuid.New().String()
+	slug := "GEN"
+	if len(req.Name) >= 3 {
+		slug = req.Name[:3]
+	} else {
+		slug = req.Name
+	}
+	code := fmt.Sprintf("LT-%s-%s", slug, id[:4])
+
 	leaveType := &models.LeaveType{
-		ID:          uuid.New().String(),
-		Code:        req.Code,
+		ID:          id,
+		Code:        code,
 		Name:        req.Name,
 		Description: req.Description,
 		MaxDays:     req.MaxDays,

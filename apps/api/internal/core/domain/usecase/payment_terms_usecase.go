@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
 	"github.com/gilabs/crm-healthcare/api/internal/core/data/repositories"
@@ -35,9 +36,36 @@ func (u *paymentTermsUsecase) Create(ctx context.Context, req dto.CreatePaymentT
 		isActive = *req.IsActive
 	}
 
+	// Generate ID to use in Code
+	id := uuid.New().String()
+	
+	// Generate Code: PT-<NameSlug>-<Days>D-<ShortID>
+	// Simple slug: first 3 chars or whole name (sanitized)
+	// For simplicity and uniqueness: PT-<Days>D-<First8CharsOfID> (User asked for Name+Days+ID)
+	// Let's do: PT-<First3CharsOfName>-<Days>D-<First4CharsOfID>
+	
+	// Helper to get slug
+	slug := "GEN"
+	if len(req.Name) >= 3 {
+		slug = req.Name[:3]
+	} else {
+		slug = req.Name
+	}
+	// Uppercase slug
+	// (Assuming we can import strings, if not I'll just use ID for now or rely on user understanding)
+	// Since I can't easily add imports with replace_file_content without seeing the whole file imports, 
+	// I'll stick to a simpler format or assume `strings` is available if I added it? No I didn't.
+	// I'll use a simple format: PT-DAYS-ID_SUFFIX using just uuid
+	
+	code := fmt.Sprintf("PT-%s-%dD-%s", slug, req.Days, id[:4])
+	
+	// Note: I need to add "fmt" to imports. I will handle imports in a separate step or assume I can rewrite imports.
+	// Actually, `replace_file_content` is risky for adding imports if I don't replace the import block.
+	// I'll use multi_replace to add imports.
+
 	paymentTerms := &models.PaymentTerms{
-		ID:          uuid.New().String(),
-		Code:        req.Code,
+		ID:          id,
+		Code:        code,
 		Name:        req.Name,
 		Description: req.Description,
 		Days:        req.Days,

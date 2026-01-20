@@ -23,7 +23,6 @@ import { useCreatePaymentTerms, useUpdatePaymentTerms } from "../hooks/use-payme
 import type { PaymentTerms } from "../types";
 
 const paymentTermsSchema = z.object({
-  code: z.string().min(2, "Code must be at least 2 characters").max(20),
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().max(500).optional(),
   days: z.number().min(0).default(0),
@@ -78,7 +77,6 @@ export function PaymentTermsDialog({
       });
     } else {
       reset({
-        code: "",
         name: "",
         description: "",
         days: 0,
@@ -118,15 +116,6 @@ export function PaymentTermsDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Field>
-            <FieldLabel>{t("form.code")}</FieldLabel>
-            <Input
-              placeholder={t("form.codePlaceholder")}
-              {...register("code")}
-            />
-            {errors.code && <FieldError>{errors.code.message}</FieldError>}
-          </Field>
-
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input

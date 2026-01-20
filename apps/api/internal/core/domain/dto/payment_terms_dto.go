@@ -5,7 +5,6 @@ import "time"
 // === PaymentTerms DTOs ===
 
 type CreatePaymentTermsRequest struct {
-	Code        string `json:"code" binding:"required,min=2,max=20"`
 	Name        string `json:"name" binding:"required,min=2,max=100"`
 	Description string `json:"description" binding:"max=500"`
 	Days        int    `json:"days" binding:"min=0"`

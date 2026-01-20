@@ -9,7 +9,7 @@ export interface SOSource {
   updated_at: string;
 }
 
-export interface CreateSOSourceData { code: string; name: string; description?: string; is_active?: boolean; }
+export interface CreateSOSourceData { name: string; description?: string; is_active?: boolean; }
 export interface UpdateSOSourceData { code?: string; name?: string; description?: string; is_active?: boolean; }
 export interface SOSourceListParams { page?: number; per_page?: number; search?: string; sort_by?: string; sort_dir?: string; }
 export interface PaginationMeta { page: number; per_page: number; total: number; total_pages: number; has_next: boolean; has_prev: boolean; }
