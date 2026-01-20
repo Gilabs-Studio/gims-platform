@@ -261,10 +261,9 @@ export function CompanyMapView() {
         <div className="shrink-0 border-b bg-background">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors mr-2">
                 <ChevronLeft className="h-5 w-5" />
               </Link>
-              <Building className="h-5 w-5 text-primary" />
               <h1 className="font-semibold text-lg">{t("company.title")}</h1>
             </div>
             <div className="flex items-center gap-1">

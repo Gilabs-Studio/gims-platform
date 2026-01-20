@@ -54,8 +54,6 @@ export function CompanyCard({
             <Badge 
               className="text-xs"
               variant={
-                company.status === 'approved' ? 'success' :
-                company.status === 'pending' ? 'warning' :
                 company.status === 'rejected' ? 'destructive' : 'secondary'
               }
             >

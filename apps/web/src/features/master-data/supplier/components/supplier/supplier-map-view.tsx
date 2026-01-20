@@ -210,9 +210,6 @@ export function SupplierMapView() {
                 <div className="p-2 min-w-[220px]">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-bold text-sm">{supplier.name}</h3>
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {supplier.code}
-                    </Badge>
                   </div>
                   {supplier.address && (
                     <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
@@ -270,11 +267,10 @@ export function SupplierMapView() {
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors mr-2"
               >
                 <ChevronLeft className="h-5 w-5" />
               </Link>
-              <Building2 className="h-5 w-5 text-primary" />
               <h1 className="font-semibold text-lg">{t("title")}</h1>
             </div>
             <div className="flex items-center gap-1">

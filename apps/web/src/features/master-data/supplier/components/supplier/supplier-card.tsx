@@ -45,9 +45,6 @@ export function SupplierCard({
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h4 className="font-medium text-sm truncate">{supplier.name}</h4>
-            <Badge variant="outline" className="font-mono text-xs shrink-0">
-              {supplier.code}
-            </Badge>
           </div>
           {supplier.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
