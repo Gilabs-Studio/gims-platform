@@ -34,6 +34,16 @@ export interface CategoryTreeProps {
   height?: string | number;
   /** Callback when mouse enters a node (for prefetch) */
   onNodeHover?: (categoryId: string) => void;
+  /** Localized labels */
+  labels?: {
+    searchPlaceholder?: string; // Can overlap with searchPlaceholder prop, but labels object is cleaner
+    noCategoriesFound?: string;
+    noCategories?: string;
+    category?: string;
+    categories?: string;
+    selected?: string;
+    inactive?: string;
+  };
 }
 
 interface TreeNodeProps {
@@ -46,6 +56,9 @@ interface TreeNodeProps {
   showProductCount?: boolean;
   onNodeHover?: (categoryId: string) => void;
   searchTerm?: string;
+  labels?: {
+    inactive?: string;
+  };
 }
 
 /**
@@ -99,6 +112,7 @@ function TreeNode({
   showProductCount = true,
   onNodeHover,
   searchTerm,
+  labels,
 }: TreeNodeProps) {
   const isSelected = selectedId === node.id;
   const isExpanded = expandedIds.has(node.id);
@@ -176,7 +190,7 @@ function TreeNode({
         {/* Inactive indicator */}
         {!node.is_active && (
           <Badge variant="outline" className="text-xs px-1 py-0 h-4 text-muted-foreground">
-            Inactive
+            {labels?.inactive ?? "Inactive"}
           </Badge>
         )}
       </div>
@@ -196,6 +210,7 @@ function TreeNode({
               showProductCount={showProductCount}
               onNodeHover={onNodeHover}
               searchTerm={searchTerm}
+              labels={labels}
             />
           ))}
         </div>
@@ -258,6 +273,7 @@ export function CategoryTree({
   className,
   height = "400px",
   onNodeHover,
+  labels,
 }: CategoryTreeProps) {
   // Internal expansion state (used if external state not provided)
   const [internalExpandedIds, setInternalExpandedIds] = React.useState<Set<string>>(new Set());
@@ -318,15 +334,18 @@ export function CategoryTree({
   }
 
   return (
-    <div className={cn("border rounded-lg bg-background", className)}>
+    <div 
+      className={cn("border rounded-lg bg-background flex flex-col overflow-hidden", className)} 
+      style={{ height: typeof height === 'number' ? `${height}px` : height }}
+    >
       {/* Search input */}
       {searchable && (
-        <div className="p-2 border-b">
+        <div className="p-2 border-b shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder={searchPlaceholder}
+              placeholder={labels?.searchPlaceholder ?? searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8 h-9"
@@ -336,9 +355,9 @@ export function CategoryTree({
       )}
 
       {/* Tree content */}
-      <ScrollArea style={{ height }} className="p-1">
+      <div className="flex-1 overflow-y-auto p-1">
         {filteredData.length === 0 ? (
-          <EmptyState message={searchTerm ? "No categories found" : "No categories"} />
+          <EmptyState message={searchTerm ? (labels?.noCategoriesFound ?? "No categories found") : (labels?.noCategories ?? "No categories")} />
         ) : (
           <div role="tree" aria-label="Category tree">
             {filteredData.map((node) => (
@@ -353,16 +372,17 @@ export function CategoryTree({
                 showProductCount={showProductCount}
                 onNodeHover={onNodeHover}
                 searchTerm={searchTerm}
+                labels={labels}
               />
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Footer with count */}
-      <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-        {filteredData.length} {filteredData.length === 1 ? "category" : "categories"}
-        {selectedId && " • 1 selected"}
+      <div className="border-t px-3 py-2 text-xs text-muted-foreground shrink-0">
+        {filteredData.length} {filteredData.length === 1 ? (labels?.category ?? "category") : (labels?.categories ?? "categories")}
+        {selectedId && ` • 1 ${labels?.selected ?? "selected"}`}
       </div>
     </div>
   );

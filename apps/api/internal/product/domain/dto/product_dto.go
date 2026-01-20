@@ -9,6 +9,7 @@ type CreateProductRequest struct {
 	Name              string  `json:"name" binding:"required,min=2,max=200"`
 	ManufacturerPartNumber string `json:"manufacturer_part_number"`
 	Description       string  `json:"description"`
+	ImageURL          string  `json:"image_url"`
 	CategoryID        *string `json:"category_id"`
 	BrandID           *string `json:"brand_id"`
 	SegmentID         *string `json:"segment_id"`
@@ -40,6 +41,7 @@ type UpdateProductRequest struct {
 	Name              string  `json:"name" binding:"omitempty,min=2,max=200"`
 	ManufacturerPartNumber string `json:"manufacturer_part_number"`
 	Description       string  `json:"description"`
+	ImageURL          *string `json:"image_url" binding:"omitempty"`
 	CategoryID        *string `json:"category_id"`
 	BrandID           *string `json:"brand_id"`
 	SegmentID         *string `json:"segment_id"`
@@ -125,6 +127,7 @@ type ProductResponse struct {
 	Name              string                `json:"name"`
 	ManufacturerPartNumber string           `json:"manufacturer_part_number"`
 	Description       string                `json:"description"`
+	ImageURL          *string               `json:"image_url"`
 	CategoryID        *string               `json:"category_id"`
 	Category          *ProductCategoryBasic `json:"category,omitempty"`
 	BrandID           *string               `json:"brand_id"`

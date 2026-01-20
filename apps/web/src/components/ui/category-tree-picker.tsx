@@ -39,6 +39,16 @@ export interface CategoryTreePickerProps {
   clearable?: boolean;
   /** Width of the popover */
   popoverWidth?: string | number;
+  /** Localized labels for the tree */
+  labels?: {
+    searchPlaceholder?: string;
+    noCategoriesFound?: string;
+    noCategories?: string;
+    category?: string;
+    categories?: string;
+    selected?: string;
+    inactive?: string;
+  };
 }
 
 /**
@@ -61,6 +71,7 @@ export function CategoryTreePicker({
   isLoading: externalLoading,
   clearable = true,
   popoverWidth = 320,
+  labels,
 }: CategoryTreePickerProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -213,6 +224,7 @@ export function CategoryTreePicker({
           height="300px"
           onNodeHover={prefetchChildren}
           className="border-0 rounded-none"
+          labels={labels}
         />
       </PopoverContent>
     </Popover>

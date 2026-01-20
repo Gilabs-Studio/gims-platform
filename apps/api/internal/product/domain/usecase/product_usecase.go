@@ -59,6 +59,11 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 			}
 		}
 	}
+	
+	var imageURL *string
+	if req.ImageURL != "" {
+		imageURL = &req.ImageURL
+	}
 
 	// Format: PREFIX-YYYYMMDD-RAND4 (e.g., MED-20231023-A1B2)
 	timestamp := time.Now().Format("20060102")
@@ -70,6 +75,7 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		Code:                   generatedCode,
 		Name:                   req.Name,
 		Description:            req.Description,
+		ImageURL:               imageURL,
 		ManufacturerPartNumber: req.ManufacturerPartNumber,
 		CategoryID:             req.CategoryID,
 		BrandID:                req.BrandID,
@@ -144,6 +150,13 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	}
 	if req.Description != "" {
 		product.Description = req.Description
+	}
+	if req.ImageURL != nil {
+		if *req.ImageURL == "" {
+			product.ImageURL = nil
+		} else {
+			product.ImageURL = req.ImageURL
+		}
 	}
 	if req.CategoryID != nil {
 		product.CategoryID = req.CategoryID

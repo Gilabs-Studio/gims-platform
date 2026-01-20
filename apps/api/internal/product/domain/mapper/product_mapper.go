@@ -13,6 +13,7 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		Name:              m.Name,
 		Description:       m.Description,
 		ManufacturerPartNumber: m.ManufacturerPartNumber,
+		ImageURL:          m.ImageURL,
 		CategoryID:        m.CategoryID,
 		BrandID:           m.BrandID,
 		SegmentID:         m.SegmentID,

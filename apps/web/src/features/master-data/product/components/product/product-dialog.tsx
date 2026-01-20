@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
+import { ImageUpload } from "@/components/ui/image-upload";
 import {
   useCreateProduct,
   useUpdateProduct,
@@ -100,6 +101,7 @@ export function ProductDialog({
     defaultValues: {
       name: "",
       code: "",
+      image_url: null,
       manufacturer_part_number: "",
       description: "",
       category_id: undefined,
@@ -128,6 +130,7 @@ export function ProductDialog({
         reset({
           name: editingItem.name,
           code: editingItem.code,
+          image_url: editingItem.image_url,
           manufacturer_part_number: editingItem.manufacturer_part_number ?? "",
           description: editingItem.description ?? "",
           category_id: editingItem.category_id ?? "",
@@ -152,6 +155,7 @@ export function ProductDialog({
         reset({
           name: "",
           code: "",
+          image_url: null,
           manufacturer_part_number: "",
           description: "",
           category_id: undefined, // Or "" if we prefer controlled empty
@@ -181,6 +185,7 @@ export function ProductDialog({
       const payload = {
         ...data,
         code: data.code ?? "",
+        image_url: data.image_url ?? undefined,
         category_id: data.category_id || null,
         brand_id: data.brand_id || null,
         segment_id: data.segment_id || null,
@@ -207,7 +212,7 @@ export function ProductDialog({
       onOpenChange(false);
     } catch (error) {
       // Extract error message from API response
-      let errorMessage = isEditing ? tCommon("error") : "Failed to create product";
+      let errorMessage = isEditing ? tCommon("error") : tCommon("error");
       
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { 
@@ -250,7 +255,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{isEditing ? t("edit") : t("create")}</DialogTitle>
         </DialogHeader>
@@ -261,45 +266,72 @@ export function ProductDialog({
         >
           <div className="flex-1 overflow-y-auto px-6 space-y-6">
             {/* Basic Information */}
-            <Section title="Basic Information">
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel className="required">{t("form.name")}</FieldLabel>
-                  <Input placeholder="Product Name" {...register("name")} />
-                  {errors.name && <FieldError>{errors.name.message}</FieldError>}
-                </Field>
+            <Section title={t("section.basicInfo")}>
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="w-full md:w-1/3">
+                  <FieldLabel>{t("image")}</FieldLabel>
+                  <ImageUpload
+                    value={watch("image_url")}
+                    onChange={(url) => setValue("image_url", url)}
+                    disabled={isSubmitting}
+                    labels={{
+                      dragActive: tCommon("dragActive"),
+                      dragInactive: tCommon("dragInactive"),
+                      uploadSuccess: tCommon("uploadSuccess"),
+                      uploadFailed: tCommon("uploadFailed"),
+                      invalidFile: tCommon("invalidFile"),
+                      removeImage: tCommon("removeImage"),
+                    }}
+                  />
+                </div>
+                <div className="flex-1 space-y-4">
+                  <Field>
+                    <FieldLabel className="required">{t("form.name")}</FieldLabel>
+                    <Input placeholder={t("form.name")} {...register("name")} />
+                    {errors.name && <FieldError>{errors.name.message}</FieldError>}
+                  </Field>
+                  <Field>
+                    <FieldLabel>{t("mpn")}</FieldLabel>
+                    <Input
+                      placeholder={t("mpnPlaceholder")}
+                      {...register("manufacturer_part_number")}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>{t("form.description")}</FieldLabel>
+                    <Textarea
+                      placeholder={t("descriptionPlaceholder")}
+                      className="resize-none"
+                      rows={4}
+                      {...register("description")}
+                    />
+                  </Field>
+                </div>
               </div>
-              <Field>
-                <FieldLabel>Manufacturer Part Number</FieldLabel>
-                <Input
-                  placeholder="MPN (optional)"
-                  {...register("manufacturer_part_number")}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>{t("form.description")}</FieldLabel>
-                <Textarea
-                  placeholder="Product description"
-                  className="resize-none"
-                  rows={3}
-                  {...register("description")}
-                />
-              </Field>
             </Section>
 
             <Separator />
 
             {/* Classification */}
-            <Section title="Classification">
+            <Section title={t("section.classification")}>
               <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>{t("form.category")}</FieldLabel>
                   <CategoryTreePicker
                     value={categoryId ?? null}
                     onChange={(id) => setValue("category_id", id ?? undefined)}
-                    placeholder="Select Category..."
+                    placeholder={t("selectCategory")}
                     showProductCount
                     clearable
+                    labels={{
+                      searchPlaceholder: tCommon("searchCategories"),
+                      noCategoriesFound: tCommon("noCategoriesFound"),
+                      noCategories: tCommon("noCategories"),
+                      category: tCommon("categoryRes"),
+                      categories: tCommon("categoriesRes"),
+                      selected: tCommon("selectedRes"),
+                      inactive: tCommon("inactiveRes"),
+                    }}
                   />
                 </Field>
                 <Field>
@@ -309,7 +341,7 @@ export function ProductDialog({
                     onValueChange={(val) => setValue("brand_id", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Brand" />
+                      <SelectValue placeholder={t("selectBrand")} />
                     </SelectTrigger>
                     <SelectContent>
                       {brands?.data?.map((i) => (
@@ -327,7 +359,7 @@ export function ProductDialog({
                     onValueChange={(val) => setValue("segment_id", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Segment" />
+                      <SelectValue placeholder={t("selectSegment")} />
                     </SelectTrigger>
                     <SelectContent>
                       {segments?.data?.map((i) => (
@@ -362,7 +394,7 @@ export function ProductDialog({
             <Separator />
 
             {/* Units & Packaging */}
-            <Section title="Units & Packaging">
+            <Section title={t("section.unitsPackaging")}>
               <div className="grid grid-cols-3 gap-4">
                 <Field>
                   <FieldLabel>{t("form.uom")}</FieldLabel>
@@ -389,7 +421,7 @@ export function ProductDialog({
                     onValueChange={(val) => setValue("purchase_uom_id", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Purchase Unit" />
+                      <SelectValue placeholder={t("unitsPerPurchase")} />
                     </SelectTrigger>
                     <SelectContent>
                       {uoms?.data?.map((i) => (
@@ -401,7 +433,7 @@ export function ProductDialog({
                   </Select>
                 </Field>
                 <Field>
-                  <FieldLabel>Conversion</FieldLabel>
+                  <FieldLabel>{t("conversion")}</FieldLabel>
                   <Input
                     type="number"
                     step="0.01"
@@ -409,7 +441,7 @@ export function ProductDialog({
                     {...register("purchase_uom_conversion", { valueAsNumber: true })}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Units per purchase
+                    {t("unitsPerPurchase")}
                   </p>
                 </Field>
               </div>
@@ -422,7 +454,7 @@ export function ProductDialog({
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Packaging" />
+                    <SelectValue placeholder={t("selectPackaging")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
@@ -439,10 +471,10 @@ export function ProductDialog({
             <Separator />
 
             {/* Supply Chain */}
-            <Section title="Supply Chain">
+            <Section title={t("section.supplyChain")}>
               <div className="grid grid-cols-2 gap-4">
                 <Field>
-                  <FieldLabel>Procurement Type</FieldLabel>
+                  <FieldLabel>{t("form.procurementType")}</FieldLabel>
                   <Select
                     value={procurementTypeId ?? ""}
                     onValueChange={(val) => setValue("procurement_type_id", val)}
@@ -460,7 +492,7 @@ export function ProductDialog({
                   </Select>
                 </Field>
                 <Field>
-                  <FieldLabel>Lead Time (Days)</FieldLabel>
+                  <FieldLabel>{t("leadTime")} ({t("days")})</FieldLabel>
                   <Input
                     type="number"
                     placeholder="0"
@@ -470,18 +502,18 @@ export function ProductDialog({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Field>
-                  <FieldLabel>Tax Type</FieldLabel>
+                  <FieldLabel>{t("taxType")}</FieldLabel>
                   <Select
                     value={watch("tax_type")}
                     onValueChange={(val) => setValue("tax_type", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Tax" />
+                      <SelectValue placeholder={t("selectTax")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="PPN">PPN (11%)</SelectItem>
                       <SelectItem value="PPH">PPH</SelectItem>
-                      <SelectItem value="NONE">No Tax</SelectItem>
+                      <SelectItem value="NONE">{t("noTax")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -490,9 +522,9 @@ export function ProductDialog({
                   className="flex items-center justify-between rounded-lg border p-3"
                 >
                   <div className="space-y-0.5">
-                    <FieldLabel className="text-sm">Tax Inclusive</FieldLabel>
+                    <FieldLabel className="text-sm">{t("taxInclusive")}</FieldLabel>
                     <p className="text-xs text-muted-foreground">
-                      Price includes tax
+                      {t("taxInclusiveHint")}
                     </p>
                   </div>
                   <Switch
@@ -506,7 +538,7 @@ export function ProductDialog({
             <Separator />
 
             {/* Pricing & Stock */}
-            <Section title="Pricing & Stock">
+            <Section title={t("section.pricingStock")}>
               <div className="grid grid-cols-3 gap-4">
                 <Field>
                   <FieldLabel className="required">{t("form.costPrice")}</FieldLabel>
@@ -556,11 +588,11 @@ export function ProductDialog({
               disabled={isSubmitting}
               className="cursor-pointer"
             >
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? "Save Changes" : "Create Product"}
+              {isEditing ? tCommon("save") : t("create")}
             </Button>
           </DialogFooter>
         </form>

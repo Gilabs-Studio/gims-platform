@@ -6,6 +6,7 @@ export const productSchema = z.object({
   code: z.string().optional(),
   manufacturer_part_number: z.string().max(100).optional(),
   description: z.string().max(1000).optional(),
+  image_url: z.string().optional().nullable(),
 
   // Classification (all optional - nullable in backend)
   category_id: z.string().optional(),

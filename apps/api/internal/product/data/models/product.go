@@ -25,6 +25,7 @@ type Product struct {
 	Code              string         `gorm:"type:varchar(50);uniqueIndex" json:"code"`
 	Name              string         `gorm:"type:varchar(200);not null;index" json:"name"`
 	Description       string         `gorm:"type:text" json:"description"`
+	ImageURL          *string        `gorm:"type:varchar(500)" json:"image_url"`
 	ManufacturerPartNumber string    `gorm:"type:varchar(100)" json:"manufacturer_part_number"`
 	
 	// Relations to lookup tables

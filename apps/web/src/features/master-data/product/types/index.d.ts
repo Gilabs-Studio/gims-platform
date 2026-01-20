@@ -238,6 +238,7 @@ export interface Product {
   code: string;
   name: string;
   description: string;
+  image_url?: string | null;
   category_id?: string | null;
   category?: ProductCategoryBasic | null;
   brand_id?: string | null;
@@ -291,6 +292,7 @@ export interface CreateProductData {
   code: string;
   name: string;
   description?: string;
+  image_url?: string;
   category_id?: string | null;
   brand_id?: string | null;
   segment_id?: string | null;
@@ -321,7 +323,9 @@ export interface CreateProductData {
 export interface UpdateProductData {
   code?: string;
   name?: string;
+  name?: string;
   description?: string;
+  image_url?: string;
   category_id?: string | null;
   brand_id?: string | null;
   segment_id?: string | null;
