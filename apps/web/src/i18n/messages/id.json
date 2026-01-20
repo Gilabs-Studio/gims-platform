@@ -27,6 +27,12 @@
     "description": "Halaman yang Anda cari tidak ada atau telah dipindahkan.",
     "backHome": "Kembali ke Login"
   },
+  "masterData": {
+    "usersPage": {
+      "title": "Manajemen Pengguna",
+      "description": "Kelola pengguna, role, dan permission dalam satu tempat"
+    }
+  },
   "auth": {
     "login": {
       "title": "Selamat Datang Kembali",

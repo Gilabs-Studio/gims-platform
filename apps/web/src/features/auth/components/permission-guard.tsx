@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "@/i18n/routing";
-import { useUserPermissions } from "@/features/master-data/user-management/user/hooks/use-user-permissions";
-import { useHasPermission } from "@/features/master-data/user-management/user/hooks/use-has-permission";
+import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useValidateRole } from "../hooks/use-validate-role";
 import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 

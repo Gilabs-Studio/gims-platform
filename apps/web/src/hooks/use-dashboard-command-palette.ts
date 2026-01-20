@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/i18n/routing";
-import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
+import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import { isValidRoute } from "@/lib/route-validator";
 
 export interface CommandMenuItem {

@@ -5,8 +5,8 @@ import type { Locale } from "@/types/locale";
 import globalEnMessages from "./messages/en.json";
 import globalIdMessages from "./messages/id.json";
 // Feature messages
-import userManagementEnMessages from "@/features/master-data/user-management/user/i18n/messages/en.json";
-import userManagementIdMessages from "@/features/master-data/user-management/user/i18n/messages/id.json";
+import { userManagementEn } from "@/features/master-data/user-management/i18n/en";
+import { userManagementId } from "@/features/master-data/user-management/i18n/id";
 import notificationsEnMessages from "@/features/notifications/i18n/messages/en.json";
 import notificationsIdMessages from "@/features/notifications/i18n/messages/id.json";
 import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.json";
@@ -23,10 +23,7 @@ import supplierInvoicesEnMessages from "@/features/purchase/supplier-invoices/i1
 import supplierInvoicesIdMessages from "@/features/purchase/supplier-invoices/i18n/messages/id.json";
 import supplierInvoiceDownPaymentsEnMessages from "@/features/purchase/supplier-invoice-down-payments/i18n/messages/en.json";
 import supplierInvoiceDownPaymentsIdMessages from "@/features/purchase/supplier-invoice-down-payments/i18n/messages/id.json";
-import suppliersEnMessages from "@/features/master-data/partner/suppliers/i18n/messages/en.json";
-import suppliersIdMessages from "@/features/master-data/partner/suppliers/i18n/messages/id.json";
-import menuManagementEnMessages from "@/features/master-data/user-management/menu/i18n/messages/en.json";
-import menuManagementIdMessages from "@/features/master-data/user-management/menu/i18n/messages/id.json";
+
 import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/messages/en.json";
 import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
 import { geographicEn } from "@/features/master-data/geographic/i18n/en";
@@ -54,7 +51,7 @@ import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
 const messages = {
   en: {
     ...globalEnMessages,
-    ...userManagementEnMessages,
+    userManagement: userManagementEn,
     ...notificationsEnMessages,
     ...dashboardEnMessages,
     ...purchaseRequisitionsEnMessages,
@@ -63,8 +60,6 @@ const messages = {
     ...paymentPOEnMessages,
     ...supplierInvoicesEnMessages,
     ...supplierInvoiceDownPaymentsEnMessages,
-    ...suppliersEnMessages,
-    ...menuManagementEnMessages,
     ...stockValuationsEnMessages,
     ...geographicEn,
     organization: organizationEn,
@@ -79,7 +74,7 @@ const messages = {
   },
   id: {
     ...globalIdMessages,
-    ...userManagementIdMessages,
+    userManagement: userManagementId,
     ...notificationsIdMessages,
     ...dashboardIdMessages,
     ...purchaseRequisitionsIdMessages,
@@ -87,9 +82,7 @@ const messages = {
     ...goodsReceiptsIdMessages,
     ...paymentPOIdMessages,
     ...supplierInvoicesIdMessages,
-    ...suppliersIdMessages,
     ...supplierInvoiceDownPaymentsIdMessages,
-    ...menuManagementIdMessages,
     ...stockValuationsIdMessages,
     ...geographicId,
     organization: organizationId,

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
-import type { MenuWithActions, Action } from "@/features/master-data/user-management/user/types";
+import type { MenuWithActions, Action } from "@/features/master-data/user-management/types";
 
 function isItemVisible(item: NavItem, permissions: string[]): boolean {
   if (item.permission) {

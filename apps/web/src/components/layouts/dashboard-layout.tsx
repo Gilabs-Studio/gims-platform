@@ -11,7 +11,7 @@ import { NotificationBadge } from "@/features/notifications/components/notificat
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
-import type { MenuWithActions } from "@/features/master-data/user-management/user/types";
+import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

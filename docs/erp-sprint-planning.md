@@ -245,24 +245,24 @@ erDiagram
 
 - [x] Supplier management with inline phone numbers
 - [x] Supplier bank accounts management
-- [ ] Product catalog with category tree
+- [x] Product catalog with category tree
 - [x] Product form with all relations
 - [x] Warehouse management
-- [ ] Payment terms configuration
-- [ ] All lookup tables (Category, Brand, UoM, etc.)
+- [x] Payment terms configuration
+- [x] All lookup tables (Category, Brand, UoM, etc.)
 
 ### Success Criteria
 
-- [ ] Supplier can have multiple phone numbers and bank accounts
-- [ ] Product links to all 8 related master data (Category, Brand, UoM, Supplier, etc.)
-- [ ] Product shows current HPP and stock levels
-- [ ] Min/Max stock warnings display correctly
-- [ ] All approval workflows function correctly
+- [x] Supplier can have multiple phone numbers and bank accounts
+- [x] Product links to all 8 related master data (Category, Brand, UoM, Supplier, etc.)
+- [x] Product shows current HPP and stock levels
+- [x] Min/Max stock warnings display correctly
+- [x] All approval workflows function correctly
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 

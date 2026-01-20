@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useUserPermissions } from "../../../master-data/user-management/user/hooks/use-user-permissions";
-import type { Menu } from "@/features/auth/types";
+import { useUserPermissions } from "../../../master-data/user-management/hooks/use-user-permissions";
+import type { MenuWithActions } from "@/features/master-data/user-management/types";
 
 function findActionByCode(
-  menus: Menu[],
+  menus: MenuWithActions[],
   code: string
 ): { code: string; access: boolean } | null {
   for (const menu of menus) {

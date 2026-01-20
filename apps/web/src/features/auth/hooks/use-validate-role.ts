@@ -31,7 +31,7 @@ export function useValidateRole() {
       // Validate by checking permissions endpoint
       // If it returns 404 or 401, role is invalid
       try {
-        const { userService } = await import("@/features/master-data/user-management/user/services/user-service");
+        const { userService } = await import("@/features/master-data/user-management/services/user-service");
         await userService.getPermissions(user.id);
         return { is_valid: true };
       } catch (error: unknown) {
