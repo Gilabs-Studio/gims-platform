@@ -28,6 +28,8 @@ export interface Permission {
   code: string;
   menu_id?: string;
   menu?: Menu;
+  action?: string;
+  description?: string;
 }
 
 export interface Menu {

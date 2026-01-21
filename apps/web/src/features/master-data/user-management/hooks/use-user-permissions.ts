@@ -25,7 +25,7 @@ import type { MenuWithActions } from "../types";
 export function useUserPermissions() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { handleLogout } = useLogout();
+  const handleLogout = useLogout();
   const locale = useLocale();
   
   // Get menu structure with user's permission access marked

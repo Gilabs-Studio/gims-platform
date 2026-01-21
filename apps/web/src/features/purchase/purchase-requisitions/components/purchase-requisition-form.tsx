@@ -77,7 +77,7 @@ export function PurchaseRequisitionForm({
           other_cost: requisition.other_cost,
           notes: requisition.notes ?? "",
           address: requisition.address ?? "",
-          requested_by: requisition.requested_by,
+          requested_by: Number(requisition.requested_by),
           items:
             requisition.items?.map((item) => ({
               product_id: item.product_id,
@@ -91,7 +91,7 @@ export function PurchaseRequisitionForm({
           tax_rate: 0,
           delivery_cost: 0,
           other_cost: 0,
-          requested_by: user?.id ?? 0,
+          requested_by: user?.id ? Number(user.id) : 0,
           items: [{ product_id: 0, quantity: 1, purchase_price: 0, discount: 0 }],
         },
   });

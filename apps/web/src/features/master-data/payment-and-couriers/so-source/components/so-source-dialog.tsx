@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useCreateSOSource, useUpdateSOSource } from "../hooks/use-so-source";
 import type { SOSource } from "../types";
 
-const schema = z.object({ name: z.string().min(2).max(100), description: z.string().max(500).optional(), is_active: z.boolean().default(true) });
+const schema = z.object({ name: z.string().min(2).max(100), description: z.string().max(500).optional(), is_active: z.boolean() });
 type FormData = z.infer<typeof schema>;
 
 export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: SOSource | null }) {

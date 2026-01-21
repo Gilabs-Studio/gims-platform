@@ -28,7 +28,7 @@ const courierAgencySchema = z.object({
   phone: z.string().max(20).optional(),
   address: z.string().max(500).optional(),
   tracking_url: z.string().max(255).optional(),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof courierAgencySchema>;

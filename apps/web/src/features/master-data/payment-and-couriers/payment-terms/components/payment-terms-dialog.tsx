@@ -25,8 +25,8 @@ import type { PaymentTerms } from "../types";
 const paymentTermsSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().max(500).optional(),
-  days: z.number().min(0).default(0),
-  is_active: z.boolean().default(true),
+  days: z.number().min(0),
+  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof paymentTermsSchema>;
@@ -58,7 +58,6 @@ export function PaymentTermsDialog({
   } = useForm<FormData>({
     resolver: zodResolver(paymentTermsSchema),
     defaultValues: {
-      code: "",
       name: "",
       description: "",
       days: 0,
@@ -69,7 +68,6 @@ export function PaymentTermsDialog({
   useEffect(() => {
     if (editingItem) {
       reset({
-        code: editingItem.code,
         name: editingItem.name,
         description: editingItem.description ?? "",
         days: editingItem.days,

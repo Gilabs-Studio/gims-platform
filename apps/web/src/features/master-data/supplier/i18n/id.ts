@@ -86,6 +86,8 @@ export const supplierId: SupplierTranslations = {
     approveSuccess: "Pemasok berhasil disetujui",
     rejectSuccess: "Pemasok ditolak",
     sections: {
+      general: "Umum",
+      financial: "Keuangan",
       basicInfo: "Informasi Dasar",
       address: "Informasi Alamat",
       contact: "Informasi Kontak",
