@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -48,16 +48,16 @@ export function QuotationList() {
   const quotations = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
-  const handleEdit = useCallback((quotation: SalesQuotation) => {
+  const handleEdit = (quotation: SalesQuotation) => {
     setEditingQuotation(quotation);
     setIsFormOpen(true);
-  }, []);
+  };
 
-  const handleView = useCallback((quotation: SalesQuotation) => {
+  const handleView = (quotation: SalesQuotation) => {
     setViewingQuotation(quotation);
-  }, []);
+  };
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = async () => {
     if (deletingId) {
       try {
         await deleteQuotation.mutateAsync(deletingId);
@@ -67,14 +67,14 @@ export function QuotationList() {
         toast.error(t("common.error"));
       }
     }
-  }, [deletingId, deleteQuotation, t]);
+  };
 
-  const handleFormClose = useCallback(() => {
+  const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingQuotation(null);
-  }, []);
+  };
 
-  const handleStatusChange = useCallback(async (
+  const handleStatusChange = async (
     id: string,
     status: SalesQuotationStatus,
     rejectionReason?: string,
@@ -88,9 +88,9 @@ export function QuotationList() {
     } catch {
       toast.error(t("common.error"));
     }
-  }, [updateStatus, t]);
+  };
 
-  const getStatusBadge = useCallback((status: SalesQuotationStatus) => {
+  const getStatusBadge = (status: SalesQuotationStatus) => {
     switch (status) {
       case "draft":
         return (
@@ -130,11 +130,7 @@ export function QuotationList() {
       default:
         return <Badge>{status}</Badge>;
     }
-  }, [t]);
-
-  if (isLoading) {
-    return null; // Handled by Suspense/Loading
-  }
+  };
 
   if (isError) {
     return (

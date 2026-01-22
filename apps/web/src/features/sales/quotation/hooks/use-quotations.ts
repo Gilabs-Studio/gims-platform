@@ -38,8 +38,6 @@ export function useQuotation(id: string, options?: { enabled?: boolean }) {
     queryKey: quotationKeys.detail(id),
     queryFn: () => quotationService.getById(id),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
-    refetchOnMount: 'always',
-    staleTime: 0,
   });
 }
 
