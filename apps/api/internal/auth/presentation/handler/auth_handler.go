@@ -70,7 +70,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Security: Set HttpOnly Cookies
 	// Access Token
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "access_token",
+		Name:     "gims_access_token",
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
@@ -81,7 +81,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Refresh Token
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     "gims_refresh_token",
 		Value:    loginResponse.RefreshToken,
 		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
@@ -113,7 +113,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // RefreshToken handles refresh token request
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	// 1. Try to get refresh token from Cookie first (Strict/Browser)
-	refreshToken, err := c.Cookie("refresh_token")
+	refreshToken, err := c.Cookie("gims_refresh_token")
 	if err != nil || refreshToken == "" {
 		// 2. Fallback to JSON body (Mobile/CLI)
 		var req struct {
@@ -136,8 +136,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			return
 		}
 		// Clear cookies if refresh fails
-		http.SetCookie(c.Writer, &http.Cookie{Name: "access_token", MaxAge: -1, Path: "/"})
-		http.SetCookie(c.Writer, &http.Cookie{Name: "refresh_token", MaxAge: -1, Path: "/"})
+		http.SetCookie(c.Writer, &http.Cookie{Name: "gims_access_token", MaxAge: -1, Path: "/"})
+		http.SetCookie(c.Writer, &http.Cookie{Name: "gims_refresh_token", MaxAge: -1, Path: "/"})
 
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
@@ -145,7 +145,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	// Security: Set New HttpOnly Cookies
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "access_token",
+		Name:     "gims_access_token",
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
@@ -155,7 +155,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	})
 
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     "gims_refresh_token",
 		Value:    loginResponse.RefreshToken,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
@@ -194,7 +194,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// Let's see if we can get the token from header or body.
 
 	// 1. Try Cookie
-	refreshToken, err := c.Cookie("refresh_token")
+	refreshToken, err := c.Cookie("gims_refresh_token")
 	if err != nil || refreshToken == "" {
 		// 2. Try JSON
 		var req struct {
@@ -210,7 +210,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// ALWAYS Clear Cookies on Logout
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "access_token",
+		Name:     "gims_access_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -219,7 +219,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     "gims_refresh_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,

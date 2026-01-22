@@ -26,7 +26,7 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 
 		// 2. Check Cookie (HttpOnly)
 		if tokenString == "" {
-			cookie, err := c.Cookie("access_token")
+			cookie, err := c.Cookie("gims_access_token")
 			if err == nil && cookie != "" {
 				tokenString = cookie
 			}

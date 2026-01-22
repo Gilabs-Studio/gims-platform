@@ -23,7 +23,7 @@ func generateToken() string {
 func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Check for existing CSRF cookie
-		token, err := c.Cookie("csrf_token")
+		token, err := c.Cookie("gims_csrf_token")
 		
 		// 2. If no cookie, generate a new one and set it
 		if err != nil || token == "" {
@@ -82,5 +82,5 @@ func setCSRFCookie(c *gin.Context, token string) {
 	c.SetSameSite(http.SameSiteStrictMode)
 
 	// Note: HttpOnly is FALSE so JavaScript can read it and send in header (Double-Submit Cookie pattern)
-	c.SetCookie("csrf_token", token, 3600*24, "/", "", isSecure, false)
+	c.SetCookie("gims_csrf_token", token, 3600*24, "/", "", isSecure, false)
 }
