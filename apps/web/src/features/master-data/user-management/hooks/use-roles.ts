@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { roleService } from "../services/user-service";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.schema";
+import type { Role, ListRolesResponse } from "../types";
 
 export function useRoles(params?: { search?: string }) {
   return useQuery({
@@ -37,9 +38,18 @@ export function useUpdateRole() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateRoleFormData }) =>
       roleService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["roles"] });
+      queryClient.setQueriesData({ queryKey: ["roles"] }, (old: ListRolesResponse | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: Role) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["roles"] });
       queryClient.invalidateQueries({ queryKey: ["role", variables.id] });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
     },
   });
 }

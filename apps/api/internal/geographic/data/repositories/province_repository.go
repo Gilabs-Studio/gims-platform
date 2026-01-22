@@ -97,7 +97,7 @@ func (r *provinceRepository) List(ctx context.Context, req *dto.ListProvincesReq
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&provinces).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&provinces).Error
 	if err != nil {
 		return nil, 0, err
 	}

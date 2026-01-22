@@ -50,11 +50,28 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCompanyData }) =>
       companyService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: companyKeys.lists() });
+      queryClient.setQueriesData(
+        { queryKey: companyKeys.lists() },
+        (old: OrganizationListResponse<Company> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((item: Company) =>
+              item.id === id ? { ...item, ...data } : item
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: companyKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: companyKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.lists() });
     },
   });
 }

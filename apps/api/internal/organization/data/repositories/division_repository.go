@@ -91,7 +91,7 @@ func (r *divisionRepository) List(ctx context.Context, req *dto.ListDivisionsReq
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&divisions).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&divisions).Error
 	if err != nil {
 		return nil, 0, err
 	}

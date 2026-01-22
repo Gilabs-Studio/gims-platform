@@ -6,6 +6,8 @@ import type {
   ListDistrictsParams,
   CreateDistrictData,
   UpdateDistrictData,
+  District,
+  GeographicListResponse,
 } from "../types";
 
 // Query keys
@@ -54,11 +56,33 @@ export function useUpdateDistrict() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDistrictData }) =>
       districtService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: districtKeys.lists() });
+
+      // Update all list caches optimistically
+      queryClient.setQueriesData(
+        { queryKey: districtKeys.lists() },
+        (old: GeographicListResponse<District> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((district: District) =>
+              district.id === id ? { ...district, ...data } : district
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: districtKeys.lists() });
+      // Only invalidate detail query if exists
       queryClient.invalidateQueries({
         queryKey: districtKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: districtKeys.lists() });
     },
   });
 }

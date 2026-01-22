@@ -6,6 +6,8 @@ import type {
   ListOrganizationParams,
   CreateAreaData,
   UpdateAreaData,
+  Area,
+  OrganizationListResponse,
 } from "../types";
 
 export const areaKeys = {
@@ -49,11 +51,28 @@ export function useUpdateArea() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateAreaData }) =>
       areaService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: areaKeys.lists() });
+      queryClient.setQueriesData(
+        { queryKey: areaKeys.lists() },
+        (old: OrganizationListResponse<Area> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((item: Area) =>
+              item.id === id ? { ...item, ...data } : item
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: areaKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
     },
   });
 }

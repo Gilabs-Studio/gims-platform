@@ -6,6 +6,8 @@ import type {
   ListProvincesParams,
   CreateProvinceData,
   UpdateProvinceData,
+  Province,
+  GeographicListResponse,
 } from "../types";
 
 // Query keys
@@ -54,11 +56,33 @@ export function useUpdateProvince() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProvinceData }) =>
       provinceService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: provinceKeys.lists() });
+
+      // Update all list caches optimistically
+      queryClient.setQueriesData(
+        { queryKey: provinceKeys.lists() },
+        (old: GeographicListResponse<Province> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((province: Province) =>
+              province.id === id ? { ...province, ...data } : province
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: provinceKeys.lists() });
+      // Only invalidate detail query if exists
       queryClient.invalidateQueries({
         queryKey: provinceKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: provinceKeys.lists() });
     },
   });
 }

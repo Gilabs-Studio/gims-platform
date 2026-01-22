@@ -6,6 +6,8 @@ import type {
   ListOrganizationParams,
   CreateDivisionData,
   UpdateDivisionData,
+  Division,
+  OrganizationListResponse,
 } from "../types";
 
 // Query keys
@@ -54,11 +56,28 @@ export function useUpdateDivision() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDivisionData }) =>
       divisionService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: divisionKeys.lists() });
+      queryClient.setQueriesData(
+        { queryKey: divisionKeys.lists() },
+        (old: OrganizationListResponse<Division> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((division: Division) =>
+              division.id === id ? { ...division, ...data } : division
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: divisionKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: divisionKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: divisionKeys.lists() });
     },
   });
 }

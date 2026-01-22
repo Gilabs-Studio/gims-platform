@@ -6,6 +6,8 @@ import type {
   ListVillagesParams,
   CreateVillageData,
   UpdateVillageData,
+  Village,
+  GeographicListResponse,
 } from "../types";
 
 // Query keys
@@ -54,11 +56,33 @@ export function useUpdateVillage() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateVillageData }) =>
       villageService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: villageKeys.lists() });
+
+      // Update all list caches optimistically
+      queryClient.setQueriesData(
+        { queryKey: villageKeys.lists() },
+        (old: GeographicListResponse<Village> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((village: Village) =>
+              village.id === id ? { ...village, ...data } : village
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: villageKeys.lists() });
+      // Only invalidate detail query if exists
       queryClient.invalidateQueries({
         queryKey: villageKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: villageKeys.lists() });
     },
   });
 }

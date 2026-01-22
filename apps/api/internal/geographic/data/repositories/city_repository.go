@@ -102,7 +102,7 @@ func (r *cityRepository) List(ctx context.Context, req *dto.ListCitiesRequest) (
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&cities).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&cities).Error
 	if err != nil {
 		return nil, 0, err
 	}

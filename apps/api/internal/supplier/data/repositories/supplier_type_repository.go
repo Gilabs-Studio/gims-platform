@@ -63,9 +63,9 @@ func (r *supplierTypeRepository) List(ctx context.Context, params ListParams) ([
 		} else {
 			order += " ASC"
 		}
-		query = query.Order(order)
+		query = query.Order("is_active DESC, " + order)
 	} else {
-		query = query.Order("name ASC")
+		query = query.Order("is_active DESC, name ASC")
 	}
 
 	// Apply pagination

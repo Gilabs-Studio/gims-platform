@@ -6,6 +6,8 @@ import type {
   ListOrganizationParams,
   CreateJobPositionData,
   UpdateJobPositionData,
+  JobPosition,
+  OrganizationListResponse,
 } from "../types";
 
 export const jobPositionKeys = {
@@ -49,11 +51,28 @@ export function useUpdateJobPosition() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateJobPositionData }) =>
       jobPositionService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: jobPositionKeys.lists() });
+      queryClient.setQueriesData(
+        { queryKey: jobPositionKeys.lists() },
+        (old: OrganizationListResponse<JobPosition> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((item: JobPosition) =>
+              item.id === id ? { ...item, ...data } : item
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: jobPositionKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: jobPositionKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: jobPositionKeys.lists() });
     },
   });
 }

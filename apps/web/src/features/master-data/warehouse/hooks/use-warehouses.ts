@@ -6,6 +6,8 @@ import type {
   CreateWarehouseData,
   UpdateWarehouseData,
   WarehouseListParams,
+  Warehouse,
+  WarehouseListResponse,
 } from "../types";
 
 // Query keys
@@ -55,11 +57,20 @@ export function useUpdateWarehouse() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateWarehouseData }) =>
       warehouseService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: warehouseKeys.lists() });
+      queryClient.setQueriesData({ queryKey: warehouseKeys.lists() }, (old: WarehouseListResponse<Warehouse> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: Warehouse) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: warehouseKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: warehouseKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: warehouseKeys.lists() });
     },
   });
 }

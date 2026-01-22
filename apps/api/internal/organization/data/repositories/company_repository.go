@@ -111,7 +111,7 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 	err := r.getDB(ctx).
 		Preload("Village").
 		Where(query).
-		Order(sortBy + " " + sortDir).
+		Order("is_active DESC, " + sortBy + " " + sortDir).
 		Offset(offset).
 		Limit(perPage).
 		Find(&companies).Error

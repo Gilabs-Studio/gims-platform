@@ -150,7 +150,7 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	if sortDir == "" {
 		sortDir = "desc"
 	}
-	query = query.Order(sortBy + " " + sortDir)
+	query = query.Order("is_active DESC, " + sortBy + " " + sortDir)
 
 	// Apply pagination
 	if params.PerPage > 0 {

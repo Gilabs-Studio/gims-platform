@@ -7,6 +7,7 @@ import type {
   CreateBankData,
   UpdateBankData,
   ListParams,
+  SupplierListResponse,
 } from "../types";
 
 // Query keys
@@ -55,11 +56,20 @@ export function useUpdateBank() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBankData }) =>
       bankService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: bankKeys.lists() });
+      queryClient.setQueriesData({ queryKey: bankKeys.lists() }, (old: SupplierListResponse<Bank> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: Bank) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: bankKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: bankKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: bankKeys.lists() });
     },
   });
 }

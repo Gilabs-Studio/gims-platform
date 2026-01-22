@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { unitOfMeasureService } from "../services/product-service";
-import type { CreateUnitOfMeasureData, UpdateUnitOfMeasureData, LookupListParams } from "../types";
+import type { CreateUnitOfMeasureData, UpdateUnitOfMeasureData, LookupListParams, UnitOfMeasure, ApiResponse } from "../types";
 
 export const unitOfMeasureKeys = {
   all: ["units-of-measure"] as const,
@@ -43,9 +43,18 @@ export function useUpdateUnitOfMeasure() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateUnitOfMeasureData }) =>
       unitOfMeasureService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: unitOfMeasureKeys.lists() });
+      queryClient.setQueriesData({ queryKey: unitOfMeasureKeys.lists() }, (old: ApiResponse<UnitOfMeasure[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: UnitOfMeasure) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: unitOfMeasureKeys.lists() });
       queryClient.invalidateQueries({ queryKey: unitOfMeasureKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: unitOfMeasureKeys.lists() });
     },
   });
 }

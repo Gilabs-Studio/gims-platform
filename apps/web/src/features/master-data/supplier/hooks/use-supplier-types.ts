@@ -7,6 +7,7 @@ import type {
   CreateSupplierTypeData,
   UpdateSupplierTypeData,
   ListParams,
+  SupplierListResponse,
 } from "../types";
 
 // Query keys
@@ -61,11 +62,20 @@ export function useUpdateSupplierType() {
       id: string;
       data: UpdateSupplierTypeData;
     }) => supplierTypeService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: supplierTypeKeys.lists() });
+      queryClient.setQueriesData({ queryKey: supplierTypeKeys.lists() }, (old: SupplierListResponse<SupplierType> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: SupplierType) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: supplierTypeKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: supplierTypeKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: supplierTypeKeys.lists() });
     },
   });
 }

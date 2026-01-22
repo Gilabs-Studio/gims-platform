@@ -58,7 +58,7 @@ func (r *roleRepository) List(ctx context.Context, page, limit int) ([]models.Ro
 
 	offset := (page - 1) * limit
 	err := query.Preload("Permissions").
-		Order("updated_at DESC").
+		Order("is_active DESC, updated_at DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&roles).Error

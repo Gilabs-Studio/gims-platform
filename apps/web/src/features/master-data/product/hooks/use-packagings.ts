@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { packagingService } from "../services/product-service";
-import type { CreatePackagingData, UpdatePackagingData, LookupListParams } from "../types";
+import type { CreatePackagingData, UpdatePackagingData, LookupListParams, Packaging, ApiResponse } from "../types";
 
 export const packagingKeys = {
   all: ["packagings"] as const,
@@ -43,9 +43,18 @@ export function useUpdatePackaging() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdatePackagingData }) =>
       packagingService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: packagingKeys.lists() });
+      queryClient.setQueriesData({ queryKey: packagingKeys.lists() }, (old: ApiResponse<Packaging[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: Packaging) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: packagingKeys.lists() });
       queryClient.invalidateQueries({ queryKey: packagingKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: packagingKeys.lists() });
     },
   });
 }

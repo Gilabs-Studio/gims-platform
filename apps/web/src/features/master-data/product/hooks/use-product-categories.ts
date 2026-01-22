@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productCategoryService } from "../services/product-service";
-import type { CreateProductCategoryData, UpdateProductCategoryData, LookupListParams } from "../types";
+import type { CreateProductCategoryData, UpdateProductCategoryData, LookupListParams, ProductCategory, ApiResponse } from "../types";
 
 export const productCategoryKeys = {
   all: ["product-categories"] as const,
@@ -43,9 +43,18 @@ export function useUpdateProductCategory() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProductCategoryData }) =>
       productCategoryService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: productCategoryKeys.lists() });
+      queryClient.setQueriesData({ queryKey: productCategoryKeys.lists() }, (old: ApiResponse<ProductCategory[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: ProductCategory) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: productCategoryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productCategoryKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: productCategoryKeys.lists() });
     },
   });
 }

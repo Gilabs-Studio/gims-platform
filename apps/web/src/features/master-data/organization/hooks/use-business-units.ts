@@ -6,6 +6,8 @@ import type {
   ListOrganizationParams,
   CreateBusinessUnitData,
   UpdateBusinessUnitData,
+  BusinessUnit,
+  OrganizationListResponse,
 } from "../types";
 
 export const businessUnitKeys = {
@@ -49,11 +51,28 @@ export function useUpdateBusinessUnit() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBusinessUnitData }) =>
       businessUnitService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: businessUnitKeys.lists() });
+      queryClient.setQueriesData(
+        { queryKey: businessUnitKeys.lists() },
+        (old: OrganizationListResponse<BusinessUnit> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((item: BusinessUnit) =>
+              item.id === id ? { ...item, ...data } : item
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: businessUnitKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: businessUnitKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: businessUnitKeys.lists() });
     },
   });
 }

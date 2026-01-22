@@ -91,7 +91,7 @@ func (r *jobPositionRepository) List(ctx context.Context, req *dto.ListJobPositi
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&jobPositions).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&jobPositions).Error
 	if err != nil {
 		return nil, 0, err
 	}

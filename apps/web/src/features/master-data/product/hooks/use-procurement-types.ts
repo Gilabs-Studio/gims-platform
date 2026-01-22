@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { procurementTypeService } from "../services/product-service";
-import type { CreateProcurementTypeData, UpdateProcurementTypeData, LookupListParams } from "../types";
+import type { CreateProcurementTypeData, UpdateProcurementTypeData, LookupListParams, ProcurementType, ApiResponse } from "../types";
 
 export const procurementTypeKeys = {
   all: ["procurement-types"] as const,
@@ -43,9 +43,18 @@ export function useUpdateProcurementType() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProcurementTypeData }) =>
       procurementTypeService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: procurementTypeKeys.lists() });
+      queryClient.setQueriesData({ queryKey: procurementTypeKeys.lists() }, (old: ApiResponse<ProcurementType[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: ProcurementType) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: procurementTypeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: procurementTypeKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: procurementTypeKeys.lists() });
     },
   });
 }

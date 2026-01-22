@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productTypeService } from "../services/product-service";
-import type { CreateProductTypeData, UpdateProductTypeData, LookupListParams } from "../types";
+import type { CreateProductTypeData, UpdateProductTypeData, LookupListParams, ProductType, ApiResponse } from "../types";
 
 export const productTypeKeys = {
   all: ["product-types"] as const,
@@ -43,9 +43,18 @@ export function useUpdateProductType() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProductTypeData }) =>
       productTypeService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: productTypeKeys.lists() });
+      queryClient.setQueriesData({ queryKey: productTypeKeys.lists() }, (old: ApiResponse<ProductType[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: ProductType) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: productTypeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productTypeKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: productTypeKeys.lists() });
     },
   });
 }

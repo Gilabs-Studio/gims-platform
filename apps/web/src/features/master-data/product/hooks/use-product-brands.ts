@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productBrandService } from "../services/product-service";
-import type { CreateProductBrandData, UpdateProductBrandData, LookupListParams } from "../types";
+import type { CreateProductBrandData, UpdateProductBrandData, LookupListParams, ProductBrand, ApiResponse } from "../types";
 
 export const productBrandKeys = {
   all: ["product-brands"] as const,
@@ -43,9 +43,18 @@ export function useUpdateProductBrand() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateProductBrandData }) =>
       productBrandService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: productBrandKeys.lists() });
+      queryClient.setQueriesData({ queryKey: productBrandKeys.lists() }, (old: ApiResponse<ProductBrand[]> | undefined) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((item: ProductBrand) => item.id === id ? { ...item, ...data } : item) };
+      });
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: productBrandKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productBrandKeys.detail(variables.id) });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: productBrandKeys.lists() });
     },
   });
 }

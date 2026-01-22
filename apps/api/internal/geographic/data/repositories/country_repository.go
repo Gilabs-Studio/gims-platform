@@ -92,7 +92,7 @@ func (r *countryRepository) List(ctx context.Context, req *dto.ListCountriesRequ
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&countries).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&countries).Error
 	if err != nil {
 		return nil, 0, err
 	}

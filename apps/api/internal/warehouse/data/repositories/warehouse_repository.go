@@ -96,9 +96,9 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 	// Apply sorting
 	if params.SortBy != "" {
 		order := fmt.Sprintf("%s %s", params.SortBy, params.SortDir)
-		query = query.Order(order)
+		query = query.Order("is_active DESC, " + order)
 	} else {
-		query = query.Order("name ASC")
+		query = query.Order("is_active DESC, name ASC")
 	}
 
 	// Apply pagination

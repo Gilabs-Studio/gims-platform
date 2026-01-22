@@ -6,6 +6,8 @@ import type {
   ListGeographicParams,
   CreateCountryData,
   UpdateCountryData,
+  Country,
+  GeographicListResponse,
 } from "../types";
 
 // Query keys
@@ -54,11 +56,33 @@ export function useUpdateCountry() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCountryData }) =>
       countryService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: countryKeys.lists() });
+
+      // Update all list caches optimistically
+      queryClient.setQueriesData(
+        { queryKey: countryKeys.lists() },
+        (old: GeographicListResponse<Country> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((country: Country) =>
+              country.id === id ? { ...country, ...data } : country
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: countryKeys.lists() });
+      // Only invalidate detail query if exists
       queryClient.invalidateQueries({
         queryKey: countryKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: countryKeys.lists() });
     },
   });
 }

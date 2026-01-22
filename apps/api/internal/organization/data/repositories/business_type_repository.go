@@ -91,7 +91,7 @@ func (r *businessTypeRepository) List(ctx context.Context, req *dto.ListBusiness
 		sortDir = "ASC"
 	}
 
-	err := query.Order(sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&businessTypes).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&businessTypes).Error
 	if err != nil {
 		return nil, 0, err
 	}

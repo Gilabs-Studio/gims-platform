@@ -6,6 +6,8 @@ import type {
   ListCitiesParams,
   CreateCityData,
   UpdateCityData,
+  City,
+  GeographicListResponse,
 } from "../types";
 
 // Query keys
@@ -53,11 +55,33 @@ export function useUpdateCity() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCityData }) =>
       cityService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: cityKeys.lists() });
+
+      // Update all list caches optimistically
+      queryClient.setQueriesData(
+        { queryKey: cityKeys.lists() },
+        (old: GeographicListResponse<City> | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((city: City) =>
+              city.id === id ? { ...city, ...data } : city
+            ),
+          };
+        }
+      );
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: cityKeys.lists() });
+      // Only invalidate detail query if exists
       queryClient.invalidateQueries({
         queryKey: cityKeys.detail(variables.id),
       });
+    },
+    onError: () => {
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: cityKeys.lists() });
     },
   });
 }
