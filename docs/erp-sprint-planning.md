@@ -299,39 +299,40 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Sales Quotation management
-- [ ] **Frontend:** Quotation workflow UI
+- [x] **API:** Sales Quotation management
+- [x] **Frontend:** Quotation workflow UI
 
 ### API Tasks
 
-- [ ] `SalesQuotation` - CRUD + Status workflow
-- [ ] `SalesQuotationItem` - Nested CRUD with calculations
-- [ ] Quotation number generation (auto-increment with prefix)
-- [ ] Tax calculation (11% PPN default)
-- [ ] Total calculation (Subtotal + Tax + Delivery + Other - Discount)
+- [x] `SalesQuotation` - CRUD + Status workflow
+- [x] `SalesQuotationItem` - Nested CRUD with calculations
+- [x] Quotation number generation (auto-increment with prefix)
+- [x] Tax calculation (11% PPN default)
+- [x] Total calculation (Subtotal + Tax + Delivery + Other - Discount)
+- [x] Seeder for SalesQuotation with related data
 
 ### Frontend Tasks
 
-- [ ] Quotation list with status filters
-- [ ] Quotation form with item table
-- [ ] Product search and add to quotation
-- [ ] Inline item editing (qty, price, discount)
-- [ ] Auto-calculate totals
-- [ ] Quotation detail page
+- [x] Quotation list with status filters
+- [x] Quotation form with item table
+- [x] Product search and add to quotation
+- [x] Inline item editing (qty, price, discount)
+- [x] Auto-calculate totals
+- [x] Quotation detail page
 - [ ] Print/Export quotation to PDF
 
 ### Success Criteria
 
-- [ ] Quotation items auto-calculate subtotals
-- [ ] Tax amount calculated correctly (Subtotal × TaxRate)
-- [ ] Total = Subtotal + Tax + DeliveryCost + OtherCost
-- [ ] Status workflow: Draft → Sent → Approved/Rejected → Converted
-- [ ] Quotation can be converted to Sales Order
+- [x] Quotation items auto-calculate subtotals
+- [x] Tax amount calculated correctly (Subtotal × TaxRate)
+- [x] Total = Subtotal + Tax + DeliveryCost + OtherCost
+- [x] Status workflow: Draft → Sent → Approved/Rejected → Converted
+- [x] Quotation can be converted to Sales Order
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 

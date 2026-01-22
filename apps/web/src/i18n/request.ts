@@ -46,6 +46,8 @@ import { soSourceEn } from "@/features/master-data/payment-and-couriers/so-sourc
 import { soSourceId } from "@/features/master-data/payment-and-couriers/so-source/i18n/id";
 import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
+import { quotationEn } from "@/features/sales/quotation/i18n/en";
+import { quotationId } from "@/features/sales/quotation/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -71,6 +73,7 @@ const messages = {
     courierAgency: courierAgencyEn,
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
+    ...quotationEn,
   },
   id: {
     ...globalIdMessages,
@@ -94,6 +97,7 @@ const messages = {
     courierAgency: courierAgencyId,
     soSource: soSourceId,
     leaveType: leaveTypeId,
+    ...quotationId,
   },
 } as const;
 

@@ -68,6 +68,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales Quotation seeder (Sprint 5)
+	if err := SeedSalesQuotation(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

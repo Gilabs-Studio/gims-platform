@@ -14,6 +14,7 @@ import (
 	product "github.com/gilabs/crm-healthcare/api/internal/product/data/models"
 	refreshToken "github.com/gilabs/crm-healthcare/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
+	sales "github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
 	supplier "github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
 	user "github.com/gilabs/crm-healthcare/api/internal/user/data/models"
 	warehouse "github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
@@ -92,6 +93,9 @@ func AutoMigrate() error {
 		&core.CourierAgency{},
 		&core.SOSource{},
 		&core.LeaveType{},
+		// Sales entities (Sprint 5)
+		&sales.SalesQuotation{},
+		&sales.SalesQuotationItem{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

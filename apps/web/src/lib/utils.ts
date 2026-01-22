@@ -25,6 +25,21 @@ export function formatCurrency(
   }).format(numValue);
 }
 
+export function formatDate(
+  date: Date | string | null | undefined,
+  locale: string = "id-ID"
+): string {
+  if (!date) return "";
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return "";
+  
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(dateObj);
+}
+
 export function resolveImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   if (url.startsWith("http") || url.startsWith("blob:") || url.startsWith("data:")) {

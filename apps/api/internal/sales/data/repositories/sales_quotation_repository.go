@@ -1,0 +1,324 @@
+package repositories
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
+	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
+	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/dto"
+	"gorm.io/gorm"
+)
+
+// SalesQuotationRepository defines the interface for sales quotation data access
+type SalesQuotationRepository interface {
+	FindByID(ctx context.Context, id string) (*models.SalesQuotation, error)
+	FindByCode(ctx context.Context, code string) (*models.SalesQuotation, error)
+	List(ctx context.Context, req *dto.ListSalesQuotationsRequest) ([]models.SalesQuotation, int64, error)
+	ListItems(ctx context.Context, quotationID string, req *dto.ListSalesQuotationItemsRequest) ([]models.SalesQuotationItem, int64, error)
+	Create(ctx context.Context, sq *models.SalesQuotation) error
+	Update(ctx context.Context, sq *models.SalesQuotation) error
+	Delete(ctx context.Context, id string) error
+	GetNextQuotationNumber(ctx context.Context, prefix string) (string, error)
+	UpdateStatus(ctx context.Context, id string, status models.SalesQuotationStatus, userID *string, reason *string) error
+}
+
+type salesQuotationRepository struct {
+	db *gorm.DB
+}
+
+// NewSalesQuotationRepository creates a new SalesQuotationRepository
+func NewSalesQuotationRepository(db *gorm.DB) SalesQuotationRepository {
+	return &salesQuotationRepository{db: db}
+}
+
+func (r *salesQuotationRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
+func (r *salesQuotationRepository) FindByID(ctx context.Context, id string) (*models.SalesQuotation, error) {
+	var quotation models.SalesQuotation
+	err := r.getDB(ctx).
+		Preload("PaymentTerms").
+		Preload("SalesRep").
+		Preload("BusinessUnit").
+		Preload("BusinessType").
+		Preload("Items.Product").
+		Where("id = ?", id).
+		First(&quotation).Error
+	if err != nil {
+		return nil, err
+	}
+	return &quotation, nil
+}
+
+func (r *salesQuotationRepository) FindByCode(ctx context.Context, code string) (*models.SalesQuotation, error) {
+	var quotation models.SalesQuotation
+	err := r.getDB(ctx).
+		Preload("PaymentTerms").
+		Preload("SalesRep").
+		Preload("BusinessUnit").
+		Preload("BusinessType").
+		Preload("Items.Product").
+		Where("code = ?", code).
+		First(&quotation).Error
+	if err != nil {
+		return nil, err
+	}
+	return &quotation, nil
+}
+
+func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQuotationsRequest) ([]models.SalesQuotation, int64, error) {
+	var quotations []models.SalesQuotation
+	var total int64
+
+	query := r.getDB(ctx).Model(&models.SalesQuotation{})
+
+	// Apply search filter
+	if req.Search != "" {
+		search := "%" + req.Search + "%"
+		query = query.Where("code ILIKE ? OR notes ILIKE ?", search, search)
+	}
+
+	// Apply status filter
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	// Apply date range filter
+	if req.DateFrom != "" {
+		query = query.Where("quotation_date >= ?", req.DateFrom)
+	}
+	if req.DateTo != "" {
+		query = query.Where("quotation_date <= ?", req.DateTo)
+	}
+
+	// Apply sales rep filter
+	if req.SalesRepID != "" {
+		query = query.Where("sales_rep_id = ?", req.SalesRepID)
+	}
+
+	// Apply business unit filter
+	if req.BusinessUnitID != "" {
+		query = query.Where("business_unit_id = ?", req.BusinessUnitID)
+	}
+
+	// Count total
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	offset := (page - 1) * perPage
+
+	// Apply sorting
+	sortBy := req.SortBy
+	if sortBy == "" {
+		sortBy = "quotation_date"
+	}
+	sortDir := req.SortDir
+	if sortDir == "" {
+		sortDir = "desc"
+	}
+	query = query.Order(sortBy + " " + sortDir)
+
+	// Execute query with preloads
+	err := query.
+		Preload("PaymentTerms").
+		Preload("SalesRep").
+		Preload("BusinessUnit").
+		Preload("BusinessType").
+		Limit(perPage).
+		Offset(offset).
+		Find(&quotations).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return quotations, total, nil
+}
+
+func (r *salesQuotationRepository) Create(ctx context.Context, sq *models.SalesQuotation) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		// Create quotation
+		if err := tx.Create(sq).Error; err != nil {
+			return err
+		}
+
+		// Create items
+		if len(sq.Items) > 0 {
+			for i := range sq.Items {
+				sq.Items[i].SalesQuotationID = sq.ID
+				if err := tx.Create(&sq.Items[i]).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQuotation) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		// Update quotation
+		if err := tx.Save(sq).Error; err != nil {
+			return err
+		}
+
+		// Delete existing items
+		if err := tx.Where("sales_quotation_id = ?", sq.ID).Delete(&models.SalesQuotationItem{}).Error; err != nil {
+			return err
+		}
+
+		// Create new items
+		if len(sq.Items) > 0 {
+			for i := range sq.Items {
+				sq.Items[i].SalesQuotationID = sq.ID
+				if err := tx.Create(&sq.Items[i]).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *salesQuotationRepository) Delete(ctx context.Context, id string) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		// Delete items first (CASCADE should handle this, but explicit for safety)
+		if err := tx.Where("sales_quotation_id = ?", id).Delete(&models.SalesQuotationItem{}).Error; err != nil {
+			return err
+		}
+
+		// Delete quotation
+		return tx.Delete(&models.SalesQuotation{}, "id = ?", id).Error
+	})
+}
+
+func (r *salesQuotationRepository) GetNextQuotationNumber(ctx context.Context, prefix string) (string, error) {
+	var lastQuotation models.SalesQuotation
+	var sequence int
+
+	// Find the last quotation with the same prefix
+	err := r.getDB(ctx).
+		Where("code LIKE ?", prefix+"%").
+		Order("code DESC").
+		First(&lastQuotation).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// No previous quotation, start from 1
+			sequence = 1
+		} else {
+			return "", err
+		}
+	} else {
+		// Extract sequence number from last code
+		// Format: PREFIX-YYYYMMDD-0001
+		// We'll use a simpler format: PREFIX-YYYYMMDD-XXXX
+		// For now, just increment based on count
+		var count int64
+		r.getDB(ctx).Model(&models.SalesQuotation{}).
+			Where("code LIKE ?", prefix+"%").
+			Count(&count)
+		sequence = int(count) + 1
+	}
+
+	// Generate new code: PREFIX-YYYYMMDD-XXXX
+	// Format: SQ-20240115-0001
+	now := database.GetDB(ctx, r.db).NowFunc()
+	dateStr := now.Format("20060102")
+	
+	// Format sequence with 4 digits
+	code := prefix + "-" + dateStr + "-" + formatSequence(sequence)
+	
+	return code, nil
+}
+
+// formatSequence formats sequence number with 4 digits
+// formatSequence formats sequence number with 4 digits (0001, 0002, etc.)
+func formatSequence(seq int) string {
+	return fmt.Sprintf("%04d", seq)
+}
+
+func (r *salesQuotationRepository) UpdateStatus(ctx context.Context, id string, status models.SalesQuotationStatus, userID *string, reason *string) error {
+	updates := map[string]interface{}{
+		"status": status,
+	}
+
+	switch status {
+	case models.SalesQuotationStatusApproved:
+		updates["approved_by"] = userID
+		updates["approved_at"] = database.GetDB(ctx, r.db).NowFunc()
+	case models.SalesQuotationStatusRejected:
+		updates["rejected_by"] = userID
+		updates["rejected_at"] = database.GetDB(ctx, r.db).NowFunc()
+		if reason != nil {
+			updates["rejection_reason"] = *reason
+		}
+	case models.SalesQuotationStatusConverted:
+		updates["converted_at"] = database.GetDB(ctx, r.db).NowFunc()
+	}
+
+	return r.getDB(ctx).Model(&models.SalesQuotation{}).
+		Where("id = ?", id).
+		Updates(updates).Error
+}
+
+// ListItems retrieves quotation items with pagination
+func (r *salesQuotationRepository) ListItems(ctx context.Context, quotationID string, req *dto.ListSalesQuotationItemsRequest) ([]models.SalesQuotationItem, int64, error) {
+	var items []models.SalesQuotationItem
+	var total int64
+
+	// Set defaults
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	// Count total items
+	if err := r.getDB(ctx).Model(&models.SalesQuotationItem{}).
+		Where("sales_quotation_id = ?", quotationID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch paginated items with minimal preload (only product info)
+	offset := (page - 1) * perPage
+	err := r.getDB(ctx).
+		Preload("Product", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "code", "name", "selling_price", "image_url")
+		}).
+		Where("sales_quotation_id = ?", quotationID).
+		Order("created_at ASC").
+		Limit(perPage).
+		Offset(offset).
+		Find(&items).Error
+	
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
