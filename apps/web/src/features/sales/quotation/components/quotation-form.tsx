@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate } from "@/lib/utils";
 import { useCreateQuotation, useUpdateQuotation } from "../hooks/use-quotations";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
@@ -36,6 +37,8 @@ import { useEmployees } from "@/features/master-data/employee/hooks/use-employee
 import type { SalesQuotation } from "../types";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+
+const STORAGE_KEY = "quotation_form_cache";
 
 interface QuotationFormProps {
   readonly open: boolean;
@@ -48,6 +51,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const t = useTranslations("quotation");
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
+  const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 
   // Fetch lookup data
   const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
@@ -63,7 +67,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
 
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
-  const formResolver: Resolver<CreateQuotationFormData | UpdateQuotationFormData> = zodResolver(schema);
+  const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
 
   const {
     register,
@@ -71,6 +75,8 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     setValue,
     control,
     reset,
+    trigger,
+    getValues,
     formState: { errors },
   } = useForm<CreateQuotationFormData | UpdateQuotationFormData>({
     resolver: formResolver,
@@ -164,16 +170,78 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           })) ?? [],
       });
     } else {
-      reset({
-        quotation_date: new Date().toISOString().split("T")[0],
-        tax_rate: 11,
-        delivery_cost: 0,
-        other_cost: 0,
-        discount_amount: 0,
-        items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
-      });
+      // Load from localStorage if available
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        try {
+          const parsedData = JSON.parse(cached);
+          reset(parsedData);
+        } catch {
+          // Invalid cache, use defaults
+          reset({
+            quotation_date: new Date().toISOString().split("T")[0],
+            tax_rate: 11,
+            delivery_cost: 0,
+            other_cost: 0,
+            discount_amount: 0,
+            items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
+          });
+        }
+      } else {
+        reset({
+          quotation_date: new Date().toISOString().split("T")[0],
+          tax_rate: 11,
+          delivery_cost: 0,
+          other_cost: 0,
+          discount_amount: 0,
+          items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
+        });
+      }
     }
   }, [quotation, reset]);
+
+  // Clear cache when dialog closes
+  useEffect(() => {
+    if (!open) {
+      localStorage.removeItem(STORAGE_KEY);
+      // Reset tab to basic when dialog opens next time
+      setTimeout(() => setActiveTab("basic"), 0);
+    }
+  }, [open]);
+
+  const saveToLocalStorage = (data: CreateQuotationFormData | UpdateQuotationFormData) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  };
+
+  const handleNext = async () => {
+    const basicFields = [
+      "quotation_date",
+      "valid_until",
+      "payment_terms_id",
+      "sales_rep_id",
+      "business_unit_id",
+      "business_type_id",
+      "tax_rate",
+      "delivery_cost",
+      "other_cost",
+      "discount_amount",
+      "notes",
+    ];
+
+    const isValid = await Promise.all(
+      basicFields.map((field) =>
+        trigger(field as keyof (CreateQuotationFormData | UpdateQuotationFormData))
+      )
+    ).then((results) => results.every((result) => result));
+
+    if (isValid) {
+      const formData = getValues();
+      saveToLocalStorage(formData);
+      setActiveTab("items");
+    } else {
+      toast.error(t("common.validationError") || "Please fill all required fields");
+    }
+  };
 
   const handleFormSubmit = async (
     data: CreateQuotationFormData | UpdateQuotationFormData
@@ -195,6 +263,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         } as CreateQuotationFormData);
         toast.success(t("created"));
       }
+      localStorage.removeItem(STORAGE_KEY);
       onClose();
     } catch (error) {
       console.error("Failed to save quotation:", error);
@@ -224,14 +293,26 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
             {isEdit ? t("edit") : t("add")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-          {/* Basic Information Section */}
-          <div className="space-y-4">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-              <FileText className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-medium">{t("common.quotation")}</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="basic" disabled={activeTab === "items" && !isEdit}>
+              {t("common.basicInfo") || "Basic Information"}
+            </TabsTrigger>
+            <TabsTrigger value="items" disabled={activeTab === "basic"}>
+              {t("items")} & {t("summary")}
+            </TabsTrigger>
+          </TabsList>
+
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 mt-4">
+            <TabsContent value="basic" className="space-y-4 mt-0">
+              {/* Basic Information Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-medium">{t("common.quotation")}</h3>
+                </div>
+            <div className="grid gap-4 grid-cols-2">
               <Field orientation="vertical">
                 <FieldLabel>{t("quotationDate")} *</FieldLabel>
                 <Controller
@@ -306,7 +387,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 )}
               </Field>
 
-              <Field orientation="vertical">
+              <Field orientation="vertical" className="col-span-2">
                 <FieldLabel>{t("paymentTerms")} *</FieldLabel>
                 <Controller
                   name="payment_terms_id"
@@ -331,7 +412,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 )}
               </Field>
 
-              <Field orientation="vertical">
+              <Field orientation="vertical" className="col-span-2">
                 <FieldLabel>{t("salesRep")} *</FieldLabel>
                 <Controller
                   name="sales_rep_id"
@@ -412,7 +493,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           <div className="space-y-4">
             <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
               <DollarSign className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-medium">{t("common.quotation")}</h3>
+              <h3 className="text-sm font-medium">{t("common.financial")}</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field orientation="vertical">
@@ -427,6 +508,20 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 />
                 {errors.tax_rate && (
                   <FieldError>{errors.tax_rate.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("discountAmount")}</FieldLabel>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("discount_amount", { valueAsNumber: true })}
+                  defaultValue={0}
+                />
+                {errors.discount_amount && (
+                  <FieldError>{errors.discount_amount.message}</FieldError>
                 )}
               </Field>
 
@@ -457,20 +552,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   <FieldError>{errors.other_cost.message}</FieldError>
                 )}
               </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("discountAmount")}</FieldLabel>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("discount_amount", { valueAsNumber: true })}
-                  defaultValue={0}
-                />
-                {errors.discount_amount && (
-                  <FieldError>{errors.discount_amount.message}</FieldError>
-                )}
-              </Field>
             </div>
 
             <Field orientation="vertical" className="col-span-2">
@@ -480,209 +561,255 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
             </Field>
           </div>
 
-          {/* Items Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border/50">
-              <div className="flex items-center space-x-2">
-                <ShoppingCart className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-medium">{t("items")} ({fields.length})</h3>
-              </div>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={handleAddItem}
-                className="cursor-pointer"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("addItem")}
-              </Button>
-            </div>
-
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {fields.map((field, index) => {
-                const item = watchedItems?.[index];
-                const itemSubtotal = item
-                  ? (item.price ?? 0) * (item.quantity ?? 0) - (item.discount ?? 0)
-                  : 0;
-
-                return (
-                  <div
-                    key={field.id}
-                    className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="absolute top-2 right-2 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
-                      {fields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mt-6">
-                      <Field orientation="vertical">
-                        <FieldLabel>{t("item.product")} *</FieldLabel>
-                        <Controller
-                          name={`items.${index}.product_id`}
-                          control={control}
-                          render={({ field }) => (
-                            <Select
-                              value={field.value?.toString() || ""}
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                handleProductChange(index, value);
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("item.selectProduct")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    {product.name} ({product.code})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        {errors.items?.[index]?.product_id && (
-                          <FieldError>
-                            {errors.items[index]?.product_id?.message}
-                          </FieldError>
-                        )}
-                      </Field>
-
-                      <Field orientation="vertical">
-                        <FieldLabel>{t("item.quantity")} *</FieldLabel>
-                        <Input
-                          type="number"
-                          min="0.001"
-                          step="0.001"
-                          {...register(`items.${index}.quantity`, {
-                            valueAsNumber: true,
-                          })}
-                        />
-                        {errors.items?.[index]?.quantity && (
-                          <FieldError>
-                            {errors.items[index]?.quantity?.message}
-                          </FieldError>
-                        )}
-                      </Field>
-
-                      <Field orientation="vertical">
-                        <FieldLabel>{t("item.price")} *</FieldLabel>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          {...register(`items.${index}.price`, {
-                            valueAsNumber: true,
-                          })}
-                        />
-                        {errors.items?.[index]?.price && (
-                          <FieldError>
-                            {errors.items[index]?.price?.message}
-                          </FieldError>
-                        )}
-                      </Field>
-
-                      <Field orientation="vertical">
-                        <FieldLabel>{t("item.discount")}</FieldLabel>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          {...register(`items.${index}.discount`, {
-                            valueAsNumber: true,
-                          })}
-                          defaultValue={0}
-                        />
-                        {errors.items?.[index]?.discount && (
-                          <FieldError>
-                            {errors.items[index]?.discount?.message}
-                          </FieldError>
-                        )}
-                      </Field>
-
-                      <div className="col-span-2 pt-2 border-t border-border/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">{t("item.subtotal")}:</span>
-                          <span className="text-base font-bold text-primary">{formatCurrency(itemSubtotal)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {errors.items && typeof errors.items === "object" && "message" in errors.items && (
-                <FieldError>{errors.items.message}</FieldError>
-              )}
-            </div>
-          </div>
-
-          {/* Totals Summary */}
-          <div className="space-y-2 border-t pt-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("subtotal")}:</span>
-              <span className="font-medium">{formatCurrency(calculations.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("discountAmount")}:</span>
-              <span className="font-medium">-{formatCurrency(discountAmount)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {t("taxAmount")} ({taxRate}%):
-              </span>
-              <span className="font-medium">{formatCurrency(calculations.taxAmount)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("deliveryCost")}:</span>
-              <span className="font-medium">{formatCurrency(deliveryCost)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("otherCost")}:</span>
-              <span className="font-medium">{formatCurrency(otherCost)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold border-t pt-2">
-              <span>{t("totalAmount")}:</span>
-              <span>{formatCurrency(calculations.total)}</span>
-            </div>
-          </div>
-
-          {/* Form Actions */}
+          {/* Tab Navigation Buttons for Basic Tab */}
           <div className="flex items-center justify-end gap-2 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isLoading}
               className="cursor-pointer"
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t("common.saving")}
-                </>
-              ) : isEdit ? (
-                t("common.update")
-              ) : (
-                t("common.create")
-              )}
+            <Button
+              type="button"
+              onClick={handleNext}
+              className="cursor-pointer"
+            >
+              {t("common.next") || "Next"}
             </Button>
           </div>
-        </form>
+        </TabsContent>
+
+        <TabsContent value="items" className="space-y-4 mt-0">
+          {/* Items and Summary Grid Layout */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Items Section - Left Column (2 cols) */}
+            <div className="col-span-2 space-y-4">
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">{t("items")} ({fields.length})</h3>
+              </div>
+
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                {fields.map((field, index) => {
+                  const item = watchedItems?.[index];
+                  const itemSubtotal = item
+                    ? (item.price ?? 0) * (item.quantity ?? 0) - (item.discount ?? 0)
+                    : 0;
+
+                  return (
+                    <div
+                      key={field.id}
+                      className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="absolute top-2 right-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => remove(index)}
+                            className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mt-6">
+                        <Field orientation="vertical" className="col-span-2">
+                          <FieldLabel>{t("item.product")} *</FieldLabel>
+                          <Controller
+                            name={`items.${index}.product_id`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value?.toString() || ""}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  handleProductChange(index, value);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("item.selectProduct")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {products.map((product) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name} ({product.code})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.items?.[index]?.product_id && (
+                            <FieldError>
+                              {errors.items[index]?.product_id?.message}
+                            </FieldError>
+                          )}
+                        </Field>
+
+                        <Field orientation="vertical">
+                          <FieldLabel>{t("item.quantity")} *</FieldLabel>
+                          <Input
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            {...register(`items.${index}.quantity`, {
+                              valueAsNumber: true,
+                            })}
+                          />
+                          {errors.items?.[index]?.quantity && (
+                            <FieldError>
+                              {errors.items[index]?.quantity?.message}
+                            </FieldError>
+                          )}
+                        </Field>
+
+                        <Field orientation="vertical">
+                          <FieldLabel>{t("item.price")} *</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            {...register(`items.${index}.price`, {
+                              valueAsNumber: true,
+                            })}
+                          />
+                          {errors.items?.[index]?.price && (
+                            <FieldError>
+                              {errors.items[index]?.price?.message}
+                            </FieldError>
+                          )}
+                        </Field>
+
+                        <Field orientation="vertical">
+                          <FieldLabel>{t("item.discount")}</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            {...register(`items.${index}.discount`, {
+                              valueAsNumber: true,
+                            })}
+                            defaultValue={0}
+                          />
+                          {errors.items?.[index]?.discount && (
+                            <FieldError>
+                              {errors.items[index]?.discount?.message}
+                            </FieldError>
+                          )}
+                        </Field>
+
+                        <div className="col-span-2 pt-2 border-t border-border/50">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-muted-foreground">{t("item.subtotal")}:</span>
+                            <span className="text-base font-bold text-primary">{formatCurrency(itemSubtotal)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {errors.items && typeof errors.items === "object" && "message" in errors.items && (
+                  <FieldError>{errors.items.message}</FieldError>
+                )}
+
+                {/* Add Item Button - Positioned below last item */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddItem}
+                  className="w-full cursor-pointer border-dashed"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("addItem")}
+                </Button>
+              </div>
+            </div>
+
+            {/* Totals Summary - Right Column */}
+            <div className="col-span-1">
+              <div className="sticky space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-medium">{t("summary")}</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-end gap-1">
+                    <span className="text-muted-foreground text-sm">{t("subtotal")}:</span>
+                    <span className="font-medium ml-auto">{formatCurrency(calculations.subtotal)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-1">
+                    <span className="text-muted-foreground text-sm">
+                      {t("taxAmount")} ({taxRate}%):
+                    </span>
+                    <span className="font-medium ml-auto">{formatCurrency(calculations.taxAmount)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-1">
+                    <span className="text-muted-foreground text-sm">{t("discountAmount")}:</span>
+                    <span className="font-medium text-destructive ml-auto">-{formatCurrency(discountAmount)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-1">
+                    <span className="text-muted-foreground text-sm">{t("deliveryCost")}:</span>
+                    <span className="font-medium ml-auto">{formatCurrency(deliveryCost)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-1">
+                    <span className="text-muted-foreground text-sm">{t("otherCost")}:</span>
+                    <span className="font-medium ml-auto">{formatCurrency(otherCost)}</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
+                    <span className="text-lg font-bold">{t("totalAmount")}:</span>
+                    <span className="text-lg font-bold text-primary ml-auto">{formatCurrency(calculations.total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Navigation Buttons for Items Tab */}
+          <div className="flex items-center justify-between gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setActiveTab("basic")}
+              className="cursor-pointer"
+            >
+              {t("common.back") || "Back"}
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+                className="cursor-pointer"
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={isLoading} className="cursor-pointer">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {t("common.saving")}
+                  </>
+                ) : isEdit ? (
+                  t("common.update")
+                ) : (
+                  t("common.create")
+                )}
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+      </form>
+    </Tabs>
       </DialogContent>
     </Dialog>
   );

@@ -30,7 +30,6 @@ export const getQuotationSchema = (t?: TranslationFn) => z.object({
     .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID"))
     .min(1, getMsg(t, "validation.required", "Payment terms is required")),
   sales_rep_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid sales rep ID"))
     .min(1, getMsg(t, "validation.required", "Sales representative is required")),
   business_unit_id: z.string()
     .uuid(getMsg(t, "validation.invalidId", "Invalid business unit ID"))
@@ -58,10 +57,8 @@ export const getUpdateQuotationSchema = (t?: TranslationFn) => getQuotationSchem
   items: z.array(getQuotationItemSchema(t)).min(1).optional(),
 });
 
-export const getUpdateQuotationStatusSchema = (t?: TranslationFn) => z.object({
-  status: z.enum(["sent", "approved", "rejected", "converted"], {
-    errorMap: () => ({ message: getMsg(t, "validation.invalidStatus", "Invalid status") }),
-  }),
+export const getUpdateQuotationStatusSchema = () => z.object({
+  status: z.enum(["sent", "approved", "rejected", "converted"]),
   rejection_reason: z.string().optional(),
 });
 
