@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useCountries, useDeleteCountry } from "../../hooks/use-countries";
+import { useCountries, useDeleteCountry, useUpdateCountry } from "../../hooks/use-countries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CountryForm } from "./country-form";
@@ -48,6 +49,7 @@ export function CountryList() {
   const canDelete = useUserPermission("country.delete");
 
   const deleteCountry = useDeleteCountry();
+  const updateCountry = useUpdateCountry();
 
   const countries = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -61,6 +63,21 @@ export function CountryList() {
     if (deletingId) {
       await deleteCountry.mutateAsync(deletingId);
       setDeletingId(null);
+    }
+  };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      await updateCountry.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("common.statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
     }
   };
 
@@ -148,9 +165,24 @@ export function CountryList() {
                   <TableCell>{country.code}</TableCell>
                   <TableCell>{country.phone_code || "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={country.is_active ? "default" : "secondary"}>
-                      {country.is_active ? t("common.active") : t("common.inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={country.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            country.id,
+                            country.is_active,
+                          )
+                        }
+                        disabled={updateCountry.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {country.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete) && (

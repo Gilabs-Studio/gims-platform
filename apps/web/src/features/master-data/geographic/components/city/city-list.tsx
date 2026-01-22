@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useCities, useDeleteCity } from "../../hooks/use-cities";
+import { useCities, useDeleteCity, useUpdateCity } from "../../hooks/use-cities";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useProvinces } from "../../hooks/use-provinces";
@@ -40,12 +41,28 @@ export function CityList() {
   const canDelete = useUserPermission("city.delete");
 
   const deleteCity = useDeleteCity();
+  const updateCity = useUpdateCity();
   const cities = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const handleEdit = (city: City) => { setEditingCity(city); setIsFormOpen(true); };
   const handleDelete = async () => { if (deletingId) { await deleteCity.mutateAsync(deletingId); setDeletingId(null); } };
   const handleFormClose = () => { setIsFormOpen(false); setEditingCity(null); };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      await updateCity.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("common.statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   if (isLoading) {
     return null; // Handled by Suspense/Loading
@@ -84,7 +101,26 @@ export function CityList() {
                   <TableCell>{city.code}</TableCell>
                   <TableCell><Badge variant="outline">{city.type === "city" ? t("city.types.city") : t("city.types.regency")}</Badge></TableCell>
                   <TableCell>{city.province?.name || "-"}</TableCell>
-                  <TableCell><Badge variant={city.is_active ? "default" : "secondary"}>{city.is_active ? t("common.active") : t("common.inactive")}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={city.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            city.id,
+                            city.is_active,
+                          )
+                        }
+                        disabled={updateCity.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {city.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete) && (
                       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="cursor-pointer"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

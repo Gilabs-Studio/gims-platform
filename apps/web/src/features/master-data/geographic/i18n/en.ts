@@ -34,6 +34,7 @@ export const geographicEn = {
       previous: "Previous",
       next: "Next",
       select: "Select",
+      statusUpdated: "Status updated successfully",
     },
 
     // Country

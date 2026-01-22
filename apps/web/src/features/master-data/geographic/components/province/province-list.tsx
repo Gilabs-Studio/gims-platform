@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useProvinces, useDeleteProvince } from "../../hooks/use-provinces";
+import { useProvinces, useDeleteProvince, useUpdateProvince } from "../../hooks/use-provinces";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useCountries } from "../../hooks/use-countries";
@@ -61,6 +62,7 @@ export function ProvinceList() {
   const canDelete = useUserPermission("province.delete");
 
   const deleteProvince = useDeleteProvince();
+  const updateProvince = useUpdateProvince();
   const provinces = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -73,6 +75,21 @@ export function ProvinceList() {
     if (deletingId) {
       await deleteProvince.mutateAsync(deletingId);
       setDeletingId(null);
+    }
+  };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      await updateProvince.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("common.statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
     }
   };
 
@@ -158,9 +175,24 @@ export function ProvinceList() {
                   <TableCell>{province.code}</TableCell>
                   <TableCell>{province.country?.name || "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={province.is_active ? "default" : "secondary"}>
-                      {province.is_active ? t("common.active") : t("common.inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={province.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            province.id,
+                            province.is_active,
+                          )
+                        }
+                        disabled={updateProvince.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {province.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete) && (

@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useVillages, useDeleteVillage } from "../../hooks/use-villages";
+import { useVillages, useDeleteVillage, useUpdateVillage } from "../../hooks/use-villages";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDistricts } from "../../hooks/use-districts";
@@ -40,12 +42,28 @@ export function VillageList() {
   const canDelete = useUserPermission("village.delete");
 
   const deleteVillage = useDeleteVillage();
+  const updateVillage = useUpdateVillage();
   const villages = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const handleEdit = (village: Village) => { setEditingVillage(village); setIsFormOpen(true); };
   const handleDelete = async () => { if (deletingId) { await deleteVillage.mutateAsync(deletingId); setDeletingId(null); } };
   const handleFormClose = () => { setIsFormOpen(false); setEditingVillage(null); };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      await updateVillage.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("common.statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   if (isLoading) {
     return null; // Handled by Suspense/Loading
@@ -85,7 +103,26 @@ export function VillageList() {
                   <TableCell>{village.postal_code || "-"}</TableCell>
                   <TableCell><Badge variant="outline">{village.type === "village" ? t("village.types.village") : t("village.types.kelurahan")}</Badge></TableCell>
                   <TableCell>{village.district?.name || "-"}</TableCell>
-                  <TableCell><Badge variant={village.is_active ? "default" : "secondary"}>{village.is_active ? t("common.active") : t("common.inactive")}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={village.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            village.id,
+                            village.is_active,
+                          )
+                        }
+                        disabled={updateVillage.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {village.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete) && (
                       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="cursor-pointer"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

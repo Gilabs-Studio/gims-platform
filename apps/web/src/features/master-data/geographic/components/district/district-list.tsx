@@ -5,13 +5,14 @@ import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useDistricts, useDeleteDistrict } from "../../hooks/use-districts";
+import { useDistricts, useDeleteDistrict, useUpdateDistrict } from "../../hooks/use-districts";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useCities } from "../../hooks/use-cities";
@@ -40,12 +41,28 @@ export function DistrictList() {
   const canDelete = useUserPermission("district.delete");
 
   const deleteDistrict = useDeleteDistrict();
+  const updateDistrict = useUpdateDistrict();
   const districts = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const handleEdit = (district: District) => { setEditingDistrict(district); setIsFormOpen(true); };
   const handleDelete = async () => { if (deletingId) { await deleteDistrict.mutateAsync(deletingId); setDeletingId(null); } };
   const handleFormClose = () => { setIsFormOpen(false); setEditingDistrict(null); };
+
+  const handleStatusChange = async (
+    id: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      await updateDistrict.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("common.statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   if (isLoading) {
     return null; // Handled by Suspense/Loading
@@ -83,7 +100,26 @@ export function DistrictList() {
                   <TableCell className="font-medium">{district.name}</TableCell>
                   <TableCell>{district.code}</TableCell>
                   <TableCell>{district.city?.name || "-"}</TableCell>
-                  <TableCell><Badge variant={district.is_active ? "default" : "secondary"}>{district.is_active ? t("common.active") : t("common.inactive")}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={district.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(
+                            district.id,
+                            district.is_active,
+                          )
+                        }
+                        disabled={updateDistrict.isPending || !canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {district.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete) && (
                       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="cursor-pointer"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

@@ -34,6 +34,7 @@ export const geographicId = {
       previous: "Sebelumnya",
       next: "Selanjutnya",
       select: "Pilih",
+      statusUpdated: "Status berhasil diperbarui",
     },
 
     // Country
