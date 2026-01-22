@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
@@ -151,16 +152,21 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 
 func (r *salesQuotationRepository) Create(ctx context.Context, sq *models.SalesQuotation) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Create quotation
+		// Create quotation with items (GORM handles cascade)
+		// Store items temporarily
+		items := sq.Items
+		sq.Items = nil
+
+		// Create quotation without items
 		if err := tx.Create(sq).Error; err != nil {
 			return err
 		}
 
-		// Create items
-		if len(sq.Items) > 0 {
-			for i := range sq.Items {
-				sq.Items[i].SalesQuotationID = sq.ID
-				if err := tx.Create(&sq.Items[i]).Error; err != nil {
+		// Create items with the quotation ID
+		if len(items) > 0 {
+			for i := range items {
+				items[i].SalesQuotationID = sq.ID
+				if err := tx.Create(&items[i]).Error; err != nil {
 					return err
 				}
 			}
@@ -172,12 +178,12 @@ func (r *salesQuotationRepository) Create(ctx context.Context, sq *models.SalesQ
 
 func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQuotation) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update quotation
-		if err := tx.Save(sq).Error; err != nil {
+		// Update quotation WITHOUT associations (Omit Items to handle them separately)
+		if err := tx.Omit("Items").Save(sq).Error; err != nil {
 			return err
 		}
 
-		// Delete existing items
+		// Delete existing items (soft delete)
 		if err := tx.Where("sales_quotation_id = ?", sq.ID).Delete(&models.SalesQuotationItem{}).Error; err != nil {
 			return err
 		}
@@ -186,6 +192,8 @@ func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQ
 		if len(sq.Items) > 0 {
 			for i := range sq.Items {
 				sq.Items[i].SalesQuotationID = sq.ID
+				sq.Items[i].CreatedAt = time.Now()
+				sq.Items[i].UpdatedAt = time.Now()
 				if err := tx.Create(&sq.Items[i]).Error; err != nil {
 					return err
 				}

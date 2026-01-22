@@ -4,9 +4,9 @@ package dto
 type CreateSalesQuotationRequest struct {
 	QuotationDate   string   `json:"quotation_date" binding:"required"`
 	ValidUntil      *string  `json:"valid_until"`
-	PaymentTermsID  *string  `json:"payment_terms_id" binding:"required"`
-	SalesRepID      *string  `json:"sales_rep_id" binding:"required"`
-	BusinessUnitID  *string  `json:"business_unit_id" binding:"required"`
+	PaymentTermsID  string   `json:"payment_terms_id" binding:"required,uuid"`
+	SalesRepID      string   `json:"sales_rep_id" binding:"required,uuid"`
+	BusinessUnitID  string   `json:"business_unit_id" binding:"required,uuid"`
 	BusinessTypeID  *string  `json:"business_type_id"`
 	TaxRate         float64  `json:"tax_rate" binding:"gte=0,lte=100"`
 	DeliveryCost    float64  `json:"delivery_cost" binding:"gte=0"`

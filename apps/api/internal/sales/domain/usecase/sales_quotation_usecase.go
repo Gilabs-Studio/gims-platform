@@ -211,8 +211,9 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	// Validate products if items are being updated
-	if len(req.Items) > 0 {
-		for _, item := range req.Items {
+	if req.Items != nil && len(*req.Items) > 0 {
+		for i := range *req.Items {
+			item := &(*req.Items)[i]
 			product, err := u.productRepo.FindByID(ctx, item.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {

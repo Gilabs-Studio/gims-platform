@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate } from "@/lib/utils";
-import { useCreateQuotation, useUpdateQuotation } from "../hooks/use-quotations";
+import { useCreateQuotation, useUpdateQuotation, useQuotation } from "../hooks/use-quotations";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
@@ -52,6 +52,14 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+
+  // Fetch full quotation data with items when editing
+  const { data: fullQuotationData, isLoading: isLoadingQuotation, isFetching: isFetchingQuotation } = useQuotation(
+    quotation?.id ?? "",
+    { 
+      enabled: open && isEdit && !!quotation?.id,
+    }
+  );
 
   // Fetch lookup data
   const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
@@ -147,47 +155,55 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     };
   }, [watchedItems, discountAmount, taxRate, deliveryCost, otherCost]);
 
+  // Reset form when quotation data changes (for edit mode)
   useEffect(() => {
-    if (quotation) {
-      reset({
-        quotation_date: quotation.quotation_date,
-        valid_until: quotation.valid_until ?? undefined,
-        payment_terms_id: quotation.payment_terms_id ?? "",
-        sales_rep_id: quotation.sales_rep_id ?? "",
-        business_unit_id: quotation.business_unit_id ?? "",
-        business_type_id: quotation.business_type_id ?? undefined,
-        tax_rate: quotation.tax_rate ?? 11,
-        delivery_cost: quotation.delivery_cost ?? 0,
-        other_cost: quotation.other_cost ?? 0,
-        discount_amount: quotation.discount_amount ?? 0,
-        notes: quotation.notes ?? "",
-        items:
-          quotation.items?.map((item) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-            price: item.price,
-            discount: item.discount ?? 0,
-          })) ?? [],
-      });
-    } else {
-      // Load from localStorage if available
-      const cached = localStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsedData = JSON.parse(cached);
-          reset(parsedData);
-        } catch {
-          // Invalid cache, use defaults
+    // Only run when modal is open
+    if (!open) {
+      // Clear cache when dialog closes
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    // For edit mode: wait until fullQuotationData is available
+    if (isEdit) {
+      if (fullQuotationData?.data) {
+        const quotationData = fullQuotationData.data;
+        
+        // Small delay to ensure form is mounted
+        setTimeout(() => {
           reset({
-            quotation_date: new Date().toISOString().split("T")[0],
-            tax_rate: 11,
-            delivery_cost: 0,
-            other_cost: 0,
-            discount_amount: 0,
-            items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
+            quotation_date: quotationData.quotation_date,
+            valid_until: quotationData.valid_until ?? undefined,
+            payment_terms_id: quotationData.payment_terms_id ?? "",
+            sales_rep_id: quotationData.sales_rep_id ?? "",
+            business_unit_id: quotationData.business_unit_id ?? "",
+            business_type_id: quotationData.business_type_id ?? undefined,
+            tax_rate: quotationData.tax_rate ?? 11,
+            delivery_cost: quotationData.delivery_cost ?? 0,
+            other_cost: quotationData.other_cost ?? 0,
+            discount_amount: quotationData.discount_amount ?? 0,
+            notes: quotationData.notes ?? "",
+            items:
+              quotationData.items?.map((item) => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+                price: item.price,
+                discount: item.discount ?? 0,
+              })) ?? [],
           });
-        }
-      } else {
+        }, 10);
+      }
+      return;
+    }
+
+    // For create mode: load from localStorage or use defaults
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      try {
+        const parsedData = JSON.parse(cached);
+        reset(parsedData);
+      } catch {
+        // Invalid cache, use defaults
         reset({
           quotation_date: new Date().toISOString().split("T")[0],
           tax_rate: 11,
@@ -197,17 +213,17 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
       }
+    } else {
+      reset({
+        quotation_date: new Date().toISOString().split("T")[0],
+        tax_rate: 11,
+        delivery_cost: 0,
+        other_cost: 0,
+        discount_amount: 0,
+        items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
+      });
     }
-  }, [quotation, reset]);
-
-  // Clear cache when dialog closes
-  useEffect(() => {
-    if (!open) {
-      localStorage.removeItem(STORAGE_KEY);
-      // Reset tab to basic when dialog opens next time
-      setTimeout(() => setActiveTab("basic"), 0);
-    }
-  }, [open]);
+  }, [open, isEdit, fullQuotationData, reset]);
 
   const saveToLocalStorage = (data: CreateQuotationFormData | UpdateQuotationFormData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -284,16 +300,29 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   };
 
   const isLoading = createQuotation.isPending || updateQuotation.isPending;
+  const isFormLoading = isEdit && (isLoadingQuotation || isFetchingQuotation) && !fullQuotationData?.data;
+
+  const handleDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setActiveTab("basic");
+    }
+    onClose();
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t("edit") : t("add")}
           </DialogTitle>
         </DialogHeader>
-        
+
+        {isFormLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="basic" disabled={activeTab === "items" && !isEdit}>
@@ -810,6 +839,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         </TabsContent>
       </form>
     </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -153,12 +153,16 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 		return nil, err
 	}
 
+	paymentTermsID := req.PaymentTermsID
+	salesRepID := req.SalesRepID
+	businessUnitID := req.BusinessUnitID
+
 	quotation := &salesModels.SalesQuotation{
 		Code:            code,
 		QuotationDate:   quotationDate,
-		PaymentTermsID:  req.PaymentTermsID,
-		SalesRepID:      req.SalesRepID,
-		BusinessUnitID:  req.BusinessUnitID,
+		PaymentTermsID:  &paymentTermsID,
+		SalesRepID:      &salesRepID,
+		BusinessUnitID:  &businessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
 		TaxRate:         req.TaxRate,
 		DeliveryCost:    req.DeliveryCost,
@@ -256,9 +260,9 @@ func UpdateSalesQuotationModel(m *salesModels.SalesQuotation, req *dto.UpdateSal
 	}
 
 	// Update items if provided
-	if len(req.Items) > 0 {
-		m.Items = make([]salesModels.SalesQuotationItem, len(req.Items))
-		for i, itemReq := range req.Items {
+	if req.Items != nil && len(*req.Items) > 0 {
+		m.Items = make([]salesModels.SalesQuotationItem, len(*req.Items))
+		for i, itemReq := range *req.Items {
 			m.Items[i] = salesModels.SalesQuotationItem{
 				ProductID: itemReq.ProductID,
 				Quantity:  itemReq.Quantity,
