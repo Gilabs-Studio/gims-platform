@@ -494,15 +494,8 @@ export const DashboardLayout = memo(function DashboardLayout({
   useEffect(() => {
     React.startTransition(() => {
       setIsMounted(true);
-      const storedParent = localStorage.getItem(ACTIVE_PARENT_STORAGE_KEY);
-      const storedSidebar = localStorage.getItem(DETAIL_SIDEBAR_STORAGE_KEY);
-      
-      if (storedParent) {
-        setActiveParentId(storedParent);
-      }
-      if (storedSidebar !== null) {
-        setIsDetailSidebarOpen(storedSidebar !== "false");
-      }
+      // State restoration is handled in the auto-detect effect
+      // to ensure consistency with current pathname
     });
   }, []);
 
@@ -579,29 +572,60 @@ export const DashboardLayout = memo(function DashboardLayout({
     return parent?.name || "Menu";
   }, [activeParentId, parentItems]);
 
-  // Auto-select first parent with children on mount
-  useEffect(() => {
-    if (!activeParentId && parentItems.length > 0) {
-      const firstWithChildren = parentItems.find((p) => p.hasChildren);
-      if (firstWithChildren) {
-        React.startTransition(() => {
-          setActiveParentId(firstWithChildren.id);
-        });
-      }
-    }
-  }, [activeParentId, parentItems]);
-
   // Track manual parent selection to prevent auto-detect override
   const manualSelectionRef = React.useRef(false);
   const previousPathnameRef = React.useRef<string | null>(null);
+  const isInitialMountRef = React.useRef(true);
 
   // Auto-detect active parent based on current path
-  // Only run when pathname actually changes (navigation), not when activeParentId changes manually
+  // This runs both on mount and when pathname changes
   useEffect(() => {
-    if (!menus) return;
+    if (!menus || !isMounted) return;
 
     const currentPathname = pathname;
     const previousPathname = previousPathnameRef.current;
+    const isInitialMount = isInitialMountRef.current;
+    
+    // On initial mount, restore state and verify it matches current pathname
+    if (isInitialMount) {
+      isInitialMountRef.current = false;
+      const storedParent = localStorage.getItem(ACTIVE_PARENT_STORAGE_KEY);
+      const storedSidebarState = localStorage.getItem(DETAIL_SIDEBAR_STORAGE_KEY);
+      
+      // Always detect parent based on current pathname
+      const detectedParent = findParentMenuByPath(menus, currentPathname);
+      
+      if (detectedParent) {
+        const parentMenu = menus.find((m) => String(m.id) === detectedParent);
+        const hasChildren = Boolean(parentMenu?.children && parentMenu.children.length > 0);
+        
+        React.startTransition(() => {
+          setActiveParentId(detectedParent);
+          
+          // Restore detail sidebar state if parent has children
+          if (hasChildren) {
+            // Use stored state if available, otherwise default to true for parent with children
+            if (storedSidebarState !== null) {
+              setIsDetailSidebarOpen(storedSidebarState !== "false");
+            } else {
+              setIsDetailSidebarOpen(true);
+            }
+          } else {
+            // Parent without children - always close detail sidebar
+            setIsDetailSidebarOpen(false);
+          }
+        });
+      } else {
+        // No parent detected - close detail sidebar
+        React.startTransition(() => {
+          setActiveParentId(null);
+          setIsDetailSidebarOpen(false);
+        });
+      }
+      
+      previousPathnameRef.current = currentPathname;
+      return;
+    }
     
     // Only auto-detect when pathname actually changes (user navigated to different page)
     // Not when user manually selects parent while staying on same page
@@ -610,9 +634,25 @@ export const DashboardLayout = memo(function DashboardLayout({
     if (pathnameChanged && !manualSelectionRef.current) {
       const detectedParent = findParentMenuByPath(menus, currentPathname);
       
-      if (detectedParent && detectedParent !== activeParentId) {
+      // Update active parent based on detection result
+      if (detectedParent !== activeParentId) {
+        const parentMenu = menus.find((m) => String(m.id) === detectedParent);
+        const hasChildren = Boolean(parentMenu?.children && parentMenu.children.length > 0);
+        
         React.startTransition(() => {
           setActiveParentId(detectedParent);
+          
+          // Keep current detail sidebar state if parent has children
+          // Only close if parent has no children
+          if (!hasChildren) {
+            setIsDetailSidebarOpen(false);
+          } else if (!isDetailSidebarOpen) {
+            // If parent has children but sidebar is closed, keep it closed
+            // This respects user's manual toggle
+          } else {
+            // Parent has children and sidebar is open, keep it open
+            setIsDetailSidebarOpen(true);
+          }
         });
       }
     }
@@ -629,7 +669,7 @@ export const DashboardLayout = memo(function DashboardLayout({
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, menus]);
+  }, [pathname, menus, isMounted]);
 
   const handleSelectParent = useCallback((id: string) => {
     const item = parentItems.find((p) => p.id === id);
