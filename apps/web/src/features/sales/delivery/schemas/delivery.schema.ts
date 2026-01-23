@@ -9,25 +9,30 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
 
 // Delivery Order Item Schema
 export const getDeliveryItemSchema = (t?: TranslationFn) => z.object({
-  product_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
-  sales_order_item_id: z.string().uuid().optional(),
-  inventory_batch_id: z.string().uuid().optional(),
+  product_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Product is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid product ID")),
+  sales_order_item_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
+  inventory_batch_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
-  installation_status: z.string().optional(),
-  function_test_status: z.string().optional(),
+  installation_status: z.string().optional().or(z.literal("")),
+  function_test_status: z.string().optional().or(z.literal("")),
 });
 
 // Delivery Order Schema
 export const getDeliveryOrderSchema = (t?: TranslationFn) => z.object({
   delivery_date: z.string()
     .min(1, getMsg(t, "validation.required", "Delivery date is required")),
+  warehouse_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Warehouse is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid warehouse ID")),
   sales_order_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid sales order ID"))
-    .min(1, getMsg(t, "validation.required", "Sales order is required")),
-  delivered_by_id: z.string().uuid().optional(),
-  courier_agency_id: z.string().uuid().optional(),
+    .min(1, getMsg(t, "validation.required", "Sales order is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid sales order ID")),
+  delivered_by_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
+  courier_agency_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   tracking_number: z.string().optional(),
   receiver_name: z.string().optional(),
   receiver_phone: z.string().optional(),

@@ -37,6 +37,12 @@ export interface DeliveryOrder {
   id: string;
   code: string;
   delivery_date: string;
+  warehouse_id: string;
+  warehouse?: {
+    id: string;
+    code: string;
+    name: string;
+  };
   sales_order_id: string;
   sales_order?: {
     id: string;
@@ -122,6 +128,7 @@ export interface DeliveryOrderSingleResponse {
 // Form data types for create/update
 export interface CreateDeliveryOrderData {
   delivery_date: string;
+  warehouse_id: string;
   sales_order_id: string;
   delivered_by_id?: string;
   courier_agency_id?: string;
@@ -144,6 +151,7 @@ export interface CreateDeliveryOrderItemData {
 
 export interface UpdateDeliveryOrderData {
   delivery_date?: string;
+  warehouse_id?: string;
   delivered_by_id?: string;
   courier_agency_id?: string;
   tracking_number?: string;

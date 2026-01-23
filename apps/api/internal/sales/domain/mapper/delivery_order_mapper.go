@@ -9,10 +9,16 @@ import (
 
 // ToDeliveryOrderResponse converts a DeliveryOrder model to response DTO
 func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResponse {
+	var warehouseID string
+	if m.WarehouseID != nil {
+		warehouseID = *m.WarehouseID
+	}
+
 	response := dto.DeliveryOrderResponse{
 		ID:                  m.ID,
 		Code:                m.Code,
 		DeliveryDate:        m.DeliveryDate.Format("2006-01-02"),
+		WarehouseID:         warehouseID,
 		SalesOrderID:        m.SalesOrderID,
 		TrackingNumber:     m.TrackingNumber,
 		ReceiverName:        m.ReceiverName,
@@ -24,6 +30,14 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 		IsPartialDelivery:   m.IsPartialDelivery,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if m.Warehouse != nil {
+		response.Warehouse = &dto.WarehouseResponse{
+			ID:   m.Warehouse.ID,
+			Code: m.Warehouse.Code,
+			Name: m.Warehouse.Name,
+		}
 	}
 
 	if m.SalesOrder != nil {
@@ -161,9 +175,15 @@ func ToDeliveryOrderModel(req *dto.CreateDeliveryOrderRequest, code string, crea
 		return nil, err
 	}
 
+	var warehouseID *string
+	if req.WarehouseID != "" {
+		warehouseID = &req.WarehouseID
+	}
+
 	deliveryOrder := &salesModels.DeliveryOrder{
 		Code:            code,
 		DeliveryDate:    deliveryDate,
+		WarehouseID:     warehouseID,
 		SalesOrderID:    req.SalesOrderID,
 		DeliveredByID:   req.DeliveredByID,
 		CourierAgencyID: req.CourierAgencyID,
@@ -208,6 +228,10 @@ func UpdateDeliveryOrderModel(m *salesModels.DeliveryOrder, req *dto.UpdateDeliv
 			return err
 		}
 		m.DeliveryDate = deliveryDate
+	}
+
+	if req.WarehouseID != nil {
+		m.WarehouseID = req.WarehouseID
 	}
 
 	if req.DeliveredByID != nil {

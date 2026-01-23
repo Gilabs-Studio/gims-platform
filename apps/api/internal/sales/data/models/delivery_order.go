@@ -8,6 +8,8 @@ import (
 	productModels "github.com/gilabs/crm-healthcare/api/internal/product/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	warehouseModels "github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
 )
 
 // DeliveryOrderStatus represents the status of a delivery order
@@ -30,6 +32,9 @@ type DeliveryOrder struct {
 	// Relations
 	SalesOrderID string    `gorm:"type:uuid;not null;index" json:"sales_order_id"`
 	SalesOrder   *SalesOrder `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
+
+	WarehouseID *string                  `gorm:"type:uuid;index" json:"warehouse_id"`
+	Warehouse   *warehouseModels.Warehouse `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
 	
 	DeliveredByID *string              `gorm:"type:uuid;index" json:"delivered_by_id"`
 	DeliveredBy   *orgModels.Employee  `gorm:"foreignKey:DeliveredByID" json:"delivered_by,omitempty"`

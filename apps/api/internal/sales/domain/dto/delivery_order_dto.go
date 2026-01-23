@@ -1,8 +1,8 @@
 package dto
 
-// CreateDeliveryOrderRequest represents the request to create a delivery order
 type CreateDeliveryOrderRequest struct {
 	DeliveryDate      string   `json:"delivery_date" binding:"required"`
+	WarehouseID       string   `json:"warehouse_id" binding:"required,uuid"`
 	SalesOrderID      string   `json:"sales_order_id" binding:"required,uuid"`
 	DeliveredByID     *string  `json:"delivered_by_id"`
 	CourierAgencyID   *string  `json:"courier_agency_id"`
@@ -27,6 +27,7 @@ type CreateDeliveryOrderItemRequest struct {
 // UpdateDeliveryOrderRequest represents the request to update a delivery order
 type UpdateDeliveryOrderRequest struct {
 	DeliveryDate      *string  `json:"delivery_date"`
+	WarehouseID       *string  `json:"warehouse_id"`
 	DeliveredByID     *string  `json:"delivered_by_id"`
 	CourierAgencyID   *string  `json:"courier_agency_id"`
 	TrackingNumber    *string  `json:"tracking_number"`
@@ -102,6 +103,8 @@ type DeliveryOrderResponse struct {
 	ID                  string                        `json:"id"`
 	Code                string                        `json:"code"`
 	DeliveryDate        string                        `json:"delivery_date"`
+	WarehouseID         string                        `json:"warehouse_id"`
+	Warehouse           *WarehouseResponse            `json:"warehouse,omitempty"`
 	SalesOrderID        string                        `json:"sales_order_id"`
 	SalesOrder          *SalesOrderResponse            `json:"sales_order,omitempty"`
 	DeliveredByID       *string                       `json:"delivered_by_id"`
@@ -148,6 +151,13 @@ type DeliveryOrderItemResponse struct {
 	InstallationNotes    string            `json:"installation_notes"`
 	CreatedAt           string            `json:"created_at"`
 	UpdatedAt           string            `json:"updated_at"`
+}
+
+// WarehouseResponse represents warehouse data in response
+type WarehouseResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
 }
 
 // CourierAgencyResponse represents courier agency in response
