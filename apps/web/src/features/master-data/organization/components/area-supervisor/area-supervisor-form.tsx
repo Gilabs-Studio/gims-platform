@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X } from "lucide-react";
+import { sortOptions } from "@/lib/utils";
 import { useCreateAreaSupervisor, useUpdateAreaSupervisor } from "../../hooks/use-area-supervisors";
 import { useAreas } from "../../hooks/use-areas";
 import { AreaSupervisorFormData, getAreaSupervisorSchema } from "../../schemas/organization.schema";
@@ -182,7 +183,7 @@ export function AreaSupervisorForm({ open, onClose, supervisor }: AreaSupervisor
               ) : (
                 <ScrollArea className="h-[150px]">
                   <div className="p-2 space-y-1">
-                    {availableAreas.filter(a => a.is_active).map((area) => (
+                    {sortOptions(availableAreas, (a) => a.name).filter(a => a.is_active).map((area) => (
                       <label
                         key={area.id}
                         className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"

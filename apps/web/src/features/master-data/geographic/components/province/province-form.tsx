@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sortOptions } from "@/lib/utils";
 import { useCreateProvince, useUpdateProvince } from "../../hooks/use-provinces";
 import { getProvinceSchema, type CreateProvinceFormData } from "../../schemas/geographic.schema";
 import type { Province, Country } from "../../types";
@@ -78,7 +79,7 @@ export function ProvinceForm({ open, onClose, province, countries }: ProvinceFor
                 <SelectValue placeholder={t("province.selectCountry")} />
               </SelectTrigger>
               <SelectContent>
-                {countries.map((c) => (
+                {sortOptions(countries, (c) => c.name).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>

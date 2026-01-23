@@ -18,6 +18,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDistricts } from "../../hooks/use-districts";
 import { VillageForm } from "./village-form";
+import { sortOptions } from "@/lib/utils";
 import type { Village } from "../../types";
 
 export function VillageList() {
@@ -86,7 +87,7 @@ export function VillageList() {
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder={t("village.search") || t("common.search")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" /></div>
-        <Select value={districtId} onValueChange={(v) => { setDistrictId(v === "all" ? "" : v); setPage(1); }}><SelectTrigger className="w-48"><SelectValue placeholder={t("village.selectDistrict")} /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.filterBy")} {t("district.title")}</SelectItem>{districts.map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}</SelectContent></Select>
+        <Select value={districtId} onValueChange={(v) => { setDistrictId(v === "all" ? "" : v); setPage(1); }}><SelectTrigger className="w-48"><SelectValue placeholder={t("village.selectDistrict")} /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.filterBy")} {t("district.title")}</SelectItem>{sortOptions(districts, (d) => d.name).map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}</SelectContent></Select>
         <div className="flex-1" />
         {canCreate && (<Button onClick={() => setIsFormOpen(true)} className="cursor-pointer"><Plus className="h-4 w-4 mr-2" />{t("village.add")}</Button>)}
       </div>

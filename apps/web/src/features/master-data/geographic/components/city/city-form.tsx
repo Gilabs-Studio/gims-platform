@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sortOptions } from "@/lib/utils";
 import { useCreateCity, useUpdateCity } from "../../hooks/use-cities";
 import { getCitySchema, type CreateCityFormData } from "../../schemas/geographic.schema";
 import type { City, Province } from "../../types";
@@ -79,7 +80,7 @@ export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
                 <SelectValue placeholder={t("city.selectProvince")} />
               </SelectTrigger>
               <SelectContent>
-                {provinces.map((p) => (
+                {sortOptions(provinces, (p) => p.name).map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
               </SelectContent>

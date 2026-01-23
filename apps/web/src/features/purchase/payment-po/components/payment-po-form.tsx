@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePaymentPOAddData } from "../hooks/use-payment-pos";
+import { sortOptions } from "@/lib/utils";
 import type { PaymentPO } from "../types";
 import { useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
@@ -45,6 +46,7 @@ interface AllocationRowProps {
 
 function AllocationRow({ index, control, chartOfAccounts, onRemove, errors }: AllocationRowProps) {
   const t = useTranslations("paymentPO.form");
+  const sortedCoas = useMemo(() => sortOptions(chartOfAccounts, (coa) => coa.name), [chartOfAccounts]);
   const { setValue, register, control: formControl } = useFormContext<CreatePaymentPOFormData | UpdatePaymentPOFormData>();
   const chartOfAccountId = useWatch({
     control,
@@ -67,7 +69,7 @@ function AllocationRow({ index, control, chartOfAccounts, onRemove, errors }: Al
             <SelectValue placeholder={t("chartOfAccountPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            {chartOfAccounts.map((coa) => (
+            {sortedCoas.map((coa) => (
               <SelectItem key={coa.id} value={coa.id.toString()}>
                 {coa.code} - {coa.name}
               </SelectItem>
@@ -130,15 +132,15 @@ export function PaymentPOForm({
   const t = useTranslations("paymentPO.form");
 
   const bankAccounts = useMemo(
-    () => addData?.data?.bank_accounts ?? [],
+    () => sortOptions(addData?.data?.bank_accounts ?? [], (b) => b.name),
     [addData?.data?.bank_accounts]
   );
   const invoices = useMemo(
-    () => addData?.data?.invoices ?? [],
+    () => sortOptions(addData?.data?.invoices ?? [], (i) => i.invoice_number),
     [addData?.data?.invoices]
   );
   const chartOfAccounts = useMemo(
-    () => addData?.data?.chart_of_accounts ?? [],
+    () => sortOptions(addData?.data?.chart_of_accounts ?? [], (coa) => coa.name),
     [addData?.data?.chart_of_accounts]
   );
 

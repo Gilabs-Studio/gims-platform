@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGoodsReceiptAddData } from "../hooks/use-goods-receipts";
+import { sortOptions } from "@/lib/utils";
 import type { GoodsReceipt } from "../types";
 import { useMemo, useState } from "react";
 
@@ -47,9 +48,12 @@ export function GoodsReceiptForm({
   const { data: addData, isLoading: isLoadingAddData } = useGoodsReceiptAddData();
   const t = useTranslations("goodsReceipts.form");
 
-  const warehouses = useMemo(() => addData?.data?.warehouses ?? [], [addData?.data?.warehouses]);
+  const warehouses = useMemo(
+    () => sortOptions(addData?.data?.warehouses ?? [], (w) => w.name),
+    [addData?.data?.warehouses]
+  );
   const purchaseOrders = useMemo(
-    () => addData?.data?.purchase_orders ?? [],
+    () => sortOptions(addData?.data?.purchase_orders ?? [], (po) => `${po.code} - ${po.supplier?.name ?? "Unknown"}`),
     [addData?.data?.purchase_orders]
   );
 
@@ -269,7 +273,8 @@ export function GoodsReceiptForm({
 
         <div className="space-y-4">
           {fields.map((field, index) => {
-            const availableProducts = selectedPurchaseOrder?.items?.map((item) => item.product) ?? [];
+            const rawProducts = selectedPurchaseOrder?.items?.map((item) => item.product) ?? [];
+            const availableProducts = sortOptions(rawProducts, (p) => p.name);
             const selectedProductId = watchedItems?.[index]?.product_id;
 
             return (

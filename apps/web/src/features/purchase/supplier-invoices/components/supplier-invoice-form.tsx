@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSupplierInvoiceAddData } from "../hooks/use-supplier-invoices";
+import { sortOptions } from "@/lib/utils";
 import type { SupplierInvoice } from "../types";
 import { useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
@@ -49,8 +50,14 @@ export function SupplierInvoiceForm({
   const { data: addData, isLoading: isLoadingAddData } = useSupplierInvoiceAddData();
   const t = useTranslations("supplierInvoices.form");
 
-  const paymentTerms = useMemo(() => addData?.data?.payment_terms ?? [], [addData?.data?.payment_terms]);
-  const purchaseOrders = useMemo(() => addData?.data?.purchase_orders ?? [], [addData?.data?.purchase_orders]);
+  const paymentTerms = useMemo(
+    () => sortOptions(addData?.data?.payment_terms ?? [], (t) => t.name),
+    [addData?.data?.payment_terms]
+  );
+  const purchaseOrders = useMemo(
+    () => sortOptions(addData?.data?.purchase_orders ?? [], (po) => `${po.code} - ${po.supplier?.name ?? "Unknown"}`),
+    [addData?.data?.purchase_orders]
+  );
 
   const {
     register,

@@ -41,6 +41,7 @@ import { usePackagings } from "../../hooks/use-packagings";
 import { useProcurementTypes } from "../../hooks/use-procurement-types";
 
 import type { Product } from "../../types";
+import { sortOptions } from "@/lib/utils";
 import { productSchema, type ProductFormData } from "./product.schema";
 
 // Section component for grouping form fields
@@ -346,7 +347,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("selectBrand")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {brands?.data?.map((i) => (
+                      {sortOptions(brands?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -364,7 +365,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("selectSegment")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {segments?.data?.map((i) => (
+                      {sortOptions(segments?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -382,7 +383,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {types?.data?.map((i) => (
+                      {sortOptions(types?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -408,7 +409,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Base Unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      {uoms?.data?.map((i) => (
+                      {sortOptions(uoms?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name} ({i.symbol})
                         </SelectItem>
@@ -426,7 +427,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("unitsPerPurchase")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {uoms?.data?.map((i) => (
+                      {sortOptions(uoms?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name} ({i.symbol})
                         </SelectItem>
@@ -465,7 +466,7 @@ export function ProductDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {packagings?.data?.map((i) => (
+                    {sortOptions(packagings?.data ?? [], (i) => i.name).map((i) => (
                       <SelectItem key={i.id} value={i.id}>
                         {i.name}
                       </SelectItem>
@@ -490,7 +491,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {procurementTypes?.data?.map((i) => (
+                      {sortOptions(procurementTypes?.data ?? [], (i) => i.name).map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>

@@ -232,8 +232,7 @@ export function ProductCatalog() {
   const pagination = productsData?.meta?.pagination;
 
   // Sort products: Active first, then by name
-  const rawProducts = productsData?.data ?? [];
-  const sortedProducts = [...rawProducts].sort((a, b) => {
+  const sortedProducts = [...productsData?.data ?? []].sort((a, b) => {
     if (a.is_active === b.is_active) {
       return a.name.localeCompare(b.name);
     }

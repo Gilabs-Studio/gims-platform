@@ -22,6 +22,7 @@ import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 
 import { useCreateCompany, useUpdateCompany } from "../../hooks/use-companies";
 import { useProvinces } from "../../../geographic/hooks/use-provinces";
+import { sortOptions } from "@/lib/utils";
 import { useCities } from "../../../geographic/hooks/use-cities";
 import { useDistricts } from "../../../geographic/hooks/use-districts";
 import { useVillages } from "../../../geographic/hooks/use-villages";
@@ -297,7 +298,7 @@ export function CompanySidePanel({
                     <SelectValue placeholder="Select Province" />
                   </SelectTrigger>
                   <SelectContent>
-                    {provinces.map((p) => (
+                    {sortOptions(provinces, (p) => p.name).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
                       </SelectItem>
@@ -317,7 +318,7 @@ export function CompanySidePanel({
                     <SelectValue placeholder="Select City" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cities.map((c) => (
+                    {sortOptions(cities, (c) => c.name).map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>
@@ -337,7 +338,7 @@ export function CompanySidePanel({
                     <SelectValue placeholder="Select District" />
                   </SelectTrigger>
                   <SelectContent>
-                    {districts.map((d) => (
+                    {sortOptions(districts, (d) => d.name).map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
                       </SelectItem>
@@ -357,7 +358,7 @@ export function CompanySidePanel({
                     <SelectValue placeholder="Select Village" />
                   </SelectTrigger>
                   <SelectContent>
-                    {villages.map((v) => (
+                    {sortOptions(villages, (v) => v.name).map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.name}
                       </SelectItem>

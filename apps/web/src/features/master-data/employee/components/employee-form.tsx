@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, sortOptions } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -96,9 +96,9 @@ export function EmployeeForm({ open, onOpenChange, employee }: EmployeeFormProps
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
 
-  const divisions = divisionsData?.data ?? [];
-  const positions = positionsData?.data ?? [];
-  const companies = companiesData?.data ?? [];
+  const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
+  const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
+  const companies = sortOptions(companiesData?.data ?? [], (c) => c.name);
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const {

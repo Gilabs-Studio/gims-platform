@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { usePurchaseOrderAddData } from "../hooks/use-purchase-orders";
+import { sortOptions } from "@/lib/utils";
 import type { PurchaseOrder } from "../types";
 import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -47,16 +48,22 @@ export function PurchaseOrderForm({
   const { user } = useAuthStore();
   const t = useTranslations("purchaseOrders.form");
 
-  const suppliers = useMemo(() => addData?.data?.suppliers ?? [], [addData?.data?.suppliers]);
+  const suppliers = useMemo(
+    () => sortOptions(addData?.data?.suppliers ?? [], (s) => s.name),
+    [addData?.data?.suppliers]
+  );
   const paymentTerms = useMemo(
-    () => addData?.data?.payment_terms ?? [],
+    () => sortOptions(addData?.data?.payment_terms ?? [], (t) => t.name),
     [addData?.data?.payment_terms]
   );
   const businessUnits = useMemo(
-    () => addData?.data?.business_units ?? [],
+    () => sortOptions(addData?.data?.business_units ?? [], (bu) => bu.name),
     [addData?.data?.business_units]
   );
-  const products = useMemo(() => addData?.data?.products ?? [], [addData?.data?.products]);
+  const products = useMemo(
+    () => sortOptions(addData?.data?.products ?? [], (p) => `${p.code} - ${p.name}`),
+    [addData?.data?.products]
+  );
 
   const {
     register,
@@ -362,7 +369,7 @@ export function PurchaseOrderForm({
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} ({product.code})
+                          {product.code} - {product.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

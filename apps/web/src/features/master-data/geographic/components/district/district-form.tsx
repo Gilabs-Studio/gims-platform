@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sortOptions } from "@/lib/utils";
 import { useCreateDistrict, useUpdateDistrict } from "../../hooks/use-districts";
 import { getDistrictSchema, type CreateDistrictFormData } from "../../schemas/geographic.schema";
 import type { District, City } from "../../types";
@@ -78,7 +79,7 @@ export function DistrictForm({ open, onClose, district, cities }: DistrictFormPr
                 <SelectValue placeholder={t("district.selectCity")} />
               </SelectTrigger>
               <SelectContent>
-                {cities.map((c) => (
+                {sortOptions(cities, (c) => c.name).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>

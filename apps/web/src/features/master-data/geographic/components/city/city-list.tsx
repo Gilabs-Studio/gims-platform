@@ -17,6 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useProvinces } from "../../hooks/use-provinces";
 import { CityForm } from "./city-form";
+import { sortOptions } from "@/lib/utils";
 import type { City } from "../../types";
 
 export function CityList() {
@@ -85,7 +86,7 @@ export function CityList() {
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder={t("city.search") || t("common.search")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" /></div>
-        <Select value={provinceId} onValueChange={(v) => { setProvinceId(v === "all" ? "" : v); setPage(1); }}><SelectTrigger className="w-48"><SelectValue placeholder={t("city.selectProvince")} /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.filterBy")} {t("province.title")}</SelectItem>{provinces.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent></Select>
+        <Select value={provinceId} onValueChange={(v) => { setProvinceId(v === "all" ? "" : v); setPage(1); }}><SelectTrigger className="w-48"><SelectValue placeholder={t("city.selectProvince")} /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.filterBy")} {t("province.title")}</SelectItem>{sortOptions(provinces, (p) => p.name).map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent></Select>
         <div className="flex-1" />
         {canCreate && (<Button onClick={() => setIsFormOpen(true)} className="cursor-pointer"><Plus className="h-4 w-4 mr-2" />{t("city.add")}</Button>)}
       </div>

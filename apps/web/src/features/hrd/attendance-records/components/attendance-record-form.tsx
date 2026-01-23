@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAttendanceRecordReport } from "../hooks/use-attendance-records";
 import type { CalendarEvent } from "../types";
 import { format } from "date-fns";
+import { sortOptions } from "@/lib/utils";
 
 interface AttendanceRecordFormProps {
   readonly event?: CalendarEvent;
@@ -48,7 +49,7 @@ export function AttendanceRecordForm({
   const isEdit = !!event;
   const { data: reportData, isLoading: isLoadingReport } = useAttendanceRecordReport();
   
-  const employees = reportData?.data?.employees || [];
+  const employees = sortOptions(reportData?.data?.employees || [], (e) => e.name);
 
   const {
     register,

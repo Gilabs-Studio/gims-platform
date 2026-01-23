@@ -45,6 +45,7 @@ import { EmployeeForm } from "./employee-form";
 import { EmployeeDetailModal } from "./employee-detail-modal";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { sortOptions } from "@/lib/utils";
 import type { Employee, EmployeeStatus } from "../types";
 import {
   useEmployees,
@@ -238,7 +239,7 @@ export function EmployeeList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("filters.all")}</SelectItem>
-            {divisions.map((d) => (
+            {sortOptions(divisions, (d) => d.name).map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
               </SelectItem>
@@ -257,7 +258,7 @@ export function EmployeeList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("filters.all")}</SelectItem>
-            {positions.map((p) => (
+            {sortOptions(positions, (p) => p.name).map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
               </SelectItem>

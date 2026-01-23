@@ -33,6 +33,7 @@ import {
 } from "../../hooks/use-suppliers";
 import { useSupplierTypes } from "../../hooks/use-supplier-types";
 import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
+import { sortOptions } from "@/lib/utils";
 import { SupplierPhoneList } from "./supplier-phone-list";
 import { SupplierBankList } from "./supplier-bank-list";
 
@@ -83,7 +84,7 @@ export function SupplierDialog({
     page: 1,
     per_page: 100,
   });
-  const supplierTypes = supplierTypesData?.data ?? [];
+  const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
 
   // Fetch fresh detail if editing to ensure we have latest nested data
   const { data: detailData, isLoading: isLoadingDetail } = useSupplier(editingItem?.id ?? "");

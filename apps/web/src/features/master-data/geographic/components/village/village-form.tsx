@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sortOptions } from "@/lib/utils";
 import { useCreateVillage, useUpdateVillage } from "../../hooks/use-villages";
 import { getVillageSchema, type CreateVillageFormData } from "../../schemas/geographic.schema";
 import type { Village, District } from "../../types";
@@ -79,7 +80,7 @@ export function VillageForm({ open, onClose, village, districts }: VillageFormPr
                 <SelectValue placeholder={t("village.selectDistrict")} />
               </SelectTrigger>
               <SelectContent>
-                {districts.map((d) => (
+                {sortOptions(districts, (d) => d.name).map((d) => (
                   <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                 ))}
               </SelectContent>

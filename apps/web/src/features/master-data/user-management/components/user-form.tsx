@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRoles } from "../hooks/use-users";
+import { sortOptions } from "@/lib/utils";
 import type { User } from "../types";
 
 interface UserFormProps {
@@ -27,7 +28,7 @@ interface UserFormProps {
 export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps) {
   const isEdit = !!user;
   const { data: rolesData } = useRoles();
-  const roles = rolesData?.data || [];
+  const roles = sortOptions(rolesData?.data || [], (role) => role.name);
   const t = useTranslations("userManagement.form");
 
   const {

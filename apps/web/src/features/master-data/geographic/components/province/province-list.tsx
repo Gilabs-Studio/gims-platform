@@ -35,6 +35,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useCountries } from "../../hooks/use-countries";
 import { ProvinceForm } from "./province-form";
+import { sortOptions } from "@/lib/utils";
 import type { Province } from "../../types";
 
 export function ProvinceList() {
@@ -136,7 +137,7 @@ export function ProvinceList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("country.title")}</SelectItem>
-            {countries.map((c) => (
+            {sortOptions(countries, (c) => c.name).map((c) => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
           </SelectContent>

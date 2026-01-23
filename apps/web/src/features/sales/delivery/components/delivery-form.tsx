@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatDate, formatCurrency } from "@/lib/utils";
+import { cn, formatDate, formatCurrency, sortOptions } from "@/lib/utils";
 import { useCreateDeliveryOrder, useUpdateDeliveryOrder, useDeliveryOrder } from "../hooks/use-deliveries";
 import { useOrders } from "@/features/sales/order/hooks/use-orders";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
@@ -65,10 +65,25 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 });
   const { data: warehousesData } = useWarehouses({ per_page: 100 });
 
-  const salesOrders = useMemo(() => salesOrdersData?.data ?? [], [salesOrdersData?.data]);
-  const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
-  const courierAgencies = useMemo(() => courierAgenciesData?.data ?? [], [courierAgenciesData?.data]);
-  const warehouses = useMemo(() => warehousesData?.data ?? [], [warehousesData?.data]);
+  const salesOrders = useMemo(() => {
+    const data = salesOrdersData?.data ?? [];
+    return sortOptions(data, (item) => item.code);
+  }, [salesOrdersData?.data]);
+
+  const employees = useMemo(() => {
+    const data = employeesData?.data ?? [];
+    return sortOptions(data, (item) => `${item.employee_code} - ${item.name}`);
+  }, [employeesData?.data]);
+  
+  const courierAgencies = useMemo(() => {
+    const data = courierAgenciesData?.data ?? [];
+    return sortOptions(data, (item) => item.name ?? "");
+  }, [courierAgenciesData?.data]);
+
+  const warehouses = useMemo(() => {
+    const data = warehousesData?.data ?? [];
+    return sortOptions(data, (item) => item.code ? `${item.code} - ${item.name}` : item.name);
+  }, [warehousesData?.data]);
 
   // Get selected sales order items
   const selectedSalesOrder = useMemo(() => {
@@ -370,7 +385,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                             <SelectContent>
                               {warehouses.filter(w => w.is_active).map((w) => (
                                 <SelectItem key={w.id} value={w.id}>
-                                  {w.name}
+                                  {w.code ? `${w.code} - ${w.name}` : w.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -427,7 +442,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                             <SelectContent>
                               {employees.map((emp) => (
                                 <SelectItem key={emp.id} value={emp.id}>
-                                  {emp.name} ({emp.employee_code})
+                                  {emp.employee_code} - {emp.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -587,9 +602,9 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                                       <SelectValue placeholder={t("item.selectProduct")} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {selectedSalesOrder?.items?.map((soItem) => (
+                                      {sortOptions(selectedSalesOrder?.items ?? [], (a) => `${a.product?.code} - ${a.product?.name}`).map((soItem) => (
                                         <SelectItem key={soItem.id} value={soItem.product_id}>
-                                          {soItem.product?.name ?? soItem.product_id} (Qty: {soItem.quantity - (soItem.delivered_quantity ?? 0)})
+                                          {soItem.product?.code} - {soItem.product?.name} (Qty: {soItem.quantity - (soItem.delivered_quantity ?? 0)})
                                         </SelectItem>
                                       ))}
                                     </SelectContent>

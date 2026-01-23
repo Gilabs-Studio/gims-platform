@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, sortOptions } from "@/lib/utils";
 import { useCreateQuotation, useUpdateQuotation, useQuotation } from "../hooks/use-quotations";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
@@ -69,11 +69,30 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 });
   const { data: employeesData } = useEmployees({ per_page: 100 });
 
-  const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
-  const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
-  const businessUnits = useMemo(() => businessUnitsData?.data ?? [], [businessUnitsData?.data]);
-  const businessTypes = useMemo(() => businessTypesData?.data ?? [], [businessTypesData?.data]);
-  const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
+  const products = useMemo(() => {
+    const data = productsData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [productsData?.data]);
+
+  const paymentTerms = useMemo(() => {
+    const data = paymentTermsData?.data ?? [];
+    return sortOptions(data, (a) => a.code ? `${a.code} - ${a.name}` : a.name);
+  }, [paymentTermsData?.data]);
+
+  const businessUnits = useMemo(() => {
+    const data = businessUnitsData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [businessUnitsData?.data]);
+
+  const businessTypes = useMemo(() => {
+    const data = businessTypesData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [businessTypesData?.data]);
+
+  const employees = useMemo(() => {
+    const data = employeesData?.data ?? [];
+    return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
+  }, [employeesData?.data]);
 
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
@@ -430,7 +449,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                       <SelectContent>
                         {paymentTerms.map((term) => (
                           <SelectItem key={term.id} value={term.id}>
-                            {term.name}
+                            {term.code ? `${term.code} - ${term.name}` : term.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -455,7 +474,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                       <SelectContent>
                         {employees.map((emp) => (
                           <SelectItem key={emp.id} value={emp.id}>
-                            {emp.name} ({emp.employee_code})
+                            {emp.employee_code} - {emp.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -684,7 +703,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 <SelectContent>
                                   {products.map((product) => (
                                     <SelectItem key={product.id} value={product.id}>
-                                      {product.name} ({product.code})
+                                      {product.code} - {product.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>

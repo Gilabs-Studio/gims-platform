@@ -58,3 +58,17 @@ export function resolveImageUrl(url: string | null | undefined): string | undefi
   // If backend is Go Fiber/Echo/Gin usually Static("/uploads", "./uploads")
   return `${baseUrl}/${cleanPath}`;
 }
+
+/**
+ * Sorts an array of items alphabetically based on a label extracted from each item.
+ * @param data The array of items to sort.
+ * @param getLabel A function that extracts the string label to sort by from an item.
+ * @returns A new sorted array.
+ */
+export function sortOptions<T>(data: readonly T[], getLabel: (item: T) => string): T[] {
+  return [...data].sort((a, b) => {
+    const labelA = getLabel(a);
+    const labelB = getLabel(b);
+    return labelA.localeCompare(labelB);
+  });
+}

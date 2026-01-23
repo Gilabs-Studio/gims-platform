@@ -9,8 +9,8 @@ import { Drawer } from "@/components/ui/drawer";
 import { usePermissions } from "../hooks/use-permissions";
 import { useRole, useAssignPermissionsToRole } from "../hooks/use-roles";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { cn, sortOptions } from "@/lib/utils";
 import { CheckSquare, Square } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
@@ -127,12 +127,8 @@ function PermissionsSelector({
       }
     });
     
-    // Sort categories by order
-    return Object.keys(groupedByCategory).sort((a, b) => {
-      const orderA = categoryMap.get(a) || 999;
-      const orderB = categoryMap.get(b) || 999;
-      return orderA - orderB;
-    });
+    // Sort categories alphabetically
+    return sortOptions(Object.keys(groupedByCategory), (cat: string) => cat);
   }, [groupedByCategory, permissions]);
   
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || "");
@@ -140,7 +136,7 @@ function PermissionsSelector({
   // Count permissions per category
   const categoryCounts = useMemo(() => {
     const counts: Record<string, { total: number; selected: number }> = {};
-    categories.forEach(cat => {
+    categories.forEach((cat: string) => {
       const categoryPermissions = Object.values(groupedByCategory[cat] || {}).flat();
       counts[cat] = {
         total: categoryPermissions.length,
@@ -225,7 +221,7 @@ function PermissionsSelector({
       {/* Left Sidebar - Category Navigation */}
       <div className="w-56 border-r bg-muted/30 flex flex-col">
         <nav className="flex-1 py-2">
-          {categories.map((category) => {
+          {categories.map((category: string) => {
             const count = categoryCounts[category];
             const isActive = activeCategory === category;
             

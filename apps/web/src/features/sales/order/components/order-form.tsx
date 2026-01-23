@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, sortOptions } from "@/lib/utils";
 import { useCreateOrder, useUpdateOrder, useOrder } from "../hooks/use-orders";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
@@ -76,13 +76,40 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   // Sales Quotation integration
   const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" });
 
-  const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
-  const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
-  const businessUnits = useMemo(() => businessUnitsData?.data ?? [], [businessUnitsData?.data]);
-  const businessTypes = useMemo(() => businessTypesData?.data ?? [], [businessTypesData?.data]);
-  const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
-  const areas = useMemo(() => areasData?.data ?? [], [areasData?.data]);
-  const quotations = useMemo(() => quotationsData?.data ?? [], [quotationsData?.data]);
+  const products = useMemo(() => {
+    const data = productsData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [productsData?.data]);
+
+  const paymentTerms = useMemo(() => {
+    const data = paymentTermsData?.data ?? [];
+    return sortOptions(data, (a) => a.code ? `${a.code} - ${a.name}` : a.name);
+  }, [paymentTermsData?.data]);
+
+  const businessUnits = useMemo(() => {
+    const data = businessUnitsData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [businessUnitsData?.data]);
+
+  const businessTypes = useMemo(() => {
+    const data = businessTypesData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [businessTypesData?.data]);
+
+  const employees = useMemo(() => {
+    const data = employeesData?.data ?? [];
+    return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
+  }, [employeesData?.data]);
+
+  const areas = useMemo(() => {
+    const data = areasData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [areasData?.data]);
+
+  const quotations = useMemo(() => {
+    const data = quotationsData?.data ?? [];
+    return sortOptions(data, (a) => a.code);
+  }, [quotationsData?.data]);
 
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
@@ -535,7 +562,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <SelectContent>
                         {paymentTerms.map((term) => (
                           <SelectItem key={term.id} value={term.id}>
-                            {term.name}
+                            {term.code ? `${term.code} - ${term.name}` : term.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -560,7 +587,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <SelectContent>
                         {employees.map((emp) => (
                           <SelectItem key={emp.id} value={emp.id}>
-                            {emp.name} ({emp.employee_code})
+                            {emp.employee_code} - {emp.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
