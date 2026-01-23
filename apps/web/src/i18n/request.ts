@@ -11,18 +11,6 @@ import notificationsEnMessages from "@/features/notifications/i18n/messages/en.j
 import notificationsIdMessages from "@/features/notifications/i18n/messages/id.json";
 import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.json";
 import dashboardIdMessages from "@/features/general/dashboard/i18n/messages/id.json";
-import purchaseRequisitionsEnMessages from "@/features/purchase/purchase-requisitions/i18n/messages/en.json";
-import purchaseRequisitionsIdMessages from "@/features/purchase/purchase-requisitions/i18n/messages/id.json";
-import purchaseOrdersEnMessages from "@/features/purchase/purchase-order/i18n/messages/en.json";
-import purchaseOrdersIdMessages from "@/features/purchase/purchase-order/i18n/messages/id.json";
-import goodsReceiptsEnMessages from "@/features/purchase/goods-receipt/i18n/messages/en.json";
-import goodsReceiptsIdMessages from "@/features/purchase/goods-receipt/i18n/messages/id.json";
-import paymentPOEnMessages from "@/features/purchase/payment-po/i18n/messages/en.json";
-import paymentPOIdMessages from "@/features/purchase/payment-po/i18n/messages/id.json";
-import supplierInvoicesEnMessages from "@/features/purchase/supplier-invoices/i18n/messages/en.json";
-import supplierInvoicesIdMessages from "@/features/purchase/supplier-invoices/i18n/messages/id.json";
-import supplierInvoiceDownPaymentsEnMessages from "@/features/purchase/supplier-invoice-down-payments/i18n/messages/en.json";
-import supplierInvoiceDownPaymentsIdMessages from "@/features/purchase/supplier-invoice-down-payments/i18n/messages/id.json";
 
 import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/messages/en.json";
 import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
@@ -62,12 +50,6 @@ const messages = {
     userManagement: userManagementEn,
     ...notificationsEnMessages,
     ...dashboardEnMessages,
-    ...purchaseRequisitionsEnMessages,
-    ...purchaseOrdersEnMessages,
-    ...goodsReceiptsEnMessages,
-    ...paymentPOEnMessages,
-    ...supplierInvoicesEnMessages,
-    ...supplierInvoiceDownPaymentsEnMessages,
     ...stockValuationsEnMessages,
     ...geographicEn,
     organization: organizationEn,
@@ -89,12 +71,6 @@ const messages = {
     userManagement: userManagementId,
     ...notificationsIdMessages,
     ...dashboardIdMessages,
-    ...purchaseRequisitionsIdMessages,
-    ...purchaseOrdersIdMessages,
-    ...goodsReceiptsIdMessages,
-    ...paymentPOIdMessages,
-    ...supplierInvoicesIdMessages,
-    ...supplierInvoiceDownPaymentsIdMessages,
     ...stockValuationsIdMessages,
     ...geographicId,
     organization: organizationId,
