@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -657,13 +658,17 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field orientation="vertical">
                 <FieldLabel>{t("taxRate")}</FieldLabel>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  {...register("tax_rate", { valueAsNumber: true })}
-                  defaultValue={11}
+                <Controller
+                  control={control}
+                  name="tax_rate"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      min={0}
+                      max={100}
+                    />
+                  )}
                 />
                 {errors.tax_rate && (
                   <FieldError>{errors.tax_rate.message}</FieldError>
@@ -672,12 +677,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
               <Field orientation="vertical">
                 <FieldLabel>{t("discountAmount")}</FieldLabel>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("discount_amount", { valueAsNumber: true })}
-                  defaultValue={0}
+                <Controller
+                  control={control}
+                  name="discount_amount"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      min={0}
+                    />
+                  )}
                 />
                 {errors.discount_amount && (
                   <FieldError>{errors.discount_amount.message}</FieldError>
@@ -686,12 +695,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
               <Field orientation="vertical">
                 <FieldLabel>{t("deliveryCost")}</FieldLabel>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("delivery_cost", { valueAsNumber: true })}
-                  defaultValue={0}
+                <Controller
+                  control={control}
+                  name="delivery_cost"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      min={0}
+                    />
+                  )}
                 />
                 {errors.delivery_cost && (
                   <FieldError>{errors.delivery_cost.message}</FieldError>
@@ -700,12 +713,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
               <Field orientation="vertical">
                 <FieldLabel>{t("otherCost")}</FieldLabel>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("other_cost", { valueAsNumber: true })}
-                  defaultValue={0}
+                <Controller
+                  control={control}
+                  name="other_cost"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      min={0}
+                    />
+                  )}
                 />
                 {errors.other_cost && (
                   <FieldError>{errors.other_cost.message}</FieldError>
@@ -823,13 +840,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
                           <Field orientation="vertical">
                             <FieldLabel>{t("item.quantity")} *</FieldLabel>
-                            <Input
-                              type="number"
-                              step="0.001"
-                              min="0.001"
-                              {...register(`items.${index}.quantity`, {
-                                valueAsNumber: true,
-                              })}
+                            <Controller
+                              name={`items.${index}.quantity`}
+                              control={control}
+                              render={({ field }) => (
+                                <NumericInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  min={0.001}
+                                />
+                              )}
                             />
                             {errors.items?.[index]?.quantity && (
                               <FieldError>
@@ -840,13 +860,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
                           <Field orientation="vertical">
                             <FieldLabel>{t("item.price")} *</FieldLabel>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              {...register(`items.${index}.price`, {
-                                valueAsNumber: true,
-                              })}
+                            <Controller
+                              name={`items.${index}.price`}
+                              control={control}
+                              render={({ field }) => (
+                                <NumericInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  min={0.01}
+                                />
+                              )}
                             />
                             {errors.items?.[index]?.price && (
                               <FieldError>
@@ -857,14 +880,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
                           <Field orientation="vertical">
                             <FieldLabel>{t("item.discount")}</FieldLabel>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              {...register(`items.${index}.discount`, {
-                                valueAsNumber: true,
-                              })}
-                              defaultValue={0}
+                            <Controller
+                              name={`items.${index}.discount`}
+                              control={control}
+                              render={({ field }) => (
+                                <NumericInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  min={0}
+                                />
+                              )}
                             />
                             {errors.items?.[index]?.discount && (
                               <FieldError>

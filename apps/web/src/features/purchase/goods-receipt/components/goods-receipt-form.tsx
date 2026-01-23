@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, Package, Calendar as CalendarIcon, Warehouse } from "lucide-react";
@@ -12,6 +12,7 @@ import {
 } from "../schemas/goods-receipt.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -321,12 +322,18 @@ export function GoodsReceiptForm({
 
                   <Field orientation="vertical">
                     <FieldLabel>{t("quantityLabel")} *</FieldLabel>
-                    <Input
-                      type="number"
-                      min="1"
-                      {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                      placeholder={t("quantityPlaceholder")}
-                    />
+                    <Controller
+                        name={`items.${index}.quantity`}
+                        control={control}
+                        render={({ field }) => (
+                          <NumericInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            min={1}
+                            placeholder={t("quantityPlaceholder")}
+                          />
+                        )}
+                      />
                     {errors.items?.[index]?.quantity && (
                       <FieldError>{errors.items[index]?.quantity?.message}</FieldError>
                     )}

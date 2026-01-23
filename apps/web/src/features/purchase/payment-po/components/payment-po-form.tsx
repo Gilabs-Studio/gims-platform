@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useFieldArray, useWatch, useFormContext, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, useFormContext, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, FileText, DollarSign, Plus, Trash2 } from "lucide-react";
@@ -12,6 +12,7 @@ import {
 } from "../schemas/payment-po.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -44,7 +45,7 @@ interface AllocationRowProps {
 
 function AllocationRow({ index, control, chartOfAccounts, onRemove, errors }: AllocationRowProps) {
   const t = useTranslations("paymentPO.form");
-  const { setValue, register } = useFormContext<CreatePaymentPOFormData | UpdatePaymentPOFormData>();
+  const { setValue, register, control: formControl } = useFormContext<CreatePaymentPOFormData | UpdatePaymentPOFormData>();
   const chartOfAccountId = useWatch({
     control,
     name: `allocations.${index}.chart_of_account_id`,
@@ -79,12 +80,17 @@ function AllocationRow({ index, control, chartOfAccounts, onRemove, errors }: Al
       </Field>
       <Field orientation="vertical">
         <FieldLabel>{t("allocationAmountLabel")} *</FieldLabel>
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          {...register(`allocations.${index}.amount`, { valueAsNumber: true })}
-          placeholder={t("allocationAmountPlaceholder")}
+        <Controller
+          name={`allocations.${index}.amount`}
+          control={control}
+          render={({ field }) => (
+            <NumericInput
+              value={field.value}
+              onChange={field.onChange}
+              min={0}
+              placeholder={t("allocationAmountPlaceholder")}
+            />
+          )}
         />
         {errors?.amount && <FieldError>{errors.amount.message}</FieldError>}
       </Field>
@@ -295,12 +301,17 @@ export function PaymentPOForm({
 
           <Field orientation="vertical">
             <FieldLabel>{t("amountLabel")} *</FieldLabel>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              {...register("amount", { valueAsNumber: true })}
-              placeholder={t("amountPlaceholder")}
+            <Controller
+              name="amount"
+              control={control}
+              render={({ field }) => (
+                <NumericInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  min={0}
+                  placeholder={t("amountPlaceholder")}
+                />
+              )}
             />
             {errors.amount && <FieldError>{errors.amount.message}</FieldError>}
             {selectedInvoice && selectedInvoice.remaining_amount && (

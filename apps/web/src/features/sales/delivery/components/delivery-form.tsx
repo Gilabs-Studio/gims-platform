@@ -14,6 +14,7 @@ import {
 } from "../schemas/delivery.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -484,13 +485,16 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
 
                         <Field orientation="vertical">
                           <FieldLabel>{t("item.quantity")} *</FieldLabel>
-                          <Input
-                            type="number"
-                            step="0.001"
-                            min="0.001"
-                            {...register(`items.${index}.quantity`, {
-                              valueAsNumber: true,
-                            })}
+                          <Controller
+                            name={`items.${index}.quantity`}
+                            control={control}
+                            render={({ field }) => (
+                              <NumericInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                min={0.001}
+                              />
+                            )}
                           />
                           {errors.items?.[index]?.quantity && (
                             <FieldError>

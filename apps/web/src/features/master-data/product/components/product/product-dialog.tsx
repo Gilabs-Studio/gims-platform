@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ export function ProductDialog({
     watch,
     setValue,
     setError,
+    control,
     formState: { errors },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -434,11 +436,16 @@ export function ProductDialog({
                 </Field>
                 <Field>
                   <FieldLabel>{t("conversion")}</FieldLabel>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="1"
-                    {...register("purchase_uom_conversion", { valueAsNumber: true })}
+                  <Controller
+                    name="purchase_uom_conversion"
+                    control={control}
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="1"
+                      />
+                    )}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     {t("unitsPerPurchase")}
@@ -543,14 +550,19 @@ export function ProductDialog({
                 <Field>
                   <FieldLabel className="required">{t("form.costPrice")}</FieldLabel>
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">
+                    <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
                       Rp
                     </span>
-                    <Input
-                      className="pl-9"
-                      type="number"
-                      placeholder="0"
-                      {...register("cost_price", { valueAsNumber: true })}
+                    <Controller
+                      name="cost_price"
+                      control={control}
+                      render={({ field }) => (
+                        <NumericInput
+                          className="pl-9"
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      )}
                     />
                   </div>
                   {errors.cost_price && (
@@ -559,18 +571,28 @@ export function ProductDialog({
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.minStock")}</FieldLabel>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    {...register("min_stock", { valueAsNumber: true })}
+                  <Controller
+                    name="min_stock"
+                    control={control}
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.maxStock")}</FieldLabel>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    {...register("max_stock", { valueAsNumber: true })}
+                  <Controller
+                    name="max_stock"
+                    control={control}
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                 </Field>
               </div>

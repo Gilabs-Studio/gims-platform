@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, FileText, DollarSign } from "lucide-react";
@@ -12,6 +12,7 @@ import {
 } from "../schemas/supplier-invoice.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -241,25 +242,35 @@ export function SupplierInvoiceForm({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field orientation="vertical">
             <FieldLabel>{t("taxRateLabel")}</FieldLabel>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              {...register("tax_rate", { valueAsNumber: true })}
-              placeholder={t("taxRatePlaceholder")}
+            <Controller
+              name="tax_rate"
+              control={control}
+              render={({ field }) => (
+                <NumericInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  min={0}
+                  max={100}
+                  placeholder={t("taxRatePlaceholder")}
+                />
+              )}
             />
             {errors.tax_rate && <FieldError>{errors.tax_rate.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
             <FieldLabel>{t("deliveryCostLabel")}</FieldLabel>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              {...register("delivery_cost", { valueAsNumber: true })}
-              placeholder={t("deliveryCostPlaceholder")}
+            <Controller
+              name="delivery_cost"
+              control={control}
+              render={({ field }) => (
+                <NumericInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  min={0}
+                  placeholder={t("deliveryCostPlaceholder")}
+                />
+              )}
             />
             {errors.delivery_cost && (
               <FieldError>{errors.delivery_cost.message}</FieldError>
@@ -268,12 +279,17 @@ export function SupplierInvoiceForm({
 
           <Field orientation="vertical">
             <FieldLabel>{t("otherCostLabel")}</FieldLabel>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              {...register("other_cost", { valueAsNumber: true })}
-              placeholder={t("otherCostPlaceholder")}
+            <Controller
+              name="other_cost"
+              control={control}
+              render={({ field }) => (
+                <NumericInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  min={0}
+                  placeholder={t("otherCostPlaceholder")}
+                />
+              )}
             />
             {errors.other_cost && (
               <FieldError>{errors.other_cost.message}</FieldError>
@@ -332,7 +348,7 @@ export function SupplierInvoiceForm({
 
                   <Field orientation="vertical">
                     <FieldLabel>{t("quantityLabel")}</FieldLabel>
-                    <Input
+                    <NumericInput
                       value={item.quantity}
                       disabled
                       className="bg-muted"
@@ -341,12 +357,17 @@ export function SupplierInvoiceForm({
 
                   <Field orientation="vertical">
                     <FieldLabel>{t("priceLabel")} *</FieldLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      {...register(`items.${index}.price`, { valueAsNumber: true })}
-                      placeholder={t("pricePlaceholder")}
+                    <Controller
+                      name={`items.${index}.price`}
+                      control={control}
+                      render={({ field }) => (
+                        <NumericInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          min={0}
+                          placeholder={t("pricePlaceholder")}
+                        />
+                      )}
                     />
                     {errors.items?.[index]?.price && (
                       <FieldError>{errors.items[index]?.price?.message}</FieldError>
@@ -355,13 +376,18 @@ export function SupplierInvoiceForm({
 
                   <Field orientation="vertical">
                     <FieldLabel>{t("discountLabel")}</FieldLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      {...register(`items.${index}.discount`, { valueAsNumber: true })}
-                      placeholder={t("discountPlaceholder")}
+                    <Controller
+                      name={`items.${index}.discount`}
+                      control={control}
+                      render={({ field }) => (
+                        <NumericInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          min={0}
+                          max={100}
+                          placeholder={t("discountPlaceholder")}
+                        />
+                      )}
                     />
                     {errors.items?.[index]?.discount && (
                       <FieldError>{errors.items[index]?.discount?.message}</FieldError>
