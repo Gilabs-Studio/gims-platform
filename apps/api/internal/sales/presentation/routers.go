@@ -1,7 +1,6 @@
 package presentation
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
 	productRepos "github.com/gilabs/crm-healthcare/api/internal/product/data/repositories"
@@ -9,6 +8,7 @@ import (
 	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/usecase"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/presentation/handler"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/presentation/router"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -20,17 +20,20 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
 	deliveryRepo := salesRepos.NewDeliveryOrderRepository(db)
+	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
 	orderUC := usecase.NewSalesOrderUsecase(orderRepo, quotationRepo, productRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo)
+	invoiceUC := usecase.NewCustomerInvoiceUsecase(invoiceRepo, productRepo)
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
+	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
 
 	// Create sales group under API with auth middleware
 	salesGroup := api.Group("/sales")
@@ -40,4 +43,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler)
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
+	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
 }
+

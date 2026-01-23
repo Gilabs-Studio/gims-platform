@@ -1,0 +1,132 @@
+package models
+
+import (
+	"time"
+
+	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
+	productModels "github.com/gilabs/crm-healthcare/api/internal/product/data/models"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// CustomerInvoiceStatus represents the status of a customer invoice
+type CustomerInvoiceStatus string
+
+const (
+	CustomerInvoiceStatusUnpaid    CustomerInvoiceStatus = "unpaid"
+	CustomerInvoiceStatusPartial   CustomerInvoiceStatus = "partial"
+	CustomerInvoiceStatusPaid      CustomerInvoiceStatus = "paid"
+	CustomerInvoiceStatusCancelled CustomerInvoiceStatus = "cancelled"
+)
+
+// CustomerInvoiceType represents the type of invoice
+type CustomerInvoiceType string
+
+const (
+	CustomerInvoiceTypeRegular  CustomerInvoiceType = "regular"
+	CustomerInvoiceTypeProforma CustomerInvoiceType = "proforma"
+)
+
+// CustomerInvoice represents a customer invoice document
+type CustomerInvoice struct {
+	ID            string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Code          string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	InvoiceNumber *string   `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
+	Type          CustomerInvoiceType `gorm:"type:varchar(20);default:'regular'" json:"type"`
+	InvoiceDate   time.Time `gorm:"type:date;not null;index" json:"invoice_date"`
+	DueDate       *time.Time `gorm:"type:date;index" json:"due_date"`
+	
+	// Relations
+	SalesOrderID   *string       `gorm:"type:uuid;index" json:"sales_order_id"`
+	SalesOrder     *SalesOrder   `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
+	
+	PaymentTermsID *string              `gorm:"type:uuid;index" json:"payment_terms_id"`
+	PaymentTerms   *models.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
+	
+	// Financial calculations
+	Subtotal       float64   `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
+	TaxRate        float64   `gorm:"type:decimal(5,2);default:11.00" json:"tax_rate"` // Default 11% PPN
+	TaxAmount      float64   `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
+	DeliveryCost   float64   `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
+	OtherCost      float64   `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
+	Amount         float64   `gorm:"type:decimal(15,2);default:0" json:"amount"` // Total invoice amount
+	
+	// Payment tracking
+	PaidAmount      float64   `gorm:"type:decimal(15,2);default:0" json:"paid_amount"`
+	RemainingAmount float64   `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
+	
+	// Status and workflow
+	Status         CustomerInvoiceStatus `gorm:"type:varchar(20);default:'unpaid';index" json:"status"`
+	Notes          string                `gorm:"type:text" json:"notes"`
+	
+	// Payment timestamp
+	PaymentAt      *time.Time `json:"payment_at"`
+	
+	// Tax Invoice relation (optional)
+	TaxInvoiceID   *string    `gorm:"type:uuid;index" json:"tax_invoice_id"`
+	
+	// Audit fields
+	CreatedBy      *string    `gorm:"type:uuid" json:"created_by"`
+	CancelledBy    *string    `gorm:"type:uuid" json:"cancelled_by"`
+	CancelledAt    *time.Time `json:"cancelled_at"`
+	
+	// Timestamps
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+	
+	// Relations
+	Items          []CustomerInvoiceItem `gorm:"foreignKey:CustomerInvoiceID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+}
+
+// TableName specifies the table name for CustomerInvoice
+func (CustomerInvoice) TableName() string {
+	return "customer_invoices"
+}
+
+// BeforeCreate hook to generate UUID
+func (ci *CustomerInvoice) BeforeCreate(tx *gorm.DB) error {
+	if ci.ID == "" {
+		ci.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// CustomerInvoiceItem represents an item in a customer invoice
+type CustomerInvoiceItem struct {
+	ID                 string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CustomerInvoiceID  string    `gorm:"type:uuid;not null;index" json:"customer_invoice_id"`
+	CustomerInvoice    *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"customer_invoice,omitempty"`
+	
+	ProductID          string    `gorm:"type:uuid;not null;index" json:"product_id"`
+	Product            *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	
+	Quantity           float64   `gorm:"type:decimal(15,3);not null" json:"quantity"`
+	Price              float64   `gorm:"type:decimal(15,2);not null" json:"price"`
+	Discount           float64   `gorm:"type:decimal(15,2);default:0" json:"discount"` // Discount amount
+	Subtotal           float64   `gorm:"type:decimal(15,2);not null" json:"subtotal"`
+	HPPAmount          float64   `gorm:"type:decimal(15,2);default:0" json:"hpp_amount"` // Cost of goods sold per unit
+	
+	// Timestamps
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// TableName specifies the table name for CustomerInvoiceItem
+func (CustomerInvoiceItem) TableName() string {
+	return "customer_invoice_items"
+}
+
+// BeforeCreate hook to generate UUID
+func (cii *CustomerInvoiceItem) BeforeCreate(tx *gorm.DB) error {
+	if cii.ID == "" {
+		cii.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// CalculateSubtotal calculates the subtotal for the item
+func (cii *CustomerInvoiceItem) CalculateSubtotal() {
+	cii.Subtotal = (cii.Price * cii.Quantity) - cii.Discount
+}

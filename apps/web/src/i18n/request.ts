@@ -40,6 +40,8 @@ import { orderEn } from "@/features/sales/order/i18n/en";
 import { orderId } from "@/features/sales/order/i18n/id";
 import { deliveryEn } from "@/features/sales/delivery/i18n/en";
 import { deliveryId } from "@/features/sales/delivery/i18n/id";
+import { invoiceEn } from "@/features/sales/invoice/i18n/en";
+import { invoiceId } from "@/features/sales/invoice/i18n/id";
 import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
 
@@ -64,6 +66,7 @@ const messages = {
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
+    ...invoiceEn,
     ...commandPaletteEn,
   },
   id: {
@@ -85,6 +88,7 @@ const messages = {
     ...quotationId,
     ...orderId,
     ...deliveryId,
+    ...invoiceId,
     ...commandPaletteId,
   },
 } as const;
