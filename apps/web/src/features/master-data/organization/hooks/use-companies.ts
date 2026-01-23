@@ -7,6 +7,8 @@ import type {
   CreateCompanyData,
   UpdateCompanyData,
   ApproveCompanyData,
+  Company,
+  OrganizationListResponse,
 } from "../types";
 
 export const companyKeys = {

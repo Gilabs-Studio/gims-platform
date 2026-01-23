@@ -37,7 +37,7 @@ type UpdateSalesQuotationRequest struct {
 	OtherCost       *float64 `json:"other_cost" binding:"omitempty,gte=0"`
 	DiscountAmount  *float64 `json:"discount_amount" binding:"omitempty,gte=0"`
 	Notes           *string  `json:"notes"`
-	Items           []CreateSalesQuotationItemRequest `json:"items" binding:"omitempty,min=1,dive"`
+	Items           *[]CreateSalesQuotationItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
 // ListSalesQuotationsRequest represents the request to list sales quotations

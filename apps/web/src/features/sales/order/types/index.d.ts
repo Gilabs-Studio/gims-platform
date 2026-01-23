@@ -1,0 +1,183 @@
+// Sales Order types for Sprint 6
+
+export interface Area {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
+
+export interface SalesOrderItem {
+  id: string;
+  sales_order_id: string;
+  product_id: string;
+  product?: {
+    id: string;
+    code: string;
+    name: string;
+    selling_price: number;
+    image_url?: string;
+  };
+  quantity: number;
+  price: number;
+  discount: number;
+  subtotal: number;
+  reserved_quantity: number;
+  delivered_quantity: number;
+  installation_status?: string;
+  function_test_status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesOrder {
+  id: string;
+  code: string;
+  order_date: string;
+  sales_quotation_id?: string;
+  sales_quotation?: {
+    id: string;
+    code: string;
+    total_amount: number;
+  };
+  payment_terms_id?: string;
+  payment_terms?: {
+    id: string;
+    code: string;
+    name: string;
+    days: number;
+  };
+  sales_rep_id?: string;
+  sales_rep?: {
+    id: string;
+    employee_code: string;
+    name: string;
+  };
+  business_unit_id?: string;
+  business_unit?: {
+    id: string;
+    name: string;
+  };
+  business_type_id?: string;
+  business_type?: {
+    id: string;
+    name: string;
+  };
+  delivery_area_id?: string;
+  delivery_area?: Area;
+  subtotal: number;
+  discount_amount: number;
+  tax_rate: number;
+  tax_amount: number;
+  delivery_cost: number;
+  other_cost: number;
+  total_amount: number;
+  reserved_stock: boolean;
+  status: SalesOrderStatus;
+  notes?: string;
+  created_by?: string;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  cancelled_by?: string;
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  items?: SalesOrderItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+// List request params
+export interface ListSalesOrdersParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  status?: SalesOrderStatus;
+  date_from?: string;
+  date_to?: string;
+  sales_rep_id?: string;
+  business_unit_id?: string;
+  sales_quotation_id?: string;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+// API Response types
+export interface SalesOrderListResponse {
+  success: boolean;
+  data: SalesOrder[];
+  meta?: {
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+    filters?: Record<string, unknown>;
+  };
+  timestamp: string;
+  request_id: string;
+}
+
+export interface SalesOrderSingleResponse {
+  success: boolean;
+  data: SalesOrder;
+  meta?: {
+    created_by?: string;
+    updated_by?: string;
+  };
+  timestamp: string;
+  request_id: string;
+}
+
+// Form data types for create/update
+export interface CreateSalesOrderData {
+  order_date: string;
+  sales_quotation_id?: string;
+  payment_terms_id?: string;
+  sales_rep_id?: string;
+  business_unit_id?: string;
+  business_type_id?: string;
+  delivery_area_id?: string;
+  tax_rate?: number;
+  delivery_cost?: number;
+  other_cost?: number;
+  discount_amount?: number;
+  notes?: string;
+  items: CreateSalesOrderItemData[];
+}
+
+export interface CreateSalesOrderItemData {
+  product_id: string;
+  quantity: number;
+  price: number;
+  discount?: number;
+}
+
+export interface UpdateSalesOrderData {
+  order_date?: string;
+  payment_terms_id?: string;
+  sales_rep_id?: string;
+  business_unit_id?: string;
+  business_type_id?: string;
+  delivery_area_id?: string;
+  tax_rate?: number;
+  delivery_cost?: number;
+  other_cost?: number;
+  discount_amount?: number;
+  notes?: string;
+  items?: CreateSalesOrderItemData[];
+}
+
+export interface UpdateSalesOrderStatusData {
+  status: SalesOrderStatus;
+  cancellation_reason?: string;
+}
+
+export interface ConvertQuotationToOrderData {
+  sales_quotation_id: string;
+  order_date: string;
+  notes?: string;
+}

@@ -73,6 +73,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales Order seeder (Sprint 6)
+	if err := SeedSalesOrder(); err != nil {
+		return err
+	}
+
+	// Delivery Order seeder (Sprint 6)
+	if err := SeedDeliveryOrder(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

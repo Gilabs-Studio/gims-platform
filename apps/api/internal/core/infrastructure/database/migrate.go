@@ -96,6 +96,12 @@ func AutoMigrate() error {
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
+		// Sales Order entities (Sprint 6)
+		&sales.SalesOrder{},
+		&sales.SalesOrderItem{},
+		// Delivery Order entities (Sprint 6)
+		&sales.DeliveryOrder{},
+		&sales.DeliveryOrderItem{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

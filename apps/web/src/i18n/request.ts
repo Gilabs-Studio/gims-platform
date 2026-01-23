@@ -48,6 +48,10 @@ import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
 import { quotationEn } from "@/features/sales/quotation/i18n/en";
 import { quotationId } from "@/features/sales/quotation/i18n/id";
+import { orderEn } from "@/features/sales/order/i18n/en";
+import { orderId } from "@/features/sales/order/i18n/id";
+import { deliveryEn } from "@/features/sales/delivery/i18n/en";
+import { deliveryId } from "@/features/sales/delivery/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -74,6 +78,8 @@ const messages = {
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
     ...quotationEn,
+    ...orderEn,
+    ...deliveryEn,
   },
   id: {
     ...globalIdMessages,
@@ -98,6 +104,8 @@ const messages = {
     soSource: soSourceId,
     leaveType: leaveTypeId,
     ...quotationId,
+    ...orderId,
+    ...deliveryId,
   },
 } as const;
 

@@ -1,0 +1,143 @@
+export const deliveryEn = {
+  delivery: {
+    // Common
+    common: {
+      delivery: "Delivery Order",
+      deliveries: "Delivery Orders",
+      status: "Status",
+      code: "Code",
+      date: "Date",
+      actions: "Actions",
+      search: "Search...",
+      filterBy: "Filter by",
+      noResults: "No results found",
+      error: "Failed to load data",
+      loading: "Loading...",
+      save: "Save",
+      cancel: "Cancel",
+      delete: "Delete",
+      update: "Update",
+      create: "Create",
+      saving: "Saving...",
+      edit: "Edit",
+      view: "View",
+      related: "Related Information",
+      workflow: "Workflow Information",
+      confirmDelete: "Are you sure you want to delete this delivery order?",
+      deleteWarning: "This action cannot be undone.",
+      page: "Page",
+      of: "of",
+      total: "total",
+      previous: "Previous",
+      next: "Next",
+      select: "Select",
+      selectDate: "Select date",
+    },
+
+    // Tabs
+    tabs: {
+      general: "General",
+      items: "Items",
+      tracking: "Tracking",
+      history: "History",
+    },
+
+    // Status
+    status: {
+      draft: "Draft",
+      prepared: "Prepared",
+      shipped: "Shipped",
+      delivered: "Delivered",
+      cancelled: "Cancelled",
+    },
+
+    // Delivery Order
+    title: "Delivery Orders",
+    subtitle: "Manage delivery orders and track shipments",
+    code: "Delivery Code",
+    deliveryDate: "Delivery Date",
+    salesOrder: "Sales Order",
+    deliveredBy: "Delivered By",
+    courierAgency: "Courier Agency",
+    trackingNumber: "Tracking Number",
+    receiverName: "Receiver Name",
+    receiverPhone: "Receiver Phone",
+    deliveryAddress: "Delivery Address",
+    receiverSignature: "Receiver Signature",
+    isPartialDelivery: "Partial Delivery",
+    summary: "Summary",
+    notes: "Notes",
+    items: "Items",
+    addItem: "Add Item",
+    removeItem: "Remove Item",
+    search: "Search delivery orders...",
+    add: "Add Delivery Order",
+    edit: "Edit Delivery Order",
+    delete: "Delete Delivery Order",
+    notFound: "No delivery orders found",
+    noItems: "No items found",
+    unknownProduct: "No product selected",
+    created: "Delivery order created successfully",
+    updated: "Delivery order updated successfully",
+    deleted: "Delivery order deleted successfully",
+    statusUpdated: "Delivery order status updated successfully",
+    deleteDesc: "Are you sure you want to delete this delivery order? This action cannot be undone. Only draft delivery orders can be deleted.",
+    print: "Print",
+    export: "Export PDF",
+
+    // Item
+    item: {
+      product: "Product",
+      quantity: "Quantity",
+      batch: "Batch",
+      selectBatch: "Select Batch",
+      selectProduct: "Select Product",
+      searchProduct: "Search product...",
+      noProductSelected: "No product selected",
+      noBatchSelected: "No batch selected",
+      installationStatus: "Installation Status",
+      functionTestStatus: "Function Test Status",
+    },
+
+    // Actions
+    actions: {
+      ship: "Ship",
+      deliver: "Mark as Delivered",
+      selectBatches: "Select Batches",
+      captureSignature: "Capture Signature",
+    },
+
+    // Batch Selection
+    batchSelection: {
+      title: "Select Batches",
+      method: "Selection Method",
+      fifo: "FIFO (First In First Out)",
+      fefo: "FEFO (First Expired First Out)",
+      availableBatches: "Available Batches",
+      selectedQuantity: "Selected Quantity",
+      expiryDate: "Expiry Date",
+      quantity: "Quantity",
+      select: "Select",
+      cancel: "Cancel",
+      noBatchesAvailable: "No batches available for this product",
+    },
+
+    // Validation
+    validation: {
+      required: "This field is required",
+      invalidId: "Invalid ID",
+      quantityPositive: "Quantity must be greater than 0",
+      quantityMin: "Quantity must be at least 0.001",
+      itemsMin: "At least one item is required",
+      invalidStatus: "Invalid status",
+      invalidMethod: "Method must be FIFO or FEFO",
+    },
+    // Workflow timestamps
+    shippedAt: "Shipped At",
+    deliveredAt: "Delivered At",
+    cancelledAt: "Cancelled At",
+    cancellationReason: "Cancellation Reason",
+  },
+};
+
+export type DeliveryTranslations = typeof deliveryEn;
