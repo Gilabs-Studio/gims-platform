@@ -32,6 +32,7 @@ export const deliveryId = {
       total: "total",
       previous: "Sebelumnya",
       next: "Selanjutnya",
+      back: "Kembali",
       select: "Pilih",
       selectDate: "Pilih tanggal",
     },

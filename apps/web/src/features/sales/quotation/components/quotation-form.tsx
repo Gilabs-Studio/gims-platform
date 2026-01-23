@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import type { Resolver } from "react-hook-form";
+import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
@@ -13,7 +13,6 @@ import {
   type UpdateQuotationFormData,
 } from "../schemas/quotation.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -282,6 +281,32 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const handleFormSubmit = async (
     data: CreateQuotationFormData | UpdateQuotationFormData
   ) => {
+    // Check if we're on items tab but have errors in basic fields
+    if (activeTab === "items") {
+      const basicFields = [
+        "quotation_date",
+        "valid_until",
+        "payment_terms_id",
+        "sales_rep_id",
+        "business_unit_id",
+        "business_type_id",
+        "tax_rate",
+        "delivery_cost",
+        "other_cost",
+        "discount_amount",
+        "notes",
+      ];
+
+      // Trigger validation for basic fields first
+      const isBasicValid = await trigger(basicFields as (keyof CreateQuotationFormData | keyof UpdateQuotationFormData)[]);
+
+      if (!isBasicValid) {
+        setActiveTab("basic");
+        toast.error(t("common.validationError") || "Please fill all required fields in General tab");
+        return;
+      }
+    }
+
     try {
       // Filter out items with empty product_id
       const filteredItems = (data.items ?? []).filter((item) => item.product_id);
@@ -329,6 +354,34 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     onClose();
   };
 
+  const onInvalid = (errors: FieldErrors<CreateQuotationFormData | UpdateQuotationFormData>) => {
+    const basicFields = [
+      "quotation_date",
+      "valid_until",
+      "payment_terms_id",
+      "sales_rep_id",
+      "business_unit_id",
+      "business_type_id",
+      "tax_rate",
+      "delivery_cost",
+      "other_cost",
+      "discount_amount",
+      "notes",
+    ];
+
+    // Check if any basic field has an error
+    const basicError = basicFields.some((field) => 
+      errors[field as keyof CreateQuotationFormData | keyof UpdateQuotationFormData]
+    );
+
+    if (basicError) {
+      setActiveTab("basic");
+      setTimeout(() => {
+        toast.error(t("common.validationError") || "Please fill all required fields in General tab");
+      }, 100);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
@@ -345,15 +398,15 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         ) : (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic" disabled={activeTab === "items" && !isEdit}>
+            <TabsTrigger value="basic">
               {t("common.basicInfo") || "Basic Information"}
             </TabsTrigger>
-            <TabsTrigger value="items" disabled={activeTab === "basic"}>
+            <TabsTrigger value="items">
               {t("items")} & {t("summary")}
             </TabsTrigger>
           </TabsList>
 
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 mt-4">
+          <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
             <TabsContent value="basic" className="space-y-4 mt-0">
               {/* Basic Information Section */}
               <div className="space-y-4">

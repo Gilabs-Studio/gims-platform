@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import type { Resolver } from "react-hook-form";
+import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, Trash2, Package, CalendarIcon, FileText, ShoppingCart } from "lucide-react";
+import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart } from "lucide-react";
 import {
   getDeliveryOrderSchema,
   getUpdateDeliveryOrderSchema,
   type CreateDeliveryOrderFormData,
   type UpdateDeliveryOrderFormData,
 } from "../schemas/delivery.schema";
+
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -48,7 +49,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const t = useTranslations("delivery");
   const createDelivery = useCreateDeliveryOrder();
   const updateDelivery = useUpdateDeliveryOrder();
-  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 
   // Fetch full delivery data when editing
@@ -85,11 +85,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     return sortOptions(data, (item) => item.code ? `${item.code} - ${item.name}` : item.name);
   }, [warehousesData?.data]);
 
-  // Get selected sales order items
-  const selectedSalesOrder = useMemo(() => {
-    return salesOrders.find(so => so.id === selectedSalesOrderId || so.id === delivery?.sales_order_id);
-  }, [salesOrders, selectedSalesOrderId, delivery?.sales_order_id]);
-
   const schema = isEdit ? getUpdateDeliveryOrderSchema(t) : getDeliveryOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
 
@@ -99,7 +94,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     setValue,
     control,
     reset,
-    watch,
     trigger,
     formState: { errors },
   } = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
@@ -140,8 +134,17 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     name: "items",
   });
 
-  const watchedSalesOrderId = watch("sales_order_id");
-  const watchedItems = useWatch({ control, name: "items" });
+  const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+
+  // Derive selectedSalesOrderId from watched value
+  const selectedSalesOrderId = useMemo(() => {
+    return watchedSalesOrderId ?? delivery?.sales_order_id ?? "";
+  }, [watchedSalesOrderId, delivery?.sales_order_id]);
+
+  // Get selected sales order items
+  const selectedSalesOrder = useMemo(() => {
+    return salesOrders.find(so => so.id === selectedSalesOrderId);
+  }, [salesOrders, selectedSalesOrderId]);
 
   // Reset form when delivery data changes
   useEffect(() => {
@@ -171,7 +174,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               function_test_status: item.function_test_status ?? "",
             })) ?? [],
         });
-        setSelectedSalesOrderId(deliveryData.sales_order_id);
       }, 10);
       return;
     }
@@ -183,7 +185,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       sales_order_id: "",
       items: [],
     });
-    setSelectedSalesOrderId("");
   }, [open, isEdit, fullDeliveryData, reset]);
 
   // Auto-populate items when sales order is selected
@@ -202,7 +203,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       }));
       setValue("items", items);
     }
-    setSelectedSalesOrderId(watchedSalesOrderId);
   }, [watchedSalesOrderId, salesOrders, isEdit, setValue]);
 
   const handleNext = async () => {
@@ -219,7 +219,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       "notes",
     ];
 
-    const isValid = await trigger(basicFields as any);
+    const isValid = await trigger(basicFields as (keyof CreateDeliveryOrderFormData | keyof UpdateDeliveryOrderFormData)[]);
 
     if (isValid) {
       setActiveTab("items");
@@ -255,6 +255,31 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const handleFormSubmit = async (
     data: CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData
   ) => {
+    // Check if we're on items tab but have errors in basic fields
+    if (activeTab === "items") {
+      const basicFields = [
+        "delivery_date",
+        "warehouse_id",
+        "sales_order_id",
+        "delivered_by_id",
+        "courier_agency_id",
+        "tracking_number",
+        "receiver_name",
+        "receiver_phone",
+        "delivery_address",
+        "notes",
+      ];
+
+      // Trigger validation for basic fields first
+      const isBasicValid = await trigger(basicFields as (keyof CreateDeliveryOrderFormData | keyof UpdateDeliveryOrderFormData)[]);
+
+      if (!isBasicValid) {
+        setActiveTab("basic");
+        toast.error(t("validation.required") || "Please fill all required fields in General tab");
+        return;
+      }
+    }
+
     try {
       const filteredItems = (data.items ?? []).filter((item) => item.product_id);
       
@@ -290,11 +315,38 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   };
 
   const isLoading = createDelivery.isPending || updateDelivery.isPending;
-  const isFormLoading = isEdit && isLoadingDelivery && !(fullDeliveryData as any)?.data;
+  const isFormLoading = isEdit && isLoadingDelivery && !fullDeliveryData;
 
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
+    }
+  };
+
+  const onInvalid = (errors: FieldErrors<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>) => {
+    const basicFields = [
+      "delivery_date",
+      "warehouse_id",
+      "sales_order_id",
+      "delivered_by_id",
+      "courier_agency_id",
+      "tracking_number",
+      "receiver_name",
+      "receiver_phone",
+      "delivery_address",
+      "notes",
+    ];
+
+    // Check if any basic field has an error
+    const basicError = basicFields.some((field) => 
+      errors[field as keyof CreateDeliveryOrderFormData | keyof UpdateDeliveryOrderFormData]
+    );
+
+    if (basicError) {
+      setActiveTab("basic");
+      setTimeout(() => {
+          toast.error(t("validation.required") || "Please fill all required fields in General tab");
+      }, 100);
     }
   };
 
@@ -314,15 +366,15 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
         ) : (
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic" disabled={activeTab === "items" && !isEdit}>
+              <TabsTrigger value="basic">
                 {t("tabs.general") || "General"}
               </TabsTrigger>
-              <TabsTrigger value="items" disabled={activeTab === "basic"}>
+              <TabsTrigger value="items">
                 {t("items") || "Items"}
               </TabsTrigger>
             </TabsList>
 
-            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 mt-4">
+            <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
               <TabsContent value="basic" className="space-y-4 mt-0">
                 {/* Basic Information */}
                 <div className="space-y-4">
@@ -407,7 +459,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                             value={field.value}
                             onValueChange={(value) => {
                               field.onChange(value);
-                              setSelectedSalesOrderId(value);
                             }}
                             disabled={isEdit}
                           >
@@ -540,53 +591,36 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               </TabsContent>
 
               <TabsContent value="items" className="space-y-4 mt-0">
-                {/* Items Section */}
+                {/* Items Section - Single Column Layout */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                    <div className="flex items-center space-x-2">
-                      <ShoppingCart className="h-4 w-4 text-primary" />
-                      <h3 className="text-sm font-medium">{t("items")}</h3>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddItem}
-                      className="cursor-pointer"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("addItem")}
-                    </Button>
+                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                    <ShoppingCart className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium">{t("items")} ({fields.length})</h3>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
                     {fields.map((field, index) => {
-                      const item = (watchedItems as any)?.[index];
-                      // Find product if sales order selected (optional check)
-                      const product = selectedSalesOrder?.items?.find(
-                        soi => soi.product_id === item?.product_id
-                      )?.product;
-
                       return (
-                        <div key={field.id} className="p-4 border rounded-lg space-y-4">
-                          <div className="flex items-start justify-between">
-                            <h4 className="text-sm font-medium">
-                              {t("item.product")} {index + 1}
-                            </h4>
+                        <div
+                          key={field.id}
+                          className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="absolute top-2 right-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
                             {fields.length > 1 && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => remove(index)}
-                                className="cursor-pointer text-destructive"
+                                className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3 mt-6">
                             <Field orientation="vertical" className="col-span-2">
                               <FieldLabel>{t("item.product")} *</FieldLabel>
                               <Controller
@@ -596,7 +630,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                                   <Select
                                     value={field.value}
                                     onValueChange={field.onChange}
-                                    disabled={!!selectedSalesOrderId && !isEdit}
+                                    disabled={!!selectedSalesOrder && !isEdit}
                                   >
                                     <SelectTrigger>
                                       <SelectValue placeholder={t("item.selectProduct")} />
@@ -662,29 +696,57 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                         </div>
                       );
                     })}
+                    {errors.items && typeof errors.items === "object" && "message" in errors.items && (
+                      <FieldError>{errors.items.message}</FieldError>
+                    )}
+
+                    {/* Add Item Button - Positioned below last item */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddItem}
+                      className="w-full cursor-pointer border-dashed"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {t("addItem")}
+                    </Button>
                   </div>
                 </div>
 
-                {/* Form Actions for Items Tab */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                {/* Tab Navigation Buttons for Items Tab */}
+                <div className="flex items-center justify-between gap-2 pt-4 border-t">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={onClose}
+                    onClick={() => setActiveTab("basic")}
                     className="cursor-pointer"
                   >
-                    {t("common.cancel")}
+                    {t("common.back") || "Back"}
                   </Button>
-                  <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {t("common.saving")}
-                      </>
-                    ) : (
-                      t("common.save")
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      disabled={isLoading}
+                      className="cursor-pointer"
+                    >
+                      {t("common.cancel")}
+                    </Button>
+                    <Button type="submit" disabled={isLoading} className="cursor-pointer">
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t("common.saving")}
+                        </>
+                      ) : isEdit ? (
+                        t("common.update")
+                      ) : (
+                        t("common.create")
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
             </form>

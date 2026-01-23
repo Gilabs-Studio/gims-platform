@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import type { Resolver } from "react-hook-form";
+import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
@@ -12,9 +12,7 @@ import {
   type CreateOrderFormData,
   type UpdateOrderFormData,
 } from "../schemas/order.schema";
-import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -172,9 +170,6 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const { data: quotationData } = useQuotation(watchedQuotationId ?? "", {
     enabled: !!watchedQuotationId, // Allow fetching even in edit mode for display
   });
-  
-  const selectedQuotationDetails = quotationData?.data;
-  const salesQuotationId = watchedQuotationId;
 
   // Fetch quotation items when selected
   const { data: quotationItemsData } = useQuotationItems(watchedQuotationId ?? "", {
@@ -355,7 +350,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
       "notes",
     ];
 
-    const isValid = await trigger(basicFields as any);
+    const isValid = await trigger(basicFields as (keyof CreateOrderFormData | keyof UpdateOrderFormData)[]);
 
     if (isValid) {
       const formData = getValues();
@@ -396,6 +391,33 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const handleFormSubmit = async (
     data: CreateOrderFormData | UpdateOrderFormData
   ) => {
+    // Check if we're on items tab but have errors in basic fields
+    if (activeTab === "items") {
+      const basicFields = [
+        "order_date",
+        "sales_quotation_id",
+        "payment_terms_id",
+        "sales_rep_id",
+        "business_unit_id",
+        "business_type_id",
+        "delivery_area_id",
+        "tax_rate",
+        "delivery_cost",
+        "other_cost",
+        "discount_amount",
+        "notes",
+      ];
+
+      // Trigger validation for basic fields first
+      const isBasicValid = await trigger(basicFields as (keyof CreateOrderFormData | keyof UpdateOrderFormData)[]);
+
+      if (!isBasicValid) {
+        setActiveTab("basic");
+        toast.error(t("validation.required") || "Please fill all required fields in General tab");
+        return;
+      }
+    }
+
     try {
       const filteredItems = (data.items ?? []).filter((item) => item.product_id);
       
@@ -447,6 +469,35 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     onClose();
   };
 
+  const onInvalid = (errors: FieldErrors<CreateOrderFormData | UpdateOrderFormData>) => {
+    const basicFields = [
+      "order_date",
+      "sales_quotation_id",
+      "payment_terms_id",
+      "sales_rep_id",
+      "business_unit_id",
+      "business_type_id",
+      "delivery_area_id",
+      "tax_rate",
+      "delivery_cost",
+      "other_cost",
+      "discount_amount",
+      "notes",
+    ];
+
+    // Check if any basic field has an error
+    const basicError = basicFields.some((field) => 
+      errors[field as keyof CreateOrderFormData | keyof UpdateOrderFormData]
+    );
+
+    if (basicError) {
+      setActiveTab("basic");
+      setTimeout(() => {
+        toast.error(t("validation.required") || "Please fill all required fields in General tab");
+      }, 100);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
@@ -463,15 +514,15 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         ) : (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic" disabled={activeTab === "items" && !isEdit}>
+            <TabsTrigger value="basic">
               {t("tabs.general")}
             </TabsTrigger>
-            <TabsTrigger value="items" disabled={activeTab === "basic"}>
+            <TabsTrigger value="items">
               {t("items")} & {t("summary")}
             </TabsTrigger>
           </TabsList>
 
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 mt-4">
+          <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
             <TabsContent value="basic" className="space-y-4 mt-0">
               {/* Basic Information Section */}
               <div className="space-y-4">
@@ -785,212 +836,207 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
             </TabsContent>
 
             <TabsContent value="items" className="space-y-4 mt-0">
-              {/* Items Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                  <div className="flex items-center space-x-2">
+              {/* Items and Summary Grid Layout */}
+              <div className="grid grid-cols-3 gap-6">
+                {/* Items Section - Left Column (2 cols) */}
+                <div className="col-span-2 space-y-4">
+                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
                     <ShoppingCart className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">{t("items")}</h3>
+                    <h3 className="text-sm font-medium">{t("items")} ({fields.length})</h3>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddItem}
-                    className="cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("addItem")}
-                  </Button>
+
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {fields.map((field, index) => {
+                      const item = watchedItems?.[index];
+                      const itemSubtotal = item?.product_id && item?.quantity && item?.price
+                        ? (item.price * item.quantity) - (item.discount ?? 0)
+                        : 0;
+
+                      return (
+                        <div
+                          key={field.id}
+                          className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="absolute top-2 right-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
+                            {fields.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mt-6">
+                            <Field orientation="vertical" className="col-span-2">
+                              <FieldLabel>{t("item.product")} *</FieldLabel>
+                              <Controller
+                                name={`items.${index}.product_id`}
+                                control={control}
+                                render={({ field }) => (
+                                  <Select
+                                    value={field.value}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      handleProductChange(index, value);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("item.selectProduct")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {products.map((prod) => (
+                                        <SelectItem key={prod.id} value={prod.id}>
+                                          {prod.code} - {prod.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                              {errors.items?.[index]?.product_id && (
+                                <FieldError>
+                                  {errors.items[index]?.product_id?.message}
+                                </FieldError>
+                              )}
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("item.quantity")} *</FieldLabel>
+                              <Controller
+                                name={`items.${index}.quantity`}
+                                control={control}
+                                render={({ field }) => (
+                                  <NumericInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    min={0.001}
+                                  />
+                                )}
+                              />
+                              {errors.items?.[index]?.quantity && (
+                                <FieldError>
+                                  {errors.items[index]?.quantity?.message}
+                                </FieldError>
+                              )}
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("item.price")} *</FieldLabel>
+                              <Controller
+                                name={`items.${index}.price`}
+                                control={control}
+                                render={({ field }) => (
+                                  <NumericInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    min={0.01}
+                                  />
+                                )}
+                              />
+                              {errors.items?.[index]?.price && (
+                                <FieldError>
+                                  {errors.items[index]?.price?.message}
+                                </FieldError>
+                              )}
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("item.discount")}</FieldLabel>
+                              <Controller
+                                name={`items.${index}.discount`}
+                                control={control}
+                                render={({ field }) => (
+                                  <NumericInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    min={0}
+                                  />
+                                )}
+                              />
+                              {errors.items?.[index]?.discount && (
+                                <FieldError>
+                                  {errors.items[index]?.discount?.message}
+                                </FieldError>
+                              )}
+                            </Field>
+
+                            <div className="col-span-2 pt-2 border-t border-border/50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">{t("item.subtotal")}:</span>
+                                <span className="text-base font-bold text-primary">{formatCurrency(itemSubtotal)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {errors.items && typeof errors.items === "object" && "message" in errors.items && (
+                      <FieldError>{errors.items.message}</FieldError>
+                    )}
+
+                    {/* Add Item Button - Positioned below last item */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddItem}
+                      className="w-full cursor-pointer border-dashed"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {t("addItem")}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  {fields.map((field, index) => {
-                    const item = watchedItems?.[index];
-                    const product = products.find((p) => p.id === item?.product_id);
-                    const itemSubtotal = item?.product_id && item?.quantity && item?.price
-                      ? (item.price * item.quantity) - (item.discount ?? 0)
-                      : 0;
+                {/* Totals Summary - Right Column */}
+                <div className="col-span-1">
+                  <div className="sticky space-y-4">
+                    <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-medium">{t("summary")}</h3>
+                    </div>
 
-                    return (
-                      <div key={field.id} className="p-4 border rounded-lg space-y-4">
-                        <div className="flex items-start justify-between">
-                          <h4 className="text-sm font-medium">
-                            {t("item.product")} {index + 1}
-                          </h4>
-                          {fields.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(index)}
-                              className="cursor-pointer text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <Field orientation="vertical" className="col-span-2">
-                            <FieldLabel>{t("item.product")} *</FieldLabel>
-                            <Controller
-                              name={`items.${index}.product_id`}
-                              control={control}
-                              render={({ field }) => (
-                                <Select
-                                  value={field.value}
-                                  onValueChange={(value) => {
-                                    field.onChange(value);
-                                    handleProductChange(index, value);
-                                  }}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={t("item.selectProduct")} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {products.map((prod) => (
-                                      <SelectItem key={prod.id} value={prod.id}>
-                                        {prod.code} - {prod.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            {errors.items?.[index]?.product_id && (
-                              <FieldError>
-                                {errors.items[index]?.product_id?.message}
-                              </FieldError>
-                            )}
-                          </Field>
-
-                          <Field orientation="vertical">
-                            <FieldLabel>{t("item.quantity")} *</FieldLabel>
-                            <Controller
-                              name={`items.${index}.quantity`}
-                              control={control}
-                              render={({ field }) => (
-                                <NumericInput
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  min={0.001}
-                                />
-                              )}
-                            />
-                            {errors.items?.[index]?.quantity && (
-                              <FieldError>
-                                {errors.items[index]?.quantity?.message}
-                              </FieldError>
-                            )}
-                          </Field>
-
-                          <Field orientation="vertical">
-                            <FieldLabel>{t("item.price")} *</FieldLabel>
-                            <Controller
-                              name={`items.${index}.price`}
-                              control={control}
-                              render={({ field }) => (
-                                <NumericInput
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  min={0.01}
-                                />
-                              )}
-                            />
-                            {errors.items?.[index]?.price && (
-                              <FieldError>
-                                {errors.items[index]?.price?.message}
-                              </FieldError>
-                            )}
-                          </Field>
-
-                          <Field orientation="vertical">
-                            <FieldLabel>{t("item.discount")}</FieldLabel>
-                            <Controller
-                              name={`items.${index}.discount`}
-                              control={control}
-                              render={({ field }) => (
-                                <NumericInput
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  min={0}
-                                />
-                              )}
-                            />
-                            {errors.items?.[index]?.discount && (
-                              <FieldError>
-                                {errors.items[index]?.discount?.message}
-                              </FieldError>
-                            )}
-                          </Field>
-
-                          <Field orientation="vertical">
-                            <FieldLabel>{t("item.subtotal")}</FieldLabel>
-                            <Input
-                              type="text"
-                              value={formatCurrency(itemSubtotal)}
-                              disabled
-                              className="bg-muted"
-                            />
-                          </Field>
-                        </div>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("subtotal")}:</span>
+                        <span className="font-medium ml-auto">{formatCurrency(calculations.subtotal)}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Summary Section */}
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                  <DollarSign className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-medium">{t("summary")}</h3>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t("subtotal")}:</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(calculations.subtotal)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t("discountAmount")}:</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(discountAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">
-                      {t("taxRate")} ({taxRate}%):
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(calculations.taxAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t("deliveryCost")}:</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(deliveryCost)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t("otherCost")}:</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(otherCost)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-border">
-                    <span className="text-base font-semibold">{t("totalAmount")}:</span>
-                    <span className="text-base font-semibold">
-                      {formatCurrency(calculations.total)}
-                    </span>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">
+                          {t("taxAmount")} ({taxRate}%):
+                        </span>
+                        <span className="font-medium ml-auto">{formatCurrency(calculations.taxAmount)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("discountAmount")}:</span>
+                        <span className="font-medium text-destructive ml-auto">-{formatCurrency(discountAmount)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("deliveryCost")}:</span>
+                        <span className="font-medium ml-auto">{formatCurrency(deliveryCost)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("otherCost")}:</span>
+                        <span className="font-medium ml-auto">{formatCurrency(otherCost)}</span>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
+                        <span className="text-lg font-bold">{t("totalAmount")}:</span>
+                        <span className="text-lg font-bold text-primary ml-auto">{formatCurrency(calculations.total)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Form Actions */}
-              <div className="flex items-center justify-end gap-2 pt-4 border-t">
+              {/* Tab Navigation Buttons for Items Tab */}
+              <div className="flex items-center justify-between gap-2 pt-4 border-t">
                 <Button
                   type="button"
                   variant="outline"
