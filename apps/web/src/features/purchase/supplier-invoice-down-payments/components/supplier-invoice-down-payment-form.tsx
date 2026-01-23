@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, FileText, DollarSign } from "lucide-react";
+import { ButtonLoading } from "@/components/loading";
 import {
   createSupplierInvoiceDownPaymentSchema,
   updateSupplierInvoiceDownPaymentSchema,
@@ -206,17 +207,10 @@ export function SupplierInvoiceDownPaymentForm({
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           {t("cancel")}
         </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {t("submitting")}
-            </>
-          ) : isEdit ? (
-            t("submitUpdate")
-          ) : (
-            t("submitCreate")
-          )}
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
+          <ButtonLoading loading={isLoading} loadingText={t("submitting")}>
+            {isEdit ? t("submitUpdate") : t("submitCreate")}
+          </ButtonLoading>
         </Button>
       </div>
     </form>

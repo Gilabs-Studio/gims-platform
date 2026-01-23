@@ -14,6 +14,7 @@ import { Division } from "../../types";
 import { useCreateDivision, useUpdateDivision } from "../../hooks/use-divisions";
 import { DivisionFormData } from "../../schemas/organization.schema";
 import { getDivisionSchema } from "../../schemas/organization.schema";
+import { ButtonLoading } from "@/components/loading";
 
 interface DivisionFormProps {
   open: boolean;
@@ -126,11 +127,9 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading
-                ? "Saving..."
-                : isEditing
-                  ? t("common.save")
-                  : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

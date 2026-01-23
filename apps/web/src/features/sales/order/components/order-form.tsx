@@ -38,6 +38,7 @@ import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import type { SalesOrder } from "../types";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { ButtonLoading } from "@/components/loading";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
 
 const STORAGE_KEY = "order_form_cache";
@@ -54,6 +55,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+  const [isValidating, setIsValidating] = useState(false);
 
   // Fetch full order data with items when editing
   const { data: fullOrderData, isLoading: isLoadingOrder, isFetching: isFetchingOrder } = useOrder(
@@ -335,56 +337,60 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   };
 
   const handleNext = async () => {
-    const basicFields = [
-      "order_date",
-      "sales_quotation_id",
-      "payment_terms_id",
-      "sales_rep_id",
-      "business_unit_id",
-      "business_type_id",
-      "delivery_area_id",
-      "tax_rate",
-      "delivery_cost",
-      "other_cost",
-      "discount_amount",
-      "notes",
-    ];
+    setIsValidating(true);
+    try {
+      const basicFields = [
+        "order_date",
+        "sales_quotation_id",
+        "payment_terms_id",
+        "sales_rep_id",
+        "business_unit_id",
+        "business_type_id",
+        "delivery_area_id",
+        "tax_rate",
+        "delivery_cost",
+        "other_cost",
+        "discount_amount",
+        "notes",
+      ];
 
-    const isValid = await trigger(basicFields as (keyof CreateOrderFormData | keyof UpdateOrderFormData)[]);
+      const isValid = await trigger(basicFields as (keyof CreateOrderFormData | keyof UpdateOrderFormData)[]);
 
-    if (isValid) {
-      const formData = getValues();
-      saveToLocalStorage(formData);
-      setActiveTab("items");
-    } else {
-      // Diagnostic field mapping for clearer error messages
-      const fieldMapping: Record<string, string> = {
-        order_date: t("orderDate"),
-        sales_quotation_id: t("salesQuotation"),
-        payment_terms_id: t("paymentTerms"),
-        sales_rep_id: t("salesRep"),
-        business_unit_id: t("businessUnit"),
-        business_type_id: t("businessType"),
-        delivery_area_id: t("deliveryArea"),
-        tax_rate: t("taxRate"),
-        delivery_cost: t("deliveryCost"),
-        other_cost: t("otherCost"),
-        discount_amount: t("discountAmount"),
-        notes: t("notes"),
-      };
+      if (isValid) {
+        const formData = getValues();
+        saveToLocalStorage(formData);
+        setActiveTab("items");
+      } else {
+        // Diagnostic field mapping for clearer error messages
+        const fieldMapping: Record<string, string> = {
+          order_date: t("orderDate"),
+          sales_quotation_id: t("salesQuotation"),
+          payment_terms_id: t("paymentTerms"),
+          sales_rep_id: t("salesRep"),
+          business_unit_id: t("businessUnit"),
+          business_type_id: t("businessType"),
+          delivery_area_id: t("deliveryArea"),
+          tax_rate: t("taxRate"),
+          delivery_cost: t("deliveryCost"),
+          other_cost: t("otherCost"),
+          discount_amount: t("discountAmount"),
+          notes: t("notes"),
+        };
 
-      // Find which fields are actually failing to help debugging
-      const currentErrors = control._formState.errors;
-      const failingFields = basicFields
-        .filter(field => currentErrors[field as keyof typeof currentErrors])
-        .map(field => fieldMapping[field] || field);
-      
-      const errorMessage = failingFields.length > 0 
-        ? `${t("validation.required")}: ${failingFields.join(", ")}`
-        : t("validation.required") || "Please fill all required fields";
+        // Find which fields are actually failing to help debugging
+        const currentErrors = control._formState.errors;
+        const failingFields = basicFields
+          .filter(field => currentErrors[field as keyof typeof currentErrors])
+          .map(field => fieldMapping[field] || field);
+        
+        const errorMessage = failingFields.length > 0 
+          ? `${t("validation.required")}: ${failingFields.join(", ")}`
+          : t("validation.required") || "Please fill all required fields";
 
-      toast.error(errorMessage);
-
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -829,8 +835,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               type="button"
               onClick={handleNext}
               className="cursor-pointer"
+              disabled={isValidating}
             >
-              {t("common.next") || "Next"}
+              <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
+                {t("common.next") || "Next"}
+              </ButtonLoading>
             </Button>
           </div>
             </TabsContent>
@@ -1054,14 +1063,9 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {t("common.saving")}
-                    </>
-                  ) : (
-                    t("common.save")
-                  )}
+                  <ButtonLoading loading={isLoading} loadingText={t("common.saving")}>
+                    {t("common.save")}
+                  </ButtonLoading>
                 </Button>
               </div>
             </TabsContent>

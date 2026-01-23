@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { toast } from "sonner";
+import { ButtonLoading } from "@/components/loading";
 import { useCreateSOSource, useUpdateSOSource } from "../hooks/use-so-source";
 import type { SOSource } from "../types";
 
@@ -65,7 +66,16 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
             <div className="space-y-0.5"><FieldLabel>{t("form.isActive")}</FieldLabel><p className="text-sm text-muted-foreground">{isActive ? tCommon("active") : tCommon("inactive")} status</p></div>
             <Switch checked={isActive} onCheckedChange={(val) => setValue("is_active", val)} className="cursor-pointer" />
           </Field>
-          <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">{tCommon("cancel")}</Button><Button type="submit" disabled={isLoading} className="cursor-pointer">{isLoading ? tCommon("saving") : tCommon("save")}</Button></DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
+              {tCommon("cancel")}
+            </Button>
+            <Button type="submit" disabled={isLoading} className="cursor-pointer">
+              <ButtonLoading loading={isLoading} loadingText={tCommon("saving")}>
+                {tCommon("save")}
+              </ButtonLoading>
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

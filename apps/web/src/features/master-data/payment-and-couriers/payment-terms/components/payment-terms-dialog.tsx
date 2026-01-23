@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { toast } from "sonner";
+import { ButtonLoading } from "@/components/loading";
 import { useCreatePaymentTerms, useUpdatePaymentTerms } from "../hooks/use-payment-terms";
 import type { PaymentTerms } from "../types";
 
@@ -167,7 +168,9 @@ export function PaymentTermsDialog({
               {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading ? tCommon("saving") : tCommon("save")}
+              <ButtonLoading loading={isLoading} loadingText={tCommon("saving")}>
+                {tCommon("save")}
+              </ButtonLoading>
             </Button>
           </DialogFooter>
         </form>

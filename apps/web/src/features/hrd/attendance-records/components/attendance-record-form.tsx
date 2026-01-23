@@ -22,6 +22,7 @@ import { useAttendanceRecordReport } from "../hooks/use-attendance-records";
 import type { CalendarEvent } from "../types";
 import { format } from "date-fns";
 import { sortOptions } from "@/lib/utils";
+import { ButtonLoading } from "@/components/loading";
 
 interface AttendanceRecordFormProps {
   readonly event?: CalendarEvent;
@@ -249,16 +250,9 @@ export function AttendanceRecordForm({
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Submitting...
-            </>
-          ) : isEdit ? (
-            "Update Record"
-          ) : (
-            "Create Record"
-          )}
+          <ButtonLoading loading={isLoading} loadingText="Submitting...">
+            {isEdit ? "Update Record" : "Create Record"}
+          </ButtonLoading>
         </Button>
       </div>
     </form>

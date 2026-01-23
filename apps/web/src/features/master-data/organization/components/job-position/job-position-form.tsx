@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCreateJobPosition, useUpdateJobPosition } from "../../hooks/use-job-positions";
 import { JobPositionFormData, getJobPositionSchema } from "../../schemas/organization.schema";
+import { ButtonLoading } from "@/components/loading";
 import { JobPosition } from "../../types";
 
 interface JobPositionFormProps {
@@ -125,11 +126,9 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading
-                ? "Saving..."
-                : isEditing
-                  ? t("common.save")
-                  : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

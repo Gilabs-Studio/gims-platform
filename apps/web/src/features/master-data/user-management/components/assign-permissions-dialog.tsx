@@ -14,6 +14,7 @@ import { cn, sortOptions } from "@/lib/utils";
 import { CheckSquare, Square } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
+import { ButtonLoading } from "@/components/loading";
 import type { Permission } from "../types";
 
 interface AssignPermissionsDrawerProps {
@@ -268,7 +269,7 @@ function PermissionsSelector({
               variant="ghost"
               size="sm"
               onClick={handleUnselectAll}
-              className="text-xs h-7"
+              className="text-xs h-7 cursor-pointer"
             >
               Unselect all
             </Button>
@@ -276,7 +277,7 @@ function PermissionsSelector({
               variant="ghost"
               size="sm"
               onClick={handleSelectAll}
-              className="text-xs h-7"
+              className="text-xs h-7 cursor-pointer"
             >
               Select all
             </Button>
@@ -309,6 +310,7 @@ function PermissionsSelector({
                               const ids = new Set(groupPermissions.map((p) => p.id));
                               setSelectedPermissions((prev) => prev.filter((id) => !ids.has(id)));
                             }}
+                            className="cursor-pointer"
                           >
                             <Square className="size-4 text-muted-foreground" />
                           </Button>
@@ -329,6 +331,7 @@ function PermissionsSelector({
                                 return [...without, ...ids];
                               });
                             }}
+                            className="cursor-pointer"
                           >
                             <CheckSquare className="size-4 text-primary" />
                           </Button>
@@ -380,11 +383,13 @@ function PermissionsSelector({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-background">
-          <Button variant="outline" onClick={onClose} disabled={assignPermissions.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={assignPermissions.isPending} className="cursor-pointer">
             {t("cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={assignPermissions.isPending}>
-            {assignPermissions.isPending ? (t("saving") || "Saving...") : (t("save") || "Save")}
+          <Button onClick={handleSubmit} disabled={assignPermissions.isPending} className="cursor-pointer">
+            <ButtonLoading loading={assignPermissions.isPending} loadingText={t("saving") || "Saving..."}>
+              {t("save") || "Save"}
+            </ButtonLoading>
           </Button>
         </div>
       </div>

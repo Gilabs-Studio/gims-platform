@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
+import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 import {
   Select,
@@ -614,8 +614,9 @@ export function ProductDialog({
               {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? tCommon("save") : t("create")}
+              <ButtonLoading loading={isSubmitting} loadingText="Saving...">
+                {isEditing ? tCommon("save") : t("create")}
+              </ButtonLoading>
             </Button>
           </DialogFooter>
         </form>

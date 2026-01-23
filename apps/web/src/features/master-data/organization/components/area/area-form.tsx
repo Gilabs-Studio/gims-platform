@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCreateArea, useUpdateArea } from "../../hooks/use-areas";
 import { AreaFormData, getAreaSchema } from "../../schemas/organization.schema";
+import { ButtonLoading } from "@/components/loading";
 import { Area } from "../../types";
 
 interface AreaFormProps {
@@ -125,11 +126,9 @@ export function AreaForm({ open, onClose, area }: AreaFormProps) {
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading
-                ? "Saving..."
-                : isEditing
-                  ? t("common.save")
-                  : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

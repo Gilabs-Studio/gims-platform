@@ -36,6 +36,7 @@ import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import type { SalesQuotation } from "../types";
 import { toast } from "sonner";
+import { ButtonLoading } from "@/components/loading";
 import { formatCurrency } from "@/lib/utils";
 
 const STORAGE_KEY = "quotation_form_cache";
@@ -52,6 +53,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+  const [isValidating, setIsValidating] = useState(false);
 
   // Fetch full quotation data with items when editing
   const { data: fullQuotationData, isLoading: isLoadingQuotation, isFetching: isFetchingQuotation } = useQuotation(
@@ -249,32 +251,37 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   };
 
   const handleNext = async () => {
-    const basicFields = [
-      "quotation_date",
-      "valid_until",
-      "payment_terms_id",
-      "sales_rep_id",
-      "business_unit_id",
-      "business_type_id",
-      "tax_rate",
-      "delivery_cost",
-      "other_cost",
-      "discount_amount",
-      "notes",
-    ];
+    setIsValidating(true);
+    try {
+      const basicFields = [
+        "quotation_date",
+        "valid_until",
+        "payment_terms_id",
+        "sales_rep_id",
+        "business_unit_id",
+        "business_type_id",
+        "tax_rate",
+        "delivery_cost",
+        "other_cost",
+        "discount_amount",
+        "notes",
+      ];
 
-    const isValid = await Promise.all(
-      basicFields.map((field) =>
-        trigger(field as keyof (CreateQuotationFormData | UpdateQuotationFormData))
-      )
-    ).then((results) => results.every((result) => result));
+      const isValid = await Promise.all(
+        basicFields.map((field) =>
+          trigger(field as keyof (CreateQuotationFormData | UpdateQuotationFormData))
+        )
+      ).then((results) => results.every((result) => result));
 
-    if (isValid) {
-      const formData = getValues();
-      saveToLocalStorage(formData);
-      setActiveTab("items");
-    } else {
-      toast.error(t("common.validationError") || "Please fill all required fields");
+      if (isValid) {
+        const formData = getValues();
+        saveToLocalStorage(formData);
+        setActiveTab("items");
+      } else {
+        toast.error(t("common.validationError") || "Please fill all required fields");
+      }
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -693,8 +700,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
               type="button"
               onClick={handleNext}
               className="cursor-pointer"
+              disabled={isValidating}
             >
-              {t("common.next") || "Next"}
+              <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
+                {t("common.next") || "Next"}
+              </ButtonLoading>
             </Button>
           </div>
         </TabsContent>
@@ -920,16 +930,12 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {t("common.saving")}
-                  </>
-                ) : isEdit ? (
-                  t("common.update")
-                ) : (
-                  t("common.create")
-                )}
+                <ButtonLoading 
+                  loading={isLoading} 
+                  loadingText={t("common.saving")}
+                >
+                  {isEdit ? t("common.update") : t("common.create")}
+                </ButtonLoading>
               </Button>
             </div>
           </div>

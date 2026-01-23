@@ -18,6 +18,7 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 
 import { useCreateWarehouse, useUpdateWarehouse } from "../../hooks/use-warehouses";
@@ -207,20 +208,14 @@ export function WarehouseDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="cursor-pointer"
+              disabled={isLoading}
             >
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : isEditing ? (
-                t("common.save")
-              ) : (
-                t("common.create")
-              )}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </DialogFooter>
         </form>

@@ -13,6 +13,7 @@ import {
   type UpdateDeliveryOrderFormData,
 } from "../schemas/delivery.schema";
 
+import { ButtonLoading } from "@/components/loading";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -50,6 +51,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const createDelivery = useCreateDeliveryOrder();
   const updateDelivery = useUpdateDeliveryOrder();
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+  const [isValidating, setIsValidating] = useState(false);
 
   // Fetch full delivery data when editing
   const { data: fullDeliveryData, isLoading: isLoadingDelivery } = useDeliveryOrder(
@@ -206,49 +208,54 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   }, [watchedSalesOrderId, salesOrders, isEdit, setValue]);
 
   const handleNext = async () => {
-    const basicFields = [
-      "delivery_date",
-      "warehouse_id",
-      "sales_order_id",
-      "delivered_by_id",
-      "courier_agency_id",
-      "tracking_number",
-      "receiver_name",
-      "receiver_phone",
-      "delivery_address",
-      "notes",
-    ];
+    setIsValidating(true);
+    try {
+      const basicFields = [
+        "delivery_date",
+        "warehouse_id",
+        "sales_order_id",
+        "delivered_by_id",
+        "courier_agency_id",
+        "tracking_number",
+        "receiver_name",
+        "receiver_phone",
+        "delivery_address",
+        "notes",
+      ];
 
-    const isValid = await trigger(basicFields as (keyof CreateDeliveryOrderFormData | keyof UpdateDeliveryOrderFormData)[]);
+      const isValid = await trigger(basicFields as (keyof CreateDeliveryOrderFormData | keyof UpdateDeliveryOrderFormData)[]);
 
-    if (isValid) {
-      setActiveTab("items");
-    } else {
-      // Diagnostic field mapping for clearer error messages
-      const fieldMapping: Record<string, string> = {
-        delivery_date: t("deliveryDate"),
-        warehouse_id: t("warehouse"),
-        sales_order_id: t("salesOrder"),
-        delivered_by_id: t("deliveredBy"),
-        courier_agency_id: t("courierAgency"),
-        tracking_number: t("trackingNumber"),
-        receiver_name: t("receiverName"),
-        receiver_phone: t("receiverPhone"),
-        delivery_address: t("deliveryAddress"),
-        notes: t("notes"),
-      };
+      if (isValid) {
+        setActiveTab("items");
+      } else {
+        // Diagnostic field mapping for clearer error messages
+        const fieldMapping: Record<string, string> = {
+          delivery_date: t("deliveryDate"),
+          warehouse_id: t("warehouse"),
+          sales_order_id: t("salesOrder"),
+          delivered_by_id: t("deliveredBy"),
+          courier_agency_id: t("courierAgency"),
+          tracking_number: t("trackingNumber"),
+          receiver_name: t("receiverName"),
+          receiver_phone: t("receiverPhone"),
+          delivery_address: t("deliveryAddress"),
+          notes: t("notes"),
+        };
 
-      // Find which fields are actually failing
-      const currentErrors = errors;
-      const failingFields = basicFields
-        .filter(field => currentErrors[field as keyof typeof currentErrors])
-        .map(field => fieldMapping[field] || field);
-      
-      const errorMessage = failingFields.length > 0 
-        ? `${t("validation.required")}: ${failingFields.join(", ")}`
-        : t("validation.required") || "Please fill all required fields";
+        // Find which fields are actually failing
+        const currentErrors = errors;
+        const failingFields = basicFields
+          .filter(field => currentErrors[field as keyof typeof currentErrors])
+          .map(field => fieldMapping[field] || field);
+        
+        const errorMessage = failingFields.length > 0 
+          ? `${t("validation.required")}: ${failingFields.join(", ")}`
+          : t("validation.required") || "Please fill all required fields";
 
-      toast.error(errorMessage);
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -584,8 +591,11 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                     type="button"
                     onClick={handleNext}
                     className="cursor-pointer"
+                    disabled={isValidating}
                   >
-                    {t("common.next") || "Next"}
+                    <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
+                      {t("common.next") || "Next"}
+                    </ButtonLoading>
                   </Button>
                 </div>
               </TabsContent>
@@ -735,16 +745,12 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                       {t("common.cancel")}
                     </Button>
                     <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {t("common.saving")}
-                        </>
-                      ) : isEdit ? (
-                        t("common.update")
-                      ) : (
-                        t("common.create")
-                      )}
+                      <ButtonLoading 
+                        loading={isLoading} 
+                        loadingText={t("common.saving")}
+                      >
+                        {isEdit ? t("common.update") : t("common.create")}
+                      </ButtonLoading>
                     </Button>
                   </div>
                 </div>

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 import {
   useCreateSupplierType,
@@ -173,10 +173,9 @@ export function SupplierTypeDialog({
               disabled={isSubmitting}
               className="cursor-pointer"
             >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {isEditing ? tCommon("save") : tCommon("create")}
+              <ButtonLoading loading={isSubmitting} loadingText="Saving...">
+                {isEditing ? tCommon("save") : tCommon("create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

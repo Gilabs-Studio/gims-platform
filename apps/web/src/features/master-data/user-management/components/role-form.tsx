@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ButtonLoading } from "@/components/loading";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
@@ -107,15 +108,13 @@ export function RoleForm({ role, onSubmit, onCancel, isLoading = false }: RoleFo
       </Field>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="cursor-pointer">
           {t("cancel")}
         </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading
-            ? t("submitting")
-            : isEdit
-              ? t("submitUpdate")
-              : t("submitCreate")}
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
+          <ButtonLoading loading={isLoading} loadingText={t("submitting") || "Saving..."}>
+            {isEdit ? t("submitUpdate") : t("submitCreate")}
+          </ButtonLoading>
         </Button>
       </div>
     </form>

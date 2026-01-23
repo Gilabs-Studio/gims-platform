@@ -39,6 +39,7 @@ import { useCreateEmployee, useUpdateEmployee } from "../hooks/use-employees";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions } from "@/features/master-data/organization/hooks/use-job-positions";
 import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
+import { ButtonLoading } from "@/components/loading";
 
 const employeeSchema = z.object({
   employee_code: z.string().min(1, "Employee code is required").max(50),
@@ -559,7 +560,9 @@ export function EmployeeForm({ open, onOpenChange, employee }: EmployeeFormProps
               {t("actions.cancel")}
             </Button>
             <Button type="submit" disabled={isPending} className="cursor-pointer">
-              {isPending ? "..." : t("actions.save")}
+              <ButtonLoading loading={isPending} loadingText={t("actions.saving") || "Saving..."}>
+                {t("actions.save")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

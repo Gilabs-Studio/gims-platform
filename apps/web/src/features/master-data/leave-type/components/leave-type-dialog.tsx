@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { toast } from "sonner";
+import { ButtonLoading } from "@/components/loading";
 import { useCreateLeaveType, useUpdateLeaveType } from "../hooks/use-leave-type";
 import type { LeaveType } from "../types";
 
@@ -78,7 +79,16 @@ export function LeaveTypeDialog({ open, onOpenChange, editingItem }: { readonly 
               <Switch checked={isActive} onCheckedChange={(val) => setValue("is_active", val)} className="cursor-pointer" />
             </Field>
           </div>
-          <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">{tCommon("cancel")}</Button><Button type="submit" disabled={isLoading} className="cursor-pointer">{isLoading ? tCommon("saving") : tCommon("save")}</Button></DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
+              {tCommon("cancel")}
+            </Button>
+            <Button type="submit" disabled={isLoading} className="cursor-pointer">
+              <ButtonLoading loading={isLoading} loadingText={tCommon("saving")}>
+                {tCommon("save")}
+              </ButtonLoading>
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

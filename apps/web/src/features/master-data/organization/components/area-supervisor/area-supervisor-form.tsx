@@ -18,6 +18,7 @@ import { sortOptions } from "@/lib/utils";
 import { useCreateAreaSupervisor, useUpdateAreaSupervisor } from "../../hooks/use-area-supervisors";
 import { useAreas } from "../../hooks/use-areas";
 import { AreaSupervisorFormData, getAreaSupervisorSchema } from "../../schemas/organization.schema";
+import { ButtonLoading } from "@/components/loading";
 import { AreaSupervisor } from "../../types";
 
 interface AreaSupervisorFormProps {
@@ -222,11 +223,9 @@ export function AreaSupervisorForm({ open, onClose, supervisor }: AreaSupervisor
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading
-                ? "Saving..."
-                : isEditing
-                  ? t("common.save")
-                  : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

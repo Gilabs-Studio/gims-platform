@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sortOptions } from "@/lib/utils";
+import { ButtonLoading } from "@/components/loading";
 import { useCreateDistrict, useUpdateDistrict } from "../../hooks/use-districts";
 import { getDistrictSchema, type CreateDistrictFormData } from "../../schemas/geographic.schema";
 import type { District, City } from "../../types";
@@ -107,7 +108,11 @@ export function DistrictForm({ open, onClose, district, cities }: DistrictFormPr
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">{t("common.cancel")}</Button>
-            <Button type="submit" disabled={isLoading} className="cursor-pointer">{isLoading ? t("common.saving") : isEditing ? t("common.update") : t("common.create")}</Button>
+            <Button type="submit" disabled={isLoading} className="cursor-pointer">
+              <ButtonLoading loading={isLoading} loadingText={t("common.saving")}>
+                {isEditing ? t("common.update") : t("common.create")}
+              </ButtonLoading>
+            </Button>
           </div>
         </form>
       </DialogContent>

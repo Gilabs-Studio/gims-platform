@@ -30,6 +30,7 @@ import type { AuthError } from "../types/errors";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { useRateLimitStore } from "@/lib/stores/useRateLimitStore";
 import { useRouter } from "@/i18n/routing";
+import { ButtonLoading } from "@/components/loading";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
@@ -242,7 +243,9 @@ export function LoginForm() {
                     disabled={isFormLoading || isRateLimited}
                     className="h-11 w-full text-sm font-semibold tracking-wide"
                   >
-                    {isFormLoading ? t("submitting") : t("submit")}
+                    <ButtonLoading loading={isFormLoading} loadingText={t("submitting")}>
+                      {t("submit")}
+                    </ButtonLoading>
                   </Button>
                 </Field>
               </FieldGroup>

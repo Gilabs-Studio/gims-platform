@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCreateBusinessUnit, useUpdateBusinessUnit } from "../../hooks/use-business-units";
 import { BusinessUnitFormData, getBusinessUnitSchema } from "../../schemas/organization.schema";
+import { ButtonLoading } from "@/components/loading";
 import { BusinessUnit } from "../../types";
 
 interface BusinessUnitFormProps {
@@ -125,11 +126,9 @@ export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFo
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading
-                ? "Saving..."
-                : isEditing
-                  ? t("common.save")
-                  : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText="Saving...">
+                {isEditing ? t("common.save") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

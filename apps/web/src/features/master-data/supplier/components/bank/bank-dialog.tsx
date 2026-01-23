@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCreateBank, useUpdateBank } from "../../hooks/use-banks";
+import { ButtonLoading } from "@/components/loading";
 import type { Bank } from "../../types";
 
 const formSchema = z.object({
@@ -184,10 +185,9 @@ export function BankDialog({
               disabled={isSubmitting}
               className="cursor-pointer"
             >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {isEditing ? tCommon("save") : tCommon("create")}
+              <ButtonLoading loading={isSubmitting} loadingText="Saving...">
+                {isEditing ? tCommon("save") : tCommon("create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

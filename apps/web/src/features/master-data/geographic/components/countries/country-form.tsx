@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCreateCountry, useUpdateCountry } from "../../hooks/use-countries";
+import { ButtonLoading } from "@/components/loading";
 import { getCountrySchema, type CreateCountryFormData } from "../../schemas/geographic.schema";
 import type { Country } from "../../types";
 
@@ -116,7 +117,9 @@ export function CountryForm({ open, onClose, country }: CountryFormProps) {
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">
-              {isLoading ? t("common.saving") : isEditing ? t("common.update") : t("common.create")}
+              <ButtonLoading loading={isLoading} loadingText={t("common.saving")}>
+                {isEditing ? t("common.update") : t("common.create")}
+              </ButtonLoading>
             </Button>
           </div>
         </form>

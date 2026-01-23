@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ButtonLoading } from "@/components/loading";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 
 import { useCreateCompany, useUpdateCompany } from "../../hooks/use-companies";
@@ -453,20 +454,14 @@ export function CompanySidePanel({
                   variant="outline"
                   onClick={onClose}
                   className="cursor-pointer"
+                  disabled={isLoading}
                 >
                   {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : isEditing ? (
-                    t("common.save")
-                  ) : (
-                    t("common.create")
-                  )}
+                  <ButtonLoading loading={isLoading} loadingText="Saving...">
+                    {isEditing ? t("common.save") : t("common.create")}
+                  </ButtonLoading>
                 </Button>
               </div>
             )}
