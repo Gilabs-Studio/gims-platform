@@ -36,6 +36,8 @@ export const orderEn = {
       select: "Select",
       selectDate: "Select date",
       customer: "Customer",
+      validating: "Validating...",
+      back: "Back",
     },
 
     // Tabs

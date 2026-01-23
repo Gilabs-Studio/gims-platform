@@ -35,6 +35,7 @@ export const deliveryId = {
       back: "Kembali",
       select: "Pilih",
       selectDate: "Pilih tanggal",
+      validating: "Memvalidasi...",
     },
 
     // Tabs

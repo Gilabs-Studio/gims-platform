@@ -32,8 +32,10 @@ export const deliveryEn = {
       total: "total",
       previous: "Previous",
       next: "Next",
+      back: "Back",
       select: "Select",
       selectDate: "Select date",
+      validating: "Validating...",
     },
 
     // Tabs

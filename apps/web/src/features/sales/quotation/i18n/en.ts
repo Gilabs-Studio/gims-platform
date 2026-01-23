@@ -38,6 +38,7 @@ export const quotationEn = {
       basicInfo: "Basic Information",
       select: "Select",
       selectDate: "Select date",
+      validating: "Validating...",
     },
 
     // Tabs

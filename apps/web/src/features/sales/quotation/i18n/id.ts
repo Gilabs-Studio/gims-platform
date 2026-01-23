@@ -38,6 +38,7 @@ export const quotationId = {
       basicInfo: "Informasi Dasar",
       select: "Pilih",
       selectDate: "Pilih tanggal",
+      validating: "Memvalidasi...",
     },
 
     // Tabs

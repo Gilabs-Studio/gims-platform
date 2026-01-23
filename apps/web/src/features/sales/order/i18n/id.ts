@@ -35,6 +35,8 @@ export const orderId = {
       next: "Selanjutnya",
       select: "Pilih",
       selectDate: "Pilih tanggal",
+      validating: "Memvalidasi...",
+      back: "Kembali",
     },
 
     // Tabs
