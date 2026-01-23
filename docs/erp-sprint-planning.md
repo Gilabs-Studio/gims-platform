@@ -454,17 +454,18 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Customer Invoice and Sales Visit management
-- [ ] **Frontend:** Invoice and Visit tracking UI
+- [x] **API:** Customer Invoice management ✅
+- [ ] **Frontend:** Invoice tracking UI (Visit pending)
 
 ### API Tasks
 
 #### Invoice
-- [ ] `CustomerInvoice` - CRUD + Payment tracking
-- [ ] `CustomerInvoiceItem` - Nested with HPP calculation
-- [ ] Invoice number generation (Faktur)
-- [ ] Payment status workflow
-- [ ] Due date calculation from PaymentTerms
+- [x] `CustomerInvoice` - CRUD + Payment tracking
+- [x] `CustomerInvoiceItem` - Nested with HPP calculation
+- [x] Invoice number generation (Faktur)
+- [x] Payment status workflow
+- [x] Due date calculation from PaymentTerms
+- [x] HPP view permission (`customer_invoice.view_hpp`)
 
 #### Sales Visit
 - [ ] `SalesVisit` - CRUD + Activity tracking
@@ -479,9 +480,11 @@ erDiagram
 
 ### Frontend Tasks
 
-- [ ] Invoice list with payment status filter
-- [ ] Invoice generation from Delivery Order
-- [ ] Payment recording UI
+- [x] Invoice list with payment status filter
+- [x] Invoice generation from Sales Order
+- [x] Payment recording UI
+- [x] HPP field blur with permission check
+- [x] Discount display in summary
 - [ ] Sales Visit calendar view
 - [ ] Visit form with product interest survey
 - [ ] Visit progress timeline
@@ -490,17 +493,18 @@ erDiagram
 
 ### Success Criteria
 
-- [ ] Invoice created from completed Delivery Orders
-- [ ] HPP calculated and stored per invoice item
-- [ ] Payment status updates (Unpaid → Partial → Paid)
+- [x] Invoice created from Sales Orders
+- [x] HPP calculated and stored per invoice item
+- [x] Payment status updates (Unpaid → Partial → Paid)
+- [x] HPP visibility controlled by permission
 - [ ] Visit tracks all product discussions
 - [ ] Interest survey scoring works correctly
 - [ ] Target achievement shows real vs plan
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 

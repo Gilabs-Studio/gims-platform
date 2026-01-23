@@ -83,6 +83,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Customer Invoice seeder (Sprint 7)
+	if err := SeedCustomerInvoice(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
