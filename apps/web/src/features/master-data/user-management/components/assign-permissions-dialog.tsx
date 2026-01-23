@@ -11,11 +11,12 @@ import { useRole, useAssignPermissionsToRole } from "../hooks/use-roles";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn, sortOptions } from "@/lib/utils";
-import { CheckSquare, Square } from "lucide-react";
+import { CheckSquare, Square, Search, X } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { ButtonLoading } from "@/components/loading";
 import type { Permission } from "../types";
+import { Input } from "@/components/ui/input";
 
 interface AssignPermissionsDrawerProps {
   readonly roleId: string;
@@ -80,6 +81,7 @@ function PermissionsSelector({
   );
 
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(initialPermissions);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Get category from menu hierarchy
   const getCategory = (perm: Permission): string => {
@@ -92,6 +94,19 @@ function PermissionsSelector({
     
     // If no parent, this is root level menu
     return perm.menu.name;
+  };
+
+  // Get category order for sorting
+  const getCategoryOrder = (perm: Permission): number => {
+    if (!perm.menu) return 999;
+    const menuForOrder = perm.menu.parent || perm.menu;
+    return menuForOrder.order ?? 999;
+  };
+
+  // Get menu order for sorting
+  const getMenuOrder = (perm: Permission): number => {
+    if (!perm.menu) return 999;
+    return perm.menu.order ?? 999;
   };
 
   // Group permissions by Category (parent menu) -> Menu
@@ -110,42 +125,92 @@ function PermissionsSelector({
       grouped[category][menuName].push(perm);
     });
 
+    // Sort permissions within each menu by name
+    Object.keys(grouped).forEach(category => {
+      Object.keys(grouped[category]).forEach(menuName => {
+        grouped[category][menuName].sort((a, b) => a.name.localeCompare(b.name));
+      });
+    });
+
     return grouped;
   }, [permissions]);
 
-  // Define categories from grouped data, sorted by menu order
+  // Define categories from grouped data, sorted by menu order (like sidebar)
   const categories = useMemo(() => {
-    const categoryMap = new Map<string, number>();
+    const categoryMap = new Map<string, { order: number; icon: string }>();
     
-    // Build map of category name to order
+    // Build map of category name to order and icon
     permissions.forEach(perm => {
       if (!perm.menu) return;
       const category = getCategory(perm);
       const menuForOrder = perm.menu.parent || perm.menu;
       
       if (!categoryMap.has(category)) {
-        categoryMap.set(category, menuForOrder.order || 999);
+        categoryMap.set(category, {
+          order: menuForOrder.order ?? 999,
+          icon: menuForOrder.icon || "database"
+        });
       }
     });
     
-    // Sort categories alphabetically
-    return sortOptions(Object.keys(groupedByCategory), (cat: string) => cat);
+    // Sort categories by order (same as sidebar)
+    return Object.keys(groupedByCategory).sort((a, b) => {
+      const orderA = categoryMap.get(a)?.order ?? 999;
+      const orderB = categoryMap.get(b)?.order ?? 999;
+      return orderA - orderB;
+    });
   }, [groupedByCategory, permissions]);
   
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || "");
 
-  // Count permissions per category
+  // Filter permissions based on search query
+  const filteredPermissions = useMemo(() => {
+    if (!searchQuery.trim()) return permissions;
+    
+    const query = searchQuery.toLowerCase();
+    return permissions.filter(perm => 
+      perm.name.toLowerCase().includes(query) ||
+      perm.code.toLowerCase().includes(query) ||
+      perm.menu?.name.toLowerCase().includes(query) ||
+      perm.menu?.parent?.name.toLowerCase().includes(query)
+    );
+  }, [permissions, searchQuery]);
+
+  // Group filtered permissions for search results
+  const searchGroupedByCategory = useMemo(() => {
+    if (!searchQuery.trim()) return groupedByCategory;
+    
+    const grouped: Record<string, Record<string, Permission[]>> = {};
+
+    filteredPermissions.forEach(perm => {
+      const category = getCategory(perm);
+      const menuName = perm.menu?.name || "Other";
+      
+      if (!grouped[category]) grouped[category] = {};
+      if (!grouped[category][menuName]) {
+        grouped[category][menuName] = [];
+      }
+      
+      grouped[category][menuName].push(perm);
+    });
+
+    return grouped;
+  }, [filteredPermissions, searchQuery, groupedByCategory]);
+
+  // Count permissions per category (use search results when searching)
   const categoryCounts = useMemo(() => {
     const counts: Record<string, { total: number; selected: number }> = {};
+    const dataSource = searchQuery.trim() ? searchGroupedByCategory : groupedByCategory;
+    
     categories.forEach((cat: string) => {
-      const categoryPermissions = Object.values(groupedByCategory[cat] || {}).flat();
+      const categoryPermissions = Object.values(dataSource[cat] || {}).flat();
       counts[cat] = {
         total: categoryPermissions.length,
         selected: categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length,
       };
     });
     return counts;
-  }, [groupedByCategory, selectedPermissions, categories]);
+  }, [groupedByCategory, searchGroupedByCategory, selectedPermissions, categories, searchQuery]);
 
   const togglePermission = (permissionId: string) => {
     const targetPermission = permissions.find((p) => p.id === permissionId);
@@ -182,9 +247,10 @@ function PermissionsSelector({
     });
   };
 
-  // Select all permissions in current category
+  // Select all permissions in current category (use search results when searching)
   const handleSelectAll = () => {
-    const categoryPermissions = Object.values(groupedByCategory[activeCategory] || {}).flat();
+    const dataSource = searchQuery.trim() ? searchGroupedByCategory : groupedByCategory;
+    const categoryPermissions = Object.values(dataSource[activeCategory] || {}).flat();
     const categoryIds = new Set(categoryPermissions.map(p => p.id));
     
     setSelectedPermissions(prev => {
@@ -193,9 +259,10 @@ function PermissionsSelector({
     });
   };
 
-  // Unselect all permissions in current category
+  // Unselect all permissions in current category (use search results when searching)
   const handleUnselectAll = () => {
-    const categoryPermissions = Object.values(groupedByCategory[activeCategory] || {}).flat();
+    const dataSource = searchQuery.trim() ? searchGroupedByCategory : groupedByCategory;
+    const categoryPermissions = Object.values(dataSource[activeCategory] || {}).flat();
     const categoryIds = new Set(categoryPermissions.map(p => p.id));
     
     setSelectedPermissions(prev => prev.filter(id => !categoryIds.has(id)));
@@ -214,14 +281,53 @@ function PermissionsSelector({
     }
   };
 
-  const currentCategoryPermissions = groupedByCategory[activeCategory] || {};
+  const dataSource = searchQuery.trim() ? searchGroupedByCategory : groupedByCategory;
+  const currentCategoryPermissions = dataSource[activeCategory] || {};
   const currentCount = categoryCounts[activeCategory] || { total: 0, selected: 0 };
+
+  // Calculate total search results
+  const totalSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    return filteredPermissions.length;
+  }, [searchQuery, filteredPermissions]);
 
   return (
     <div className="flex h-full">
-      {/* Left Sidebar - Category Navigation */}
+      {/* Left Skip categories with no results when searching
+            if (searchQuery.trim() && count.total === 0) return null;
+            
+            // Sidebar - Category Navigation */}
       <div className="w-56 border-r bg-muted/30 flex flex-col">
-        <nav className="flex-1 py-2">
+        {/* Search Bar */}
+        <div className="p-3 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search permissions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9 h-9 text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-sm transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          {searchQuery.trim() && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              {totalSearchResults} result{totalSearchResults !== 1 ? 's' : ''} found
+            </div>
+          )}
+        </div>
+        
+        <nav className="flex-1 py-2 overflow-y-auto">
           {categories.map((category: string) => {
             const count = categoryCounts[category];
             const isActive = activeCategory === category;
