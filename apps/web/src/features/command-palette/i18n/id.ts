@@ -1,0 +1,20 @@
+export const commandPaletteId = {
+  commandPalette: {
+    title: "Palet Perintah",
+    placeholder: "Cari menu atau tekan / untuk mulai...",
+    noResults: "Menu tidak ditemukan.",
+    shortcut: "Tekan {key} atau / untuk membuka",
+    groups: {
+      dashboard: "Dashboard",
+      masterData: "Data Master",
+      sales: "Penjualan",
+      purchase: "Pembelian",
+      stock: "Stok",
+      finance: "Keuangan",
+      hrd: "HRD",
+      reports: "Laporan",
+      aiAssistant: "Asisten AI",
+      menus: "Menu",
+    },
+  },
+};

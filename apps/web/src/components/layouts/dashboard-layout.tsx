@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo, useEffect, useState, useCallback } from "react";
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { Search, Settings, Menu as MenuIcon, ChevronRight } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,26 +15,13 @@ import type { MenuWithActions } from "@/features/master-data/user-management/typ
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { useLogout } from "@/features/auth/hooks/use-logout";
-import { useDashboardCommandPalette } from "@/hooks/use-dashboard-command-palette";
+import { CommandPalette } from "@/features/command-palette";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 
@@ -119,6 +106,7 @@ const Header = memo(function Header({
   onMobileMenuClick: () => void;
 }) {
   const locale = useLocale();
+  const t = useTranslations("common");
   const logout = useLogout();
   const pathname = usePathname();
   const isMobile = useIsMobile();
@@ -167,12 +155,16 @@ const Header = memo(function Header({
           />
           <input
             type="search"
-            placeholder="Search..."
+            placeholder={t("searchPlaceholder")}
             className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input h-9 w-full cursor-pointer rounded-md border bg-background/60 px-3 py-1 pr-4 pl-10 text-sm shadow-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            onClick={(e) => {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }}
+            readOnly
           />
           <div className="bg-muted text-muted-foreground absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-medium sm:flex">
-            <span>⌘</span>
-            <span>K</span>
+            <span className="text-[11px]">/</span>
           </div>
         </div>
 
@@ -471,9 +463,6 @@ export const DashboardLayout = memo(function DashboardLayout({
   // Real-time role validation - auto logout if role deleted or invalid
   useValidateRole();
   
-  const commandPalette = useDashboardCommandPalette({
-    menus,
-  });
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
   const pathname = usePathname();
   const isMobile = useIsMobile();
@@ -789,49 +778,7 @@ export const DashboardLayout = memo(function DashboardLayout({
         <NotificationDrawer open={isDrawerOpen} onOpenChange={closeDrawer} />
 
         {/* Command Palette */}
-        <Dialog open={commandPalette.isOpen} onOpenChange={commandPalette.toggle}>
-          <DialogContent
-            showCloseButton={false}
-            className="p-0 shadow-2xl sm:max-w-xl"
-          >
-            <DialogTitle className="sr-only">Command palette</DialogTitle>
-            <Command>
-              <CommandInput placeholder="Type a command or search..." />
-              <CommandList>
-                <CommandEmpty>No menu found.</CommandEmpty>
-                {Object.entries(
-                  commandPalette.items.reduce<Record<string, typeof commandPalette.items>>(
-                    (groups, item) => {
-                      const group = item.group || "Menus";
-                      if (!groups[group]) {
-                        groups[group] = [];
-                      }
-                      groups[group].push(item);
-                      return groups;
-                    },
-                    {}
-                  )
-                ).map(([group, items]) => (
-                  <CommandGroup key={group} heading={group}>
-                    {items.map((item) => (
-                      <CommandItem
-                        key={`${group}-${item.id}-${item.href}`}
-                        value={item.name}
-                        onSelect={() => commandPalette.onSelectItem(item.href)}
-                      >
-                        {getMenuIcon(item.icon)}
-                        <span className="flex-1 truncate">{item.name}</span>
-                        <span className="text-muted-foreground text-xs">
-                          {item.href}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ))}
-              </CommandList>
-            </Command>
-          </DialogContent>
-        </Dialog>
+        <CommandPalette />
       </div>
     </TooltipProvider>
   );

@@ -6,6 +6,7 @@
     "retry": "Retry",
     "noData": "No data found",
     "search": "Search...",
+    "searchPlaceholder": "Search... (Press / or ⌘K)",
     "actions": "Actions",
     "active": "Active",
     "inactive": "Inactive",

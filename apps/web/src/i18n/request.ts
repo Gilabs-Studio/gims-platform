@@ -52,6 +52,8 @@ import { orderEn } from "@/features/sales/order/i18n/en";
 import { orderId } from "@/features/sales/order/i18n/id";
 import { deliveryEn } from "@/features/sales/delivery/i18n/en";
 import { deliveryId } from "@/features/sales/delivery/i18n/id";
+import { commandPaletteEn } from "@/features/command-palette/i18n/en";
+import { commandPaletteId } from "@/features/command-palette/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -80,6 +82,7 @@ const messages = {
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
+    ...commandPaletteEn,
   },
   id: {
     ...globalIdMessages,
@@ -106,6 +109,7 @@ const messages = {
     ...quotationId,
     ...orderId,
     ...deliveryId,
+    ...commandPaletteId,
   },
 } as const;
 
