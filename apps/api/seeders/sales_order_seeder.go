@@ -29,7 +29,7 @@ func SeedSalesOrder() error {
 
 	// Get required reference data
 	var quotations []salesModels.SalesQuotation
-	if err := db.Where("status = ?", salesModels.SalesQuotationStatusApproved).Limit(5).Find(&quotations).Error; err != nil {
+	if err := db.Preload("Items").Where("status = ?", salesModels.SalesQuotationStatusApproved).Limit(5).Find(&quotations).Error; err != nil {
 		log.Printf("Warning: Failed to fetch approved quotations: %v", err)
 		// Continue without quotations - can create orders without quotations
 	}
@@ -181,37 +181,76 @@ func SeedSalesOrder() error {
 		orderDate := date(oData.daysAgo)
 
 		// Create items
-		items := make([]salesModels.SalesOrderItem, 0, oData.itemsCount)
-		for j := 0; j < oData.itemsCount && j < len(products); j++ {
-			product := products[(i*3+j)%len(products)]
-			quantity := float64((j + 1) * 10)
-			price := product.SellingPrice
-			discount := float64(j * 5000) // Small discount per item
+		var items []salesModels.SalesOrderItem
 
-			item := salesModels.SalesOrderItem{
-				ProductID: product.ID,
-				Quantity:  quantity,
-				Price:     price,
-				Discount:  discount,
+		// Check if we should copy from quotation
+		var linkedQuotation *salesModels.SalesQuotation
+		if oData.fromQuotation && len(quotations) > 0 {
+			linkedQuotation = &quotations[i%len(quotations)]
+		}
+
+		if linkedQuotation != nil && len(linkedQuotation.Items) > 0 {
+			// Copy items from quotation
+			items = make([]salesModels.SalesOrderItem, 0, len(linkedQuotation.Items))
+			for _, qItem := range linkedQuotation.Items {
+				item := salesModels.SalesOrderItem{
+					ProductID: qItem.ProductID,
+					Quantity:  qItem.Quantity,
+					Price:     qItem.Price,
+					Discount:  qItem.Discount,
+					Subtotal:  (qItem.Price * qItem.Quantity) - qItem.Discount,
+				}
+				
+				// Set quantities based on status (same logic as below)
+				if oData.status == salesModels.SalesOrderStatusConfirmed || 
+				   oData.status == salesModels.SalesOrderStatusProcessing ||
+				   oData.status == salesModels.SalesOrderStatusShipped ||
+				   oData.status == salesModels.SalesOrderStatusDelivered {
+					item.ReservedQuantity = item.Quantity
+				}
+				
+				if oData.status == salesModels.SalesOrderStatusDelivered {
+					item.DeliveredQuantity = item.Quantity
+				} else if oData.status == salesModels.SalesOrderStatusProcessing {
+					item.DeliveredQuantity = item.Quantity * 0.5 
+				}
+
+				items = append(items, item)
 			}
-			item.CalculateSubtotal()
-			
-			// Set reserved quantity based on status
-			if oData.status == salesModels.SalesOrderStatusConfirmed || 
-			   oData.status == salesModels.SalesOrderStatusProcessing ||
-			   oData.status == salesModels.SalesOrderStatusShipped ||
-			   oData.status == salesModels.SalesOrderStatusDelivered {
-				item.ReservedQuantity = quantity
+		} else {
+			// Generate random items
+			items = make([]salesModels.SalesOrderItem, 0, oData.itemsCount)
+			for j := 0; j < oData.itemsCount && j < len(products); j++ {
+				product := products[(i*3+j)%len(products)]
+				quantity := float64((j + 1) * 10)
+				price := product.SellingPrice
+				discount := float64(j * 5000) // Small discount per item
+
+				item := salesModels.SalesOrderItem{
+					ProductID: product.ID,
+					Quantity:  quantity,
+					Price:     price,
+					Discount:  discount,
+				}
+				item.CalculateSubtotal()
+				
+				// Set reserved quantity based on status
+				if oData.status == salesModels.SalesOrderStatusConfirmed || 
+				   oData.status == salesModels.SalesOrderStatusProcessing ||
+				   oData.status == salesModels.SalesOrderStatusShipped ||
+				   oData.status == salesModels.SalesOrderStatusDelivered {
+					item.ReservedQuantity = quantity
+				}
+				
+				// Set delivered quantity for delivered orders
+				if oData.status == salesModels.SalesOrderStatusDelivered {
+					item.DeliveredQuantity = quantity
+				} else if oData.status == salesModels.SalesOrderStatusProcessing {
+					item.DeliveredQuantity = quantity * 0.5 // Half delivered
+				}
+				
+				items = append(items, item)
 			}
-			
-			// Set delivered quantity for delivered orders
-			if oData.status == salesModels.SalesOrderStatusDelivered {
-				item.DeliveredQuantity = quantity
-			} else if oData.status == salesModels.SalesOrderStatusProcessing {
-				item.DeliveredQuantity = quantity * 0.5 // Half delivered
-			}
-			
-			items = append(items, item)
 		}
 
 		// Calculate totals

@@ -36,6 +36,13 @@ export interface Product {
   image_url?: string;
 }
 
+export interface SalesProspect {
+  id: string;
+  company?: {
+    name: string;
+  };
+}
+
 export interface SalesQuotationItem {
   id: string;
   sales_quotation_id: string;
@@ -64,6 +71,8 @@ export interface SalesQuotation {
   business_unit?: BusinessUnit;
   business_type_id?: string;
   business_type?: BusinessType;
+  delivery_area_id?: string;
+  sales_prospect?: SalesProspect;
   subtotal: number;
   discount_amount: number;
   tax_rate: number;

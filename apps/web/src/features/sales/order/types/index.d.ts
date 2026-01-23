@@ -1,5 +1,7 @@
 // Sales Order types for Sprint 6
 
+import type { SalesQuotation } from "../../quotation/types";
+
 export interface Area {
   id: string;
   name: string;
@@ -36,11 +38,7 @@ export interface SalesOrder {
   code: string;
   order_date: string;
   sales_quotation_id?: string;
-  sales_quotation?: {
-    id: string;
-    code: string;
-    total_amount: number;
-  };
+  sales_quotation?: SalesQuotation;
   payment_terms_id?: string;
   payment_terms?: {
     id: string;

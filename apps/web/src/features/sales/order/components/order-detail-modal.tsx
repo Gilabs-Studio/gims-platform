@@ -23,7 +23,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { SalesOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -333,12 +333,7 @@ export function OrderDetailModal({
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("orderDate")}</p>
                           <p className="text-sm font-medium">{new Date(displayOrder.order_date).toLocaleDateString()}</p>
                         </div>
-                        {displayOrder.sales_quotation && (
-                          <div className="space-y-1.5">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("salesQuotation")}</p>
-                            <p className="text-sm font-medium">{displayOrder.sales_quotation.code}</p>
-                          </div>
-                        )}
+
                       </div>
                     </div>
                   </div>
@@ -415,6 +410,54 @@ export function OrderDetailModal({
 
                 {/* Right Section - Financial Breakdown */}
                 <div className="space-y-6">
+                  {/* Sales Quotation Card */}
+                  <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                    <div className="bg-muted/50 px-6 py-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        {t("salesQuotations") || "Sales Quotations"}
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      {displayOrder.sales_quotation ? (
+                        <div className="space-y-5">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("code")}</p>
+                              <p className="text-base font-semibold">{displayOrder.sales_quotation.code}</p>
+                            </div>
+                            <Badge variant={displayOrder.sales_quotation.status === "approved" ? "default" : "secondary"}>
+                              {displayOrder.sales_quotation.status}
+                            </Badge>
+                          </div>
+
+                          <Separator />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.customer")}</p>
+                              <p className="text-sm font-medium truncate" title={displayOrder.sales_quotation.sales_prospect?.company?.name || "N/A"}>
+                                {displayOrder.sales_quotation.sales_prospect?.company?.name || "TODO BELUM DIIMPLEMENT"}
+                              </p>
+                            </div>
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.date")}</p>
+                              <p className="text-sm font-medium">{formatDate(displayOrder.sales_quotation.quotation_date)}</p>
+                            </div>
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.total")}</p>
+                              <p className="text-sm font-medium">{formatCurrency(displayOrder.sales_quotation.total_amount)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm">{t("noQuotation") || "No linked quotation"}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {/* Financial Summary Card */}
                   <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
                     <div className="bg-muted/50 px-6 py-4">

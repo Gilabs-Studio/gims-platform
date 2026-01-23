@@ -9,7 +9,9 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
 
 // Sales Order Item Schema
 export const getOrderItemSchema = (t?: TranslationFn) => z.object({
-  product_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
+  product_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Product is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid product ID")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
@@ -25,14 +27,18 @@ export const getOrderItemSchema = (t?: TranslationFn) => z.object({
 export const getOrderSchema = (t?: TranslationFn) => z.object({
   order_date: z.string()
     .min(1, getMsg(t, "validation.required", "Order date is required")),
-  sales_quotation_id: z.string().uuid().optional(),
-  payment_terms_id: z.string().uuid().optional(),
-  sales_rep_id: z.string().uuid().optional(),
+  sales_quotation_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
+  payment_terms_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Payment terms is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid payment terms")),
+  sales_rep_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Sales representative is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid sales representative")),
   business_unit_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid business unit ID"))
-    .min(1, getMsg(t, "validation.required", "Business unit is required")),
-  business_type_id: z.string().uuid().optional(),
-  delivery_area_id: z.string().uuid().optional(),
+    .min(1, getMsg(t, "validation.required", "Business unit is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid business unit ID")),
+  business_type_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
+  delivery_area_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   tax_rate: z.number()
     .min(0, getMsg(t, "validation.taxRateMin", "Tax rate cannot be negative"))
     .max(100, getMsg(t, "validation.taxRateMax", "Tax rate cannot exceed 100%"))

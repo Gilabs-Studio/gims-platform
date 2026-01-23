@@ -12,6 +12,7 @@ import {
   type CreateOrderFormData,
   type UpdateOrderFormData,
 } from "../schemas/order.schema";
+import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import type { SalesOrder } from "../types";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
 
 const STORAGE_KEY = "order_form_cache";
 
@@ -69,6 +71,9 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 });
   const { data: employeesData } = useEmployees({ per_page: 100 });
   const { data: areasData } = useAreas({ per_page: 100 });
+  
+  // Sales Quotation integration
+  const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" });
 
   const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
   const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
@@ -76,6 +81,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const businessTypes = useMemo(() => businessTypesData?.data ?? [], [businessTypesData?.data]);
   const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
   const areas = useMemo(() => areasData?.data ?? [], [areasData?.data]);
+  const quotations = useMemo(() => quotationsData?.data ?? [], [quotationsData?.data]);
 
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
@@ -111,6 +117,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               price: item.price,
               discount: item.discount ?? 0,
             })) ?? [],
+          sales_quotation_id: order.sales_quotation_id ?? undefined,
         }
       : {
           order_date: new Date().toISOString().split("T")[0],
@@ -119,6 +126,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           other_cost: 0,
           discount_amount: 0,
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
+          sales_quotation_id: undefined,
         },
   });
 
@@ -126,6 +134,68 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     control,
     name: "items",
   });
+
+
+
+  // Watch for validation
+  const watchedQuotationId = useWatch({ control, name: "sales_quotation_id" });
+  
+  // Fetch quotation details when selected
+  const { data: quotationData } = useQuotation(watchedQuotationId ?? "", {
+    enabled: !!watchedQuotationId, // Allow fetching even in edit mode for display
+  });
+  
+  const selectedQuotationDetails = quotationData?.data;
+  const salesQuotationId = watchedQuotationId;
+
+  // Fetch quotation items when selected
+  const { data: quotationItemsData } = useQuotationItems(watchedQuotationId ?? "", {
+     per_page: 100 
+  }, {
+    enabled: !!watchedQuotationId && !isEdit,
+  });
+
+  // Auto-populate form from Quotation
+  useEffect(() => {
+    if (quotationData?.data && !isEdit && watchedQuotationId) {
+      const q = quotationData.data;
+      
+      setValue("payment_terms_id", q.payment_terms_id ?? "", { shouldValidate: true });
+      setValue("sales_rep_id", q.sales_rep_id ?? "", { shouldValidate: true });
+      setValue("business_unit_id", q.business_unit_id ?? "", { shouldValidate: true });
+      setValue("business_type_id", q.business_type_id ?? undefined, { shouldValidate: true });
+      // setValue("delivery_area_id", q.delivery_area_id ?? undefined); // Quotation might not have it or different field
+      
+      setValue("tax_rate", q.tax_rate ?? 11, { shouldValidate: true });
+      setValue("delivery_cost", q.delivery_cost ?? 0, { shouldValidate: true });
+      setValue("other_cost", q.other_cost ?? 0, { shouldValidate: true });
+      setValue("discount_amount", q.discount_amount ?? 0, { shouldValidate: true });
+      setValue("notes", q.notes ?? "", { shouldValidate: true });
+      
+      // Items are handled separately via useQuotationItems or if they are in q.items
+      // Assuming useQuotationItems returns the items list
+      if (quotationItemsData?.data) {
+        const newItems = quotationItemsData.data.map(item => ({
+           product_id: item.product_id,
+           quantity: item.quantity,
+           price: item.price,
+           discount: item.discount ?? 0,
+        }));
+        
+        // Replace existing items
+        setValue("items", newItems, { shouldValidate: true });
+      } else if (q.items && q.items.length > 0) {
+         // Fallback if items are in the detail response
+         const newItems = q.items.map(item => ({
+           product_id: item.product_id,
+           quantity: item.quantity,
+           price: item.price,
+           discount: item.discount ?? 0,
+        }));
+        setValue("items", newItems, { shouldValidate: true });
+      }
+    }
+  }, [quotationData, quotationItemsData, isEdit, setValue, watchedQuotationId]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -204,20 +274,34 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
       } catch {
         reset({
           order_date: new Date().toISOString().split("T")[0],
+          sales_quotation_id: "",
+          payment_terms_id: "",
+          sales_rep_id: "",
+          business_unit_id: "",
+          business_type_id: "",
+          delivery_area_id: "",
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          notes: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
       }
     } else {
       reset({
         order_date: new Date().toISOString().split("T")[0],
+        sales_quotation_id: "",
+        payment_terms_id: "",
+        sales_rep_id: "",
+        business_unit_id: "",
+        business_type_id: "",
+        delivery_area_id: "",
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
         discount_amount: 0,
+        notes: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
     }
@@ -230,6 +314,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const handleNext = async () => {
     const basicFields = [
       "order_date",
+      "sales_quotation_id",
       "payment_terms_id",
       "sales_rep_id",
       "business_unit_id",
@@ -242,18 +327,41 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
       "notes",
     ];
 
-    const isValid = await Promise.all(
-      basicFields.map((field) =>
-        trigger(field as keyof (CreateOrderFormData | UpdateOrderFormData))
-      )
-    ).then((results) => results.every((result) => result));
+    const isValid = await trigger(basicFields as any);
 
     if (isValid) {
       const formData = getValues();
       saveToLocalStorage(formData);
       setActiveTab("items");
     } else {
-      toast.error(t("validation.required") || "Please fill all required fields");
+      // Diagnostic field mapping for clearer error messages
+      const fieldMapping: Record<string, string> = {
+        order_date: t("orderDate"),
+        sales_quotation_id: t("salesQuotation"),
+        payment_terms_id: t("paymentTerms"),
+        sales_rep_id: t("salesRep"),
+        business_unit_id: t("businessUnit"),
+        business_type_id: t("businessType"),
+        delivery_area_id: t("deliveryArea"),
+        tax_rate: t("taxRate"),
+        delivery_cost: t("deliveryCost"),
+        other_cost: t("otherCost"),
+        discount_amount: t("discountAmount"),
+        notes: t("notes"),
+      };
+
+      // Find which fields are actually failing to help debugging
+      const currentErrors = control._formState.errors;
+      const failingFields = basicFields
+        .filter(field => currentErrors[field as keyof typeof currentErrors])
+        .map(field => fieldMapping[field] || field);
+      
+      const errorMessage = failingFields.length > 0 
+        ? `${t("validation.required")}: ${failingFields.join(", ")}`
+        : t("validation.required") || "Please fill all required fields";
+
+      toast.error(errorMessage);
+
     }
   };
 
@@ -263,17 +371,22 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     try {
       const filteredItems = (data.items ?? []).filter((item) => item.product_id);
       
+      const payload = {
+        ...data,
+        sales_quotation_id: data.sales_quotation_id || undefined,
+        business_type_id: data.business_type_id || undefined,
+        delivery_area_id: data.delivery_area_id || undefined,
+        items: filteredItems,
+      } as CreateOrderFormData;
+
       if (isEdit && order) {
         await updateOrder.mutateAsync({
           id: order.id,
-          data: { ...data, items: filteredItems },
+          data: payload,
         });
         toast.success(t("updated"));
       } else {
-        await createOrder.mutateAsync({
-          ...data,
-          items: filteredItems,
-        } as CreateOrderFormData);
+        await createOrder.mutateAsync(payload);
         toast.success(t("created"));
       }
       localStorage.removeItem(STORAGE_KEY);
@@ -339,6 +452,38 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   <h3 className="text-sm font-medium">{t("common.order")}</h3>
                 </div>
             <div className="grid gap-4 grid-cols-2">
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("salesQuotation")}</FieldLabel>
+                <Controller
+                  name="sales_quotation_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                      disabled={isEdit} 
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("salesQuotation")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quotations.map((q) => (
+                          <SelectItem key={q.id} value={q.id}>
+                            {q.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.sales_quotation_id && (
+                  <FieldError>{errors.sales_quotation_id.message}</FieldError>
+                )}
+              </Field>
+
+              {/* Quotation Summary Card */}
+
+              
               <Field orientation="vertical">
                 <FieldLabel>{t("orderDate")} *</FieldLabel>
                 <Controller
@@ -377,7 +522,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               </Field>
 
               <Field orientation="vertical">
-                <FieldLabel>{t("paymentTerms")}</FieldLabel>
+                <FieldLabel>{t("paymentTerms")} *</FieldLabel>
                 <Controller
                   name="payment_terms_id"
                   control={control}
@@ -402,7 +547,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               </Field>
 
               <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("salesRep")}</FieldLabel>
+                <FieldLabel>{t("salesRep")} *</FieldLabel>
                 <Controller
                   name="sales_rep_id"
                   control={control}

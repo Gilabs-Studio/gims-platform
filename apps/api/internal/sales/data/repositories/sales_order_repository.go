@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 
+	"time"
+
 	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/dto"
@@ -168,13 +170,21 @@ func (r *salesOrderRepository) Create(ctx context.Context, so *models.SalesOrder
 			return err
 		}
 
-		// Create items
-		if len(so.Items) > 0 {
-			for i := range so.Items {
-				so.Items[i].SalesOrderID = so.ID
-				if err := tx.Create(&so.Items[i]).Error; err != nil {
-					return err
-				}
+		// Update Sales Quotation status if linked
+		if so.SalesQuotationID != nil {
+			var sq models.SalesQuotation
+			if err := tx.First(&sq, "id = ?", so.SalesQuotationID).Error; err != nil {
+				return err
+			}
+
+			updates := map[string]interface{}{
+				"status":                      models.SalesQuotationStatusConverted,
+				"converted_to_sales_order_id": so.ID,
+				"converted_at":                time.Now(),
+			}
+
+			if err := tx.Model(&sq).Updates(updates).Error; err != nil {
+				return err
 			}
 		}
 
@@ -184,21 +194,38 @@ func (r *salesOrderRepository) Create(ctx context.Context, so *models.SalesOrder
 
 func (r *salesOrderRepository) Update(ctx context.Context, so *models.SalesOrder) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update order
+		// Update order details
 		if err := tx.Save(so).Error; err != nil {
 			return err
 		}
 
-		// Delete existing items
-		if err := tx.Where("sales_order_id = ?", so.ID).Delete(&models.SalesOrderItem{}).Error; err != nil {
-			return err
+		// Handle Items
+		// 1. Identify items to keep (update) and items to delete
+		var keepIDs []string
+		for _, item := range so.Items {
+			if item.ID != "" {
+				keepIDs = append(keepIDs, item.ID)
+			}
 		}
 
-		// Create new items
+		// 2. Delete items that are not in the new list (Soft Delete)
+		if len(keepIDs) > 0 {
+			if err := tx.Where("sales_order_id = ? AND id NOT IN ?", so.ID, keepIDs).Delete(&models.SalesOrderItem{}).Error; err != nil {
+				return err
+			}
+		} else {
+			// If no items are kept/sent, delete all items for this order
+			if err := tx.Where("sales_order_id = ?", so.ID).Delete(&models.SalesOrderItem{}).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Upsert items (Update existing, Create new)
 		if len(so.Items) > 0 {
 			for i := range so.Items {
 				so.Items[i].SalesOrderID = so.ID
-				if err := tx.Create(&so.Items[i]).Error; err != nil {
+				// Use Save to upsert (handles both case with ID and without ID)
+				if err := tx.Save(&so.Items[i]).Error; err != nil {
 					return err
 				}
 			}

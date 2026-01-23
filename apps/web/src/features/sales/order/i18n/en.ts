@@ -35,6 +35,7 @@ export const orderEn = {
       next: "Next",
       select: "Select",
       selectDate: "Select date",
+      customer: "Customer",
     },
 
     // Tabs
@@ -74,6 +75,10 @@ export const orderEn = {
     otherCost: "Other Cost",
     totalAmount: "Total Amount",
     reservedStock: "Stock Reserved",
+    salesQuotations: "Sales Quotations",
+    quotationSummary: "Quotation Summary",
+    noQuotation: "No sales quotation linked",
+    customer: "Customer",
     summary: "Summary",
     notes: "Notes",
     items: "Items",

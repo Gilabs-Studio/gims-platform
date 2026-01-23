@@ -6,8 +6,8 @@ import (
 
 	"github.com/gilabs/crm-healthcare/api/internal/core/utils"
 	productRepos "github.com/gilabs/crm-healthcare/api/internal/product/data/repositories"
-	salesQuotationRepos "github.com/gilabs/crm-healthcare/api/internal/sales/data/repositories"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
+	salesQuotationRepos "github.com/gilabs/crm-healthcare/api/internal/sales/data/repositories"
 	salesRepos "github.com/gilabs/crm-healthcare/api/internal/sales/data/repositories"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/dto"
 	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/mapper"
@@ -183,6 +183,13 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 	// Create order
 	if err := u.orderRepo.Create(ctx, order); err != nil {
 		return nil, err
+	}
+
+	// Update quotation status if linked
+	if order.SalesQuotationID != nil {
+		if err := u.quotationRepo.UpdateStatus(ctx, *order.SalesQuotationID, models.SalesQuotationStatusConverted, createdBy, nil); err != nil {
+			// Log error but don't fail transaction as order is created
+		}
 	}
 
 	// Fetch created order with relations
