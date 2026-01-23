@@ -1,26 +1,21 @@
-"use client";
-
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import { PageMotion } from "@/components/motion";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
-// Lazy load list component for code splitting
 const DeliveryList = dynamic(
   () =>
     import("@/features/sales/delivery/components/delivery-list").then(
-      (mod) => ({ default: mod.DeliveryList }),
+      (mod) => ({ default: mod.DeliveryList })
     ),
-  {
-    loading: () => null, // Use route-level loading.tsx
-  },
+  { loading: () => null }
 );
 
 export default function DeliveriesPage() {
   return (
-    <PageMotion>
+    <PermissionGuard requiredPermission="delivery_order.read">
       <Suspense fallback={null}>
         <DeliveryList />
       </Suspense>
-    </PageMotion>
+    </PermissionGuard>
   );
 }
