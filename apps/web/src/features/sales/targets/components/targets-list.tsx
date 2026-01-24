@@ -2,22 +2,58 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Send, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { 
+  MoreHorizontal, 
+  Plus, 
+  Search, 
+  Pencil, 
+  Trash2, 
+  Eye, 
+  Target, 
+  TrendingUp, 
+  BarChart3,
+  ArrowUpRight,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Clock,
+  Send
+} from "lucide-react";
 import { useYearlyTargets, useDeleteYearlyTarget, useUpdateTargetStatus } from "../hooks/use-targets";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { TargetForm } from "./target-form";
 import { TargetDetailModal } from "./target-detail-modal";
 import type { YearlyTarget, YearlyTargetStatus } from "../types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 export function TargetsList() {
   const t = useTranslations("targets");
@@ -25,7 +61,7 @@ export function TargetsList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<YearlyTargetStatus | "all">("all");
-  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<YearlyTarget | null>(null);
   const [viewingTarget, setViewingTarget] = useState<YearlyTarget | null>(null);
@@ -92,40 +128,60 @@ export function TargetsList() {
     }
   };
 
+  // Helper calculation functions
+  const calculateProgress = (actual: number, target: number) => {
+    if (!target || target === 0) return 0;
+    return Math.min(100, Math.max(0, (actual / target) * 100));
+  };
+  
+  const getProgressColor = (percent: number) => {
+    if (percent >= 100) return "bg-purple-500"; 
+    if (percent >= 80) return "bg-green-500";   
+    if (percent >= 50) return "bg-yellow-500";  
+    return "bg-destructive";                    
+  };
+
   const getStatusBadge = (status: YearlyTargetStatus) => {
     switch (status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "submitted":
         return (
-          <Badge variant="default">
-            <Send className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="font-medium text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+            <Clock className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="default" className="font-medium bg-green-600 hover:bg-green-700">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  // Overall stats
+  const overallStats = {
+     totalTarget: targets.reduce((acc, curr) => acc + curr.total_target, 0),
+     totalActual: targets.reduce((acc, curr) => acc + curr.total_actual, 0),
+  };
+  const overallProgress = calculateProgress(overallStats.totalActual, overallStats.totalTarget);
 
   if (isError) {
     return (
@@ -135,211 +191,265 @@ export function TargetsList() {
     );
   }
 
-  // Generate last 5 years + next year for filter
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i).reverse();
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("subtitle")}</p>
+    <div className="space-y-4">
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+             <Select
+              value={yearFilter}
+              onValueChange={(v) => {
+                setYearFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[120px] bg-background">
+                <SelectValue placeholder={t("year")} />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {canCreate && (
+                <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer shadow-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                {t("add")}
+              </Button>
+            )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("search")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9"
-          />
+       {/* Dashboard Summary Cards - Google Style */}
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="shadow-sm border-border/50 bg-card/50">
+             <CardContent className="p-4">
+                <div className="flex items-center justify-between space-y-0 pb-2">
+                   <span className="text-sm font-medium text-muted-foreground">{t("totalTarget")}</span>
+                   <Target className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="text-2xl font-bold">{formatCurrency(overallStats.totalTarget)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                   {t("common.filterBy")} {t("year")} {yearFilter}
+                </p>
+             </CardContent>
+          </Card>
+          
+          <Card className="shadow-sm border-border/50 bg-card/50">
+             <CardContent className="p-4">
+                <div className="flex items-center justify-between space-y-0 pb-2">
+                   <span className="text-sm font-medium text-muted-foreground">{t("totalActual")}</span>
+                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="text-2xl font-bold">{formatCurrency(overallStats.totalActual)}</div>
+                <div className="flex items-center text-xs mt-1">
+                  <span className={cn("font-medium", overallProgress >= 100 ? "text-green-600" : "text-muted-foreground")}>
+                      {overallProgress.toFixed(1)}% 
+                  </span>
+                  <span className="text-muted-foreground ml-1">{t("ofAnnualGoal")}</span>
+                </div>
+             </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-border/50 bg-card/50">
+             <CardContent className="p-4">
+                <div className="flex items-center justify-between space-y-0 pb-2">
+                   <span className="text-sm font-medium text-muted-foreground">{t("achievementSummary")}</span>
+                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex items-end gap-2">
+                   <div className="text-2xl font-bold">{overallProgress.toFixed(0)}%</div>
+                   <div className="mb-1">
+                      {overallProgress >= 100 ? (
+                        <ArrowUpRight className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{t("common.remaining")}</span>
+                      )}
+                   </div>
+                </div>
+                <Progress value={overallProgress} className="h-1.5 mt-3" indicatorClassName={getProgressColor(overallProgress)} />
+             </CardContent>
+          </Card>
+       </div>
+
+      {/* Main Table */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-sm">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+               <Input
+                 placeholder={t("search")}
+                 value={search}
+                 onChange={(e) => {
+                   setSearch(e.target.value);
+                   setPage(1);
+                 }}
+                 className="pl-9 bg-background"
+               />
+            </div>
+            <Select
+               value={statusFilter}
+               onValueChange={(v) => {
+                 setStatusFilter(v as YearlyTargetStatus | "all");
+                 setPage(1);
+               }}
+             >
+               <SelectTrigger className="w-[160px] bg-background">
+                 <SelectValue placeholder={t("common.filterBy")} />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="all">{t("common.allStatus")}</SelectItem>
+                 <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                 <SelectItem value="submitted">{t("status.submitted")}</SelectItem>
+                 <SelectItem value="approved">{t("status.approved")}</SelectItem>
+                 <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
+               </SelectContent>
+             </Select>
         </div>
-        <Select
-          value={yearFilter}
-          onValueChange={(v) => {
-            setYearFilter(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder={t("year")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allYears")}</SelectItem>
-            {years.map((y) => (
-              <SelectItem key={y} value={y.toString()}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v as YearlyTargetStatus | "all");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder={t("common.filterBy")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
-            <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="submitted">{t("status.submitted")}</SelectItem>
-            <SelectItem value="approved">{t("status.approved")}</SelectItem>
-            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex-1" />
-        {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
-            <Plus className="h-4 w-4 mr-2" />
-            {t("add")}
-          </Button>
+
+        <div className="rounded-md border shadow-sm bg-card">
+          <Table>
+             <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                   <TableHead className="w-[100px]">{t("year")}</TableHead>
+                   <TableHead>{t("areaRegion")}</TableHead>
+                   <TableHead className="w-[150px]">{t("common.status")}</TableHead>
+                   <TableHead className="w-[250px] text-center">{t("progress")}</TableHead>
+                   <TableHead className="text-right">{t("targetVsActual")}</TableHead>
+                   <TableHead className="w-[70px]"></TableHead>
+                </TableRow>
+             </TableHeader>
+             <TableBody>
+                {isLoading ? (
+                   Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                         <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                         <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                         <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
+                         <TableCell><div className="h-2 w-full bg-muted animate-pulse rounded" /></TableCell>
+                         <TableCell className="text-right"><div className="h-4 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+                         <TableCell />
+                      </TableRow>
+                   ))
+                ) : targets.length === 0 ? (
+                   <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                         <div className="flex flex-col items-center gap-2">
+                            <Target className="h-8 w-8 text-muted-foreground/30" />
+                            <p>{t("notFound")}</p>
+                         </div>
+                      </TableCell>
+                   </TableRow>
+                ) : (
+                   targets.map((target) => {
+                      const progress = calculateProgress(target.total_actual, target.total_target);
+                      
+                      return (
+                         <TableRow 
+                           key={target.id} 
+                           className="cursor-pointer hover:bg-muted/30 transition-colors"
+                           onClick={() => canView && handleView(target)}
+                         >
+                            <TableCell className="font-medium text-muted-foreground">{target.year}</TableCell>
+                            <TableCell>
+                               <span className="font-medium text-foreground">{target.area?.name}</span>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(target.status)}</TableCell>
+                            <TableCell>
+                               <div className="flex items-center gap-3">
+                                  <Progress value={progress} className="h-2 flex-1" indicatorClassName={getProgressColor(progress)} />
+                                  <span className="text-xs font-medium w-9 text-right">{progress.toFixed(0)}%</span>
+                               </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                               <div className="flex flex-col items-end">
+                                  <span className="text-sm font-medium">{formatCurrency(target.total_actual)}</span>
+                                  <span className="text-xs text-muted-foreground">/ {formatCurrency(target.total_target)}</span>
+                               </div>
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                               {(canUpdate || canDelete || canView) && (
+                                  <DropdownMenu>
+                                     <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-foreground">
+                                           <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                     </DropdownMenuTrigger>
+                                     <DropdownMenuContent align="end">
+                                        {canView && (
+                                           <DropdownMenuItem onClick={() => handleView(target)} className="cursor-pointer">
+                                              <Eye className="h-4 w-4 mr-2" />
+                                              {t("common.view")}
+                                           </DropdownMenuItem>
+                                        )}
+                                        {canUpdate && target.status === 'draft' && (
+                                           <DropdownMenuItem onClick={() => handleEdit(target)} className="cursor-pointer">
+                                              <Pencil className="h-4 w-4 mr-2" />
+                                              {t("common.edit")}
+                                           </DropdownMenuItem>
+                                        )}
+                                        {canUpdate && target.status === 'draft' && (
+                                           <DropdownMenuItem onClick={() => handleStatusChange(target.id, 'submitted')} className="cursor-pointer text-blue-600 focus:text-blue-700">
+                                              <Send className="h-4 w-4 mr-2" />
+                                              {t("status.submitted")}
+                                           </DropdownMenuItem>
+                                        )}
+                                        {canDelete && target.status === 'draft' && (
+                                           <DropdownMenuItem onClick={() => setDeletingId(target.id)} className="cursor-pointer text-destructive focus:text-destructive">
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              {t("common.delete")}
+                                           </DropdownMenuItem>
+                                        )}
+                                     </DropdownMenuContent>
+                                  </DropdownMenu>
+                               )}
+                            </TableCell>
+                         </TableRow>
+                      );
+                   })
+                )}
+             </TableBody>
+          </Table>
+        </div>
+
+        {pagination && pagination.total_pages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.has_prev}
+                  onClick={() => setPage(page - 1)}
+                  className="cursor-pointer"
+                >
+                  {t("common.previous")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.has_next}
+                  onClick={() => setPage(page + 1)}
+                  className="cursor-pointer"
+                >
+                  {t("common.next")}
+                </Button>
+              </div>
+            </div>
         )}
       </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("code")}</TableHead>
-              <TableHead>{t("year")}</TableHead>
-              <TableHead>{t("area")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("totalTarget")}</TableHead>
-              <TableHead className="w-[70px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
-                  <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                  <TableCell />
-                </TableRow>
-              ))
-            ) : targets.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {t("notFound")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              targets.map((target: YearlyTarget) => (
-                <TableRow key={target.id}>
-                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(target)}>
-                    {target.code}
-                  </TableCell>
-                  <TableCell>{target.year}</TableCell>
-                  <TableCell>{target.area?.name ?? "-"}</TableCell>
-                  <TableCell>{getStatusBadge(target.status)}</TableCell>
-                  <TableCell>{formatCurrency(target.total_target)}</TableCell>
-                  <TableCell>
-                    {(canUpdate || canDelete || canView) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canView && (
-                            <DropdownMenuItem onClick={() => handleView(target)} className="cursor-pointer">
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t("common.view")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && target.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleEdit(target)} className="cursor-pointer">
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t("common.edit")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && target.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(target.id, "submitted")}
-                              className="cursor-pointer"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              {t("actions.submit")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && target.status === "submitted" && (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(target.id, "approved")}
-                                className="cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.approve")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(target.id, "rejected")}
-                                className="cursor-pointer text-destructive"
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {t("actions.reject")}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {canDelete && target.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(target.id)}
-                              className="text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("common.delete")}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
-      )}
 
       {canCreate && (
         <TargetForm

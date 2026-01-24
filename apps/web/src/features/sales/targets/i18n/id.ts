@@ -24,6 +24,10 @@ export const targetsId = {
     targetAmount: "Jumlah Target",
     actualAmount: "Jumlah Aktual",
     noData: "Tidak ada target ditemukan",
+    areaRegion: "Area / Wilayah",
+    progress: "Progres",
+    targetVsActual: "Target vs Aktual",
+    ofAnnualGoal: "dari target tahunan",
     notFound: "Tidak ada target yang cocok dengan pencarian Anda",
     totalCalculatedFromMonths: "Total dihitung otomatis dari target bulanan",
     monthNotesPlaceholder: "Catatan opsional untuk bulan ini",
@@ -72,6 +76,8 @@ export const targetsId = {
       view: "Lihat",
       edit: "Ubah",
       delete: "Hapus",
+      remaining: "tersisa",
+      allStatus: "Semua Status",
       status: "Status",
       yearlyTarget: "Target Tahunan"
     }

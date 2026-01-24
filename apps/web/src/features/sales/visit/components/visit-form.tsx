@@ -440,7 +440,7 @@ export function VisitForm({ open, onClose, visit }: VisitFormProps) {
                                   name={`details.${index}.interest_level`}
                                   control={control}
                                   render={({ field }) => (
-                                    <Select value={field.value.toString()} onValueChange={(v) => field.onChange(parseInt(v))}>
+                                    <Select value={field.value?.toString()} onValueChange={(v) => field.onChange(parseInt(v))}>
                                       <SelectTrigger>
                                         <SelectValue placeholder="Level" />
                                       </SelectTrigger>

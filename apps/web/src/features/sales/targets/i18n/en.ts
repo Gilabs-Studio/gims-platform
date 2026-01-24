@@ -24,6 +24,10 @@ export const targetsEn = {
     targetAmount: "Target Amount",
     actualAmount: "Actual Amount",
     noData: "No targets found",
+    areaRegion: "Area / Region",
+    progress: "Progress",
+    targetVsActual: "Target vs Actual",
+    ofAnnualGoal: "of annual goal",
     notFound: "No targets match your search",
     totalCalculatedFromMonths: "Total calculated from monthly targets",
     monthNotesPlaceholder: "Optional notes for this month",
@@ -72,6 +76,8 @@ export const targetsEn = {
       view: "View",
       edit: "Edit",
       delete: "Delete",
+      remaining: "remaining",
+      allStatus: "All Status",
       status: "Status",
       yearlyTarget: "Yearly Target"
     }

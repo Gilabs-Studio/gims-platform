@@ -498,8 +498,8 @@ erDiagram
 - [x] Payment status updates (Unpaid → Partial → Paid)
 - [x] HPP visibility controlled by permission
 - [x] Visit tracks all product discussions
-- [ ] Interest survey scoring works correctly
-- [ ] Target achievement shows real vs plan
+- [ ] Interest survey scoring works correctly (TODO)
+- [x] Target achievement shows real vs plan
 
 ### Integration Requirements
 

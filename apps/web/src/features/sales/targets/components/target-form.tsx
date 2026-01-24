@@ -213,7 +213,7 @@ export function TargetForm({ open, onClose, target }: TargetFormProps) {
   };
 
   const isLoading = createTarget.isPending || updateTarget.isPending;
-  const isFormLoading = isEdit && isLoadingTarget && !fullTargetData?.data;
+  const isFormLoading = isEdit && isLoadingTarget && !fullTargetData;
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => currentYear - 2 + i);
