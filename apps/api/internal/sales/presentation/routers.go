@@ -23,6 +23,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	deliveryRepo := salesRepos.NewDeliveryOrderRepository(db)
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	visitRepo := salesRepos.NewSalesVisitRepository(db)
+	yearlyTargetRepo := salesRepos.NewYearlyTargetRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 
 	// Initialize usecases
@@ -32,6 +33,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(invoiceRepo, productRepo)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
+	yearlyTargetUC := usecase.NewYearlyTargetUsecase(yearlyTargetRepo)
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
@@ -40,6 +42,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
 	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
 	visitHandler := handler.NewSalesVisitHandler(visitUC)
+	yearlyTargetHandler := handler.NewYearlyTargetHandler(yearlyTargetUC)
 
 	// Create sales group under API with auth middleware
 	salesGroup := api.Group("/sales")
@@ -52,5 +55,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
+	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
 }
 

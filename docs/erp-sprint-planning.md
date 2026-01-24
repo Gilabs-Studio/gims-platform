@@ -474,9 +474,9 @@ erDiagram
 - [ ] `SalesVisitInterestQuestion/Option/Answer` - Survey handling
 
 #### Estimation & Target
-- [ ] `SalesEstimation` - CRUD + Convert to Quotation
-- [ ] `YearlyTarget` - Target setting per area
-- [ ] `MonthlyTarget` - Monthly breakdown
+- [x] `SalesEstimation` - CRUD + Convert to Quotation
+- [x] `YearlyTarget` - Target setting per area
+- [x] `MonthlyTarget` - Monthly breakdown
 
 ### Frontend Tasks
 
@@ -488,8 +488,8 @@ erDiagram
 - [x] Sales Visit calendar view
 - [x] Visit form with product interest survey
 - [x] Visit progress timeline
-- [ ] Sales target dashboard
-- [ ] Target vs Actual comparison
+- [x] Sales target dashboard
+- [x] Target vs Actual comparison
 
 ### Success Criteria
 

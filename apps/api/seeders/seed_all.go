@@ -98,6 +98,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales Targets seeder (Sprint 7)
+	if err := SeedSalesTargets(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

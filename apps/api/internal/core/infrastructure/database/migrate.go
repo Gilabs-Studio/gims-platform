@@ -111,6 +111,9 @@ func AutoMigrate() error {
 		&sales.SalesVisit{},
 		&sales.SalesVisitDetail{},
 		&sales.SalesVisitProgressHistory{},
+		// Sales Targets entities (Sprint 7)
+		&sales.YearlyTarget{},
+		&sales.MonthlyTarget{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
