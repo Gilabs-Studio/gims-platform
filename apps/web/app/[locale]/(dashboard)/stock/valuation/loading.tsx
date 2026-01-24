@@ -1,12 +1,11 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function StockValuationLoading() {
   return (
-    <PageMotion className="space-y-6">
+    <div className="space-y-6">
       {/* Page Header Skeleton */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
@@ -85,6 +84,6 @@ export default function StockValuationLoading() {
           </div>
         </CardContent>
       </Card>
-    </PageMotion>
+    </div>
   );
 }

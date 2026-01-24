@@ -1,9 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
 
 export default function ProductsLoading() {
   return (
-    <PageMotion className="space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <Skeleton className="h-8 w-48" />
@@ -25,6 +24,6 @@ export default function ProductsLoading() {
           ))}
         </div>
       </div>
-    </PageMotion>
+    </div>
   );
 }

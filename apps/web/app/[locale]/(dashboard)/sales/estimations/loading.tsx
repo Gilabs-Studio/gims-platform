@@ -1,11 +1,10 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
 
 export default function EstimationLoading() {
   return (
-    <PageMotion className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-9 w-48" />
@@ -19,6 +18,6 @@ export default function EstimationLoading() {
           ))}
         </div>
       </div>
-    </PageMotion>
+    </div>
   );
 }

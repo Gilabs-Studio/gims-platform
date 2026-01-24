@@ -1,12 +1,11 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function DivisionsLoading() {
   return (
-    <PageMotion className="p-6">
+    <div className="p-6">
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
@@ -35,6 +34,6 @@ export default function DivisionsLoading() {
           </CardContent>
         </Card>
       </div>
-    </PageMotion>
+    </div>
   );
 }

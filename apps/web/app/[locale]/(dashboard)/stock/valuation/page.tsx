@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import { PageMotion } from "@/components/motion";
 
 const StockValuationDashboard = dynamic(
   () =>
@@ -14,10 +13,8 @@ const StockValuationDashboard = dynamic(
 
 export default function StockValuationPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={null}>
-        <StockValuationDashboard />
-      </Suspense>
-    </PageMotion>
+    <Suspense fallback={null}>
+      <StockValuationDashboard />
+    </Suspense>
   );
 }

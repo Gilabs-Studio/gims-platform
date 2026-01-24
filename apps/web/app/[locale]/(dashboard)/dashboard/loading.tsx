@@ -1,11 +1,10 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageMotion } from "@/components/motion";
 
 export default function DashboardLoading() {
   return (
-    <PageMotion className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       <Skeleton className="h-9 w-48" />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -20,7 +19,7 @@ export default function DashboardLoading() {
           <Skeleton className="h-[600px]" />
         </div>
       </div>
-    </PageMotion>
+    </div>
   );
 }
 
