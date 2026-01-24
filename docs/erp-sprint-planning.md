@@ -236,10 +236,10 @@ erDiagram
 
 #### Others
 - [x] `Warehouse` - CRUD
-- [ ] `PaymentTerms` - CRUD
-- [ ] `CourierAgency` - CRUD
-- [ ] `SOSource` - CRUD
-- [ ] `Leave` (Type) - CRUD
+- [x] `PaymentTerms` - CRUD
+- [x] `CourierAgency` - CRUD
+- [x] `SOSource` - CRUD
+- [x] `Leave` (Type) - CRUD
 
 ### Frontend Tasks
 
@@ -468,9 +468,9 @@ erDiagram
 - [x] HPP view permission (`customer_invoice.view_hpp`)
 
 #### Sales Visit
-- [ ] `SalesVisit` - CRUD + Activity tracking
-- [ ] `SalesVisitDetail` - Products discussed
-- [ ] `SalesVisitProgressHistory` - Auto-track changes
+- [x] `SalesVisit` - CRUD + Activity tracking
+- [x] `SalesVisitDetail` - Products discussed
+- [x] `SalesVisitProgressHistory` - Auto-track changes
 - [ ] `SalesVisitInterestQuestion/Option/Answer` - Survey handling
 
 #### Estimation & Target
@@ -485,9 +485,9 @@ erDiagram
 - [x] Payment recording UI
 - [x] HPP field blur with permission check
 - [x] Discount display in summary
-- [ ] Sales Visit calendar view
-- [ ] Visit form with product interest survey
-- [ ] Visit progress timeline
+- [x] Sales Visit calendar view
+- [x] Visit form with product interest survey
+- [x] Visit progress timeline
 - [ ] Sales target dashboard
 - [ ] Target vs Actual comparison
 
@@ -497,7 +497,7 @@ erDiagram
 - [x] HPP calculated and stored per invoice item
 - [x] Payment status updates (Unpaid → Partial → Paid)
 - [x] HPP visibility controlled by permission
-- [ ] Visit tracks all product discussions
+- [x] Visit tracks all product discussions
 - [ ] Interest survey scoring works correctly
 - [ ] Target achievement shows real vs plan
 

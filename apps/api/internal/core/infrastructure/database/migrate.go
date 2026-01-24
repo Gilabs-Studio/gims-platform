@@ -105,6 +105,10 @@ func AutoMigrate() error {
 		// Customer Invoice entities (Sprint 7)
 		&sales.CustomerInvoice{},
 		&sales.CustomerInvoiceItem{},
+		// Sales Visit entities (Sprint 7)
+		&sales.SalesVisit{},
+		&sales.SalesVisitDetail{},
+		&sales.SalesVisitProgressHistory{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
