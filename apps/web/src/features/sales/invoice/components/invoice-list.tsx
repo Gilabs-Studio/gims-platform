@@ -16,7 +16,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
+import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
+import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
 
 export function InvoiceList() {
@@ -28,6 +30,7 @@ export function InvoiceList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<CustomerInvoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(null);
+  const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -219,7 +222,7 @@ export function InvoiceList() {
             ) : (
               invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => canView && handleView(invoice)}>
+                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(invoice)}>
                     {invoice.code}
                   </TableCell>
                   <TableCell>
@@ -232,7 +235,18 @@ export function InvoiceList() {
                       ? new Date(invoice.due_date).toLocaleDateString()
                       : "-"}
                   </TableCell>
-                  <TableCell>{invoice.sales_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    {invoice.sales_order ? (
+                      <button
+                        onClick={() => setViewingSalesOrder(invoice.sales_order!)}
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                      >
+                        {invoice.sales_order.code}
+                      </button>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
                   <TableCell>{formatCurrency(invoice.amount ?? 0)}</TableCell>
                   <TableCell>
@@ -335,6 +349,14 @@ export function InvoiceList() {
           open={!!viewingInvoice}
           onClose={() => setViewingInvoice(null)}
           invoice={viewingInvoice}
+        />
+      )}
+
+      {viewingSalesOrder && (
+        <OrderDetailModal
+          open={!!viewingSalesOrder}
+          onClose={() => setViewingSalesOrder(null)}
+          order={viewingSalesOrder}
         />
       )}
 

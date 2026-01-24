@@ -17,7 +17,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetailModal } from "./delivery-detail-modal";
+import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
+import type { SalesOrder, SalesOrderSummary } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
 
 export function DeliveryList() {
@@ -29,6 +31,7 @@ export function DeliveryList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
   const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(null);
+  const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | SalesOrderSummary | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useDeliveryOrders({
@@ -221,7 +224,7 @@ export function DeliveryList() {
             ) : (
               deliveries.map((delivery) => (
                 <TableRow key={delivery.id}>
-                  <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => canView && handleView(delivery)}>
+                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(delivery)}>
                     {delivery.code}
                   </TableCell>
                   <TableCell>
@@ -229,7 +232,18 @@ export function DeliveryList() {
                       ? new Date(delivery.delivery_date).toLocaleDateString()
                       : "-"}
                   </TableCell>
-                  <TableCell>{delivery.sales_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    {delivery.sales_order ? (
+                      <button
+                        onClick={() => setViewingSalesOrder(delivery.sales_order!)}
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                      >
+                        {delivery.sales_order.code}
+                      </button>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(delivery.status)}</TableCell>
                   <TableCell>{delivery.tracking_number || "-"}</TableCell>
                   <TableCell>
@@ -314,6 +328,14 @@ export function DeliveryList() {
           open={!!viewingDelivery}
           onClose={() => setViewingDelivery(null)}
           delivery={viewingDelivery}
+        />
+      )}
+
+      {viewingSalesOrder && (
+        <OrderDetailModal
+          open={!!viewingSalesOrder}
+          onClose={() => setViewingSalesOrder(null)}
+          order={viewingSalesOrder}
         />
       )}
 

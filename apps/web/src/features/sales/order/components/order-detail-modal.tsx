@@ -24,13 +24,13 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { SalesOrder } from "../types";
+import type { SalesOrder, SalesOrderSummary } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly order: SalesOrder | null;
+  readonly order: SalesOrder | SalesOrderSummary | null;
 }
 
 export function OrderDetailModal({
@@ -58,7 +58,7 @@ export function OrderDetailModal({
 
   // Use detailed data if available, otherwise use passed order
   const displayOrder = detailData?.data ?? order;
-  const items = displayOrder.items ?? [];
+  const items = (displayOrder as SalesOrder).items ?? [];
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -160,9 +160,9 @@ export function OrderDetailModal({
                 <div className="flex items-center gap-3">
                   {order && getStatusBadge(order.status)}
                   <span className="text-sm text-muted-foreground">
-                    {displayOrder?.order_date && new Date(displayOrder.order_date).toLocaleDateString()}
+                  {displayOrder?.order_date && new Date(displayOrder.order_date).toLocaleDateString()}
                   </span>
-                  {displayOrder?.reserved_stock && (
+                  {(displayOrder as SalesOrder)?.reserved_stock && (
                     <Badge variant="outline" className="text-xs">
                       {t("reservedStock")}
                     </Badge>
@@ -263,42 +263,42 @@ export function OrderDetailModal({
                         <span className="text-sm font-medium uppercase tracking-wide">{t("totalAmount")}</span>
                       </div>
                       <div className="text-4xl font-bold tracking-tight text-primary">
-                        {formatCurrency(displayOrder.total_amount)}
+                        {formatCurrency(displayOrder?.total_amount ?? 0)}
                       </div>
-                      {displayOrder.notes && (
+                      {(displayOrder as SalesOrder).notes && (
                         <p className="text-sm text-muted-foreground mt-4 max-w-2xl leading-relaxed">
-                          {displayOrder.notes}
+                          {(displayOrder as SalesOrder).notes}
                         </p>
                       )}
                     </div>
-                    {(displayOrder.confirmed_at || displayOrder.cancelled_at) && (
+                    {((displayOrder as SalesOrder).confirmed_at || (displayOrder as SalesOrder).cancelled_at) && (
                       <div className="flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-xl p-4 border shadow-sm min-w-[200px]">
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                           <History className="h-3.5 w-3.5" />
                           {t("common.workflow")}
                         </div>
-                        {displayOrder.confirmed_at && (
+                        {(displayOrder as SalesOrder).confirmed_at && (
                           <div className="flex items-start gap-2.5 text-sm">
                             <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-blue-700 dark:text-blue-400">{t("status.confirmed")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayOrder.confirmed_at).toLocaleString()}
+                                {(displayOrder as SalesOrder).confirmed_at ? new Date((displayOrder as SalesOrder).confirmed_at!).toLocaleString() : ""}
                               </p>
                             </div>
                           </div>
                         )}
-                        {displayOrder.cancelled_at && (
+                        {(displayOrder as SalesOrder).cancelled_at && (
                           <div className="flex items-start gap-2.5 text-sm">
                             <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-400">{t("status.cancelled")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayOrder.cancelled_at).toLocaleString()}
+                                {(displayOrder as SalesOrder).cancelled_at ? new Date((displayOrder as SalesOrder).cancelled_at!).toLocaleString() : ""}
                               </p>
-                              {displayOrder.cancellation_reason && (
+                              {(displayOrder as SalesOrder).cancellation_reason && (
                                 <p className="text-xs mt-1.5 italic text-muted-foreground border-l-2 border-red-300 pl-2">
-                                  {displayOrder.cancellation_reason}
+                                  {(displayOrder as SalesOrder).cancellation_reason}
                                 </p>
                               )}
                             </div>
@@ -331,7 +331,7 @@ export function OrderDetailModal({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("orderDate")}</p>
-                          <p className="text-sm font-medium">{new Date(displayOrder.order_date).toLocaleDateString()}</p>
+                          <p className="text-sm font-medium">{displayOrder?.order_date ? new Date(displayOrder.order_date).toLocaleDateString() : "-"}</p>
                         </div>
 
                       </div>
@@ -348,58 +348,58 @@ export function OrderDetailModal({
                     </div>
                     <div className="p-6">
                       <div className="grid grid-cols-1 gap-5">
-                        {displayOrder.payment_terms && (
+                        {(displayOrder as SalesOrder).payment_terms && (
                           <div className="flex items-start gap-3 group">
                             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                               <DollarSign className="h-4 w-4 text-primary" />
                             </div>
                             <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-xs text-muted-foreground">{t("paymentTerms")}</p>
-                              <p className="text-sm font-medium truncate">{displayOrder.payment_terms.name}</p>
+                              <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).payment_terms?.name}</p>
                             </div>
                           </div>
                         )}
-                        {displayOrder.sales_rep && (
+                        {(displayOrder as SalesOrder).sales_rep && (
                           <div className="flex items-start gap-3 group">
                             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                               <Package className="h-4 w-4 text-primary" />
                             </div>
                             <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-xs text-muted-foreground">{t("salesRep")}</p>
-                              <p className="text-sm font-medium truncate">{displayOrder.sales_rep.name}</p>
+                              <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).sales_rep?.name}</p>
                             </div>
                           </div>
                         )}
-                        {displayOrder.business_unit && (
+                        {(displayOrder as SalesOrder).business_unit && (
                           <div className="flex items-start gap-3 group">
                             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                               <Package className="h-4 w-4 text-primary" />
                             </div>
                             <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-xs text-muted-foreground">{t("businessUnit")}</p>
-                              <p className="text-sm font-medium truncate">{displayOrder.business_unit.name}</p>
+                              <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).business_unit?.name}</p>
                             </div>
                           </div>
                         )}
-                        {displayOrder.business_type && (
+                        {(displayOrder as SalesOrder).business_type && (
                           <div className="flex items-start gap-3 group">
                             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                               <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-xs text-muted-foreground">{t("businessType")}</p>
-                              <p className="text-sm font-medium truncate">{displayOrder.business_type.name}</p>
+                              <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).business_type?.name}</p>
                             </div>
                           </div>
                         )}
-                        {displayOrder.delivery_area && (
+                        {(displayOrder as SalesOrder).delivery_area && (
                           <div className="flex items-start gap-3 group">
                             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                               <Truck className="h-4 w-4 text-primary" />
                             </div>
                             <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-xs text-muted-foreground">{t("deliveryArea")}</p>
-                              <p className="text-sm font-medium truncate">{displayOrder.delivery_area.name}</p>
+                              <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).delivery_area?.name}</p>
                             </div>
                           </div>
                         )}
@@ -419,15 +419,15 @@ export function OrderDetailModal({
                       </h3>
                     </div>
                     <div className="p-6">
-                      {displayOrder.sales_quotation ? (
+                      {(displayOrder as SalesOrder).sales_quotation ? (
                         <div className="space-y-5">
                           <div className="flex items-center justify-between">
                             <div className="space-y-1.5">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("code")}</p>
-                              <p className="text-base font-semibold">{displayOrder.sales_quotation.code}</p>
+                              <p className="text-base font-semibold">{(displayOrder as SalesOrder).sales_quotation?.code}</p>
                             </div>
-                            <Badge variant={displayOrder.sales_quotation.status === "approved" ? "default" : "secondary"}>
-                              {displayOrder.sales_quotation.status}
+                            <Badge variant={(displayOrder as SalesOrder).sales_quotation?.status === "approved" ? "default" : "secondary"}>
+                              {(displayOrder as SalesOrder).sales_quotation?.status}
                             </Badge>
                           </div>
 
@@ -436,17 +436,17 @@ export function OrderDetailModal({
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.customer")}</p>
-                              <p className="text-sm font-medium truncate" title={displayOrder.sales_quotation.sales_prospect?.company?.name || "N/A"}>
-                                {displayOrder.sales_quotation.sales_prospect?.company?.name || "TODO BELUM DIIMPLEMENT"}
+                              <p className="text-sm font-medium truncate" title={(displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "N/A"}>
+                                {(displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "TODO BELUM DIIMPLEMENT"}
                               </p>
                             </div>
                             <div className="space-y-1.5">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.date")}</p>
-                              <p className="text-sm font-medium">{formatDate(displayOrder.sales_quotation.quotation_date)}</p>
+                              <p className="text-sm font-medium">{formatDate((displayOrder as SalesOrder).sales_quotation?.quotation_date)}</p>
                             </div>
                             <div className="space-y-1.5">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.total")}</p>
-                              <p className="text-sm font-medium">{formatCurrency(displayOrder.sales_quotation.total_amount)}</p>
+                              <p className="text-sm font-medium">{formatCurrency((displayOrder as SalesOrder).sales_quotation?.total_amount ?? 0)}</p>
                             </div>
                           </div>
                         </div>
@@ -470,15 +470,15 @@ export function OrderDetailModal({
                       {/* Subtotal */}
                       <div className="flex items-center justify-between py-3 border-b border-dashed">
                         <span className="text-sm font-medium text-muted-foreground">{t("subtotal")}</span>
-                        <span className="text-base font-semibold">{formatCurrency(displayOrder.subtotal)}</span>
+                        <span className="text-base font-semibold">{formatCurrency((displayOrder as SalesOrder)?.subtotal ?? 0)}</span>
                       </div>
 
                       {/* Discount */}
-                      {displayOrder.discount_amount > 0 && (
+                      {((displayOrder as SalesOrder).discount_amount ?? 0) > 0 && (
                         <div className="flex items-center justify-between py-3 border-b border-dashed">
                           <span className="text-sm font-medium text-muted-foreground">{t("discountAmount")}</span>
                           <span className="text-base font-semibold text-destructive">
-                            -{formatCurrency(displayOrder.discount_amount)}
+                            -{formatCurrency((displayOrder as SalesOrder)?.discount_amount ?? 0)}
                           </span>
                         </div>
                       )}
@@ -486,31 +486,31 @@ export function OrderDetailModal({
                       {/* Tax */}
                       <div className="flex items-center justify-between py-3 border-b border-dashed">
                         <span className="text-sm font-medium text-muted-foreground">
-                          {t("taxAmount")} ({displayOrder.tax_rate}%)
+                          {t("taxAmount")} ({(displayOrder as SalesOrder)?.tax_rate ?? 0}%)
                         </span>
-                        <span className="text-base font-semibold">{formatCurrency(displayOrder.tax_amount)}</span>
+                        <span className="text-base font-semibold">{formatCurrency((displayOrder as SalesOrder)?.tax_amount ?? 0)}</span>
                       </div>
 
                       {/* Delivery Cost */}
-                      {displayOrder.delivery_cost > 0 && (
+                      {((displayOrder as SalesOrder).delivery_cost ?? 0) > 0 && (
                         <div className="flex items-center justify-between py-3 border-b border-dashed">
                           <span className="text-sm font-medium text-muted-foreground">{t("deliveryCost")}</span>
-                          <span className="text-base font-semibold">{formatCurrency(displayOrder.delivery_cost)}</span>
+                          <span className="text-base font-semibold">{formatCurrency((displayOrder as SalesOrder)?.delivery_cost ?? 0)}</span>
                         </div>
                       )}
 
                       {/* Other Cost */}
-                      {displayOrder.other_cost > 0 && (
+                      {((displayOrder as SalesOrder).other_cost ?? 0) > 0 && (
                         <div className="flex items-center justify-between py-3 border-b border-dashed">
                           <span className="text-sm font-medium text-muted-foreground">{t("otherCost")}</span>
-                          <span className="text-base font-semibold">{formatCurrency(displayOrder.other_cost)}</span>
+                          <span className="text-base font-semibold">{formatCurrency((displayOrder as SalesOrder)?.other_cost ?? 0)}</span>
                         </div>
                       )}
 
                       {/* Total - Highlighted */}
                       <div className="flex items-center justify-between py-4 px-4 bg-primary/5 rounded-lg border border-primary/20 mt-4">
                         <span className="text-base font-bold text-primary">{t("totalAmount")}</span>
-                        <span className="text-2xl font-bold text-primary">{formatCurrency(displayOrder.total_amount)}</span>
+                        <span className="text-2xl font-bold text-primary">{formatCurrency(displayOrder?.total_amount ?? 0)}</span>
                       </div>
                     </div>
                   </div>
@@ -583,7 +583,7 @@ export function OrderDetailModal({
           onClose={() => {
             setIsEditDialogOpen(false);
           }}
-          order={order}
+          order={order as SalesOrder}
         />
       )}
 

@@ -17,7 +17,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
+import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import type { SalesOrder, SalesOrderStatus } from "../types";
+import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency } from "@/lib/utils";
 
 export function OrderList() {
@@ -29,6 +31,7 @@ export function OrderList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
   const [viewingOrder, setViewingOrder] = useState<SalesOrder | null>(null);
+  const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useOrders({
@@ -202,6 +205,7 @@ export function OrderList() {
             <TableRow>
               <TableHead>{t("code")}</TableHead>
               <TableHead>{t("orderDate")}</TableHead>
+              <TableHead>{t("salesQuotations") || "Sales Quotation"}</TableHead>
               <TableHead>{t("salesRep")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
               <TableHead>{t("totalAmount")}</TableHead>
@@ -229,13 +233,25 @@ export function OrderList() {
             ) : (
               orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => canView && handleView(order)}>
+                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(order)}>
                     {order.code}
                   </TableCell>
                   <TableCell>
                     {order.order_date
                       ? new Date(order.order_date).toLocaleDateString()
                       : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {order.sales_quotation ? (
+                      <button
+                        onClick={() => setViewingQuotation(order.sales_quotation!)}
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                      >
+                        {order.sales_quotation.code}
+                      </button>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell>{order.sales_rep?.name ?? "-"}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
@@ -352,6 +368,14 @@ export function OrderList() {
           description={t("deleteDesc")}
           itemName={t("common.order")}
           isLoading={deleteOrder.isPending}
+        />
+      )}
+
+      {viewingQuotation && (
+        <QuotationDetailModal
+          open={!!viewingQuotation}
+          onClose={() => setViewingQuotation(null)}
+          quotation={viewingQuotation}
         />
       )}
     </div>

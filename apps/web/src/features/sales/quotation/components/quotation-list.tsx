@@ -210,7 +210,7 @@ export function QuotationList() {
             ) : (
               quotations.map((quotation) => (
                 <TableRow key={quotation.id}>
-                  <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => canView && handleView(quotation)}>
+                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(quotation)}>
                     {quotation.code}
                   </TableCell>
                   <TableCell>

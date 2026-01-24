@@ -8,6 +8,14 @@ export interface Area {
   description?: string;
 }
 
+export interface SalesOrderSummary {
+  id: string;
+  code: string;
+  status: string;
+  total_amount: number;
+  order_date?: string;
+}
+
 export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
 
 export interface SalesOrderItem {

@@ -44,12 +44,7 @@ export interface DeliveryOrder {
     name: string;
   };
   sales_order_id: string;
-  sales_order?: {
-    id: string;
-    code: string;
-    status: string;
-    total_amount: number;
-  };
+  sales_order?: SalesOrderSummary;
   delivered_by_id?: string;
   delivered_by?: {
     id: string;
