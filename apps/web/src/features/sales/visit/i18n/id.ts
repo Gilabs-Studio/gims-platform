@@ -105,7 +105,8 @@ export const visitI18nId = {
   updateError: "Gagal memperbarui kunjungan",
   deleteError: "Gagal menghapus kunjungan",
 
-  // Unknown fallbacks
-  unknownCompany: "Perusahaan Tidak Dikenal",
-  unknownEmployee: "Sales Tidak Dikenal",
+  // Calendar
+  moreVisits: "{count} lagi",
+  newVisit: "Kunjungan Baru",
+  noVisitsToday: "Tidak ada jadwal",
 };

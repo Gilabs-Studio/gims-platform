@@ -13,6 +13,8 @@ import type {
   UpdateSalesVisitStatusData,
   CheckInData,
   CheckOutData,
+  GetCalendarSummaryParams,
+  CalendarSummaryResponse,
 } from "../types";
 
 const BASE_PATH = "/sales/sales-visits";
@@ -110,6 +112,16 @@ export const visitService = {
     const response = await apiClient.post<SalesVisitSingleResponse>(
       `${BASE_PATH}/${id}/check-out`,
       data
+    );
+    return response.data;
+  },
+
+  async getCalendarSummary(
+    params: GetCalendarSummaryParams
+  ): Promise<CalendarSummaryResponse> {
+    const response = await apiClient.get<CalendarSummaryResponse>(
+      `${BASE_PATH}/calendar`,
+      { params }
     );
     return response.data;
   },

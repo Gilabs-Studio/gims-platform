@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,14 @@ import {
   MapPin, LogIn, LogOut, XCircle, Clock, CheckCircle2, AlertCircle,
   Calendar as CalendarIcon, List as ListIcon
 } from "lucide-react";
-import { useVisits, useDeleteVisit, useUpdateVisitStatus, useCheckIn, useCheckOut } from "../hooks/use-visits";
+import { 
+  useVisits, 
+  useVisitCalendarSummary, 
+  useDeleteVisit, 
+  useUpdateVisitStatus, 
+  useCheckIn, 
+  useCheckOut 
+} from "../hooks/use-visits";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { SalesVisit, SalesVisitStatus } from "../types";
@@ -24,9 +31,9 @@ import { visitI18nEn } from "../i18n/en";
 import { VisitCalendarView } from "./visit-calendar-view";
 import { VisitForm } from "./visit-form";
 import { VisitDetailModal } from "./visit-detail-modal";
+import { DayVisitListDrawer } from "./day-visit-list-drawer";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
-// Using static i18n for now - can integrate with next-intl later
 const t = (key: string) => {
   const keys = key.split(".");
   let value: unknown = visitI18nEn;
@@ -40,6 +47,7 @@ const t = (key: string) => {
 export function VisitList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -51,24 +59,31 @@ export function VisitList() {
   const [editingVisit, setEditingVisit] = useState<SalesVisit | null>(null);
   const [detailVisit, setDetailVisit] = useState<SalesVisit | null>(null);
 
-  // Prepare query params based on view mode
-  const queryParams = viewMode === "list" 
-    ? {
-        page,
-        per_page: 20,
-        search: debouncedSearch || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-      } 
-    : {
-        page: 1,
-        per_page: 1000, // Fetch all for month
-        date_from: format(startOfMonth(calendarDate), "yyyy-MM-dd"),
-        date_to: format(endOfMonth(calendarDate), "yyyy-MM-dd"),
-        search: debouncedSearch || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-      };
+  // List Query
+  const listParams = useMemo(() => ({
+    page,
+    per_page: 20,
+    search: debouncedSearch || undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  }), [page, debouncedSearch, statusFilter]);
 
-  const { data, isLoading, isError } = useVisits(queryParams);
+  const { 
+    data: listData, 
+    isLoading: isListLoading, 
+    isError: isListError 
+  } = useVisits(listParams);
+
+  // Calendar Summary Query
+  const summaryParams = useMemo(() => ({
+    date_from: format(startOfMonth(calendarDate), "yyyy-MM-dd"),
+    date_to: format(endOfMonth(calendarDate), "yyyy-MM-dd"),
+    // filters could extend here e.g. employee_id if added to UI
+  }), [calendarDate]); // removing search/status from calendar summary for now as summary is usually holistic
+
+  const { 
+    data: summaryData, 
+    isLoading: isSummaryLoading 
+  } = useVisitCalendarSummary(summaryParams);
 
   const canCreate = useUserPermission("sales_visit.create");
   const canUpdate = useUserPermission("sales_visit.update");
@@ -80,8 +95,9 @@ export function VisitList() {
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   
-  const visits = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
+  const visits = listData?.data ?? [];
+  const pagination = listData?.meta?.pagination;
+  const summary = summaryData?.data?.summary ?? [];
 
   const handleDelete = async () => {
     if (deletingId) {
@@ -179,7 +195,7 @@ export function VisitList() {
     }
   };
 
-  if (isError) {
+  if (viewMode === "list" && isListError) {
     return (
       <Card>
         <CardContent className="text-center py-8">
@@ -273,7 +289,7 @@ export function VisitList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isListLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -376,7 +392,6 @@ export function VisitList() {
             </Table>
           </div>
 
-          {/* Pagination */}
           {pagination && pagination.total_pages > 1 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
@@ -407,10 +422,11 @@ export function VisitList() {
         </>
       ) : (
         <VisitCalendarView
-          visits={visits}
+          summary={summary}
           currentDate={calendarDate}
+          isLoading={isSummaryLoading}
           onDateChange={setCalendarDate}
-          onVisitClick={setDetailVisit} 
+          onDateClick={setSelectedDate} 
         />
       )}
 
@@ -425,6 +441,19 @@ export function VisitList() {
         open={!!detailVisit}
         onClose={() => setDetailVisit(null)}
         visit={detailVisit}
+      />
+
+      {/* New Drawer for Date Details */}
+      <DayVisitListDrawer
+        date={selectedDate}
+        onClose={() => setSelectedDate(null)}
+        onVisitClick={(visit) => {
+          setDetailVisit(visit);
+          // keep drawer open? usually better to close drawer if modal opens, or stack them.
+          // Dialog usually sits on top of Drawer (z-index).
+          // But maybe we want the drawer to close.
+          // setSelectedDate(null); // Optional: close drawer when opening detail
+        }}
       />
 
       <DeleteDialog

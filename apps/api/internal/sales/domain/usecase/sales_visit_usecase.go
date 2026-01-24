@@ -33,6 +33,7 @@ type SalesVisitUsecase interface {
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateSalesVisitStatusRequest, userID *string) (*dto.SalesVisitResponse, error)
 	CheckIn(ctx context.Context, id string, req *dto.CheckInRequest, userID *string) (*dto.SalesVisitResponse, error)
 	CheckOut(ctx context.Context, id string, req *dto.CheckOutRequest, userID *string) (*dto.SalesVisitResponse, error)
+	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) (*dto.CalendarSummaryResponse, error)
 }
 
 type salesVisitUsecase struct {
@@ -467,4 +468,12 @@ func isValidVisitStatusTransition(from, to models.SalesVisitStatus) bool {
 	}
 
 	return false
+}
+
+func (u *salesVisitUsecase) GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) (*dto.CalendarSummaryResponse, error) {
+	summaries, err := u.visitRepo.GetCalendarSummary(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.CalendarSummaryResponse{Summary: summaries}, nil
 }

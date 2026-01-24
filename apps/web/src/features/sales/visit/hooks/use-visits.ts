@@ -13,6 +13,7 @@ import type {
   CheckOutData,
   SalesVisit,
   SalesVisitListResponse,
+  GetCalendarSummaryParams,
 } from "../types";
 
 // Query keys
@@ -27,6 +28,8 @@ export const visitKeys = {
     [...visitKeys.detail(id), "details", params] as const,
   history: (id: string, params?: ListSalesVisitProgressHistoryParams) =>
     [...visitKeys.detail(id), "history", params] as const,
+  calendarSummary: (params?: GetCalendarSummaryParams) =>
+    [...visitKeys.all, "calendar-summary", params] as const,
 };
 
 // List visits hook with filters
@@ -74,6 +77,16 @@ export function useVisitProgressHistory(
   });
 }
 
+// Get calendar summary
+export function useVisitCalendarSummary(
+  params: GetCalendarSummaryParams
+) {
+  return useQuery({
+    queryKey: visitKeys.calendarSummary(params),
+    queryFn: () => visitService.getCalendarSummary(params),
+  });
+}
+
 // Create visit mutation
 export function useCreateVisit() {
   const queryClient = useQueryClient();
@@ -82,6 +95,7 @@ export function useCreateVisit() {
     mutationFn: (data: CreateSalesVisitData) => visitService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all }); // simplistic invalidation for calendar too
     },
   });
 }
@@ -114,6 +128,7 @@ export function useUpdateVisit() {
         queryKey: visitKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
@@ -129,6 +144,7 @@ export function useDeleteVisit() {
     mutationFn: (id: string) => visitService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
     },
   });
 }
@@ -150,6 +166,7 @@ export function useUpdateVisitStatus() {
         queryKey: visitKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
     },
   });
 }
@@ -166,6 +183,7 @@ export function useCheckIn() {
         queryKey: visitKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
     },
   });
 }
@@ -182,6 +200,7 @@ export function useCheckOut() {
         queryKey: visitKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
     },
   });
 }

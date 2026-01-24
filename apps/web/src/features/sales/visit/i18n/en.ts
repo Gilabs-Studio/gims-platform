@@ -105,7 +105,8 @@ export const visitI18nEn = {
   updateError: "Failed to update visit",
   deleteError: "Failed to delete visit",
 
-  // Unknown fallbacks
-  unknownCompany: "Unknown Company",
-  unknownEmployee: "Unknown Employee",
+  // Calendar
+  moreVisits: "{count} more",
+  newVisit: "New Visit",
+  noVisitsToday: "No visits",
 };

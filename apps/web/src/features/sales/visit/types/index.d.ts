@@ -237,3 +237,35 @@ export interface CheckInData {
 export interface CheckOutData {
   result?: string;
 }
+
+export interface CalendarPreviewItem {
+  id: string;
+  code: string;
+  scheduled_time: string;
+  customer_name: string;
+  status: string; // Not strictly enum, simple string from sql
+}
+
+export interface CalendarDaySummary {
+  date: string;
+  total_count: number;
+  planned: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+  preview_items: CalendarPreviewItem[];
+}
+
+export interface CalendarSummaryResponse {
+  success: boolean;
+  data: {
+    summary: CalendarDaySummary[];
+  };
+}
+
+export interface GetCalendarSummaryParams {
+  date_from: string;
+  date_to: string;
+  employee_id?: string;
+  company_id?: string;
+}

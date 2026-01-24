@@ -10,6 +10,7 @@ import (
 func RegisterSalesVisitRoutes(rg *gin.RouterGroup, h *handler.SalesVisitHandler) {
 	g := rg.Group("/sales-visits")
 	g.GET("", middleware.RequirePermission("sales_visit.read"), h.List)
+	g.GET("/calendar", middleware.RequirePermission("sales_visit.read"), h.GetCalendarSummary)
 	g.GET("/:id", middleware.RequirePermission("sales_visit.read"), h.GetByID)
 	g.GET("/:id/details", middleware.RequirePermission("sales_visit.read"), h.ListDetails)
 	g.GET("/:id/history", middleware.RequirePermission("sales_visit.read"), h.ListProgressHistory)

@@ -26,6 +26,7 @@ type SalesVisitRepository interface {
 	CheckIn(ctx context.Context, id string, latitude, longitude *float64, checkInAt time.Time) error
 	CheckOut(ctx context.Context, id string, checkOutAt time.Time, result string) error
 	CreateProgressHistory(ctx context.Context, history *models.SalesVisitProgressHistory) error
+	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) ([]dto.CalendarDaySummary, error)
 }
 
 type salesVisitRepository struct {
@@ -399,4 +400,131 @@ func (r *salesVisitRepository) CheckOut(ctx context.Context, id string, checkOut
 
 func (r *salesVisitRepository) CreateProgressHistory(ctx context.Context, history *models.SalesVisitProgressHistory) error {
 	return r.getDB(ctx).Create(history).Error
+}
+
+func (r *salesVisitRepository) GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) ([]dto.CalendarDaySummary, error) {
+	var summaries []dto.CalendarDaySummary
+
+	// 1. Get daily counts
+	query := r.getDB(ctx).
+		Table("sales_visits").
+		Select(`
+			visit_date::date as date,
+			COUNT(*) as total_count,
+			SUM(CASE WHEN status = 'planned' THEN 1 ELSE 0 END) as planned,
+			SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+			SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+		`).
+		Where("visit_date >= ? AND visit_date <= ?", req.DateFrom, req.DateTo)
+
+	if req.EmployeeID != "" {
+		query = query.Where("employee_id = ?", req.EmployeeID)
+	}
+
+	if req.CompanyID != "" {
+		query = query.Where("company_id = ?", req.CompanyID)
+	}
+
+	err := query.Group("visit_date::date").Scan(&summaries).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Get preview items (Top 3 per day)
+	// Using CTE and Window Function for efficient fetching per day
+	// Priority: In Progress > Upcoming (today/future) > Past
+	// Sort by: Status priority, then Scheduled Time
+	
+	// Note: GORM raw query for complex window function
+	rawQuery := `
+		WITH prioritized_visits AS (
+			SELECT 
+				sv.id,
+				sv.code,
+				sv.visit_date,
+				sv.scheduled_time,
+				sv.status,
+				COALESCE(c.name, sv.contact_person) as customer_name,
+				ROW_NUMBER() OVER (
+					PARTITION BY sv.visit_date 
+					ORDER BY 
+						CASE 
+							WHEN sv.status = 'in_progress' THEN 1 
+							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time) >= NOW() THEN 2
+							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time) < NOW() THEN 3
+							ELSE 4 
+						END ASC,
+						sv.scheduled_time ASC
+				) as rn
+			FROM sales_visits sv
+			LEFT JOIN companies c ON sv.company_id = c.id
+			WHERE sv.visit_date >= ? AND sv.visit_date <= ?
+			AND sv.deleted_at IS NULL
+			`
+	
+	args := []interface{}{req.DateFrom, req.DateTo}
+
+	if req.EmployeeID != "" {
+		rawQuery += " AND sv.employee_id = ?"
+		args = append(args, req.EmployeeID)
+	}
+	if req.CompanyID != "" {
+		rawQuery += " AND sv.company_id = ?"
+		args = append(args, req.CompanyID)
+	}
+
+	rawQuery += `
+		)
+		SELECT 
+			visit_date::text as date,
+			id,
+			code,
+			to_char(scheduled_time, 'HH24:MI') as scheduled_time,
+			customer_name,
+			status
+		FROM prioritized_visits
+		WHERE rn <= 3
+	`
+
+	var previews []struct {
+		Date          string
+		ID            string
+		Code          string
+		ScheduledTime string
+		CustomerName  string
+		Status        string
+	}
+
+	if err := r.getDB(ctx).Raw(rawQuery, args...).Scan(&previews).Error; err != nil {
+		return nil, err
+	}
+
+	// 3. Merge previews into summaries
+	// Map previews by date for O(1) lookup
+	previewMap := make(map[string][]dto.CalendarPreviewItem)
+	for _, p := range previews {
+		// Go's time format from DB might include T00:00:00Z, parse just YYYY-MM-DD
+		// Actually visit_date::text from Postgres usually returns YYYY-MM-DD
+		dateKey := p.Date[0:10] 
+		previewMap[dateKey] = append(previewMap[dateKey], dto.CalendarPreviewItem{
+			ID:            p.ID,
+			Code:          p.Code,
+			ScheduledTime: p.ScheduledTime,
+			CustomerName:  p.CustomerName,
+			Status:        p.Status,
+		})
+	}
+
+	// Assign to summaries
+	for i := range summaries {
+		dateKey := summaries[i].Date[0:10]
+		if items, ok := previewMap[dateKey]; ok {
+			summaries[i].PreviewItems = items
+		} else {
+			summaries[i].PreviewItems = []dto.CalendarPreviewItem{}
+		}
+	}
+
+	return summaries, nil
 }

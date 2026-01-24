@@ -397,3 +397,24 @@ func (h *SalesVisitHandler) CheckOut(c *gin.Context) {
 
 	response.SuccessResponse(c, visit, meta)
 }
+
+// GetCalendarSummary handles get calendar summary request
+func (h *SalesVisitHandler) GetCalendarSummary(c *gin.Context) {
+	var req dto.GetCalendarSummaryRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	summary, err := h.visitUC.GetCalendarSummary(c.Request.Context(), &req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, summary, nil)
+}
