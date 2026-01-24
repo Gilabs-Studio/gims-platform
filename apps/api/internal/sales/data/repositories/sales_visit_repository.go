@@ -12,6 +12,11 @@ import (
 )
 
 // SalesVisitRepository defines the interface for sales visit data access
+const (
+	queryByID           = "id = ?"
+	queryBySalesVisitID = "sales_visit_id = ?"
+)
+
 type SalesVisitRepository interface {
 	FindByID(ctx context.Context, id string) (*models.SalesVisit, error)
 	FindByCode(ctx context.Context, code string) (*models.SalesVisit, error)
@@ -49,7 +54,7 @@ func (r *salesVisitRepository) FindByID(ctx context.Context, id string) (*models
 		Preload("Company").
 		Preload("Village.District.City.Province").
 		Preload("Details.Product").
-		Where("id = ?", id).
+		Where(queryByID, id).
 		First(&visit).Error
 	if err != nil {
 		return nil, err
@@ -170,7 +175,7 @@ func (r *salesVisitRepository) ListDetails(ctx context.Context, visitID string, 
 
 	// Count total
 	if err := r.getDB(ctx).Model(&models.SalesVisitDetail{}).
-		Where("sales_visit_id = ?", visitID).
+		Where(queryBySalesVisitID, visitID).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -181,7 +186,7 @@ func (r *salesVisitRepository) ListDetails(ctx context.Context, visitID string, 
 		Preload("Product", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "code", "name", "selling_price", "image_url")
 		}).
-		Where("sales_visit_id = ?", visitID).
+		Where(queryBySalesVisitID, visitID).
 		Order("created_at ASC").
 		Limit(perPage).
 		Offset(offset).
@@ -213,7 +218,7 @@ func (r *salesVisitRepository) ListProgressHistory(ctx context.Context, visitID 
 
 	// Count total
 	if err := r.getDB(ctx).Model(&models.SalesVisitProgressHistory{}).
-		Where("sales_visit_id = ?", visitID).
+		Where(queryBySalesVisitID, visitID).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -221,7 +226,7 @@ func (r *salesVisitRepository) ListProgressHistory(ctx context.Context, visitID 
 	// Fetch paginated history
 	offset := (page - 1) * perPage
 	err := r.getDB(ctx).
-		Where("sales_visit_id = ?", visitID).
+		Where(queryBySalesVisitID, visitID).
 		Order("created_at DESC").
 		Limit(perPage).
 		Offset(offset).
@@ -280,7 +285,7 @@ func (r *salesVisitRepository) Update(ctx context.Context, visit *models.SalesVi
 		}
 
 		// Delete existing details
-		if err := tx.Where("sales_visit_id = ?", visit.ID).Delete(&models.SalesVisitDetail{}).Error; err != nil {
+		if err := tx.Where(queryBySalesVisitID, visit.ID).Delete(&models.SalesVisitDetail{}).Error; err != nil {
 			return err
 		}
 
@@ -303,17 +308,17 @@ func (r *salesVisitRepository) Update(ctx context.Context, visit *models.SalesVi
 func (r *salesVisitRepository) Delete(ctx context.Context, id string) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		// Delete details first
-		if err := tx.Where("sales_visit_id = ?", id).Delete(&models.SalesVisitDetail{}).Error; err != nil {
+		if err := tx.Where(queryBySalesVisitID, id).Delete(&models.SalesVisitDetail{}).Error; err != nil {
 			return err
 		}
 
 		// Delete progress history
-		if err := tx.Where("sales_visit_id = ?", id).Delete(&models.SalesVisitProgressHistory{}).Error; err != nil {
+		if err := tx.Where(queryBySalesVisitID, id).Delete(&models.SalesVisitProgressHistory{}).Error; err != nil {
 			return err
 		}
 
 		// Delete visit
-		return tx.Delete(&models.SalesVisit{}, "id = ?", id).Error
+		return tx.Delete(&models.SalesVisit{}, queryByID, id).Error
 	})
 }
 
@@ -379,7 +384,7 @@ func (r *salesVisitRepository) CheckIn(ctx context.Context, id string, latitude,
 	}
 
 	return r.getDB(ctx).Model(&models.SalesVisit{}).
-		Where("id = ?", id).
+		Where(queryByID, id).
 		Updates(updates).Error
 }
 
@@ -394,7 +399,7 @@ func (r *salesVisitRepository) CheckOut(ctx context.Context, id string, checkOut
 	}
 
 	return r.getDB(ctx).Model(&models.SalesVisit{}).
-		Where("id = ?", id).
+		Where(queryByID, id).
 		Updates(updates).Error
 }
 
@@ -451,8 +456,8 @@ func (r *salesVisitRepository) GetCalendarSummary(ctx context.Context, req *dto.
 					ORDER BY 
 						CASE 
 							WHEN sv.status = 'in_progress' THEN 1 
-							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time) >= NOW() THEN 2
-							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time) < NOW() THEN 3
+							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time::time) >= NOW() THEN 2
+							WHEN sv.status = 'planned' AND (sv.visit_date + sv.scheduled_time::time) < NOW() THEN 3
 							ELSE 4 
 						END ASC,
 						sv.scheduled_time ASC

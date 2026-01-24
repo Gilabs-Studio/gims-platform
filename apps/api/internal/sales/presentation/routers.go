@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 }) {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
+	estimationRepo := salesRepos.NewSalesEstimationRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
 	deliveryRepo := salesRepos.NewDeliveryOrderRepository(db)
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
@@ -26,6 +27,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
+	estimationUC := usecase.NewSalesEstimationUsecase(estimationRepo, quotationRepo, productRepo)
 	orderUC := usecase.NewSalesOrderUsecase(orderRepo, quotationRepo, productRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(invoiceRepo, productRepo)
@@ -33,6 +35,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
+	estimationHandler := handler.NewSalesEstimationHandler(estimationUC)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
 	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
@@ -44,6 +47,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler)
+	router.RegisterSalesEstimationRoutes(salesGroup, estimationHandler)
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
