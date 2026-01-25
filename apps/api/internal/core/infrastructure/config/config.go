@@ -169,7 +169,7 @@ func Load() error {
 			Port:     getEnv("DB_PORT", "5432"),
 			User:     getEnv("DB_USER", "postgres"),
 			Password: getEnv("DB_PASSWORD", "postgres"),
-			DBName:   getEnv("DB_NAME", "crm_healthcare"),
+			DBName:   getEnv("DB_NAME", "gims_erp"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 			MaxOpenConns:           getEnvAsInt("DB_MAX_OPEN_CONNS", 50),
 			MaxIdleConns:           getEnvAsInt("DB_MAX_IDLE_CONNS", 25),

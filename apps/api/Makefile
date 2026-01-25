@@ -27,11 +27,11 @@ clean:
 
 # Build Docker image
 docker-build:
-	docker build -t crm-healthcare-api .
+	docker build -t gims-api .
 
 # Run Docker container
 docker-run:
-	docker run -p 8080:8080 crm-healthcare-api
+	docker run -p 8080:8080 gims-api
 
 # Start with docker-compose
 docker-up:

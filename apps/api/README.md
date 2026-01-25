@@ -82,7 +82,7 @@ cp .env.example .env
 - `DB_PORT`: PostgreSQL port (default: 5432)
 - `DB_USER`: PostgreSQL user (default: postgres)
 - `DB_PASSWORD`: PostgreSQL password
-- `DB_NAME`: Database name (default: crm_healthcare)
+- `DB_NAME`: Database name (default: gims_erp)
 - `JWT_SECRET`: JWT secret key (min 32 characters)
 
 **Storage Configuration:**
@@ -118,7 +118,7 @@ docker-compose up -d postgres
 2. Create database:
 
 ```sql
-CREATE DATABASE crm_healthcare;
+CREATE DATABASE gims_erp;
 ```
 
 **Note**: Jika menggunakan local PostgreSQL, gunakan `DB_PORT=5432` di `.env` file.
@@ -170,8 +170,8 @@ docker-compose up --build
 
 ```bash
 cd apps/api
-docker build -t crm-healthcare-api .
-docker run -p 8080:8080 crm-healthcare-api
+docker build -t gims-api .
+docker run -p 8080:8080 gims-api
 ```
 
 ## API Endpoints
