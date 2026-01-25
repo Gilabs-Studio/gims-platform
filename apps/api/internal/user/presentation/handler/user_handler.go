@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/response"
-	domainDTO "github.com/gilabs/crm-healthcare/api/internal/user/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/user/domain/usecase"
-	presentationDTO "github.com/gilabs/crm-healthcare/api/internal/user/presentation/dto"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/response"
+	domainDTO "github.com/gilabs/gims/api/internal/user/domain/dto"
+	"github.com/gilabs/gims/api/internal/user/domain/usecase"
+	presentationDTO "github.com/gilabs/gims/api/internal/user/presentation/dto"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )

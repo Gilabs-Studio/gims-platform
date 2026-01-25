@@ -3,7 +3,7 @@ package middleware
 import (
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/logger"
+	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gin-gonic/gin"
 )
 

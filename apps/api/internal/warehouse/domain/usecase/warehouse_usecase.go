@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/domain/mapper"
+	"github.com/gilabs/gims/api/internal/warehouse/data/repositories"
+	"github.com/gilabs/gims/api/internal/warehouse/domain/dto"
+	"github.com/gilabs/gims/api/internal/warehouse/domain/mapper"
 	"gorm.io/gorm"
 )
 

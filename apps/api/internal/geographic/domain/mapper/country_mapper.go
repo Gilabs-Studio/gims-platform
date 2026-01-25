@@ -3,8 +3,8 @@ package mapper
 import (
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
+	"github.com/gilabs/gims/api/internal/geographic/data/models"
+	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 )
 
 // ToCountryResponse converts Country model to CountryResponse DTO

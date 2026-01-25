@@ -1,6 +1,6 @@
 package dto
 
-import geographic "github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
+import geographic "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 
 // CreateWarehouseRequest represents the request to create a warehouse
 type CreateWarehouseRequest struct {

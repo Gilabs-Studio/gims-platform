@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/core/logger"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/logger"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	permissionModels "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
+	permissionModels "github.com/gilabs/gims/api/internal/permission/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )

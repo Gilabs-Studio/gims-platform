@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/redis/go-redis/v9"
 )
 

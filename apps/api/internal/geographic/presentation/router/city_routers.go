@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/presentation/handler"
+	"github.com/gilabs/gims/api/internal/geographic/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 

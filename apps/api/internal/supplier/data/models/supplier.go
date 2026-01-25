@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	geographic "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
+	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )

@@ -1,8 +1,8 @@
 package router
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/presentation/handler"
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/geographic/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 

@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
-	infraRedis "github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/redis"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	infraRedis "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"

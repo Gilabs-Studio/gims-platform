@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/refresh_token/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

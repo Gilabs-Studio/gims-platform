@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	infraEvents "github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/events"
+	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 )
 
 // UserCreatedPayload contains the data for a user created event

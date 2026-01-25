@@ -1,9 +1,9 @@
 package mapper
 
 import (
-	roleMapper "github.com/gilabs/crm-healthcare/api/internal/role/domain/mapper"
-	"github.com/gilabs/crm-healthcare/api/internal/user/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/user/domain/dto"
+	roleMapper "github.com/gilabs/gims/api/internal/role/domain/mapper"
+	"github.com/gilabs/gims/api/internal/user/data/models"
+	"github.com/gilabs/gims/api/internal/user/domain/dto"
 )
 
 // ToUserResponse converts User to UserResponse

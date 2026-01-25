@@ -3,8 +3,8 @@ package mapper
 import (
 	"time"
 
-	salesModels "github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/dto"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 )
 
 // ToDeliveryOrderResponse converts a DeliveryOrder model to response DTO

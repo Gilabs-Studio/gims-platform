@@ -4,9 +4,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	geoModels "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	geoModels "github.com/gilabs/gims/api/internal/geographic/data/models"
+	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm/clause"
 )
 

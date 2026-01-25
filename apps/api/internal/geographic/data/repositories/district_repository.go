@@ -3,9 +3,9 @@ package repositories
 import (
 	"context"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/geographic/data/models"
+	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
 )
 

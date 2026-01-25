@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/product/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/product/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/product/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/product/domain/mapper"
+	"github.com/gilabs/gims/api/internal/product/data/models"
+	"github.com/gilabs/gims/api/internal/product/data/repositories"
+	"github.com/gilabs/gims/api/internal/product/domain/dto"
+	"github.com/gilabs/gims/api/internal/product/domain/mapper"
 	"github.com/google/uuid"
 )
 

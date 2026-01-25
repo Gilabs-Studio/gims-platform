@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
+	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
 )
 

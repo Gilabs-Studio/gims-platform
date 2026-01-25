@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/domain/mapper"
+	"github.com/gilabs/gims/api/internal/organization/data/models"
+	"github.com/gilabs/gims/api/internal/organization/data/repositories"
+	"github.com/gilabs/gims/api/internal/organization/domain/dto"
+	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
 )
 
 var (

@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 
-	"github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/permission/domain/dto"
+	"github.com/gilabs/gims/api/internal/permission/data/models"
+	"github.com/gilabs/gims/api/internal/permission/domain/dto"
 	"gorm.io/gorm"
 )
 

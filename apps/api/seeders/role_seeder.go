@@ -3,8 +3,8 @@ package seeders
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/role/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/role/data/models"
 	"gorm.io/gorm/clause"
 )
 

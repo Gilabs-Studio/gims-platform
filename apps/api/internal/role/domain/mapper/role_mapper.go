@@ -1,10 +1,10 @@
 package mapper
 
 import (
-	permissionDto "github.com/gilabs/crm-healthcare/api/internal/permission/domain/dto"
-	permissionMapper "github.com/gilabs/crm-healthcare/api/internal/permission/domain/mapper"
-	"github.com/gilabs/crm-healthcare/api/internal/role/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/role/domain/dto"
+	permissionDto "github.com/gilabs/gims/api/internal/permission/domain/dto"
+	permissionMapper "github.com/gilabs/gims/api/internal/permission/domain/mapper"
+	"github.com/gilabs/gims/api/internal/role/data/models"
+	"github.com/gilabs/gims/api/internal/role/domain/dto"
 )
 
 // ToRoleResponse converts Role to RoleResponse

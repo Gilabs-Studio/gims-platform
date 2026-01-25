@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	roleDto "github.com/gilabs/crm-healthcare/api/internal/role/domain/dto"
+	roleDto "github.com/gilabs/gims/api/internal/role/domain/dto"
 )
 
 // UserResponse represents user response DTO (without sensitive data)

@@ -3,10 +3,10 @@ package handler
 import (
 	"strconv"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/response"
-	"github.com/gilabs/crm-healthcare/api/internal/role/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/role/domain/usecase"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/role/domain/dto"
+	"github.com/gilabs/gims/api/internal/role/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )

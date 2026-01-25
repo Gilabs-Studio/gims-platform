@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	roleModels "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
+	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )

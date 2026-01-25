@@ -2,8 +2,8 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/presentation/handler"
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/sales/presentation/handler"
 )
 
 // RegisterDeliveryOrderRoutes registers delivery order routes

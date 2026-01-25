@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/data/models"
 	"gorm.io/gorm"
 )
 

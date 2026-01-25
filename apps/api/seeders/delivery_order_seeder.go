@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	orgModels "github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
-	salesModels "github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 )
 
 // SeedDeliveryOrder seeds sample delivery order data

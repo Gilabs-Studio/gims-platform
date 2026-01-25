@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/response"
-	"github.com/gilabs/crm-healthcare/api/internal/permission/domain/usecase"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/permission/domain/usecase"
 	"github.com/gin-gonic/gin"
 )
 

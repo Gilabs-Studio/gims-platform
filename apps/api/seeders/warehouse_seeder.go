@@ -3,9 +3,9 @@ package seeders
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	geographic "github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
+	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm/clause"
 )
 

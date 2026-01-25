@@ -3,8 +3,8 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gin-gonic/gin"
 )
 

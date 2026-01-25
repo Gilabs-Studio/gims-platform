@@ -3,9 +3,9 @@ package seeders
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
-	role "github.com/gilabs/crm-healthcare/api/internal/role/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	permission "github.com/gilabs/gims/api/internal/permission/data/models"
+	role "github.com/gilabs/gims/api/internal/role/data/models"
 )
 
 // permissionDef defines a permission with its menu URL, code, name, action, and resource

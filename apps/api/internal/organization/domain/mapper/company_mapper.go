@@ -3,9 +3,9 @@ package mapper
 import (
 	"time"
 
-	geographicMapper "github.com/gilabs/crm-healthcare/api/internal/geographic/domain/mapper"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/organization/domain/dto"
+	geographicMapper "github.com/gilabs/gims/api/internal/geographic/domain/mapper"
+	"github.com/gilabs/gims/api/internal/organization/data/models"
+	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 )
 
 // ToCompanyResponse converts Company model to CompanyResponse DTO

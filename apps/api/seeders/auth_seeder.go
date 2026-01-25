@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	user "github.com/gilabs/crm-healthcare/api/internal/user/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	user "github.com/gilabs/gims/api/internal/user/data/models"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm/clause"
 )

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/gilabs/crm-healthcare/api/internal/supplier/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/supplier/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/supplier/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/supplier/domain/mapper"
+	"github.com/gilabs/gims/api/internal/supplier/data/models"
+	"github.com/gilabs/gims/api/internal/supplier/data/repositories"
+	"github.com/gilabs/gims/api/internal/supplier/domain/dto"
+	"github.com/gilabs/gims/api/internal/supplier/domain/mapper"
 	"github.com/google/uuid"
 )
 

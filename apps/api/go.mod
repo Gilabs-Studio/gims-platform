@@ -1,4 +1,4 @@
-module github.com/gilabs/crm-healthcare/api
+module github.com/gilabs/gims/api
 
 go 1.25.4
 

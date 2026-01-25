@@ -3,8 +3,8 @@ package seeders
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/geographic/data/models"
 )
 
 // SeedGeographic seeds sample Indonesia geographic data

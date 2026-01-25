@@ -1,12 +1,12 @@
 package presentation
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
-	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
-	"github.com/gilabs/crm-healthcare/api/internal/product/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/product/domain/usecase"
-	"github.com/gilabs/crm-healthcare/api/internal/product/presentation/handler"
-	"github.com/gilabs/crm-healthcare/api/internal/product/presentation/router"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/product/data/repositories"
+	"github.com/gilabs/gims/api/internal/product/domain/usecase"
+	"github.com/gilabs/gims/api/internal/product/presentation/handler"
+	"github.com/gilabs/gims/api/internal/product/presentation/router"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	jwtinfra "github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
+	jwtinfra "github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/joho/godotenv"
 )
 

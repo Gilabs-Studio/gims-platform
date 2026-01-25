@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/events"
-	infraEvents "github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/events"
-	"github.com/gilabs/crm-healthcare/api/internal/role/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/role/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/role/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/role/domain/mapper"
+	"github.com/gilabs/gims/api/internal/core/events"
+	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
+	"github.com/gilabs/gims/api/internal/role/data/models"
+	"github.com/gilabs/gims/api/internal/role/data/repositories"
+	"github.com/gilabs/gims/api/internal/role/domain/dto"
+	"github.com/gilabs/gims/api/internal/role/domain/mapper"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )

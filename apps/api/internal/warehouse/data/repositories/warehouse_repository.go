@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
+	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 )
 

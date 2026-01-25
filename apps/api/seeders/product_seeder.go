@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/product/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/product/data/models"
 )
 
 // SeedProduct seeds sample product master data

@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gilabs/crm-healthcare/api/internal/auth/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/auth/domain/usecase"
-	authDTO "github.com/gilabs/crm-healthcare/api/internal/auth/presentation/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config" // Import config
-	"github.com/gilabs/crm-healthcare/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/auth/domain/dto"
+	"github.com/gilabs/gims/api/internal/auth/domain/usecase"
+	authDTO "github.com/gilabs/gims/api/internal/auth/presentation/dto"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config" // Import config
+	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )

@@ -3,8 +3,8 @@ package seeders
 import (
 	"log"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	permission "github.com/gilabs/crm-healthcare/api/internal/permission/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 )
 
 // createMenu is a helper function to create or update a menu

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/utils"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/geographic/domain/mapper"
+	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/geographic/data/repositories"
+	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
+	"github.com/gilabs/gims/api/internal/geographic/domain/mapper"
 	"gorm.io/gorm"
 )
 

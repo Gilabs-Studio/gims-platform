@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/utils"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
-	salesRepos "github.com/gilabs/crm-healthcare/api/internal/sales/data/repositories"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/domain/mapper"
+	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/sales/data/models"
+	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	"github.com/gilabs/gims/api/internal/sales/domain/dto"
+	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
 	"gorm.io/gorm"
 )
 

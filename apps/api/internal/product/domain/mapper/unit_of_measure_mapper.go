@@ -1,8 +1,8 @@
 package mapper
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/product/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/product/domain/dto"
+	"github.com/gilabs/gims/api/internal/product/data/models"
+	"github.com/gilabs/gims/api/internal/product/domain/dto"
 )
 
 // ToUnitOfMeasureResponse converts UnitOfMeasure model to response DTO

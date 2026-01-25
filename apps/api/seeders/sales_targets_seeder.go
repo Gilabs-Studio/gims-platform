@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/database"
-	"github.com/gilabs/crm-healthcare/api/internal/sales/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/google/uuid"
 )
 

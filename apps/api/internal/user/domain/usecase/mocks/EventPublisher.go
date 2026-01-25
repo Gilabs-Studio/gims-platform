@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	events "github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/events"
+	events "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	mock "github.com/stretchr/testify/mock"
 )
 

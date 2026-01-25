@@ -1,9 +1,9 @@
 package mapper
 
 import (
-	geographicDto "github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/data/models"
-	"github.com/gilabs/crm-healthcare/api/internal/warehouse/domain/dto"
+	geographicDto "github.com/gilabs/gims/api/internal/geographic/domain/dto"
+	"github.com/gilabs/gims/api/internal/warehouse/data/models"
+	"github.com/gilabs/gims/api/internal/warehouse/domain/dto"
 )
 
 // WarehouseMapper handles conversion between Warehouse model and DTOs

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gilabs/crm-healthcare/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gin-gonic/gin"
 )
 

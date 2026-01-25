@@ -1,6 +1,6 @@
 package dto
 
-import geographicDto "github.com/gilabs/crm-healthcare/api/internal/geographic/domain/dto"
+import geographicDto "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 
 // CreateCompanyRequest represents create company request
 type CreateCompanyRequest struct {

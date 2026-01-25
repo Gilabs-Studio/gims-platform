@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	permissionDto "github.com/gilabs/crm-healthcare/api/internal/permission/domain/dto"
+	permissionDto "github.com/gilabs/gims/api/internal/permission/domain/dto"
 )
 
 // RoleResponse represents role response DTO

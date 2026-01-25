@@ -1,10 +1,10 @@
 package router
 
 import (
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/jwt"
-	"github.com/gilabs/crm-healthcare/api/internal/core/middleware"
-	permissionHandler "github.com/gilabs/crm-healthcare/api/internal/permission/presentation/handler"
-	"github.com/gilabs/crm-healthcare/api/internal/user/presentation/handler"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	permissionHandler "github.com/gilabs/gims/api/internal/permission/presentation/handler"
+	"github.com/gilabs/gims/api/internal/user/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 

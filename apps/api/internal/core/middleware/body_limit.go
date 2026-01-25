@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	coreErrors "github.com/gilabs/crm-healthcare/api/internal/core/errors"
-	"github.com/gilabs/crm-healthcare/api/internal/core/infrastructure/config"
+	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gin-gonic/gin"
 )
 
