@@ -12,8 +12,6 @@ import notificationsIdMessages from "@/features/notifications/i18n/messages/id.j
 import dashboardEnMessages from "@/features/general/dashboard/i18n/messages/en.json";
 import dashboardIdMessages from "@/features/general/dashboard/i18n/messages/id.json";
 
-import stockValuationsEnMessages from "@/features/stock/stock-valuation/i18n/messages/en.json";
-import stockValuationsIdMessages from "@/features/stock/stock-valuation/i18n/messages/id.json";
 import { geographicEn } from "@/features/master-data/geographic/i18n/en";
 import { geographicId } from "@/features/master-data/geographic/i18n/id";
 import { organizationEn } from "@/features/master-data/organization/i18n/en";
@@ -58,7 +56,6 @@ const messages = {
     userManagement: userManagementEn,
     ...notificationsEnMessages,
     ...dashboardEnMessages,
-    ...stockValuationsEnMessages,
     ...geographicEn,
     organization: organizationEn,
     employee: employeeEn,
@@ -83,7 +80,6 @@ const messages = {
     userManagement: userManagementId,
     ...notificationsIdMessages,
     ...dashboardIdMessages,
-    ...stockValuationsIdMessages,
     ...geographicId,
     organization: organizationId,
     employee: employeeId,
