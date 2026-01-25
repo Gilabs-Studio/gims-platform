@@ -106,6 +106,9 @@ type SalesVisitDetail struct {
 	Quantity *float64 `gorm:"type:decimal(15,3)" json:"quantity"`
 	Price    *float64 `gorm:"type:decimal(15,2)" json:"price"`
 
+	// Relations
+	Answers []SalesVisitInterestAnswer `gorm:"foreignKey:SalesVisitDetailID;constraint:OnDelete:CASCADE" json:"answers,omitempty"`
+
 	// Timestamps
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

@@ -22,6 +22,13 @@ type CreateSalesVisitDetailRequest struct {
 	Notes         string   `json:"notes"`
 	Quantity      *float64 `json:"quantity" binding:"omitempty,gte=0"`
 	Price         *float64 `json:"price" binding:"omitempty,gte=0"`
+	Answers       []CreateSalesVisitInterestAnswerRequest `json:"answers"`
+}
+
+// CreateSalesVisitInterestAnswerRequest represents the answer to a survey question
+type CreateSalesVisitInterestAnswerRequest struct {
+	QuestionID string `json:"question_id" binding:"required,uuid"`
+	OptionID   string `json:"option_id" binding:"required,uuid"`
 }
 
 // UpdateSalesVisitRequest represents the request to update a sales visit
@@ -124,9 +131,35 @@ type SalesVisitDetailResponse struct {
 	InterestLevel int              `json:"interest_level"`
 	Notes         string           `json:"notes"`
 	Quantity      *float64         `json:"quantity"`
-	Price         *float64         `json:"price"`
+	Price         *float64 `json:"price"`
+	Answers       []SalesVisitInterestAnswerResponse `json:"answers,omitempty"`
 	CreatedAt     string           `json:"created_at"`
 	UpdatedAt     string           `json:"updated_at"`
+}
+
+// SalesVisitInterestAnswerResponse represents the response for a survey answer
+type SalesVisitInterestAnswerResponse struct {
+	ID           string `json:"id"`
+	QuestionID   string `json:"question_id"`
+	QuestionText string `json:"question_text"`
+	OptionID     string `json:"option_id"`
+	OptionText   string `json:"option_text"`
+	Score        int    `json:"score"`
+}
+
+// SalesVisitInterestQuestionResponse represents the response for a survey question
+type SalesVisitInterestQuestionResponse struct {
+	ID           string                             `json:"id"`
+	QuestionText string                             `json:"question_text"`
+	Sequence     int                                `json:"sequence"`
+	Options      []SalesVisitInterestOptionResponse `json:"options"`
+}
+
+// SalesVisitInterestOptionResponse represents the response for a survey option
+type SalesVisitInterestOptionResponse struct {
+	ID         string `json:"id"`
+	OptionText string `json:"option_text"`
+	Score      int    `json:"score"`
 }
 
 // SalesVisitProgressHistoryResponse represents a progress history item

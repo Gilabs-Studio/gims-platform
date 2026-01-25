@@ -49,8 +49,38 @@ export interface SalesVisitDetail {
   notes: string;
   quantity?: number;
   price?: number;
+  answers?: SalesVisitInterestAnswer[];
   created_at: string;
   updated_at: string;
+}
+
+export interface SalesVisitInterestQuestion {
+  id: string;
+  question_text: string;
+  sequence: number;
+  options: SalesVisitInterestOption[];
+}
+
+export interface SalesVisitInterestOption {
+  id: string;
+  option_text: string;
+  score: number;
+}
+
+export interface SalesVisitInterestAnswer {
+  id: string;
+  question_id: string;
+  question_text?: string;
+  option_id: string;
+  option_text?: string;
+  score: number;
+}
+
+export interface SalesVisitInterestQuestionsResponse {
+  success: boolean;
+  data: SalesVisitInterestQuestion[];
+  timestamp: string;
+  request_id: string;
 }
 
 export interface SalesVisitProgressHistory {
@@ -207,6 +237,12 @@ export interface CreateSalesVisitDetailData {
   notes?: string;
   quantity?: number;
   price?: number;
+  answers?: CreateSalesVisitInterestAnswerData[];
+}
+
+export interface CreateSalesVisitInterestAnswerData {
+  question_id: string;
+  option_id: string;
 }
 
 export interface UpdateSalesVisitData {

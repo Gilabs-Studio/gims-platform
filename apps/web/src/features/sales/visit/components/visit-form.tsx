@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, sortOptions } from "@/lib/utils";
-import { useCreateVisit, useUpdateVisit, useVisit } from "../hooks/use-visits";
+import { useCreateVisit, useUpdateVisit, useVisit, useInterestQuestions } from "../hooks/use-visits";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
@@ -123,6 +123,30 @@ export function VisitForm({ open, onClose, visit }: VisitFormProps) {
         },
   });
 
+  const { data: questionsData } = useInterestQuestions();
+  const questions = questionsData?.data ?? [];
+
+  // Helper to calculate interest based on answers
+  const calculateInterest = (answers: { question_id: string; option_id: string }[]) => {
+    let score = 0;
+    if (!answers || answers.length === 0) return 0;
+    
+    // Create map for fast lookup
+    const questionMap = new Map(questions.map(q => [q.id, q]));
+    
+    answers.forEach(ans => {
+      const question = questionMap.get(ans.question_id);
+      if (question) {
+        const option = question.options.find(o => o.id === ans.option_id);
+        if (option) {
+          score += option.score;
+        }
+      }
+    });
+
+    return Math.min(score, 5); // Cap at 5
+  };
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "details",
@@ -157,6 +181,10 @@ export function VisitForm({ open, onClose, visit }: VisitFormProps) {
               notes: d.notes ?? "",
               quantity: d.quantity ?? 0,
               price: d.price ?? 0,
+              answers: d.answers?.map(a => ({
+                question_id: a.question_id,
+                option_id: a.option_id
+              })) || []
             })) ?? [],
           });
         }, 10);
@@ -434,53 +462,100 @@ export function VisitForm({ open, onClose, visit }: VisitFormProps) {
                                {errors.details?.[index]?.product_id && <FieldError>{errors.details[index]?.product_id?.message}</FieldError>}
                             </Field>
 
-                            <Field orientation="vertical">
-                               <FieldLabel>Interest Level (0-5)</FieldLabel>
-                               <Controller
-                                  name={`details.${index}.interest_level`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Select value={field.value?.toString()} onValueChange={(v) => field.onChange(parseInt(v))}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Level" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {[0, 1, 2, 3, 4, 5].map((lvl) => (
-                                          <SelectItem key={lvl} value={lvl.toString()}>{lvl}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                               />
-                            </Field>
+                             <div className="col-span-2 space-y-4 border rounded-md p-4 bg-muted/50">
+                                <h4 className="text-sm font-medium">{t("form.interestSurvey")}</h4>
+                                {questions.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground">{t("form.noInterestSurvey")}</div>
+                                ) : (
+                                  <div className="grid gap-4">
+                                    {questions.sort((a,b) => a.sequence - b.sequence).map((q) => {
+                                      const currentAnswers = watchedDetails?.[index]?.answers || [];
+                                      const currentAnswer = currentAnswers.find(a => a.question_id === q.id);
 
-                            <Field orientation="vertical">
-                               <FieldLabel>Notes</FieldLabel>
-                               <Input {...register(`details.${index}.notes`)} placeholder="Notes" />
-                            </Field>
-                            
-                            <Field orientation="vertical">
-                                <FieldLabel>Quantity (Interested)</FieldLabel>
-                                <Controller
-                                  name={`details.${index}.quantity`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <NumericInput value={field.value} onChange={field.onChange} min={0} />
-                                  )}
-                                />
-                            </Field>
+                                      return (
+                                        <div key={q.id} className="space-y-2">
+                                          <FieldLabel className="text-xs">{q.question_text}</FieldLabel>
+                                           <div className="flex gap-4">
+                                             {q.options.map((opt) => (
+                                                <div key={opt.id} className="flex items-center space-x-2">
+                                                   <input 
+                                                      type="radio" 
+                                                      id={`q-${index}-${q.id}-${opt.id}`}
+                                                      checked={currentAnswer?.option_id === opt.id}
+                                                      onChange={() => {
+                                                        const otherAnswers = currentAnswers.filter(a => a.question_id !== q.id);
+                                                        const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id }];
+                                                        setValue(`details.${index}.answers`, newAnswers, { shouldDirty: true });
+                                                        
+                                                        // Auto calculate score
+                                                        const newScore = calculateInterest(newAnswers);
+                                                        setValue(`details.${index}.interest_level`, newScore, { shouldDirty: true });
+                                                      }}
+                                                      className="h-4 w-4 text-primary border-gray-300 focus:ring-primary cursor-pointer"
+                                                   />
+                                                   <label htmlFor={`q-${index}-${q.id}-${opt.id}`} className="text-sm cursor-pointer">{opt.option_text}</label>
+                                                </div>
+                                             ))}
+                                           </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                             </div>
 
-                            <Field orientation="vertical">
-                                <FieldLabel>Target Price</FieldLabel>
+                             <Field orientation="vertical">
+                                <FieldLabel>{t("form.interestLevel")} (0-5)</FieldLabel>
                                 <Controller
-                                  name={`details.${index}.price`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <NumericInput value={field.value} onChange={field.onChange} min={0} />
-                                  )}
+                                   name={`details.${index}.interest_level`}
+                                   control={control}
+                                   render={({ field }) => (
+                                     <Select 
+                                        value={field.value?.toString()} 
+                                        onValueChange={(v) => field.onChange(parseInt(v))}
+                                        disabled={questions.length > 0 && (watchedDetails?.[index]?.answers?.length ?? 0) > 0} 
+                                     >
+                                       <SelectTrigger>
+                                         <SelectValue placeholder="Level" />
+                                       </SelectTrigger>
+                                       <SelectContent>
+                                         {[0, 1, 2, 3, 4, 5].map((lvl) => (
+                                           <SelectItem key={lvl} value={lvl.toString()}>{lvl}</SelectItem>
+                                         ))}
+                                       </SelectContent>
+                                     </Select>
+                                   )}
                                 />
-                            </Field>
-                         </div>
+                                {questions.length > 0 && <p className="text-[10px] text-muted-foreground mt-1">{t("form.calculatedFromSurvey")}</p>}
+                             </Field>
+
+                             <Field orientation="vertical">
+                                <FieldLabel>{t("form.notes")}</FieldLabel>
+                                <Input {...register(`details.${index}.notes`)} placeholder={t("form.notes")} />
+                             </Field>
+                             
+                             <Field orientation="vertical">
+                                 <FieldLabel>{t("form.quantity")}</FieldLabel>
+                                 <Controller
+                                   name={`details.${index}.quantity`}
+                                   control={control}
+                                   render={({ field }) => (
+                                     <NumericInput value={field.value} onChange={field.onChange} min={0} />
+                                   )}
+                                 />
+                             </Field>
+
+                             <Field orientation="vertical">
+                                 <FieldLabel>{t("form.price")}</FieldLabel>
+                                 <Controller
+                                   name={`details.${index}.price`}
+                                   control={control}
+                                   render={({ field }) => (
+                                     <NumericInput value={field.value} onChange={field.onChange} min={0} />
+                                   )}
+                                 />
+                             </Field>
+                          </div>
                       </div>
                     ))}
                     {fields.length === 0 && (

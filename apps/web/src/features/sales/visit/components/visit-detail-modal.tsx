@@ -310,7 +310,7 @@ export function VisitDetailModal({
                                 <TableHead>Notes</TableHead>
                              </TableRow>
                           </TableHeader>
-                          <TableBody>
+                           <TableBody>
                              {productDetails.length === 0 ? (
                                 <TableRow>
                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No products discussed</TableCell>
@@ -321,11 +321,23 @@ export function VisitDetailModal({
                                       <TableCell>
                                          <div className="font-medium">{detail.product?.name}</div>
                                          <div className="text-xs text-muted-foreground">{detail.product?.code}</div>
+                                         
+                                         {/* Survey Answers */}
+                                         {detail.answers && detail.answers.length > 0 && (
+                                           <div className="mt-2 space-y-1">
+                                             {detail.answers.map((ans) => (
+                                               <div key={ans.id} className="text-[10px] flex gap-1">
+                                                 <span className="text-muted-foreground">{ans.question_text}:</span>
+                                                 <span className="font-medium">{ans.option_text}</span>
+                                               </div>
+                                             ))}
+                                           </div>
+                                         )}
                                       </TableCell>
                                       <TableCell>
                                          <div className="flex gap-1">
                                             {Array.from({ length: 5 }).map((_, i) => (
-                                               <div key={i} className={`h-2 w-2 rounded-full ${i < detail.interest_level ? "bg-primary" : "bg-muted"}`} />
+                                               <div key={i} className={`h-2 w-2 rounded-full ${i < (detail.interest_level ?? 0) ? "bg-primary" : "bg-muted"}`} />
                                             ))}
                                          </div>
                                       </TableCell>

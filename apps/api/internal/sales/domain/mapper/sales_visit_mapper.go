@@ -147,6 +147,26 @@ func MapSalesVisitDetailToResponse(detail *models.SalesVisitDetail) *dto.SalesVi
 			ImageURL:     detail.Product.ImageURL,
 		}
 	}
+	
+	// Map Answers
+	if len(detail.Answers) > 0 {
+		resp.Answers = make([]dto.SalesVisitInterestAnswerResponse, len(detail.Answers))
+		for i, answer := range detail.Answers {
+			resp.Answers[i] = dto.SalesVisitInterestAnswerResponse{
+				ID:         answer.ID,
+				QuestionID: answer.QuestionID,
+				OptionID:   answer.OptionID,
+				Score:      answer.Score,
+			}
+			
+			if answer.Question != nil {
+				resp.Answers[i].QuestionText = answer.Question.QuestionText
+			}
+			if answer.Option != nil {
+				resp.Answers[i].OptionText = answer.Option.OptionText
+			}
+		}
+	}
 
 	return resp
 }
@@ -191,6 +211,41 @@ func MapSalesVisitProgressHistoryListToResponse(historyList []models.SalesVisitP
 	result := make([]dto.SalesVisitProgressHistoryResponse, len(historyList))
 	for i, history := range historyList {
 		result[i] = *MapSalesVisitProgressHistoryToResponse(&history)
+	}
+	return result
+}
+
+// MapSalesVisitInterestQuestionToResponse maps SalesVisitInterestQuestion model to response DTO
+func MapSalesVisitInterestQuestionToResponse(question *models.SalesVisitInterestQuestion) *dto.SalesVisitInterestQuestionResponse {
+	if question == nil {
+		return nil
+	}
+
+	resp := &dto.SalesVisitInterestQuestionResponse{
+		ID:           question.ID,
+		QuestionText: question.QuestionText,
+		Sequence:     question.Sequence,
+	}
+
+	if len(question.Options) > 0 {
+		resp.Options = make([]dto.SalesVisitInterestOptionResponse, len(question.Options))
+		for i, option := range question.Options {
+			resp.Options[i] = dto.SalesVisitInterestOptionResponse{
+				ID:         option.ID,
+				OptionText: option.OptionText,
+				Score:      option.Score,
+			}
+		}
+	}
+
+	return resp
+}
+
+// MapSalesVisitInterestQuestionsToResponse maps a slice of SalesVisitInterestQuestion models to response DTOs
+func MapSalesVisitInterestQuestionsToResponse(questions []models.SalesVisitInterestQuestion) []dto.SalesVisitInterestQuestionResponse {
+	result := make([]dto.SalesVisitInterestQuestionResponse, len(questions))
+	for i, question := range questions {
+		result[i] = *MapSalesVisitInterestQuestionToResponse(&question)
 	}
 	return result
 }

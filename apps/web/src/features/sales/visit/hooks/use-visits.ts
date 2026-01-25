@@ -30,6 +30,7 @@ export const visitKeys = {
     [...visitKeys.detail(id), "history", params] as const,
   calendarSummary: (params?: GetCalendarSummaryParams) =>
     [...visitKeys.all, "calendar-summary", params] as const,
+  interestQuestions: () => [...visitKeys.all, "interest-questions"] as const,
 };
 
 // List visits hook with filters
@@ -84,6 +85,15 @@ export function useVisitCalendarSummary(
   return useQuery({
     queryKey: visitKeys.calendarSummary(params),
     queryFn: () => visitService.getCalendarSummary(params),
+  });
+}
+
+// Get interest questions
+export function useInterestQuestions() {
+  return useQuery({
+    queryKey: visitKeys.interestQuestions(),
+    queryFn: () => visitService.getInterestQuestions(),
+    staleTime: Infinity, // Questions technically don't change often
   });
 }
 

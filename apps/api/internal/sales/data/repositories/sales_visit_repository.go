@@ -32,6 +32,7 @@ type SalesVisitRepository interface {
 	CheckOut(ctx context.Context, id string, checkOutAt time.Time, result string) error
 	CreateProgressHistory(ctx context.Context, history *models.SalesVisitProgressHistory) error
 	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) ([]dto.CalendarDaySummary, error)
+	ListInterestQuestions(ctx context.Context) ([]models.SalesVisitInterestQuestion, error)
 }
 
 type salesVisitRepository struct {
@@ -54,6 +55,8 @@ func (r *salesVisitRepository) FindByID(ctx context.Context, id string) (*models
 		Preload("Company").
 		Preload("Village.District.City.Province").
 		Preload("Details.Product").
+		Preload("Details.Answers.Question").
+		Preload("Details.Answers.Option").
 		Where(queryByID, id).
 		First(&visit).Error
 	if err != nil {
@@ -69,6 +72,8 @@ func (r *salesVisitRepository) FindByCode(ctx context.Context, code string) (*mo
 		Preload("Company").
 		Preload("Village.District.City.Province").
 		Preload("Details.Product").
+		Preload("Details.Answers.Question").
+		Preload("Details.Answers.Option").
 		Where("code = ?", code).
 		First(&visit).Error
 	if err != nil {
@@ -186,6 +191,8 @@ func (r *salesVisitRepository) ListDetails(ctx context.Context, visitID string, 
 		Preload("Product", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "code", "name", "selling_price", "image_url")
 		}).
+		Preload("Answers.Question").
+		Preload("Answers.Option").
 		Where(queryBySalesVisitID, visitID).
 		Order("created_at ASC").
 		Limit(perPage).
@@ -532,4 +539,16 @@ func (r *salesVisitRepository) GetCalendarSummary(ctx context.Context, req *dto.
 	}
 
 	return summaries, nil
+}
+
+func (r *salesVisitRepository) ListInterestQuestions(ctx context.Context) ([]models.SalesVisitInterestQuestion, error) {
+	var questions []models.SalesVisitInterestQuestion
+	err := r.getDB(ctx).
+		Preload("Options").
+		Order("sequence ASC").
+		Find(&questions).Error
+	if err != nil {
+		return nil, err
+	}
+	return questions, nil
 }

@@ -21,6 +21,10 @@ export const getVisitDetailSchema = (t?: TranslationFn) => z.object({
   price: z.coerce.number()
     .min(0, getMsg(t, "validation.priceMin", "Price cannot be negative"))
     .optional(),
+  answers: z.array(z.object({
+    question_id: z.string().uuid(),
+    option_id: z.string().uuid()
+  })).optional()
 });
 
 // Sales Visit Schema

@@ -471,7 +471,7 @@ erDiagram
 - [x] `SalesVisit` - CRUD + Activity tracking
 - [x] `SalesVisitDetail` - Products discussed
 - [x] `SalesVisitProgressHistory` - Auto-track changes
-- [ ] `SalesVisitInterestQuestion/Option/Answer` - Survey handling
+- [x] `SalesVisitInterestQuestion/Option/Answer` - Survey handling
 
 #### Estimation & Target
 - [x] `SalesEstimation` - CRUD + Convert to Quotation
@@ -498,7 +498,7 @@ erDiagram
 - [x] Payment status updates (Unpaid → Partial → Paid)
 - [x] HPP visibility controlled by permission
 - [x] Visit tracks all product discussions
-- [ ] Interest survey scoring works correctly (TODO)
+- [x] Interest survey scoring works correctly
 - [x] Target achievement shows real vs plan
 
 ### Integration Requirements

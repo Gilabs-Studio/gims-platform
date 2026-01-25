@@ -34,6 +34,7 @@ type SalesVisitUsecase interface {
 	CheckIn(ctx context.Context, id string, req *dto.CheckInRequest, userID *string) (*dto.SalesVisitResponse, error)
 	CheckOut(ctx context.Context, id string, req *dto.CheckOutRequest, userID *string) (*dto.SalesVisitResponse, error)
 	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) (*dto.CalendarSummaryResponse, error)
+	ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error)
 }
 
 type salesVisitUsecase struct {
@@ -190,14 +191,49 @@ func (u *salesVisitUsecase) Create(ctx context.Context, req *dto.CreateSalesVisi
 
 	// Build details
 	if len(req.Details) > 0 {
+		// Fetch all questions and options for scoring
+		questions, err := u.visitRepo.ListInterestQuestions(ctx)
+		optionScoreMap := make(map[string]int)
+		if err == nil {
+			for _, q := range questions {
+				for _, o := range q.Options {
+					optionScoreMap[o.ID] = o.Score
+				}
+			}
+		}
+
 		visit.Details = make([]models.SalesVisitDetail, len(req.Details))
 		for i, detailReq := range req.Details {
+			// Calculate Interest Level from Answers if provided
+			interestLevel := detailReq.InterestLevel
+			var answers []models.SalesVisitInterestAnswer
+
+			if len(detailReq.Answers) > 0 {
+				calculatedScore := 0
+				answers = make([]models.SalesVisitInterestAnswer, len(detailReq.Answers))
+				for j, ansReq := range detailReq.Answers {
+					score := optionScoreMap[ansReq.OptionID]
+					calculatedScore += score
+					answers[j] = models.SalesVisitInterestAnswer{
+						QuestionID: ansReq.QuestionID,
+						OptionID:   ansReq.OptionID,
+						Score:      score,
+					}
+				}
+				interestLevel = calculatedScore
+				// Cap at 5? The requirement implies 0-5. Seeder has 5 questions max score 5.
+				if interestLevel > 5 {
+					interestLevel = 5
+				}
+			}
+
 			visit.Details[i] = models.SalesVisitDetail{
 				ProductID:     detailReq.ProductID,
-				InterestLevel: detailReq.InterestLevel,
+				InterestLevel: interestLevel,
 				Notes:         detailReq.Notes,
 				Quantity:      detailReq.Quantity,
 				Price:         detailReq.Price,
+				Answers:       answers,
 			}
 		}
 	}
@@ -273,14 +309,48 @@ func (u *salesVisitUsecase) Update(ctx context.Context, id string, req *dto.Upda
 
 	// Update details if provided
 	if req.Details != nil {
+		// Fetch all questions and options for scoring
+		questions, err := u.visitRepo.ListInterestQuestions(ctx)
+		optionScoreMap := make(map[string]int)
+		if err == nil {
+			for _, q := range questions {
+				for _, o := range q.Options {
+					optionScoreMap[o.ID] = o.Score
+				}
+			}
+		}
+
 		visit.Details = make([]models.SalesVisitDetail, len(*req.Details))
 		for i, detailReq := range *req.Details {
+			// Calculate Interest Level from Answers if provided
+			interestLevel := detailReq.InterestLevel
+			var answers []models.SalesVisitInterestAnswer
+
+			if len(detailReq.Answers) > 0 {
+				calculatedScore := 0
+				answers = make([]models.SalesVisitInterestAnswer, len(detailReq.Answers))
+				for j, ansReq := range detailReq.Answers {
+					score := optionScoreMap[ansReq.OptionID]
+					calculatedScore += score
+					answers[j] = models.SalesVisitInterestAnswer{
+						QuestionID: ansReq.QuestionID,
+						OptionID:   ansReq.OptionID,
+						Score:      score,
+					}
+				}
+				interestLevel = calculatedScore
+				if interestLevel > 5 {
+					interestLevel = 5
+				}
+			}
+
 			visit.Details[i] = models.SalesVisitDetail{
 				ProductID:     detailReq.ProductID,
-				InterestLevel: detailReq.InterestLevel,
+				InterestLevel: interestLevel,
 				Notes:         detailReq.Notes,
 				Quantity:      detailReq.Quantity,
 				Price:         detailReq.Price,
+				Answers:       answers,
 			}
 		}
 	}
@@ -476,4 +546,12 @@ func (u *salesVisitUsecase) GetCalendarSummary(ctx context.Context, req *dto.Get
 		return nil, err
 	}
 	return &dto.CalendarSummaryResponse{Summary: summaries}, nil
+}
+
+func (u *salesVisitUsecase) ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error) {
+	questions, err := u.visitRepo.ListInterestQuestions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapper.MapSalesVisitInterestQuestionsToResponse(questions), nil
 }
