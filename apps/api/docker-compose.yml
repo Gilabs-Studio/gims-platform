@@ -1,13 +1,13 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: gims-erp-db
+    container_name: gims-platform-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gims_erp
+      POSTGRES_DB: gims_erp_db
     ports:
-      - "5434:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -20,9 +20,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: gims-redis
+    container_name: gims-platform-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -38,9 +38,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gims-api
+    container_name: gims-platform-api
     ports:
-      - "8080:8080"
+      - "8087:8080"
     environment:
       - GIN_MODE=release
       - PORT=8080
@@ -49,7 +49,7 @@ services:
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
-      - DB_NAME=gims_erp
+      - DB_NAME=gims_erp_db
       - DB_SSLMODE=disable
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production-min-32-chars}
       - JWT_ACCESS_TTL=24
