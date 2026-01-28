@@ -25,7 +25,7 @@ export function useAttendanceCalendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   // Calculate date range for the current month
   const startDate = useMemo(
@@ -41,7 +41,7 @@ export function useAttendanceCalendar() {
   const { data, isLoading } = useAttendanceRecords({
     start_date: format(startDate, "yyyy-MM-dd"),
     end_date: format(endDate, "yyyy-MM-dd"),
-    limit: 1000, // Get all records for the month
+    per_page: 100, // Get all records for the month
   });
 
   const createAttendanceRecord = useCreateAttendanceRecord();
@@ -54,12 +54,14 @@ export function useAttendanceCalendar() {
 
     return data.data.map((record) => ({
       id: record.id,
-      employeeId: record.employee.id,
-      employeeName: record.employee.name,
+      employeeId: record.employee_id,
+      employeeName: record.employee_name ?? "Unknown",
       date: parseISO(record.date),
       checkInTime: record.check_in_time,
       checkOutTime: record.check_out_time,
       status: record.status,
+      isLate: record.is_late,
+      lateMinutes: record.late_minutes,
       note: record.note,
     }));
   }, [data]);
@@ -122,7 +124,7 @@ export function useAttendanceCalendar() {
 
   // Handle delete attendance record
   const handleDelete = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       try {
         await deleteAttendanceRecord.mutateAsync(id);
         setSelectedEvent(null);
@@ -136,7 +138,7 @@ export function useAttendanceCalendar() {
   );
 
   // Handle delete click - open delete dialog
-  const handleDeleteClick = useCallback((id: number) => {
+  const handleDeleteClick = useCallback((id: string) => {
     setDeletingEventId(id);
     setSelectedEvent(null);
   }, []);

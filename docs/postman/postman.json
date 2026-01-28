@@ -963,6 +963,1634 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "HRD - Attendance",
+			"description": "HRD Attendance management endpoints including clock in/out, work schedules, holidays, and overtime",
+			"item": [
+				{
+					"name": "Attendance",
+					"description": "Employee attendance tracking with GPS validation",
+					"item": [
+						{
+							"name": "Get Today's Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/today",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"today"
+									]
+								},
+								"description": "Get current day's attendance status for the authenticated user.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"has_checked_in\": true,\n    \"has_checked_out\": false,\n    \"attendance_record\": {...},\n    \"work_schedule\": {...},\n    \"is_working_day\": true,\n    \"is_holiday\": false,\n    \"current_server_time\": \"2024-01-15T08:30:00+07:00\"\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Clock In",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"check_in_type\": \"NORMAL\",\n  \"latitude\": -6.2088,\n  \"longitude\": 106.8456,\n  \"address\": \"Jl. Sudirman No. 1, Jakarta\",\n  \"note\": \"On time\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/clock-in",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"clock-in"
+									]
+								},
+								"description": "Clock in with GPS coordinates. GPS is validated against work schedule office location.\n\n**Check-In Types:**\n- `NORMAL` - Regular office (GPS validated)\n- `WFH` - Work from Home (no GPS validation)\n- `FIELD_WORK` - Field work (GPS logged but not validated)\n\n**Error Codes:**\n- `ATTENDANCE_ALREADY_CLOCKED_IN` - Already clocked in today\n- `ATTENDANCE_GPS_OUT_OF_RANGE` - Outside allowed GPS radius\n- `ATTENDANCE_HOLIDAY` - Today is a holiday"
+							},
+							"response": []
+						},
+						{
+							"name": "Clock Out",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"latitude\": -6.2088,\n  \"longitude\": 106.8456,\n  \"address\": \"Jl. Sudirman No. 1, Jakarta\",\n  \"note\": \"Completed all tasks\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/clock-out",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"clock-out"
+									]
+								},
+								"description": "Clock out with GPS coordinates. Auto-creates overtime request if working past schedule end time.\n\n**Note:** If clock out time exceeds schedule end time by more than 30 minutes, an overtime request is automatically created with type `AUTO_DETECTED`."
+							},
+							"response": []
+						},
+						{
+							"name": "Get My Monthly Stats",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/my-stats?year=2024&month=1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"my-stats"
+									],
+									"query": [
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "month",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get monthly attendance statistics for the authenticated user.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"present_days\": 20,\n    \"absent_days\": 1,\n    \"late_days\": 2,\n    \"leave_days\": 1,\n    \"total_working_hours\": \"168h 30m\",\n    \"total_overtime_hours\": \"12h 0m\",\n    \"attendance_percentage\": 95.5\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "List Attendance Records",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance?page=1&per_page=20&date_from=2024-01-01&date_to=2024-01-31",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "date_from",
+											"value": "2024-01-01"
+										},
+										{
+											"key": "date_to",
+											"value": "2024-01-31"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "LATE",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List attendance records with filters. Requires `attendance.read` permission.\n\n**Filters:**\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Attendance By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Get attendance record by ID. Requires `attendance.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Manual Entry",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"date\": \"2024-01-15\",\n  \"check_in_time\": \"08:00\",\n  \"check_out_time\": \"17:00\",\n  \"check_in_type\": \"NORMAL\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Manual entry for missed clock-in\",\n  \"reason\": \"Employee forgot to clock in due to urgent meeting\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/manual",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"manual"
+									]
+								},
+								"description": "Create manual attendance entry. Requires `attendance.create` permission.\n\n**Use Cases:**\n- Employee forgot to clock in\n- System was down\n- Correction of incorrect records"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"check_out_time\": \"18:00\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Updated clock out time\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Update attendance record. Requires `attendance.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Delete attendance record. Requires `attendance.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Work Schedules",
+					"description": "Work schedule configuration with GPS and flexible hours",
+					"item": [
+						{
+							"name": "List Work Schedules",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "is_active",
+											"value": "true",
+											"disabled": true
+										},
+										{
+											"key": "division_id",
+											"value": "{{division_id}}",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List work schedules. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Default Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/default",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										"default"
+									]
+								},
+								"description": "Get the default work schedule. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Work Schedule By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Get work schedule by ID. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Standard Office Hours\",\n  \"description\": \"Regular 9-to-5 office schedule\",\n  \"division_id\": null,\n  \"is_default\": true,\n  \"is_active\": true,\n  \"start_time\": \"08:00\",\n  \"end_time\": \"17:00\",\n  \"is_flexible\": false,\n  \"break_start_time\": \"12:00\",\n  \"break_end_time\": \"13:00\",\n  \"break_duration\": 60,\n  \"working_days\": 31,\n  \"working_hours_per_day\": 8,\n  \"late_tolerance_minutes\": 15,\n  \"early_leave_tolerance_minutes\": 10,\n  \"require_gps\": true,\n  \"gps_radius_meter\": 100,\n  \"office_latitude\": -6.2088,\n  \"office_longitude\": 106.8456\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules"
+									]
+								},
+								"description": "Create work schedule. Requires `work_schedule.create` permission.\n\n**Working Days Bitmask:**\n- Monday = 1\n- Tuesday = 2\n- Wednesday = 4\n- Thursday = 8\n- Friday = 16\n- Saturday = 32\n- Sunday = 64\n- Mon-Fri = 31 (1+2+4+8+16)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Schedule Name\",\n  \"late_tolerance_minutes\": 10,\n  \"gps_radius_meter\": 150\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Update work schedule. Requires `work_schedule.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Delete work schedule. Requires `work_schedule.delete` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Set Default Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id/set-default",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id",
+										"set-default"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Set work schedule as default. Requires `work_schedule.update` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Holidays",
+					"description": "Holiday management with calendar view",
+					"item": [
+						{
+							"name": "List Holidays",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays?page=1&per_page=50&year=2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "50"
+										},
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "type",
+											"value": "NATIONAL",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List holidays with filters. Requires `holiday.read` permission.\n\n**Types:**\n- `NATIONAL` - Government holidays\n- `COLLECTIVE` - Cuti Bersama\n- `COMPANY` - Company-specific"
+							},
+							"response": []
+						},
+						{
+							"name": "Check Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/check?date=2024-01-01",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"check"
+									],
+									"query": [
+										{
+											"key": "date",
+											"value": "2024-01-01"
+										}
+									]
+								},
+								"description": "Check if a specific date is a holiday. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holidays By Year",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/year/2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"year",
+										"2024"
+									]
+								},
+								"description": "Get all holidays for a specific year. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holiday Calendar",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/calendar/2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"calendar",
+										"2024"
+									]
+								},
+								"description": "Get holidays grouped by month for calendar view. Requires `holiday.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"year\": 2024,\n    \"holidays\": {\n      \"2024-01\": [{\"date\": \"2024-01-01\", \"name\": \"New Year\"}],\n      \"2024-08\": [{\"date\": \"2024-08-17\", \"name\": \"Independence Day\"}]\n    }\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holiday By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Get holiday by ID. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"date\": \"2024-12-25\",\n  \"name\": \"Christmas Day\",\n  \"description\": \"National Christmas Holiday\",\n  \"type\": \"NATIONAL\",\n  \"is_collective_leave\": false,\n  \"cuts_annual_leave\": false,\n  \"is_recurring\": true,\n  \"is_active\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays"
+									]
+								},
+								"description": "Create a holiday. Requires `holiday.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Holidays Batch",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"date\": \"2024-01-01\",\n    \"name\": \"Tahun Baru 2024\",\n    \"type\": \"NATIONAL\",\n    \"is_active\": true\n  },\n  {\n    \"date\": \"2024-08-17\",\n    \"name\": \"Hari Kemerdekaan RI\",\n    \"type\": \"NATIONAL\",\n    \"is_recurring\": true,\n    \"is_active\": true\n  },\n  {\n    \"date\": \"2024-12-26\",\n    \"name\": \"Cuti Bersama Natal\",\n    \"type\": \"COLLECTIVE\",\n    \"is_collective_leave\": true,\n    \"cuts_annual_leave\": true,\n    \"is_active\": true\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/batch",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"batch"
+									]
+								},
+								"description": "Create multiple holidays at once. Requires `holiday.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Holiday Name\",\n  \"description\": \"Updated description\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Update holiday. Requires `holiday.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Delete holiday. Requires `holiday.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Overtime",
+					"description": "Overtime request and approval management",
+					"item": [
+						{
+							"name": "Submit Overtime Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"date\": \"2024-01-15\",\n  \"start_time\": \"17:00\",\n  \"end_time\": \"20:00\",\n  \"reason\": \"Complete urgent client deliverable\",\n  \"description\": \"Need to finish the quarterly report before deadline\",\n  \"task_details\": \"1. Finalize report data\\n2. Create presentation\\n3. Send to client\",\n  \"request_type\": \"MANUAL_CLAIM\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime"
+									]
+								},
+								"description": "Submit overtime request. No special permission required (self-service).\n\n**Request Types:**\n- `AUTO_DETECTED` - Created by system on clock out\n- `MANUAL_CLAIM` - Employee manual request\n- `PRE_APPROVED` - Pre-planned overtime"
+							},
+							"response": []
+						},
+						{
+							"name": "Get My Overtime Summary",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/my-summary?year=2024&month=1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"my-summary"
+									],
+									"query": [
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "month",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get own monthly overtime summary. No special permission required.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total_requested_minutes\": 600,\n    \"total_approved_minutes\": 480,\n    \"pending_requests\": 2,\n    \"approved_requests\": 8,\n    \"rejected_requests\": 1\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Cancel Overtime Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/cancel",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"cancel"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Cancel own pending overtime request. Only works for requests with status `PENDING`."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Pending Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/pending?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"pending"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get pending overtime requests for approval. Requires `overtime.approve` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"approved_minutes\": 180\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/approve",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Approve overtime request. Requires `overtime.approve` permission.\n\n**Note:** Manager can adjust approved minutes if needed."
+							},
+							"response": []
+						},
+						{
+							"name": "Reject Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Overtime not approved - task can be completed during regular hours\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/reject",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Reject overtime request with reason. Requires `overtime.approve` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "List Overtime Requests",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime?page=1&per_page=20&status=APPROVED",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "APPROVED"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "request_type",
+											"value": "MANUAL_CLAIM",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List all overtime requests with filters. Requires `overtime.read` permission.\n\n**Status Filter:**\n- `PENDING` - Awaiting approval\n- `APPROVED` - Approved by manager\n- `REJECTED` - Rejected\n- `CANCELED` - Canceled by employee"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Overtime By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Get overtime request by ID. Requires `overtime.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"start_time\": \"17:30\",\n  \"end_time\": \"21:00\",\n  \"reason\": \"Updated reason\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Update overtime request. Requires `overtime.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Delete overtime request. Requires `overtime.delete` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Overtime Notifications (Polling)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/notifications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"notifications"
+									]
+								},
+								"description": "Get pending overtime notifications for polling. Requires `overtime.approve` permission.\n\nUsed by frontend to show notification badge for pending approvals."
+							},
+							"response": []
+						}
+					]
+				}
+			]
 		}
 	],
 	"event": [

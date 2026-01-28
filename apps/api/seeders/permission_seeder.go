@@ -393,6 +393,13 @@ func SeedPermissions() error {
 		{"/hrd/holidays", "holiday.update", "Edit Holidays", "EDIT", "holiday"},
 		{"/hrd/holidays", "holiday.delete", "Delete Holidays", "DELETE", "holiday"},
 
+		{"/hrd/overtime", "overtime.read", "View Overtime Requests", "VIEW", "overtime"},
+		{"/hrd/overtime", "overtime.create", "Create Overtime Requests", "CREATE", "overtime"},
+		{"/hrd/overtime", "overtime.update", "Edit Overtime Requests", "EDIT", "overtime"},
+		{"/hrd/overtime", "overtime.delete", "Delete Overtime Requests", "DELETE", "overtime"},
+		{"/hrd/overtime", "overtime.approve", "Approve Overtime Requests", "APPROVE", "overtime"},
+		{"/hrd/overtime", "overtime.reject", "Reject Overtime Requests", "REJECT", "overtime"},
+
 		// Reports
 		{"/reports", "report.view", "View Reports", "VIEW", "report"},
 		{"/reports", "report.generate", "Generate Reports", "CREATE", "report"},

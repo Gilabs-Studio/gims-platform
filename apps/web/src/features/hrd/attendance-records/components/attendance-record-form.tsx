@@ -70,7 +70,7 @@ export function AttendanceRecordForm({
           note: event.note || "",
         }
       : {
-          employee_id: 0,
+          employee_id: "",
           date: selectedDate || new Date(),
           check_in_time: null,
           check_out_time: null,
@@ -79,7 +79,7 @@ export function AttendanceRecordForm({
         },
   });
 
-  const employeeIdValue = useWatch({ control, name: "employee_id" }) as number | undefined;
+  const employeeIdValue = useWatch({ control, name: "employee_id" }) as string | undefined;
   const dateValue = useWatch({ control, name: "date" }) as Date | undefined;
   const statusValue = useWatch({ control, name: "status" }) as AttendanceRecordFormData["status"] | undefined;
   const checkInTime = useWatch({ control, name: "check_in_time" }) as Date | null | undefined;
@@ -113,15 +113,15 @@ export function AttendanceRecordForm({
           <Field orientation="vertical">
             <FieldLabel>Employee *</FieldLabel>
             <Select
-              value={employeeIdValue?.toString() || ""}
-              onValueChange={(value) => setValue("employee_id", parseInt(value), { shouldValidate: true })}
+              value={employeeIdValue || ""}
+              onValueChange={(value) => setValue("employee_id", value, { shouldValidate: true })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select employee" />
               </SelectTrigger>
               <SelectContent>
                 {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id.toString()}>
+                  <SelectItem key={employee.id} value={employee.id}>
                     {employee.name}
                   </SelectItem>
                 ))}

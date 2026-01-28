@@ -884,53 +884,108 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Attendance management
-- [ ] **Frontend:** Attendance tracking UI
+- [x] **API:** Attendance management ✅
+- [x] **Frontend:** Attendance tracking UI ✅
 
 ### API Tasks
 
-- [ ] `AttendanceRecord` - Clock In/Out
-- [ ] `WorkSchedule` - Weekly schedule definition
-- [ ] `Holiday` - CRUD + Import
-- [ ] Attendance calculation (late, early leave, overtime)
-- [ ] Attendance summary report
+- [x] `AttendanceRecord` - Clock In/Out with GPS validation
+- [x] `WorkSchedule` - Weekly schedule definition with flexible hours
+- [x] `Holiday` - CRUD + Batch import + Calendar view
+- [x] `OvertimeRequest` - CRUD + Approval workflow + Auto-detection
+- [x] Attendance calculation (late, early leave, overtime)
+- [x] Attendance summary report (monthly stats)
+- [x] GPS validation using Haversine formula
+- [x] Migration SQL for HRD tables
+- [x] Seeder for work schedules and holidays
 
 ### Frontend Tasks
 
-- [ ] Clock In/Out interface
-- [ ] Attendance calendar view
-- [ ] Work schedule configuration
-- [ ] Holiday management
-- [ ] Attendance report by employee/department
-- [ ] Late/Absent summary
+- [x] Types, schemas, services, and hooks created
+- [x] i18n translations (en, id)
+- [x] Clock In/Out interface with GPS
+- [x] Attendance calendar view
+- [x] Work schedule configuration
+- [x] Holiday management
+- [x] Overtime request/approval UI
+- [x] Attendance report by employee/department
+- [x] Late/Absent summary dashboard (HRD Dashboard)
 
 ### Success Criteria
 
-- [ ] Clock In/Out records timestamp and type
-- [ ] Late calculated from WorkSchedule.StartTime
-- [ ] Early leave calculated from WorkSchedule.EndTime
-- [ ] Holidays marked as non-working days
-- [ ] Attendance summary shows present/absent/late counts
+- [x] Clock In/Out records timestamp, GPS coordinates, and type
+- [x] Late calculated from WorkSchedule.StartTime with tolerance
+- [x] Early leave calculated from WorkSchedule.EndTime with tolerance
+- [x] Holidays marked as non-working days
+- [x] Attendance summary shows present/absent/late counts
+- [x] Overtime auto-detected on clock out
+- [x] GPS radius validation for office attendance
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 
 ```mermaid
 erDiagram
     Employee ||--o{ AttendanceRecord : "records"
+    WorkSchedule ||--o{ AttendanceRecord : "schedule"
+    AttendanceRecord ||--o| OvertimeRequest : "triggers"
+    Holiday }o--o{ AttendanceRecord : "affects"
+    Division ||--o{ WorkSchedule : "has"
 ```
 
 ### Business Logic
 
 - CheckInType: NORMAL, WFH, FIELD_WORK
-- Status: PRESENT, ABSENT, LATE, HALF_DAY
-- Late = CheckInTime > WorkSchedule.StartTime
-- Overtime = CheckOutTime > WorkSchedule.EndTime (if approved)
+- Status: PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY
+- Late = CheckInTime > (WorkSchedule.StartTime + LateToleranceMinutes)
+- Overtime = CheckOutTime > WorkSchedule.EndTime (auto-detected or manual claim)
 - Holiday check before marking absent
+- GPS validation: Haversine formula with configurable radius per schedule
+- Working days: Bitmask (1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat, 64=Sun)
+- Overtime rates: 1.5x weekday, 2.0x weekend/holiday
+
+### API Endpoints
+
+| Method | Endpoint | Permission | Description |
+|--------|----------|------------|-------------|
+| GET | `/hrd/attendance/today` | Auth | Get today's attendance |
+| POST | `/hrd/attendance/clock-in` | Auth | Clock in with GPS |
+| POST | `/hrd/attendance/clock-out` | Auth | Clock out with GPS |
+| GET | `/hrd/attendance/my-stats` | Auth | Get monthly stats |
+| GET | `/hrd/attendance` | attendance.read | List all records |
+| GET | `/hrd/attendance/:id` | attendance.read | Get by ID |
+| POST | `/hrd/attendance/manual` | attendance.create | Manual entry |
+| PUT | `/hrd/attendance/:id` | attendance.update | Update record |
+| DELETE | `/hrd/attendance/:id` | attendance.delete | Delete record |
+| GET | `/hrd/work-schedules` | work_schedule.read | List schedules |
+| GET | `/hrd/work-schedules/default` | work_schedule.read | Get default |
+| POST | `/hrd/work-schedules` | work_schedule.create | Create schedule |
+| PUT | `/hrd/work-schedules/:id` | work_schedule.update | Update schedule |
+| DELETE | `/hrd/work-schedules/:id` | work_schedule.delete | Delete schedule |
+| POST | `/hrd/work-schedules/:id/set-default` | work_schedule.update | Set default |
+| GET | `/hrd/holidays` | holiday.read | List holidays |
+| GET | `/hrd/holidays/check` | holiday.read | Check if date is holiday |
+| GET | `/hrd/holidays/year/:year` | holiday.read | Get by year |
+| GET | `/hrd/holidays/calendar/:year` | holiday.read | Calendar view |
+| POST | `/hrd/holidays` | holiday.create | Create holiday |
+| POST | `/hrd/holidays/batch` | holiday.create | Batch create |
+| PUT | `/hrd/holidays/:id` | holiday.update | Update holiday |
+| DELETE | `/hrd/holidays/:id` | holiday.delete | Delete holiday |
+| POST | `/hrd/overtime` | Auth | Submit request |
+| GET | `/hrd/overtime/my-summary` | Auth | Get own summary |
+| POST | `/hrd/overtime/:id/cancel` | Auth | Cancel request |
+| GET | `/hrd/overtime/pending` | overtime.approve | Get pending |
+| POST | `/hrd/overtime/:id/approve` | overtime.approve | Approve |
+| POST | `/hrd/overtime/:id/reject` | overtime.approve | Reject |
+| GET | `/hrd/overtime` | overtime.read | List all |
+| GET | `/hrd/overtime/:id` | overtime.read | Get by ID |
+| PUT | `/hrd/overtime/:id` | overtime.update | Update |
+| DELETE | `/hrd/overtime/:id` | overtime.delete | Delete |
+| GET | `/hrd/overtime/notifications` | overtime.approve | Polling |
 
 ---
 

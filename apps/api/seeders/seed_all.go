@@ -108,6 +108,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Work Schedules seeder (Sprint 13)
+	if err := SeedWorkSchedules(); err != nil {
+		return err
+	}
+
+	// HRD - Holidays seeder (Sprint 13)
+	if err := SeedHolidays(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

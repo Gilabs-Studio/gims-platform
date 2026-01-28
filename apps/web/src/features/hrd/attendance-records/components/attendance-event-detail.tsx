@@ -20,7 +20,7 @@ interface AttendanceEventDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onEdit: (event: CalendarEvent) => void;
-  readonly onDelete: (id: number) => void;
+  readonly onDelete: (id: string) => void;
 }
 
 const STATUS_CONFIG = {
@@ -43,6 +43,14 @@ const STATUS_CONFIG = {
   HALF_DAY: {
     label: "Half Day",
     className: "bg-violet-500/10 text-violet-700 border-violet-500/20",
+  },
+  EARLY_LEAVE: {
+    label: "Early Leave",
+    className: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  },
+  HOLIDAY: {
+    label: "Holiday",
+    className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
   },
 } as const;
 

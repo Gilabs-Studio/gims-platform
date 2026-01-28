@@ -39,6 +39,14 @@ const STATUS_CONFIG = {
     label: "Half Day",
     className: "bg-violet-500/10 text-violet-700 border-violet-500/20",
   },
+  EARLY_LEAVE: {
+    label: "Early Leave",
+    className: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  },
+  HOLIDAY: {
+    label: "Holiday",
+    className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
+  },
 } as const;
 
 export function AttendanceDayView({

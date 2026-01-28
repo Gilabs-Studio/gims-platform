@@ -9,6 +9,7 @@ import (
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
+	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
@@ -118,6 +119,11 @@ func AutoMigrate() error {
 		&sales.SalesVisitInterestQuestion{},
 		&sales.SalesVisitInterestOption{},
 		&sales.SalesVisitInterestAnswer{},
+		// HRD Attendance entities (Sprint 13)
+		&hrd.WorkSchedule{},
+		&hrd.Holiday{},
+		&hrd.AttendanceRecord{},
+		&hrd.OvertimeRequest{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
