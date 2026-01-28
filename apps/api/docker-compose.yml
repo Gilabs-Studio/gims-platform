@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: gims-erp-db
+    container_name: gims-platform-db
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: gims-redis
+    container_name: gims-platform-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -38,7 +38,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gims-api
+    container_name: gims-platform-api
     ports:
       - "${PORT:-8080}:8080"
     environment:
