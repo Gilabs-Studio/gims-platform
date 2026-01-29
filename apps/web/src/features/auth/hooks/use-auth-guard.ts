@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuthStore } from "../stores/use-auth-store";
 import { fullAuthCleanup } from "../utils/clear-auth-cookies";
 
@@ -6,7 +6,10 @@ import { fullAuthCleanup } from "../utils/clear-auth-cookies";
  * Auth guard hook that verifies session with backend before allowing access.
  *
  * CRITICAL: This hook ensures we don't trust localStorage alone.
- * It validates the session with the backend on every page load.
+ * It ALWAYS validates the session with the backend on every page load.
+ * This handles cases where:
+ * - Cookies exist but localStorage was cleared
+ * - localStorage says authenticated but cookies are expired/invalid
  *
  * States:
  * - isLoading: true while verifying session (show loading UI)
@@ -25,24 +28,26 @@ export function useAuthGuard() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const hasAttemptedVerification = useRef(false);
 
   // Mark as hydrated after first render (Zustand rehydration complete)
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Verify session with backend
+  // Verify session with backend - ALWAYS runs on protected routes
   const verifySession = useCallback(async () => {
-    // Skip if already verified or not authenticated in localStorage
-    if (isSessionVerified || !localStorageAuth) {
+    // Skip if already verified in this session
+    if (isSessionVerified) {
       return;
     }
 
     // Prevent concurrent verification attempts
-    if (isVerifying) {
+    if (isVerifying || hasAttemptedVerification.current) {
       return;
     }
 
+    hasAttemptedVerification.current = true;
     setIsVerifying(true);
 
     try {
@@ -52,14 +57,19 @@ export function useAuthGuard() {
       // Session is valid - update user data from backend and mark as verified
       if (response?.data?.user) {
         setUser(response.data.user);
+        setSessionVerified(true);
+      } else {
+        // No user data - invalid session
+        logout();
+        await fullAuthCleanup();
       }
-      setSessionVerified(true);
     } catch (error: unknown) {
       // Type guard for error response
       const axiosError = error as { response?: { status?: number } };
 
       // Don't logout on rate limit (429) - let user retry later
       if (axiosError?.response?.status === 429) {
+        // Still mark as attempted so we don't infinite loop
         return;
       }
 
@@ -71,35 +81,35 @@ export function useAuthGuard() {
     }
   }, [
     isSessionVerified,
-    localStorageAuth,
     isVerifying,
     setUser,
     setSessionVerified,
     logout,
   ]);
 
-  // Run session verification when hydrated and localStorage says authenticated
+  // ALWAYS run session verification when hydrated on protected routes
+  // This ensures we verify even if localStorage was cleared but cookies exist
   useEffect(() => {
-    if (isHydrated && localStorageAuth && !isSessionVerified && !isVerifying) {
+    if (isHydrated && !isSessionVerified && !isVerifying) {
       verifySession();
     }
-  }, [isHydrated, localStorageAuth, isSessionVerified, isVerifying, verifySession]);
+  }, [isHydrated, isSessionVerified, isVerifying, verifySession]);
 
   /**
    * Determine loading state:
    * - Not hydrated yet (SSR/initial load)
-   * - Hydrated but localStorage says authenticated and not yet verified
+   * - Currently verifying with backend
+   * - Not yet verified (waiting for verification to complete)
    */
-  const isLoading =
-    !isHydrated || (localStorageAuth && !isSessionVerified && !isVerifying) || isVerifying;
+  const isLoading = !isHydrated || isVerifying || !isSessionVerified;
 
   /**
    * Only consider authenticated if:
    * 1. Hydration complete
-   * 2. localStorage says authenticated
-   * 3. Backend has verified the session
+   * 2. Backend has verified the session successfully
+   * 3. User data exists
    */
-  const isAuthenticated = isHydrated && localStorageAuth && isSessionVerified;
+  const isAuthenticated = isHydrated && isSessionVerified && !!user;
 
   return {
     isAuthenticated,

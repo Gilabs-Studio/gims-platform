@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
 
@@ -6,14 +6,13 @@ import { useAuthStore } from "../stores/use-auth-store";
  * Authentication guard hook specifically for the login page.
  *
  * Flow:
- * 1. Check if localStorage says user is authenticated
- * 2. If yes, verify session with backend via /auth/refresh-token
- * 3. If backend returns 200 OK → redirect to dashboard
- * 4. If backend returns 401/403 → clear localStorage, show login form
- * 5. While verifying → show loading spinner
+ * 1. ALWAYS verify session with backend via /auth/refresh-token
+ * 2. If backend returns 200 OK → redirect to dashboard
+ * 3. If backend returns 401/403 → clear localStorage & cookies, show login form
+ * 4. While verifying → show loading spinner
  *
- * CRITICAL: Never trust localStorage.isAuthenticated directly.
- * Always verify with backend before redirecting.
+ * CRITICAL: We cannot check HttpOnly cookies from JavaScript.
+ * Always verify with backend to determine auth state.
  */
 export function useLoginGuard() {
   const router = useRouter();
@@ -27,27 +26,31 @@ export function useLoginGuard() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const hasAttemptedVerification = useRef(false);
 
   // Mark as hydrated after first render
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Verify session with backend
+  // ALWAYS verify session with backend on login page
+  // This handles cases where HttpOnly cookies exist but localStorage was cleared
   const verifyAndRedirect = useCallback(async () => {
-    // If localStorage says not authenticated, no need to verify
-    if (!localStorageAuth) {
-      setIsLoading(false);
+    // Prevent concurrent/repeated verification attempts
+    if (hasAttemptedVerification.current) {
       return;
     }
+    hasAttemptedVerification.current = true;
 
-    // If already verified by previous hook, redirect immediately
-    if (isSessionVerified) {
+    // If already verified in this session, redirect immediately
+    if (isSessionVerified && localStorageAuth) {
+      setIsRedirecting(true);
       router.push("/dashboard");
       return;
     }
 
-    // Verify session with backend using /auth/me (refresh-token)
+    // ALWAYS verify session with backend - we cannot check HttpOnly cookies
     try {
       const { authService } = await import("../services/auth-service");
       const response = await authService.getMe();
@@ -56,6 +59,7 @@ export function useLoginGuard() {
       if (response?.data?.user) {
         setUser(response.data.user);
         setSessionVerified(true);
+        setIsRedirecting(true);
         router.push("/dashboard");
       } else {
         // Response invalid - clear auth and show login form
@@ -69,6 +73,9 @@ export function useLoginGuard() {
       // 401/403 means session is invalid - clear auth and show login form
       if (status === 401 || status === 403) {
         logout();
+        // Also clear cookies since they're invalid
+        const { fullAuthCleanup } = await import("../utils/clear-auth-cookies");
+        await fullAuthCleanup();
       } else if (status === 429) {
         // Rate limited - don't logout, but show login form for now
         // User can try again later
@@ -99,18 +106,18 @@ export function useLoginGuard() {
 
   return {
     /**
-     * True while checking authentication status.
+     * True while checking authentication status or redirecting.
      * Show loading spinner when true.
      */
-    isLoading: !isHydrated || isLoading,
+    isLoading: !isHydrated || isLoading || isRedirecting,
 
     /**
      * True if user should see the login form.
      * This is true when:
      * 1. Hydration complete
      * 2. Verification complete
-     * 3. User is not authenticated
+     * 3. User is not authenticated (not redirecting to dashboard)
      */
-    shouldShowLoginForm: isHydrated && !isLoading,
+    shouldShowLoginForm: isHydrated && !isLoading && !isRedirecting,
   };
 }
