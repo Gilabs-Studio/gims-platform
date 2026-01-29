@@ -633,7 +633,7 @@ erDiagram
 
 ### Frontend Tasks
 
-- [ ] Inventory dashboard with warehouse filter
+- [x] Inventory dashboard with warehouse filter
 - [ ] Batch detail with movement history
 - [ ] Stock Movement timeline view
 - [ ] Stock Opname creation wizard

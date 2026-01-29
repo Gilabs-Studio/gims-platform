@@ -50,6 +50,7 @@ import (
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
+	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
@@ -264,6 +265,8 @@ func main() {
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		// Inventory module (Sprint 9)
+		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

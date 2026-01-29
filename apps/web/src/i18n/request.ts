@@ -50,6 +50,8 @@ import { visitI18nEn } from "@/features/sales/visit/i18n/en";
 import { visitI18nId } from "@/features/sales/visit/i18n/id";
 import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
+import { inventoryEn } from "@/features/inventory/i18n/en";
+import { inventoryId } from "@/features/inventory/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -75,8 +77,10 @@ const messages = {
     ...commandPaletteEn,
     ...estimationEn,
     ...targetsEn,
+    ...targetsEn,
     ...visitI18nEn,
     ...hrdEn,
+    ...inventoryEn,
   },
   id: {
     ...globalIdMessages,
@@ -102,6 +106,7 @@ const messages = {
     ...targetsId,
     ...visitI18nId,
     ...hrdId,
+    ...inventoryId,
   },
 } as const;
 

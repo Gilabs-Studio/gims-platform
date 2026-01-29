@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
+	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
@@ -124,6 +125,8 @@ func AutoMigrate() error {
 		&hrd.Holiday{},
 		&hrd.AttendanceRecord{},
 		&hrd.OvertimeRequest{},
+		// Inventory entities (Sprint 9)
+		&inventory.InventoryBatch{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
