@@ -54,6 +54,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Inventory seeder (Sprint 4)
+	if err := SeedInventory(); err != nil {
+		return err
+	}
+
 	// Master Data seeders (Sprint 4)
 	if err := SeedPaymentTerms(); err != nil {
 		return err

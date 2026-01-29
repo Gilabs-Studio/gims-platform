@@ -10,6 +10,11 @@ import (
 
 type InventoryUsecase interface {
 	GetStockList(ctx context.Context, req *dto.GetInventoryListRequest) (*dto.GetInventoryListResponse, error)
+	
+	// Tree View
+	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
+	GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) (*dto.GetInventoryTreeProductsResponse, error)
+	GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) (*dto.GetInventoryTreeBatchesResponse, error)
 }
 
 type inventoryUsecase struct {
@@ -49,4 +54,45 @@ func (u *inventoryUsecase) GetStockList(ctx context.Context, req *dto.GetInvento
 			HasPrev:    req.Page > 1,
 		},
 	}, nil
+}
+
+func (u *inventoryUsecase) GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error) {
+	return u.repo.GetTreeWarehouses(ctx)
+}
+
+func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) (*dto.GetInventoryTreeProductsResponse, error) {
+	// Defaults
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PerPage <= 0 {
+		req.PerPage = 20
+	}
+
+	items, total, err := u.repo.GetTreeProducts(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+
+	return &dto.GetInventoryTreeProductsResponse{
+		Data: items,
+		Meta: dto.PaginationMeta{
+			Total:      total,
+			Page:       req.Page,
+			PerPage:    req.PerPage,
+			TotalPages: totalPages,
+			HasNext:    req.Page < totalPages,
+			HasPrev:    req.Page > 1,
+		},
+	}, nil
+}
+
+func (u *inventoryUsecase) GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) (*dto.GetInventoryTreeBatchesResponse, error) {
+	items, err := u.repo.GetTreeBatches(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.GetInventoryTreeBatchesResponse{Data: items}, nil
 }

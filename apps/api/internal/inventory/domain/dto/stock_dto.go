@@ -55,3 +55,40 @@ type InventoryBatchItem struct {
 	ReservedQuantity float64    `json:"reserved_quantity"`
 	Available        float64    `json:"available"`
 }
+
+// Tree View DTOs
+
+type GetInventoryTreeWarehousesResponse struct {
+	ID      string       `json:"id"`
+	Name    string       `json:"name"`
+	Summary StockSummary `json:"summary"`
+}
+
+type StockSummary struct {
+	TotalItems int `json:"total_items"`
+	Ok         int `json:"ok"`
+	Low        int `json:"low"`
+	OutOfStock int `json:"out_of_stock"`
+	Overstock  int `json:"overstock"`
+}
+
+type GetInventoryTreeProductsRequest struct {
+	WarehouseID string `form:"warehouse_id" binding:"required"`
+	Page        int    `form:"page"`
+	PerPage     int    `form:"per_page"`
+	Search      string `form:"search"`
+}
+
+type GetInventoryTreeProductsResponse struct {
+	Data []InventoryStockItem `json:"data"`
+	Meta PaginationMeta       `json:"meta"`
+}
+
+type GetInventoryTreeBatchesRequest struct {
+	WarehouseID string `form:"warehouse_id" binding:"required"`
+	ProductID   string `form:"product_id" binding:"required"`
+}
+
+type GetInventoryTreeBatchesResponse struct {
+	Data []InventoryBatchItem `json:"data"`
+}

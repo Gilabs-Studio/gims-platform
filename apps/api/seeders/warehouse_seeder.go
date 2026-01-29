@@ -19,26 +19,20 @@ func SeedWarehouse() error {
 	var villages []geographic.Village
 	db.Preload("District.City.Province").Limit(5).Find(&villages)
 
-	var villageID1, villageID2, villageID3 *string
+	var villageID1, villageID2*string
 	if len(villages) > 0 {
 		villageID1 = &villages[0].ID
 	}
 	if len(villages) > 1 {
 		villageID2 = &villages[1].ID
 	}
-	if len(villages) > 2 {
-		villageID3 = &villages[2].ID
-	}
 
 	// Coordinates for Jakarta warehouses
 	lat1, lng1 := -6.2088, 106.8456   // Central Jakarta
 	lat2, lng2 := -6.1751, 106.8650   // North Jakarta
-	lat3, lng3 := -6.2615, 106.7809   // West Jakarta
-	lat4, lng4 := -6.2349, 106.9896   // East Jakarta
-	lat5, lng5 := -6.3043, 106.8971   // South Jakarta
 
 	// Capacities
-	cap1, cap2, cap3, cap4, cap5 := 10000, 15000, 8000, 12000, 20000
+	cap1, cap2 := 10000, 15000
 
 	warehouses := []models.Warehouse{
 		{
@@ -62,37 +56,6 @@ func SeedWarehouse() error {
 			Latitude:    &lat2,
 			Longitude:   &lng2,
 			IsActive:    true,
-		},
-		{
-			Code:        "WH-003",
-			Name:        "West Jakarta Storage Facility",
-			Description: "Storage facility for west region",
-			Capacity:    &cap3,
-			Address:     "Jl. Daan Mogot KM 18, Cengkareng, Jakarta Barat",
-			VillageID:   villageID3,
-			Latitude:    &lat3,
-			Longitude:   &lng3,
-			IsActive:    true,
-		},
-		{
-			Code:        "WH-004",
-			Name:        "East Jakarta Logistics Hub",
-			Description: "Main logistics hub for eastern distribution",
-			Capacity:    &cap4,
-			Address:     "Kawasan Industri JIEP, Jakarta Timur",
-			Latitude:    &lat4,
-			Longitude:   &lng4,
-			IsActive:    true,
-		},
-		{
-			Code:        "WH-005",
-			Name:        "South Jakarta Reserve Storage",
-			Description: "Reserve storage for overflow and special inventory",
-			Capacity:    &cap5,
-			Address:     "Jl. TB Simatupang No. 88, Jakarta Selatan",
-			Latitude:    &lat5,
-			Longitude:   &lng5,
-			IsActive:    false, // Inactive warehouse for testing
 		},
 	}
 

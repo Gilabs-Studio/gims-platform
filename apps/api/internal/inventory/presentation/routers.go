@@ -36,5 +36,10 @@ func RegisterRoutes(
 	stock.Use(middleware.AuthMiddleware(jwtManager, permissionService))
 	{
 		stock.GET("/inventory", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+		
+		// Tree View Routes
+		stock.GET("/tree/warehouses", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeWarehouses)
+		stock.GET("/tree/products", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeProducts)
+		stock.GET("/tree/batches", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeBatches)
 	}
 }

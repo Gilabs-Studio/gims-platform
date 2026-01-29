@@ -25,6 +25,21 @@ export interface InventoryBatchItem {
   available: number;
 }
 
+// Tree types
+export interface StockSummary {
+  total_items: number;
+  ok: number;
+  low: number;
+  out_of_stock: number;
+  overstock: number;
+}
+
+export interface InventoryTreeWarehouse {
+  id: string;
+  name: string;
+  summary: StockSummary;
+}
+
 export interface InventoryFilters {
   search?: string;
   warehouse_id?: string;
