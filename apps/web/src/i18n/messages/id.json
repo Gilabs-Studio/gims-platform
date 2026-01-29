@@ -48,6 +48,7 @@
       "rememberMe": "Ingat saya",
       "submit": "Masuk",
       "submitting": "Masuk...",
+      "verifyingSession": "Memverifikasi sesi...",
       "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}."
     },
     "block": {

@@ -47,7 +47,7 @@ export function useAuthGuard() {
 
     try {
       const { authService } = await import("../services/auth-service");
-      const response = await authService.verifySession();
+      const response = await authService.getMe();
 
       // Session is valid - update user data from backend and mark as verified
       if (response?.data?.user) {
