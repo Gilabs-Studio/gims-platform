@@ -4,7 +4,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
 const InventoryList = dynamic(
   () =>
-    import("@/features/inventory/components/inventory-list").then(
+    import("@/features/stock/inventory/components/inventory-list").then(
       (mod) => ({ default: mod.InventoryList })
     ),
   { loading: () => null }

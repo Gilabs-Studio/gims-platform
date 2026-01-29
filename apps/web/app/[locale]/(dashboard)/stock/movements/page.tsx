@@ -6,7 +6,7 @@ import { getTranslations } from "next-intl/server";
 
 const MovementList = dynamic(
   () =>
-    import("@/features/inventory/stock-movement/components/movement-list").then(
+    import("@/features/stock/stock-movement/components/movement-list").then(
       (mod) => ({ default: mod.MovementList })
     ),
   { loading: () => null }

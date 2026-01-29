@@ -1,4 +1,4 @@
-import { PaginationMeta } from "@/features/inventory/types";
+import { PaginationMeta } from "@/features/stock/inventory/types";
 
 export type StockMovementType = "IN" | "OUT" | "ADJUST" | "TRANSFER";
 
