@@ -227,6 +227,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	})
+	// Also clear CSRF token cookie
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_csrf_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   isSecureRequest(c),
+		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
+		SameSite: http.SameSiteStrictMode,
+	})
 
 	response.SuccessResponseNoContent(c)
 }

@@ -23,6 +23,7 @@ export const authService = {
   /**
    * Refresh access token using refresh token cookie.
    * Browser automatically sends HttpOnly refresh_token cookie.
+   * Returns user data for session verification.
    */
   async refreshToken(): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
@@ -32,9 +33,12 @@ export const authService = {
   /**
    * Verify session validity by attempting to refresh the token.
    * This ensures the HttpOnly cookie is present and valid.
+   *
+   * @returns LoginResponse with user data if session is valid
+   * @throws Error if session is invalid (401, network error, etc.)
    */
-  async verifySession(): Promise<void> {
-    await this.refreshToken();
+  async verifySession(): Promise<LoginResponse> {
+    return this.refreshToken();
   },
 
   async logout(): Promise<void> {

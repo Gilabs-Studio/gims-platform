@@ -35,7 +35,12 @@ import { ButtonLoading } from "@/components/loading";
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  /**
+   * IMPORTANT: Use isSessionVerified for redirect logic, NOT isAuthenticated alone.
+   * isAuthenticated only indicates localStorage state, which can be stale.
+   * isSessionVerified indicates the backend has confirmed the session is valid.
+   */
+  const { isAuthenticated, isSessionVerified } = useAuthStore();
   const { handleLogin, isLoading, error, clearError } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -96,12 +101,18 @@ export function LoginForm() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Redirect to dashboard if already authenticated
-      // This prevents authenticated users from accessing login page
+    /**
+     * Only redirect to dashboard if BOTH conditions are met:
+     * 1. localStorage says authenticated (isAuthenticated)
+     * 2. Backend has verified the session (isSessionVerified)
+     *
+     * This prevents the "zombie auth" state where localStorage is stale
+     * but backend tokens are expired/invalid.
+     */
+    if (isAuthenticated && isSessionVerified) {
       router.push("/dashboard");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isSessionVerified, router]);
 
   useEffect(() => {
     if (error) {
