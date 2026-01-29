@@ -1,0 +1,30 @@
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+
+const MovementList = dynamic(
+  () =>
+    import("@/features/inventory/stock-movement/components/movement-list").then(
+      (mod) => ({ default: mod.MovementList })
+    ),
+  { loading: () => null }
+);
+
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations({ locale, namespace: "stock_movement" });
+  return {
+    title: t("title") + " | GIMS",
+  };
+}
+
+export default function StockMovementsPage() {
+  return (
+    <PermissionGuard requiredPermission="inventory.read">
+      <Suspense fallback={null}>
+        <MovementList />
+      </Suspense>
+    </PermissionGuard>
+  );
+}

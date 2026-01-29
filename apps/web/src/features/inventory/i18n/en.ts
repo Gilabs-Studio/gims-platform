@@ -34,5 +34,38 @@ export const inventoryEn = {
       next: "Next",
       noWarehouse: "No Warehouse"
     }
+  },
+  stock_movement: {
+    title: "Stock Movements",
+    description: "Central ledger for all inventory changes (GR, DO, Adjustments)",
+    filters: {
+      warehouse: "All Warehouses",
+      product: "All Products",
+      type: "All Types",
+      search: "Search reference number..."
+    },
+    table: {
+      date: "Date",
+      type: "Type",
+      ref_no: "Ref No",
+      source: "Source / Destination",
+      in: "IN",
+      out: "OUT",
+      balance: "Balance",
+      cost: "Cost",
+      user: "User"
+    },
+    dialog: {
+      title: "Movement Details",
+      refInfo: "Reference Information",
+      productInfo: "Product Information",
+      movementInfo: "Movement Information",
+      financials: "Financials",
+      qtyIn: "Quantity In",
+      qtyOut: "Quantity Out",
+      balanceAfter: "Balance After",
+      unitCost: "Unit Cost",
+      totalValue: "Total Value"
+    }
   }
 };

@@ -34,5 +34,38 @@ export const inventoryId = {
       next: "Selanjutnya",
       noWarehouse: "Tanpa Gudang"
     }
+  },
+  stock_movement: {
+    title: "Pergerakan Stok",
+    description: "Buku besar pusat untuk semua perubahan inventaris (GR, DO, Penyesuaian)",
+    filters: {
+      warehouse: "Semua Gudang",
+      product: "Semua Produk",
+      type: "Semua Tipe",
+      search: "Cari nomor referensi..."
+    },
+    table: {
+      date: "Tanggal",
+      type: "Tipe",
+      ref_no: "No Ref",
+      source: "Sumber / Tujuan",
+      in: "MASUK",
+      out: "KELUAR",
+      balance: "Saldo",
+      cost: "Biaya",
+      user: "Pengguna"
+    },
+    dialog: {
+      title: "Detail Pergerakan",
+      refInfo: "Informasi Referensi",
+      productInfo: "Informasi Produk",
+      movementInfo: "Informasi Pergerakan",
+      financials: "Keuangan",
+      qtyIn: "Jumlah Masuk",
+      qtyOut: "Jumlah Keluar",
+      balanceAfter: "Saldo Akhir",
+      unitCost: "Biaya Satuan",
+      totalValue: "Total Nilai"
+    }
   }
 };

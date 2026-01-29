@@ -127,6 +127,7 @@ func AutoMigrate() error {
 		&hrd.OvertimeRequest{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
+		&inventory.StockMovement{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

@@ -20,16 +20,19 @@ func RegisterRoutes(
 	permissionService security.PermissionService,
 ) {
 	// Auto Migrate
-	db.AutoMigrate(&models.InventoryBatch{})
+	db.AutoMigrate(&models.InventoryBatch{}, &models.StockMovement{})
 
 	// Repositories
 	inventoryRepo := repositories.NewInventoryRepository(db)
+	stockMovementRepo := repositories.NewStockMovementRepository(db)
 
 	// Usecases
 	inventoryUsecase := usecase.NewInventoryUsecase(inventoryRepo)
+	stockMovementUsecase := usecase.NewStockMovementService(stockMovementRepo)
 
 	// Handlers
 	inventoryHandler := handler.NewInventoryHandler(inventoryUsecase)
+	stockMovementHandler := NewStockMovementHandler(stockMovementUsecase)
 
 	// Routes
 	stock := v1.Group("/stock")
@@ -41,5 +44,8 @@ func RegisterRoutes(
 		stock.GET("/tree/warehouses", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeWarehouses)
 		stock.GET("/tree/products", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeProducts)
 		stock.GET("/tree/batches", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeBatches)
+
+		// Movement Routes
+		stock.GET("/movements", middleware.PermissionMiddleware("inventory.read"), stockMovementHandler.GetMovements)
 	}
 }

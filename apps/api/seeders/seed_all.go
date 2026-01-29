@@ -122,6 +122,11 @@ func SeedAll() error {
 	if err := SeedHolidays(); err != nil {
 		return err
 	}
+	
+	// Stock Movement seeder (Sprint 9)
+	if err := SeedStockMovement(); err != nil {
+		return err
+	}
 
 	return nil
 }

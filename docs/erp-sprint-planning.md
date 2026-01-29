@@ -607,6 +607,7 @@ erDiagram
 
 ---
 
+
 ## Sprint 9: Stock Module
 
 ### Deliverables
@@ -623,11 +624,18 @@ erDiagram
 - [ ] Stock adjustment journal creation
 - [ ] Low stock alert calculation
 
+### Audit & Opname
+- [ ] Stock Opname creation wizard
+- [ ] Count entry form with variance display
+- [ ] Opname approval workflow
+- [ ] Low stock alerts list
+- [ ] Expiry alerts list
+
 #### Integration with Sprint 6 (Sales Order & Delivery Order) - CRITICAL
-- [ ] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Create `StockMovement` records when delivery order is shipped
+- [ ] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()`
+- [ ] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()`
+- [ ] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()`
+- [ ] **CRITICAL:** Create `StockMovement` (OUT) records when delivery order is shipped
 - [ ] **CRITICAL:** Update `SalesOrderItem.DeliveredQuantity` when delivery order is delivered
 - [ ] **CRITICAL:** Link `DeliveryOrderItem.InventoryBatchID` to actual batch records
 
@@ -635,7 +643,7 @@ erDiagram
 
 - [x] Inventory dashboard with warehouse filter
 - [ ] Batch detail with movement history
-- [ ] Stock Movement timeline view
+- [x] Stock Movement timeline view
 - [ ] Stock Opname creation wizard
 - [ ] Count entry form with variance display
 - [ ] Opname approval workflow
