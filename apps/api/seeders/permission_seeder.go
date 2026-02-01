@@ -272,7 +272,10 @@ func SeedPermissions() error {
 		{"/stock/opname", "stock_opname.read", "View Stock Opname", "VIEW", "stock_opname"},
 		{"/stock/opname", "stock_opname.create", "Create Stock Opname", "CREATE", "stock_opname"},
 		{"/stock/opname", "stock_opname.update", "Edit Stock Opname", "EDIT", "stock_opname"},
+		{"/stock/opname", "stock_opname.delete", "Delete Stock Opname", "DELETE", "stock_opname"},
 		{"/stock/opname", "stock_opname.approve", "Approve Stock Opname", "APPROVE", "stock_opname"},
+		{"/stock/opname", "stock_opname.reject", "Reject Stock Opname", "REJECT", "stock_opname"},
+		{"/stock/opname", "stock_opname.post", "Post Stock Opname", "POST", "stock_opname"},
 
 		// Finance
 		{"/finance/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},

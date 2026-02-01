@@ -54,6 +54,7 @@ import (
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
+	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 )
@@ -267,6 +268,9 @@ func main() {
 		hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Stock Opname module (Sprint 9)
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

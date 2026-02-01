@@ -24,7 +24,9 @@
     "page": "Page",
     "of": "of",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "deleted": "Deleted successfully",
+    "saved": "Saved successfully"
   },
   "notFound": {
     "label": "404",

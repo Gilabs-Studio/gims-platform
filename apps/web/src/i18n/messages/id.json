@@ -24,7 +24,8 @@
     "page": "Halaman",
     "of": "dari",
     "previous": "Sebelumnya",
-    "next": "Selanjutnya"
+    "next": "Selanjutnya",
+    "deleted": "Berhasil dihapus"
   },
   "notFound": {
     "label": "404",

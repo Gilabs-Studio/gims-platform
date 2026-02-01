@@ -51,6 +51,14 @@ func SeedSalesTargets() error {
 				approvedAt = &approved
 			}
 
+			// Check if target already exists for this area and year
+			var count int64
+			db.Model(&models.YearlyTarget{}).Where("area_id = ? AND year = ?", area.ID, year).Count(&count)
+			if count > 0 {
+				fmt.Printf("Skiping existing yearly target for Area: %s, Year: %d\n", area.Name, year)
+				continue
+			}
+
 			yearlyTarget := models.YearlyTarget{
 				ID:          uuid.NewString(),
 				Code:        code,
@@ -65,7 +73,7 @@ func SeedSalesTargets() error {
 			}
 
 			// Create 12 monthly targets
-			monthlyTargets := make([]models.MonthlyTarget, 12)
+			var monthlyTargets []models.MonthlyTarget
 			baseMonthly := totalTarget / 12
 
 			for month := 1; month <= 12; month++ {
@@ -82,8 +90,8 @@ func SeedSalesTargets() error {
 					actualVariance := 0.7 + (rand.Float64() * 0.5)
 					actualAmount = targetAmount * actualVariance
 				}
-
-				monthlyTargets[month-1] = models.MonthlyTarget{
+				
+				mt := models.MonthlyTarget{
 					ID:             uuid.NewString(),
 					YearlyTargetID: yearlyTarget.ID,
 					Month:          month,
@@ -92,19 +100,21 @@ func SeedSalesTargets() error {
 					CreatedAt:      time.Now(),
 					UpdatedAt:      time.Now(),
 				}
-
 				// Calculate achievement
-				monthlyTargets[month-1].CalculateAchievement()
+				mt.CalculateAchievement()
+				
+				monthlyTargets = append(monthlyTargets, mt)
 			}
 
 			yearlyTarget.MonthlyTargets = monthlyTargets
 
 			// Save to database
 			if err := db.Create(&yearlyTarget).Error; err != nil {
+				// double check duplicate error (race condition or retried)
 				return fmt.Errorf("failed to seed yearly target for %s year %d: %w", area.Name, year, err)
 			}
 
-			fmt.Printf("✓ Seeded yearly target: %s (Area: %s, Year: %d)\n", code, area.Name, year)
+			fmt.Printf("✓ Seeded yearly target: %s (Area: %s, Year: %d)\n", yearlyTarget.Code, area.Name, year)
 		}
 	}
 

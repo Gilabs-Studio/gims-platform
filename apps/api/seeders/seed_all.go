@@ -128,6 +128,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Stock Opname seeder
+	if err := SeedStockOpname(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
