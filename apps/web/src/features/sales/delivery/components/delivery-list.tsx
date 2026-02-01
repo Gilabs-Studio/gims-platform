@@ -17,6 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetailModal } from "./delivery-detail-modal";
+import { ShipDialog } from "./ship-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder, SalesOrderSummary } from "../../order/types";
@@ -33,6 +34,7 @@ export function DeliveryList() {
   const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(null);
   const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | SalesOrderSummary | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
@@ -40,6 +42,26 @@ export function DeliveryList() {
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
+
+  // ... (existing code)
+
+  const handleShip = (id: string) => {
+    setShipDeliveryId(id);
+  };
+
+  const handleShipConfirm = async (trackingNumber: string) => {
+    if (!shipDeliveryId) return;
+    try {
+      await shipDelivery.mutateAsync({
+        id: shipDeliveryId,
+        data: { tracking_number: trackingNumber },
+      });
+      toast.success(t("statusUpdated"));
+      setShipDeliveryId(null);
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   const canCreate = useUserPermission("delivery_order.create");
   const canUpdate = useUserPermission("delivery_order.update");
@@ -109,19 +131,7 @@ export function DeliveryList() {
     }
   };
 
-  const handleShip = async (id: string) => {
-    const trackingNumber = prompt(t("trackingNumber") + ":");
-    if (!trackingNumber) return;
-    try {
-      await shipDelivery.mutateAsync({
-        id,
-        data: { tracking_number: trackingNumber },
-      });
-      toast.success(t("statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
-    }
-  };
+  // handleShip moved above to set state
 
   const handleDeliver = async (id: string) => {
     // TODO: Implement signature capture in Sprint 9
@@ -413,6 +423,13 @@ export function DeliveryList() {
           isLoading={deleteDelivery.isPending}
         />
       )}
+
+      <ShipDialog
+        open={!!shipDeliveryId}
+        onOpenChange={(open) => !open && setShipDeliveryId(null)}
+        onConfirm={handleShipConfirm}
+        isLoading={shipDelivery.isPending}
+      />
     </div>
   );
 }

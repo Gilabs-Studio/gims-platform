@@ -128,6 +128,7 @@ export const deliveryId = {
       select: "Pilih",
       cancel: "Batal",
       noBatchesAvailable: "Tidak ada batch tersedia untuk produk ini",
+      enterTrackingNumber: "Masukkan nomor pelacakan",
     },
 
     // Validation
@@ -140,6 +141,7 @@ export const deliveryId = {
       itemsMin: "Minimal satu item diperlukan",
       invalidStatus: "Status tidak valid",
       invalidMethod: "Metode harus FIFO atau FEFO",
+      insufficientStock: "Stok tidak mencukupi",
     },
     // Workflow timestamps
     shippedAt: "Dikirim Pada",

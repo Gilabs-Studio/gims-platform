@@ -128,6 +128,7 @@ export const deliveryEn = {
       select: "Select",
       cancel: "Cancel",
       noBatchesAvailable: "No batches available for this product",
+      enterTrackingNumber: "Enter tracking number",
     },
 
     // Validation
@@ -140,6 +141,7 @@ export const deliveryEn = {
       itemsMin: "At least one item is required",
       invalidStatus: "Invalid status",
       invalidMethod: "Method must be FIFO or FEFO",
+      insufficientStock: "Insufficient stock available",
     },
     // Workflow timestamps
     shippedAt: "Shipped At",

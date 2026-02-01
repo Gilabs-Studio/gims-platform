@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ShipDialog } from "./ship-dialog";
 import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, FileText, Clock, Info, History, DollarSign, Warehouse, MapPin, Phone, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export function DeliveryDetailModal({
   const deliverDelivery = useDeliverDeliveryOrder();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
   const t = useTranslations("delivery");
 
   // Fetch full detail when modal opens
@@ -65,6 +67,7 @@ export function DeliveryDetailModal({
   const items = displayDelivery.items ?? [];
 
   const getStatusBadge = (status?: string) => {
+    // ... (existing code)
     switch (status) {
       case "draft":
         return (
@@ -119,15 +122,18 @@ export function DeliveryDetailModal({
   };
 
   const handleShip = async () => {
+    setIsShipDialogOpen(true);
+  };
+
+  const handleShipConfirm = async (trackingNumber: string) => {
     if (!delivery?.id) return;
-    const trackingNumber = prompt(t("trackingNumber") + ":");
-    if (!trackingNumber) return;
     try {
       await shipDelivery.mutateAsync({
         id: delivery.id,
         data: { tracking_number: trackingNumber },
       });
       toast.success(t("statusUpdated"));
+      setIsShipDialogOpen(false);
     } catch (error) {
       console.error("Failed to ship delivery order:", error);
       toast.error(t("common.error"));
@@ -604,6 +610,13 @@ export function DeliveryDetailModal({
         title={t("delete")}
         description={t("deleteDesc")}
         isLoading={deleteDelivery.isPending}
+      />
+
+      <ShipDialog
+        open={isShipDialogOpen}
+        onOpenChange={setIsShipDialogOpen}
+        onConfirm={handleShipConfirm}
+        isLoading={shipDelivery.isPending}
       />
     </>
   );

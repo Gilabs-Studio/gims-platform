@@ -381,12 +381,12 @@ erDiagram
 
 ### Frontend Tasks
 
-- [ ] Sales Order list with filters
-- [ ] Create Order from Quotation flow
-- [ ] Order form with item management
-- [ ] Delivery Order creation from Sales Order
-- [ ] Delivery status tracking UI
-- [ ] Batch selection modal (FIFO/FEFO) - UI ready, backend logic pending Sprint 9
+- [x] Sales Order list with filters
+- [x] Create Order from Quotation flow
+- [x] Order form with item management
+- [x] Delivery Order creation from Sales Order
+- [x] Delivery status tracking UI
+- [x] Batch selection modal (FIFO/FEFO) - UI ready, backend logic pending Sprint 9
 - [ ] Signature capture for receiver
 
 ### Success Criteria

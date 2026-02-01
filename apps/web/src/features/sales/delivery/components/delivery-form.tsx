@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller, useFormContext, FormProvider } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -460,6 +460,17 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               </TabsTrigger>
             </TabsList>
 
+            <FormProvider {...{ 
+                register, 
+                handleSubmit, 
+                setValue, 
+                control, 
+                reset, 
+                trigger, 
+                getValues, 
+                formState: { errors },
+                watch: useWatch as any // casting to satisfy type if needed, though FormProvider expects UseFormReturn
+            } as any}>
             <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
               <TabsContent value="basic" className="space-y-4 mt-0">
                 {/* Basic Information */}
@@ -810,6 +821,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                 </div>
               </TabsContent>
             </form>
+            </FormProvider>
           </Tabs>
         )}
       </DialogContent>
@@ -821,6 +833,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
 function BatchSelectionField({ control, index, error, t }: any) {
   const warehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
   const productId = useWatch({ control, name: `items.${index}.product_id` });
+  const { setValue } = useFormContext(); // Need to access setValue
 
   const { data: batchesData, isLoading } = useProductBatches(warehouseId, productId as string, {
     enabled: !!warehouseId && !!productId
@@ -841,7 +854,14 @@ function BatchSelectionField({ control, index, error, t }: any) {
         render={({ field }) => (
           <Select 
             value={field.value || undefined} 
-            onValueChange={field.onChange}
+            onValueChange={(val) => {
+              field.onChange(val);
+              // Find selected batch and set max_quantity
+              const batch = batches.find((b: any) => b.id === val);
+              if (batch) {
+                setValue(`items.${index}.max_quantity`, batch.available, { shouldValidate: true });
+              }
+            }}
             disabled={!warehouseId || !productId || isLoading}
           >
             <SelectTrigger>

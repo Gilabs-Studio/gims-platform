@@ -20,9 +20,18 @@ export const getDeliveryItemSchema = (t?: TranslationFn) => z.object({
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
+  max_quantity: z.number().optional(),
   price: z.number().min(0, getMsg(t, "validation.priceMin", "Price must be positive")).optional(),
   installation_status: z.string().optional().or(z.literal("")),
   function_test_status: z.string().optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.max_quantity !== undefined && data.quantity > data.max_quantity) {
+    return false;
+  }
+  return true;
+}, {
+  message: getMsg(t, "validation.insufficientStock", "Quantity exceeds available stock"),
+  path: ["quantity"],
 });
 
 // Delivery Order Schema
