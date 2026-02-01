@@ -23,6 +23,7 @@ type InventoryStockItem struct {
 	UomName           string  `json:"uom_name"`
 	
 	Status            string  `json:"status"` // "ok", "low", "overstock", "out_of_stock"
+	HasExpiringBatches bool    `json:"has_expiring_batches"`
 }
 
 type GetInventoryListRequest struct {
@@ -51,6 +52,7 @@ type InventoryBatchItem struct {
 	ID               string     `json:"id"`
 	BatchNumber      string     `json:"batch_number"`
 	ExpiryDate       *time.Time `json:"expiry_date"`
+	ReceivedAt       *time.Time `json:"received_at"`
 	CurrentQuantity  float64    `json:"current_quantity"`
 	ReservedQuantity float64    `json:"reserved_quantity"`
 	Available        float64    `json:"available"`

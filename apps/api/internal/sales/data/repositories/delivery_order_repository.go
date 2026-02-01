@@ -151,15 +151,7 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 			return err
 		}
 
-		// Create items
-		if len(do.Items) > 0 {
-			for i := range do.Items {
-				do.Items[i].DeliveryOrderID = do.ID
-				if err := tx.Create(&do.Items[i]).Error; err != nil {
-					return err
-				}
-			}
-		}
+
 
 		return nil
 	})
@@ -167,8 +159,8 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 
 func (r *deliveryOrderRepository) Update(ctx context.Context, do *models.DeliveryOrder) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update delivery order
-		if err := tx.Save(do).Error; err != nil {
+		// Update delivery order (exclude items to avoid conflict with manual management below)
+		if err := tx.Omit("Items").Save(do).Error; err != nil {
 			return err
 		}
 

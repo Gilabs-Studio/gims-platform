@@ -395,7 +395,7 @@ erDiagram
 - [x] Stock reserved when order confirmed (placeholder - full implementation in Sprint 9)
 - [x] Delivery Order reduces reserved stock (placeholder - full implementation in Sprint 9)
 - [x] Partial delivery creates multiple DOs
-- [ ] DO updates InventoryBatch quantities (pending Sprint 9 - InventoryBatch module)
+- [x] DO updates InventoryBatch quantities (pending Sprint 9 - InventoryBatch module)
 - [x] Tracking number links to courier
 
 ### Integration Requirements
@@ -612,52 +612,52 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Inventory and stock management
-- [ ] **Frontend:** Stock management UI
+- [x] **API:** Inventory and stock management
+- [x] **Frontend:** Stock management UI
 
 ### API Tasks
 
-- [ ] `InventoryBatch` - List + Detail + History
-- [ ] `StockMovement` - Auto-create on GR/DO
-- [ ] `StockOpname` - CRUD + Approve + Adjust
-- [ ] `StockOpnameItem` - Count entry + Variance
-- [ ] Stock adjustment journal creation
-- [ ] Low stock alert calculation
+- [x] `InventoryBatch` - List + Detail + History
+- [x] `StockMovement` - Auto-create on GR/DO
+- [x] `StockOpname` - CRUD + Approve + Adjust
+- [x] `StockOpnameItem` - Count entry + Variance
+- [x] Stock adjustment journal creation
+- [x] Low stock alert calculation
 
 ### Audit & Opname
-- [ ] Stock Opname creation wizard
-- [ ] Count entry form with variance display
-- [ ] Opname approval workflow
-- [ ] Low stock alerts list
-- [ ] Expiry alerts list
+- [x] Stock Opname creation wizard
+- [x] Count entry form with variance display
+- [x] Opname approval workflow
+- [x] Low stock alerts list
+- [x] Expiry alerts list
 
 #### Integration with Sprint 6 (Sales Order & Delivery Order) - CRITICAL
-- [ ] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()`
-- [ ] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()`
-- [ ] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()`
-- [ ] **CRITICAL:** Create `StockMovement` (OUT) records when delivery order is shipped
-- [ ] **CRITICAL:** Update `SalesOrderItem.DeliveredQuantity` when delivery order is delivered
-- [ ] **CRITICAL:** Link `DeliveryOrderItem.InventoryBatchID` to actual batch records
+- [x] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()`
+- [x] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()`
+- [x] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()`
+- [x] **CRITICAL:** Create `StockMovement` (OUT) records when delivery order is shipped
+- [x] **CRITICAL:** Update `SalesOrderItem.DeliveredQuantity` when delivery order is delivered
+- [x] **CRITICAL:** Link `DeliveryOrderItem.InventoryBatchID` to actual batch records
 
 ### Frontend Tasks
 
 - [x] Inventory dashboard with warehouse filter
-- [ ] Batch detail with movement history
+- [x] Batch detail with movement history
 - [x] Stock Movement timeline view
-- [ ] Stock Opname creation wizard
-- [ ] Count entry form with variance display
-- [ ] Opname approval workflow
-- [ ] Low stock alerts list
-- [ ] Expiry alerts list
+- [x] Stock Opname wizard
+- [x] Count entry form with variance display
+- [x] Opname approval workflow
+- [x] Low stock alerts list
+- [x] Expiry alerts list
 
 ### Success Criteria
 
-- [ ] Stock movements auto-created on GR (IN) and DO (OUT)
-- [ ] Movement tracks unit cost and running balance
-- [ ] Opname variance calculated (Counted - System)
-- [ ] Opname adjustment creates correcting movement
-- [ ] Low stock alert when Qty < Product.MinStock
-- [ ] Expiry alert for batches expiring within 30 days
+- [x] Stock movements auto-created on GR (IN) and DO (OUT)
+- [x] Movement tracks unit cost and running balance
+- [x] Opname variance calculated (Counted - System)
+- [x] Opname adjustment creates correcting movement
+- [x] Low stock alert when Qty < Product.MinStock
+- [x] Expiry alert for batches expiring within 30 days
 
 ### Integration Requirements
 

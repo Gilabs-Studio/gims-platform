@@ -13,10 +13,14 @@ export const getDeliveryItemSchema = (t?: TranslationFn) => z.object({
     .min(1, getMsg(t, "validation.required", "Product is required"))
     .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid product ID")),
   sales_order_item_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
-  inventory_batch_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
+  inventory_batch_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Batch is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid batch ID")),
+  warehouse_id: z.string().uuid().optional().or(z.literal("")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
+  price: z.number().min(0, getMsg(t, "validation.priceMin", "Price must be positive")).optional(),
   installation_status: z.string().optional().or(z.literal("")),
   function_test_status: z.string().optional().or(z.literal("")),
 });
@@ -25,9 +29,8 @@ export const getDeliveryItemSchema = (t?: TranslationFn) => z.object({
 export const getDeliveryOrderSchema = (t?: TranslationFn) => z.object({
   delivery_date: z.string()
     .min(1, getMsg(t, "validation.required", "Delivery date is required")),
-  warehouse_id: z.string()
-    .min(1, getMsg(t, "validation.required", "Warehouse is required"))
-    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid warehouse ID")),
+  // warehouse_id moved to items aggregation validation
+  warehouse_id: z.string().optional(), 
   sales_order_id: z.string()
     .min(1, getMsg(t, "validation.required", "Sales order is required"))
     .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid sales order ID")),

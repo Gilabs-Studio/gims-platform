@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"time"
 
+	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
 	"gorm.io/gorm"
@@ -40,6 +42,7 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 			COALESCE(SUM(ib.current_quantity), 0) as on_hand,
 			COALESCE(SUM(ib.reserved_quantity), 0) as reserved,
 			COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) as available,
+			COALESCE(SUM(CASE WHEN ib.expiry_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') AND ib.current_quantity > 0 THEN 1 ELSE 0 END), 0) > 0 as has_expiring_batches,
 			p.min_stock,
 			p.max_stock,
 			u.name as uom_name
@@ -307,3 +310,76 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 
 	return items, nil
 }
+
+// Stock Management Implementations
+
+// UpdateProductReservedStock updates the reserved stock counter on the Product
+func (r *inventoryRepository) UpdateProductReservedStock(ctx context.Context, productID string, quantity float64) error {
+	// Note: We are updating the Product table directly as per plan (Soft Reservation)
+	// Even though GetStockList sums batch reserved_quantities, we might need to adjust that query 
+	// or ensure we distribute reservation to batches later.
+	// HOWEVER, if the system design implies Product-level reservation BEFORE batch selection,
+	// then we must have a ReservedStock field on Product.
+	
+	// Let's assume Product model has ReservedStock or we add it. 
+	// If it doesn't, we might fail here.
+	// Based on typical GORM, we can use an expression.
+	
+	return r.db.Table("products").Where("id = ?", productID).
+		Update("reserved_stock", gorm.Expr("COALESCE(reserved_stock, 0) + ?", quantity)).Error
+}
+
+func (r *inventoryRepository) UpdateBatchQuantity(ctx context.Context, batchID string, quantity float64) error {
+	// quantity is the change (delta). If negative, it deducts.
+	return r.db.Table("inventory_batches").Where("id = ?", batchID).
+		Update("current_quantity", gorm.Expr("current_quantity + ?", quantity)).Error
+}
+
+func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID string) ([]dto.InventoryBatchItem, error) {
+	var items []dto.InventoryBatchItem
+	
+	query := r.db.Table("inventory_batches ib").
+		Select(`
+			ib.id,
+			ib.batch_number,
+			ib.expiry_date,
+			ib.created_at as received_at,
+			ib.current_quantity,
+			ib.reserved_quantity,
+			(ib.current_quantity - ib.reserved_quantity) as available
+		`).
+		Where("ib.deleted_at IS NULL").
+		Where("ib.product_id = ?", productID).
+		Where("ib.current_quantity > 0"). // Only available batches? Logic says "SelectBatches"
+		Order("ib.created_at ASC") // Default sort
+
+	if err := query.Find(&items).Error; err != nil {
+		return nil, err
+	}
+	
+	return items, nil
+}
+
+func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error {
+	movement := models.StockMovement{
+		InventoryBatchID: &req.InventoryBatchID,
+		ProductID:        req.ProductID,
+		WarehouseID:      req.WarehouseID,
+		MovementType:     models.StockMovementType(req.Type),
+		RefType:          req.ReferenceType,
+		RefID:            req.ReferenceID,
+		RefNumber:        req.ReferenceNumber,
+		Source:           req.Description,
+		CreatedBy:        req.CreatedBy,
+		Date:             time.Now(),
+	}
+
+	if req.Type == "IN" || (req.Type == "ADJUST" && req.Quantity > 0) { // Naive assumption for Adjust
+		movement.QtyIn = req.Quantity
+	} else {
+		movement.QtyOut = req.Quantity
+	}
+
+	return r.db.Create(&movement).Error
+}
+

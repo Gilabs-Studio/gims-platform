@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText } from "lucide-react";
-import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus } from "../hooks/use-deliveries";
+import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
@@ -48,8 +48,12 @@ export function DeliveryList() {
 
   const deleteDelivery = useDeleteDeliveryOrder();
   const updateStatus = useUpdateDeliveryOrderStatus();
+  const shipDelivery = useShipDeliveryOrder();
+  const deliverDelivery = useDeliverDeliveryOrder();
   const deliveries = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const canShip = useUserPermission("delivery_order.ship");
+  const canDeliver = useUserPermission("delivery_order.deliver");
 
   const handleEdit = (delivery: DeliveryOrder) => {
     setEditingDelivery(delivery);
@@ -86,6 +90,47 @@ export function DeliveryList() {
       await updateStatus.mutateAsync({
         id,
         data: { status, cancellation_reason: cancellationReason },
+      });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handlePrepare = async (id: string) => {
+    try {
+      await updateStatus.mutateAsync({
+        id,
+        data: { status: "prepared" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleShip = async (id: string) => {
+    const trackingNumber = prompt(t("trackingNumber") + ":");
+    if (!trackingNumber) return;
+    try {
+      await shipDelivery.mutateAsync({
+        id,
+        data: { tracking_number: trackingNumber },
+      });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleDeliver = async (id: string) => {
+    // TODO: Implement signature capture in Sprint 9
+    const signature = prompt(t("common.enterSignature") + ":");
+    if (!signature) return;
+    try {
+      await deliverDelivery.mutateAsync({
+        id,
+        data: { receiver_signature: signature },
       });
       toast.success(t("statusUpdated"));
     } catch {
@@ -265,6 +310,24 @@ export function DeliveryList() {
                             <DropdownMenuItem onClick={() => handleEdit(delivery)} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}
+                            </DropdownMenuItem>
+                          )}
+                          {canUpdate && delivery.status === "draft" && (
+                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer">
+                              <Package className="h-4 w-4 mr-2" />
+                              {t("actions.prepare")}
+                            </DropdownMenuItem>
+                          )}
+                          {canShip && delivery.status === "prepared" && (
+                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer">
+                              <Truck className="h-4 w-4 mr-2" />
+                              {t("actions.ship")}
+                            </DropdownMenuItem>
+                          )}
+                          {canDeliver && delivery.status === "shipped" && (
+                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer">
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.deliver")}
                             </DropdownMenuItem>
                           )}
                           {canDelete && delivery.status === "draft" && (

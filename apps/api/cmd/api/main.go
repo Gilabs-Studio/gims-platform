@@ -50,6 +50,8 @@ import (
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
+	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
@@ -261,13 +263,18 @@ func main() {
 		// Core Master Data (Sprint 4 - PaymentTerms, CourierAgency, SOSource, LeaveType)
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
+
+		// Inventory Setup (Shared Dependency)
+		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
+		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
+
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 		// Inventory module (Sprint 9)
-		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// Stock Opname module (Sprint 9)
 		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)

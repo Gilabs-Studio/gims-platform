@@ -14,6 +14,7 @@ export interface InventoryStockItem {
   max_stock: number;
   uom_name: string | null;
   status: "ok" | "low_stock" | "overstock" | "out_of_stock";
+  has_expiring_batches: boolean;
 }
 
 export interface InventoryBatchItem {

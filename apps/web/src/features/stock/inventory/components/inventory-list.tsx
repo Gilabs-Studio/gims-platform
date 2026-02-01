@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, AlertTriangle, CheckCircle2, XCircle, Package } from "lucide-react";
+import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useInventory } from "../hooks/use-inventory";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
@@ -240,6 +240,12 @@ export function InventoryList() {
                         </TableCell>
                         <TableCell className="text-center">
                             {getStatusBadge(item.status)}
+                            {item.has_expiring_batches && (
+                                <div className="mt-1 flex items-center justify-center gap-1 text-destructive text-xs font-medium">
+                                    <Clock className="h-3 w-3" />
+                                    <span>{t("status.expiring")}</span>
+                                </div>
+                            )}
                         </TableCell>
                         <TableCell>
                             <Button 

@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type CreateDeliveryOrderRequest struct {
 	DeliveryDate      string   `json:"delivery_date" binding:"required"`
 	WarehouseID       string   `json:"warehouse_id" binding:"required,uuid"`
@@ -89,13 +91,12 @@ type BatchSelectionResponse struct {
 
 // BatchInfo represents information about an inventory batch
 type BatchInfo struct {
-	ID           string  `json:"id"`
-	Code         string  `json:"code"`
-	LotNumber    string  `json:"lot_number"`
-	ExpiredDate  *string `json:"expired_date"`
-	Quantity     float64 `json:"quantity"`
-	Available    float64 `json:"available"`
-	ReceivedAt   *string `json:"received_at"`
+	ID           string    `json:"id"`
+	BatchNumber  string    `json:"batch_number"`
+	ExpiryDate   time.Time `json:"expiry_date"`
+	Quantity     float64   `json:"quantity"`
+	Available    float64   `json:"available"`
+	ReceivedDate time.Time `json:"received_date"`
 }
 
 // DeliveryOrderResponse represents the response for a delivery order

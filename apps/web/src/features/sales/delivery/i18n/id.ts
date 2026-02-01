@@ -77,6 +77,7 @@ export const deliveryId = {
     removeItem: "Hapus Item",
     search: "Cari surat jalan...",
     add: "Tambah Surat Jalan",
+    create: "Buat Surat Jalan",
     edit: "Ubah Surat Jalan",
     delete: "Hapus Surat Jalan",
     notFound: "Tidak ada surat jalan ditemukan",
@@ -102,10 +103,12 @@ export const deliveryId = {
       noBatchSelected: "Tidak ada batch dipilih",
       installationStatus: "Status Instalasi",
       functionTestStatus: "Status Uji Fungsi",
+      noBatchesAvailable: "Tidak ada batch tersedia",
     },
 
     // Actions
     actions: {
+      prepare: "Siapkan",
       ship: "Kirim",
       deliver: "Tandai sebagai Terkirim",
       selectBatches: "Pilih Batch",
@@ -133,6 +136,7 @@ export const deliveryId = {
       invalidId: "ID tidak valid",
       quantityPositive: "Jumlah harus lebih besar dari 0",
       quantityMin: "Jumlah minimal 0.001",
+      priceMin: "Harga harus positif",
       itemsMin: "Minimal satu item diperlukan",
       invalidStatus: "Status tidak valid",
       invalidMethod: "Metode harus FIFO atau FEFO",

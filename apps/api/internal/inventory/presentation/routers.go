@@ -18,16 +18,17 @@ func RegisterRoutes(
 	db *gorm.DB,
 	jwtManager *jwt.JWTManager,
 	permissionService security.PermissionService,
+	inventoryUsecase usecase.InventoryUsecase,
 ) {
 	// Auto Migrate
 	db.AutoMigrate(&models.InventoryBatch{}, &models.StockMovement{})
 
 	// Repositories
-	inventoryRepo := repositories.NewInventoryRepository(db)
+	// inventoryRepo := repositories.NewInventoryRepository(db) // Injected via usecase
 	stockMovementRepo := repositories.NewStockMovementRepository(db)
 
 	// Usecases
-	inventoryUsecase := usecase.NewInventoryUsecase(inventoryRepo)
+	// inventoryUsecase := usecase.NewInventoryUsecase(inventoryRepo) // Injected from main
 	stockMovementUsecase := usecase.NewStockMovementService(stockMovementRepo)
 
 	// Handlers

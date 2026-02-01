@@ -77,6 +77,7 @@ export const deliveryEn = {
     removeItem: "Remove Item",
     search: "Search delivery orders...",
     add: "Add Delivery Order",
+    create: "Create Delivery Order",
     edit: "Edit Delivery Order",
     delete: "Delete Delivery Order",
     notFound: "No delivery orders found",
@@ -102,10 +103,12 @@ export const deliveryEn = {
       noBatchSelected: "No batch selected",
       installationStatus: "Installation Status",
       functionTestStatus: "Function Test Status",
+      noBatchesAvailable: "No batches available",
     },
 
     // Actions
     actions: {
+      prepare: "Prepare",
       ship: "Ship",
       deliver: "Mark as Delivered",
       selectBatches: "Select Batches",
@@ -133,6 +136,7 @@ export const deliveryEn = {
       invalidId: "Invalid ID",
       quantityPositive: "Quantity must be greater than 0",
       quantityMin: "Quantity must be at least 0.001",
+      priceMin: "Price must be positive",
       itemsMin: "At least one item is required",
       invalidStatus: "Invalid status",
       invalidMethod: "Method must be FIFO or FEFO",

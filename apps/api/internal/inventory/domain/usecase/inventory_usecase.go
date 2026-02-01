@@ -15,6 +15,13 @@ type InventoryUsecase interface {
 	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
 	GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) (*dto.GetInventoryTreeProductsResponse, error)
 	GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) (*dto.GetInventoryTreeBatchesResponse, error)
+
+	// Stock Management
+	ReserveStock(ctx context.Context, productID string, quantity float64) error
+	ReleaseStock(ctx context.Context, productID string, quantity float64) error
+	DeductStock(ctx context.Context, batchID string, quantity float64) error
+	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
+	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error
 }
 
 type inventoryUsecase struct {
@@ -96,3 +103,67 @@ func (u *inventoryUsecase) GetTreeBatches(ctx context.Context, req *dto.GetInven
 	}
 	return &dto.GetInventoryTreeBatchesResponse{Data: items}, nil
 }
+
+func (u *inventoryUsecase) ReserveStock(ctx context.Context, productID string, quantity float64) error {
+	return u.repo.UpdateProductReservedStock(ctx, productID, quantity)
+}
+
+func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, quantity float64) error {
+	// Release is essentially negative reservation (reducing reserved count)
+	// But we ensure quantity is positive for method clarity, repo handles sign
+	return u.repo.UpdateProductReservedStock(ctx, productID, -quantity)
+}
+
+func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
+	return u.repo.UpdateBatchQuantity(ctx, batchID, -quantity)
+}
+
+func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error) {
+	batches, err := u.repo.GetBatchesByProduct(ctx, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map to selection items
+	var selectionItems []dto.BatchSelectionItem
+	for _, b := range batches {
+		selectionItems = append(selectionItems, dto.BatchSelectionItem{
+			ID:          b.ID,
+			BatchNumber: b.BatchNumber,
+			Quantity:    b.CurrentQuantity, // Now float64 matching struct
+			ExpiredAt:   *b.ExpiryDate,
+			ReceivedAt:  *b.ReceivedAt,
+		})
+	}
+
+	// Sort based on strategy (Simple bubble sort for now or defer to repo/sql ordering)
+	// Here we just implement basic logic placeholders, assuming repo returns sorted or we sort here
+	if strategy == "FEFO" {
+		// Sort by ExpiredAt
+		for i := 0; i < len(selectionItems)-1; i++ {
+			for j := 0; j < len(selectionItems)-i-1; j++ {
+				if selectionItems[j].ExpiredAt.After(selectionItems[j+1].ExpiredAt) {
+					selectionItems[j], selectionItems[j+1] = selectionItems[j+1], selectionItems[j]
+				}
+			}
+		}
+	} else {
+		// FIFO (Default) - Sort by ReceivedAt
+		for i := 0; i < len(selectionItems)-1; i++ {
+			for j := 0; j < len(selectionItems)-i-1; j++ {
+				if selectionItems[j].ReceivedAt.After(selectionItems[j+1].ReceivedAt) {
+					selectionItems[j], selectionItems[j+1] = selectionItems[j+1], selectionItems[j]
+				}
+			}
+		}
+	}
+
+	// allocate logic can be here or in FE, but usually FE selects from list
+	// UseCase just returns sorted available batches
+	return selectionItems, nil
+}
+
+func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error {
+	return u.repo.CreateStockMovement(ctx, req)
+}
+

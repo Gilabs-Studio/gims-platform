@@ -151,6 +151,20 @@ export function DeliveryDetailModal({
     }
   };
 
+  const handlePrepare = async () => {
+    if (!delivery?.id) return;
+    try {
+      await updateStatus.mutateAsync({
+        id: delivery.id,
+        data: { status: "prepared" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch (error) {
+      console.error("Failed to prepare order:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -173,15 +187,27 @@ export function DeliveryDetailModal({
               </div>
               <div className="flex items-center gap-1">
                 {canEdit && delivery?.status === "draft" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsEditDialogOpen(true)}
-                    className="cursor-pointer"
-                    title={t("common.edit")}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer"
+                      title={t("common.edit")}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handlePrepare}
+                      disabled={updateStatus.isPending}
+                      className="cursor-pointer text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                      title={t("actions.prepare")}
+                    >
+                      <Package className="h-4 w-4" />
+                    </Button>
+                  </>
                 )}
                 {canDelete && delivery?.status === "draft" && (
                   <Button
