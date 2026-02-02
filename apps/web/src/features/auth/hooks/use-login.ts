@@ -45,8 +45,9 @@ export function useLogin() {
         useAuthStore.setState({
           error: null,
         });
-        // Redirect to dashboard
-        router.push("/dashboard");
+        // Redirect to dashboard - don't set isLoading false, let redirect complete
+        router.replace("/dashboard");
+        return; // Exit early, keep loading state until redirect
       }
     } catch (err) {
       const authError = err as AuthError;
@@ -56,9 +57,8 @@ export function useLogin() {
         "Login failed";
       setError(errorMessage);
       useAuthStore.setState({ isAuthenticated: false, error: errorMessage });
-      throw err;
-    } finally {
       setIsLoading(false);
+      throw err;
     }
   };
 
