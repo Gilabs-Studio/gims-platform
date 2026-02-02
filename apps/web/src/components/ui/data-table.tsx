@@ -10,24 +10,13 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -407,103 +396,19 @@ export function DataTable<T extends { id: string }>({
 
             {/* Mobile Pagination */}
             {pagination && (
-              <div className="border-t bg-muted/30 px-4 py-3 space-y-3">
-                {/* Rows per page selector */}
-                {onPerPageChange && (
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="rows-per-page-mobile" className="text-sm">
-                      Rows per page
-                    </Label>
-                    <Select
-                      value={String(pagination.per_page)}
-                      onValueChange={(value) => {
-                        onPerPageChange?.(Number(value));
-                        onPageChange?.(1);
-                      }}
-                    >
-                      <SelectTrigger
-                        id="rows-per-page-mobile"
-                        className="w-20 h-8 text-sm"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {perPageOptions.map((option) => (
-                          <SelectItem key={option} value={String(option)}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Page info */}
-                <div className="text-center text-sm text-muted-foreground">
-                  <span className="text-foreground font-semibold">
-                    {(pagination.page - 1) * pagination.per_page + 1}-
-                    {Math.min(
-                      pagination.page * pagination.per_page,
-                      pagination.total,
-                    )}
-                  </span>{" "}
-                  of{" "}
-                  <span className="text-foreground font-semibold">
-                    {pagination.total}
-                  </span>
-                </div>
-
-                {/* Minimalist Pagination controls */}
-                {pagination.total_pages > 1 && (
-                  <div className="flex items-center justify-center gap-1">
-                    <PaginationPrevious
-                      onClick={() =>
-                        onPageChange?.(Math.max(1, pagination.page - 1))
-                      }
-                      disabled={!pagination.has_prev || isLoading}
-                      className={cn(
-                        "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
-                        "disabled:pointer-events-none disabled:opacity-40",
-                        (!pagination.has_prev || isLoading) &&
-                          "pointer-events-none opacity-40 cursor-not-allowed",
-                      )}
-                      aria-disabled={!pagination.has_prev || isLoading}
-                    />
-                    
-                    {getMinimalPageNumbers().map((pageNumber) => {
-                      const isActive = pageNumber === pagination.page;
-                      return (
-                        <button
-                          key={pageNumber}
-                          onClick={() => onPageChange?.(pageNumber)}
-                          disabled={isLoading}
-                          className={cn(
-                            "h-8 min-w-8 px-3 text-sm font-medium rounded-md transition-all duration-200",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                            isActive
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                          )}
-                          aria-current={isActive ? "page" : undefined}
-                        >
-                          {pageNumber}
-                        </button>
-                      );
-                    })}
-
-                    <PaginationNext
-                      onClick={() => onPageChange?.(pagination.page + 1)}
-                      disabled={!pagination.has_next || isLoading}
-                      className={cn(
-                        "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
-                        "disabled:pointer-events-none disabled:opacity-40",
-                        (!pagination.has_next || isLoading) &&
-                          "pointer-events-none opacity-40 cursor-not-allowed",
-                      )}
-                      aria-disabled={!pagination.has_next || isLoading}
-                    />
-                  </div>
-                )}
+              <div className="border-t bg-muted/30 px-2 py-0">
+                <DataTablePagination
+                  pageIndex={pagination.page}
+                  pageSize={pagination.per_page}
+                  rowCount={pagination.total}
+                  onPageChange={(page) => onPageChange?.(page)}
+                  onPageSizeChange={(newSize) => {
+                    onPerPageChange?.(newSize);
+                    onPageChange?.(1);
+                  }}
+                  showPageSize={!!onPerPageChange}
+                  pageSizeOptions={perPageOptions.length > 0 ? [...perPageOptions] : undefined}
+                />
               </div>
             )}
           </>
@@ -590,125 +495,20 @@ export function DataTable<T extends { id: string }>({
           </div>
 
           {pagination && (
-            <div className="border-t bg-muted/30 px-6 py-4">
-              <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-                {/* Rows per page selector */}
-                {onPerPageChange && (
-                  <div className="flex items-center gap-3 order-3 lg:order-1">
-                    <Label
-                      htmlFor="rows-per-page"
-                      className="text-sm whitespace-nowrap"
-                    >
-                      Rows per page
-                    </Label>
-                    <Select
-                      value={String(pagination.per_page)}
-                      onValueChange={(value) => {
-                        onPerPageChange?.(Number(value));
-                        // Reset to page 1 when changing per page
-                        onPageChange?.(1);
-                      }}
-                    >
-                      <SelectTrigger
-                        id="rows-per-page"
-                        className="w-fit whitespace-nowrap h-9"
-                      >
-                        <SelectValue placeholder="Select rows" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {perPageOptions.map((option) => (
-                          <SelectItem key={option} value={String(option)}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Page number information */}
-                <div className="flex grow justify-center lg:justify-end text-sm whitespace-nowrap text-muted-foreground order-2 lg:order-2">
-                  <p
-                    className="text-sm whitespace-nowrap text-muted-foreground"
-                    aria-live="polite"
-                  >
-                    <span className="text-foreground font-semibold">
-                      {(pagination.page - 1) * pagination.per_page + 1}-
-                      {Math.min(
-                        pagination.page * pagination.per_page,
-                        pagination.total,
-                      )}
-                    </span>{" "}
-                    of{" "}
-                    <span className="text-foreground font-semibold">
-                      {pagination.total}
-                    </span>
-                  </p>
-                </div>
-
-                {/* Minimalist Pagination controls + optional reset filters */}
-                {pagination.total_pages > 1 && (
-                  <div className="flex items-center gap-3 order-1 lg:order-3">
-                    {onResetFilters && (
-                      <button
-                        type="button"
-                        onClick={() => onResetFilters()}
-                        className="text-xs font-medium text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                      >
-                        Reset filters
-                      </button>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <PaginationPrevious
-                        onClick={() =>
-                          onPageChange?.(Math.max(1, pagination.page - 1))
-                        }
-                        disabled={!pagination.has_prev || isLoading}
-                        className={cn(
-                          "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
-                          "disabled:pointer-events-none disabled:opacity-40",
-                          (!pagination.has_prev || isLoading) &&
-                            "pointer-events-none opacity-40 cursor-not-allowed",
-                        )}
-                        aria-disabled={!pagination.has_prev || isLoading}
-                      />
-                      
-                      {getMinimalPageNumbers().map((pageNumber) => {
-                        const isActive = pageNumber === pagination.page;
-                        return (
-                          <button
-                            key={pageNumber}
-                            onClick={() => onPageChange?.(pageNumber)}
-                            disabled={isLoading}
-                            className={cn(
-                              "h-8 min-w-8 px-3 text-sm font-medium rounded-md transition-all duration-200",
-                              "disabled:pointer-events-none disabled:opacity-50",
-                              isActive
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                            )}
-                            aria-current={isActive ? "page" : undefined}
-                          >
-                            {pageNumber}
-                          </button>
-                        );
-                      })}
-
-                      <PaginationNext
-                        onClick={() => onPageChange?.(pagination.page + 1)}
-                        disabled={!pagination.has_next || isLoading}
-                        className={cn(
-                          "h-8 px-3 text-sm font-normal rounded-md border-0 bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors",
-                          "disabled:pointer-events-none disabled:opacity-40",
-                          (!pagination.has_next || isLoading) &&
-                            "pointer-events-none opacity-40 cursor-not-allowed",
-                        )}
-                        aria-disabled={!pagination.has_next || isLoading}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div className="border-t bg-muted/30 px-2 py-0">
+              <DataTablePagination
+                pageIndex={pagination.page}
+                pageSize={pagination.per_page}
+                rowCount={pagination.total}
+                onPageChange={(page) => onPageChange?.(page)}
+                onPageSizeChange={(newSize) => {
+                  onPerPageChange?.(newSize);
+                  // Reset to page 1 when changing per page
+                  onPageChange?.(1);
+                }}
+                showPageSize={!!onPerPageChange}
+                pageSizeOptions={perPageOptions.length > 0 ? [...perPageOptions] : undefined}
+              />
             </div>
           )}
         </>

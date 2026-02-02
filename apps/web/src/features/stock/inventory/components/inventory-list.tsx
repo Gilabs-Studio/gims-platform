@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useInventory } from "../hooks/use-inventory";
@@ -22,7 +23,9 @@ export function InventoryList() {
   const t = useTranslations("inventory");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
+  // const [search, setSearch] = useState(""); // Kept original
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [warehouseId, setWarehouseId] = useState<string>("all");
   const [showLowStock, setShowLowStock] = useState(false);
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
@@ -42,7 +45,7 @@ export function InventoryList() {
 
   const { data, isLoading, isError } = useInventory({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     warehouse_id: warehouseId !== "all" ? warehouseId : undefined,
     low_stock: showLowStock || undefined,
@@ -55,24 +58,38 @@ export function InventoryList() {
   const pagination = data?.data?.meta;
 
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { color: string; icon: any; label: string }> = {
-      ok: { color: "bg-green-600 hover:bg-green-600", icon: CheckCircle2, label: t("status.ok") },
-      low_stock: { color: "bg-yellow-500 hover:bg-yellow-600", icon: AlertTriangle, label: t("status.lowStock") },
-      out_of_stock: { color: "bg-red-600 hover:bg-red-600", icon: XCircle, label: t("status.outOfStock") },
-      overstock: { color: "bg-blue-600 hover:bg-blue-600", icon: Package, label: t("status.overstock") },
-    };
-
-    const statusConfig = config[status];
-    if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
-
-    const Icon = statusConfig.icon;
-
-    return (
-      <Badge className={`${statusConfig.color} text-white gap-1`}>
-        <Icon className="h-3 w-3" />
-        {statusConfig.label}
-      </Badge>
-    );
+    switch (status) {
+      case "ok":
+        return (
+          <Badge variant="success" className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {t("status.ok")}
+          </Badge>
+        );
+      case "low_stock":
+        return (
+          <Badge variant="warning" className="gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {t("status.lowStock")}
+          </Badge>
+        );
+      case "out_of_stock":
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="h-3 w-3" />
+            {t("status.outOfStock")}
+          </Badge>
+        );
+      case "overstock":
+        return (
+          <Badge variant="info" className="gap-1">
+            <Package className="h-3 w-3" />
+            {t("status.overstock")}
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   if (isError) {
@@ -264,32 +281,17 @@ export function InventoryList() {
                 </Table>
             </div>
 
-            {pagination && pagination.total_pages > 1 && (
-                <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                    {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-                </p>
-                <div className="flex gap-2">
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!pagination.has_prev}
-                    onClick={() => setPage(page - 1)}
-                    className="cursor-pointer"
-                    >
-                    {t("common.previous")}
-                    </Button>
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!pagination.has_next}
-                    onClick={() => setPage(page + 1)}
-                    className="cursor-pointer"
-                    >
-                    {t("common.next")}
-                    </Button>
-                </div>
-                </div>
+            {pagination && (
+                <DataTablePagination
+                  pageIndex={pagination.page}
+                  pageSize={pagination.per_page}
+                  rowCount={pagination.total}
+                  onPageChange={setPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                />
             )}
             
             <InventoryDetailDialog 

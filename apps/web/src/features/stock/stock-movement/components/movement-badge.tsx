@@ -13,28 +13,28 @@ export function MovementBadge({ type }: MovementBadgeProps) {
   switch (type) {
     case "IN":
       return (
-        <Badge className="bg-green-600 hover:bg-green-700">
+        <Badge variant="success">
           <ArrowDownLeft className="h-3 w-3 mr-1" />
           IN
         </Badge>
       );
     case "OUT":
       return (
-        <Badge className="bg-blue-600 hover:bg-blue-700">
+        <Badge variant="info">
           <ArrowUpRight className="h-3 w-3 mr-1" />
           OUT
         </Badge>
       );
     case "ADJUST":
       return (
-        <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200">
+        <Badge variant="warning">
           <RefreshCw className="h-3 w-3 mr-1" />
           ADJUST
         </Badge>
       );
     case "TRANSFER":
       return (
-        <Badge variant="outline">
+        <Badge variant="default">
           <Repeat className="h-3 w-3 mr-1" />
           TRANSFER
         </Badge>

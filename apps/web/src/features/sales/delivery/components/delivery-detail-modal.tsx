@@ -31,6 +31,8 @@ import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, resolveImageUrl } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface DeliveryDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -76,6 +78,12 @@ export function DeliveryDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
   const [isDeliverDialogOpen, setIsDeliverDialogOpen] = useState(false);
+  
+  // Pagination state
+  // Pagination state
+  const [itemsPage, setItemsPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  
   const t = useTranslations("delivery");
 
   // Fetch full detail when modal opens
@@ -93,6 +101,10 @@ export function DeliveryDetailModal({
   // Use detailed data if available, otherwise use passed delivery
   const displayDelivery = detailData?.data ?? delivery;
   const items = displayDelivery.items ?? [];
+  
+  // Client-side pagination logic
+  const totalItems = items.length;
+  const paginatedItems = items.slice((itemsPage - 1) * pageSize, itemsPage * pageSize);
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -105,21 +117,21 @@ export function DeliveryDetailModal({
         );
       case "prepared":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-yellow-600">
+          <Badge variant="warning" className="text-xs font-medium">
             <Package className="h-3 w-3 mr-1.5" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-purple-600">
+          <Badge variant="info" className="text-xs font-medium">
             <Truck className="h-3 w-3 mr-1.5" />
             {t("status.shipped")}
           </Badge>
         );
       case "delivered":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.delivered")}
           </Badge>
@@ -471,7 +483,7 @@ export function DeliveryDetailModal({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {items.length === 0 ? (
+                          {paginatedItems.length === 0 ? (
                             <TableRow>
                               <TableCell colSpan={3} className="text-center py-20 text-muted-foreground">
                                 <div className="flex flex-col items-center justify-center gap-2">
@@ -481,7 +493,7 @@ export function DeliveryDetailModal({
                               </TableCell>
                             </TableRow>
                           ) : (
-                            items.map((item) => (
+                            paginatedItems.map((item) => (
                               <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
                                 <TableCell className="pl-6 py-4">
                                   <div>
@@ -516,6 +528,21 @@ export function DeliveryDetailModal({
                         </TableBody>
                       </Table>
                    </div>
+                   {totalItems > 0 && (
+                      <div className="border-t p-2">
+                         <DataTablePagination
+                           pageIndex={itemsPage}
+                           pageSize={pageSize}
+                           rowCount={totalItems}
+                           onPageChange={setItemsPage}
+                           onPageSizeChange={(newSize) => {
+                             setPageSize(newSize);
+                             setItemsPage(1);
+                           }}
+                           showPageSize={false}
+                         />
+                      </div>
+                   )}
                 </div>
 
               </div>

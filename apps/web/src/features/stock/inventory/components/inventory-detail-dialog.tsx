@@ -13,6 +13,8 @@ import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import { InventoryStockItem } from "../types";
 import { useInventoryTreeBatches } from "../hooks/use-inventory-tree";
 import { Package, Calendar, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useState } from "react";
 
 interface InventoryDetailDialogProps {
   open: boolean;
@@ -22,6 +24,11 @@ interface InventoryDetailDialogProps {
 
 function BatchList({ warehouseId, productId }: { warehouseId: string; productId: string }) {
   const { batches, isLoading } = useInventoryTreeBatches(warehouseId, productId, true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  const paginatedBatches = batches.slice((page - 1) * pageSize, page * pageSize);
+  const total = batches.length;
 
   if (isLoading) {
     return (
@@ -44,7 +51,7 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
 
   return (
     <div className="space-y-3">
-      {batches.map((batch) => (
+      {paginatedBatches.map((batch) => (
         <div 
           key={batch.id} 
           className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors gap-3"
@@ -79,6 +86,21 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
           </div>
         </div>
       ))}
+      {total > 0 && (
+        <div className="pt-2">
+            <DataTablePagination
+                pageIndex={page}
+                pageSize={pageSize}
+                rowCount={total}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+                pageSizeOptions={[5, 10, 20]} 
+            />
+        </div>
+      )}
     </div>
   );
 }
@@ -95,13 +117,13 @@ export function InventoryDetailDialog({
   const getStatusBadge = (status: string) => {
       switch (status) {
         case "ok":
-          return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> OK</Badge>;
+          return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> OK</Badge>;
         case "low_stock":
-          return <Badge className="bg-yellow-500"><AlertTriangle className="h-3 w-3 mr-1" /> Low Stock</Badge>;
+          return <Badge variant="warning"><AlertTriangle className="h-3 w-3 mr-1" /> Low Stock</Badge>;
         case "out_of_stock":
           return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Out of Stock</Badge>;
         case "overstock":
-          return <Badge variant="secondary"><Package className="h-3 w-3 mr-1" /> Overstock</Badge>;
+          return <Badge variant="info"><Package className="h-3 w-3 mr-1" /> Overstock</Badge>;
         default:
           return <Badge variant="outline">{status}</Badge>;
       }

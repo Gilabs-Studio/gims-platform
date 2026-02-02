@@ -17,6 +17,7 @@ export type BadgeColor =
   | "outline"
   | "success"
   | "warning"
+  | "info"
   | "active";
 
 /**
@@ -47,6 +48,7 @@ export function isValidBadgeVariant(value: unknown): value is BadgeVariant {
     "outline",
     "success",
     "warning",
+    "info",
     "active",
     "inactive",
   ];

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { OrderStatusBadge } from "./order-status-badge";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -22,11 +23,14 @@ import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function OrderList() {
   const t = useTranslations("order");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
@@ -36,7 +40,7 @@ export function OrderList() {
 
   const { data, isLoading, isError } = useOrders({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
@@ -93,61 +97,7 @@ export function OrderList() {
     }
   };
 
-  const getStatusBadge = (status: SalesOrderStatus) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "confirmed":
-        return (
-          <Badge variant="default" className="bg-blue-600">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.confirmed")}
-          </Badge>
-        );
-      case "processing":
-        return (
-          <Badge variant="default" className="bg-yellow-600">
-            <Package className="h-3 w-3 mr-1" />
-            {t("status.processing")}
-          </Badge>
-        );
-      case "shipped":
-        return (
-          <Badge variant="default" className="bg-purple-600">
-            <Truck className="h-3 w-3 mr-1" />
-            {t("status.shipped")}
-          </Badge>
-        );
-      case "delivered":
-        return (
-          <Badge variant="default" className="bg-green-600">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.delivered")}
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge className="bg-orange-600 hover:bg-orange-700">
-            <PieChart className="h-3 w-3 mr-1" />
-            {t("status.partial")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+
 
   if (isError) {
     return (
@@ -262,7 +212,7 @@ export function OrderList() {
                     )}
                   </TableCell>
                   <TableCell>{order.sales_rep?.name ?? "-"}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
+                  <TableCell><OrderStatusBadge status={order.status} className="text-xs font-medium" /></TableCell>
                   <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
@@ -323,32 +273,17 @@ export function OrderList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (

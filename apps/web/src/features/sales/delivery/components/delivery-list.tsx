@@ -25,11 +25,14 @@ import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder, SalesOrderSummary } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function DeliveryList() {
   const t = useTranslations("delivery");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<DeliveryOrderStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
@@ -42,7 +45,7 @@ export function DeliveryList() {
 
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
@@ -169,21 +172,21 @@ export function DeliveryList() {
         );
       case "prepared":
         return (
-          <Badge variant="default" className="bg-yellow-600">
+          <Badge variant="warning">
             <Package className="h-3 w-3 mr-1" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="bg-purple-600">
+          <Badge variant="info">
             <Truck className="h-3 w-3 mr-1" />
             {t("status.shipped")}
           </Badge>
         );
       case "delivered":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.delivered")}
           </Badge>
@@ -370,32 +373,17 @@ export function DeliveryList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (

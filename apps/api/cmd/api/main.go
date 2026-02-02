@@ -61,7 +61,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 )
 
-func main() {
+func initInfrastructure() {
 	// Initialize logger
 	logger.Init()
 
@@ -74,13 +74,17 @@ func main() {
 	if err := database.Connect(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	defer database.Close()
+	// Note: Defer database.Close() must be handled in main if we returned db,
+	// but here we are using global or singleton access patterns in this codebase
+	// seeing later usage of database.DB. 
+	// However, original main had defer database.Close(). 
+	// We will keep defer in main and just call connect here.
 
 	// Connect to Redis
 	if err := redis.InitRedis(config.AppConfig); err != nil {
 		log.Printf("Warning: Redis connection failed: %v", err)
 	}
-	defer redis.Close()
+	// Defer redis.Close() also needs to be in main
 
 	// Run migrations
 	if config.AppConfig.Startup.RunMigrations {
@@ -99,8 +103,9 @@ func main() {
 	} else {
 		log.Println("Skipping seeders (RUN_SEEDERS=false)")
 	}
+}
 
-	// Setup JWT Manager
+func setupJWT() *jwt.JWTManager {
 	accessSecret := config.AppConfig.JWT.AccessSecretKey
 	refreshSecret := config.AppConfig.JWT.RefreshSecretKey
 	if accessSecret == "" {
@@ -127,7 +132,7 @@ func main() {
 		}
 	}
 
-	jwtManager := jwt.NewJWTManager(jwt.Options{
+	return jwt.NewJWTManager(jwt.Options{
 		AccessSecretKey:  accessSecret,
 		RefreshSecretKey: refreshSecret,
 		AccessKeys:       accessKeys,
@@ -138,6 +143,18 @@ func main() {
 		AccessTokenTTL:   time.Duration(config.AppConfig.JWT.AccessTokenTTL) * time.Hour,
 		RefreshTokenTTL:  time.Duration(config.AppConfig.JWT.RefreshTokenTTL) * 24 * time.Hour,
 	})
+}
+
+func main() {
+	// 1. Initialize Infrastructure (Config, Logger, DB, Migrations)
+	initInfrastructure()
+	
+	// Ensure cleanup
+	defer database.Close()
+	defer redis.Close()
+
+	// 2. Setup JWT
+	jwtManager := setupJWT()
 
 	// Setup repositories
 	refreshTokenRepository := refreshTokenRepo.NewRefreshTokenRepository(database.DB)

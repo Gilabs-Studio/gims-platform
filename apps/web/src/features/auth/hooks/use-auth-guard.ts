@@ -41,7 +41,8 @@ export function useAuthGuard() {
   // Verify session with backend - ALWAYS runs on protected routes
   const verifySession = useCallback(async () => {
     // Skip if already verified in this session (store level)
-    if (isSessionVerified) {
+    // This handles the case where user just logged in
+    if (isSessionVerified && user) {
       setVerificationComplete(true);
       return;
     }
@@ -97,10 +98,21 @@ export function useAuthGuard() {
   // ALWAYS run session verification when hydrated on protected routes
   // This ensures we verify even if localStorage was cleared but cookies exist
   useEffect(() => {
-    if (isHydrated && !isSessionVerified && !isVerifying && !verificationComplete) {
+    if (!isHydrated) {
+      return;
+    }
+
+    // If already verified with user data (e.g., just logged in), mark complete
+    if (isSessionVerified && user) {
+      setVerificationComplete(true);
+      return;
+    }
+
+    // Otherwise, verify with backend
+    if (!isVerifying && !verificationComplete) {
       verifySession();
     }
-  }, [isHydrated, isSessionVerified, isVerifying, verificationComplete, verifySession]);
+  }, [isHydrated, isSessionVerified, user, isVerifying, verificationComplete, verifySession]);
 
   /**
    * Determine loading state:
