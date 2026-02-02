@@ -449,9 +449,17 @@ func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrd
 		},
 		models.SalesOrderStatusProcessing: {
 			models.SalesOrderStatusShipped,
+			models.SalesOrderStatusPartial,
+			models.SalesOrderStatusDelivered,
+			models.SalesOrderStatusCancelled,
+		},
+		models.SalesOrderStatusPartial: {
+			models.SalesOrderStatusProcessing, // Can go back to processing if new DO is created/shipped?
+			models.SalesOrderStatusDelivered,
 			models.SalesOrderStatusCancelled,
 		},
 		models.SalesOrderStatusShipped: {
+			models.SalesOrderStatusPartial,
 			models.SalesOrderStatusDelivered,
 		},
 		models.SalesOrderStatusDelivered: {

@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -90,7 +90,11 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		if strings.Contains(req.Status, ",") {
+			query = query.Where("status IN ?", strings.Split(req.Status, ","))
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
 	}
 
 	// Apply date range filter

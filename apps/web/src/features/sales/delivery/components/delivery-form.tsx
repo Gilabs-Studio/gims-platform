@@ -64,7 +64,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   );
 
   // Fetch lookup data
-  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "confirmed" });
+  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "confirmed,processing,partial" });
   const { data: employeesData } = useEmployees({ per_page: 100 });
   const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 });
   const { data: warehousesData } = useWarehouses({ per_page: 100 });

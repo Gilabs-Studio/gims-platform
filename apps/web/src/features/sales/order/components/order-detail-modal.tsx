@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History, PieChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -81,6 +81,13 @@ export function OrderDetailModal({
           <Badge variant="default" className="text-xs font-medium bg-yellow-600">
             <Package className="h-3 w-3 mr-1.5" />
             {t("status.processing")}
+          </Badge>
+        );
+      case "partial":
+        return (
+          <Badge variant="default" className="text-xs font-medium bg-orange-600 hover:bg-orange-700">
+            <PieChart className="h-3 w-3 mr-1.5" />
+            {t("status.partial")}
           </Badge>
         );
       case "shipped":

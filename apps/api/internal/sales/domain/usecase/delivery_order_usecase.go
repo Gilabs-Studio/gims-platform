@@ -180,6 +180,25 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			item.Price = product.SellingPrice
 		}
 
+		// Check for over-delivery
+		if item.SalesOrderItemID != nil {
+			var soItem *models.SalesOrderItem
+			for _, soi := range salesOrder.Items {
+				if soi.ID == *item.SalesOrderItemID {
+					soItem = &soi
+					break
+				}
+			}
+
+			if soItem != nil {
+				remaining := soItem.Quantity - soItem.DeliveredQuantity
+				if item.Quantity > remaining {
+					// Use a formatted string or specific error
+					return nil, errors.New("cannot deliver more than remaining quantity (over-delivery)")
+				}
+			}
+		}
+
 		// TODO: Validate batch exists and has sufficient stock
 		// This will be implemented when InventoryBatchRepository is available
 		if item.InventoryBatchID == nil {
@@ -205,6 +224,16 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 	// Create delivery order
 	if err := u.deliveryOrderRepo.Create(ctx, deliveryOrder); err != nil {
 		return nil, err
+	}
+
+	// Update sales order status to Processing if it's Confirmed
+	if salesOrder.Status == models.SalesOrderStatusConfirmed {
+		// Use "System" or createdBy as updater
+		// Note: We ignore error if status update fails to prevent blocking DO creation? 
+		// Ideally strict consistency, but for now we try to update.
+		if err := u.salesOrderRepo.UpdateStatus(ctx, salesOrder.ID, models.SalesOrderStatusProcessing, createdBy, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	// Fetch created delivery order with relations
@@ -415,6 +444,11 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 		}
 	}
 
+	// Check if sales order is fully delivered
+	if err := u.updateSalesOrderStatusIfCompleted(ctx, deliveryOrder.SalesOrderID, userID); err != nil {
+		return nil, err
+	}
+
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
 	if err != nil {
@@ -517,4 +551,43 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 	}
 
 	return false
+}
+
+// updateSalesOrderStatusIfCompleted checks if all items in sales order are delivered and updates status
+func (u *deliveryOrderUsecase) updateSalesOrderStatusIfCompleted(ctx context.Context, salesOrderID string, userID *string) error {
+	salesOrder, err := u.salesOrderRepo.FindByID(ctx, salesOrderID)
+	if err != nil {
+		return err
+	}
+
+	allDelivered := true
+	anyDelivered := false
+
+	for _, item := range salesOrder.Items {
+		if item.DeliveredQuantity < item.Quantity {
+			allDelivered = false
+		}
+		if item.DeliveredQuantity > 0 {
+			anyDelivered = true
+		}
+	}
+
+	// Update status based on delivery progress
+	var newStatus models.SalesOrderStatus
+
+	if allDelivered {
+		newStatus = models.SalesOrderStatusDelivered
+	} else if anyDelivered {
+		newStatus = models.SalesOrderStatusPartial
+	} else {
+		// Should generally be processing if we are calling this after a delivery
+		newStatus = models.SalesOrderStatusProcessing
+	}
+
+	// Only update if status is different
+	if salesOrder.Status != newStatus {
+		return u.salesOrderRepo.UpdateStatus(ctx, salesOrderID, newStatus, userID, nil)
+	}
+
+	return nil
 }
