@@ -34,6 +34,8 @@ import type { SalesVisit } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface VisitDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -52,6 +54,10 @@ export function VisitDetailModal({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
+  // Pagination state for products
+  const [productsPage, setProductsPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  
   // Use static t function temporarily until visit namespace is fully ready
   const t = useTranslations("visit");
 
@@ -63,7 +69,7 @@ export function VisitDetailModal({
   // Fetch product details
   const { data: detailsData, isLoading: detailsLoading } = useVisitDetails(
     visit?.id ?? "",
-    { per_page: 100 },
+    { page: productsPage, per_page: pageSize },
     { enabled: open && !!visit?.id }
   );
 
@@ -299,17 +305,18 @@ export function VisitDetailModal({
                  {detailsLoading ? (
                     <Skeleton className="h-40 w-full" />
                  ) : (
-                    <div className="rounded-md border">
-                       <Table>
-                          <TableHeader>
-                             <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Interest</TableHead>
-                                <TableHead>Qty</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Notes</TableHead>
-                             </TableRow>
-                          </TableHeader>
+                    <>
+                     <div className="rounded-md border">
+                        <Table>
+                           <TableHeader>
+                              <TableRow>
+                                 <TableHead>Product</TableHead>
+                                 <TableHead>Interest</TableHead>
+                                 <TableHead>Qty</TableHead>
+                                 <TableHead>Price</TableHead>
+                                 <TableHead>Notes</TableHead>
+                              </TableRow>
+                           </TableHeader>
                            <TableBody>
                              {productDetails.length === 0 ? (
                                 <TableRow>
@@ -348,10 +355,24 @@ export function VisitDetailModal({
                                 ))
                              )}
                           </TableBody>
-                       </Table>
-                    </div>
-                 )}
-              </TabsContent>
+                        </Table>
+                     </div>
+                     
+                     <div className="mt-4">
+                       <DataTablePagination
+                         pageIndex={productsPage}
+                         pageSize={pageSize}
+                         rowCount={detailsData?.meta?.pagination?.total ?? 0}
+                         onPageChange={setProductsPage}
+                         onPageSizeChange={(newSize) => {
+                           setPageSize(newSize);
+                           setProductsPage(1);
+                         }}
+                       />
+                     </div>
+                    </>
+                  )}
+               </TabsContent>
 
               <TabsContent value="history" className="mt-4">
                  {historyLoading ? (

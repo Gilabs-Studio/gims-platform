@@ -1,5 +1,7 @@
 "use client";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -72,6 +74,12 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockOpnameItem | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+
+  // Pagination for Items
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+  const totalItems = items.length;
 
   // Handlers
   const handleStatusChange = async (newStatus: StockOpnameStatus) => {
@@ -357,7 +365,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    items.map((item) => (
+                                                    paginatedItems.map((item) => (
                                                         <TableRow key={item.id} className="hover:bg-muted/5">
                                                             <TableCell>
                                                                 <div className="flex flex-col">
@@ -421,6 +429,21 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                             </TableBody>
                                         </Table>
                                     </div>
+                                    {totalItems > 0 && (
+                                        <div className="mt-4">
+                                            <DataTablePagination
+                                                pageIndex={page}
+                                                pageSize={pageSize}
+                                                rowCount={totalItems}
+                                                onPageChange={setPage}
+                                                onPageSizeChange={(newSize) => {
+                                                    setPageSize(newSize);
+                                                    setPage(1);
+                                                }}
+                                                pageSizeOptions={[5, 10, 20, 50]}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </ScrollArea>
                         </TabsContent>

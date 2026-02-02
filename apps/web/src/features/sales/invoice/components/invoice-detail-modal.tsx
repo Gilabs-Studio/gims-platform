@@ -28,6 +28,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { CustomerInvoice } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface InvoiceDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -44,7 +46,7 @@ export function InvoiceDetailModal({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
-  const itemsPerPage = 20;
+  const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("invoice");
 
   // Fetch full detail WITHOUT items when modal opens
@@ -55,7 +57,7 @@ export function InvoiceDetailModal({
   // Fetch items separately with server-side pagination
   const { data: itemsData, isLoading: itemsLoading } = useInvoiceItems(
     invoice?.id ?? "",
-    { page: itemsPage, per_page: itemsPerPage },
+    { page: itemsPage, per_page: pageSize },
     { enabled: open && !!invoice?.id }
   );
 
@@ -537,31 +539,18 @@ export function InvoiceDetailModal({
                   </div>
 
                   {/* Pagination Controls */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {t("common.page")} {itemsPage} {t("common.of")} {totalPages} ({totalItems} items)
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={!hasPrevPage || itemsLoading}
-                          onClick={() => setItemsPage(itemsPage - 1)}
-                          className="cursor-pointer"
-                        >
-                          {t("common.previous")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={!hasNextPage || itemsLoading}
-                          onClick={() => setItemsPage(itemsPage + 1)}
-                          className="cursor-pointer"
-                        >
-                          {t("common.next")}
-                        </Button>
-                      </div>
+                  {totalItems > 0 && (
+                    <div className="mt-4">
+                      <DataTablePagination
+                        pageIndex={itemsPage}
+                        pageSize={pageSize}
+                        rowCount={totalItems}
+                        onPageChange={setItemsPage}
+                        onPageSizeChange={(newSize) => {
+                          setPageSize(newSize);
+                          setItemsPage(1);
+                        }}
+                      />
                     </div>
                   )}
                 </>

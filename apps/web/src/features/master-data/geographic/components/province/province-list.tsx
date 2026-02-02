@@ -38,11 +38,14 @@ import { ProvinceForm } from "./province-form";
 import { sortOptions } from "@/lib/utils";
 import type { Province } from "../../types";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function ProvinceList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [countryId, setCountryId] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProvince, setEditingProvince] = useState<Province | null>(null);
@@ -53,7 +56,7 @@ export function ProvinceList() {
 
   const { data, isLoading, isError } = useProvinces({
     page,
-    per_page: 10,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     country_id: countryId || undefined,
   });
@@ -225,16 +228,17 @@ export function ProvinceList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages} ({pagination.total} {t("common.total")})
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={!pagination.has_prev} onClick={() => setPage(page - 1)} className="cursor-pointer">{t("common.previous")}</Button>
-            <Button variant="outline" size="sm" disabled={!pagination.has_next} onClick={() => setPage(page + 1)} className="cursor-pointer">{t("common.next")}</Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (

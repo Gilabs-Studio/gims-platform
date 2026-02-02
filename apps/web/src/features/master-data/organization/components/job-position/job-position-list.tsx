@@ -29,18 +29,21 @@ import { useJobPositions, useDeleteJobPosition, useUpdateJobPosition } from "../
 import { useDebounce } from "@/hooks/use-debounce";
 import { JobPosition } from "../../types";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function JobPositionList() {
   const t = useTranslations("organization");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingJobPosition, setEditingJobPosition] = useState<JobPosition | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useJobPositions({
     page,
-    per_page: 10,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
   });
 
@@ -239,32 +242,17 @@ export function JobPositionList() {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {page} of {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="cursor-pointer"
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= pagination.total_pages}
-              className="cursor-pointer"
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {/* Form Dialog */}

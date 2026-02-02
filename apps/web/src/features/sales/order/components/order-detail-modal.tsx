@@ -28,6 +28,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { SalesOrder, SalesOrderSummary } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface OrderDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -43,6 +45,11 @@ export function OrderDetailModal({
   const updateStatus = useUpdateOrderStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  // Pagination state
+  const [itemsPage, setItemsPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  
   const t = useTranslations("order");
 
   // Fetch full detail when modal opens
@@ -60,6 +67,10 @@ export function OrderDetailModal({
   // Use detailed data if available, otherwise use passed order
   const displayOrder = detailData?.data ?? order;
   const items = (displayOrder as SalesOrder).items ?? [];
+  
+  // Client-side pagination logic
+  const totalItems = items.length;
+  const paginatedItems = items.slice((itemsPage - 1) * pageSize, itemsPage * pageSize);
 
 
 
@@ -488,7 +499,7 @@ export function OrderDetailModal({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.length === 0 ? (
+                    {paginatedItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -496,7 +507,7 @@ export function OrderDetailModal({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      items.map((item) => (
+                      paginatedItems.map((item) => (
                         <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
                           <TableCell>
                             <div>
@@ -524,6 +535,19 @@ export function OrderDetailModal({
                   </TableBody>
                 </Table>
               </div>
+
+              {totalItems > 0 && (
+                <DataTablePagination
+                  pageIndex={itemsPage}
+                  pageSize={pageSize}
+                  rowCount={totalItems}
+                  onPageChange={setItemsPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setItemsPage(1);
+                  }}
+                />
+              )}
             </TabsContent>
           </Tabs>
           )}

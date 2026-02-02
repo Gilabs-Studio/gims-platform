@@ -55,11 +55,14 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function TargetsList() {
   const t = useTranslations("targets");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<YearlyTargetStatus | "all">("all");
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -69,7 +72,7 @@ export function TargetsList() {
 
   const { data, isLoading, isError, error } = useYearlyTargets({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     year: yearFilter !== "all" ? parseInt(yearFilter) : undefined,
@@ -422,31 +425,18 @@ export function TargetsList() {
           </Table>
         </div>
 
-        {pagination && pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-sm text-muted-foreground">
-                {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.has_prev}
-                  onClick={() => setPage(page - 1)}
-                  className="cursor-pointer"
-                >
-                  {t("common.previous")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.has_next}
-                  onClick={() => setPage(page + 1)}
-                  className="cursor-pointer"
-                >
-                  {t("common.next")}
-                </Button>
-              </div>
+        {pagination && (
+            <div className="pt-2">
+              <DataTablePagination
+                pageIndex={pagination.page}
+                pageSize={pagination.per_page}
+                rowCount={pagination.total}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+              />
             </div>
         )}
       </div>

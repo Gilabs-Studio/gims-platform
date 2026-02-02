@@ -34,6 +34,8 @@ import { VisitDetailModal } from "./visit-detail-modal";
 import { DayVisitListDrawer } from "./day-visit-list-drawer";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function VisitList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -42,6 +44,7 @@ export function VisitList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<SalesVisitStatus | "all">("all");
   
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export function VisitList() {
   // List Query
   const listParams = useMemo(() => ({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   }), [page, debouncedSearch, statusFilter]);
@@ -384,32 +387,17 @@ export function VisitList() {
             </Table>
           </div>
 
-          {pagination && pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Page {pagination.page} of {pagination.total_pages} ({pagination.total} total)
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={!pagination.has_prev}
-                  className="cursor-pointer"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={!pagination.has_next}
-                  className="cursor-pointer"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+          {pagination && (
+            <DataTablePagination
+              pageIndex={pagination.page}
+              pageSize={pagination.per_page}
+              rowCount={pagination.total}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
           )}
         </>
       ) : (

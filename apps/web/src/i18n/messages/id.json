@@ -25,7 +25,10 @@
     "of": "dari",
     "previous": "Sebelumnya",
     "next": "Selanjutnya",
-    "deleted": "Berhasil dihapus"
+    "deleted": "Berhasil dihapus",
+    "showing": "Menampilkan",
+    "entries": "kumpulan data",
+    "rowsPerPage": "Baris per halaman"
   },
   "notFound": {
     "label": "404",

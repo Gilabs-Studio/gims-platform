@@ -26,7 +26,10 @@
     "previous": "Previous",
     "next": "Next",
     "deleted": "Deleted successfully",
-    "saved": "Saved successfully"
+    "saved": "Saved successfully",
+    "showing": "Showing",
+    "entries": "entries",
+    "rowsPerPage": "Rows per page"
   },
   "notFound": {
     "label": "404",
