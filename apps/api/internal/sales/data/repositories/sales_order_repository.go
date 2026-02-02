@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -24,6 +24,7 @@ type SalesOrderRepository interface {
 	UpdateStatus(ctx context.Context, id string, status models.SalesOrderStatus, userID *string, reason *string) error
 	ReserveStock(ctx context.Context, orderID string) error
 	ReleaseStock(ctx context.Context, orderID string) error
+	UpdateItemDeliveredQty(ctx context.Context, itemID string, qty float64) error
 }
 
 type salesOrderRepository struct {
@@ -89,7 +90,11 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		if strings.Contains(req.Status, ",") {
+			query = query.Where("status IN ?", strings.Split(req.Status, ","))
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
 	}
 
 	// Apply date range filter
@@ -366,3 +371,11 @@ func (r *salesOrderRepository) ListItems(ctx context.Context, orderID string, re
 
 	return items, total, nil
 }
+
+// UpdateItemDeliveredQty updates the delivered quantity of a sales order item
+func (r *salesOrderRepository) UpdateItemDeliveredQty(ctx context.Context, itemID string, qty float64) error {
+	return r.getDB(ctx).Model(&models.SalesOrderItem{}).
+		Where("id = ?", itemID).
+		Update("delivered_quantity", gorm.Expr("COALESCE(delivered_quantity, 0) + ?", qty)).Error
+}
+

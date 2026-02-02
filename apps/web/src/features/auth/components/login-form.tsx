@@ -23,19 +23,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AuthLayout } from "./auth-layout";
-import { useAuthStore } from "../stores/use-auth-store";
 import { loginSchema, type LoginFormData } from "../schemas/login.schema";
 import { useLogin } from "../hooks/use-login";
+import { useLoginGuard } from "../hooks/use-login-guard";
 import type { AuthError } from "../types/errors";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { useRateLimitStore } from "@/lib/stores/useRateLimitStore";
-import { useRouter } from "@/i18n/routing";
 import { ButtonLoading } from "@/components/loading";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+
+  /**
+   * useLoginGuard handles authentication verification:
+   * 1. Calls /auth/refresh-token to verify session
+   * 2. If 200 OK → redirects to dashboard (user already logged in)
+   * 3. If 401/403 → clears localStorage and shows login form
+   * 4. While checking → shows loading spinner
+   *
+   * CRITICAL: Never trust localStorage.isAuthenticated directly.
+   */
+  const { isLoading: isVerifying, shouldShowLoginForm } = useLoginGuard();
   const { handleLogin, isLoading, error, clearError } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -96,14 +104,6 @@ export function LoginForm() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Redirect to dashboard if already authenticated
-      // This prevents authenticated users from accessing login page
-      router.push("/dashboard");
-    }
-  }, [isAuthenticated, router]);
-
-  useEffect(() => {
     if (error) {
       setError("root", {
         message: error,
@@ -129,6 +129,27 @@ export function LoginForm() {
   };
 
   const isFormLoading = isLoading || isSubmitting;
+
+  // Show loading spinner while verifying session with backend
+  if (isVerifying) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {t("verifyingSession") || "Verifying session..."}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show login form after verification is complete
+  if (!shouldShowLoginForm) {
+    return null;
+  }
 
   return (
     <AuthLayout>

@@ -17,6 +17,7 @@ const (
 	SalesOrderStatusDraft     SalesOrderStatus = "draft"
 	SalesOrderStatusConfirmed SalesOrderStatus = "confirmed"
 	SalesOrderStatusProcessing SalesOrderStatus = "processing"
+	SalesOrderStatusPartial   SalesOrderStatus = "partial"
 	SalesOrderStatusShipped   SalesOrderStatus = "shipped"
 	SalesOrderStatusDelivered SalesOrderStatus = "delivered"
 	SalesOrderStatusCancelled SalesOrderStatus = "cancelled"

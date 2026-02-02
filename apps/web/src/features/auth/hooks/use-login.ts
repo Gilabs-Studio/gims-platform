@@ -9,6 +9,7 @@ export function useLogin() {
   const router = useRouter();
   const {
     setUser,
+    setSessionVerified,
     isLoading: storeIsLoading,
     error: storeError,
     clearError,
@@ -37,9 +38,11 @@ export function useLogin() {
 
       if (response.success && response.data) {
         const { user } = response.data;
+        // setUser also sets isAuthenticated: true
         setUser(user);
+        // Mark session as verified since we just logged in successfully
+        setSessionVerified(true);
         useAuthStore.setState({
-          isAuthenticated: true,
           error: null,
         });
         // Redirect to dashboard

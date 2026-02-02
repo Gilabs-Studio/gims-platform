@@ -225,9 +225,15 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
           toast.error(msg.title, { description: msg.description });
+
+          // Clear all auth state and cookies
           import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-            useAuthStore.getState().setUser(null);
+            useAuthStore.getState().logout();
           });
+          import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+            fullAuthCleanup();
+          });
+
           setTimeout(() => {
             window.location.href = "/";
           }, 1000);
@@ -294,9 +300,15 @@ apiClient.interceptors.response.use(
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
               toast.error(msg.title, { description: msg.description });
+
+              // Clear all auth state and cookies
               import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-                useAuthStore.getState().setUser(null);
+                useAuthStore.getState().logout();
               });
+              import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+                fullAuthCleanup();
+              });
+
               setTimeout(() => {
                 window.location.href = "/";
               }, 1000);

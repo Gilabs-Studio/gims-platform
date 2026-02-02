@@ -21,7 +21,7 @@ type DeliveryOrderRepository interface {
 	GetNextDeliveryNumber(ctx context.Context, prefix string) (string, error)
 	UpdateStatus(ctx context.Context, id string, status models.DeliveryOrderStatus, userID *string, reason *string) error
 	Ship(ctx context.Context, id string, userID *string, trackingNumber string) error
-	Deliver(ctx context.Context, id string, userID *string, receiverSignature string) error
+	Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error
 }
 
 type deliveryOrderRepository struct {
@@ -40,11 +40,13 @@ func (r *deliveryOrderRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*models.DeliveryOrder, error) {
 	var deliveryOrder models.DeliveryOrder
 	err := r.getDB(ctx).
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
 		Preload("Items.SalesOrderItem").
+		Preload("Items.InventoryBatch").
 		Where("id = ?", id).
 		First(&deliveryOrder).Error
 	if err != nil {
@@ -56,11 +58,13 @@ func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*mod
 func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (*models.DeliveryOrder, error) {
 	var deliveryOrder models.DeliveryOrder
 	err := r.getDB(ctx).
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
 		Preload("Items.SalesOrderItem").
+		Preload("Items.InventoryBatch").
 		Where("code = ?", code).
 		First(&deliveryOrder).Error
 	if err != nil {
@@ -131,6 +135,7 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 
 	// Execute query with preloads
 	err := query.
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
@@ -151,15 +156,7 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 			return err
 		}
 
-		// Create items
-		if len(do.Items) > 0 {
-			for i := range do.Items {
-				do.Items[i].DeliveryOrderID = do.ID
-				if err := tx.Create(&do.Items[i]).Error; err != nil {
-					return err
-				}
-			}
-		}
+
 
 		return nil
 	})
@@ -167,8 +164,8 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 
 func (r *deliveryOrderRepository) Update(ctx context.Context, do *models.DeliveryOrder) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update delivery order
-		if err := tx.Save(do).Error; err != nil {
+		// Update delivery order (exclude items to avoid conflict with manual management below)
+		if err := tx.Omit("Items").Save(do).Error; err != nil {
 			return err
 		}
 
@@ -272,12 +269,13 @@ func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *s
 		Updates(updates).Error
 }
 
-func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string) error {
+func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
 		"status":            models.DeliveryOrderStatusDelivered,
 		"delivered_at":      now,
 		"receiver_signature": receiverSignature,
+		"receiver_name":      receiverName,
 	}
 
 	return r.getDB(ctx).Model(&models.DeliveryOrder{}).
@@ -317,6 +315,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 			return db.Select("id", "code", "name", "selling_price", "image_url")
 		}).
 		Preload("SalesOrderItem").
+		Preload("InventoryBatch").
 		Where("delivery_order_id = ?", deliveryOrderID).
 		Order("created_at ASC").
 		Limit(perPage).

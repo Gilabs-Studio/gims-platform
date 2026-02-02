@@ -7,19 +7,22 @@ export default async function NotFound() {
   const t = await getTranslations("notFound");
   const locale = await getLocale();
   
-  // Check if user is in dashboard context
-  // 1. Check if user has token (authenticated = likely in dashboard)
+  // Check if user might be in dashboard context
+  // Note: This is a heuristic check - client-side will do proper verification
+  // 1. Check if user has access token cookie (may indicate authenticated session)
   const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  const isAuthenticated = Boolean(token);
+  const accessToken = cookieStore.get("gims_access_token")?.value;
+  const hasAccessToken = Boolean(accessToken);
   
   // 2. Check referer header for dashboard routes
   const headersList = await headers();
   const referer = headersList.get("referer") || "";
   const isDashboardReferer = referer.includes("/dashboard");
   
-  // Determine if this is a dashboard route not-found
-  const isDashboardRoute = isAuthenticated || isDashboardReferer;
+  // Determine if this is likely a dashboard route not-found
+  // Note: Cookie presence is not a guarantee of valid session,
+  // but provides better UX by redirecting to dashboard if likely in that context
+  const isDashboardRoute = hasAccessToken || isDashboardReferer;
   
   // Determine redirect URL
   const redirectUrl = isDashboardRoute 

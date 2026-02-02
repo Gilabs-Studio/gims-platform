@@ -54,6 +54,7 @@ export const orderId = {
       processing: "Diproses",
       shipped: "Dikirim",
       delivered: "Terkirim",
+      partial: "Parsial",
       cancelled: "Dibatalkan",
     },
 

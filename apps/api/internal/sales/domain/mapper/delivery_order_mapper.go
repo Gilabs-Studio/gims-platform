@@ -135,6 +135,21 @@ func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryO
 
 	if m.InventoryBatchID != nil {
 		response.InventoryBatchID = m.InventoryBatchID
+		if m.InventoryBatch != nil {
+			var expiryDate time.Time
+			if m.InventoryBatch.ExpiryDate != nil {
+				expiryDate = *m.InventoryBatch.ExpiryDate
+			}
+			
+			response.InventoryBatch = &dto.BatchInfo{
+				ID:          m.InventoryBatch.ID,
+				BatchNumber: m.InventoryBatch.BatchNumber,
+				ExpiryDate:  expiryDate,
+				Quantity:    m.InventoryBatch.InitialQuantity,
+				Available:   m.InventoryBatch.CurrentQuantity - m.InventoryBatch.ReservedQuantity,
+				// ReceivedDate not strictly available in InventoryBatch model directly, usually from GR. Skipping or using CreatedAt as fallback if essential, but zero value is fine for now.
+			}
+		}
 	}
 
 	if m.Product != nil {

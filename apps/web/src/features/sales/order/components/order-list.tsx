@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -130,6 +130,13 @@ export function OrderList() {
             {t("status.delivered")}
           </Badge>
         );
+      case "partial":
+        return (
+          <Badge className="bg-orange-600 hover:bg-orange-700">
+            <PieChart className="h-3 w-3 mr-1" />
+            {t("status.partial")}
+          </Badge>
+        );
       case "cancelled":
         return (
           <Badge variant="destructive">
@@ -185,6 +192,7 @@ export function OrderList() {
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
             <SelectItem value="confirmed">{t("status.confirmed")}</SelectItem>
             <SelectItem value="processing">{t("status.processing")}</SelectItem>
+            <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="shipped">{t("status.shipped")}</SelectItem>
             <SelectItem value="delivered">{t("status.delivered")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>

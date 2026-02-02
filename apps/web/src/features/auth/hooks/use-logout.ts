@@ -7,7 +7,7 @@ import { authService } from "../services/auth-service";
 
 export function useLogout() {
   const router = useRouter();
-  const { setUser } = useAuthStore();
+  const { logout } = useAuthStore();
 
   const handleLogout = useCallback(async () => {
     try {
@@ -15,15 +15,11 @@ export function useLogout() {
     } catch {
       // Ignore logout errors - still clear local state
     } finally {
-      // Clear store state
-      setUser(null);
-      useAuthStore.setState({
-        isAuthenticated: false,
-        error: null,
-      });
+      // Use logout() to properly clear all auth state including isSessionVerified
+      logout();
       router.push("/login");
     }
-  }, [router, setUser]);
+  }, [router, logout]);
 
   return handleLogout;
 }
