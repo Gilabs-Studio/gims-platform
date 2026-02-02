@@ -113,5 +113,15 @@ export const visitI18nId = {
     moreVisits: "{count} lagi",
     newVisit: "Kunjungan Baru",
     noVisitsToday: "Tidak ada jadwal",
+
+    // Day drawer
+    time: "Waktu",
+    customer: "Pelanggan",
+    salesRep: "Sales",
+    action: "Aksi",
+    noVisitsForDay: "Tidak ada kunjungan untuk hari ini",
+    pageInfo: "Halaman {page} dari {total}",
+    previous: "Sebelumnya",
+    next: "Selanjutnya",
   },
 };

@@ -27,22 +27,12 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { SalesVisit, SalesVisitStatus } from "../types";
-import { visitI18nEn } from "../i18n/en";
+import { useTranslations } from "next-intl";
 import { VisitCalendarView } from "./visit-calendar-view";
 import { VisitForm } from "./visit-form";
 import { VisitDetailModal } from "./visit-detail-modal";
 import { DayVisitListDrawer } from "./day-visit-list-drawer";
 import { startOfMonth, endOfMonth, format } from "date-fns";
-
-const t = (key: string) => {
-  const keys = key.split(".");
-  let value: unknown = visitI18nEn;
-  for (const k of keys) {
-    value = (value as Record<string, unknown>)?.[k];
-    if (value === undefined) return key;
-  }
-  return typeof value === "string" ? value : key;
-};
 
 export function VisitList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
@@ -88,6 +78,8 @@ export function VisitList() {
   const canCreate = useUserPermission("sales_visit.create");
   const canUpdate = useUserPermission("sales_visit.update");
   const canDelete = useUserPermission("sales_visit.delete");
+
+  const t = useTranslations("visit");
   const canView = useUserPermission("sales_visit.read");
 
   const deleteVisit = useDeleteVisit();

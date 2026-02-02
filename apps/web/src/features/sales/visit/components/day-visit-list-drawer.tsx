@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, MapPin, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { SalesVisit } from "../types";
 
 interface DayVisitListDrawerProps {
@@ -31,6 +32,8 @@ export function DayVisitListDrawer({
 }: DayVisitListDrawerProps) {
   const [page, setPage] = useState(1);
   const perPage = 20;
+
+  const t = useTranslations("visit");
 
   const dateStr = useMemo(() => 
     date ? format(date, "yyyy-MM-dd") : undefined, 
@@ -49,13 +52,13 @@ export function DayVisitListDrawer({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "planned":
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> Planned</Badge>;
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> {t("statusPlanned")}</Badge>;
       case "in_progress":
-        return <Badge variant="info"><MapPin className="h-3 w-3 mr-1" /> In Progress</Badge>;
+        return <Badge variant="info"><MapPin className="h-3 w-3 mr-1" /> {t("statusInProgress")}</Badge>;
       case "completed":
-        return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
+        return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> {t("statusCompleted")}</Badge>;
       case "cancelled":
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Cancelled</Badge>;
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> {t("statusCancelled")}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -77,10 +80,10 @@ export function DayVisitListDrawer({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Rep</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("time")}</TableHead>
+                <TableHead>{t("customer")}</TableHead>
+                <TableHead>{t("salesRep")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -98,7 +101,7 @@ export function DayVisitListDrawer({
               ) : visits.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No visits for this day
+                    {t("noVisitsForDay")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -135,7 +138,7 @@ export function DayVisitListDrawer({
         {pagination && pagination.total_pages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <p className="text-sm text-muted-foreground">
-              Page {pagination.page} of {pagination.total_pages}
+              {t("pageInfo", { page: pagination.page, total: pagination.total_pages })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -144,7 +147,7 @@ export function DayVisitListDrawer({
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={!pagination.has_prev}
               >
-                Previous
+                {t("previous")}
               </Button>
               <Button
                 variant="outline"
@@ -152,7 +155,7 @@ export function DayVisitListDrawer({
                 onClick={() => setPage(p => p + 1)}
                 disabled={!pagination.has_next}
               >
-                Next
+                {t("next")}
               </Button>
             </div>
           </div>

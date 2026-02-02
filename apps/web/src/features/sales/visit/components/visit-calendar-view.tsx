@@ -17,9 +17,7 @@ import { ChevronLeft, ChevronRight, Loader2, Plus, Clock, MapPin, CheckCircle2, 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CalendarDaySummary } from "../types";
-import { useLocale } from "next-intl";
-import { visitI18nEn } from "../i18n/en";
-import { visitI18nId } from "../i18n/id";
+import { useTranslations } from "next-intl";
 
 interface VisitCalendarViewProps {
   readonly summary: CalendarDaySummary[];
@@ -36,24 +34,7 @@ export function VisitCalendarView({
   onDateChange,
   onDateClick 
 }: VisitCalendarViewProps) {
-  const locale = useLocale();
-  const translations = locale === "id" ? visitI18nId : visitI18nEn;
-
-  const t = (key: string, params?: Record<string, string | number>) => {
-    const keys = key.split(".");
-    let value: any = translations;
-    for (const k of keys) {
-      value = value?.[k];
-    }
-    if (value === undefined) return key;
-    let str = String(value);
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        str = str.replace(`{${k}}`, String(v));
-      }
-    }
-    return str;
-  };
+  const t = useTranslations("visit");
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentDate);

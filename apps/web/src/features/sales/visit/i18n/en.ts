@@ -113,5 +113,15 @@ export const visitI18nEn = {
     moreVisits: "{count} more",
     newVisit: "New Visit",
     noVisitsToday: "No visits",
+
+    // Day drawer
+    time: "Time",
+    customer: "Customer",
+    salesRep: "Sales Rep",
+    action: "Action",
+    noVisitsForDay: "No visits for this day",
+    pageInfo: "Page {page} of {total}",
+    previous: "Previous",
+    next: "Next",
   },
 };
