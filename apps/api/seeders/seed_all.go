@@ -54,6 +54,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Inventory seeder (Sprint 4)
+	if err := SeedInventory(); err != nil {
+		return err
+	}
+
 	// Master Data seeders (Sprint 4)
 	if err := SeedPaymentTerms(); err != nil {
 		return err
@@ -105,6 +110,26 @@ func SeedAll() error {
 
 	// Sales Targets seeder (Sprint 7)
 	if err := SeedSalesTargets(); err != nil {
+		return err
+	}
+
+	// HRD - Work Schedules seeder (Sprint 13)
+	if err := SeedWorkSchedules(); err != nil {
+		return err
+	}
+
+	// HRD - Holidays seeder (Sprint 13)
+	if err := SeedHolidays(); err != nil {
+		return err
+	}
+	
+	// Stock Movement seeder (Sprint 9)
+	if err := SeedStockMovement(); err != nil {
+		return err
+	}
+
+	// Stock Opname seeder
+	if err := SeedStockOpname(); err != nil {
 		return err
 	}
 

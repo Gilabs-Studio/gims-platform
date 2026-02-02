@@ -106,8 +106,23 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError<ApiErrorResponse>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
+    const requestUrl = originalRequest?.url || "";
+
+    // Skip toast for auth endpoints - these handle their own errors silently
+    // 401/403 is expected when checking session or after logout
+    const isAuthEndpoint =
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/logout");
+
     // Network error
     if (!error.response) {
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
       if (error.code === "ECONNABORTED") {
         const msg = formatError("network", "timeout");
         toast.error(msg.title, { description: msg.description });
@@ -126,6 +141,12 @@ apiClient.interceptors.response.use(
 
     const status = error.response.status;
     const errorData = error.response.data;
+
+    // Skip toast for auth endpoints on 401/403 - these are expected when checking session
+    // But DO NOT skip 429 (rate limit) - we need to show countdown
+    if (isAuthEndpoint && (status === 401 || status === 403)) {
+      return Promise.reject(error);
+    }
 
     if (!errorData || !errorData.error) {
       const msg = formatError("backend", "invalidFormat");
@@ -225,9 +246,15 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
           toast.error(msg.title, { description: msg.description });
+
+          // Clear all auth state and cookies
           import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-            useAuthStore.getState().setUser(null);
+            useAuthStore.getState().logout();
           });
+          import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+            fullAuthCleanup();
+          });
+
           setTimeout(() => {
             window.location.href = "/";
           }, 1000);
@@ -294,9 +321,15 @@ apiClient.interceptors.response.use(
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
               toast.error(msg.title, { description: msg.description });
+
+              // Clear all auth state and cookies
               import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-                useAuthStore.getState().setUser(null);
+                useAuthStore.getState().logout();
               });
+              import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+                fullAuthCleanup();
+              });
+
               setTimeout(() => {
                 window.location.href = "/";
               }, 1000);

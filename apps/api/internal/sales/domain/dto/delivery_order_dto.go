@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type CreateDeliveryOrderRequest struct {
 	DeliveryDate      string   `json:"delivery_date" binding:"required"`
 	WarehouseID       string   `json:"warehouse_id" binding:"required,uuid"`
@@ -70,7 +72,8 @@ type ShipDeliveryOrderRequest struct {
 
 // DeliverDeliveryOrderRequest represents the request to mark delivery order as delivered
 type DeliverDeliveryOrderRequest struct {
-	ReceiverSignature string  `json:"receiver_signature"`
+	ReceiverSignature string  `json:"receiver_signature" binding:"required"`
+	ReceiverName      string  `json:"receiver_name" binding:"required"`
 }
 
 // BatchSelectionRequest represents the request for batch selection (FIFO/FEFO)
@@ -89,13 +92,12 @@ type BatchSelectionResponse struct {
 
 // BatchInfo represents information about an inventory batch
 type BatchInfo struct {
-	ID           string  `json:"id"`
-	Code         string  `json:"code"`
-	LotNumber    string  `json:"lot_number"`
-	ExpiredDate  *string `json:"expired_date"`
-	Quantity     float64 `json:"quantity"`
-	Available    float64 `json:"available"`
-	ReceivedAt   *string `json:"received_at"`
+	ID           string    `json:"id"`
+	BatchNumber  string    `json:"batch_number"`
+	ExpiryDate   time.Time `json:"expiry_date"`
+	Quantity     float64   `json:"quantity"`
+	Available    float64   `json:"available"`
+	ReceivedDate time.Time `json:"received_date"`
 }
 
 // DeliveryOrderResponse represents the response for a delivery order
@@ -140,6 +142,7 @@ type DeliveryOrderItemResponse struct {
 	ProductID           string            `json:"product_id"`
 	Product             *ProductResponse  `json:"product,omitempty"`
 	InventoryBatchID    *string           `json:"inventory_batch_id"`
+	InventoryBatch      *BatchInfo        `json:"inventory_batch,omitempty"`
 	Quantity            float64           `json:"quantity"`
 	Price               float64           `json:"price"`
 	Subtotal            float64           `json:"subtotal"`

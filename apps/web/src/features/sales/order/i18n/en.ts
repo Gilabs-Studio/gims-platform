@@ -55,6 +55,7 @@ export const orderEn = {
       processing: "Processing",
       shipped: "Shipped",
       delivered: "Delivered",
+      partial: "Partial",
       cancelled: "Cancelled",
     },
 

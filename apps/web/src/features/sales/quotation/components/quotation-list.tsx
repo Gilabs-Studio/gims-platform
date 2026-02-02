@@ -20,11 +20,14 @@ import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function QuotationList() {
   const t = useTranslations("quotation");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<SalesQuotationStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<SalesQuotation | null>(null);
@@ -33,7 +36,7 @@ export function QuotationList() {
 
   const { data, isLoading, isError } = useQuotations({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
@@ -101,14 +104,14 @@ export function QuotationList() {
         );
       case "sent":
         return (
-          <Badge variant="default">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.sent")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
@@ -289,32 +292,17 @@ export function QuotationList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (

@@ -425,10 +425,11 @@ func SeedMenus() error {
 	}{
 		{"Attendance", "clock", "/hrd/attendance", 1},
 		{"Leave Requests", "calendar", "/hrd/leave-requests", 2},
+		{"Overtime", "clock-arrow-up", "/hrd/overtime", 3},
 		{"Evaluation", "star", "/hrd/evaluation", 5},
 		{"Recruitment", "user-plus", "/hrd/recruitment", 6},
-		{"Work Schedule", "calendar", "/hrd/work-schedule", 7},
-		{"Holidays", "calendar", "/hrd/holidays", 8},
+		{"Work Schedule", "calendar-days", "/hrd/work-schedule", 7},
+		{"Holidays", "calendar-check", "/hrd/holidays", 8},
 	}
 	for _, child := range hrdChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &hrdMenu.ID, child.order); err != nil {

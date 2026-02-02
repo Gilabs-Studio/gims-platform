@@ -48,6 +48,12 @@ import { targetsEn } from "@/features/sales/targets/i18n/en";
 import { targetsId } from "@/features/sales/targets/i18n/id";
 import { visitI18nEn } from "@/features/sales/visit/i18n/en";
 import { visitI18nId } from "@/features/sales/visit/i18n/id";
+import { hrdEn } from "@/features/hrd/i18n/en";
+import { hrdId } from "@/features/hrd/i18n/id";
+import { inventoryEn } from "@/features/stock/inventory/i18n/en";
+import { inventoryId } from "@/features/stock/inventory/i18n/id";
+import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
+import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
 
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
@@ -76,7 +82,12 @@ const messages = {
     ...commandPaletteEn,
     ...estimationEn,
     ...targetsEn,
+    ...targetsEn,
+    ...targetsEn,
     ...visitI18nEn,
+    ...hrdEn,
+    ...inventoryEn,
+    stock_opname: stockOpnameEn,
     purchaseRequisition: purchaseRequisitionEn,
   },
   id: {
@@ -101,7 +112,11 @@ const messages = {
     ...commandPaletteId,
     ...estimationId,
     ...targetsId,
+    ...targetsId,
     ...visitI18nId,
+    ...hrdId,
+    ...inventoryId,
+    stock_opname: stockOpnameId,
     purchaseRequisition: purchaseRequisitionId,
   },
 } as const;

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/gilabs/gims/api/internal/core/utils"
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesQuotationRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -41,6 +42,7 @@ type salesOrderUsecase struct {
 	orderRepo     salesRepos.SalesOrderRepository
 	quotationRepo salesQuotationRepos.SalesQuotationRepository
 	productRepo   productRepos.ProductRepository
+	inventoryUC   inventoryUsecase.InventoryUsecase
 }
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
@@ -48,11 +50,13 @@ func NewSalesOrderUsecase(
 	orderRepo salesRepos.SalesOrderRepository,
 	quotationRepo salesQuotationRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
+	inventoryUC inventoryUsecase.InventoryUsecase,
 ) SalesOrderUsecase {
 	return &salesOrderUsecase{
 		orderRepo:     orderRepo,
 		quotationRepo: quotationRepo,
 		productRepo:   productRepo,
+		inventoryUC:   inventoryUC,
 	}
 }
 
@@ -273,6 +277,13 @@ func (u *salesOrderUsecase) Delete(ctx context.Context, id string) error {
 
 	// Release stock if reserved
 	if order.ReservedStock {
+		// Release stock in inventory
+		for _, item := range order.Items {
+			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return err
+			}
+		}
+
 		if err := u.orderRepo.ReleaseStock(ctx, id); err != nil {
 			return err
 		}
@@ -299,15 +310,32 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 
 	// Handle stock reservation on confirmation
 	if newStatus == models.SalesOrderStatusConfirmed && !order.ReservedStock {
-		// Reserve stock
+		// Reserve stock for each item
+		for _, item := range order.Items {
+			if err := u.inventoryUC.ReserveStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return nil, err
+			}
+		}
+
+		// Mark as reserved in SO
 		if err := u.orderRepo.ReserveStock(ctx, id); err != nil {
+			// Rollback reservation? Ideally this should be in transaction.
+			// For now, if SO update fails, we might have inconsistent reserved count.
+			// TODO: Wrap in transaction or handle rollback
 			return nil, err
 		}
 	}
 
 	// Handle stock release on cancellation
 	if newStatus == models.SalesOrderStatusCancelled && order.ReservedStock {
-		// Release stock
+		// Release stock for each item
+		for _, item := range order.Items {
+			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return nil, err
+			}
+		}
+
+		// Mark as released in SO
 		if err := u.orderRepo.ReleaseStock(ctx, id); err != nil {
 			return nil, err
 		}
@@ -421,9 +449,17 @@ func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrd
 		},
 		models.SalesOrderStatusProcessing: {
 			models.SalesOrderStatusShipped,
+			models.SalesOrderStatusPartial,
+			models.SalesOrderStatusDelivered,
+			models.SalesOrderStatusCancelled,
+		},
+		models.SalesOrderStatusPartial: {
+			models.SalesOrderStatusProcessing, // Can go back to processing if new DO is created/shipped?
+			models.SalesOrderStatusDelivered,
 			models.SalesOrderStatusCancelled,
 		},
 		models.SalesOrderStatusShipped: {
+			models.SalesOrderStatusPartial,
 			models.SalesOrderStatusDelivered,
 		},
 		models.SalesOrderStatusDelivered: {

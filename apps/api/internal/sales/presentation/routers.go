@@ -3,6 +3,7 @@ package presentation
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
@@ -15,7 +16,7 @@ import (
 // RegisterRoutes registers all sales routes
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
-}) {
+}, invUC inventoryUsecase.InventoryUsecase) {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
 	estimationRepo := salesRepos.NewSalesEstimationRepository(db)
@@ -29,8 +30,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
 	estimationUC := usecase.NewSalesEstimationUsecase(estimationRepo, quotationRepo, productRepo)
-	orderUC := usecase.NewSalesOrderUsecase(orderRepo, quotationRepo, productRepo)
-	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo)
+	orderUC := usecase.NewSalesOrderUsecase(orderRepo, quotationRepo, productRepo, invUC)
+	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo, invUC)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(invoiceRepo, productRepo)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(yearlyTargetRepo)

@@ -20,7 +20,16 @@
     "confirm": "Confirm",
     "close": "Close",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "page": "Page",
+    "of": "of",
+    "previous": "Previous",
+    "next": "Next",
+    "deleted": "Deleted successfully",
+    "saved": "Saved successfully",
+    "showing": "Showing",
+    "entries": "entries",
+    "rowsPerPage": "Rows per page"
   },
   "notFound": {
     "label": "404",
@@ -48,6 +57,7 @@
       "rememberMe": "Remember me",
       "submit": "Sign In",
       "submitting": "Signing in...",
+      "verifyingSession": "Verifying session...",
       "rateLimitMessage": "Too many login attempts. Please try again in {countdown}."
     },
     "block": {

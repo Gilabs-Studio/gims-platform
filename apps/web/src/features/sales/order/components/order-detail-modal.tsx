@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History, PieChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { OrderForm } from "./order-form";
+import { OrderStatusBadge } from "./order-status-badge";
 import {
   useDeleteOrder,
   useUpdateOrderStatus,
@@ -26,6 +27,8 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { SalesOrder, SalesOrderSummary } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
+
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -42,6 +45,11 @@ export function OrderDetailModal({
   const updateStatus = useUpdateOrderStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  // Pagination state
+  const [itemsPage, setItemsPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  
   const t = useTranslations("order");
 
   // Fetch full detail when modal opens
@@ -59,55 +67,12 @@ export function OrderDetailModal({
   // Use detailed data if available, otherwise use passed order
   const displayOrder = detailData?.data ?? order;
   const items = (displayOrder as SalesOrder).items ?? [];
+  
+  // Client-side pagination logic
+  const totalItems = items.length;
+  const paginatedItems = items.slice((itemsPage - 1) * pageSize, itemsPage * pageSize);
 
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "confirmed":
-        return (
-          <Badge variant="default" className="text-xs font-medium bg-blue-600">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.confirmed")}
-          </Badge>
-        );
-      case "processing":
-        return (
-          <Badge variant="default" className="text-xs font-medium bg-yellow-600">
-            <Package className="h-3 w-3 mr-1.5" />
-            {t("status.processing")}
-          </Badge>
-        );
-      case "shipped":
-        return (
-          <Badge variant="default" className="text-xs font-medium bg-purple-600">
-            <Truck className="h-3 w-3 mr-1.5" />
-            {t("status.shipped")}
-          </Badge>
-        );
-      case "delivered":
-        return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.delivered")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1.5" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge className="text-xs font-medium">{status}</Badge>;
-    }
-  };
+
 
   const handleDelete = async () => {
     if (!order?.id) return;
@@ -158,7 +123,7 @@ export function OrderDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayOrder?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {order && getStatusBadge(order.status)}
+                  {order && <OrderStatusBadge status={order.status} className="text-xs font-medium" />}
                   <span className="text-sm text-muted-foreground">
                   {displayOrder?.order_date && new Date(displayOrder.order_date).toLocaleDateString()}
                   </span>
@@ -253,8 +218,8 @@ export function OrderDetailModal({
             {/* General Tab */}
             <TabsContent value="general" className="space-y-8 py-6">
               {/* Total Amount Card - Hero Section */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
-                <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+              <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
+                <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                 <div className="relative p-8">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 space-y-2">
@@ -279,7 +244,7 @@ export function OrderDetailModal({
                         </div>
                         {(displayOrder as SalesOrder).confirmed_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-blue-700 dark:text-blue-400">{t("status.confirmed")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -290,7 +255,7 @@ export function OrderDetailModal({
                         )}
                         {(displayOrder as SalesOrder).cancelled_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-400">{t("status.cancelled")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -534,7 +499,7 @@ export function OrderDetailModal({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.length === 0 ? (
+                    {paginatedItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -542,7 +507,7 @@ export function OrderDetailModal({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      items.map((item) => (
+                      paginatedItems.map((item) => (
                         <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
                           <TableCell>
                             <div>
@@ -570,6 +535,19 @@ export function OrderDetailModal({
                   </TableBody>
                 </Table>
               </div>
+
+              {totalItems > 0 && (
+                <DataTablePagination
+                  pageIndex={itemsPage}
+                  pageSize={pageSize}
+                  rowCount={totalItems}
+                  onPageChange={setItemsPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setItemsPage(1);
+                  }}
+                />
+              )}
             </TabsContent>
           </Tabs>
           )}

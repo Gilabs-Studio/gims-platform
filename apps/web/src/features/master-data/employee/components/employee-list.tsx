@@ -57,14 +57,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions } from "@/features/master-data/organization/hooks/use-job-positions";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 const STATUS_OPTIONS: EmployeeStatus[] = [
   "draft",
@@ -78,6 +71,7 @@ export function EmployeeList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [divisionFilter, setDivisionFilter] = useState<string>("");
   const [positionFilter, setPositionFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "">("");
@@ -89,7 +83,7 @@ export function EmployeeList() {
 
   const { data, isLoading, isError } = useEmployees({
     page,
-    per_page: 10,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     division_id: divisionFilter || undefined,
     job_position_id: positionFilter || undefined,
@@ -430,43 +424,17 @@ export function EmployeeList() {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              {Array.from({ length: Math.min(5, pagination.total_pages) }).map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => setPage(pageNum)}
-                      isActive={page === pageNum}
-                      className="cursor-pointer"
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => setPage((p) => Math.min(pagination.total_pages, p + 1))}
-                  className={
-                    page >= pagination.total_pages
-                      ? "pointer-events-none opacity-50"
-                      : "cursor-pointer"
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {/* Form Dialog */}

@@ -17,9 +17,7 @@ import { ChevronLeft, ChevronRight, Loader2, Plus, Clock, MapPin, CheckCircle2, 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CalendarDaySummary } from "../types";
-import { useLocale } from "next-intl";
-import { visitI18nEn } from "../i18n/en";
-import { visitI18nId } from "../i18n/id";
+import { useTranslations } from "next-intl";
 
 interface VisitCalendarViewProps {
   readonly summary: CalendarDaySummary[];
@@ -36,24 +34,7 @@ export function VisitCalendarView({
   onDateChange,
   onDateClick 
 }: VisitCalendarViewProps) {
-  const locale = useLocale();
-  const translations = locale === "id" ? visitI18nId : visitI18nEn;
-
-  const t = (key: string, params?: Record<string, string | number>) => {
-    const keys = key.split(".");
-    let value: any = translations;
-    for (const k of keys) {
-      value = value?.[k];
-    }
-    if (value === undefined) return key;
-    let str = String(value);
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        str = str.replace(`{${k}}`, String(v));
-      }
-    }
-    return str;
-  };
+  const t = useTranslations("visit");
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -65,10 +46,10 @@ export function VisitCalendarView({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "planned": return "bg-secondary text-secondary-foreground border-secondary";
-      case "in_progress": return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-      case "completed": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
-      case "cancelled": return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
+      case "planned": return "bg-secondary text-secondary-foreground border-secondary hover:bg-secondary/80";
+      case "in_progress": return "bg-blue-600 text-white border-blue-600 hover:bg-blue-600/90";
+      case "completed": return "bg-green-600 text-white border-green-600 hover:bg-green-600/90";
+      case "cancelled": return "bg-red-600 text-white border-red-600 hover:bg-red-600/90";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -158,7 +139,7 @@ export function VisitCalendarView({
                 {count === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <div className="bg-primary/90 text-primary-foreground rounded-full p-2.5 shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-200">
-                      <Plus className="h-6 w-6 stroke-[3]" />
+                      <Plus className="h-6 w-6 stroke-3" />
                     </div>
                   </div>
                 )}

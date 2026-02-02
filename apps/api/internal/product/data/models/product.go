@@ -70,6 +70,7 @@ type Product struct {
 	
 	// Stock management
 	CurrentStock      float64         `gorm:"type:decimal(15,3);default:0" json:"current_stock"`
+	ReservedStock     float64         `gorm:"type:decimal(15,3);default:0" json:"reserved_stock"`
 	MinStock          float64         `gorm:"type:decimal(15,3);default:0" json:"min_stock"`
 	MaxStock          float64         `gorm:"type:decimal(15,3);default:0" json:"max_stock"`
 	LeadTimeDays      int             `gorm:"default:0" json:"lead_time_days"`

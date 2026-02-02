@@ -9,12 +9,15 @@ import (
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
+	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
+	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
+	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
@@ -119,6 +122,17 @@ func AutoMigrate() error {
 		&sales.SalesVisitInterestQuestion{},
 		&sales.SalesVisitInterestOption{},
 		&sales.SalesVisitInterestAnswer{},
+		// HRD Attendance entities (Sprint 13)
+		&hrd.WorkSchedule{},
+		&hrd.Holiday{},
+		&hrd.AttendanceRecord{},
+		&hrd.OvertimeRequest{},
+		// Inventory entities (Sprint 9)
+		&inventory.InventoryBatch{},
+		&inventory.StockMovement{},
+		// Stock Opname entities (Sprint 9)
+		&stockOpname.StockOpname{},
+		&stockOpname.StockOpnameItem{},
 		// Purchase entities (Sprint 8)
 		&purchase.PurchaseRequisition{},
 		&purchase.PurchaseRequisitionItem{},

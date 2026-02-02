@@ -9,6 +9,7 @@ export function useLogin() {
   const router = useRouter();
   const {
     setUser,
+    setSessionVerified,
     isLoading: storeIsLoading,
     error: storeError,
     clearError,
@@ -37,13 +38,16 @@ export function useLogin() {
 
       if (response.success && response.data) {
         const { user } = response.data;
+        // setUser also sets isAuthenticated: true
         setUser(user);
+        // Mark session as verified since we just logged in successfully
+        setSessionVerified(true);
         useAuthStore.setState({
-          isAuthenticated: true,
           error: null,
         });
-        // Redirect to dashboard
-        router.push("/dashboard");
+        // Redirect to dashboard - don't set isLoading false, let redirect complete
+        router.replace("/dashboard");
+        return; // Exit early, keep loading state until redirect
       }
     } catch (err) {
       const authError = err as AuthError;
@@ -53,9 +57,8 @@ export function useLogin() {
         "Login failed";
       setError(errorMessage);
       useAuthStore.setState({ isAuthenticated: false, error: errorMessage });
-      throw err;
-    } finally {
       setIsLoading(false);
+      throw err;
     }
   };
 

@@ -20,7 +20,15 @@
     "confirm": "Konfirmasi",
     "close": "Tutup",
     "yes": "Ya",
-    "no": "Tidak"
+    "no": "Tidak",
+    "page": "Halaman",
+    "of": "dari",
+    "previous": "Sebelumnya",
+    "next": "Selanjutnya",
+    "deleted": "Berhasil dihapus",
+    "showing": "Menampilkan",
+    "entries": "kumpulan data",
+    "rowsPerPage": "Baris per halaman"
   },
   "notFound": {
     "label": "404",
@@ -48,6 +56,7 @@
       "rememberMe": "Ingat saya",
       "submit": "Masuk",
       "submitting": "Masuk...",
+      "verifyingSession": "Memverifikasi sesi...",
       "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}."
     },
     "block": {

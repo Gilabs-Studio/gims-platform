@@ -20,11 +20,14 @@ import { CityForm } from "./city-form";
 import { sortOptions } from "@/lib/utils";
 import type { City } from "../../types";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function CityList() {
   const t = useTranslations("geographic");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [provinceId, setProvinceId] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
@@ -34,7 +37,7 @@ export function CityList() {
   const provinces = provincesData?.data ?? [];
 
   const { data, isLoading, isError } = useCities({
-    page, per_page: 10, search: debouncedSearch || undefined, province_id: provinceId || undefined,
+    page, per_page: pageSize, search: debouncedSearch || undefined, province_id: provinceId || undefined,
   });
 
   const canCreate = useUserPermission("city.create");
@@ -139,7 +142,18 @@ export function CityList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (<div className="flex items-center justify-between"><p className="text-sm text-muted-foreground">{t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}</p><div className="flex gap-2"><Button variant="outline" size="sm" disabled={!pagination.has_prev} onClick={() => setPage(page - 1)} className="cursor-pointer">{t("common.previous")}</Button><Button variant="outline" size="sm" disabled={!pagination.has_next} onClick={() => setPage(page + 1)} className="cursor-pointer">{t("common.next")}</Button></div></div>)}
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
+      )}
 
       {canCreate && (<CityForm open={isFormOpen} onClose={handleFormClose} city={editingCity} provinces={provinces} />)}
       {canDelete && (

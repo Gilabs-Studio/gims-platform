@@ -29,6 +29,8 @@ import { formatCurrency } from "@/lib/utils";
 import type { SalesEstimation } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface EstimationDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -46,7 +48,7 @@ export function EstimationDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
-  const itemsPerPage = 20;
+  const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("estimation");
 
   // Fetch full detail
@@ -57,7 +59,7 @@ export function EstimationDetailModal({
   // Fetch items with pagination
   const { data: itemsData, isLoading: itemsLoading } = useEstimationItems(
     estimation?.id ?? "",
-    { page: itemsPage, per_page: itemsPerPage },
+    { page: itemsPage, per_page: pageSize },
     { enabled: open && !!estimation?.id }
   );
 
@@ -78,7 +80,7 @@ export function EstimationDetailModal({
 
   const getProbabilityBadge = (probability: number) => {
     if (probability >= 75) {
-      return <Badge variant="default" className="bg-green-600">{probability}%</Badge>;
+      return <Badge variant="success">{probability}%</Badge>;
     } else if (probability >= 50) {
       return <Badge variant="default">{probability}%</Badge>;
     } else if (probability >= 25) {
@@ -99,14 +101,14 @@ export function EstimationDetailModal({
         );
       case "submitted":
         return (
-          <Badge variant="default" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1.5" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.approved")}
           </Badge>
@@ -275,8 +277,8 @@ export function EstimationDetailModal({
             {/* General Tab */}
             <TabsContent value="general" className="space-y-8 py-6">
               {/* Total Amount Hero */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
-                <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+              <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
+                <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                 <div className="relative p-8">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 space-y-2">
@@ -308,7 +310,7 @@ export function EstimationDetailModal({
                         </div>
                         {displayEstimation.approved_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-green-700 dark:text-green-400">{t("status.approved")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -319,7 +321,7 @@ export function EstimationDetailModal({
                         )}
                         {displayEstimation.rejected_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-400">{t("status.rejected")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -335,7 +337,7 @@ export function EstimationDetailModal({
                         )}
                         {displayEstimation.converted_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <BarChart3 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <BarChart3 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-blue-700 dark:text-blue-400">{t("status.converted")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -570,31 +572,18 @@ export function EstimationDetailModal({
                     </Table>
                   </div>
 
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {t("common.page")} {itemsPage} {t("common.of")} {totalPages} ({totalItems} items)
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={!hasPrevPage || itemsLoading}
-                          onClick={() => setItemsPage(itemsPage - 1)}
-                          className="cursor-pointer"
-                        >
-                          {t("common.previous")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={!hasNextPage || itemsLoading}
-                          onClick={() => setItemsPage(itemsPage + 1)}
-                          className="cursor-pointer"
-                        >
-                          {t("common.next")}
-                        </Button>
-                      </div>
+                  {totalItems > 0 && (
+                    <div className="mt-4">
+                      <DataTablePagination
+                        pageIndex={itemsPage}
+                        pageSize={pageSize}
+                        rowCount={totalItems}
+                        onPageChange={setItemsPage}
+                        onPageSizeChange={(newSize) => {
+                          setPageSize(newSize);
+                          setItemsPage(1);
+                        }}
+                      />
                     </div>
                   )}
                 </>

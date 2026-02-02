@@ -137,14 +137,15 @@ var AppConfig *Config
 func Load() error {
 	// Load .env file if exists (for local development only)
 	// Skip .env loading in production to use Docker environment variables
-	if os.Getenv("ENV") != "production" {
+	envValue := getEnv("APP_ENV", getEnv("ENV", "development")) // Support both APP_ENV and ENV
+	if envValue != "production" {
 		_ = godotenv.Load()
 	}
 
 	AppConfig = &Config{
 		Server: ServerConfig{
 			Port:                 getEnv("PORT", "8080"),
-			Env:                  getEnv("ENV", "development"),
+			Env:                  envValue, // Use the env value we determined above
 			ReadHeaderTimeoutSec: getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
 			ReadTimeoutSec:       getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
 			WriteTimeoutSec:      getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),
@@ -156,8 +157,8 @@ func Load() error {
 			MaxMultipartMemoryBytes: getEnvAsInt64("SERVER_MAX_MULTIPART_MEMORY_BYTES", 8<<20), // 8MB
 		},
 		Startup: StartupConfig{
-			RunMigrations: getEnvAsBool("RUN_MIGRATIONS", getEnv("ENV", "development") != "production"),
-			RunSeeders:    getEnvAsBool("RUN_SEEDERS", getEnv("ENV", "development") != "production"),
+			RunMigrations: getEnvAsBool("RUN_MIGRATIONS", envValue != "production"),
+			RunSeeders:    getEnvAsBool("RUN_SEEDERS", envValue != "production"),
 		},
 		Security: SecurityConfig{
 			CSRFEnabled:         getEnvAsBool("CSRF_ENABLED", true),
@@ -318,6 +319,21 @@ func Load() error {
 		// SAFETY: Never expose debug/observability endpoints in production.
 		if AppConfig.Observability.PprofEnabled || AppConfig.Observability.MetricsEnabled {
 			return fmt.Errorf("PPROF_ENABLED and METRICS_ENABLED must be false in production")
+		}
+
+		// CRITICAL SAFETY: Never run seeders in production
+		if AppConfig.Startup.RunSeeders {
+			return fmt.Errorf("CRITICAL: RUN_SEEDERS must be false in production environment. Seeders are for development only and will corrupt production data")
+		}
+		
+		// WARNING: Manual migration approval recommended for production
+		if AppConfig.Startup.RunMigrations {
+			fmt.Println("WARNING: Auto-migrations are enabled in production. Ensure proper testing and backup procedures are in place.")
+		}
+
+		// SECURITY: Enforce SSL for database connections in production
+		if AppConfig.Database.SSLMode == "disable" {
+			return fmt.Errorf("SECURITY: DB_SSLMODE must not be 'disable' in production. Use 'require', 'verify-ca', or 'verify-full'")
 		}
 	}
 

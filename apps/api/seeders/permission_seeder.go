@@ -214,6 +214,8 @@ func SeedPermissions() error {
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.update", "Edit Delivery Orders", "EDIT", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.delete", "Delete Delivery Orders", "DELETE", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.ship", "Ship Delivery Orders", "SHIP", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.deliver", "Deliver Delivery Orders", "DELIVER", "delivery_order"},
 
 		{"/sales/invoices", "customer_invoice.read", "View Customer Invoices", "VIEW", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.create", "Create Customer Invoices", "CREATE", "customer_invoice"},
@@ -272,7 +274,10 @@ func SeedPermissions() error {
 		{"/stock/opname", "stock_opname.read", "View Stock Opname", "VIEW", "stock_opname"},
 		{"/stock/opname", "stock_opname.create", "Create Stock Opname", "CREATE", "stock_opname"},
 		{"/stock/opname", "stock_opname.update", "Edit Stock Opname", "EDIT", "stock_opname"},
+		{"/stock/opname", "stock_opname.delete", "Delete Stock Opname", "DELETE", "stock_opname"},
 		{"/stock/opname", "stock_opname.approve", "Approve Stock Opname", "APPROVE", "stock_opname"},
+		{"/stock/opname", "stock_opname.reject", "Reject Stock Opname", "REJECT", "stock_opname"},
+		{"/stock/opname", "stock_opname.post", "Post Stock Opname", "POST", "stock_opname"},
 
 		// Finance
 		{"/finance/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},
@@ -392,6 +397,13 @@ func SeedPermissions() error {
 		{"/hrd/holidays", "holiday.create", "Create Holidays", "CREATE", "holiday"},
 		{"/hrd/holidays", "holiday.update", "Edit Holidays", "EDIT", "holiday"},
 		{"/hrd/holidays", "holiday.delete", "Delete Holidays", "DELETE", "holiday"},
+
+		{"/hrd/overtime", "overtime.read", "View Overtime Requests", "VIEW", "overtime"},
+		{"/hrd/overtime", "overtime.create", "Create Overtime Requests", "CREATE", "overtime"},
+		{"/hrd/overtime", "overtime.update", "Edit Overtime Requests", "EDIT", "overtime"},
+		{"/hrd/overtime", "overtime.delete", "Delete Overtime Requests", "DELETE", "overtime"},
+		{"/hrd/overtime", "overtime.approve", "Approve Overtime Requests", "APPROVE", "overtime"},
+		{"/hrd/overtime", "overtime.reject", "Reject Overtime Requests", "REJECT", "overtime"},
 
 		// Reports
 		{"/reports", "report.view", "View Reports", "VIEW", "report"},

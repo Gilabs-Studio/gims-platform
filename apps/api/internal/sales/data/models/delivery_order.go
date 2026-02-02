@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
 
@@ -102,7 +103,7 @@ type DeliveryOrderItem struct {
 	
 	// Batch selection (FIFO/FEFO)
 	InventoryBatchID *string    `gorm:"type:uuid;index" json:"inventory_batch_id"`
-	// Note: InventoryBatch model will be in stock module, using ID reference for now
+	InventoryBatch   *inventoryModels.InventoryBatch `gorm:"foreignKey:InventoryBatchID" json:"inventory_batch,omitempty"`
 	
 	Quantity         float64   `gorm:"type:decimal(15,3);not null" json:"quantity"`
 	Price            float64   `gorm:"type:decimal(15,2);not null" json:"price"`
