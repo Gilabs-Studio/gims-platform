@@ -29,7 +29,11 @@
     "saved": "Saved successfully",
     "showing": "Showing",
     "entries": "entries",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "savedSuccessfully": "Saved successfully",
+    "passwordChangedSuccessfully": "Password changed successfully!",
+    "avatarUpdatedSuccessfully": "Avatar updated successfully!",
+    "somethingWentWrong": "Something went wrong"
   },
   "notFound": {
     "label": "404",

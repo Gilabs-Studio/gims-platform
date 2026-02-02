@@ -2,7 +2,9 @@ package handler
 
 import (
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	domainDTO "github.com/gilabs/gims/api/internal/user/domain/dto"
 	"github.com/gilabs/gims/api/internal/user/domain/usecase"
 	presentationDTO "github.com/gilabs/gims/api/internal/user/presentation/dto"
@@ -258,3 +260,207 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	response.SuccessResponseDeleted(c, "user", id, meta)
 }
+
+// UpdateProfile handles update profile request (self update)
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		errors.UnauthorizedResponse(c, "unauthorized")
+		return
+	}
+	id, ok := userIDVal.(string)
+	if !ok {
+		errors.InternalServerErrorResponse(c, "invalid user id in context")
+		return
+	}
+
+	var req domainDTO.UpdateProfileRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	updatedUser, err := h.userUC.UpdateProfile(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrUserNotFound {
+			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
+				"user_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrUserAlreadyExists {
+			errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
+				"resource": "user",
+				"field":    "email",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		UpdatedBy: id,
+	}
+
+	// Map to Presentation DTO
+	resp := presentationDTO.UserResponseDTO{
+		ID:        updatedUser.ID,
+		Name:      updatedUser.Name,
+		Email:     updatedUser.Email,
+		AvatarURL: updatedUser.AvatarURL,
+		Role: presentationDTO.RoleDTO{
+			Code: updatedUser.Role.Code,
+			Name: updatedUser.Role.Name,
+		},
+		Status:    updatedUser.Status,
+		CreatedAt: updatedUser.CreatedAt,
+	}
+
+	response.SuccessResponse(c, resp, meta)
+}
+
+// ChangePassword handles change password request
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	// Get user ID from context
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		errors.UnauthorizedResponse(c, "unauthorized")
+		return
+	}
+	id, ok := userIDVal.(string)
+	if !ok {
+		errors.InternalServerErrorResponse(c, "invalid user id in context")
+		return
+	}
+
+	var req domainDTO.ChangePasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.userUC.ChangePassword(c.Request.Context(), id, &req); err != nil {
+		if err.Error() == "invalid old password" {
+			errors.ErrorResponse(c, "INVALID_PASSWORD", map[string]interface{}{
+				"field": "old_password",
+			}, nil)
+			return
+		}
+		if err == usecase.ErrUserNotFound {
+			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
+				"user_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		UpdatedBy: id,
+	}
+
+	response.SuccessResponse(c, map[string]string{"message": "password updated successfully"}, meta)
+}
+
+// UploadAvatar handles avatar upload request
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	// Get user ID from context
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		errors.UnauthorizedResponse(c, "unauthorized")
+		return
+	}
+	id, ok := userIDVal.(string)
+	if !ok {
+		errors.InternalServerErrorResponse(c, "invalid user id in context")
+		return
+	}
+
+	// 1. Get file from request
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	defer file.Close()
+
+	// 2. Prepare upload config
+	// Default to local storage if config is missing (safety fallback)
+	uploadDir := "uploads"
+	if config.AppConfig.Storage.UploadDir != "" {
+		uploadDir = config.AppConfig.Storage.UploadDir
+	}
+	
+	baseURL := "http://localhost:8080/uploads"
+	// Use Storage.BaseURL if it's set to a full URL, otherwise we might need to construct it.
+	// For now, let's assume if Storage.BaseURL starts with http, use it, otherwise join.
+	if config.AppConfig.Storage.BaseURL != "" && len(config.AppConfig.Storage.BaseURL) > 4 && config.AppConfig.Storage.BaseURL[:4] == "http" {
+		baseURL = config.AppConfig.Storage.BaseURL
+	} else if config.AppConfig.Storage.BaseURL != "" {
+		// Just use what is configured, assuming it might be relative or absolute
+		baseURL = config.AppConfig.Storage.BaseURL
+	}
+
+	uploadConfig := utils.FileUploadConfig{
+		MaxSize:   5 * 1024 * 1024, // 5MB limit
+		UploadDir: uploadDir,
+		BaseURL:   baseURL,
+	}
+
+	// 3. Save file
+	uploadedFile, err := utils.SaveUploadedFile(file, header, uploadConfig)
+	if err != nil {
+		if err == utils.ErrFileTooLarge {
+			errors.ErrorResponse(c, "FILE_TOO_LARGE", map[string]interface{}{
+				"max_size": "5MB",
+			}, nil)
+			return
+		}
+		if err == utils.ErrInvalidFileType || err == utils.ErrInvalidImage {
+			errors.ErrorResponse(c, "INVALID_FILE_TYPE", map[string]interface{}{
+				"allowed_types": "jpg, png, gif, webp",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	// 4. Update user avatar URL
+	if err := h.userUC.UpdateAvatar(c.Request.Context(), id, uploadedFile.URL); err != nil {
+		// Try to strict cleanup if update fails
+		_ = utils.DeleteFile(uploadedFile.Filename, uploadConfig.UploadDir)
+		
+		if err == usecase.ErrUserNotFound {
+			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
+				"user_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		UpdatedBy: id,
+	}
+
+	response.SuccessResponse(c, map[string]string{
+		"avatar_url": uploadedFile.URL,
+		"filename":   uploadedFile.Filename,
+	}, meta)
+}
+

@@ -23,4 +23,14 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 		// Add permissions route
 		g.GET("/:id/permissions", middleware.RequirePermission("user.read"), ph.GetUserPermissions)
 	}
+
+	// Profile routes - separate from /users CRUD to avoid conflict with /:id and clearer intent
+	// Attach to the parent group (which is likely /api/v1)
+	p := rg.Group("/profile")
+	p.Use(middleware.AuthMiddleware(jwtManager, permService))
+	{
+		p.PUT("", h.UpdateProfile)
+		p.PUT("/password", h.ChangePassword)
+		p.POST("/avatar", h.UploadAvatar)
+	}
 }
