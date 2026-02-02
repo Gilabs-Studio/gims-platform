@@ -1,37 +1,49 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/**
+ * Proxy middleware for handling authentication routing.
+ * 
+ * IMPORTANT: Cookie presence does NOT guarantee valid session.
+ * HttpOnly cookies cannot be validated by middleware - only the backend can verify them.
+ * 
+ * This middleware only handles:
+ * 1. Root path redirect when cookies exist (for convenience)
+ * 2. Login page access - always allow (let client-side verify session)
+ * 
+ * All protected route auth is handled by client-side AuthGuard which:
+ * - Verifies session with backend on every page load
+ * - Redirects to login if session is invalid
+ * - Clears stale auth state properly
+ */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Check for the actual HttpOnly cookie set by the backend
   const accessToken = request.cookies.get("gims_access_token")?.value;
 
-  // If accessing root and already authenticated, redirect to default-locale dashboard
-  if (pathname === "/" && accessToken) {
-    const target = "/en/dashboard"; // default locale is "en"
-    return NextResponse.redirect(new URL(target, request.url));
-  }
+  // Extract locale from pathname
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const locale = pathSegments[0] === "en" || pathSegments[0] === "id" 
+    ? pathSegments[0] 
+    : "en";
 
-  // If accessing login page and already authenticated, redirect to dashboard
-  // Note: Client-side will verify session validity, but this provides faster redirect
-  // Handle both /login and /[locale]/login patterns
-  if (accessToken && pathname.includes("/login")) {
-    // Extract locale from pathname if present (e.g., /en/login -> en, /id/login -> id)
-    const pathSegments = pathname.split("/").filter(Boolean);
-    const locale = pathSegments[0] === "en" || pathSegments[0] === "id" 
-      ? pathSegments[0] 
-      : "en"; // default to "en" if no locale found
-    
+  // If accessing root and cookie exists, redirect to dashboard
+  // NOTE: Client-side AuthGuard will verify the session and redirect to login if invalid
+  if (pathname === "/" && accessToken) {
     const target = `/${locale}/dashboard`;
     return NextResponse.redirect(new URL(target, request.url));
   }
 
-  // If accessing protected routes without token, let client-side handle redirect
-  // Don't redirect here to avoid redirect loops and let client handle auth state
-  // Client-side will check localStorage and redirect if needed
+  // CRITICAL: Do NOT redirect from login page based on cookie presence alone
+  // The cookie might be invalid (e.g., after server restart)
+  // Let the login page's client-side logic handle the redirect if session is actually valid
+  // This prevents the redirect loop when cookies exist but session is invalid
 
-  // For protected routes, let client-side handle auth
-  // This prevents flash of login page during hard refresh
+  // For all other routes, let client-side handle auth
+  // The AuthGuard component will:
+  // 1. Show loading state while verifying session
+  // 2. Redirect to login if session is invalid
+  // 3. Clear stale localStorage/cookies if needed
   return NextResponse.next();
 }
 

@@ -10,6 +10,7 @@ import { fullAuthCleanup } from "../utils/clear-auth-cookies";
  * This handles cases where:
  * - Cookies exist but localStorage was cleared
  * - localStorage says authenticated but cookies are expired/invalid
+ * - Backend restarted and invalidated all sessions
  *
  * States:
  * - isLoading: true while verifying session (show loading UI)
@@ -28,6 +29,8 @@ export function useAuthGuard() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  // Track if we've completed verification (success or failure)
+  const [verificationComplete, setVerificationComplete] = useState(false);
   const hasAttemptedVerification = useRef(false);
 
   // Mark as hydrated after first render (Zustand rehydration complete)
@@ -37,8 +40,9 @@ export function useAuthGuard() {
 
   // Verify session with backend - ALWAYS runs on protected routes
   const verifySession = useCallback(async () => {
-    // Skip if already verified in this session
+    // Skip if already verified in this session (store level)
     if (isSessionVerified) {
+      setVerificationComplete(true);
       return;
     }
 
@@ -69,15 +73,18 @@ export function useAuthGuard() {
 
       // Don't logout on rate limit (429) - let user retry later
       if (axiosError?.response?.status === 429) {
-        // Still mark as attempted so we don't infinite loop
-        return;
+        // Still mark verification as complete so UI doesn't hang
+        // User can try again after rate limit expires
+      } else {
+        // Session invalid - clear auth state completely AND clear cookies
+        logout();
+        await fullAuthCleanup();
       }
-
-      // Session invalid - clear auth state completely AND clear cookies
-      logout();
-      await fullAuthCleanup();
     } finally {
       setIsVerifying(false);
+      // Always mark verification as complete, even on failure
+      // This allows the UI to proceed (redirect to login or show content)
+      setVerificationComplete(true);
     }
   }, [
     isSessionVerified,
@@ -90,18 +97,18 @@ export function useAuthGuard() {
   // ALWAYS run session verification when hydrated on protected routes
   // This ensures we verify even if localStorage was cleared but cookies exist
   useEffect(() => {
-    if (isHydrated && !isSessionVerified && !isVerifying) {
+    if (isHydrated && !isSessionVerified && !isVerifying && !verificationComplete) {
       verifySession();
     }
-  }, [isHydrated, isSessionVerified, isVerifying, verifySession]);
+  }, [isHydrated, isSessionVerified, isVerifying, verificationComplete, verifySession]);
 
   /**
    * Determine loading state:
    * - Not hydrated yet (SSR/initial load)
    * - Currently verifying with backend
-   * - Not yet verified (waiting for verification to complete)
+   * - Verification not yet complete
    */
-  const isLoading = !isHydrated || isVerifying || !isSessionVerified;
+  const isLoading = !isHydrated || isVerifying || !verificationComplete;
 
   /**
    * Only consider authenticated if:
@@ -116,5 +123,6 @@ export function useAuthGuard() {
     isLoading,
     user,
     isSessionVerified,
+    verificationComplete,
   };
 }
