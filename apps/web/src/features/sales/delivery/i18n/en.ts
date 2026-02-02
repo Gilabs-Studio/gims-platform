@@ -36,6 +36,10 @@ export const deliveryEn = {
       select: "Select",
       selectDate: "Select date",
       validating: "Validating...",
+      product: "Product",
+      quantity: "Quantity",
+      batch: "Batch",
+      totalAmount: "Total Amount",
     },
 
     // Tabs

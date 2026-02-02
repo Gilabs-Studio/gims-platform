@@ -142,6 +142,7 @@ type DeliveryOrderItemResponse struct {
 	ProductID           string            `json:"product_id"`
 	Product             *ProductResponse  `json:"product,omitempty"`
 	InventoryBatchID    *string           `json:"inventory_batch_id"`
+	InventoryBatch      *BatchInfo        `json:"inventory_batch,omitempty"`
 	Quantity            float64           `json:"quantity"`
 	Price               float64           `json:"price"`
 	Subtotal            float64           `json:"subtotal"`

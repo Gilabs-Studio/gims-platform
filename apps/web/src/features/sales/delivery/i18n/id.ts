@@ -36,6 +36,10 @@ export const deliveryId = {
       select: "Pilih",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
+      product: "Produk",
+      quantity: "Jumlah",
+      batch: "Batch",
+      totalAmount: "Total Jumlah",
     },
 
     // Tabs

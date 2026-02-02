@@ -46,6 +46,7 @@ func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*mod
 		Preload("CourierAgency").
 		Preload("Items.Product").
 		Preload("Items.SalesOrderItem").
+		Preload("Items.InventoryBatch").
 		Where("id = ?", id).
 		First(&deliveryOrder).Error
 	if err != nil {
@@ -63,6 +64,7 @@ func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (
 		Preload("CourierAgency").
 		Preload("Items.Product").
 		Preload("Items.SalesOrderItem").
+		Preload("Items.InventoryBatch").
 		Where("code = ?", code).
 		First(&deliveryOrder).Error
 	if err != nil {
@@ -313,6 +315,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 			return db.Select("id", "code", "name", "selling_price", "image_url")
 		}).
 		Preload("SalesOrderItem").
+		Preload("InventoryBatch").
 		Where("delivery_order_id = ?", deliveryOrderID).
 		Order("created_at ASC").
 		Limit(perPage).
