@@ -2,7 +2,7 @@
 FROM golang:1.25.4-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git build-base libwebp-dev
 
 # Set working directory
 WORKDIR /app
@@ -17,13 +17,13 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/api/main.go
+RUN CGO_ENABLED=1 GOOS=linux go build -o server ./cmd/api/main.go
 
 # Final stage
 FROM alpine:latest
 
 # Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates libwebp
 
 WORKDIR /root/
 

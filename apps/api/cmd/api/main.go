@@ -54,6 +54,7 @@ import (
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
+	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 )
 
 func main() {
@@ -260,6 +261,9 @@ func main() {
 
 		// Sales module (Sprint 5 - Sales Quotation)
 		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Purchase module (Sprint 8 - Purchase Requisitions)
+		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

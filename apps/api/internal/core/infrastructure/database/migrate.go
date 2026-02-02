@@ -16,6 +16,7 @@ import (
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -118,6 +119,9 @@ func AutoMigrate() error {
 		&sales.SalesVisitInterestQuestion{},
 		&sales.SalesVisitInterestOption{},
 		&sales.SalesVisitInterestAnswer{},
+		// Purchase entities (Sprint 8)
+		&purchase.PurchaseRequisition{},
+		&purchase.PurchaseRequisitionItem{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
