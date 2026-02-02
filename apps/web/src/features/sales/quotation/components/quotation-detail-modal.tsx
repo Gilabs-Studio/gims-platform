@@ -91,14 +91,14 @@ export function QuotationDetailModal({
         );
       case "sent":
         return (
-          <Badge variant="default" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1.5" />
             {t("status.sent")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.approved")}
           </Badge>
@@ -287,8 +287,8 @@ export function QuotationDetailModal({
             {/* General Tab */}
             <TabsContent value="general" className="space-y-8 py-6">
               {/* Total Amount Card - Hero Section */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
-                <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+              <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
+                <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                 <div className="relative p-8">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 space-y-2">
@@ -313,7 +313,7 @@ export function QuotationDetailModal({
                         </div>
                         {displayQuotation.approved_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-green-700 dark:text-green-400">{t("status.approved")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -324,7 +324,7 @@ export function QuotationDetailModal({
                         )}
                         {displayQuotation.rejected_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-400">{t("status.rejected")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
@@ -340,7 +340,7 @@ export function QuotationDetailModal({
                         )}
                         {displayQuotation.converted_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <FileText className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <FileText className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-blue-700 dark:text-blue-400">{t("status.converted")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">

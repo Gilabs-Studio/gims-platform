@@ -101,14 +101,14 @@ export function QuotationList() {
         );
       case "sent":
         return (
-          <Badge variant="default">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.sent")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>

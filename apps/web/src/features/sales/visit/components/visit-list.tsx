@@ -173,9 +173,9 @@ export function VisitList() {
       case "planned":
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> {t("statusPlanned")}</Badge>;
       case "in_progress":
-        return <Badge variant="default" className="bg-blue-600"><MapPin className="h-3 w-3 mr-1" /> {t("statusInProgress")}</Badge>;
+        return <Badge variant="info"><MapPin className="h-3 w-3 mr-1" /> {t("statusInProgress")}</Badge>;
       case "completed":
-        return <Badge variant="default" className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> {t("statusCompleted")}</Badge>;
+        return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> {t("statusCompleted")}</Badge>;
       case "cancelled":
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> {t("statusCancelled")}</Badge>;
       default:

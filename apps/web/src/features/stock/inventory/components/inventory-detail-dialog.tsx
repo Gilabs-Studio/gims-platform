@@ -95,13 +95,13 @@ export function InventoryDetailDialog({
   const getStatusBadge = (status: string) => {
       switch (status) {
         case "ok":
-          return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> OK</Badge>;
+          return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> OK</Badge>;
         case "low_stock":
-          return <Badge className="bg-yellow-500"><AlertTriangle className="h-3 w-3 mr-1" /> Low Stock</Badge>;
+          return <Badge variant="warning"><AlertTriangle className="h-3 w-3 mr-1" /> Low Stock</Badge>;
         case "out_of_stock":
           return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Out of Stock</Badge>;
         case "overstock":
-          return <Badge variant="secondary"><Package className="h-3 w-3 mr-1" /> Overstock</Badge>;
+          return <Badge variant="info"><Package className="h-3 w-3 mr-1" /> Overstock</Badge>;
         default:
           return <Badge variant="outline">{status}</Badge>;
       }

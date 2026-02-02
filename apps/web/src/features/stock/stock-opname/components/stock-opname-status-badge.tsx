@@ -13,14 +13,14 @@ export function StockOpnameStatusBadge({ status }: Props) {
   switch (status) {
     case "draft":
       return (
-        <Badge variant="secondary" className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">
+        <Badge variant="secondary">
           <FileText className="h-3 w-3 mr-1" />
           {t("draft")}
         </Badge>
       );
     case "pending":
       return (
-        <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
+        <Badge variant="warning">
           <Clock className="h-3 w-3 mr-1" />
           {t("pending")}
         </Badge>
@@ -34,7 +34,7 @@ export function StockOpnameStatusBadge({ status }: Props) {
       );
     case "posted":
       return (
-        <Badge className="bg-primary hover:bg-primary/90">
+        <Badge variant="info">
           <Archive className="h-3 w-3 mr-1" />
           {t("posted")}
         </Badge>
@@ -50,7 +50,7 @@ export function StockOpnameStatusBadge({ status }: Props) {
         // Fallback for unexpected statuses
         if (status === 'canceled' as any) {
              return (
-                <Badge variant="secondary" className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20">
+                <Badge variant="secondary">
                     <Ban className="h-3 w-3 mr-1" />
                     {t("canceled")}
                 </Badge>

@@ -169,21 +169,21 @@ export function DeliveryList() {
         );
       case "prepared":
         return (
-          <Badge variant="default" className="bg-yellow-600">
+          <Badge variant="warning">
             <Package className="h-3 w-3 mr-1" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="bg-purple-600">
+          <Badge variant="info">
             <Truck className="h-3 w-3 mr-1" />
             {t("status.shipped")}
           </Badge>
         );
       case "delivered":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.delivered")}
           </Badge>

@@ -94,7 +94,7 @@ export function EstimationList() {
 
   const getProbabilityBadge = (probability: number) => {
     if (probability >= 75) {
-      return <Badge variant="default" className="bg-green-600">{probability}%</Badge>;
+      return <Badge variant="success">{probability}%</Badge>;
     } else if (probability >= 50) {
       return <Badge variant="default">{probability}%</Badge>;
     } else if (probability >= 25) {
@@ -115,14 +115,14 @@ export function EstimationList() {
         );
       case "submitted":
         return (
-          <Badge variant="default">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>

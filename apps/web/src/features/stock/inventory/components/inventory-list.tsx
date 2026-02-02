@@ -55,24 +55,38 @@ export function InventoryList() {
   const pagination = data?.data?.meta;
 
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { color: string; icon: any; label: string }> = {
-      ok: { color: "bg-green-600 hover:bg-green-600", icon: CheckCircle2, label: t("status.ok") },
-      low_stock: { color: "bg-yellow-500 hover:bg-yellow-600", icon: AlertTriangle, label: t("status.lowStock") },
-      out_of_stock: { color: "bg-red-600 hover:bg-red-600", icon: XCircle, label: t("status.outOfStock") },
-      overstock: { color: "bg-blue-600 hover:bg-blue-600", icon: Package, label: t("status.overstock") },
-    };
-
-    const statusConfig = config[status];
-    if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
-
-    const Icon = statusConfig.icon;
-
-    return (
-      <Badge className={`${statusConfig.color} text-white gap-1`}>
-        <Icon className="h-3 w-3" />
-        {statusConfig.label}
-      </Badge>
-    );
+    switch (status) {
+      case "ok":
+        return (
+          <Badge variant="success" className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {t("status.ok")}
+          </Badge>
+        );
+      case "low_stock":
+        return (
+          <Badge variant="warning" className="gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {t("status.lowStock")}
+          </Badge>
+        );
+      case "out_of_stock":
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="h-3 w-3" />
+            {t("status.outOfStock")}
+          </Badge>
+        );
+      case "overstock":
+        return (
+          <Badge variant="info" className="gap-1">
+            <Package className="h-3 w-3" />
+            {t("status.overstock")}
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   if (isError) {

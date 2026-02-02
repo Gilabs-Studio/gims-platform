@@ -105,21 +105,21 @@ export function DeliveryDetailModal({
         );
       case "prepared":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-yellow-600">
+          <Badge variant="warning" className="text-xs font-medium">
             <Package className="h-3 w-3 mr-1.5" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-purple-600">
+          <Badge variant="info" className="text-xs font-medium">
             <Truck className="h-3 w-3 mr-1.5" />
             {t("status.shipped")}
           </Badge>
         );
       case "delivered":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.delivered")}
           </Badge>

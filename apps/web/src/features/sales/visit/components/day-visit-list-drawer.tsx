@@ -51,9 +51,9 @@ export function DayVisitListDrawer({
       case "planned":
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> Planned</Badge>;
       case "in_progress":
-        return <Badge className="bg-blue-600"><MapPin className="h-3 w-3 mr-1" /> In Progress</Badge>;
+        return <Badge variant="info"><MapPin className="h-3 w-3 mr-1" /> In Progress</Badge>;
       case "completed":
-        return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
+        return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
       case "cancelled":
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Cancelled</Badge>;
       default:

@@ -110,14 +110,14 @@ export function InvoiceDetailModal({
         );
       case "partial":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-amber-600">
+          <Badge variant="warning" className="text-xs font-medium">
             <DollarSign className="h-3 w-3 mr-1.5" />
             {t("status.partial")}
           </Badge>
         );
       case "paid":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.paid")}
           </Badge>
@@ -312,7 +312,7 @@ export function InvoiceDetailModal({
                           {t("common.workflow")}
                         </div>
                         <div className="flex items-start gap-2.5 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-green-700 dark:text-green-400">{t("paidAt")}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">

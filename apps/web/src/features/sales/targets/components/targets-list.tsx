@@ -152,14 +152,14 @@ export function TargetsList() {
         );
       case "submitted":
         return (
-          <Badge variant="outline" className="font-medium text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+          <Badge variant="info" className="font-medium">
             <Clock className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="font-medium bg-green-600 hover:bg-green-700">
+          <Badge variant="success" className="font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>

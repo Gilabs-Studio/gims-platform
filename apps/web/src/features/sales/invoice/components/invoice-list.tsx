@@ -120,14 +120,14 @@ export function InvoiceList() {
         );
       case "partial":
         return (
-          <Badge variant="default" className="bg-amber-600">
+          <Badge variant="warning">
             <DollarSign className="h-3 w-3 mr-1" />
             {t("status.partial")}
           </Badge>
         );
       case "paid":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.paid")}
           </Badge>
