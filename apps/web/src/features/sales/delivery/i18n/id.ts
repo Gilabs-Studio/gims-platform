@@ -143,10 +143,20 @@ export const deliveryId = {
       invalidMethod: "Metode harus FIFO atau FEFO",
       insufficientStock: "Stok tidak mencukupi",
     },
+    // Dialogs
+    dialogs: {
+      uploadProofDescription: "Mohon unggah foto dokumen pengiriman yang sudah ditandatangani atau bukti pengiriman.",
+    },
+
     // Workflow timestamps
     shippedAt: "Dikirim Pada",
     deliveredAt: "Terkirim Pada",
     cancelledAt: "Dibatalkan Pada",
     cancellationReason: "Alasan Pembatalan",
+
+    // Placeholders
+    placeholders: {
+      receiverName: "Masukkan nama penerima",
+    },
   },
 };

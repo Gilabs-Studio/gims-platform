@@ -431,7 +431,7 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 	}
 
 	// Mark as delivered
-	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature); err != nil {
+	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
 		return nil, err
 	}
 

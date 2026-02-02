@@ -17,7 +17,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetailModal } from "./delivery-detail-modal";
+
 import { ShipDialog } from "./ship-dialog";
+import { DeliverDialog } from "./deliver-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder, SalesOrderSummary } from "../../order/types";
@@ -34,7 +36,9 @@ export function DeliveryList() {
   const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(null);
   const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | SalesOrderSummary | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
+  const [deliverDeliveryId, setDeliverDeliveryId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
@@ -133,16 +137,22 @@ export function DeliveryList() {
 
   // handleShip moved above to set state
 
-  const handleDeliver = async (id: string) => {
-    // TODO: Implement signature capture in Sprint 9
-    const signature = prompt(t("common.enterSignature") + ":");
-    if (!signature) return;
+  const handleDeliver = (id: string) => {
+    setDeliverDeliveryId(id);
+  };
+
+  const handleDeliverConfirm = async ({ signatureUrl, receiverName }: { signatureUrl: string; receiverName: string }) => {
+    if (!deliverDeliveryId) return;
     try {
       await deliverDelivery.mutateAsync({
-        id,
-        data: { receiver_signature: signature },
+        id: deliverDeliveryId,
+        data: { 
+          receiver_signature: signatureUrl,
+          receiver_name: receiverName,
+        },
       });
       toast.success(t("statusUpdated"));
+      setDeliverDeliveryId(null);
     } catch {
       toast.error(t("common.error"));
     }
@@ -429,6 +439,15 @@ export function DeliveryList() {
         onOpenChange={(open) => !open && setShipDeliveryId(null)}
         onConfirm={handleShipConfirm}
         isLoading={shipDelivery.isPending}
+        initialTrackingNumber={deliveries.find(d => d.id === shipDeliveryId)?.tracking_number}
+      />
+
+      <DeliverDialog
+        open={!!deliverDeliveryId}
+        onOpenChange={(open) => !open && setDeliverDeliveryId(null)}
+        onConfirm={handleDeliverConfirm}
+        isLoading={deliverDelivery.isPending}
+        initialReceiverName={deliveries.find(d => d.id === deliverDeliveryId)?.receiver_name}
       />
     </div>
   );

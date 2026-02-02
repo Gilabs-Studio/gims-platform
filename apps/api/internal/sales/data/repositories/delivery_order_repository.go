@@ -21,7 +21,7 @@ type DeliveryOrderRepository interface {
 	GetNextDeliveryNumber(ctx context.Context, prefix string) (string, error)
 	UpdateStatus(ctx context.Context, id string, status models.DeliveryOrderStatus, userID *string, reason *string) error
 	Ship(ctx context.Context, id string, userID *string, trackingNumber string) error
-	Deliver(ctx context.Context, id string, userID *string, receiverSignature string) error
+	Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error
 }
 
 type deliveryOrderRepository struct {
@@ -40,6 +40,7 @@ func (r *deliveryOrderRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*models.DeliveryOrder, error) {
 	var deliveryOrder models.DeliveryOrder
 	err := r.getDB(ctx).
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
@@ -56,6 +57,7 @@ func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*mod
 func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (*models.DeliveryOrder, error) {
 	var deliveryOrder models.DeliveryOrder
 	err := r.getDB(ctx).
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
@@ -131,6 +133,7 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 
 	// Execute query with preloads
 	err := query.
+		Preload("Warehouse").
 		Preload("SalesOrder").
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
@@ -264,12 +267,13 @@ func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *s
 		Updates(updates).Error
 }
 
-func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string) error {
+func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
 		"status":            models.DeliveryOrderStatusDelivered,
 		"delivered_at":      now,
 		"receiver_signature": receiverSignature,
+		"receiver_name":      receiverName,
 	}
 
 	return r.getDB(ctx).Model(&models.DeliveryOrder{}).

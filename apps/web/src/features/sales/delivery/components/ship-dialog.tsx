@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface ShipDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (trackingNumber: string) => Promise<void>;
   isLoading: boolean;
+  initialTrackingNumber?: string;
 }
 
 export function ShipDialog({
@@ -27,9 +28,22 @@ export function ShipDialog({
   onOpenChange,
   onConfirm,
   isLoading,
+  initialTrackingNumber = "",
 }: ShipDialogProps) {
   const t = useTranslations("delivery");
-  const [trackingNumber, setTrackingNumber] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber);
+
+  // Update state when initialTrackingNumber changes or dialog opens
+  if (open && trackingNumber === "" && initialTrackingNumber !== "" && trackingNumber !== initialTrackingNumber) {
+     setTrackingNumber(initialTrackingNumber);
+  }
+
+  // Effect to reset or set initial value when dialog opens
+  useEffect(() => {
+    if (open) {
+      setTrackingNumber(initialTrackingNumber || "");
+    }
+  }, [open, initialTrackingNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

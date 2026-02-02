@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ShipDialog } from "./ship-dialog";
-import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, FileText, Clock, Info, History, DollarSign, Warehouse, MapPin, Phone, User, Calendar } from "lucide-react";
+import { DeliverDialog } from "./deliver-dialog";
+import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, FileText, Clock, Info, History, DollarSign, Warehouse, MapPin, Phone, User, Calendar, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,12 +29,38 @@ import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, resolveImageUrl } from "@/lib/utils";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly delivery: DeliveryOrder | null;
+}
+
+function SignaturePreview({ url, onClick }: { url?: string; onClick: () => void }) {
+  const [error, setError] = useState(false);
+
+  if (!url || error) {
+    return (
+      <div className="rounded-lg border overflow-hidden bg-muted/20 w-full aspect-video flex items-center justify-center text-muted-foreground/50">
+        <ImageOff className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="rounded-lg border overflow-hidden bg-muted/20 w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" 
+      onClick={onClick}
+    >
+      <img 
+        src={url}
+        alt="Proof of Delivery" 
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+      />
+    </div>
+  );
 }
 
 export function DeliveryDetailModal({
@@ -48,6 +75,7 @@ export function DeliveryDetailModal({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
+  const [isDeliverDialogOpen, setIsDeliverDialogOpen] = useState(false);
   const t = useTranslations("delivery");
 
   // Fetch full detail when modal opens
@@ -67,7 +95,6 @@ export function DeliveryDetailModal({
   const items = displayDelivery.items ?? [];
 
   const getStatusBadge = (status?: string) => {
-    // ... (existing code)
     switch (status) {
       case "draft":
         return (
@@ -141,16 +168,21 @@ export function DeliveryDetailModal({
   };
 
   const handleDeliver = async () => {
+    setIsDeliverDialogOpen(true);
+  };
+
+  const handleDeliverConfirm = async ({ signatureUrl, receiverName }: { signatureUrl: string; receiverName: string }) => {
     if (!delivery?.id) return;
-    // TODO: Implement signature capture in Sprint 9
-    const signature = prompt(t("common.enterSignature") + ":");
-    if (!signature) return;
     try {
       await deliverDelivery.mutateAsync({
         id: delivery.id,
-        data: { receiver_signature: signature },
+        data: { 
+          receiver_signature: signatureUrl, 
+          receiver_name: receiverName 
+        },
       });
       toast.success(t("statusUpdated"));
+      setIsDeliverDialogOpen(false);
     } catch (error) {
       console.error("Failed to deliver order:", error);
       toast.error(t("common.error"));
@@ -310,7 +342,22 @@ export function DeliveryDetailModal({
                         </p>
                       )}
                     </div>
-                    {(displayDelivery.shipped_at || displayDelivery.delivered_at || displayDelivery.cancelled_at) && (
+                    {(displayDelivery.shipped_at || displayDelivery.delivered_at || displayDelivery.cancelled_at || displayDelivery.receiver_signature) && (
+                      <div className="flex gap-4">
+                        {displayDelivery.receiver_signature && (
+                           <div className="flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-xl p-4 border shadow-sm min-w-[200px]">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                              <FileText className="h-3.5 w-3.5" />
+                              {t("receiverSignature")}
+                            </div>
+                            <SignaturePreview 
+                              url={resolveImageUrl(displayDelivery.receiver_signature)} 
+                              onClick={() => window.open(resolveImageUrl(displayDelivery.receiver_signature), '_blank')}
+                            />
+                          </div>
+                        )}
+
+                        {(displayDelivery.shipped_at || displayDelivery.delivered_at || displayDelivery.cancelled_at) && (
                       <div className="flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-xl p-4 border shadow-sm min-w-[200px]">
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                           <History className="h-3.5 w-3.5" />
@@ -352,7 +399,9 @@ export function DeliveryDetailModal({
                       </div>
                     )}
                   </div>
+                )}
                 </div>
+              </div>
               </div>
 
               {/* Main Content Grid */}
@@ -404,7 +453,7 @@ export function DeliveryDetailModal({
                     </div>
                     <div className="p-6 space-y-5">
                       {/* Receiver Info */}
-                      {(displayDelivery.receiver_name || displayDelivery.receiver_phone || displayDelivery.delivery_address) && (
+                      {(displayDelivery.receiver_name || displayDelivery.receiver_phone || displayDelivery.delivery_address || displayDelivery.receiver_signature) && (
                         <div className="space-y-4">
                           <div className="flex items-start gap-3">
                             <div className="p-2 rounded-lg bg-primary/10">
@@ -432,6 +481,7 @@ export function DeliveryDetailModal({
                               </div>
                             </div>
                           )}
+
                         </div>
                       )}
                       
@@ -617,6 +667,15 @@ export function DeliveryDetailModal({
         onOpenChange={setIsShipDialogOpen}
         onConfirm={handleShipConfirm}
         isLoading={shipDelivery.isPending}
+        initialTrackingNumber={displayDelivery?.tracking_number}
+      />
+
+      <DeliverDialog
+        open={isDeliverDialogOpen}
+        onOpenChange={setIsDeliverDialogOpen}
+        onConfirm={handleDeliverConfirm}
+        isLoading={deliverDelivery.isPending}
+        initialReceiverName={displayDelivery?.receiver_name}
       />
     </>
   );

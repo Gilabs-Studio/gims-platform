@@ -72,7 +72,8 @@ type ShipDeliveryOrderRequest struct {
 
 // DeliverDeliveryOrderRequest represents the request to mark delivery order as delivered
 type DeliverDeliveryOrderRequest struct {
-	ReceiverSignature string  `json:"receiver_signature"`
+	ReceiverSignature string  `json:"receiver_signature" binding:"required"`
+	ReceiverName      string  `json:"receiver_name" binding:"required"`
 }
 
 // BatchSelectionRequest represents the request for batch selection (FIFO/FEFO)

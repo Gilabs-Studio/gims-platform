@@ -143,11 +143,21 @@ export const deliveryEn = {
       invalidMethod: "Method must be FIFO or FEFO",
       insufficientStock: "Insufficient stock available",
     },
+    // Dialogs
+    dialogs: {
+      uploadProofDescription: "Please upload a photo of the signed delivery document or proof of delivery.",
+    },
+
     // Workflow timestamps
     shippedAt: "Shipped At",
     deliveredAt: "Delivered At",
     cancelledAt: "Cancelled At",
     cancellationReason: "Cancellation Reason",
+
+    // Placeholders
+    placeholders: {
+      receiverName: "Enter receiver name",
+    },
   },
 };
 
