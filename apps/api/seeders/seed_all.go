@@ -122,7 +122,12 @@ func SeedAll() error {
 	if err := SeedHolidays(); err != nil {
 		return err
 	}
-	
+
+	// HRD - Leave Requests seeder (Sprint 13)
+	if err := SeedLeaveRequests(); err != nil {
+		return err
+	}
+
 	// Stock Movement seeder (Sprint 9)
 	if err := SeedStockMovement(); err != nil {
 		return err
@@ -135,4 +140,3 @@ func SeedAll() error {
 
 	return nil
 }
-

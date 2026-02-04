@@ -27,8 +27,10 @@ type EmployeeListParams struct {
 type EmployeeRepository interface {
 	Create(ctx context.Context, employee *models.Employee) error
 	FindByID(ctx context.Context, id string) (*models.Employee, error)
+	FindByIDs(ctx context.Context, ids []string) ([]models.Employee, error)
 	FindByCode(ctx context.Context, code string) (*models.Employee, error)
 	FindByUserID(ctx context.Context, userID string) (*models.Employee, error)
+	FindAll(ctx context.Context) ([]models.Employee, error)
 	List(ctx context.Context, params EmployeeListParams) ([]models.Employee, int64, error)
 	Update(ctx context.Context, employee *models.Employee) error
 	Delete(ctx context.Context, id string) error
@@ -64,6 +66,20 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 	return &employee, nil
 }
 
+func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.WithContext(ctx).
+		Preload("Division").
+		Preload("JobPosition").
+		Preload("Company").
+		Where("id IN ?", ids).
+		Find(&employees).Error
+	if err != nil {
+		return nil, err
+	}
+	return employees, nil
+}
+
 func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*models.Employee, error) {
 	var employee models.Employee
 	err := r.db.WithContext(ctx).
@@ -88,6 +104,18 @@ func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*
 		return nil, err
 	}
 	return &employee, nil
+}
+
+func (r *employeeRepository) FindAll(ctx context.Context) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.WithContext(ctx).
+		Where("is_active = ?", true).
+		Order("name ASC").
+		Find(&employees).Error
+	if err != nil {
+		return nil, err
+	}
+	return employees, nil
 }
 
 func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams) ([]models.Employee, int64, error) {

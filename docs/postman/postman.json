@@ -1,10 +1,10 @@
 {
-  "info": {
-    "name": "Enterprise API Template",
-    "description": "Enterprise-level API with optimized RBAC and response structure",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "postman"
-  },
+	"info": {
+		"name": "Enterprise API Template",
+		"description": "Enterprise-level API with optimized RBAC and response structure",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "postman"
+	},
 	"item": [
 		{
 			"name": "Auth",
@@ -45,12 +45,13 @@
 							"script": {
 								"exec": [
 									"// Extract CSRF token from cookies",
-									"const cookie = pm.cookies.get(\"csrf_token\");",
+									"const cookie = pm.cookies.get(\"gims_csrf_token\");",
 									"if (cookie) {",
 									"    pm.environment.set(\"csrf_token\", cookie);",
-									"    console.log(\"CSRF Token extracted:\", cookie);",
+									"    console.log(\"✅ CSRF Token extracted:\", cookie);",
+									"    console.log(\"You can now call the Login endpoint.\");",
 									"} else {",
-									"    console.warn(\"CSRF Cookie not found\");",
+									"    console.warn(\"⚠️ CSRF Cookie not found. Check if CSRF middleware is enabled.\");",
 									"}"
 								],
 								"type": "text/javascript"
@@ -76,6 +77,25 @@
 				{
 					"name": "Auth Login",
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Extract CSRF token from cookies",
+									"const csrfToken = pm.cookies.get(\"gims_csrf_token\");",
+									"",
+									"if (csrfToken) {",
+									"    // Set CSRF token in environment for header usage",
+									"    pm.environment.set(\"csrf_token\", csrfToken);",
+									"    console.log(\"CSRF Token extracted from cookie:\", csrfToken);",
+									"} else {",
+									"    console.warn(\"⚠️ CSRF token not found in cookies.\");",
+									"    console.warn(\"Please call 'Get CSRF Token' endpoint first to initialize CSRF cookie.\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
@@ -105,12 +125,8 @@
 							{
 								"key": "X-CSRF-Token",
 								"value": "{{csrf_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Cookie",
-								"value": "csrf_token={{csrf_token}}",
-								"type": "text"
+								"type": "text",
+								"description": "CSRF token extracted from gims_csrf_token cookie"
 							}
 						],
 						"body": {
@@ -2585,6 +2601,439 @@
 									]
 								},
 								"description": "Get pending overtime notifications for polling. Requires `overtime.approve` permission.\n\nUsed by frontend to show notification badge for pending approvals."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Leave Requests",
+					"description": "Leave request management with approval workflow and balance tracking",
+					"item": [
+						{
+							"name": "Submit Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"leave_type_id\": \"{{leave_type_id}}\",\n  \"start_date\": \"2026-02-10\",\n  \"end_date\": \"2026-02-12\",\n  \"duration\": \"MULTI_DAY\",\n  \"reason\": \"Family vacation - Need to attend family gathering\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests"
+									]
+								},
+								"description": "Submit leave request. No special permission required (self-service).\n\n**Validations:**\n- Working days calculation (excludes weekends & holidays)\n- Balance check (if leave type cuts annual leave)\n- Overlap detection (no pending requests for same dates)\n\n**Error Codes:**\n- `INSUFFICIENT_LEAVE_BALANCE` (422) - Not enough quota\n- `OVERLAPPING_LEAVE_REQUEST` (409) - Pending request exists\n- `LEAVE_TYPE_NOT_FOUND` (404) - Invalid leave type\n- `INVALID_DATE_RANGE` (400) - start_date > end_date or no working days"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Employee Leave Balance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/balance/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										"balance",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}"
+										}
+									]
+								},
+								"description": "Get leave balance for an employee. IDOR protected (only own balance or with approval permission).\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employee_id\": \"770e8400-e29b-41d4-a716-446655440003\",\n    \"total_quota\": 12,\n    \"used_days\": 5,\n    \"remaining_balance\": 7,\n    \"carry_over_balance\": 0,\n    \"total_available_leave\": 7,\n    \"pending_requests_days\": 3\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										"form-data"
+									]
+								},
+								"description": "Get dropdown data for leave request form (employees and leave types). No special permission required.\n\n**Use Case:** Populate dropdowns in leave request form.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\"\n      }\n    ],\n    \"leave_types\": [\n      {\n        \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Annual Leave\",\n        \"code\": \"AL\",\n        \"max_days\": 12\n      }\n    ]\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "List Leave Requests",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests?page=1&per_page=20&status=pending",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "pending"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "leave_type_id",
+											"value": "{{leave_type_id}}",
+											"disabled": true
+										},
+										{
+											"key": "start_date_from",
+											"value": "2024-01-01",
+											"disabled": true
+										},
+										{
+											"key": "start_date_to",
+											"value": "2024-12-31",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List leave requests with filters. Requires `leave_request.read` permission or shows own requests.\n\n**Filters:**\n- `employee_id` - Filter by employee (optional, defaults to current user)\n- `status` - PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)\n- `start_date` - Filter by start date (YYYY-MM-DD)\n- `end_date` - Filter by end date (YYYY-MM-DD)\n\n**Pagination:**\n- Max `per_page`: 100 (enforced)\n- Default: 20\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"employee_name\": \"John Doe\",\n      \"leave_type\": \"Annual Leave\",\n      \"start_date\": \"2026-02-10\",\n      \"end_date\": \"2026-02-12\",\n      \"duration\": \"MULTI_DAY\",\n      \"total_days\": 3.0,\n      \"status\": \"PENDING\",\n      \"note\": \"Family vacation\",\n      \"created_at\": \"2026-02-04T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-04T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3\n    }\n  }\n}\n```\n\n**Note:** Response now includes `employee_name` and `leave_type` strings instead of IDs for better readability."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Leave Request By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Get leave request by ID with full details. Requires `leave_request.read` permission or own request.\n\n**IDOR Protection:** Employee can only view own requests unless has `leave_request.read` permission.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n      \"name\": \"John Doe\",\n      \"email\": \"john@example.com\",\n      \"phone\": \"08123456789\",\n      \"employee_code\": \"EMP-001\"\n    },\n    \"leave_type\": {\n      \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n      \"name\": \"Annual Leave\",\n      \"code\": \"AL\",\n      \"description\": \"Annual paid leave\",\n      \"max_days\": 12,\n      \"is_paid\": true,\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"APPROVED\",\n    \"note\": \"Family vacation\",\n    \"rejection_note\": null,\n    \"approved_by\": \"990e8400-e29b-41d4-a716-446655440005\",\n    \"approved_at\": \"2026-02-05T14:30:00+07:00\",\n    \"is_carry_over\": false,\n    \"remaining_carry_over\": 0.0,\n    \"carry_over_expiry_date\": null,\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_by\": \"770e8400-e29b-41d4-a716-446655440003\",\n    \"updated_by\": \"990e8400-e29b-41d4-a716-446655440005\"\n  }\n}\n```\n\n**Note:** Response now includes full nested `employee` and `leave_type` objects instead of just IDs."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Updated reason - Family event\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Update leave request. Only requester can update and only if status is `pending`.\n\n**Partial Update:** All fields optional. Only provided fields will be updated.\n\n**Restrictions:**\n- Only status `pending` can be updated\n- Only requester can update (IDOR protection)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Delete leave request (soft delete). Only requester can delete and only if status is `pending`.\n\n**Soft Delete:** Record is marked as deleted but retained for audit trail.\n\n**Restrictions:**\n- Only status `pending` can be deleted\n- Only requester can delete (IDOR protection)"
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"approval_notes\": \"Approved - team coverage arranged\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/approve",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Approve leave request. Requires `leave_request.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets approved_by, approved_at\n- Leave balance is NOT deducted here (real-time calculation)\n\n**Restrictions:**\n- Only status `pending` can be approved\n- Cannot approve own request (self-approval prevention)\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-approval attempt or no permission\n- `CANNOT_APPROVE_NON_PENDING` (400) - Status not pending"
+							},
+							"response": []
+						},
+						{
+							"name": "Reject Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"rejection_notes\": \"Insufficient team coverage during requested period\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/reject",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Reject leave request with reason. Requires `leave_request.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE)\n- Sets rejected_by, rejected_at\n- rejection_notes is REQUIRED (min 10 characters)\n\n**Restrictions:**\n- Only status `pending` can be rejected\n- Cannot reject own request\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-rejection attempt or no permission\n- `VALIDATION_ERROR` (400) - rejection_notes missing or too short"
 							},
 							"response": []
 						}
