@@ -21,10 +21,10 @@ import (
 )
 
 var (
-	ErrInvalidFileType   = errors.New("invalid file type")
-	ErrFileTooLarge      = errors.New("file too large")
-	ErrInvalidImage      = errors.New("invalid image file")
-	ErrFileProcessing    = errors.New("error processing file")
+	ErrInvalidFileType = errors.New("invalid file type")
+	ErrFileTooLarge    = errors.New("file too large")
+	ErrInvalidImage    = errors.New("invalid image file")
+	ErrFileProcessing  = errors.New("error processing file")
 )
 
 // AllowedImageTypes defines allowed MIME types for image uploads
@@ -44,12 +44,12 @@ type FileUploadConfig struct {
 
 // UploadedFile represents an uploaded file
 type UploadedFile struct {
-	Filename    string // Generated filename (UUID-based)
+	Filename     string // Generated filename (UUID-based)
 	OriginalName string // Original filename from upload
-	Path        string // Full path to saved file
-	URL         string // Public URL to access file
-	Size        int64  // File size in bytes
-	MimeType    string // MIME type
+	Path         string // Full path to saved file
+	URL          string // Public URL to access file
+	Size         int64  // File size in bytes
+	MimeType     string // MIME type
 }
 
 // ValidateImageFile validates file type, size, and content
@@ -165,12 +165,12 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config 
 	url := fmt.Sprintf("%s/%s", strings.TrimSuffix(config.BaseURL, "/"), filename)
 
 	return &UploadedFile{
-		Filename:    filename,
+		Filename:     filename,
 		OriginalName: header.Filename,
-		Path:        fullPath,
-		URL:         url,
-		Size:        int64(len(webpData)),
-		MimeType:    "image/webp",
+		Path:         fullPath,
+		URL:          url,
+		Size:         int64(len(webpData)),
+		MimeType:     "image/webp",
 	}, nil
 }
 

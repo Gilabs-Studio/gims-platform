@@ -274,6 +274,87 @@ Kolom export (header):
 
 ---
 
+## 6A) Menu & Actions (UI) — apa saja dan fungsinya
+Bagian ini memetakan “menu/aksi” yang umumnya tampil di UI modul PR berdasarkan kemampuan endpoint yang tersedia di backend.
+
+### Aksi utama (umumnya ada di halaman List PR)
+- **Lihat daftar PR (List / Browse)**
+  - Fungsi: menampilkan PR dengan pagination, pencarian, sort, filter tanggal.
+  - Backend: `GET /purchase-requisitions`
+  - Output UI: tabel/list PR + meta pagination.
+
+- **Search & Filter**
+  - Fungsi: mencari PR berdasarkan kode/catatan/alamat (string) atau id/supplier/payment terms/business unit/requested_by (numeric); filter `request_date`.
+  - Backend: `GET /purchase-requisitions` (query params `search`, `search_by`, `start_date`, `end_date`, `sort_by`, `sort_order`)
+  - Catatan: karena `request_date` disimpan string, format tanggal harus konsisten.
+
+- **View Detail (Open / Detail)**
+  - Fungsi: melihat PR detail termasuk item dan relasi (supplier, terms, BU, user).
+  - Backend: `GET /purchase-requisitions/:id`
+
+- **Create PR (New / Create Draft)**
+  - Fungsi: membuat PR baru dalam status `DRAFT`.
+  - Backend:
+    - `GET /purchase-requisitions/add` untuk data dropdown (supplier, products grouped by supplier, payment terms, business units, employees)
+    - `POST /purchase-requisitions` untuk menyimpan draft
+  - Dampak status: `DRAFT`
+  - Audit log: `create`
+
+- **Edit PR (Update Draft)**
+  - Fungsi: mengubah header PR + mengganti seluruh items (replace items).
+  - Backend: `PUT /purchase-requisitions/:id`
+  - Prasyarat: (secara implementasi) update endpoint akan memaksa status kembali `DRAFT`.
+  - Dampak status: selalu menjadi `DRAFT` setelah update
+  - Audit log: `update`
+
+- **Approve**
+  - Fungsi: menyetujui PR agar siap dikonversi menjadi PO.
+  - Backend: `POST /purchase-requisitions/:id/approve`
+  - Prasyarat status: harus `DRAFT`
+  - Dampak status: `APPROVED`
+  - Audit log: `approve`
+
+- **Reject**
+  - Fungsi: menolak PR.
+  - Backend: `POST /purchase-requisitions/:id/reject`
+  - Prasyarat status: harus `DRAFT`
+  - Dampak status: `REJECTED`
+  - Audit log: `reject`
+
+- **Convert to PO (Konversi PR → PO)**
+  - Fungsi: membuat Purchase Order berdasarkan PR dan mengunci PR sebagai sudah dikonversi.
+  - Backend: `POST /purchase-requisitions/:id/convert`
+  - Prasyarat status: harus `APPROVED`
+  - Dampak status: `CONVERTED` + membuat record PO baru dengan `purchase_requisitions_id`
+  - Audit log: `convert`
+  - Catatan integrasi: di modul PO juga ada jalur “Create from PR” (mengubah PR jadi `CONVERTED`).
+
+- **Delete (Hapus PR)**
+  - Fungsi: menghapus PR dan itemnya.
+  - Backend: `DELETE /purchase-requisitions/:id`
+  - Audit log: `delete`
+
+- **Export**
+  - Fungsi: mengunduh daftar PR sesuai filter/search/sort ke format tertentu (default excel).
+  - Backend: `GET /purchase-requisitions/export?format=...`
+  - Catatan: export yang tersedia adalah level PR (bukan per-item per baris).
+
+### Aksi pendukung (umumnya ada di halaman Detail PR)
+- **Audit Trail (Riwayat Perubahan)**
+  - Fungsi: melihat histori aksi (create/update/approve/reject/convert/delete) dengan before/after JSON.
+  - Backend: `GET /purchase-requisitions/:id/audit-trail?page=...&limit=...`
+
+### Aksi yang biasanya dikontrol UI (tanpa endpoint khusus)
+- **Enable/Disable tombol berdasarkan status**
+  - Draft: boleh Edit, Approve, Reject, Delete
+  - Approved: boleh Convert (dan biasanya tidak boleh Edit)
+  - Rejected: biasanya hanya View/Audit (kalau ingin bisa “re-open”, perlu endpoint baru)
+  - Converted: biasanya hanya View/Audit (PR sudah ter-link ke PO)
+
+Jika Anda meniru modul ini di project lain, bagian status-based button state ini penting agar UX tidak memicu error “can only approve draft…” dll.
+
+---
+
 ## 7) Kode dokumen PR (code generation)
 PR code di-generate dalam bentuk:
 - `PR{YEAR}{NNNN}`

@@ -239,11 +239,15 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
 
 		// Purchase
-		{"/purchase/requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 
 		{"/purchase/orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
 		{"/purchase/orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},

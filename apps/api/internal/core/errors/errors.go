@@ -146,6 +146,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	},
 
 	// System Errors
+	"NOT_IMPLEMENTED": {
+		HTTPStatus: http.StatusNotImplemented,
+		Message:    "This feature is not implemented yet",
+	},
 	"INTERNAL_SERVER_ERROR": {
 		HTTPStatus: http.StatusInternalServerError,
 		Message:    "An internal server error occurred. Our team has been notified",

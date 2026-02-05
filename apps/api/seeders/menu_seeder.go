@@ -353,7 +353,7 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Requisitions", "clipboard-list", "/purchase/requisitions", 1},
+		{"Requisitions", "clipboard-list", "/purchase/purchase-requisitions", 1},
 		{"Purchase Orders", "file-text", "/purchase/orders", 2},
 		{"Goods Receipt", "package", "/purchase/goods-receipt", 3},
 		{"Supplier Invoices", "receipt", "/purchase/invoices", 4},

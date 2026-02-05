@@ -73,6 +73,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Purchase Requisition seeder (Sprint 8)
+	if err := SeedPurchaseRequisition(); err != nil {
+		return err
+	}
+
 	// Sales Estimation seeder (Sprint 8)
 	if err := SeedSalesEstimation(); err != nil {
 		return err
