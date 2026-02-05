@@ -32,6 +32,8 @@ import { soSourceEn } from "@/features/master-data/payment-and-couriers/so-sourc
 import { soSourceId } from "@/features/master-data/payment-and-couriers/so-source/i18n/id";
 import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
+import { leaveRequestEn } from "@/features/hrd/leave-request/i18n/en";
+import { leaveRequestId } from "@/features/hrd/leave-request/i18n/id";
 import { quotationEn } from "@/features/sales/quotation/i18n/en";
 import { quotationId } from "@/features/sales/quotation/i18n/id";
 import { orderEn } from "@/features/sales/order/i18n/en";
@@ -74,6 +76,7 @@ const messages = {
     courierAgency: courierAgencyEn,
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
+    ...leaveRequestEn,
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
@@ -104,6 +107,7 @@ const messages = {
     courierAgency: courierAgencyId,
     soSource: soSourceId,
     leaveType: leaveTypeId,
+    ...leaveRequestId,
     ...quotationId,
     ...orderId,
     ...deliveryId,

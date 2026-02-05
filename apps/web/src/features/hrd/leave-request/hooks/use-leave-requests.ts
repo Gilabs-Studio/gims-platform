@@ -1,0 +1,196 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { leaveRequestService } from "../services/leave-request-service";
+import type {
+  LeaveRequest,
+  LeaveRequestFilters,
+  CreateLeaveRequestPayload,
+  UpdateLeaveRequestPayload,
+  ApproveLeaveRequestPayload,
+  RejectLeaveRequestPayload,
+  LeaveRequestsResponse,
+} from "../types";
+
+// Query keys factory
+export const leaveRequestKeys = {
+  all: ["leave-requests"] as const,
+  lists: () => [...leaveRequestKeys.all, "list"] as const,
+  list: (filters?: LeaveRequestFilters) =>
+    [...leaveRequestKeys.lists(), filters] as const,
+  details: () => [...leaveRequestKeys.all, "detail"] as const,
+  detail: (id: string) => [...leaveRequestKeys.details(), id] as const,
+  formData: () => [...leaveRequestKeys.all, "form-data"] as const,
+  myBalance: () => [...leaveRequestKeys.all, "my-balance"] as const,
+  employeeBalance: (employeeId: string) =>
+    [...leaveRequestKeys.all, "employee-balance", employeeId] as const,
+};
+
+// Query hooks
+export function useLeaveRequests(filters?: LeaveRequestFilters) {
+  return useQuery({
+    queryKey: leaveRequestKeys.list(filters),
+    queryFn: () => leaveRequestService.getLeaveRequests(filters),
+  });
+}
+
+export function useLeaveRequest(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: leaveRequestKeys.detail(id),
+    queryFn: () => leaveRequestService.getLeaveRequestById(id),
+    enabled: options?.enabled,
+  });
+}
+
+export function useLeaveFormData() {
+  return useQuery({
+    queryKey: leaveRequestKeys.formData(),
+    queryFn: () => leaveRequestService.getFormData(),
+  });
+}
+
+export function useMyLeaveBalance() {
+  return useQuery({
+    queryKey: leaveRequestKeys.myBalance(),
+    queryFn: () => leaveRequestService.getMyLeaveBalance(),
+  });
+}
+
+export function useEmployeeLeaveBalance(employeeId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: leaveRequestKeys.employeeBalance(employeeId),
+    queryFn: () => leaveRequestService.getEmployeeLeaveBalance(employeeId),
+    enabled: options?.enabled,
+  });
+}
+
+// Mutation hooks
+export function useCreateLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateLeaveRequestPayload) =>
+      leaveRequestService.createLeaveRequest(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useUpdateLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateLeaveRequestPayload }) =>
+      leaveRequestService.updateLeaveRequest(id, data),
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: leaveRequestKeys.detail(variables.id),
+      });
+    },
+  });
+}
+
+export function useDeleteLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => leaveRequestService.deleteLeaveRequest(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useApproveLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ApproveLeaveRequestPayload }) =>
+      leaveRequestService.approveLeaveRequest(id, data),
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: leaveRequestKeys.lists() });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueriesData({
+        queryKey: leaveRequestKeys.lists(),
+      });
+
+      // Optimistically update all list queries
+      queryClient.setQueriesData<LeaveRequestsResponse>({ queryKey: leaveRequestKeys.lists() }, (old) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((item: LeaveRequest) =>
+            item.id === id
+              ? { ...item, status: "APPROVED" as const }
+              : item
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useRejectLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: RejectLeaveRequestPayload }) =>
+      leaveRequestService.rejectLeaveRequest(id, data),
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: leaveRequestKeys.lists() });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueriesData({
+        queryKey: leaveRequestKeys.lists(),
+      });
+
+      // Optimistically update all list queries
+      queryClient.setQueriesData<LeaveRequestsResponse>({ queryKey: leaveRequestKeys.lists() }, (old) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((item: LeaveRequest) =>
+            item.id === id
+              ? { ...item, status: "REJECTED" as const }
+              : item
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}

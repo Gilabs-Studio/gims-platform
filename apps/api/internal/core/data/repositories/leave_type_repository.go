@@ -11,6 +11,8 @@ import (
 type LeaveTypeRepository interface {
 	Create(ctx context.Context, leaveType *models.LeaveType) error
 	FindByID(ctx context.Context, id string) (*models.LeaveType, error)
+	FindByIDs(ctx context.Context, ids []string) ([]models.LeaveType, error)
+	FindAll(ctx context.Context) ([]models.LeaveType, error)
 	List(ctx context.Context, params ListParams) ([]models.LeaveType, int64, error)
 	Update(ctx context.Context, leaveType *models.LeaveType) error
 	Delete(ctx context.Context, id string) error
@@ -36,6 +38,29 @@ func (r *leaveTypeRepository) FindByID(ctx context.Context, id string) (*models.
 		return nil, err
 	}
 	return &leaveType, nil
+}
+
+func (r *leaveTypeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.LeaveType, error) {
+	var leaveTypes []models.LeaveType
+	err := r.db.WithContext(ctx).
+		Where("id IN ?", ids).
+		Find(&leaveTypes).Error
+	if err != nil {
+		return nil, err
+	}
+	return leaveTypes, nil
+}
+
+func (r *leaveTypeRepository) FindAll(ctx context.Context) ([]models.LeaveType, error) {
+	var leaveTypes []models.LeaveType
+	err := r.db.WithContext(ctx).
+		Where("is_active = ?", true).
+		Order("name ASC").
+		Find(&leaveTypes).Error
+	if err != nil {
+		return nil, err
+	}
+	return leaveTypes, nil
 }
 
 func (r *leaveTypeRepository) List(ctx context.Context, params ListParams) ([]models.LeaveType, int64, error) {

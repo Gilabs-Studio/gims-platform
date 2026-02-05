@@ -112,6 +112,14 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Pipeline stage not found",
 	},
+	"LEAVE_REQUEST_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Leave request not found",
+	},
+	"EMPLOYEE_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Employee not found",
+	},
 	"CONFLICT": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Conflict with current state",
@@ -143,6 +151,28 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"OPPORTUNITY_CREATION_FAILED": {
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Failed to create opportunity",
+	},
+
+	// HRD - Leave Request Errors
+	"INSUFFICIENT_LEAVE_BALANCE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Insufficient leave balance for this request",
+	},
+	"OVERLAPPING_LEAVE_REQUEST": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Leave request overlaps with existing request",
+	},
+	"INVALID_DATE_FORMAT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid date format. Use YYYY-MM-DD",
+	},
+	"INVALID_STATUS": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid leave request status for this operation",
+	},
+	"INVALID_DURATION": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid leave duration type",
 	},
 
 	// System Errors
