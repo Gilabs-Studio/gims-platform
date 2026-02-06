@@ -2722,7 +2722,7 @@
 										"form-data"
 									]
 								},
-								"description": "Get dropdown data for leave request form (employees and leave types). No special permission required.\n\n**Use Case:** Populate dropdowns in leave request form.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\"\n      }\n    ],\n    \"leave_types\": [\n      {\n        \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Annual Leave\",\n        \"code\": \"AL\",\n        \"max_days\": 12\n      }\n    ]\n  }\n}\n```"
+								"description": "Get dropdown data for leave request form (employees with codes and balances, leave types). Requires `leave.read` permission.\n\n**Use Case:** Populate dropdowns in leave request form and display available balance for each employee.\n\n**Changes (v2.0):**\n- Added `employee_code` field to employee objects\n- Removed `email` field from employee objects\n- Added `remaining_balance` field to each employee object (total_quota - used_leave)\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n        \"name\": \"John Doe\",\n        \"employee_code\": \"EMP001\",\n        \"remaining_balance\": 7.0\n      },\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Jane Smith\",\n        \"employee_code\": \"EMP002\",\n        \"remaining_balance\": 12.0\n      }\n    ],\n    \"leave_types\": [\n      {\n        \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Annual Leave\",\n        \"code\": \"AL\",\n        \"max_days\": 12\n      }\n    ]\n  }\n}\n```\n\n**Note:** Each employee includes their `remaining_balance` for easy reference when creating leave requests."
 							},
 							"response": []
 						},
@@ -2764,6 +2764,12 @@
 											"value": "pending"
 										},
 										{
+											"key": "search",
+											"value": "john",
+											"description": "Search by employee name, leave type, or reason (case-insensitive)",
+											"disabled": true
+										},
+										{
 											"key": "employee_id",
 											"value": "{{employee_id}}",
 											"disabled": true
@@ -2785,7 +2791,7 @@
 										}
 									]
 								},
-								"description": "List leave requests with filters. Requires `leave_request.read` permission or shows own requests.\n\n**Filters:**\n- `employee_id` - Filter by employee (optional, defaults to current user)\n- `status` - PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)\n- `start_date` - Filter by start date (YYYY-MM-DD)\n- `end_date` - Filter by end date (YYYY-MM-DD)\n\n**Pagination:**\n- Max `per_page`: 100 (enforced)\n- Default: 20\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"employee_name\": \"John Doe\",\n      \"leave_type\": \"Annual Leave\",\n      \"start_date\": \"2026-02-10\",\n      \"end_date\": \"2026-02-12\",\n      \"duration\": \"MULTI_DAY\",\n      \"total_days\": 3.0,\n      \"status\": \"PENDING\",\n      \"note\": \"Family vacation\",\n      \"created_at\": \"2026-02-04T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-04T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3\n    }\n  }\n}\n```\n\n**Note:** Response now includes `employee_name` and `leave_type` strings instead of IDs for better readability."
+								"description": "List leave requests with filters. Requires `leave.read` permission.\n\n**Filters:**\n- `search` - Search by employee name, leave type, or reason (NEW - uses GIN indexes)\n- `employee_id` - Filter by employee (optional)\n- `status` - PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)\n- `start_date` - Filter by start date (YYYY-MM-DD)\n- `end_date` - Filter by end date (YYYY-MM-DD)\n\n**Pagination:**\n- Max `per_page`: 100 (enforced)\n- Default: 20\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"employee_name\": \"John Doe\",\n      \"leave_type\": \"Annual Leave\",\n      \"start_date\": \"2026-02-10\",\n      \"end_date\": \"2026-02-12\",\n      \"duration\": \"MULTI_DAY\",\n      \"total_days\": 3.0,\n      \"status\": \"PENDING\",\n      \"note\": \"Family vacation\",\n      \"created_at\": \"2026-02-04T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-04T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3\n    }\n  }\n}\n```\n\n**Note:** Response now includes `employee_name` and `leave_type` strings instead of IDs for better readability."
 							},
 							"response": []
 						},
@@ -3033,7 +3039,64 @@
 										}
 									]
 								},
-								"description": "Reject leave request with reason. Requires `leave_request.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE)\n- Sets rejected_by, rejected_at\n- rejection_notes is REQUIRED (min 10 characters)\n\n**Restrictions:**\n- Only status `pending` can be rejected\n- Cannot reject own request\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-rejection attempt or no permission\n- `VALIDATION_ERROR` (400) - rejection_notes missing or too short"
+								"description": "Reject leave request with reason. Requires `leave.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE)\n- Sets rejected_by, rejected_at\n- rejection_notes is REQUIRED (min 10 characters)\n\n**Restrictions:**\n- Only status `pending` can be rejected\n- Cannot reject own request\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-rejection attempt or no permission\n- `VALIDATION_ERROR` (400) - rejection_notes missing or too short"
+							},
+							"response": []
+						},
+						{
+							"name": "Cancel Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"cancellation_note\": \"Employee changed vacation plans\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/cancel",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"cancel"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Cancel a leave request. Requires `leave.approve` permission (only HR/approvers can cancel).\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets status to CANCELLED, records cancellation details\n- Frees up leave balance if leave type cuts annual leave\n- cancellation_note is OPTIONAL but recommended for audit trail\n\n**Restrictions:**\n- Only status `PENDING` or `APPROVED` can be cancelled\n- Cannot cancel REJECTED or already CANCELLED requests\n\n**Request Body (Optional):**\n```json\n{\n  \"cancellation_note\": \"Reason for cancellation\"\n}\n```\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"emp123\",\n      \"name\": \"John Doe\",\n      \"employee_code\": \"EMP001\"\n    },\n    \"leave_type\": {\n      \"id\": \"lt456\",\n      \"name\": \"Annual Leave\",\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"CANCELLED\",\n    \"note\": \"Family vacation\",\n    \"cancellation_note\": \"Employee changed vacation plans\",\n    \"cancelled_by\": \"550e8400-e29b-41d4-a716-446655440002\",\n    \"cancelled_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-05T14:30:00+07:00\",\n  \"request_id\": \"req_cancel_456\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - No `leave.approve` permission\n- `NOT_FOUND` (404) - Leave request not found\n- `INVALID_STATUS` (400) - Cannot cancel from current status (must be PENDING or APPROVED)"
 							},
 							"response": []
 						}

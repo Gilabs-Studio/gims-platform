@@ -173,11 +173,11 @@ Each feature in `apps/web/src/features/<feature>/` follows:
 
 ## Development Commands
 ```bash
-pnpm dev                    # Run all apps
-pnpm dev --filter=web       # Frontend only (localhost:3000)
-pnpm dev --filter=api       # Backend via Docker (localhost:8080)
-pnpm build                  # Build all
-pnpm lint && pnpm type-check
+npx pnpm dev                    # Run all apps
+npx pnpm dev --filter=web       # Frontend only (localhost:3000)
+npx pnpm dev --filter=api       # Backend via Docker (localhost:8080)
+npx pnpm build                  # Build all
+npx pnpm lint && npx pnpm type-check
 ```
 
 ### Database (Docker Compose uses port 5434)
@@ -539,10 +539,10 @@ Info tentang coverage dan cara run tests.
 cd apps/api && go test ./internal/hrd/...
 
 # Frontend unit tests
-cd apps/web && pnpm test leave
+cd apps/web && npx pnpm test leave
 
 # E2E tests
-cd apps/web && pnpm test:e2e hrd
+cd apps/web && npx pnpm test:e2e hrd
 ```
 ```
 

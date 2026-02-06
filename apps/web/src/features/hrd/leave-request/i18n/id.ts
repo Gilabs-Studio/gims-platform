@@ -72,6 +72,7 @@ export const leaveRequestId = {
       employee: {
         label: "Karyawan",
         placeholder: "Pilih karyawan",
+        daysRemaining: "hari tersisa",
         required: "Karyawan wajib diisi",
       },
       leaveType: {
@@ -122,6 +123,10 @@ export const leaveRequestId = {
         min: "Catatan penolakan minimal {count} karakter",
         max: "Catatan penolakan maksimal {count} karakter",
       },
+      cancellationNote: {
+        label: "Catatan Pembatalan (Opsional)",
+        placeholder: "Masukkan alasan pembatalan...",
+      },
     },
     balance: {
       title: "Saldo Cuti",
@@ -144,6 +149,8 @@ export const leaveRequestId = {
       approveError: "Gagal menyetujui permintaan cuti",
       rejectError: "Gagal menolak permintaan cuti",
       cancelError: "Gagal membatalkan permintaan cuti",
+      loadingFormData: "Memuat data formulir...",
+      loadingEditData: "Memuat data permintaan cuti...",
     },
     errors: {
       fetchFailed: "Gagal memuat permintaan cuti",
@@ -177,6 +184,12 @@ export const leaveRequestId = {
       description: "Silakan berikan alasan untuk menolak permintaan cuti ini.",
       confirm: "Tolak",
       cancel: "Batal",
+    },
+    cancelDialog: {
+      title: "Batalkan Permintaan Cuti",
+      description: "Apakah Anda yakin ingin membatalkan permintaan cuti ini? Tindakan ini tidak dapat dibatalkan.",
+      confirm: "Batalkan Permintaan",
+      cancel: "Tutup",
     },
   },
 };

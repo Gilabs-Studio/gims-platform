@@ -249,6 +249,32 @@ func (h *LeaveRequestHandler) Reject(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
+// Cancel handles POST /api/v1/hrd/leave-requests/:id/cancel
+func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	var req dto.CancelLeaveRequestDTO
+	_ = c.ShouldBindJSON(&req) // Allow empty body (cancellation note is optional)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Cancel(c.Request.Context(), id, &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // handleUsecaseError maps usecase errors to appropriate HTTP responses
 func handleUsecaseError(c *gin.Context, err error) {
 	errMsg := err.Error()

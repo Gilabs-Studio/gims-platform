@@ -5,10 +5,13 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/textarea";
+import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 import {
   Edit,
@@ -22,7 +25,7 @@ import {
   FileText,
   Award,
 } from "lucide-react";
-import { useLeaveRequest, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest } from "../hooks/use-leave-requests";
+import { useLeaveRequest, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest, useCancelLeaveRequest } from "../hooks/use-leave-requests";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { LeaveRequestForm } from "./leave-request-form";
 import type { LeaveRequest } from "../types";
@@ -42,6 +45,8 @@ export function LeaveRequestDetailModal({
   const t = useTranslations("leaveRequest");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancellationNote, setCancellationNote] = useState("");
 
   // Fetch full detail with nested objects
   const { data: detailData, isLoading } = useLeaveRequest(
@@ -56,6 +61,7 @@ export function LeaveRequestDetailModal({
   const deleteLeaveRequest = useDeleteLeaveRequest();
   const approveMutation = useApproveLeaveRequest();
   const rejectMutation = useRejectLeaveRequest();
+  const cancelMutation = useCancelLeaveRequest();
 
   if (!leaveRequest) return null;
 
@@ -134,6 +140,22 @@ export function LeaveRequestDetailModal({
     }
   };
 
+  const handleCancel = async () => {
+    if (!leaveRequest?.id) return;
+    try {
+      await cancelMutation.mutateAsync({
+        id: leaveRequest.id,
+        data: { cancellation_note: cancellationNote || undefined },
+      });
+      toast.success(t("messages.cancelSuccess"));
+      setIsCancelDialogOpen(false);
+      setCancellationNote("");
+      onClose();
+    } catch {
+      toast.error(t("messages.cancelError"));
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -198,6 +220,18 @@ export function LeaveRequestDetailModal({
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
+                {((leaveRequest?.status?.toUpperCase() === "PENDING") || (leaveRequest?.status?.toUpperCase() === "APPROVED")) && canApprove && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCancelDialogOpen(true)}
+                    disabled={cancelMutation.isPending}
+                    className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    title={t("actions.cancel")}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </DialogHeader>
@@ -235,8 +269,8 @@ export function LeaveRequestDetailModal({
               {/* General Tab */}
               <TabsContent value="general" className="space-y-8 py-6">
                 {/* Summary Card */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
-                  <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+                <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
+                  <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                   <div className="relative p-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="flex flex-col">
@@ -403,8 +437,8 @@ export function LeaveRequestDetailModal({
 
                 {/* Approval Information */}
                 {isDetailedData && "approved_by" in displayLeaveRequest && displayLeaveRequest.approved_by && (
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/10 via-green-500/5 to-background border border-green-500/20 shadow-sm">
-                    <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+                  <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-green-500/10 via-green-500/5 to-background border border-green-500/20 shadow-sm">
+                    <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 rounded-lg bg-green-500/10">
@@ -429,8 +463,8 @@ export function LeaveRequestDetailModal({
 
                 {/* Rejection Information */}
                 {isDetailedData && "rejection_note" in displayLeaveRequest && displayLeaveRequest.rejection_note && (
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500/10 via-red-500/5 to-background border border-red-500/20 shadow-sm">
-                    <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+                  <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-red-500/10 via-red-500/5 to-background border border-red-500/20 shadow-sm">
+                    <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 rounded-lg bg-red-500/10">
@@ -456,7 +490,7 @@ export function LeaveRequestDetailModal({
                       <div className="p-2 rounded-full bg-primary text-primary-foreground">
                         <FileText className="h-4 w-4" />
                       </div>
-                      <div className="w-px h-full bg-border min-h-[40px]" />
+                      <div className="w-px h-full bg-border min-h-10" />
                     </div>
                     <div className="flex-1 pb-8">
                       <p className="font-medium">{t("timeline.created")}</p>
@@ -470,7 +504,7 @@ export function LeaveRequestDetailModal({
                         <div className="p-2 rounded-full bg-blue-500 text-white">
                           <Edit className="h-4 w-4" />
                         </div>
-                        <div className="w-px h-full bg-border min-h-[40px]" />
+                        <div className="w-px h-full bg-border min-h-10" />
                       </div>
                       <div className="flex-1 pb-8">
                         <p className="font-medium">{t("timeline.updated")}</p>
@@ -485,7 +519,7 @@ export function LeaveRequestDetailModal({
                         <div className="p-2 rounded-full bg-green-500 text-white">
                           <CheckCircle2 className="h-4 w-4" />
                         </div>
-                        <div className="w-px h-full bg-border min-h-[40px]" />
+                        <div className="w-px h-full bg-border min-h-10" />
                       </div>
                       <div className="flex-1 pb-8">
                         <p className="font-medium">{t("timeline.approved")}</p>
@@ -535,6 +569,48 @@ export function LeaveRequestDetailModal({
         description={t("deleteDialog.description")}
         isLoading={deleteLeaveRequest.isPending}
       />
+
+      {/* Cancel Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("cancelDialog.title")}</DialogTitle>
+            <DialogDescription>{t("cancelDialog.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Field>
+              <FieldLabel>{t("form.cancellationNote.label")}</FieldLabel>
+              <Textarea
+                value={cancellationNote}
+                onChange={(e) => setCancellationNote(e.target.value)}
+                placeholder={t("form.cancellationNote.placeholder")}
+                rows={4}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCancelDialogOpen(false);
+                setCancellationNote("");
+              }}
+            >
+              {t("cancelDialog.cancel")}
+            </Button>
+            <Button
+              onClick={handleCancel}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? (
+                <ButtonLoading loading>{t("cancelDialog.confirm")}</ButtonLoading>
+              ) : (
+                t("cancelDialog.confirm")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -3,7 +3,7 @@
 
 /* eslint-disable react-hooks/incompatible-library */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -37,17 +37,18 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
   const t = useTranslations("leaveRequest");
   const createLeaveRequest = useCreateLeaveRequest();
   const updateLeaveRequest = useUpdateLeaveRequest();
+  const [isFormReady, setIsFormReady] = useState(false);
 
-  // Fetch full leave request data when editing
-  const { data: fullLeaveRequestData, isLoading: isLoadingLeaveRequest } = useLeaveRequest(
-    leaveRequest?.id ?? "",
-    { enabled: open && isEdit && !!leaveRequest?.id }
-  );
-
-  // Fetch form lookup data
-  const { data: formData } = useLeaveFormData();
+  // Fetch form lookup data FIRST - always refetch when form opens to ensure fresh data
+  const { data: formData, isLoading: isLoadingFormData, isSuccess: isFormDataLoaded } = useLeaveFormData({ enabled: open });
   const leaveTypes = useMemo(() => formData?.data?.leave_types ?? [], [formData?.data?.leave_types]);
   const employees = useMemo(() => formData?.data?.employees ?? [], [formData?.data?.employees]);
+
+  // Fetch full leave request data when editing - ONLY AFTER form data is loaded
+  const { data: fullLeaveRequestData, isLoading: isLoadingLeaveRequest } = useLeaveRequest(
+    leaveRequest?.id ?? "",
+    { enabled: open && isEdit && !!leaveRequest?.id && isFormDataLoaded }
+  );
 
   const schema = isEdit ? getUpdateLeaveRequestSchema(t) : getCreateLeaveRequestSchema(t);
   
@@ -120,6 +121,7 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
     if (!open) {
       // Clear cache and reset form to defaults when dialog closes
       localStorage.removeItem(STORAGE_KEY);
+      setIsFormReady(false);
       reset({
         employee_id: "",
         leave_type_id: "",
@@ -132,17 +134,33 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
     }
 
     if (isEdit) {
-      // Wait for both fullLeaveRequestData and formData to load
-      if (fullLeaveRequestData?.data && leaveTypes.length > 0 && employees.length > 0) {
+      // Wait for ALL data to be loaded before populating form
+      const hasFullLeaveData = fullLeaveRequestData?.data;
+      const hasFormData = leaveTypes.length > 0 && employees.length > 0;
+      const isDataLoading = isLoadingLeaveRequest || isLoadingFormData;
+
+      if (hasFullLeaveData && hasFormData && !isDataLoading) {
         const data = fullLeaveRequestData.data;
+        
+        // API returns nested objects 'employee' and 'leave_type', not direct IDs
+        const employeeId = data.employee?.id;
+        const leaveTypeId = data.leave_type?.id;
+        
+        // Populate form with fetched data
         reset({
-          employee_id: data.employee_id,
-          leave_type_id: data.leave_type_id,
+          employee_id: employeeId || "",
+          leave_type_id: leaveTypeId || "",
           start_date: new Date(data.start_date),
           end_date: new Date(data.end_date),
           duration: data.duration as LeaveDuration,
           reason: data.reason,
         });
+        
+        // Mark form as ready to render
+        setIsFormReady(true);
+      } else {
+        // Data not ready yet, keep form not ready
+        setIsFormReady(false);
       }
       return;
     }
@@ -180,7 +198,10 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
         reason: "",
       });
     }
-  }, [open, isEdit, fullLeaveRequestData, leaveTypes, employees, reset]);
+    
+    // Mark form as ready for create mode
+    setIsFormReady(true);
+  }, [open, isEdit, fullLeaveRequestData, leaveTypes, employees, isLoadingLeaveRequest, isLoadingFormData, reset]);
 
   // Auto-save to localStorage on form changes (create mode only)
   useEffect(() => {
@@ -251,26 +272,35 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
           <DialogTitle>{isEdit ? t("edit") : t("add")}</DialogTitle>
         </DialogHeader>
 
-        {isLoadingLeaveRequest ? (
+        {isLoadingLeaveRequest || isLoadingFormData || (isEdit && !isFormReady) ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-muted-foreground">
+              {isEdit ? t("messages.loadingEditData") : t("messages.loadingFormData")}
+            </span>
           </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form key={leaveRequest?.id || "new"} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Field>
               <FieldLabel>{t("form.employee.label")} *</FieldLabel>
               <Controller
                 name="employee_id"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isEdit}>
+                  <Select 
+                    key={`employee-${field.value || 'empty'}`} 
+                    value={field.value} 
+                    onValueChange={field.onChange} 
+                    disabled={isEdit}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder={t("form.employee.placeholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {employee.employee_code} - {employee.name}
+                          {employee.employee_code} - {employee.name}{" "}
+                          ({employee.remaining_balance ?? 0} {t("form.employee.daysRemaining")})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -286,7 +316,11 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
                 name="leave_type_id"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select 
+                    key={`leavetype-${field.value || 'empty'}`} 
+                    value={field.value} 
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder={t("form.leaveType.placeholder")} />
                     </SelectTrigger>

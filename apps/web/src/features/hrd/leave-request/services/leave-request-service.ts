@@ -8,6 +8,7 @@ import type {
   UpdateLeaveRequestPayload,
   ApproveLeaveRequestPayload,
   RejectLeaveRequestPayload,
+  CancelLeaveRequestPayload,
   LeaveRequestFilters,
 } from "../types";
 
@@ -77,6 +78,17 @@ export const leaveRequestService = {
   ): Promise<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }> {
     const response = await apiClient.post<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }>(
       `${BASE_PATH}/${id}/reject`,
+      data
+    );
+    return response.data;
+  },
+
+  async cancelLeaveRequest(
+    id: string,
+    data: CancelLeaveRequestPayload
+  ): Promise<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }> {
+    const response = await apiClient.post<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }>(
+      `${BASE_PATH}/${id}/cancel`,
       data
     );
     return response.data;

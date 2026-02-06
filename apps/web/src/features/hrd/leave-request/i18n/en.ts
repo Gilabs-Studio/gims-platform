@@ -72,6 +72,7 @@ export const leaveRequestEn = {
       employee: {
         label: "Employee",
         placeholder: "Select employee",
+        daysRemaining: "days remaining",
         required: "Employee is required",
       },
       leaveType: {
@@ -122,6 +123,10 @@ export const leaveRequestEn = {
         min: "Rejection note must be at least {count} characters",
         max: "Rejection note must be at most {count} characters",
       },
+      cancellationNote: {
+        label: "Cancellation Note (Optional)",
+        placeholder: "Enter reason for cancellation...",
+      },
     },
     balance: {
       title: "Leave Balance",
@@ -144,6 +149,8 @@ export const leaveRequestEn = {
       approveError: "Failed to approve leave request",
       rejectError: "Failed to reject leave request",
       cancelError: "Failed to cancel leave request",
+      loadingFormData: "Loading form data...",
+      loadingEditData: "Loading leave request data...",
     },
     errors: {
       fetchFailed: "Failed to load leave requests",
@@ -177,6 +184,12 @@ export const leaveRequestEn = {
       description: "Please provide a reason for rejecting this leave request.",
       confirm: "Reject",
       cancel: "Cancel",
+    },
+    cancelDialog: {
+      title: "Cancel Leave Request",
+      description: "Are you sure you want to cancel this leave request? This action cannot be undone.",
+      confirm: "Cancel Request",
+      cancel: "Close",
     },
   },
 };
