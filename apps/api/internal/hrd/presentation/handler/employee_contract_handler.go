@@ -201,6 +201,17 @@ func (h *EmployeeContractHandler) GetExpiring(c *gin.Context) {
 	response.SuccessResponse(c, contracts, &response.Meta{Pagination: meta})
 }
 
+// GetFormData handles GET /hrd/employee-contracts/form-data
+func (h *EmployeeContractHandler) GetFormData(c *gin.Context) {
+	formData, err := h.usecase.GetFormData(c.Request.Context())
+	if err != nil {
+		handleEmployeeContractError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, formData, nil)
+}
+
 // handleEmployeeContractError maps usecase errors to appropriate HTTP responses
 func handleEmployeeContractError(c *gin.Context, err error) {
 	errMsg := err.Error()

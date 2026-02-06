@@ -10,6 +10,9 @@ func RegisterEmployeeContractRoutes(router *gin.RouterGroup, handler *handler.Em
 	contracts := router.Group("/employee-contracts")
 	contracts.Use(authMiddleware)
 	{
+		// Form data
+		contracts.GET("/form-data", middleware.RequirePermission("employee_contract.read"), handler.GetFormData)
+
 		// List and filters
 		contracts.GET("", middleware.RequirePermission("employee_contract.read"), handler.GetAll)
 		contracts.GET("/expiring", middleware.RequirePermission("employee_contract.read"), handler.GetExpiring)

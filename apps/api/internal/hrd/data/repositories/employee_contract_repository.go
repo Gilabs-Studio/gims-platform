@@ -14,7 +14,7 @@ type EmployeeContractRepository interface {
 	Update(ctx context.Context, contract *models.EmployeeContract) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeContract, error)
-	FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType) ([]*models.EmployeeContract, int64, error)
+	FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, search string) ([]*models.EmployeeContract, int64, error)
 	FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeContract, error)
 	FindExpiring(ctx context.Context, days int, page, perPage int) ([]*models.EmployeeContract, int64, error)
 	FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error)
@@ -52,11 +52,16 @@ func (r *employeeContractRepository) FindByID(ctx context.Context, id uuid.UUID)
 	return &contract, nil
 }
 
-func (r *employeeContractRepository) FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType) ([]*models.EmployeeContract, int64, error) {
+func (r *employeeContractRepository) FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, search string) ([]*models.EmployeeContract, int64, error) {
 	var contracts []*models.EmployeeContract
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.EmployeeContract{})
+
+	// Search by contract number
+	if search != "" {
+		query = query.Where("contract_number ILIKE ?", "%"+search+"%")
+	}
 
 	// Filters
 	if employeeID != nil {

@@ -289,6 +289,90 @@
 			]
 		},
 		{
+			"name": "Upload",
+			"description": "File upload endpoints for images and documents with security validation",
+			"item": [
+				{
+					"name": "Upload Image",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						},
+						"description": "Upload image file with automatic WebP conversion and validation.\n\n**Allowed Types:** JPEG, PNG, GIF, WebP\n**Max Size:** 10MB (configurable)\n**Security Features:**\n- Magic bytes validation (not just extension)\n- Automatic WebP conversion for optimization\n- UUID-based filename (prevents path traversal)\n- No execute permissions on uploaded files\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"filename\": \"550e8400-e29b-41d4-a716-446655440000.webp\",\n    \"original_name\": \"photo.jpg\",\n    \"url\": \"/uploads/550e8400-e29b-41d4-a716-446655440000.webp\",\n    \"size\": 245678,\n    \"mime_type\": \"image/webp\"\n  },\n  \"meta\": null,\n  \"timestamp\": \"2026-02-07T10:30:45+07:00\",\n  \"request_id\": \"req_abc123\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/document",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"document"
+							]
+						},
+						"description": "Upload document file (PDF, Word, Excel) with security validation.\n\n**Allowed Types:** PDF, DOC, DOCX, XLS, XLSX\n**Max Size:** 10MB (configurable)\n**Security Features:**\n- Magic bytes validation (not just extension)\n- UUID-based filename (prevents path traversal)\n- No execute permissions on uploaded files\n- Path traversal prevention\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"filename\": \"550e8400-e29b-41d4-a716-446655440000.pdf\",\n    \"original_name\": \"employee_contract.pdf\",\n    \"url\": \"/uploads/550e8400-e29b-41d4-a716-446655440000.pdf\",\n    \"size\": 1245678,\n    \"mime_type\": \"application/pdf\"\n  },\n  \"meta\": null,\n  \"timestamp\": \"2026-02-07T10:30:45+07:00\",\n  \"request_id\": \"req_abc123\"\n}\n```\n\n**Error Responses:**\n- `INVALID_FILE_TYPE`: File type not allowed\n- `FILE_TOO_LARGE`: File exceeds maximum size\n- `INVALID_REQUEST`: No file provided"
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Users",
 			"description": "User management endpoints with coarse-grained permissions (user.read, user.write, user.manage)",
 			"item": [
@@ -3290,6 +3374,36 @@
 							"response": []
 						},
 						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										"form-data"
+									]
+								},
+								"description": "Get form select options for create/update contract forms. Requires `employee_contract.read` permission.\n\n**Use Case:** Populate dropdown/select fields in frontend forms.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      },\n      {\n        \"id\": \"22222222-2222-2222-2222-222222222222\",\n        \"employee_code\": \"EMP002\",\n        \"name\": \"Jane Smith\"\n      }\n    ],\n    \"contract_types\": [\n      {\"value\": \"PERMANENT\", \"label\": \"Permanent\"},\n      {\"value\": \"CONTRACT\", \"label\": \"Contract\"},\n      {\"value\": \"INTERNSHIP\", \"label\": \"Internship\"},\n      {\"value\": \"PROBATION\", \"label\": \"Probation\"}\n    ],\n    \"statuses\": [\n      {\"value\": \"ACTIVE\", \"label\": \"Active\"},\n      {\"value\": \"EXPIRED\", \"label\": \"Expired\"},\n      {\"value\": \"TERMINATED\", \"label\": \"Terminated\"}\n    ]\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_formdata_123\"\n}\n```\n\n**Performance:**\n- Returns first 1000 employees (sufficient for most organizations)\n- No pagination - single request for all form options\n- Cache this response in frontend to reduce API calls\n\n**Integration:**\n- Use for Employee select/combobox\n- Use for Contract Type radio/select\n- Use for Status select (if allowing manual status change)"
+							},
+							"response": []
+						},
+						{
 							"name": "List Contracts",
 							"request": {
 								"auth": {
@@ -3305,7 +3419,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/hrd/employee-contracts?page=1&per_page=20&status=ACTIVE&contract_type=PERMANENT",
+									"raw": "{{base_url}}/hrd/employee-contracts?page=1&per_page=20&status=ACTIVE&contract_type=PERMANENT&search=",
 									"host": [
 										"{{base_url}}"
 									],
@@ -3331,13 +3445,18 @@
 											"value": "PERMANENT"
 										},
 										{
+											"key": "search",
+											"value": "",
+											"description": "Search by contract_number (case-insensitive, partial match)"
+										},
+										{
 											"key": "employee_id",
 											"value": "{{employee_id}}",
 											"disabled": true
 										}
 									]
 								},
-								"description": "List contracts with filters and pagination. Requires `employee_contract.read` permission.\n\n**Query Parameters:**\n- `page` (int) - Page number (min: 1, default: 1)\n- `per_page` (int) - Items per page (min: 1, max: 100, default: 20)\n- `employee_id` (uuid) - Filter by employee\n- `status` (enum) - Filter by status: ACTIVE, EXPIRED, TERMINATED\n- `contract_type` (enum) - Filter by type: PERMANENT, CONTRACT, INTERNSHIP, PROBATION\n\n**Sorting:** Start date DESC, created_at DESC\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"contract_number\": \"CONTRACT-2023-001\",\n      \"contract_type\": \"PERMANENT\",\n      \"start_date\": \"2023-01-01\",\n      \"end_date\": null,\n      \"salary\": 15000000.00,\n      \"job_title\": \"System Administrator\",\n      \"department\": \"Information Technology\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": false,\n      \"days_until_expiry\": null\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 5,\n      \"total_pages\": 1\n    }\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_list_123\"\n}\n```"
+								"description": "List contracts with filters, search, and pagination. Requires `employee_contract.read` permission.\n\n**Query Parameters:**\n- `page` (int) - Page number (min: 1, default: 1)\n- `per_page` (int) - Items per page (min: 1, max: 100, default: 20)\n- `search` (string) - Search by contract_number (case-insensitive, partial match)\n- `employee_id` (uuid) - Filter by employee\n- `status` (enum) - Filter by status: ACTIVE, EXPIRED, TERMINATED\n- `contract_type` (enum) - Filter by type: PERMANENT, CONTRACT, INTERNSHIP, PROBATION\n\n**Sorting:** Start date DESC, created_at DESC\n\n**Response Format:** Returns `EmployeeContractListResponse` (optimized for list view)\n- **Includes:** employee_name, employee_code (fetched from employee table)\n- **Excludes:** department, terms, document_path (use detail endpoint for full data)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"employee_name\": \"John Doe\",\n      \"employee_code\": \"EMP001\",\n      \"contract_number\": \"CONTRACT-2023-001\",\n      \"contract_type\": \"PERMANENT\",\n      \"start_date\": \"2023-01-01\",\n      \"end_date\": null,\n      \"salary\": 15000000.00,\n      \"job_title\": \"System Administrator\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": false,\n      \"days_until_expiry\": null,\n      \"created_at\": \"2023-01-01T08:00:00+07:00\",\n      \"updated_at\": \"2023-01-01T08:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 5,\n      \"total_pages\": 1\n    }\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_list_123\"\n}\n```\n\n**Note:** This endpoint returns a lighter response without department, terms, and document_path. Use GET /:id for full details."
 							},
 							"response": []
 						},
