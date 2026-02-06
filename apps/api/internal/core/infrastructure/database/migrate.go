@@ -128,6 +128,8 @@ func AutoMigrate() error {
 		&hrd.OvertimeRequest{},
 		// HRD Leave Management entities (Sprint 14)
 		&hrd.LeaveRequest{},
+		// HRD Employee Contracts entities (Sprint 14)
+		&hrd.EmployeeContract{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
