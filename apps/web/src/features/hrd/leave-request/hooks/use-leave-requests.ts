@@ -7,6 +7,7 @@ import type {
   UpdateLeaveRequestPayload,
   ApproveLeaveRequestPayload,
   RejectLeaveRequestPayload,
+  CancelLeaveRequestPayload,
   LeaveRequestsResponse,
 } from "../types";
 
@@ -40,10 +41,11 @@ export function useLeaveRequest(id: string, options?: { enabled?: boolean }) {
   });
 }
 
-export function useLeaveFormData() {
+export function useLeaveFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: leaveRequestKeys.formData(),
     queryFn: () => leaveRequestService.getFormData(),
+    enabled: options?.enabled,
   });
 }
 
@@ -173,6 +175,52 @@ export function useRejectLeaveRequest() {
           data: old.data.map((item: LeaveRequest) =>
             item.id === id
               ? { ...item, status: "REJECTED" as const }
+              : item
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useCancelLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CancelLeaveRequestPayload }) =>
+      leaveRequestService.cancelLeaveRequest(id, data),
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: leaveRequestKeys.lists() });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueriesData({
+        queryKey: leaveRequestKeys.lists(),
+      });
+
+      // Optimistically update all list queries
+      queryClient.setQueriesData<LeaveRequestsResponse>({ queryKey: leaveRequestKeys.lists() }, (old) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((item: LeaveRequest) =>
+            item.id === id
+              ? { ...item, status: "CANCELLED" as const }
               : item
           ),
         };

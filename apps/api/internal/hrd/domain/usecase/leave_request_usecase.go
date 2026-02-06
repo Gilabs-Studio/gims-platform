@@ -34,6 +34,7 @@ type LeaveRequestUsecase interface {
 	// Approval workflow
 	Approve(ctx context.Context, id string, req *dto.ApproveLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	Reject(ctx context.Context, id string, req *dto.RejectLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	Cancel(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 }
 
 type leaveRequestUsecase struct {
@@ -61,6 +62,7 @@ func NewLeaveRequestUsecase(
 }
 
 // Create creates a new leave request
+// WHY: Only approvers/HR can create leave requests for employees (business rule change)
 // WHY: Validates balance, calculates working days, prevents overlapping requests
 func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
 	// 1. Fetch employee to validate and get quota
@@ -69,11 +71,9 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("failed to fetch employee: %w", err)
 	}
 
-	// 2. IDOR check: Only employee themselves can create their leave request
-	// WHY: Prevent unauthorized users from creating leave requests for other employees
-	if employee.UserID == nil || *employee.UserID != currentUserID {
-		return nil, fmt.Errorf("FORBIDDEN: you can only create leave requests for yourself")
-	}
+	// 2. Permission enforcement via router middleware (leave.create)
+	// WHY: Business rule - employees cannot create their own leave requests, only HR/approvers can
+	// Permission is validated at router level using middleware.RequirePermission("leave.create")
 
 	// 3. Parse dates for validation
 	startDate, err := time.Parse("2006-01-02", req.StartDate)
@@ -99,7 +99,7 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("failed to check overlapping requests: %w", err)
 	}
 	if len(overlapping) > 0 {
-		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: you already have a leave request for these dates")
+		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: employee already has a leave request for these dates")
 	}
 
 	// 6. Fetch leave type to check if it cuts annual leave
@@ -138,25 +138,21 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 }
 
 // GetByID retrieves a leave request by ID
-// WHY: IDOR protection - only owner or approvers can view
+// WHY: Only approvers/HR can view leave request details (business rule change)
 func (u *leaveRequestUsecase) GetByID(ctx context.Context, id string, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
 	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// IDOR check: Fetch employee to verify ownership
+	// Permission enforcement via router middleware (leave.read)
+	// WHY: Business rule - employees cannot view leave request details, only HR/approvers can
+	// Permission is validated at router level using middleware.RequirePermission("leave.read")
+
+	// Fetch employee for detailed response
 	employee, err := u.employeeRepo.FindByID(ctx, leaveRequest.EmployeeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch employee: %w", err)
-	}
-
-	// Allow access if:
-	// 1. Current user is the employee who submitted the request
-	// 2. Current user is an approver (TODO: check approval permissions)
-	if employee.UserID == nil || *employee.UserID != currentUserID {
-		// TODO: Add check for approval permission
-		return nil, fmt.Errorf("FORBIDDEN: you do not have access to this leave request")
 	}
 
 	// Fetch leave type for detailed response
@@ -169,7 +165,13 @@ func (u *leaveRequestUsecase) GetByID(ctx context.Context, id string, currentUse
 }
 
 // List retrieves leave requests with filters and pagination
+// WHY: Only approvers/HR can list leave requests (business rule change)
 func (u *leaveRequestUsecase) List(ctx context.Context, filters *dto.LeaveRequestListFilterDTO, currentUserID string) ([]*dto.LeaveRequestResponseDTO, int64, error) {
+	// Permission enforcement via router middleware (leave.read)
+	// WHY: Business rule - employees cannot view any leave requests, only HR/approvers can
+	// Permission is validated at router level using middleware.RequirePermission("leave.read")
+
+	// Set default pagination
 	// Set default pagination
 	page := filters.Page
 	if page < 1 {
@@ -220,20 +222,8 @@ func (u *leaveRequestUsecase) List(ctx context.Context, filters *dto.LeaveReques
 		}
 	}
 
-	// TODO: IDOR protection - filter by currentUserID if not admin/approver
-	// For now, if employeeID filter is not provided, show only current user's requests
-	employeeID := filters.EmployeeID
-	if employeeID == nil {
-		// Fetch current user's employee record
-		employee, err := u.employeeRepo.FindByUserID(ctx, currentUserID)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to fetch employee for current user: %w", err)
-		}
-		employeeID = &employee.ID
-	}
-
-	// Fetch from repository
-	leaveRequests, total, err := u.leaveRequestRepo.List(ctx, employeeID, status, startDate, endDate, page, perPage)
+	// Fetch from repository with all filters including search
+	leaveRequests, total, err := u.leaveRequestRepo.List(ctx, filters.EmployeeID, status, startDate, endDate, filters.Search, page, perPage)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch leave requests: %w", err)
 	}
@@ -281,31 +271,31 @@ func (u *leaveRequestUsecase) List(ctx context.Context, filters *dto.LeaveReques
 }
 
 // Update updates an existing leave request
-// WHY: Only owner can update, only if status is PENDING or REJECTED
+// WHY: Only approvers/HR can update leave requests (business rule change)
 func (u *leaveRequestUsecase) Update(ctx context.Context, id string, req *dto.UpdateLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
-	// 1. Fetch existing leave request
+	// 1. Permission enforcement via router middleware (leave.update)
+	// WHY: Business rule - employees cannot update leave requests, only HR/approvers can
+	// Permission is validated at router level using middleware.RequirePermission("leave.update")
+
+	// 2. Fetch existing leave request
 	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. IDOR check: Only owner can update
+	// 3. Fetch employee for detailed response
 	employee, err := u.employeeRepo.FindByID(ctx, leaveRequest.EmployeeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch employee: %w", err)
 	}
 
-	if employee.UserID == nil || *employee.UserID != currentUserID {
-		return nil, fmt.Errorf("FORBIDDEN: you can only update your own leave requests")
-	}
-
-	// 3. Check if leave request is editable
+	// 4. Check if leave request is editable
 	// WHY: Only PENDING or REJECTED leaves can be edited
 	if !leaveRequest.IsEditable() {
 		return nil, fmt.Errorf("INVALID_STATUS: only PENDING or REJECTED leave requests can be edited")
 	}
 
-	// 4. Recalculate total days if dates or duration changed
+	// 5. Recalculate total days if dates or duration changed
 	var totalDays *float64
 	if req.StartDate != nil || req.EndDate != nil || req.Duration != nil {
 		// Parse dates
@@ -368,17 +358,17 @@ func (u *leaveRequestUsecase) Update(ctx context.Context, id string, req *dto.Up
 		}
 	}
 
-	// 5. Apply updates to model
+	// 6. Apply updates to model
 	if err := u.mapper.ApplyUpdateDTO(leaveRequest, req, totalDays, &currentUserID); err != nil {
 		return nil, err
 	}
 
-	// 6. Save changes
+	// 7. Save changes
 	if err := u.leaveRequestRepo.Update(ctx, leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to update leave request: %w", err)
 	}
 
-	// 7. Fetch updated leave type for response
+	// 8. Fetch updated leave type for response
 	leaveType, err := u.leaveTypeRepo.FindByID(ctx, leaveRequest.LeaveTypeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch leave type: %w", err)
@@ -388,22 +378,16 @@ func (u *leaveRequestUsecase) Update(ctx context.Context, id string, req *dto.Up
 }
 
 // Delete soft deletes a leave request
-// WHY: Only owner can delete, only if status is PENDING or REJECTED
+// WHY: Only approvers/HR can delete leave requests (business rule change)
 func (u *leaveRequestUsecase) Delete(ctx context.Context, id string, currentUserID string) error {
-	// 1. Fetch leave request
+	// 1. Permission enforcement via router middleware (leave.delete)
+	// WHY: Business rule - employees cannot delete leave requests, only HR/approvers can
+	// Permission is validated at router level using middleware.RequirePermission("leave.delete")
+
+	// 2. Fetch leave request
 	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
-	}
-
-	// 2. IDOR check: Only owner can delete
-	employee, err := u.employeeRepo.FindByID(ctx, leaveRequest.EmployeeID)
-	if err != nil {
-		return fmt.Errorf("failed to fetch employee: %w", err)
-	}
-
-	if employee.UserID == nil || *employee.UserID != currentUserID {
-		return fmt.Errorf("FORBIDDEN: you can only delete your own leave requests")
 	}
 
 	// 3. Check if deletable (only PENDING or REJECTED)
@@ -425,7 +409,8 @@ func (u *leaveRequestUsecase) CalculateBalance(ctx context.Context, employeeID s
 
 	// 2. IDOR check: Only employee themselves or approvers can view balance
 	if employee.UserID == nil || *employee.UserID != currentUserID {
-		// TODO: Add check for approval permission
+		// Note: For HR/approvers with leave.read permission, this check should be bypassed
+		// This is a legacy check that should be refactored to use permission middleware
 		return nil, fmt.Errorf("FORBIDDEN: you do not have access to this employee's balance")
 	}
 
@@ -437,7 +422,7 @@ func (u *leaveRequestUsecase) CalculateBalance(ctx context.Context, employeeID s
 
 	// 4. Calculate pending days
 	pendingDays := 0
-	pendingRequests, _, err := u.leaveRequestRepo.List(ctx, &employeeID, &[]models.LeaveStatus{models.LeaveStatusPending}[0], nil, nil, 1, 100)
+	pendingRequests, _, err := u.leaveRequestRepo.List(ctx, &employeeID, &[]models.LeaveStatus{models.LeaveStatusPending}[0], nil, nil, nil, 1, 100)
 	if err == nil {
 		for _, req := range pendingRequests {
 			pendingDays += int(req.TotalDays)
@@ -527,8 +512,8 @@ func (u *leaveRequestUsecase) Approve(ctx context.Context, id string, req *dto.A
 			return fmt.Errorf("INVALID_STATUS: leave request cannot be approved (current status: %s)", leaveRequest.Status)
 		}
 
-		// 2. TODO: Verify currentUser has approval permission for this employee
-		// For now, assume currentUser is an approver
+		// 2. Permission enforcement via router middleware (leave.approve)
+		// Router ensures only users with leave.approve permission can access this endpoint
 
 		// 3. Fetch employee and leave type to revalidate balance
 		var err error
@@ -602,8 +587,8 @@ func (u *leaveRequestUsecase) Reject(ctx context.Context, id string, req *dto.Re
 			return fmt.Errorf("INVALID_STATUS: leave request cannot be rejected (current status: %s)", leaveRequest.Status)
 		}
 
-		// 2. TODO: Verify currentUser has approval permission for this employee
-		// For now, assume currentUser is an approver
+		// 2. Permission enforcement via router middleware (leave.approve)
+		// Router ensures only users with leave.approve permission can access this endpoint
 
 		// 3. Validate rejection note
 		if req.RejectionNote == "" {
@@ -654,7 +639,73 @@ func (u *leaveRequestUsecase) Reject(ctx context.Context, id string, req *dto.Re
 	return u.mapper.ToDetailResponseDTO(updatedLeaveRequest, employee, leaveType), nil
 }
 
-// GetFormData returns data for form dropdowns (employees and leave types)
+// Cancel cancels a leave request
+// WHY: Only approvers/HR can cancel leave requests - uses row-level locking to prevent race conditions
+func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	var employee *orgModels.Employee
+	var leaveType *coreModels.LeaveType
+
+	// Use UpdateWithLock to ensure row-level locking (FOR UPDATE)
+	err := u.leaveRequestRepo.UpdateWithLock(ctx, id, func(leaveRequest *models.LeaveRequest) error {
+		// 1. Check if leave request can be cancelled
+		// WHY: Only PENDING or APPROVED status can be cancelled
+		if leaveRequest.Status != models.LeaveStatusPending && leaveRequest.Status != models.LeaveStatusApproved {
+			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
+		}
+
+		// 2. Permission enforcement via router middleware (leave.approve)
+		// WHY: Business rule - only HR/approvers can cancel leave requests
+		// Permission is validated at router level using middleware.RequirePermission("leave.approve")
+
+		// 3. Fetch employee and leave type for response
+		var err error
+		employee, err = u.employeeRepo.FindByID(ctx, leaveRequest.EmployeeID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch employee: %w", err)
+		}
+
+		leaveType, err = u.leaveTypeRepo.FindByID(ctx, leaveRequest.LeaveTypeID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch leave type: %w", err)
+		}
+
+		// 4. Update status to CANCELLED
+		leaveRequest.Status = models.LeaveStatusCancelled
+
+		// Store cancellation note if provided
+		if req.CancellationNote != nil {
+			leaveRequest.RejectionNote = req.CancellationNote // Reuse RejectionNote field for cancellation
+		}
+
+		// Use canceller ID from DTO if provided, otherwise current user
+		if req.CancelledBy != nil {
+			leaveRequest.RejectedBy = req.CancelledBy // Reuse RejectedBy field for canceller
+		} else {
+			leaveRequest.RejectedBy = &currentUserID
+		}
+
+		leaveRequest.UpdatedBy = &currentUserID
+
+		// 5. TODO: Trigger notification to employee
+		// notificationService.Send(employee.Email, "Leave Request Cancelled", ...)
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 6. Fetch updated leave request to return
+	updatedLeaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch updated leave request: %w", err)
+	}
+
+	return u.mapper.ToDetailResponseDTO(updatedLeaveRequest, employee, leaveType), nil
+}
+
+// GetFormData returns data for form dropdowns (employees, leave types, and current user's balance)
 func (u *leaveRequestUsecase) GetFormData(ctx context.Context, currentUserID string) (*dto.FormDataResponseDTO, error) {
 	// 1. Fetch all active employees
 	employees, err := u.employeeRepo.FindAll(ctx)
@@ -668,16 +719,28 @@ func (u *leaveRequestUsecase) GetFormData(ctx context.Context, currentUserID str
 		return nil, fmt.Errorf("failed to fetch leave types: %w", err)
 	}
 
-	// 3. Map to form DTOs
+	// 3. Map employees to form DTOs with their leave balance
 	formEmployees := make([]dto.FormEmployeeDTO, 0, len(employees))
 	for _, emp := range employees {
+		// Calculate remaining balance for this employee
+		usedDays, err := u.leaveRequestRepo.CalculateUsedLeaveDays(ctx, emp.ID, true)
+		if err != nil {
+			usedDays = 0 // Default to 0 if calculation fails
+		}
+		remainingBalance := float64(emp.TotalLeaveQuota) - float64(usedDays)
+		if remainingBalance < 0 {
+			remainingBalance = 0 // Ensure balance is never negative
+		}
+
 		formEmployees = append(formEmployees, dto.FormEmployeeDTO{
-			ID:    emp.ID,
-			Name:  emp.Name,
-			Email: emp.Email,
+			ID:               emp.ID,
+			Name:             emp.Name,
+			EmployeeCode:     emp.EmployeeCode,
+			RemainingBalance: remainingBalance,
 		})
 	}
 
+	// 4. Map leave types to form DTOs
 	formLeaveTypes := make([]dto.FormLeaveTypeDTO, 0, len(leaveTypes))
 	for _, lt := range leaveTypes {
 		formLeaveTypes = append(formLeaveTypes, dto.FormLeaveTypeDTO{

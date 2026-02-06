@@ -23,6 +23,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	attendanceRepo := repositories.NewAttendanceRecordRepository(db)
 	overtimeRepo := repositories.NewOvertimeRequestRepository(db)
 	leaveRequestRepo := repositories.NewLeaveRequestRepository(db)
+	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
@@ -36,6 +37,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo)
 	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo)
+	employeeContractUC := usecase.NewEmployeeContractUsecase(employeeContractRepo, employeeRepo)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -43,6 +45,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	attendanceHandler := handler.NewAttendanceRecordHandler(attendanceUC)
 	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
+	employeeContractHandler := handler.NewEmployeeContractHandler(employeeContractUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -54,4 +57,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAttendanceRecordRoutes(hrdGroup, attendanceHandler)
 	router.RegisterOvertimeRequestRoutes(hrdGroup, overtimeHandler)
 	router.RegisterLeaveRequestRoutes(hrdGroup, leaveRequestHandler)
+	router.RegisterEmployeeContractRoutes(hrdGroup, employeeContractHandler, middleware.AuthMiddleware(jwtManager, permService))
 }

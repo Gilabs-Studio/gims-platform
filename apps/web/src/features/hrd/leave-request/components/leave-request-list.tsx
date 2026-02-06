@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Clock, CalendarIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useLeaveRequests, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest } from "../hooks/use-leave-requests";
+import { useLeaveRequests, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest, useCancelLeaveRequest } from "../hooks/use-leave-requests";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { LeaveRequestForm } from "./leave-request-form";
@@ -53,6 +53,7 @@ export function LeaveRequestList() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [approvingLeave, setApprovingLeave] = useState<LeaveRequest | null>(null);
   const [rejectingLeave, setRejectingLeave] = useState<LeaveRequest | null>(null);
+  const [cancellingLeave, setCancellingLeave] = useState<LeaveRequest | null>(null);
 
   const { data, isLoading, isError } = useLeaveRequests({
     page,
@@ -72,13 +73,18 @@ export function LeaveRequestList() {
   const deleteLeave = useDeleteLeaveRequest();
   const approveMutation = useApproveLeaveRequest();
   const rejectMutation = useRejectLeaveRequest();
+  const cancelMutation = useCancelLeaveRequest();
   
   const leaves = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const rejectForm = useForm({
     resolver: zodResolver(getRejectLeaveRequestSchema(t)),
-    defaultValues: { rejection_reason: "" },
+    defaultValues: { rejection_note: "" },
+  });
+
+  const cancelForm = useForm({
+    defaultValues: { cancellation_note: "" },
   });
 
   const handleEdit = (leave: LeaveRequest) => {
@@ -130,6 +136,22 @@ export function LeaveRequestList() {
       rejectForm.reset();
     } catch {
       toast.error(t("messages.rejectError"));
+    }
+  };
+
+  const handleCancel = async (data: { cancellation_note?: string }) => {
+    if (!cancellingLeave) return;
+    
+    try {
+      await cancelMutation.mutateAsync({
+        id: cancellingLeave.id,
+        data: { cancellation_note: data.cancellation_note || undefined },
+      });
+      toast.success(t("messages.cancelSuccess"));
+      setCancellingLeave(null);
+      cancelForm.reset();
+    } catch {
+      toast.error(t("messages.cancelError"));
     }
   };
 
@@ -232,7 +254,7 @@ export function LeaveRequestList() {
             <Calendar
               mode="single"
               selected={startDate}
-              onSelect={(date) => {
+              onSelect={(date: Date | undefined) => {
                 setStartDate(date);
                 setPage(1);
               }}
@@ -272,7 +294,7 @@ export function LeaveRequestList() {
             <Calendar
               mode="single"
               selected={endDate}
-              onSelect={(date) => {
+              onSelect={(date: Date | undefined) => {
                 setEndDate(date);
                 setPage(1);
               }}
@@ -381,6 +403,15 @@ export function LeaveRequestList() {
                               {t("actions.reject")}
                             </DropdownMenuItem>
                           </>
+                        )}
+                        {canApprove && (leave.status === "PENDING" || leave.status === "APPROVED") && (
+                          <DropdownMenuItem
+                            onClick={() => setCancellingLeave(leave)}
+                            className="cursor-pointer text-orange-600"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            {t("actions.cancel")}
+                          </DropdownMenuItem>
                         )}
                         {canDelete && leave.status === "PENDING" && (
                           <DropdownMenuItem
@@ -492,6 +523,57 @@ export function LeaveRequestList() {
                     <ButtonLoading loading>{t("rejectDialog.confirm")}</ButtonLoading>
                   ) : (
                     t("rejectDialog.confirm")
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {cancellingLeave && (
+        <Dialog open={!!cancellingLeave} onOpenChange={(open) => {
+          if (!open) {
+            setCancellingLeave(null);
+            cancelForm.reset();
+          }
+        }}>
+          <DialogContent>
+            <form onSubmit={cancelForm.handleSubmit(handleCancel)}>
+              <DialogHeader>
+                <DialogTitle>{t("cancelDialog.title")}</DialogTitle>
+                <DialogDescription>{t("cancelDialog.description")}</DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Field>
+                  <FieldLabel>{t("form.cancellationNote.label")}</FieldLabel>
+                  <Textarea
+                    {...cancelForm.register("cancellation_note")}
+                    placeholder={t("form.cancellationNote.placeholder")}
+                    rows={4}
+                  />
+                  <FieldError>{cancelForm.formState.errors.cancellation_note?.message}</FieldError>
+                </Field>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCancellingLeave(null);
+                    cancelForm.reset();
+                  }}
+                >
+                  {t("cancelDialog.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={cancelMutation.isPending}
+                >
+                  {cancelMutation.isPending ? (
+                    <ButtonLoading loading>{t("cancelDialog.confirm")}</ButtonLoading>
+                  ) : (
+                    t("cancelDialog.confirm")
                   )}
                 </Button>
               </DialogFooter>

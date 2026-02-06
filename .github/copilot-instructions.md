@@ -173,11 +173,11 @@ Each feature in `apps/web/src/features/<feature>/` follows:
 
 ## Development Commands
 ```bash
-pnpm dev                    # Run all apps
-pnpm dev --filter=web       # Frontend only (localhost:3000)
-pnpm dev --filter=api       # Backend via Docker (localhost:8080)
-pnpm build                  # Build all
-pnpm lint && pnpm type-check
+npx pnpm dev                    # Run all apps
+npx pnpm dev --filter=web       # Frontend only (localhost:3000)
+npx pnpm dev --filter=api       # Backend via Docker (localhost:8080)
+npx pnpm build                  # Build all
+npx pnpm lint && npx pnpm type-check
 ```
 
 ### Database (Docker Compose uses port 5434)
@@ -280,6 +280,7 @@ STORAGE_MAX_UPLOAD_SIZE=10485760  # 10MB default
 - **Sprint Planning**: `docs/erp-sprint-planning.md` - Feature roadmap, business logic, success criteria
 - **API Standards**: `docs/api-standart/README.md` - Response format, error codes, performance, security
 - **Security Plan**: `docs/TEMPLATE_SECURITY_PERFORMANCE_PLAN.md` - Hardening checklist (JWT, CSRF, timeouts)
+- **Migration Guidelines**: `docs/MIGRATION_GUIDELINES.md` - Database model registration (CRITICAL for new models)
 - **Project Structure**: `TEMPLATE_STRUCTURE.md` - File organization
 - **Database Relations**: `docs/erp-database-relations.mmd` - ERD for all modules
 
@@ -342,6 +343,10 @@ STORAGE_MAX_UPLOAD_SIZE=10485760  # 10MB default
 2. **Create Domain Folder**: `apps/api/internal/<domain>/`
 3. **Implement Layers** (in order):
    - `data/models/`: GORM entities with proper tags
+   - **🔴 CRITICAL**: After creating model, IMMEDIATELY register it in `internal/core/infrastructure/database/migrate.go`
+     - Add import: `{domain} "github.com/gilabs/gims/api/internal/{domain}/data/models"`
+     - Add to `migrateWithErrorHandling()`: `&{domain}.{ModelName}{},`
+     - See `docs/MIGRATION_GUIDELINES.md` for details
    - `data/repositories/`: Interface + implementation (use prefix search `text%` for indexed columns)
    - `domain/dto/`: Request/Response DTOs with `binding` tags
    - `domain/mapper/`: Model ↔ DTO conversion
@@ -394,6 +399,7 @@ STORAGE_MAX_UPLOAD_SIZE=10485760  # 10MB default
 ## Key Documentation
 - API Standards: `docs/api-standart/README.md`
 - Sprint Planning: `docs/erp-sprint-planning.md`
+- Migration Guidelines: `docs/MIGRATION_GUIDELINES.md`
 - Template Structure: `TEMPLATE_STRUCTURE.md`
 - Security Rules: `.cursor/rules/security.mdc`
 - Project Standards: `.cursor/rules/standart.mdc`
@@ -539,10 +545,10 @@ Info tentang coverage dan cara run tests.
 cd apps/api && go test ./internal/hrd/...
 
 # Frontend unit tests
-cd apps/web && pnpm test leave
+cd apps/web && npx pnpm test leave
 
 # E2E tests
-cd apps/web && pnpm test:e2e hrd
+cd apps/web && npx pnpm test:e2e hrd
 ```
 ```
 

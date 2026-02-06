@@ -128,6 +128,8 @@ func AutoMigrate() error {
 		&hrd.OvertimeRequest{},
 		// HRD Leave Management entities (Sprint 14)
 		&hrd.LeaveRequest{},
+		// HRD Employee Contracts entities (Sprint 14)
+		&hrd.EmployeeContract{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
@@ -157,8 +159,14 @@ func createSearchIndexes() error {
 	}
 
 	indexes := []string{
+		// User module indexes
 		"CREATE INDEX IF NOT EXISTS idx_users_name_gin ON users USING gin (name gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_users_email_gin ON users USING gin (email gin_trgm_ops)",
+
+		// HRD leave request search indexes (added for leave request search feature)
+		"CREATE INDEX IF NOT EXISTS idx_employees_name_gin ON employees USING gin (name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_leave_types_name_gin ON leave_types USING gin (name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING gin (reason gin_trgm_ops)",
 	}
 
 	for _, idx := range indexes {

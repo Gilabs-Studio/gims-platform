@@ -120,12 +120,19 @@ type RejectLeaveRequestDTO struct {
 	RejectedBy    *string `json:"rejected_by" binding:"omitempty,uuid"` // Optional, will use current user if not provided
 }
 
+// CancelLeaveRequestDTO represents the request to cancel a leave request
+type CancelLeaveRequestDTO struct {
+	CancellationNote *string `json:"cancellation_note" binding:"omitempty,min=10,max=500"` // Optional note for cancellation
+	CancelledBy      *string `json:"cancelled_by" binding:"omitempty,uuid"`                // Optional, will use current user if not provided
+}
+
 // LeaveRequestListFilterDTO represents filters for listing leave requests
 type LeaveRequestListFilterDTO struct {
 	EmployeeID *string `form:"employee_id" binding:"omitempty,uuid"`
 	Status     *string `form:"status" binding:"omitempty"`     // PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)
 	StartDate  *string `form:"start_date" binding:"omitempty"` // Format: YYYY-MM-DD
 	EndDate    *string `form:"end_date" binding:"omitempty"`   // Format: YYYY-MM-DD
+	Search     *string `form:"search" binding:"omitempty"`     // Search by employee name, leave type, or reason
 	Page       int     `form:"page" binding:"omitempty,min=1"`
 	PerPage    int     `form:"per_page" binding:"omitempty,min=1,max=100"`
 }
@@ -136,11 +143,12 @@ type FormDataResponseDTO struct {
 	LeaveTypes []FormLeaveTypeDTO `json:"leave_types"`
 }
 
-// FormEmployeeDTO represents employee option for form dropdown
+// FormEmployeeDTO represents employee option for form dropdown with their leave balance
 type FormEmployeeDTO struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	EmployeeCode     string  `json:"employee_code"`
+	RemainingBalance float64 `json:"remaining_balance"` // Available leave balance for this employee
 }
 
 // FormLeaveTypeDTO represents leave type option for form dropdown

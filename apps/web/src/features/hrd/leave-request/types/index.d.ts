@@ -20,6 +20,7 @@ export interface Employee {
   phone: string | null;
   position: string | null;
   department: string | null;
+  remaining_balance?: number;
 }
 
 export interface LeaveRequest {
@@ -133,6 +134,10 @@ export interface RejectLeaveRequestPayload {
   rejection_note: string;
 }
 
+export interface CancelLeaveRequestPayload {
+  cancellation_note?: string;
+}
+
 export interface CreateLeaveRequestFormData {
   employee_id: string;
   leave_type_id: string;
@@ -156,6 +161,10 @@ export interface ApproveLeaveRequestFormData {
 
 export interface RejectLeaveRequestFormData {
   rejection_note: string;
+}
+
+export interface CancelLeaveRequestFormData {
+  cancellation_note?: string;
 }
 
 export interface LeaveRequestFilters {

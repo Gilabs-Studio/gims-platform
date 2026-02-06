@@ -20,7 +20,7 @@ type LeaveRequestRepository interface {
 	Delete(ctx context.Context, id string) error
 
 	// List with filters and pagination
-	List(ctx context.Context, employeeID *string, status *models.LeaveStatus, startDate, endDate *time.Time, page, perPage int) ([]*models.LeaveRequest, int64, error)
+	List(ctx context.Context, employeeID *string, status *models.LeaveStatus, startDate, endDate *time.Time, search *string, page, perPage int) ([]*models.LeaveRequest, int64, error)
 
 	// Find by employee with pagination
 	FindByEmployeeID(ctx context.Context, employeeID string, page, perPage int) ([]*models.LeaveRequest, int64, error)
@@ -112,7 +112,8 @@ func (r *leaveRequestRepository) Delete(ctx context.Context, id string) error {
 
 // List retrieves leave requests with filters and pagination
 // WHY: Enforce max 100 items per page to prevent memory issues
-func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, status *models.LeaveStatus, startDate, endDate *time.Time, page, perPage int) ([]*models.LeaveRequest, int64, error) {
+// WHY: Search functionality uses ILIKE for case-insensitive search across employee name, leave type, and reason
+func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, status *models.LeaveStatus, startDate, endDate *time.Time, search *string, page, perPage int) ([]*models.LeaveRequest, int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -146,6 +147,16 @@ func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, s
 		query = query.Where("end_date <= ?", *endDate)
 	}
 
+	// WHY: Search functionality requires joins with employees and leave_types tables
+	// Search across employee name, leave type name, or reason (case-insensitive)
+	if search != nil && *search != "" {
+		searchPattern := "%" + *search + "%"
+		query = query.Joins("JOIN employees ON employees.id = leave_requests.employee_id").
+			Joins("JOIN leave_types ON leave_types.id = leave_requests.leave_type_id").
+			Where("employees.name ILIKE ? OR leave_types.name ILIKE ? OR leave_requests.reason ILIKE ?",
+				searchPattern, searchPattern, searchPattern)
+	}
+
 	// Count total records
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -154,7 +165,7 @@ func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, s
 	// Note: Relations removed from model to prevent GORM circular dependency issues
 	offset := (page - 1) * perPage
 	err := query.
-		Order("created_at DESC").
+		Order("leave_requests.created_at DESC").
 		Limit(perPage).
 		Offset(offset).
 		Find(&leaveRequests).Error
