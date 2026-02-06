@@ -22,6 +22,7 @@ export interface PurchaseRequisitionListParams {
   page?: number;
   per_page?: number;
   search?: string;
+  status?: PurchaseRequisitionStatus | string;
   sort_by?: string;
   sort_dir?: string;
   limit?: number;
@@ -102,6 +103,12 @@ export interface PurchaseRequisitionAuditTrailEntry {
   metadata: Record<string, unknown>;
   user?: PurchaseRequisitionAuditTrailUser | null;
   created_at: string;
+}
+
+export interface PurchaseRequisitionConvertResponse {
+  purchase_requisition_id: string;
+  purchase_order_id: string;
+  purchase_order_code: string;
 }
 
 export interface PurchaseRequisitionAddProduct {

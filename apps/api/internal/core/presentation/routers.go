@@ -20,18 +20,21 @@ func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, 
 	courierAgencyRepo := repositories.NewCourierAgencyRepository(db)
 	soSourceRepo := repositories.NewSOSourceRepository(db)
 	leaveTypeRepo := repositories.NewLeaveTypeRepository(db)
+	bankAccountRepo := repositories.NewBankAccountRepository(db)
 
 	// Initialize usecases
 	paymentTermsUC := usecase.NewPaymentTermsUsecase(paymentTermsRepo)
 	courierAgencyUC := usecase.NewCourierAgencyUsecase(courierAgencyRepo)
 	soSourceUC := usecase.NewSOSourceUsecase(soSourceRepo)
 	leaveTypeUC := usecase.NewLeaveTypeUsecase(leaveTypeRepo)
+	bankAccountUC := usecase.NewBankAccountUsecase(bankAccountRepo)
 
 	// Initialize handlers
 	paymentTermsH := handler.NewPaymentTermsHandler(paymentTermsUC)
 	courierAgencyH := handler.NewCourierAgencyHandler(courierAgencyUC)
 	soSourceH := handler.NewSOSourceHandler(soSourceUC)
 	leaveTypeH := handler.NewLeaveTypeHandler(leaveTypeUC)
+	bankAccountH := handler.NewBankAccountHandler(bankAccountUC)
 
 	// Create master-data group under API with auth middleware
 	group := api.Group("/master-data")
@@ -42,5 +45,10 @@ func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, 
 	router.RegisterCourierAgencyRoutes(group, courierAgencyH)
 	router.RegisterSOSourceRoutes(group, soSourceH)
 	router.RegisterLeaveTypeRoutes(group, leaveTypeH)
+
+	// Finance master data (kept under /finance to match seeded menus)
+	financeGroup := api.Group("/finance")
+	financeGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	router.RegisterBankAccountRoutes(financeGroup, bankAccountH)
 }
 

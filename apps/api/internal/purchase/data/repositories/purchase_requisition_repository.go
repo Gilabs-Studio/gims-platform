@@ -24,6 +24,7 @@ type PurchaseRequisitionRepository interface {
 
 type PurchaseRequisitionListParams struct {
 	Search  string
+	Status  string
 	SortBy  string
 	SortDir string
 	Limit   int
@@ -44,6 +45,10 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 
 	baseQuery := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
 
+	if params.Status != "" {
+		baseQuery = baseQuery.Where("status = ?", params.Status)
+	}
+
 	if params.Search != "" {
 		pattern := "%" + params.Search + "%"
 		baseQuery = baseQuery.Where(
@@ -59,6 +64,9 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	}
 
 	query := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
+	if params.Status != "" {
+		query = query.Where("status = ?", params.Status)
+	}
 	if params.Search != "" {
 		pattern := "%" + params.Search + "%"
 		query = query.Where(

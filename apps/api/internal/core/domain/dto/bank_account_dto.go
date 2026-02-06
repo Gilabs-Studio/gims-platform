@@ -1,0 +1,28 @@
+package dto
+
+type BankAccountResponse struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	AccountNumber string `json:"account_number"`
+	AccountHolder string `json:"account_holder"`
+	Currency      string `json:"currency"`
+	IsActive      bool   `json:"is_active"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+type CreateBankAccountRequest struct {
+	Name          string `json:"name" binding:"required"`
+	AccountNumber string `json:"account_number" binding:"required"`
+	AccountHolder string `json:"account_holder" binding:"required"`
+	Currency      string `json:"currency" binding:"required"`
+	IsActive      *bool  `json:"is_active"`
+}
+
+type UpdateBankAccountRequest struct {
+	Name          string `json:"name" binding:"required"`
+	AccountNumber string `json:"account_number" binding:"required"`
+	AccountHolder string `json:"account_holder" binding:"required"`
+	Currency      string `json:"currency" binding:"required"`
+	IsActive      *bool  `json:"is_active"`
+}

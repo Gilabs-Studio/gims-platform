@@ -72,6 +72,9 @@ func SeedAll() error {
 	if err := SeedLeaveType(); err != nil {
 		return err
 	}
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
 
 	// Purchase Requisition seeder (Sprint 8)
 	if err := SeedPurchaseRequisition(); err != nil {

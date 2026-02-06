@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
   CreatePurchaseRequisitionInput,
+  PurchaseRequisitionConvertResponse,
   PurchaseRequisitionAddResponse,
   PurchaseRequisitionAuditTrailEntry,
   PurchaseRequisitionDetail,
@@ -79,8 +80,8 @@ export const purchaseRequisitionsService = {
     return response.data;
   },
 
-  convert: async (id: string): Promise<ApiResponse<{ id: string }>> => {
-    const response = await apiClient.post<ApiResponse<{ id: string }>>(
+  convert: async (id: string): Promise<ApiResponse<PurchaseRequisitionConvertResponse>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseRequisitionConvertResponse>>(
       `${BASE_URL}/${id}/convert`,
     );
     return response.data;

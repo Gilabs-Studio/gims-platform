@@ -1,0 +1,72 @@
+export const purchasePaymentId = {
+  title: "Pembayaran",
+  description: "Kelola pembayaran untuk invoice supplier.",
+  search: "Cari berdasarkan referensi, catatan, metode...",
+  toast: {
+    created: "Pembayaran dibuat",
+    confirmed: "Pembayaran dikonfirmasi",
+    deleted: "Pembayaran dihapus",
+    failed: "Terjadi kesalahan",
+  },
+  actions: {
+    create: "Buat",
+    export: "Export",
+    confirm: "Konfirmasi",
+    view: "Lihat",
+    auditTrail: "Audit Trail",
+    delete: "Hapus",
+  },
+  status: {
+    pending: "Menunggu",
+    confirmed: "Terkonfirmasi",
+  },
+  method: {
+    bank: "Bank",
+    cash: "Tunai",
+  },
+  form: {
+    title: "Buat Pembayaran",
+    submit: "Simpan",
+    cancel: "Batal",
+  },
+  fields: {
+    invoice: "Invoice",
+    bankAccount: "Rekening Bank",
+    paymentDate: "Tanggal Pembayaran",
+    amount: "Jumlah",
+    method: "Metode",
+    status: "Status",
+    referenceNumber: "Nomor Referensi",
+    notes: "Catatan",
+  },
+  placeholders: {
+    select: "Pilih...",
+  },
+  overview: {
+    title: "Ringkasan Tagihan",
+    invoiceNumber: "Nomor Invoice",
+    purchaseOrder: "Purchase Order",
+    invoiceDate: "Tanggal Invoice",
+    dueDate: "Jatuh Tempo",
+    amount: "Jumlah Tagihan",
+    status: "Status",
+  },
+  auditTrail: {
+    title: "Audit Trail",
+    empty: "Belum ada audit trail",
+    columns: {
+      action: "Aksi",
+      user: "User",
+      time: "Waktu",
+      details: "Detail",
+    },
+    actions: {
+      create: "Buat",
+      delete: "Hapus",
+      confirm: "Konfirmasi",
+      export: "Export",
+      view: "Lihat",
+      auditTrail: "Audit Trail",
+    },
+  },
+};

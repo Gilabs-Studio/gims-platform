@@ -45,9 +45,10 @@ const VALID_DASHBOARD_ROUTES = [
   "/sales/targets",
   // Purchase routes
   "/purchase/purchase-requisitions",
-  "/purchase/orders",
+  "/purchase/purchase-orders",
   "/purchase/goods-receipt",
-  "/purchase/invoices",
+  "/purchase/supplier-invoices",
+  "/purchase/payments",
   // Stock routes
   "/stock/inventory",
   "/stock/movements",

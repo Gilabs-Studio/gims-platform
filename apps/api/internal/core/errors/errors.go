@@ -166,6 +166,14 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid request body",
 	},
+	"INVALID_PATH_PARAM": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid path parameter",
+	},
+	"INVALID_ID": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid ID",
+	},
 	"INVALID_QUERY_PARAM": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid query parameter",

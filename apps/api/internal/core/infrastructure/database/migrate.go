@@ -97,6 +97,7 @@ func AutoMigrate() error {
 		&core.CourierAgency{},
 		&core.SOSource{},
 		&core.LeaveType{},
+		&core.BankAccount{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
@@ -136,6 +137,13 @@ func AutoMigrate() error {
 		// Purchase entities (Sprint 8)
 		&purchase.PurchaseRequisition{},
 		&purchase.PurchaseRequisitionItem{},
+		&purchase.PurchaseOrder{},
+		&purchase.PurchaseOrderItem{},
+		&purchase.GoodsReceipt{},
+		&purchase.GoodsReceiptItem{},
+		&purchase.SupplierInvoice{},
+		&purchase.SupplierInvoiceItem{},
+		&purchase.PurchasePayment{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

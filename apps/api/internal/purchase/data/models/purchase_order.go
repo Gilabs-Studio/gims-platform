@@ -1,0 +1,78 @@
+package models
+
+import (
+	"time"
+
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
+	userModels "github.com/gilabs/gims/api/internal/user/data/models"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type PurchaseOrderStatus string
+
+const (
+	PurchaseOrderStatusDraft    PurchaseOrderStatus = "DRAFT"
+	PurchaseOrderStatusRevised  PurchaseOrderStatus = "REVISED"
+	PurchaseOrderStatusApproved PurchaseOrderStatus = "APPROVED"
+	PurchaseOrderStatusClosed   PurchaseOrderStatus = "CLOSED"
+)
+
+type PurchaseOrder struct {
+	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+
+	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+
+	SupplierID *string                 `gorm:"type:uuid;index" json:"supplier_id"`
+	Supplier   *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
+
+	PaymentTermsID *string               `gorm:"type:uuid;index" json:"payment_terms_id"`
+	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
+
+	BusinessUnitID *string               `gorm:"type:uuid;index" json:"business_unit_id"`
+	BusinessUnit   *orgModels.BusinessUnit `gorm:"foreignKey:BusinessUnitID" json:"business_unit,omitempty"`
+
+	CreatedBy string          `gorm:"type:uuid;index;not null" json:"created_by"`
+	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+
+	PurchaseRequisitionID *string                `gorm:"type:uuid;index" json:"purchase_requisitions_id"`
+	PurchaseRequisition   *PurchaseRequisition     `gorm:"foreignKey:PurchaseRequisitionID" json:"purchase_requisition,omitempty"`
+
+	SalesOrderID *string           `gorm:"type:uuid;index" json:"sales_order_id"`
+	SalesOrder   *salesModels.SalesOrder `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
+
+	OrderDate string  `gorm:"type:varchar(20);index" json:"order_date"`
+	DueDate   *string `gorm:"type:varchar(20);index" json:"due_date"`
+
+	RevisionComment *string `gorm:"type:text" json:"revision_comment"`
+	Notes           string  `gorm:"type:text" json:"notes"`
+
+	Status PurchaseOrderStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+
+	TaxRate      float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
+	TaxAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
+	DeliveryCost float64 `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
+	OtherCost    float64 `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
+	SubTotal     float64 `gorm:"type:decimal(15,2);default:0" json:"sub_total"`
+	TotalAmount  float64 `gorm:"type:decimal(15,2);default:0" json:"total_amount"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Items []PurchaseOrderItem `gorm:"foreignKey:PurchaseOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+}
+
+func (PurchaseOrder) TableName() string {
+	return "purchase_orders"
+}
+
+func (po *PurchaseOrder) BeforeCreate(tx *gorm.DB) error {
+	if po.ID == "" {
+		po.ID = uuid.New().String()
+	}
+	return nil
+}

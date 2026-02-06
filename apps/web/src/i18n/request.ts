@@ -58,6 +58,21 @@ import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
 
+import { purchaseOrderEn } from "@/features/purchase/orders/i18n/en";
+import { purchaseOrderId } from "@/features/purchase/orders/i18n/id";
+
+import { goodsReceiptEn } from "@/features/purchase/goods-receipt/i18n/en";
+import { goodsReceiptId } from "@/features/purchase/goods-receipt/i18n/id";
+
+import { supplierInvoiceEn } from "@/features/purchase/supplier-invoices/i18n/en";
+import { supplierInvoiceId } from "@/features/purchase/supplier-invoices/i18n/id";
+
+import { supplierInvoiceDPEn } from "@/features/purchase/supplier-invoice-down-payments/i18n/en";
+import { supplierInvoiceDPId } from "@/features/purchase/supplier-invoice-down-payments/i18n/id";
+
+import { purchasePaymentEn } from "@/features/purchase/payments/i18n/en";
+import { purchasePaymentId } from "@/features/purchase/payments/i18n/id";
+
 // Merge all messages
 const messages = {
   en: {
@@ -89,6 +104,11 @@ const messages = {
     ...inventoryEn,
     stock_opname: stockOpnameEn,
     purchaseRequisition: purchaseRequisitionEn,
+    purchaseOrder: purchaseOrderEn,
+    goodsReceipt: goodsReceiptEn,
+    supplierInvoice: supplierInvoiceEn,
+    supplierInvoiceDP: supplierInvoiceDPEn,
+    purchasePayment: purchasePaymentEn,
   },
   id: {
     ...globalIdMessages,
@@ -118,6 +138,11 @@ const messages = {
     ...inventoryId,
     stock_opname: stockOpnameId,
     purchaseRequisition: purchaseRequisitionId,
+    purchaseOrder: purchaseOrderId,
+    goodsReceipt: goodsReceiptId,
+    supplierInvoice: supplierInvoiceId,
+    supplierInvoiceDP: supplierInvoiceDPId,
+    purchasePayment: purchasePaymentId,
   },
 } as const;
 

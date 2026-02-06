@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
-import { useSuppliers } from "@/features/master-data/supplier/hooks/use-suppliers";
+import { usePurchaseRequisitionAddData } from "../hooks/use-purchase-requisitions";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import { useEmployee, useEmployees } from "@/features/master-data/employee/hooks/use-employees";
@@ -193,8 +193,8 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		});
 	}, [detail, isEdit, open, reset]);
 
+	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open });
 	const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-	const { data: suppliersData } = useSuppliers({ per_page: 100 });
 	const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
 	const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
 	const { data: employeesData } = useEmployees({ per_page: 100 });
@@ -204,7 +204,10 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	);
 
 	const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
-	const suppliers = useMemo(() => suppliersData?.data ?? [], [suppliersData?.data]);
+	const suppliers = useMemo(
+		() => addDataQuery.data?.data.suppliers ?? [],
+		[addDataQuery.data?.data.suppliers],
+	);
 	const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
 	const businessUnits = useMemo(() => businessUnitsData?.data ?? [], [businessUnitsData?.data]);
 	const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);

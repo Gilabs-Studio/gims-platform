@@ -106,9 +106,10 @@ export const navigationConfig: NavItem[] = [
     url: "/purchase",
     children: [
       { name: "Requisitions", url: "/purchase/purchase-requisitions", icon: "clipboard-list", permission: "purchase_requisition.read" },
-      { name: "Purchase Orders", url: "/purchase/orders", icon: "shopping-cart", permission: "purchase_order.read" },
+      { name: "Purchase Orders", url: "/purchase/purchase-orders", icon: "shopping-cart", permission: "purchase_order.read" },
       { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
-      { name: "Supplier Invoices", url: "/purchase/invoices", icon: "receipt", permission: "supplier_invoice.read" },
+	  { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
+	  { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
     ],
   },
   {

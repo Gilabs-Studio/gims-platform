@@ -1,0 +1,53 @@
+export const supplierInvoiceDPId = {
+  title: "DP Faktur Supplier",
+  description: "Buat faktur down payment untuk purchase order.",
+  search: "Cari berdasarkan kode, nomor faktur...",
+  toast: {
+    created: "DP faktur berhasil dibuat",
+    updated: "DP faktur berhasil diperbarui",
+    pending: "DP faktur berhasil diproses menjadi unpaid",
+    deleted: "DP faktur berhasil dihapus",
+    failed: "Terjadi kesalahan",
+  },
+  form: {
+    createTitle: "Buat DP Faktur",
+    editTitle: "Ubah DP Faktur",
+  },
+  fields: {
+    purchaseOrder: "Purchase Order",
+    invoiceDate: "Tanggal Faktur",
+    dueDate: "Jatuh Tempo",
+    amount: "Nominal",
+    notes: "Catatan",
+    status: "Status",
+  },
+  columns: {
+    code: "Kode",
+    invoiceNumber: "No. Faktur",
+    invoiceDate: "Tanggal",
+    dueDate: "Jatuh Tempo",
+    purchaseOrder: "PO",
+    amount: "Total",
+    status: "Status",
+    createdAt: "Dibuat",
+  },
+  status: {
+    draft: "Draft",
+    unpaid: "Belum Dibayar",
+    partial: "Sebagian",
+    paid: "Lunas",
+  },
+  actions: {
+    create: "Buat",
+    export: "Ekspor",
+    view: "Lihat",
+    edit: "Ubah",
+    delete: "Hapus",
+    pending: "Pending",
+    save: "Simpan",
+    cancel: "Batal",
+  },
+  placeholders: {
+    select: "Pilih...",
+  },
+};

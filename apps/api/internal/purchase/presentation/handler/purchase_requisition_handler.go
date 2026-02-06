@@ -13,14 +13,16 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type PurchaseRequisitionHandler struct {
-	uc usecase.PurchaseRequisitionUsecase
+	uc   usecase.PurchaseRequisitionUsecase
+	poUc usecase.PurchaseOrderUsecase
 }
 
-func NewPurchaseRequisitionHandler(uc usecase.PurchaseRequisitionUsecase) *PurchaseRequisitionHandler {
-	return &PurchaseRequisitionHandler{uc: uc}
+func NewPurchaseRequisitionHandler(uc usecase.PurchaseRequisitionUsecase, poUc usecase.PurchaseOrderUsecase) *PurchaseRequisitionHandler {
+	return &PurchaseRequisitionHandler{uc: uc, poUc: poUc}
 }
 
 // List handles GET /purchase/purchase-requisitions
@@ -39,6 +41,7 @@ func (h *PurchaseRequisitionHandler) List(c *gin.Context) {
 
 	params := repositories.PurchaseRequisitionListParams{
 		Search:  c.Query("search"),
+		Status:  c.Query("status"),
 		SortBy:  c.DefaultQuery("sort_by", "created_at"),
 		SortDir: c.DefaultQuery("sort_dir", "desc"),
 		Limit:   perPage,
@@ -105,7 +108,11 @@ func (h *PurchaseRequisitionHandler) Create(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
@@ -126,7 +133,11 @@ func (h *PurchaseRequisitionHandler) GetByID(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
@@ -161,7 +172,11 @@ func (h *PurchaseRequisitionHandler) Update(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
@@ -195,7 +210,11 @@ func (h *PurchaseRequisitionHandler) AddData(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) Approve(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
@@ -220,7 +239,11 @@ func (h *PurchaseRequisitionHandler) Approve(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) Reject(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
@@ -245,35 +268,49 @@ func (h *PurchaseRequisitionHandler) Reject(c *gin.Context) {
 func (h *PurchaseRequisitionHandler) Convert(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
-	if err := h.uc.Convert(c.Request.Context(), id); err != nil {
+	if h.poUc == nil {
+		errors.InternalServerErrorResponse(c, "purchase order usecase is nil")
+		return
+	}
+
+	po, err := h.poUc.CreateFromPurchaseRequisition(c.Request.Context(), id)
+	if err != nil {
 		if err == usecase.ErrPurchaseRequisitionNotFound {
 			errors.NotFoundResponse(c, "purchase_requisition", id)
 			return
 		}
-		if err == usecase.ErrInvalidStatus {
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrPurchaseOrderConflict {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
-			return
-		}
-		if err == usecase.ErrNotImplemented {
-			errors.ErrorResponse(c, "NOT_IMPLEMENTED", map[string]interface{}{"message": "Purchase Order module not available yet"}, nil)
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
-	response.SuccessResponse(c, map[string]interface{}{"id": id}, nil)
+	response.SuccessResponse(c, map[string]interface{}{
+		"purchase_requisition_id": id,
+		"purchase_order_id":       po.ID,
+		"purchase_order_code":     po.Code,
+	}, nil)
 }
 
 // AuditTrail handles GET /purchase/purchase-requisitions/:id/audit-trail
 func (h *PurchaseRequisitionHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 

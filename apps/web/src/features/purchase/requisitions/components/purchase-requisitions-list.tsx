@@ -404,8 +404,13 @@ export function PurchaseRequisitionsList() {
                               <DropdownMenuItem
                                 onClick={async () => {
                                   try {
-                                    await convertMutation.mutateAsync(item.id);
-                                    toast.success(t("toast.converted"));
+                                    const res = await convertMutation.mutateAsync(item.id);
+                                    const poCode = res?.data?.purchase_order_code;
+                                    toast.success(
+                                      poCode
+                                        ? `${t("toast.converted")} (PO: ${poCode})`
+                                        : t("toast.converted"),
+                                    );
                                   } catch {
                                     toast.error(t("toast.failed"));
                                   }

@@ -249,21 +249,45 @@ func SeedPermissions() error {
 		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 
-		{"/purchase/orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
-		{"/purchase/orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
-		{"/purchase/orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
-		{"/purchase/orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
-		{"/purchase/orders", "purchase_order.approve", "Approve Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.confirm", "Confirm Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.create", "Create Goods Receipts", "CREATE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.update", "Edit Goods Receipts", "EDIT", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.delete", "Delete Goods Receipts", "DELETE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.confirm", "Confirm Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
 
-		{"/purchase/invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.pending", "Pending Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
+
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.create", "Create Supplier Invoice Down Payments", "CREATE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.update", "Edit Supplier Invoice Down Payments", "EDIT", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.delete", "Delete Supplier Invoice Down Payments", "DELETE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.pending", "Pending Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
+		// Purchase Payments
+		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
 
 		// Stock
 		{"/stock/inventory", "inventory.read", "View Inventory", "VIEW", "inventory"},
@@ -442,7 +466,18 @@ func SeedPermissions() error {
 		// Check if permission already exists
 		var existingPerm permission.Permission
 		if err := database.DB.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
-			// Permission exists, add ID to list and continue
+			// Permission exists: ensure it matches the latest definition.
+			updates := map[string]interface{}{
+				"name":     p.name,
+				"action":   p.action,
+				"resource": p.resource,
+				"menu_id":  &menuID,
+			}
+			if err := database.DB.Model(&existingPerm).Updates(updates).Error; err != nil {
+				log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+			}
+
+			// Add ID to list and continue
 			permissionIDs = append(permissionIDs, existingPerm.ID)
 			continue
 		}
