@@ -19,9 +19,10 @@ type EmployeeContractUsecase interface {
 	Update(ctx context.Context, id uuid.UUID, req *dto.UpdateEmployeeContractRequest, userID uuid.UUID) (*dto.EmployeeContractResponse, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.EmployeeContractResponse, error)
-	GetAll(ctx context.Context, req *dto.ListEmployeeContractsRequest) ([]*dto.EmployeeContractResponse, int64, error)
+	GetAll(ctx context.Context, req *dto.ListEmployeeContractsRequest) ([]*dto.EmployeeContractListResponse, int64, error)
 	GetByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*dto.EmployeeContractResponse, error)
 	GetExpiring(ctx context.Context, req *dto.ExpiringContractsRequest) ([]*dto.EmployeeContractResponse, int64, error)
+	GetFormData(ctx context.Context) (*dto.EmployeeContractFormDataResponse, error)
 }
 
 type employeeContractUsecase struct {
@@ -253,7 +254,7 @@ func (u *employeeContractUsecase) GetByID(ctx context.Context, id uuid.UUID) (*d
 	return u.mapper.ToResponse(contract), nil
 }
 
-func (u *employeeContractUsecase) GetAll(ctx context.Context, req *dto.ListEmployeeContractsRequest) ([]*dto.EmployeeContractResponse, int64, error) {
+func (u *employeeContractUsecase) GetAll(ctx context.Context, req *dto.ListEmployeeContractsRequest) ([]*dto.EmployeeContractListResponse, int64, error) {
 	// Set defaults
 	page := req.Page
 	if page < 1 {
@@ -268,13 +269,29 @@ func (u *employeeContractUsecase) GetAll(ctx context.Context, req *dto.ListEmplo
 		perPage = 100
 	}
 
-	// Fetch contracts
-	contracts, total, err := u.contractRepo.FindAll(ctx, page, perPage, req.EmployeeID, req.Status, req.ContractType)
+	// Fetch contracts with search
+	contracts, total, err := u.contractRepo.FindAll(ctx, page, perPage, req.EmployeeID, req.Status, req.ContractType, req.Search)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return u.mapper.ToResponseList(contracts), total, nil
+	// Build list responses with employee names
+	responses := make([]*dto.EmployeeContractListResponse, 0, len(contracts))
+	for _, contract := range contracts {
+		employeeName := ""
+		employeeCode := ""
+
+		// Fetch employee details
+		employee, err := u.employeeRepo.FindByID(ctx, contract.EmployeeID.String())
+		if err == nil && employee != nil {
+			employeeName = employee.Name
+			employeeCode = employee.EmployeeCode
+		}
+
+		responses = append(responses, u.mapper.ToListResponse(contract, employeeName, employeeCode))
+	}
+
+	return responses, total, nil
 }
 
 func (u *employeeContractUsecase) GetByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*dto.EmployeeContractResponse, error) {
@@ -325,4 +342,47 @@ func (u *employeeContractUsecase) GetExpiring(ctx context.Context, req *dto.Expi
 	}
 
 	return u.mapper.ToResponseList(contracts), total, nil
+}
+
+func (u *employeeContractUsecase) GetFormData(ctx context.Context) (*dto.EmployeeContractFormDataResponse, error) {
+	// Fetch all active employees
+	employees, err := u.employeeRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map to form options
+	employeeOptions := make([]dto.EmployeeFormOption, 0, len(employees))
+	for _, emp := range employees {
+		employeeID, err := uuid.Parse(emp.ID)
+		if err != nil {
+			continue // Skip invalid UUID
+		}
+		employeeOptions = append(employeeOptions, dto.EmployeeFormOption{
+			ID:           employeeID,
+			EmployeeCode: emp.EmployeeCode,
+			Name:         emp.Name,
+		})
+	}
+
+	// Contract type options
+	contractTypes := []dto.ContractTypeOption{
+		{Value: string(models.ContractTypePermanent), Label: "Permanent"},
+		{Value: string(models.ContractTypeContract), Label: "Contract"},
+		{Value: string(models.ContractTypeInternship), Label: "Internship"},
+		{Value: string(models.ContractTypeProbation), Label: "Probation"},
+	}
+
+	// Status options
+	statuses := []dto.StatusOption{
+		{Value: string(models.ContractStatusActive), Label: "Active"},
+		{Value: string(models.ContractStatusExpired), Label: "Expired"},
+		{Value: string(models.ContractStatusTerminated), Label: "Terminated"},
+	}
+
+	return &dto.EmployeeContractFormDataResponse{
+		Employees:     employeeOptions,
+		ContractTypes: contractTypes,
+		Statuses:      statuses,
+	}, nil
 }

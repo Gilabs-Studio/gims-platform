@@ -63,9 +63,29 @@ type EmployeeSimpleResponse struct {
 	Department   string    `json:"department"`
 }
 
+// EmployeeContractListResponse is used for list endpoints (without sensitive/heavy fields)
+type EmployeeContractListResponse struct {
+	ID              uuid.UUID             `json:"id"`
+	EmployeeID      uuid.UUID             `json:"employee_id"`
+	EmployeeName    string                `json:"employee_name"`
+	EmployeeCode    string                `json:"employee_code"`
+	ContractNumber  string                `json:"contract_number"`
+	ContractType    models.ContractType   `json:"contract_type"`
+	StartDate       string                `json:"start_date"`
+	EndDate         *string               `json:"end_date"`
+	Salary          float64               `json:"salary"`
+	JobTitle        string                `json:"job_title"`
+	Status          models.ContractStatus `json:"status"`
+	IsExpiringSoon  bool                  `json:"is_expiring_soon"`
+	DaysUntilExpiry *int                  `json:"days_until_expiry"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+}
+
 type ListEmployeeContractsRequest struct {
 	Page         int                    `form:"page" binding:"omitempty,min=1"`
 	PerPage      int                    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search       string                 `form:"search"`
 	EmployeeID   *uuid.UUID             `form:"employee_id"`
 	Status       *models.ContractStatus `form:"status" binding:"omitempty,oneof=ACTIVE EXPIRED TERMINATED"`
 	ContractType *models.ContractType   `form:"contract_type" binding:"omitempty,oneof=PERMANENT CONTRACT INTERNSHIP PROBATION"`
@@ -75,4 +95,27 @@ type ExpiringContractsRequest struct {
 	Page    int `form:"page" binding:"omitempty,min=1"`
 	PerPage int `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Days    int `form:"days" binding:"omitempty,min=1,max=180"` // Default 30 days
+}
+
+// EmployeeContractFormDataResponse for form options
+type EmployeeContractFormDataResponse struct {
+	Employees     []EmployeeFormOption `json:"employees"`
+	ContractTypes []ContractTypeOption `json:"contract_types"`
+	Statuses      []StatusOption       `json:"statuses"`
+}
+
+type EmployeeFormOption struct {
+	ID           uuid.UUID `json:"id"`
+	EmployeeCode string    `json:"employee_code"`
+	Name         string    `json:"name"`
+}
+
+type ContractTypeOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+type StatusOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }

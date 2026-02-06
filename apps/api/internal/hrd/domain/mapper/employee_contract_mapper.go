@@ -59,3 +59,39 @@ func (m *EmployeeContractMapper) ToResponseList(contracts []*models.EmployeeCont
 	}
 	return responses
 }
+
+// ToListResponse converts contract model to list response (minimal fields + employee name)
+func (m *EmployeeContractMapper) ToListResponse(contract *models.EmployeeContract, employeeName, employeeCode string) *dto.EmployeeContractListResponse {
+	if contract == nil {
+		return nil
+	}
+
+	response := &dto.EmployeeContractListResponse{
+		ID:             contract.ID,
+		EmployeeID:     contract.EmployeeID,
+		EmployeeName:   employeeName,
+		EmployeeCode:   employeeCode,
+		ContractNumber: contract.ContractNumber,
+		ContractType:   contract.ContractType,
+		StartDate:      contract.StartDate.Format("2006-01-02"),
+		Salary:         contract.Salary,
+		JobTitle:       contract.JobTitle,
+		Status:         contract.Status,
+		CreatedAt:      contract.CreatedAt,
+		UpdatedAt:      contract.UpdatedAt,
+	}
+
+	if contract.EndDate != nil {
+		endDateStr := contract.EndDate.Format("2006-01-02")
+		response.EndDate = &endDateStr
+
+		// Calculate days until expiry
+		if contract.Status == models.ContractStatusActive && contract.EndDate.After(time.Now()) {
+			days := int(time.Until(*contract.EndDate).Hours() / 24)
+			response.DaysUntilExpiry = &days
+			response.IsExpiringSoon = contract.IsExpiringSoon(30)
+		}
+	}
+
+	return response
+}
