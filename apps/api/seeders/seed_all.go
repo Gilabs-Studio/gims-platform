@@ -133,6 +133,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Employee Education History seeder (Sprint 14)
+	if err := SeedEmployeeEducationHistory(); err != nil {
+		return err
+	}
+
 	// Stock Movement seeder (Sprint 9)
 	if err := SeedStockMovement(); err != nil {
 		return err

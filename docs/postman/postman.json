@@ -1065,8 +1065,8 @@
 			]
 		},
 		{
-			"name": "HRD - Attendance",
-			"description": "HRD Attendance management endpoints including clock in/out, work schedules, holidays, and overtime",
+			"name": "HRD",
+			"description": "HRD management endpoints including attendance, leave request, employee documents, evaluations, recruitment, work schedules, and hollidays management.",
 			"item": [
 				{
 					"name": "Attendance",
@@ -3538,6 +3538,319 @@
 									]
 								},
 								"description": "Get all contracts for specific employee (contract history). Requires `employee_contract.read` permission.\n\n**Use Case:** View employee's contract history, track promotions/changes.\n\n**Sorting:** Start date DESC (most recent first)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"contract_number\": \"CONTRACT-2023-001\",\n      \"contract_type\": \"PERMANENT\",\n      \"start_date\": \"2023-01-01\",\n      \"end_date\": null,\n      \"salary\": 15000000.00,\n      \"job_title\": \"System Administrator\",\n      \"department\": \"Information Technology\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": false,\n      \"days_until_expiry\": null,\n      \"created_at\": \"2023-01-01T08:00:00+07:00\",\n      \"updated_at\": \"2023-01-01T08:00:00+07:00\"\n    }\n  ],\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_employee_contracts_123\"\n}\n```\n\n**Note:** Returns all contracts (ACTIVE, EXPIRED, TERMINATED) for complete history.\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `INVALID_ID` (400) - Invalid employee UUID"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Education History",
+					"description": "Employee education history tracking from elementary to doctorate level",
+					"item": [
+						{
+							"name": "Create Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"institution\": \"University of Indonesia\",\n  \"degree\": \"BACHELOR\",\n  \"field_of_study\": \"Computer Science\",\n  \"start_date\": \"2015-09-01\",\n  \"end_date\": \"2019-06-30\",\n  \"gpa\": 3.75,\n  \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n  \"document_path\": \"/documents/education/diploma_ui_2019.pdf\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories"
+									]
+								},
+								"description": "Create new education history record for an employee. Requires `education_history.create` permission.\n\n**Business Rules:**\n- Employee must exist in database\n- `end_date` must be after `start_date` (if provided)\n- `gpa` must be between 0 and 4.0 (if provided)\n- `end_date` is optional (for ongoing education)\n\n**Degree Options:**\n- `ELEMENTARY` - Elementary School\n- `JUNIOR_HIGH` - Junior High School\n- `SENIOR_HIGH` - Senior High School\n- `DIPLOMA` - Diploma (D1/D2/D3)\n- `BACHELOR` - Bachelor's Degree (S1)\n- `MASTER` - Master's Degree (S2)\n- `DOCTORATE` - Doctorate Degree (S3)\n\n**Validation:**\n- `institution`: max 200 chars, required\n- `degree`: required, must be one of valid degrees\n- `field_of_study`: max 200 chars, optional\n- `start_date`: required, format YYYY-MM-DD\n- `end_date`: optional, format YYYY-MM-DD\n- `gpa`: optional, decimal between 0-4.0\n- `document_path`: max 255 chars, optional\n\n**Success Response (201 Created):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.75,\n    \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n    \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:00:00+07:00\",\n  \"request_id\": \"req_create_edu_123\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `VALIDATION_ERROR` (400) - Invalid data (date logic, GPA range, etc.)\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"gpa\": 3.85,\n  \"description\": \"Updated description with honors\",\n  \"document_path\": \"/documents/education/diploma_ui_2019_updated.pdf\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Update existing education history. All fields are optional - only provide fields you want to update. Requires `education_history.update` permission.\n\n**Business Rules:**\n- Same validation as Create (date logic, GPA range)\n- Cannot change employee_id (immutable)\n\n**Request Body (all optional):**\n```json\n{\n  \"institution\": \"University of Indonesia\",\n  \"degree\": \"BACHELOR\",\n  \"field_of_study\": \"Computer Science\",\n  \"start_date\": \"2015-09-01\",\n  \"end_date\": \"2019-06-30\",\n  \"gpa\": 3.85,\n  \"description\": \"Updated description\",\n  \"document_path\": \"/documents/education/updated.pdf\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.85,\n    \"description\": \"Updated description with honors\",\n    \"document_path\": \"/documents/education/diploma_ui_2019_updated.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T14:30:00+07:00\",\n  \"request_id\": \"req_update_edu_456\"\n}\n```\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist\n- `VALIDATION_ERROR` (400) - Invalid data\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Soft delete education history record. Record remains in database for audit trail but won't appear in normal queries. Requires `education_history.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Education history deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T15:00:00+07:00\",\n  \"request_id\": \"req_delete_edu_789\"\n}\n```\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist or already deleted\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Education History By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Get detailed education history record by ID. Requires `education_history.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.75,\n    \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n    \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_get_edu_101\"\n}\n```\n\n**Computed Fields:**\n- `is_completed`: true if end_date exists and is in the past\n- `duration_years`: Calculated duration in years (decimal)\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist\n- `INVALID_ID` (400) - Invalid UUID format\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Education Histories",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories?page=1&per_page=20&search=university&degree=BACHELOR",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page, max 100 (default: 20)"
+										},
+										{
+											"key": "search",
+											"value": "university",
+											"description": "Search in institution or field_of_study (case-insensitive)"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee UUID",
+											"disabled": true
+										},
+										{
+											"key": "degree",
+											"value": "BACHELOR",
+											"description": "Filter by degree level (ELEMENTARY, JUNIOR_HIGH, SENIOR_HIGH, DIPLOMA, BACHELOR, MASTER, DOCTORATE)"
+										}
+									]
+								},
+								"description": "Get paginated list of all education histories with optional filters. Requires `education_history.read` permission.\n\n**Query Parameters:**\n- `page` (optional): Page number (default: 1)\n- `per_page` (optional): Items per page, max 100 (default: 20)\n- `search` (optional): Search in institution or field_of_study\n- `employee_id` (optional): Filter by specific employee UUID\n- `degree` (optional): Filter by degree level\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"University of Indonesia\",\n      \"degree\": \"BACHELOR\",\n      \"field_of_study\": \"Computer Science\",\n      \"start_date\": \"2015-09-01\",\n      \"end_date\": \"2019-06-30\",\n      \"gpa\": 3.75,\n      \"description\": \"Bachelor of Computer Science\",\n      \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 3.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 1,\n      \"total_pages\": 1,\n      \"has_next\": false,\n      \"has_prev\": false\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:00:00+07:00\",\n  \"request_id\": \"req_list_edu_202\"\n}\n```\n\n**Sorting:** Results ordered by start_date DESC (most recent first)\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission\n- `VALIDATION_ERROR` (400) - Invalid query parameters"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Education Histories By Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "11111111-1111-1111-1111-111111111111"
+										}
+									]
+								},
+								"description": "Get all education history records for a specific employee, ordered by most recent first. Requires `education_history.read` permission.\n\n**Use Case:** View employee's complete education background in chronological order.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e2222222-2222-2222-2222-222222222222\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"Stanford University\",\n      \"degree\": \"MASTER\",\n      \"field_of_study\": \"Software Engineering\",\n      \"start_date\": \"2020-09-01\",\n      \"end_date\": \"2022-06-30\",\n      \"gpa\": 3.92,\n      \"description\": \"Master of Science in Software Engineering\",\n      \"document_path\": \"/documents/education/ms_stanford_2022.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 1.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    },\n    {\n      \"id\": \"e1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"University of Indonesia\",\n      \"degree\": \"BACHELOR\",\n      \"field_of_study\": \"Computer Science\",\n      \"start_date\": \"2015-09-01\",\n      \"end_date\": \"2019-06-30\",\n      \"gpa\": 3.75,\n      \"description\": \"Bachelor of Computer Science\",\n      \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 3.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    }\n  ],\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_employee_edu_303\"\n}\n```\n\n**Note:** Results are ordered by `start_date DESC` (most recent education first).\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `INVALID_ID` (400) - Invalid employee_id UUID format\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										"form-data"
+									]
+								},
+								"description": "Get all necessary data for populating education history form dropdowns. Returns list of employees and degree level options. Requires `education_history.read` permission.\n\n**Use Case:** Load dropdown options when creating/editing education history records.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"Admin Employee\"\n      },\n      {\n        \"id\": \"22222222-2222-2222-2222-222222222222\",\n        \"employee_code\": \"EMP002\",\n        \"name\": \"Manager Employee\"\n      }\n    ],\n    \"degree_levels\": [\n      {\n        \"value\": \"ELEMENTARY\",\n        \"label\": \"Elementary School\"\n      },\n      {\n        \"value\": \"JUNIOR_HIGH\",\n        \"label\": \"Junior High School\"\n      },\n      {\n        \"value\": \"SENIOR_HIGH\",\n        \"label\": \"Senior High School\"\n      },\n      {\n        \"value\": \"DIPLOMA\",\n        \"label\": \"Diploma (D1/D2/D3)\"\n      },\n      {\n        \"value\": \"BACHELOR\",\n        \"label\": \"Bachelor's Degree (S1)\"\n      },\n      {\n        \"value\": \"MASTER\",\n        \"label\": \"Master's Degree (S2)\"\n      },\n      {\n        \"value\": \"DOCTORATE\",\n        \"label\": \"Doctorate Degree (S3)\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_form_data_401\"\n}\n```\n\n**Note:** Only active employees are returned in the employees list.\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission\n- `INTERNAL_ERROR` (500) - Failed to fetch form data"
 							},
 							"response": []
 						}

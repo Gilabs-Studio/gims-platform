@@ -193,7 +193,122 @@ cd apps/api && docker-compose up -d postgres
 1. Create domain folder: `apps/api/internal/<domain>/`
 2. Create layers: models → repositories → dto → mapper → usecase → handler → router
 3. Register in `presentation/routers.go` aggregator
-4. Update Postman collection: `docs/postman/postman.json`
+4. **CRITICAL**: For features with foreign key fields (employee_id, customer_id, product_id, etc.), ALWAYS create a GetFormData endpoint (see pattern below)
+5. Update Postman collection: `docs/postman/postman.json`
+
+### GetFormData Endpoint Pattern (MANDATORY for Foreign Key Features)
+
+**When to Create:**
+- Feature has **foreign key fields** requiring dropdown selection (employee_id, customer_id, product_id, etc.)
+- Form needs **enum options** (status, type, category fields)
+
+**Purpose:** Single API call to fetch all dropdown/select options for forms, reducing frontend complexity and round-trips.
+
+**Implementation Steps:**
+
+1. **Add FormData DTO** (in `domain/dto/<feature>_dto.go`):
+   ```go
+   // <Feature>FormDataResponse for form options
+   type <Feature>FormDataResponse struct {
+       Employees    []EmployeeFormOption  `json:"employees"`    // For employee_id
+       // Add other entities as needed (Customers, Products, etc.)
+       <EnumName>s  []<EnumName>Option    `json:"<enum>s"`      // For enum fields
+   }
+   
+   // Reuse EmployeeFormOption (or create if first time)
+   type EmployeeFormOption struct {
+       ID           uuid.UUID `json:"id"`
+       EmployeeCode string    `json:"employee_code"`
+       Name         string    `json:"name"`
+   }
+   
+   // Create enum options
+   type <EnumName>Option struct {
+       Value string `json:"value"`
+       Label string `json:"label"`
+   }
+   ```
+
+2. **Add GetFormData to Usecase Interface** (in `domain/usecase/<feature>_usecase.go`):
+   ```go
+   type <Feature>Usecase interface {
+       // ... other methods
+       GetFormData(ctx context.Context) (*dto.<Feature>FormDataResponse, error)
+   }
+   ```
+
+3. **Implement GetFormData in Usecase**:
+   ```go
+   func (u *<feature>Usecase) GetFormData(ctx context.Context) (*dto.<Feature>FormDataResponse, error) {
+       // Fetch employees (or other related entities)
+       employees, err := u.employeeRepo.FindAll(ctx)
+       if err != nil {
+           return nil, err
+       }
+   
+       // Map to form options
+       employeeOptions := make([]dto.EmployeeFormOption, 0, len(employees))
+       for _, emp := range employees {
+           employeeID, err := uuid.Parse(emp.ID)
+           if err != nil {
+               continue // Skip invalid UUID
+           }
+           employeeOptions = append(employeeOptions, dto.EmployeeFormOption{
+               ID:           employeeID,
+               EmployeeCode: emp.EmployeeCode,
+               Name:         emp.Name,
+           })
+       }
+   
+       // Create enum options (example for degree levels)
+       degreeLevels := []dto.DegreeLevelOption{
+           {Value: "ELEMENTARY", Label: "Elementary School"},
+           {Value: "BACHELOR", Label: "Bachelor's Degree (S1)"},
+           // ... more options
+       }
+   
+       return &dto.<Feature>FormDataResponse{
+           Employees:    employeeOptions,
+           DegreeLevels: degreeLevels,
+       }, nil
+   }
+   ```
+
+4. **Add GetFormData Handler** (in `presentation/handler/<feature>_handler.go`):
+   ```go
+   func (h *<Feature>Handler) GetFormData(c *gin.Context) {
+       formData, err := h.usecase.GetFormData(c.Request.Context())
+       if err != nil {
+           handle<Feature>Error(c, err)
+           return
+       }
+       response.SuccessResponse(c, formData, nil)
+   }
+   ```
+
+5. **Register Route** (in `presentation/router/<feature>_router.go`):
+   ```go
+   // CRITICAL: Place BEFORE parameterized routes (/:id) for route specificity
+   <plural>.GET("/form-data", middleware.RequirePermission("<feature>.read"), handler.GetFormData)
+   ```
+
+6. **Update Postman Collection** (`docs/postman/postman.json`):
+   - Add "Get Form Data" endpoint
+   - Include request example with auth token
+   - Document response structure with employees + enum options
+   - Add error codes (FORBIDDEN, INTERNAL_ERROR)
+
+**Example Features Using This Pattern:**
+- EmployeeContract: Returns employees, contract types, statuses
+- EmployeeEducationHistory: Returns employees, degree levels
+- SalesQuotation: Returns customers, products, payment terms
+- PurchaseOrder: Returns suppliers, products, warehouses
+
+**Benefits:**
+- ✅ Single API call for all form options
+- ✅ Consistent data structure across features
+- ✅ Reduced frontend complexity
+- ✅ Improved performance (fewer round-trips)
 
 ### Frontend Workflow
 1. Create feature folder: `apps/web/src/features/<feature>/`
@@ -507,6 +622,7 @@ Daftar endpoint dalam bentuk **tabel** untuk referensi cepat.
 | GET | `/hrd/leave-requests` | leave.read | List all leave requests |
 | GET | `/hrd/leave-requests/:id` | leave.read | Get detail by ID |
 | POST | `/hrd/leave-requests` | Auth | Submit leave request |
+| GET | `/hrd/leave-requests/form-data` | auth | Fetch form data for leave requests |
 | POST | `/hrd/leave-requests/:id/approve` | leave.approve | Approve request |
 | POST | `/hrd/leave-requests/:id/reject` | leave.approve | Reject request |
 | GET | `/hrd/leave-requests/my-balance` | Auth | Get own leave balance |

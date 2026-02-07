@@ -130,6 +130,8 @@ func AutoMigrate() error {
 		&hrd.LeaveRequest{},
 		// HRD Employee Contracts entities (Sprint 14)
 		&hrd.EmployeeContract{},
+		// HRD Employee Education History entities (Sprint 14)
+		&hrd.EmployeeEducationHistory{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
