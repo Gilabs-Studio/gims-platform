@@ -1008,10 +1008,10 @@ erDiagram
 
 - [ ] `LeaveRequest` - CRUD + Approve workflow
 - [ ] Leave balance calculation
-- [ ] `EmployeeContract` - CRUD
-- [ ] `EmployeeEducationHistory` - CRUD
-- [ ] `EmployeeCertification` - CRUD
-- [ ] `EmployeeAsset` - CRUD (company assets borrowed)
+- [x] `EmployeeContract` - CRUD
+- [x] `EmployeeEducationHistory` - CRUD
+- [x] `EmployeeCertification` - CRUD
+- [x] `EmployeeAsset` - CRUD (company assets borrowed) ✅ **Backend API Complete**
 - [ ] `SalaryStructure` - CRUD
 - [ ] `UpCountryCost` - Travel expense
 

@@ -4175,6 +4175,389 @@
 							"response": []
 						}
 					]
+				},
+				{
+					"name": "Employee Assets",
+					"description": "Company asset management tracking borrowed/returned status with condition monitoring",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"form-data"
+									]
+								},
+								"description": "Get dropdown data for asset form (employees). Requires authentication only.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"emp-uuid\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_form_100\"\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "List All Assets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets?page=1&per_page=20&search=MacBook&employee_id=&status=BORROWED",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "search",
+											"value": "MacBook",
+											"description": "Search in asset_name, asset_code, asset_category"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee UUID"
+										},
+										{
+											"key": "status",
+											"value": "BORROWED",
+											"description": "Filter by status: BORROWED or RETURNED"
+										}
+									]
+								},
+								"description": "List all employee assets with pagination and filters. Requires `employee_asset.read` permission.\n\n**Query Parameters:**\n- `page` (int): Page number (default: 1)\n- `per_page` (int): Items per page (default: 20, max: 100)\n- `search` (string): Search in asset_name, asset_code, asset_category (prefix search)\n- `employee_id` (uuid): Filter by employee\n- `status` (string): Filter by status (`BORROWED` | `RETURNED`)\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"asset-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee\": {\n        \"id\": \"emp-uuid\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      },\n      \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n      \"asset_code\": \"LAP-001\",\n      \"asset_category\": \"Laptop\",\n      \"borrow_date\": \"2024-06-01\",\n      \"return_date\": null,\n      \"borrow_condition\": \"NEW\",\n      \"return_condition\": null,\n      \"notes\": \"For development work\",\n      \"status\": \"BORROWED\",\n      \"days_borrowed\": 19,\n      \"created_at\": \"2024-06-01T10:30:00+07:00\",\n      \"updated_at\": \"2024-06-01T10:30:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false\n    }\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_list_200\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing required permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Asset Detail",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Get employee asset detail by ID with employee relation. Requires `employee_asset.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"asset-uuid\",\n    \"employee_id\": \"emp-uuid\",\n    \"employee\": {\n      \"id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"name\": \"John Doe\"\n    },\n    \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n    \"asset_code\": \"LAP-001\",\n    \"asset_category\": \"Laptop\",\n    \"borrow_date\": \"2024-01-15\",\n    \"return_date\": \"2024-06-15\",\n    \"borrow_condition\": \"NEW\",\n    \"return_condition\": \"GOOD\",\n    \"notes\": \"For development work\\n---\\nReturn Notes: All accessories returned\",\n    \"status\": \"RETURNED\",\n    \"days_borrowed\": 152,\n    \"created_at\": \"2024-01-15T10:30:45+07:00\",\n    \"updated_at\": \"2024-06-15T14:20:30+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_detail_300\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Assets by Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "emp-uuid",
+											"description": "Employee UUID"
+										}
+									]
+								},
+								"description": "Get all assets (borrowed + returned) for a specific employee. Requires `employee_asset.read` permission.\n\n**Use Case:** Employee asset history view\n\n**Success Response (200 OK):** Array of asset objects (same structure as List All Assets)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Borrowed Assets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/borrowed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"borrowed"
+									]
+								},
+								"description": "Get currently borrowed assets (ReturnDate IS NULL) ordered by borrow_date ASC (oldest first = most urgent). Requires `employee_asset.read` permission.\n\n**Use Case:** Dashboard widget for long-borrowed asset alerts\n\n**Success Response (200 OK):** Array of asset objects (same structure as List All Assets)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Asset (Borrow)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n  \"asset_code\": \"LAP-001\",\n  \"asset_category\": \"Laptop\",\n  \"borrow_date\": \"2024-06-01\",\n  \"borrow_condition\": \"NEW\",\n  \"notes\": \"For development work. Includes charger and USB-C hub.\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets"
+									]
+								},
+								"description": "Create new asset record (borrow asset to employee). Requires `employee_asset.create` permission.\n\n**Request Body:**\n```json\n{\n  \"employee_id\": \"uuid\" (required),\n  \"asset_name\": \"string\" (required, max 200),\n  \"asset_code\": \"string\" (required, max 100, must be unique among unreturned assets),\n  \"asset_category\": \"string\" (required, max 100),\n  \"borrow_date\": \"YYYY-MM-DD\" (required),\n  \"borrow_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (required),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Success Response (200 OK):** Returns created asset object\n\n**Business Rules:**\n- Asset code must be unique among unreturned assets (allows reuse after return)\n- Employee must exist\n- Borrow condition is mandatory\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Invalid request body or duplicate asset code\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"asset_name\": \"MacBook Pro 16\\\" M3 Max (Updated)\",\n  \"asset_category\": \"Laptop - Development\",\n  \"notes\": \"Updated notes\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Update asset information (only for unreturned assets). Requires `employee_asset.update` permission.\n\n**Request Body:** All fields optional\n```json\n{\n  \"asset_name\": \"string\" (optional, max 200),\n  \"asset_code\": \"string\" (optional, max 100),\n  \"asset_category\": \"string\" (optional, max 100),\n  \"borrow_date\": \"YYYY-MM-DD\" (optional),\n  \"borrow_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (optional),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Business Rules:**\n- Cannot update assets that have been returned (immutable for audit trail)\n- If changing asset_code, must be unique among unreturned assets\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Cannot update returned asset or duplicate asset code\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Return Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"return_date\": \"2024-06-20\",\n  \"return_condition\": \"GOOD\",\n  \"notes\": \"All accessories returned. Screen and keyboard in excellent condition.\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id/return",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id",
+										"return"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Mark asset as returned with condition assessment. Requires `employee_asset.update` permission.\n\n**Request Body:**\n```json\n{\n  \"return_date\": \"YYYY-MM-DD\" (required),\n  \"return_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (required),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Business Rules:**\n- Cannot return already returned asset\n- Return date must be after borrow date\n- Return condition is mandatory\n- Notes are merged: \"<borrow_notes>\\n---\\nReturn Notes: <return_notes>\"\n\n**Success Response (200 OK):** Returns updated asset object with status=\"RETURNED\"\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Already returned, return date before borrow date, or invalid condition\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Delete an asset record (soft delete for audit trail). Requires `employee_asset.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Employee asset deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_delete_600\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}
