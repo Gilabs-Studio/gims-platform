@@ -242,6 +242,25 @@ internal/hrd/
 }
 ```
 
+## Frontend Implementation
+
+### Komponen
+- **EmployeeAssetList**: "Smart component" yang mengelola state (search, filters, pagination) dan hooks query. Menggunakan `DataTablePagination` untuk navigasi halaman.
+- **EmployeeAssetForm**: Form dengan React Hook Form dan Zod schema validator untuk create/update aset.
+- **ReturnAssetModal**: Dialog khusus untuk pengembalian aset dengan validasi tanggal pengembalian harus > tanggal peminjaman.
+- **EmployeeAssetDetailModal**: Menampilkan detail aset, histori peminjaman, dan kondisi.
+
+### Hooks & State Management
+- **useEmployeeAssets**: Hook untuk fetch list aset dengan filters.
+- **useEmployeeAssetFormData**: Hook untuk mendapatkan opsi dropdown employee.
+- **useCreate/Update/DeleteEmployeeAsset**: Mutations untuk CRUD operations dengan auto-invalidation query cache.
+
+### UX Decisions
+- **Filters**: Employee filter (dropdown) dan Status filter (Borrowed/Returned) di toolbar.
+- **Row Actions**: Dropdown menu per baris (Edit, Return, Delete, View Detail) yang context-aware (e.g. "Return" hanya muncul jika status BORROWED).
+- **Badges**: Visual distinction untuk Status (Borrowed: yellow, Returned: blue) dan Condition (New/Good: standard, Damaged: red).
+- **Modals**: Semua action (Form, Return, Detail) menggunakan modal dialog untuk tetap dalam context list.
+
 ### Response Example
 
 **GET /hrd/employee-assets/:id** (Detail):
