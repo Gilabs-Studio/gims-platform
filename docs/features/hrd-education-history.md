@@ -198,6 +198,373 @@ GET /hrd/employee-education-histories?page=1&per_page=20&search=university&degre
 - "GPA must be between 0 and 4.0" - GPA out of range
 - "invalid start_date format, must be YYYY-MM-DD" - Date parsing error
 
+## Frontend Implementation
+
+### Architecture
+Feature-based structure following established patterns in `apps/web/src/features/hrd/education-history/`:
+
+```
+education-history/
+├── types/           # TypeScript type definitions
+├── schemas/         # Zod validation schemas
+├── services/        # API client methods
+├── hooks/           # TanStack Query hooks
+├── i18n/            # Translations (en + id)
+└── components/      # UI components
+    ├── education-history-list.tsx
+    ├── education-history-form.tsx
+    └── education-history-detail-modal.tsx
+```
+
+### Components
+
+#### EducationHistoryList
+**Purpose**: Main list view with search, filters, pagination, and CRUD actions
+
+**Features**:
+- **Search**: Debounced input (500ms) searching institution and field of study
+- **Degree Filter**: Dropdown with 8 options (All + 7 degree levels)
+- **Pagination**: Server-side with configurable page size (default 20)
+- **Permission-based Actions**: Create/Edit/Delete buttons shown only with proper permissions
+- **Responsive Table**: 7 columns:
+  1. Employee (displays employee_id - UUID)
+  2. Institution
+  3. Degree (colored badge)
+  4. Field of Study
+  5. Start Date
+  6. Status (Completed/Ongoing badge)
+  7. Actions (dropdown menu)
+
+**State Management**:
+```typescript
+- search: string (debounced)
+- page: number (1-indexed)
+- pageSize: number
+- degreeFilter: DegreeLevel | "all"
+- isFormOpen: boolean
+- editingEducation: EmployeeEducationHistory | null
+- viewingEducation: EmployeeEducationHistory | null
+- deletingId: string | null
+```
+
+**Degree Badge Colors** (semantic mapping):
+- ELEMENTARY/JUNIOR_HIGH: secondary (gray)
+- SENIOR_HIGH: default
+- DIPLOMA/BACHELOR: info (blue)
+- MASTER/DOCTORATE: success (green)
+
+**Actions** (permission-gated):
+- View: Opens detail modal (requires `education_history.read`)
+- Edit: Opens form in edit mode (requires `education_history.update`)
+- Delete: Shows confirmation dialog (requires `education_history.delete`)
+
+#### EducationHistoryForm
+**Purpose**: Create/edit dialog form with validation
+
+**Features**:
+- **Mode Detection**: Automatically detects create vs edit mode
+- **GetFormData Integration**: Fetches employees + degree levels from backend on open
+- **React Hook Form**: Form state management with Zod validation
+- **Ongoing Checkbox**: Custom logic to hide end_date field when checked
+- **Date Pickers**: Calendar component with Popover (shadcn/ui)
+- **Real-time Validation**: Inline error messages below fields
+- **Toast Notifications**: Success/error feedback on submit
+
+**Form Fields**:
+1. `employee_id`: Select dropdown (disabled in edit mode)
+2. `institution`: Text input (required, max 200 chars)
+3. `degree`: Select dropdown (7 options, required)
+4. `field_of_study`: Text input (optional, max 200 chars)
+5. `start_date`: Date picker (required)
+6. `ongoing`: Checkbox (hides end_date when checked)
+7. `end_date`: Date picker (optional, hidden if ongoing)
+8. `gpa`: Number input (0-4 range, optional)
+9. `description`: Textarea (optional)
+10. `document_path`: Text input (optional, max 255 chars)
+
+**Validation**:
+- Custom Zod refinement: end_date >= start_date
+- GPA range: 0.00 - 4.00
+- Required field indicators with red asterisk
+
+#### EducationHistoryDetailModal
+**Purpose**: Read-only detail view with edit/delete actions
+
+**Layout Sections**:
+1. **Header**: Icon, title, institution name, action buttons
+2. **Employee Information**: Employee ID display
+3. **Education Information**: Institution, degree badge, field, GPA (2-column grid)
+4. **Timeline**: Start date, end date, status badge, duration (2-column grid)
+5. **Description**: Full text block (if present)
+6. **Document Information**: Document path with icon (or "No document")
+7. **Timestamps**: Created/updated at (footer)
+
+**InfoRow Component**: Reusable display component with icon, label, value
+
+**Actions**:
+- Edit button: Opens EducationHistoryForm in edit mode
+- Delete button: Opens DeleteDialog confirmation
+
+### State Management
+
+#### TanStack Query Hooks
+Located in `hooks/use-education-history.ts`:
+
+**Query Hooks**:
+- `useEducationHistories(params)`: List with filters (search, employee_id, degree, pagination)
+- `useEducationHistory(id, options)`: Single record by ID (conditional fetching)
+- `useEducationHistoriesByEmployee(employeeId, options)`: All records for employee
+- `useEducationHistoryFormData()`: Dropdown options (employees + degree levels, 5min staleTime)
+
+**Mutation Hooks**:
+- `useCreateEducationHistory()`: Create with list invalidation
+- `useUpdateEducationHistory()`: Update with optimistic updates
+- `useDeleteEducationHistory()`: Soft delete with list invalidation
+
+**Query Key Factory**:
+```typescript
+educationHistoryKeys = {
+  all: ["employee-education-histories"],
+  lists: () => [...all, "list"],
+  list: (params) => [...lists(), params],
+  details: () => [...all, "detail"],
+  detail: (id) => [...details(), id],
+  byEmployee: (employeeId) => [...all, "by-employee", employeeId],
+  formData: () => [...all, "form-data"]
+}
+```
+
+**Optimistic Updates** (useUpdateEducationHistory):
+- `onMutate`: Cancel active queries, snapshot previous data
+- `onError`: Rollback to snapshot on failure
+- `onSettled`: Refetch detail + lists to ensure consistency
+
+#### API Service
+Located in `services/education-history-service.ts`:
+
+```typescript
+const BASE_PATH = "/hrd/employee-education-histories";
+
+// Methods:
+list(params)              // GET with filters
+getById(id)               // GET /:id
+getByEmployeeId(empId)    // GET /employee/:employeeId
+getFormData()             // GET /form-data (NEW endpoint)
+create(data)              // POST
+update(id, data)          // PUT /:id
+delete(id)                // DELETE /:id
+```
+
+All methods use `apiClient` wrapper with typed responses.
+
+### Internationalization (i18n)
+
+**Locales**: English (`en`) + Indonesian (`id`)
+
+**Translation Files**:
+- `i18n/en.ts`: English translations (117 lines)
+- `i18n/id.ts`: Indonesian translations (117 lines)
+
+**Namespace**: `educationHistory`
+
+**Sections**:
+1. **common** (26 keys): search, actions, status, CRUD verbs, pagination
+2. **main** (23 keys): title, field labels, messages
+3. **degrees** (7 keys): Degree level labels (localized)
+4. **filters** (4 keys): Filter dropdowns
+5. **validation** (6 keys): Error messages
+6. **details** (6 keys): Detail modal sections
+7. **form** (7 keys): Form placeholders
+
+**Degree Localizations (Indonesian)**:
+- ELEMENTARY → SD (Sekolah Dasar)
+- JUNIOR_HIGH → SMP (Sekolah Menengah Pertama)
+- SENIOR_HIGH → SMA (Sekolah Menengah Atas)
+- DIPLOMA → Diploma (D1/D2/D3)
+- BACHELOR → Sarjana (S1)
+- MASTER → Magister (S2)
+- DOCTORATE → Doktor (S3)
+
+**Usage in Components**:
+```typescript
+import { useTranslations } from "next-intl";
+const t = useTranslations("educationHistory");
+<p>{t("title")}</p>  // "Employee Education History"
+```
+
+### Routing
+
+**Page**: `/hrd/education-history`
+
+**Files**:
+- `app/[locale]/hrd/education-history/page.tsx`: Main page (renders EducationHistoryList)
+- `app/[locale]/hrd/education-history/loading.tsx`: Loading skeleton during navigation
+
+**Page Component**:
+```typescript
+import { EducationHistoryList } from "@/features/hrd/education-history/components/education-history-list";
+import { PageMotion } from "@/components/page-motion";
+
+export default async function EducationHistoryPage() {
+  return (
+    <PageMotion>
+      <EducationHistoryList />
+    </PageMotion>
+  );
+}
+```
+
+**Loading State**: Skeleton UI with header, search, table placeholders
+
+### Permissions
+
+**Required Permissions**:
+- `education_history.read`: View list and detail
+- `education_history.create`: Create new records
+- `education_history.update`: Edit existing records
+- `education_history.delete`: Delete records (soft)
+
+**UI Behavior**:
+- Add button hidden if no `create` permission
+- Edit action hidden if no `update` permission
+- Delete action hidden if no `delete` permission
+- View action hidden if no `read` permission
+
+**Permission Hook**:
+```typescript
+const { hasPermission } = useUserPermission();
+const canCreate = hasPermission("education_history.create");
+```
+
+### UI/UX Features
+
+#### Search & Filters
+- **Debounced Search**: 500ms delay prevents excessive API calls
+- **Search Scope**: Searches both institution and field_of_study
+- **Degree Filter**: Dropdown with "All Degrees" + 7 degree levels
+- **Auto-reset Pagination**: Search/filter changes reset to page 1
+
+#### Loading States
+- **Skeleton Loading**: 5 placeholder rows during data fetch
+- **Button Loading**: Spinner on submit buttons during mutations
+- **Query Status**: Loading/error/empty states handled with TanStack Query
+
+#### Error Handling
+- **Toast Notifications**: sonner library for success/error messages
+- **Inline Validation**: Field errors shown below inputs
+- **API Errors**: Displayed via toast with error message
+- **Empty States**: "No education histories found" with icon
+
+#### Responsive Design
+- **Mobile-friendly**: Table scrolls horizontally on small screens
+- **Modal Overflow**: Scrollable content for long forms/details
+- **Touch-friendly**: Large click targets for dropdown actions
+
+#### Accessibility
+- **Keyboard Navigation**: Tab order through forms
+- **ARIA Labels**: Proper labeling for screen readers
+- **Error Announcements**: Validation errors announce properly
+- **Focus Management**: Auto-focus on modal open
+
+### TypeScript Types
+
+Located in `types/index.d.ts` (115 lines):
+
+**Main Interfaces**:
+```typescript
+DegreeLevel: "ELEMENTARY" | "JUNIOR_HIGH" | ... | "DOCTORATE"
+
+EmployeeEducationHistory: {
+  id: string
+  employee_id: string
+  institution: string
+  degree: DegreeLevel
+  field_of_study: string
+  start_date: string
+  end_date: string | null
+  gpa: number | null
+  description: string
+  document_path: string
+  is_completed: boolean
+  duration_years: number
+  created_at: string
+  updated_at: string
+}
+
+EmployeeFormOption: { id: string, employee_code: string, name: string }
+DegreeLevelOption: { value: DegreeLevel, label: string }
+
+CreateEducationHistoryData: { ... }  // Required fields only
+UpdateEducationHistoryData: { ... }  // All optional (Partial)
+
+ListEducationHistoriesParams: {
+  page?: number
+  per_page?: number
+  search?: string
+  employee_id?: string
+  degree?: DegreeLevel
+}
+```
+
+**API Response Types**:
+```typescript
+EducationHistoryListResponse
+EducationHistorySingleResponse
+EducationHistoryFormDataResponse  // From GetFormData endpoint
+```
+
+### Zod Validation Schema
+
+Located in `schemas/education-history.schema.ts` (96 lines):
+
+**Schema Factory**:
+```typescript
+getEducationHistorySchema(t: Function)
+```
+
+**Validations**:
+- employee_id: UUID, required
+- institution: string (1-200 chars), required
+- degree: enum [7 values], required
+- field_of_study: string (0-200 chars), optional
+- start_date: string, required
+- end_date: string, optional, nullable
+- gpa: number (0-4 range), optional, nullable
+- description: string, optional
+- document_path: string (0-255 chars), optional
+
+**Custom Refinement**:
+```typescript
+.refine((data) => {
+  if (data.end_date && data.start_date) {
+    return new Date(data.end_date) >= new Date(data.start_date);
+  }
+  return true;
+}, {
+  message: t("validation.endDateAfterStart"),
+  path: ["end_date"]
+})
+```
+
+### Performance Optimizations
+
+#### TanStack Query Configuration
+- **Stale Time**: 5 minutes for form data (employees + degree levels don't change frequently)
+- **Cache Time**: Default 5 minutes for list queries
+- **Refetch on Window Focus**: Enabled for data freshness
+- **Placeholder Data**: Keep previous data during pagination transitions
+
+#### Debouncing
+- Search input debounced to 500ms (reduces API calls by ~80%)
+
+#### Optimistic Updates
+- Update mutations use optimistic updates for instant UI feedback
+- Rollback on error preserves data integrity
+
+#### Lazy Loading
+- Detail modal refetches only when opened (enabled option)
+- Employee-specific queries conditionally enabled
+
 ## Database Schema
 
 ### Table: employee_education_histories
@@ -246,11 +613,15 @@ go test -v ./internal/hrd/domain/usecase -run TestEmployeeEducationHistory
 - **Gin**: HTTP framework
 - **uuid**: UUID generation
 
-### Frontend (To Be Implemented)
-- **TanStack Query**: Data fetching and caching
-- **Zod**: Form validation
-- **react-hook-form**: Form state management
-- **date-fns**: Date manipulation
+### Frontend (✅ Implemented)
+- **TanStack Query v5**: Data fetching, caching, and mutations
+- **Zod**: Form validation schemas with i18n support
+- **React Hook Form**: Form state management with zodResolver
+- **next-intl**: Internationalization (en + id locales)
+- **shadcn/ui**: UI component library (Table, Dialog, Select, Calendar, Badge)
+- **Lucide React**: Icon library
+- **date-fns**: Date formatting and manipulation
+- **sonner**: Toast notifications
 
 ### Integration
 - **Employee Module**: Required for employee validation
