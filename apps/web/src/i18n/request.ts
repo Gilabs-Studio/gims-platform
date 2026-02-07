@@ -38,6 +38,8 @@ import { employeeContractEn } from "@/features/hrd/employee-contract/i18n/en";
 import { employeeContractId } from "@/features/hrd/employee-contract/i18n/id";
 import { educationHistoryEn } from "@/features/hrd/education-history/i18n/en";
 import { educationHistoryId } from "@/features/hrd/education-history/i18n/id";
+import { certificationEn } from "@/features/hrd/certifications/i18n/en";
+import { certificationId } from "@/features/hrd/certifications/i18n/id";
 import { quotationEn } from "@/features/sales/quotation/i18n/en";
 import { quotationId } from "@/features/sales/quotation/i18n/id";
 import { orderEn } from "@/features/sales/order/i18n/en";
@@ -83,6 +85,7 @@ const messages = {
     ...leaveRequestEn,
     ...employeeContractEn,
     ...educationHistoryEn,
+    ...certificationEn,
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
@@ -115,6 +118,7 @@ const messages = {
     leaveType: leaveTypeId,
     ...employeeContractId,
     ...educationHistoryId,
+    ...certificationId,
     ...leaveRequestId,
     ...quotationId,
     ...orderId,

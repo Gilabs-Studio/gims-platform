@@ -3855,6 +3855,326 @@
 							"response": []
 						}
 					]
+				},
+				{
+					"name": "Employee Certifications",
+					"description": "Employee professional certification management with expiry tracking and alert system",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"form-data"
+									]
+								},
+								"description": "Get all necessary data for populating certification form dropdowns. Returns list of employees. Requires authentication.\n\n**Use Case:** Load dropdown options when creating/editing certifications.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"Admin Employee\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_form_data_501\"\n}\n```\n\n**Error Codes:**\n- `UNAUTHORIZED` (401) - Missing authentication"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Certifications",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications?page=1&per_page=20&search=&employee_id=",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by certificate name or issued by"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee ID (UUID)"
+										}
+									]
+								},
+								"description": "Get a paginated list of all employee certifications. Supports search by certificate name or issuing organization, and filtering by employee. Requires `certification.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"cert-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"employee_name\": \"John Doe\",\n      \"certificate_name\": \"AWS Certified Solutions Architect\",\n      \"issued_by\": \"Amazon Web Services\",\n      \"issue_date\": \"2024-01-15\",\n      \"expiry_date\": \"2027-01-15\",\n      \"certificate_number\": \"AWS-CSA-12345\",\n      \"certificate_file\": \"/uploads/cert-123.pdf\",\n      \"description\": \"Cloud architecture certification\",\n      \"is_expired\": false,\n      \"days_until_expiry\": 365,\n      \"created_at\": \"2024-01-15T10:00:00+07:00\",\n      \"updated_at\": \"2024-01-15T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 50,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false,\n      \"next_page\": 2\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_list_501\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Certification By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Get detailed information about a specific certification by its ID. Requires `certification.read` permission.\n\n**Success Response (200 OK):** Same structure as individual item in list\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Certifications By Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "emp-uuid",
+											"description": "Employee UUID"
+										}
+									]
+								},
+								"description": "Get all certifications for a specific employee. Requires `certification.read` permission.\n\n**Use Case:** View all certifications in employee profile or certification management page.\n\n**Success Response (200 OK):** Array of certifications (same structure as list endpoint)\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Expiring Certifications",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/expiring?days=30",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"expiring"
+									],
+									"query": [
+										{
+											"key": "days",
+											"value": "30",
+											"description": "Number of days (default: 30)"
+										}
+									]
+								},
+								"description": "Get certifications that will expire within the specified number of days. Useful for dashboard alerts. Requires `certification.read` permission.\n\n**Use Case:** Dashboard alert system showing certifications expiring soon.\n\n**Success Response (200 OK):** Array of expiring certifications\n\n**Note:** Only returns certifications with expiry_date set and expiry_date <= (now + days) AND expiry_date >= now"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"certificate_name\": \"AWS Certified Solutions Architect - Associate\",\n  \"issued_by\": \"Amazon Web Services\",\n  \"issue_date\": \"2024-01-15\",\n  \"expiry_date\": \"2027-01-15\",\n  \"certificate_number\": \"AWS-CSA-12345\",\n  \"certificate_file\": \"/uploads/cert-123.pdf\",\n  \"description\": \"Cloud architecture and AWS services certification\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications"
+									]
+								},
+								"description": "Create a new employee certification record. Requires `certification.create` permission.\n\n**Required Fields:**\n- `employee_id` (UUID): Employee to associate certification with\n- `certificate_name` (string, max 200): Name of the certification\n- `issued_by` (string, max 200): Issuing organization\n- `issue_date` (string, YYYY-MM-DD): Date certification was issued\n\n**Optional Fields:**\n- `expiry_date` (string, YYYY-MM-DD): When certification expires (null for no expiry)\n- `certificate_number` (string, max 100): Official certification number\n- `certificate_file` (string): Path to uploaded certificate document\n- `description` (string, max 1000): Additional notes\n\n**Validation Rules:**\n- If expiry_date is provided, it must be after issue_date\n- Employee must exist in database\n- Dates must be in YYYY-MM-DD format\n\n**Success Response (200 OK):** Created certification object\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist\n- `INVALID_DATE_FORMAT` (400) - Date not in YYYY-MM-DD format\n- `VALIDATION_ERROR` (400) - Expiry date before issue date"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"certificate_name\": \"AWS Certified Solutions Architect - Professional\",\n  \"issued_by\": \"Amazon Web Services\",\n  \"issue_date\": \"2025-01-15\",\n  \"expiry_date\": \"2028-01-15\",\n  \"certificate_number\": \"AWS-CSA-PRO-54321\",\n  \"description\": \"Advanced cloud architecture certification\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Update an existing certification. All fields are optional (partial update). Requires `certification.update` permission.\n\n**Validation Rules:**\n- If both issue_date and expiry_date are provided, expiry must be after issue\n- Dates must be in YYYY-MM-DD format\n\n**Success Response (200 OK):** Updated certification object\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist\n- `VALIDATION_ERROR` (400) - Date validation failed"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Delete a certification (soft delete). Requires `certification.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Certification deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_delete_501\"\n}\n```\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist"
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}

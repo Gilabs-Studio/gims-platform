@@ -132,6 +132,8 @@ func AutoMigrate() error {
 		&hrd.EmployeeContract{},
 		// HRD Employee Education History entities (Sprint 14)
 		&hrd.EmployeeEducationHistory{},
+		// HRD Employee Certifications entities (Sprint 14)
+		&hrd.EmployeeCertification{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
@@ -169,6 +171,10 @@ func createSearchIndexes() error {
 		"CREATE INDEX IF NOT EXISTS idx_employees_name_gin ON employees USING gin (name gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_leave_types_name_gin ON leave_types USING gin (name gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING gin (reason gin_trgm_ops)",
+
+		// HRD employee certification search indexes (Sprint 14)
+		"CREATE INDEX IF NOT EXISTS idx_employee_certifications_name_gin ON employee_certifications USING gin (certificate_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_employee_certifications_issued_by_gin ON employee_certifications USING gin (issued_by gin_trgm_ops)",
 	}
 
 	for _, idx := range indexes {

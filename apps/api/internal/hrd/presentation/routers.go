@@ -25,6 +25,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leaveRequestRepo := repositories.NewLeaveRequestRepository(db)
 	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
 	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
+	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
@@ -40,6 +41,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo)
 	employeeContractUC := usecase.NewEmployeeContractUsecase(employeeContractRepo, employeeRepo)
 	educationHistoryUC := usecase.NewEmployeeEducationHistoryUsecase(educationHistoryRepo, employeeRepo)
+	certificationUC := usecase.NewEmployeeCertificationUsecase(certificationRepo, employeeRepo)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -48,6 +50,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
 	educationHistoryHandler := handler.NewEmployeeEducationHistoryHandler(educationHistoryUC)
+	certificationHandler := handler.NewEmployeeCertificationHandler(certificationUC)
 	employeeContractHandler := handler.NewEmployeeContractHandler(employeeContractUC)
 
 	// Create HRD group under API with auth middleware
@@ -61,5 +64,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterOvertimeRequestRoutes(hrdGroup, overtimeHandler)
 	router.RegisterLeaveRequestRoutes(hrdGroup, leaveRequestHandler)
 	router.RegisterEmployeeEducationHistoryRoutes(hrdGroup, educationHistoryHandler, middleware.AuthMiddleware(jwtManager, permService))
+	router.SetupEmployeeCertificationRoutes(hrdGroup, certificationHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.RegisterEmployeeContractRoutes(hrdGroup, employeeContractHandler, middleware.AuthMiddleware(jwtManager, permService))
 }
