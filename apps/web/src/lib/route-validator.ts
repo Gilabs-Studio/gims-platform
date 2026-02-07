@@ -70,6 +70,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/hrd/leave-requests",
   "/hrd/contracts",
   "/hrd/education",
+  "/hrd/education-history",
   "/hrd/certifications",
   "/hrd/employee-assets",
   "/hrd/evaluation",

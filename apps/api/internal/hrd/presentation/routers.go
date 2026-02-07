@@ -24,6 +24,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	overtimeRepo := repositories.NewOvertimeRequestRepository(db)
 	leaveRequestRepo := repositories.NewLeaveRequestRepository(db)
 	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
+	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
+	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
+	assetRepo := repositories.NewEmployeeAssetRepository(db)
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
@@ -38,6 +41,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo)
 	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo)
 	employeeContractUC := usecase.NewEmployeeContractUsecase(employeeContractRepo, employeeRepo)
+	educationHistoryUC := usecase.NewEmployeeEducationHistoryUsecase(educationHistoryRepo, employeeRepo)
+	certificationUC := usecase.NewEmployeeCertificationUsecase(certificationRepo, employeeRepo)
+	assetUC := usecase.NewEmployeeAssetUsecase(assetRepo, employeeRepo)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -45,7 +51,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	attendanceHandler := handler.NewAttendanceRecordHandler(attendanceUC)
 	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
+	educationHistoryHandler := handler.NewEmployeeEducationHistoryHandler(educationHistoryUC)
+	certificationHandler := handler.NewEmployeeCertificationHandler(certificationUC)
 	employeeContractHandler := handler.NewEmployeeContractHandler(employeeContractUC)
+	assetHandler := handler.NewEmployeeAssetHandler(assetUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -57,5 +66,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAttendanceRecordRoutes(hrdGroup, attendanceHandler)
 	router.RegisterOvertimeRequestRoutes(hrdGroup, overtimeHandler)
 	router.RegisterLeaveRequestRoutes(hrdGroup, leaveRequestHandler)
+	router.RegisterEmployeeEducationHistoryRoutes(hrdGroup, educationHistoryHandler, middleware.AuthMiddleware(jwtManager, permService))
+	router.SetupEmployeeCertificationRoutes(hrdGroup, certificationHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.RegisterEmployeeContractRoutes(hrdGroup, employeeContractHandler, middleware.AuthMiddleware(jwtManager, permService))
+	router.SetupEmployeeAssetRoutes(hrdGroup, assetHandler)
 }
