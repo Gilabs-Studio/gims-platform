@@ -102,6 +102,23 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 
 **Rationale**: Frequent business requirement untuk prove certification validity
 
+### 7. Dialog-Based Forms vs Separate Pages (Frontend)
+**Why**: Better UX dengan modal dialogs, maintain context without navigation
+
+**Implementation**: 
+- Single page `/hrd/certifications` dengan dialog modals untuk create/edit
+- Modal state management di list component (`isFormOpen`, `editingCertification`)
+- Dynamic import dengan PermissionGuard untuk code splitting
+- Form component reused untuk create dan edit modes (conditional based on `certification` prop)
+
+**Trade-off**: 
+- ✅ Better UX: No navigation flicker, context preserved
+- ✅ Cleaner state: Local component state instead of URL state
+- ✅ Performance: Lazy loaded components
+- ❌ Slightly more complex state management (vs simple routing)
+
+**Pattern followed**: Matches quotation pattern across all GIMS features
+
 ## API Endpoints
 
 | Method | Endpoint | Permission | Description |
@@ -119,24 +136,25 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 
 ### Scenario 1: Create Certification dengan Expiry Date
 1. Login sebagai HRD staff
-2. Navigate ke `/hrd/certifications`
-3. Click "Add Certification"
-4. Fill form:
-   - Employee: Select dari dropdown
+2. Navigate ke `/hrd/certifications` (single page)
+3. Click "Add Certification" button → **Dialog modal opens**
+4. Fill form in dialog:
+   - Employee: Select dari dropdown (create mode only)
    - Certificate Name: "AWS Certified Solutions Architect"
    - Issued By: "Amazon Web Services"
-   - Issue Date: "2024-01-15"
-   - Expiry Date: "2027-01-15" (3 years from issue)
+   - Issue Date: "2024-01-15" (calendar picker)
+   - Expiry Date: "2027-01-15" (3 years from issue, calendar picker)
    - Certificate Number: "AWS-CSA-12345"
    - Description: "Cloud architecture certification"
-5. Submit → Should show success toast
-6. Verify in list: Status badge shows "Valid", days_remaining shown
+5. Submit → **Dialog closes**, success toast appears
+6. Verify in list: Status badge shows "Valid" (green), days_remaining shown
+7. **Note**: No page navigation occurred, context preserved
 
 ### Scenario 2: Create Certification tanpa Expiry Date (Lifetime)
-1. Navigate ke form
-2. Fill required fields, **leave Expiry Date empty**
-3. Submit → Should succeed
-4. Verify in list: Status badge shows "No Expiry"
+1. On `/hrd/certifications`, click "Add Certification"
+2. Fill required fields, **leave Expiry Date empty** (no date selected)
+3. Submit → Dialog closes, success toast
+4. Verify in list: Status badge shows "No Expiry" (gray outline)
 
 ### Scenario 3: Expiring Certification Alert
 1. Create certification dengan expiry_date = NOW() + 15 days
@@ -211,13 +229,17 @@ cd apps/web && npx pnpm test:e2e hrd/certification
 - **Core Response**: Standardized API responses
 
 **Frontend**:
-- **TanStack Query**: Data fetching, caching, pagination
-- **Zod**: Form validation dengan date refinement
+- **TanStack Query**: Data fetching, caching, optimistic updates, query invalidation
+- **Zod**: Form validation dengan date refinement (expiry_after_issue rule)
 - **date-fns**: Date formatting dan calculations
-- **shadcn/ui**: UI components (Badge, Table, Form)
+- **next-intl**: Internationalization dengan parameter interpolation (`{days}`)
+- **React Hook Form**: Form state management dengan Controller untuk complex inputs
+- **shadcn/ui**: UI components (Dialog, Badge, Table, Form, Popover, Calendar)
+- **Dynamic Imports**: Code splitting dengan next/dynamic dan PermissionGuard
 
 **Integration**:
 - **Employee Module**: Required untuk fetch employee data (GetFormData)
+- **Auth Module**: PermissionGuard untuk authorization checks
 
 ## Database Schema
 
@@ -270,17 +292,62 @@ internal/hrd/
 ### Frontend
 ```
 features/hrd/certifications/
-├── types/index.d.ts                  # TypeScript interfaces (10+ types)
-├── schemas/certification.schema.ts   # Zod schemas with date refinement
-├── services/certification-service.ts # API client (8 methods)
-├── hooks/use-certification.ts        # TanStack Query hooks (8 hooks)
+├── types/index.d.ts                  # TypeScript interfaces
+│                                     # - EmployeeCertification, Employee
+│                                     # - CreateCertificationData (with employee_id)
+│                                     # - UpdateCertificationData (without employee_id)
+│                                     # - CertificationListResponse (pagination: total, total_pages, has_next, has_prev)
+│                                     # - ListCertificationsParams, CertificationFormData
+├── schemas/certification.schema.ts   # Zod schemas
+│                                     # - certification (create): employee_id required
+│                                     # - certificationUpdate: employee_id excluded
+│                                     # - Date refinement: expiry_date must be after issue_date
+├── services/certification-service.ts # API client methods
+│                                     # - list() (renamed from getAll())
+│                                     # - getById(), create(), update(), delete()
+│                                     # - getFormData(), getExpiring()
+├── hooks/use-certification.ts        # TanStack Query hooks
+│                                     # - Query keys pattern: certificationKeys.lists(), certificationKeys.detail(id)
+│                                     # - useCertifications, useCertificationById, useCertificationFormData
+│                                     # - useCreateCertification, useUpdateCertification, useDeleteCertification
+│                                     # - Mutations return void (no side effects - toast/routing in components)
 ├── i18n/
-│   ├── en.ts                        # English translations (100+ keys)
-│   └── id.ts                        # Indonesian translations (100+ keys)
+│   ├── en.ts                        # English translations
+│   │                                # - meta (title, description for page metadata)
+│   │                                # - field, common, form labels
+│   │                                # - days_remaining: "{days} days remaining" (next-intl syntax)
+│   │                                # - status badges, validation messages, toast messages
+│   └── id.ts                        # Indonesian translations (mirrors en.ts)
 └── components/
-    ├── certification-list.tsx        # Table with expiry badges
-    ├── certification-form.tsx        # Form with expiry toggle
-    └── certification-detail-modal.tsx # Detail view with days remaining
+    ├── certification-list.tsx        # Main list component
+    │                                 # - Modal state management (isFormOpen, editingCertification, viewingCertification)
+    │                                 # - Debounced search (500ms)
+    │                                 # - Permission-based actions (canCreate, canUpdate, canDelete, canView)
+    │                                 # - Status badges: Expired (red), Expiring Soon (yellow), Valid (green), No Expiry (gray)
+    │                                 # - Actions dropdown per row (View, Edit, Delete)
+    │                                 # - DataTablePagination with rowCount fix (total not total_items)
+    ├── certification-form.tsx        # Dialog-based form (NOT separate page)
+    │                                 # - Conditional schema: create (with employee_id) vs edit (without)
+    │                                 # - React Hook Form with Controller for Select, Calendar
+    │                                 # - Optional expiry date with "Clear" button
+    │                                 # - Employee dropdown (create mode only)
+    │                                 # - Type assertion for employee_id errors (union type workaround)
+    │                                 # - Form reset on open/close in useEffect
+    └── certification-detail-modal.tsx # Detail view dialog
+                                      # - useLocale() hook (not prop drilling)
+                                      # - Days remaining calculation with color coding
+                                      # - Download certificate button
+                                      # - Metadata display (created_at, updated_at)
+```
+
+**Page Structure**:
+```
+app/[locale]/(dashboard)/hrd/certifications/
+└── page.tsx                          # Main page with dynamic import
+                                      # - PermissionGuard wrapper (employee_certification.read)
+                                      # - Dynamic import with loading fallback
+                                      # - Named export from certification-list
+                                      # - NO separate /new or /[id]/edit pages
 ```
 
 ## Notes & Future Improvements
@@ -316,6 +383,9 @@ features/hrd/certifications/
 - **GetFormData**: Returns all employees (could be hundreds). Consider pagination jika organization besar (1000+ employees)
 - **Search**: GIN indexes provide fast search, but initial index build bisa slow untuk large datasets
 - **Expiring Query**: Efficient dengan date range query, tapi perlu monitor jika data growth signifikan
+- **Frontend Pagination**: Fixed to correctly use `pagination.total` (not `total_items`) to prevent NaN display
+- **Modal State**: Local component state prevents unnecessary re-renders from URL changes
+- **Dynamic Imports**: Code splitting reduces initial bundle size, components loaded on-demand
 
 ## Related Documentation
 - Sprint Planning: `docs/erp-sprint-planning.md` (Sprint 14 - EmployeeCertification)
@@ -324,6 +394,34 @@ features/hrd/certifications/
 - Migration Guidelines: `docs/MIGRATION_GUIDELINES.md`
 - Security Plan: `docs/TEMPLATE_SECURITY_PERFORMANCE_PLAN.md`
 
+## Frontend Implementation Notes
+
+### Recent Changes (2026-02-07)
+1. **Complete refactor to Dialog-based pattern**:
+   - Removed separate `/new` and `/[id]/edit` pages
+   - Implemented modal state management in list component
+   - Added dynamic imports with PermissionGuard
+
+2. **Type Safety Improvements**:
+   - Separated `CreateCertificationData` (with employee_id) and `UpdateCertificationData` (without employee_id)
+   - Added type assertions for union type edge cases with ESLint suppressions
+   - Fixed pagination response type: `total` instead of `total_items`
+
+3. **i18n Structure**:
+   - Organized translations into logical sections: meta, field, common, form, detail, status, empty, validation, toast, alert
+   - Fixed parameter syntax for next-intl: `{days}` not `{{days}}`
+   - Added missing keys: select_employee, pick_date, employee_code, employee_name, created_at, updated_at
+
+4. **Query Keys Pattern**:
+   - Implemented nested query key structure: `certificationKeys.lists()`, `certificationKeys.detail(id)`, `certificationKeys.formData()`
+   - Enables fine-grained cache invalidation on mutations
+
+5. **Bug Fixes**:
+   - Fixed pagination NaN issue (API returns `total`, not `total_items`)
+   - Fixed page count calculation (showed many pages for 6 items)
+   - Added proper pagination metadata fields: `has_next`, `has_prev`
+
 ## Contributors
 - Implemented: Sprint 14 (2026-02-07)
+- Frontend Refactored: 2026-02-07
 - Last Updated: 2026-02-07
