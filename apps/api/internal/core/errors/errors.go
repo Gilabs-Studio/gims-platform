@@ -120,6 +120,28 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Employee not found",
 	},
+
+	// HRD - Evaluation Errors (Sprint 15)
+	"EVALUATION_GROUP_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Evaluation group not found",
+	},
+	"EVALUATION_CRITERIA_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Evaluation criteria not found",
+	},
+	"EMPLOYEE_EVALUATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Employee evaluation not found",
+	},
+	"EVALUATION_GROUP_INACTIVE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Evaluation group is not active",
+	},
+	"INVALID_STATUS_TRANSITION": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid status transition",
+	},
 	"CONFLICT": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Conflict with current state",

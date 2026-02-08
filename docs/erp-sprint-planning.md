@@ -1011,7 +1011,7 @@ erDiagram
 - [x] `EmployeeContract` - CRUD
 - [x] `EmployeeEducationHistory` - CRUD
 - [x] `EmployeeCertification` - CRUD
-- [x] `EmployeeAsset` - CRUD (company assets borrowed) ✅ **Backend API Complete**
+- [x] `EmployeeAsset` - CRUD (company assets borrowed)
 - [ ] `SalaryStructure` - CRUD
 - [ ] `UpCountryCost` - Travel expense
 
@@ -1077,10 +1077,10 @@ erDiagram
 
 ### API Tasks
 
-- [ ] `EvaluationGroup` - CRUD
-- [ ] `EvaluationCriteria` - CRUD with weights
-- [ ] `EmployeeEvaluation` - CRUD + Score
-- [ ] `EmployeeEvaluationCriteria` - Scoring per criteria
+- [x] `EvaluationGroup` - CRUD
+- [x] `EvaluationCriteria` - CRUD with weights
+- [x] `EmployeeEvaluation` - CRUD + Score
+- [x] `EmployeeEvaluationCriteria` - Scoring per criteria
 - [ ] `RecruitmentRequest` - CRUD + Approve
 
 ### Frontend Tasks
@@ -1095,9 +1095,9 @@ erDiagram
 
 ### Success Criteria
 
-- [ ] Criteria weights sum to 100%
-- [ ] OverallScore = Σ(Score × Weight)
-- [ ] Evaluation period validation
+- [x] Criteria weights sum to 100%
+- [x] OverallScore = Σ(Score × Weight)
+- [x] Evaluation period validation
 - [ ] Recruitment approval workflow complete
 - [ ] Position filling status tracked
 

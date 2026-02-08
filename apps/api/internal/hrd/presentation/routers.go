@@ -27,6 +27,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
 	assetRepo := repositories.NewEmployeeAssetRepository(db)
+	evaluationGroupRepo := repositories.NewEvaluationGroupRepository(db)
+	evaluationCriteriaRepo := repositories.NewEvaluationCriteriaRepository(db)
+	employeeEvaluationRepo := repositories.NewEmployeeEvaluationRepository(db)
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
@@ -44,6 +47,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	educationHistoryUC := usecase.NewEmployeeEducationHistoryUsecase(educationHistoryRepo, employeeRepo)
 	certificationUC := usecase.NewEmployeeCertificationUsecase(certificationRepo, employeeRepo)
 	assetUC := usecase.NewEmployeeAssetUsecase(assetRepo, employeeRepo)
+	evaluationGroupUC := usecase.NewEvaluationGroupUsecase(evaluationGroupRepo, evaluationCriteriaRepo)
+	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo)
+	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -55,6 +61,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	certificationHandler := handler.NewEmployeeCertificationHandler(certificationUC)
 	employeeContractHandler := handler.NewEmployeeContractHandler(employeeContractUC)
 	assetHandler := handler.NewEmployeeAssetHandler(assetUC)
+	evaluationGroupHandler := handler.NewEvaluationGroupHandler(evaluationGroupUC)
+	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)
+	employeeEvaluationHandler := handler.NewEmployeeEvaluationHandler(employeeEvaluationUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -70,4 +79,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.SetupEmployeeCertificationRoutes(hrdGroup, certificationHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.RegisterEmployeeContractRoutes(hrdGroup, employeeContractHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.SetupEmployeeAssetRoutes(hrdGroup, assetHandler)
+	router.SetupEvaluationGroupRoutes(hrdGroup, evaluationGroupHandler)
+	router.SetupEvaluationCriteriaRoutes(hrdGroup, evaluationCriteriaHandler)
+	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
 }

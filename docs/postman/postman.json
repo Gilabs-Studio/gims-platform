@@ -4558,6 +4558,521 @@
 							"response": []
 						}
 					]
+				},
+				{
+					"name": "Evaluation Groups",
+					"description": "Evaluation template management - create and manage evaluation groups with weighted criteria",
+					"item": [
+						{
+							"name": "Get All Evaluation Groups",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups?page=1&per_page=20&search=&is_active=true",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "per_page", "value": "20" },
+										{ "key": "search", "value": "" },
+										{ "key": "is_active", "value": "true" }
+									]
+								},
+								"description": "List all evaluation groups with optional search and active filter. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Evaluation Group by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Get evaluation group by ID with all criteria. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Performance Review FY25\",\n  \"description\": \"Annual performance review template\",\n  \"is_active\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups"]
+								},
+								"description": "Create a new evaluation group template. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Performance Review FY25 - Updated\",\n  \"is_active\": false\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Update an evaluation group. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation group. Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Evaluation Criteria",
+					"description": "Manage evaluation criteria within groups - weighted scoring criteria",
+					"item": [
+						{
+							"name": "Get Criteria by Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/group/:group_id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", "group", ":group_id"],
+									"variable": [
+										{ "key": "group_id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Get all criteria for a specific evaluation group, ordered by sort_order. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Criteria by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Get evaluation criteria by ID. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"evaluation_group_id\": \"group-uuid\",\n  \"name\": \"Communication Skills\",\n  \"description\": \"Ability to communicate effectively\",\n  \"weight\": 30,\n  \"max_score\": 100,\n  \"sort_order\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria"]
+								},
+								"description": "Create a new evaluation criteria. Validates total weight ≤ 100%. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Communication & Teamwork\",\n  \"weight\": 35\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Update evaluation criteria. Validates total weight ≤ 100%. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation criteria. Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Evaluations",
+					"description": "Employee performance evaluations with criteria scoring and status workflow",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/form-data",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", "form-data"]
+								},
+								"description": "Get form dropdown data: employees, evaluation groups, evaluation types, and statuses. Auth required."
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Employee Evaluations",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations?page=1&per_page=20&employee_id=&evaluation_group_id=&status=&evaluation_type=",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "per_page", "value": "20" },
+										{ "key": "employee_id", "value": "" },
+										{ "key": "evaluation_group_id", "value": "" },
+										{ "key": "status", "value": "" },
+										{ "key": "evaluation_type", "value": "" }
+									]
+								},
+								"description": "List employee evaluations with filters. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Employee Evaluation by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Get evaluation with full details including criteria scores, employee data, and evaluator data. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"employee-uuid\",\n  \"evaluation_group_id\": \"group-uuid\",\n  \"evaluator_id\": \"evaluator-uuid\",\n  \"evaluation_type\": \"MANAGER\",\n  \"period_start\": \"2025-01-01\",\n  \"period_end\": \"2025-06-30\",\n  \"notes\": \"H1 2025 Performance Review\",\n  \"criteria_scores\": [\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-1\",\n      \"score\": 85,\n      \"notes\": \"Excellent communication\"\n    },\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-2\",\n      \"score\": 70,\n      \"notes\": \"Meets expectations\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations"]
+								},
+								"description": "Create a new employee evaluation with optional criteria scores. Status starts as DRAFT. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"notes\": \"Updated review notes\",\n  \"criteria_scores\": [\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-1\",\n      \"score\": 90,\n      \"notes\": \"Revised score\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Update an evaluation (DRAFT status only). Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Status",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"SUBMITTED\",\n  \"notes\": \"Ready for review\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id/status",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id", "status"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Transition evaluation status. Valid transitions: DRAFT→SUBMITTED→REVIEWED→FINALIZED. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation (DRAFT status only). Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}

@@ -148,6 +148,21 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Evaluation Groups seeder (Sprint 15)
+	if err := SeedEvaluationGroups(); err != nil {
+		return err
+	}
+
+	// HRD - Evaluation Criteria seeder (Sprint 15)
+	if err := SeedEvaluationCriteria(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Evaluations seeder (Sprint 15)
+	if err := SeedEmployeeEvaluations(); err != nil {
+		return err
+	}
+
 	// Stock Movement seeder (Sprint 9)
 	if err := SeedStockMovement(); err != nil {
 		return err
