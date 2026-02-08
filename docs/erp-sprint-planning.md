@@ -1074,7 +1074,7 @@ erDiagram
 
 - [x] **API:** Evaluation management (Group, Criteria, Employee Evaluation)
 - [x] **Frontend:** Evaluation UI (template management, scoring, workflow)
-- [ ] **API:** Recruitment management
+- [x] **API:** Recruitment management
 - [ ] **Frontend:** Recruitment UI
 
 ### API Tasks
@@ -1085,7 +1085,7 @@ erDiagram
 - [x] `EmployeeEvaluationCriteria` - Scoring per criteria
 - [x] `EmployeeEvaluation` Form Data endpoint
 - [x] Evaluation seeder data
-- [ ] `RecruitmentRequest` - CRUD + Approve
+- [x] `RecruitmentRequest` - CRUD + Approve
 
 ### Frontend Tasks
 
@@ -1109,8 +1109,8 @@ erDiagram
 - [x] Evaluation period validation
 - [x] Evaluation CRUD with status workflow
 - [x] Form data endpoint for dropdowns
-- [ ] Recruitment approval workflow complete
-- [ ] Position filling status tracked
+- [x] Recruitment approval workflow complete
+- [x] Position filling status tracked
 
 ### Integration Requirements
 

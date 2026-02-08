@@ -5073,6 +5073,286 @@
 							"response": []
 						}
 					]
+				},
+				{
+					"name": "Recruitment Requests",
+					"description": "Manage recruitment requests including CRUD operations, approval workflow, and position filling tracking.",
+					"item": [
+						{
+							"name": "Get Recruitment Form Data",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/form-data",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", "form-data"]
+								},
+								"description": "Get form dropdown data for recruitment request form. Returns employees, divisions, job positions, employment types, priorities, and statuses. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "List Recruitment Requests",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests?page=1&per_page=20",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "OPEN",
+											"disabled": true
+										},
+										{
+											"key": "division_id",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "position_id",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "priority",
+											"value": "HIGH",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List all recruitment requests with pagination, search, and filters. Supports filtering by status, division_id, position_id, and priority. Search by request code, job description, or requester name. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Recruitment Request by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Get a recruitment request by its ID. Includes requester info, division name, position name, open positions count, and approval details. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Recruitment Request",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"division_id\": \"{{itDivisionId}}\",\n    \"position_id\": \"{{staffPositionId}}\",\n    \"required_count\": 2,\n    \"employment_type\": \"FULL_TIME\",\n    \"expected_start_date\": \"2026-04-01\",\n    \"salary_range_min\": 15000000,\n    \"salary_range_max\": 25000000,\n    \"job_description\": \"Looking for experienced full-stack developer to join our engineering team.\",\n    \"qualifications\": \"- 3+ years experience in web development\\n- Proficiency in Go and React/TypeScript\\n- Bachelor's degree in CS or related field\",\n    \"priority\": \"HIGH\",\n    \"notes\": \"Replacement for resigned employee\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests"]
+								},
+								"description": "Create a new recruitment request. Auto-generates request_code (RR-YYYYMM-XXXX) and sets status to DRAFT. Requester is automatically set from JWT user. Requires `recruitment.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Recruitment Request",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"required_count\": 3,\n    \"priority\": \"URGENT\",\n    \"job_description\": \"Updated: Looking for senior full-stack developer with team lead experience.\",\n    \"notes\": \"Updated requirements based on team discussion\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update a recruitment request. Only DRAFT requests can be updated. Supports partial updates (only changed fields required). Requires `recruitment.update` permission. Returns RECRUITMENT_NOT_EDITABLE error if status is not DRAFT."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Recruitment Request",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Soft delete a recruitment request. Only DRAFT requests can be deleted. Requires `recruitment.delete` permission. Returns RECRUITMENT_NOT_EDITABLE error if status is not DRAFT."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Recruitment Status",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"PENDING\",\n    \"notes\": \"Submitted for approval\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id/status",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id", "status"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update recruitment request status (approval workflow). Valid transitions: DRAFT→PENDING, PENDING→APPROVED/REJECTED/CANCELLED, APPROVED→OPEN, OPEN→CLOSED, DRAFT→CANCELLED. Sets approved_by/rejected_by timestamps automatically. Requires `recruitment.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Filled Count",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"filled_count\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id/filled-count",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id", "filled-count"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update the filled count for a recruitment request. Only OPEN requests can have their filled count updated. Filled count cannot exceed required count. Requires `recruitment.update` permission."
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}
