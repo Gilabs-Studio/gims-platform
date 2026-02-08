@@ -8,6 +8,7 @@ import type {
   UpdateOvertimeRequest,
   ApproveOvertimeRequest,
   RejectOvertimeRequest,
+  ListOvertimeParams,
   DeleteResponse,
 } from "../types";
 
@@ -54,17 +55,7 @@ export const overtimeService = {
   },
 
   // Manager/Admin endpoints
-  async list(params?: {
-    page?: number;
-    per_page?: number;
-    employee_id?: string;
-    status?: string;
-    type?: string;
-    month?: number;
-    year?: number;
-    sort_by?: string;
-    sort_order?: string;
-  }): Promise<OvertimeListResponse> {
+  async list(params?: ListOvertimeParams): Promise<OvertimeListResponse> {
     const response = await apiClient.get<OvertimeListResponse>(
       "/hrd/overtime",
       { params }

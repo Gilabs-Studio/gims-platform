@@ -38,7 +38,7 @@ export function OvertimeApprovalDialog({
   const tCommon = useTranslations("common");
 
   const [approvedMinutes, setApprovedMinutes] = useState<number | undefined>(
-    item?.requested_minutes
+    item?.planned_minutes
   );
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -50,9 +50,9 @@ export function OvertimeApprovalDialog({
     try {
       await approveMutation.mutateAsync({
         id: item.id,
-        data: approvedMinutes !== item.requested_minutes 
+        data: approvedMinutes !== undefined && approvedMinutes !== item.planned_minutes 
           ? { approved_minutes: approvedMinutes }
-          : undefined,
+          : { approved_minutes: item.planned_minutes },
       });
       toast.success(t("messages.approveSuccess"));
       onOpenChange(false);
@@ -70,7 +70,7 @@ export function OvertimeApprovalDialog({
     try {
       await rejectMutation.mutateAsync({
         id: item.id,
-        data: { rejection_reason: rejectionReason },
+        data: { reason: rejectionReason },
       });
       toast.success(t("messages.rejectSuccess"));
       onOpenChange(false);
@@ -133,7 +133,7 @@ export function OvertimeApprovalDialog({
               {formatTime(item.start_time)} - {formatTime(item.end_time)}
             </span>
             <Badge variant="secondary">
-              {formatMinutes(item.requested_minutes)}
+              {formatMinutes(item.planned_minutes)}
             </Badge>
           </div>
 
@@ -155,8 +155,8 @@ export function OvertimeApprovalDialog({
                   id="approved-minutes"
                   type="number"
                   min={1}
-                  max={item.requested_minutes}
-                  value={approvedMinutes ?? item.requested_minutes}
+                  max={item.planned_minutes}
+                  value={approvedMinutes ?? item.planned_minutes}
                   onChange={(e) =>
                     setApprovedMinutes(
                       e.target.value ? Number(e.target.value) : undefined

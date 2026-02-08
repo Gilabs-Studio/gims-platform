@@ -98,18 +98,33 @@ export function OvertimeList() {
   } = usePendingOvertimeRequests();
 
   // All Requests data (for admin)
+  const allParams = (() => {
+    const year = Number(yearFilter);
+    const month = monthFilter !== "all" ? Number(monthFilter) : undefined;
+    let date_from: string | undefined;
+    let date_to: string | undefined;
+    if (month !== undefined) {
+      date_from = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      date_to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    } else {
+      date_from = `${year}-01-01`;
+      date_to = `${year}-12-31`;
+    }
+    return {
+      page,
+      per_page: pageSize,
+      date_from,
+      date_to,
+      status: statusFilter !== "all" ? statusFilter as OvertimeStatus : undefined,
+    };
+  })();
   const {
     data: allData,
     isLoading: allLoading,
     isError: allError,
     refetch: allRefetch,
-  } = useOvertimeRequests({
-    page,
-    per_page: pageSize,
-    month: monthFilter !== "all" ? Number(monthFilter) : undefined,
-    year: Number(yearFilter),
-    status: statusFilter !== "all" ? statusFilter : undefined,
-  });
+  } = useOvertimeRequests(allParams);
 
   const cancelMutation = useCancelOvertimeRequest();
   const deleteMutation = useDeleteOvertimeRequest();
@@ -487,10 +502,10 @@ export function OvertimeList() {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="text-sm">
-                            {formatMinutes(item.requested_minutes)}
+                            {formatMinutes(item.planned_minutes)}
                           </div>
                           {item.approved_minutes > 0 &&
-                            item.approved_minutes !== item.requested_minutes && (
+                            item.approved_minutes !== item.planned_minutes && (
                               <div className="text-xs text-muted-foreground">
                                 Approved: {formatMinutes(item.approved_minutes)}
                               </div>
@@ -498,8 +513,8 @@ export function OvertimeList() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getTypeBadgeVariant(item.type)}>
-                          {t(`types.${item.type}`)}
+                        <Badge variant={getTypeBadgeVariant(item.request_type)}>
+                          {t(`types.${item.request_type}`)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -509,12 +524,12 @@ export function OvertimeList() {
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">
                         <span title={item.reason}>{item.reason}</span>
-                        {item.rejection_reason && (
+                        {item.reject_reason && (
                           <p
                             className="text-xs text-destructive truncate"
-                            title={item.rejection_reason}
+                            title={item.reject_reason}
                           >
-                            Reason: {item.rejection_reason}
+                            Reason: {item.reject_reason}
                           </p>
                         )}
                       </TableCell>

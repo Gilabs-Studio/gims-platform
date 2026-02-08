@@ -18,7 +18,7 @@ interface AttendanceDayViewProps {
   readonly onCreateNew: () => void;
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PRESENT: {
     label: "Present",
     className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
@@ -47,7 +47,15 @@ const STATUS_CONFIG = {
     label: "Holiday",
     className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
   },
-} as const;
+  WFH: {
+    label: "Work From Home",
+    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20",
+  },
+  OFF_DAY: {
+    label: "Off Day",
+    className: "bg-gray-500/10 text-gray-700 border-gray-500/20",
+  },
+};
 
 export function AttendanceDayView({
   selectedDate,
@@ -105,7 +113,7 @@ export function AttendanceDayView({
           ) : (
             <div className="space-y-3">
               {events.map((event) => {
-                const statusConfig = STATUS_CONFIG[event.status];
+                const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.PRESENT;
 
                 return (
                   <Card
@@ -162,7 +170,7 @@ export function AttendanceDayView({
                           </div>
 
                           {/* Note */}
-                          {event.note && (
+                          {event.notes && (
                             <>
                               <Separator />
                               <div>
@@ -170,7 +178,7 @@ export function AttendanceDayView({
                                   Note
                                 </p>
                                 <p className="mt-1 text-sm leading-relaxed">
-                                  {event.note}
+                                  {event.notes}
                                 </p>
                               </div>
                             </>
