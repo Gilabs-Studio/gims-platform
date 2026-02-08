@@ -128,6 +128,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Attendance Records seeder (Sprint 13)
+	if err := SeedAttendanceRecords(); err != nil {
+		return err
+	}
+
+	// HRD - Overtime Requests seeder (Sprint 13)
+	if err := SeedOvertimeRequests(); err != nil {
+		return err
+	}
+
 	// HRD - Employee Contracts seeder (Sprint 14)
 	if err := SeedEmployeeContracts(); err != nil {
 		return err

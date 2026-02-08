@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 )
 
 // AttendanceRecordMapper handles mapping between AttendanceRecord model and DTOs
@@ -113,6 +114,24 @@ func (m *AttendanceRecordMapper) ToMonthlyStats(stats *dto.MonthlyAttendanceStat
 	}
 
 	return stats
+}
+
+// EnrichResponse enriches an attendance record response with employee data
+func (m *AttendanceRecordMapper) EnrichResponse(resp *dto.AttendanceRecordResponse, employeeMap map[string]*orgModels.Employee) {
+	if emp, ok := employeeMap[resp.EmployeeID]; ok {
+		resp.EmployeeName = emp.Name
+		resp.EmployeeCode = emp.EmployeeCode
+		if emp.Division != nil {
+			resp.DivisionName = emp.Division.Name
+		}
+	}
+}
+
+// EnrichResponseList enriches a list of attendance record responses with employee data
+func (m *AttendanceRecordMapper) EnrichResponseList(responses []dto.AttendanceRecordResponse, employeeMap map[string]*orgModels.Employee) {
+	for i := range responses {
+		m.EnrichResponse(&responses[i], employeeMap)
+	}
 }
 
 // formatMinutesToHours converts minutes to "Xh Ym" format

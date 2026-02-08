@@ -1295,7 +1295,37 @@
 										}
 									]
 								},
-								"description": "List attendance records with filters. Requires `attendance.read` permission.\n\n**Filters:**\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
+								"description": "List attendance records with filters. Requires `attendance.read` permission. Responses are enriched with employee_name, employee_code, and division_name.\n\n**Filters:**\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Attendance Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"form-data"
+									]
+								},
+								"description": "Get form data for attendance management forms. Returns employees, divisions, work schedules, check-in types, and attendance statuses. Requires `attendance.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [{\"id\": \"uuid\", \"employee_code\": \"EMP001\", \"name\": \"John Doe\"}],\n    \"divisions\": [{\"id\": \"uuid\", \"name\": \"IT Division\"}],\n    \"work_schedules\": [{\"id\": \"uuid\", \"name\": \"Standard Office Hours\", \"start_time\": \"08:00\", \"end_time\": \"17:00\", \"is_default\": true}],\n    \"check_in_types\": [{\"value\": \"NORMAL\", \"label\": \"Normal\"}, {\"value\": \"WFH\", \"label\": \"Work From Home\"}, {\"value\": \"FIELD_WORK\", \"label\": \"Field Work\"}],\n    \"statuses\": [{\"value\": \"PRESENT\", \"label\": \"Present\"}, {\"value\": \"LATE\", \"label\": \"Late\"}, ...]\n  }\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` - Missing attendance.read permission\n- `INTERNAL_ERROR` - Server error"
 							},
 							"response": []
 						},

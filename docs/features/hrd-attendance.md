@@ -2,8 +2,8 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.0.0  
-> **Status:** ✅ Complete (API + Frontend)  
+> **Version:** 1.1.0  
+> **Status:** ✅ Complete (API + Frontend) — Backend improved in Sprint 15  
 > **Last Updated:** January 2026
 
 ---
@@ -40,9 +40,12 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 |---------|-------------|
 | GPS-Based Attendance | Validates employee location during clock in/out |
 | Flexible Schedules | Supports flexible working hours per division |
+| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default |
 | Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule |
 | Multi-Type Holidays | Supports National, Collective, and Company holidays |
 | Real-time Statistics | Monthly attendance statistics with various metrics |
+| Employee Enrichment | Responses include employee name, code, and division (for HRD views) |
+| Form Data Endpoint | Single API call for all attendance form dropdown options |
 
 ---
 
@@ -430,8 +433,9 @@ working_minutes = check_out_time - check_in_time - break_duration
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/attendance` | attendance.read | List all records |
-| GET | `/api/v1/hrd/attendance/:id` | attendance.read | Get by ID |
+| GET | `/api/v1/hrd/attendance/form-data` | attendance.read | Get form data (employees, schedules, statuses) |
+| GET | `/api/v1/hrd/attendance` | attendance.read | List all records (enriched with employee names) |
+| GET | `/api/v1/hrd/attendance/:id` | attendance.read | Get by ID (enriched) |
 | POST | `/api/v1/hrd/attendance/manual` | attendance.create | Manual entry |
 | PUT | `/api/v1/hrd/attendance/:id` | attendance.update | Update record |
 | DELETE | `/api/v1/hrd/attendance/:id` | attendance.delete | Delete record |
@@ -821,4 +825,38 @@ Flexible Hours:
 
 ---
 
-*Document generated for GIMS Platform - Sprint 13: HRD Attendance*
+## Keputusan Teknis
+
+- **Mengapa employee enrichment di-batch (buildEmployeeMap)**:
+  Untuk menghindari N+1 queries. Semua employee IDs dikumpulkan dulu, lalu di-fetch sekali via `FindByIDs` dengan preload Division/JobPosition/Company. Trade-off: sedikit lebih complex di usecase, tapi jauh lebih performant.
+
+- **Mengapa division-based schedule lookup (bukan hanya default)**:
+  Tiap divisi bisa punya jadwal kerja berbeda (misal sales di lapangan vs admin di kantor). `getScheduleForEmployee()` cek divisi dulu, fallback ke default. Trade-off: 1 extra query per clock-in, tapi akurasi jadwal jauh lebih baik.
+
+- **Mengapa FormData endpoint (bukan separate calls)**:
+  Mengikuti project convention: single API call untuk semua dropdown options. Mengurangi frontend round-trips dari 3-4 calls menjadi 1.
+
+- **Mengapa overtime GetMonthlySummary di-fix pakai strconv.Atoi**:
+  Bug asli: `c.GetQuery()` returns `(string, bool)`, bukan error. Year/month selalu 0. Fix: proper `strconv.Atoi` parsing dengan default `time.Now()`.
+
+---
+
+## Notes & Improvements
+
+- **Sprint 15 Backend Improvements**:
+  - Added employee enrichment to attendance and overtime responses (name, code, division)
+  - Added `GET /form-data` endpoint following project convention
+  - Fixed `GetMonthlySummary` bug (year/month never parsed from query params)
+  - Added division-based schedule lookup for ClockIn and GetTodayAttendance
+  - Overtime notification enrichment with employee/division names
+
+- **Known Limitation**: Attendance records don't link to leave requests yet (planned for integration)
+- **Future Improvement**:
+  - Add attendance report export (CSV/Excel)
+  - Add team attendance dashboard for managers
+  - Add geofencing with multiple office locations
+  - Add shift schedule support (morning/afternoon/night shifts)
+
+---
+
+*Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 15)*

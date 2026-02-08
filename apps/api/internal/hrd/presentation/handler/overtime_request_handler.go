@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -327,12 +330,20 @@ func (h *OvertimeRequestHandler) GetMonthlySummary(c *gin.Context) {
 		employeeID = id.(string)
 	}
 
-	var year, month int
-	if _, err := c.GetQuery("year"); err {
-		// Parse from query
+	// Parse year and month from query params, default to current month
+	year := time.Now().Year()
+	month := int(time.Now().Month())
+
+	if yearStr := c.Query("year"); yearStr != "" {
+		if y, err := strconv.Atoi(yearStr); err == nil && y >= 2000 && y <= 2100 {
+			year = y
+		}
 	}
-	// For simplicity, use current month if not specified
-	// In production, properly parse year and month from query
+	if monthStr := c.Query("month"); monthStr != "" {
+		if m, err := strconv.Atoi(monthStr); err == nil && m >= 1 && m <= 12 {
+			month = m
+		}
+	}
 
 	summary, err := h.overtimeUC.GetEmployeeMonthlySummary(c.Request.Context(), employeeID, year, month)
 	if err != nil {

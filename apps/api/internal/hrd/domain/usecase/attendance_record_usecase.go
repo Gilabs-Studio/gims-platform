@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -11,18 +12,22 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDTO "github.com/gilabs/gims/api/internal/organization/domain/dto"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrAttendanceNotFound     = errors.New("attendance record not found")
-	ErrAlreadyCheckedIn       = errors.New("already checked in for today")
-	ErrNotCheckedIn           = errors.New("not checked in yet")
-	ErrAlreadyCheckedOut      = errors.New("already checked out for today")
-	ErrGPSRequired            = errors.New("GPS location is required")
-	ErrOutsideGPSRadius       = errors.New("you are outside the allowed GPS radius")
-	ErrNotWorkingDay          = errors.New("today is not a working day")
-	ErrHolidayNoCheckIn       = errors.New("cannot check in on holiday")
+	ErrAttendanceNotFound = errors.New("attendance record not found")
+	ErrAlreadyCheckedIn   = errors.New("already checked in for today")
+	ErrNotCheckedIn       = errors.New("not checked in yet")
+	ErrAlreadyCheckedOut  = errors.New("already checked out for today")
+	ErrGPSRequired        = errors.New("GPS location is required")
+	ErrOutsideGPSRadius   = errors.New("you are outside the allowed GPS radius")
+	ErrNotWorkingDay      = errors.New("today is not a working day")
+	ErrHolidayNoCheckIn   = errors.New("cannot check in on holiday")
 )
 
 // AttendanceRecordUsecase defines the interface for attendance record business logic
@@ -36,12 +41,15 @@ type AttendanceRecordUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateAttendanceRecordRequest) (*dto.AttendanceRecordResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest) ([]dto.MonthlyAttendanceStats, error)
+	GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error)
 }
 
 type attendanceRecordUsecase struct {
 	attendanceRepo   repositories.AttendanceRecordRepository
 	workScheduleRepo repositories.WorkScheduleRepository
 	holidayRepo      repositories.HolidayRepository
+	employeeRepo     orgRepos.EmployeeRepository
+	divisionRepo     orgRepos.DivisionRepository
 	mapper           *mapper.AttendanceRecordMapper
 	wsMapper         *mapper.WorkScheduleMapper
 	holidayMapper    *mapper.HolidayMapper
@@ -52,11 +60,15 @@ func NewAttendanceRecordUsecase(
 	attendanceRepo repositories.AttendanceRecordRepository,
 	workScheduleRepo repositories.WorkScheduleRepository,
 	holidayRepo repositories.HolidayRepository,
+	employeeRepo orgRepos.EmployeeRepository,
+	divisionRepo orgRepos.DivisionRepository,
 ) AttendanceRecordUsecase {
 	return &attendanceRecordUsecase{
 		attendanceRepo:   attendanceRepo,
 		workScheduleRepo: workScheduleRepo,
 		holidayRepo:      holidayRepo,
+		employeeRepo:     employeeRepo,
+		divisionRepo:     divisionRepo,
 		mapper:           mapper.NewAttendanceRecordMapper(),
 		wsMapper:         mapper.NewWorkScheduleMapper(),
 		holidayMapper:    mapper.NewHolidayMapper(),
@@ -70,6 +82,14 @@ func (u *attendanceRecordUsecase) List(ctx context.Context, req *dto.ListAttenda
 	}
 
 	responses := u.mapper.ToResponseList(records)
+
+	// Enrich with employee data (names, codes, divisions)
+	employeeIDs := make([]string, 0, len(records))
+	for _, r := range records {
+		employeeIDs = append(employeeIDs, r.EmployeeID)
+	}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
+	u.mapper.EnrichResponseList(responses, employeeMap)
 
 	page := req.Page
 	if page < 1 {
@@ -101,7 +121,12 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(ar), nil
+
+	resp := u.mapper.ToResponse(ar)
+	// Enrich with employee data
+	employeeMap := u.buildEmployeeMap(ctx, []string{ar.EmployeeID})
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error) {
@@ -113,8 +138,8 @@ func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employ
 		return nil, err
 	}
 
-	// Get work schedule (default for now)
-	ws, err := u.workScheduleRepo.FindDefault(ctx)
+	// Get work schedule (try division-based, fallback to default)
+	ws, err := u.getScheduleForEmployee(ctx, employeeID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -140,8 +165,8 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		return nil, err
 	}
 
-	// Get work schedule
-	ws, err := u.workScheduleRepo.FindDefault(ctx)
+	// Get work schedule (try division-based, fallback to default)
+	ws, err := u.getScheduleForEmployee(ctx, employeeID)
 	if err != nil {
 		return nil, err
 	}
@@ -471,4 +496,123 @@ func (u *attendanceRecordUsecase) calculateDistance(lat1, lon1, lat2, lon2 float
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return R * c
+}
+
+// buildEmployeeMap batch-fetches employees by IDs and builds a lookup map
+func (u *attendanceRecordUsecase) buildEmployeeMap(ctx context.Context, ids []string) map[string]*orgModels.Employee {
+	m := make(map[string]*orgModels.Employee)
+	if len(ids) == 0 {
+		return m
+	}
+
+	unique := make(map[string]bool)
+	dedupIDs := make([]string, 0)
+	for _, id := range ids {
+		if !unique[id] {
+			unique[id] = true
+			dedupIDs = append(dedupIDs, id)
+		}
+	}
+
+	employees, err := u.employeeRepo.FindByIDs(ctx, dedupIDs)
+	if err != nil {
+		return m
+	}
+	for i := range employees {
+		m[employees[i].ID] = &employees[i]
+	}
+	return m
+}
+
+// getScheduleForEmployee returns the work schedule for an employee based on their division, falling back to default
+func (u *attendanceRecordUsecase) getScheduleForEmployee(ctx context.Context, employeeID string) (*models.WorkSchedule, error) {
+	// Try to find employee's division
+	emp, err := u.employeeRepo.FindByID(ctx, employeeID)
+	if err == nil && emp.DivisionID != nil && *emp.DivisionID != "" {
+		ws, err := u.workScheduleRepo.FindByDivisionID(ctx, *emp.DivisionID)
+		if err == nil {
+			return ws, nil
+		}
+	}
+
+	// Fallback to default schedule
+	return u.workScheduleRepo.FindDefault(ctx)
+}
+
+// GetFormData returns form data for attendance management (manual entry)
+func (u *attendanceRecordUsecase) GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error) {
+	// Get active employees
+	employees, err := u.employeeRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch employees: %w", err)
+	}
+	employeeOptions := make([]dto.EmployeeFormOption, 0, len(employees))
+	for _, emp := range employees {
+		parsedID, err := uuid.Parse(emp.ID)
+		if err != nil {
+			continue
+		}
+		employeeOptions = append(employeeOptions, dto.EmployeeFormOption{
+			ID:           parsedID,
+			EmployeeCode: emp.EmployeeCode,
+			Name:         emp.Name,
+		})
+	}
+
+	// Get active divisions
+	divListReq := &orgDTO.ListDivisionsRequest{Page: 1, PerPage: 100}
+	divisions, _, err := u.divisionRepo.List(ctx, divListReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch divisions: %w", err)
+	}
+	divisionOptions := make([]dto.DivisionFormOption, 0, len(divisions))
+	for _, div := range divisions {
+		if div.IsActive {
+			divisionOptions = append(divisionOptions, dto.DivisionFormOption{
+				ID:   div.ID,
+				Name: div.Name,
+			})
+		}
+	}
+
+	// Get active schedules
+	scheduleReq := &dto.ListWorkSchedulesRequest{Page: 1, PerPage: 100}
+	schedules, _, err := u.workScheduleRepo.List(ctx, scheduleReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schedules: %w", err)
+	}
+	scheduleOptions := make([]dto.AttendanceScheduleFormOption, 0, len(schedules))
+	for _, s := range schedules {
+		if s.IsActive {
+			scheduleOptions = append(scheduleOptions, dto.AttendanceScheduleFormOption{
+				ID:   s.ID,
+				Name: s.Name,
+			})
+		}
+	}
+
+	checkInTypes := []dto.AttendanceCheckInTypeFormOption{
+		{Value: "NORMAL", Label: "Normal (Office)"},
+		{Value: "WFH", Label: "Work From Home"},
+		{Value: "FIELD_WORK", Label: "Field Work"},
+	}
+
+	statuses := []dto.AttendanceStatusFormOption{
+		{Value: "PRESENT", Label: "Present"},
+		{Value: "ABSENT", Label: "Absent"},
+		{Value: "LATE", Label: "Late"},
+		{Value: "HALF_DAY", Label: "Half Day"},
+		{Value: "LEAVE", Label: "Leave"},
+		{Value: "WFH", Label: "Work From Home"},
+		{Value: "OFF_DAY", Label: "Off Day"},
+		{Value: "HOLIDAY", Label: "Holiday"},
+	}
+
+	return &dto.AttendanceFormDataResponse{
+		Employees:    employeeOptions,
+		Divisions:    divisionOptions,
+		Schedules:    scheduleOptions,
+		CheckInTypes: checkInTypes,
+		Statuses:     statuses,
+	}, nil
 }

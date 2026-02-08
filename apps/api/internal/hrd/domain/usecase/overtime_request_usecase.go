@@ -10,14 +10,16 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrOvertimeRequestNotFound    = errors.New("overtime request not found")
-	ErrOvertimeAlreadyProcessed   = errors.New("overtime request already processed")
+	ErrOvertimeRequestNotFound     = errors.New("overtime request not found")
+	ErrOvertimeAlreadyProcessed    = errors.New("overtime request already processed")
 	ErrCannotModifyApprovedRequest = errors.New("cannot modify approved request")
-	ErrUnauthorizedApproval       = errors.New("not authorized to approve this request")
+	ErrUnauthorizedApproval        = errors.New("not authorized to approve this request")
 )
 
 // OvertimeRequestUsecase defines the interface for overtime request business logic
@@ -38,15 +40,17 @@ type OvertimeRequestUsecase interface {
 }
 
 type overtimeRequestUsecase struct {
-	repo   repositories.OvertimeRequestRepository
-	mapper *mapper.OvertimeRequestMapper
+	repo         repositories.OvertimeRequestRepository
+	employeeRepo orgRepos.EmployeeRepository
+	mapper       *mapper.OvertimeRequestMapper
 }
 
 // NewOvertimeRequestUsecase creates a new OvertimeRequestUsecase
-func NewOvertimeRequestUsecase(repo repositories.OvertimeRequestRepository) OvertimeRequestUsecase {
+func NewOvertimeRequestUsecase(repo repositories.OvertimeRequestRepository, employeeRepo orgRepos.EmployeeRepository) OvertimeRequestUsecase {
 	return &overtimeRequestUsecase{
-		repo:   repo,
-		mapper: mapper.NewOvertimeRequestMapper(),
+		repo:         repo,
+		employeeRepo: employeeRepo,
+		mapper:       mapper.NewOvertimeRequestMapper(),
 	}
 }
 
@@ -57,6 +61,14 @@ func (u *overtimeRequestUsecase) List(ctx context.Context, req *dto.ListOvertime
 	}
 
 	responses := u.mapper.ToResponseList(requests)
+
+	// Enrich with employee data
+	employeeIDs := make([]string, 0, len(requests))
+	for _, r := range requests {
+		employeeIDs = append(employeeIDs, r.EmployeeID)
+	}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
+	u.mapper.EnrichResponseList(responses, employeeMap)
 
 	page := req.Page
 	if page < 1 {
@@ -88,7 +100,12 @@ func (u *overtimeRequestUsecase) GetByID(ctx context.Context, id string) (*dto.O
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(or), nil
+
+	resp := u.mapper.ToResponse(or)
+	// Enrich with employee data
+	employeeMap := u.buildEmployeeMap(ctx, []string{or.EmployeeID})
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
 }
 
 func (u *overtimeRequestUsecase) GetPendingForManager(ctx context.Context, managerID string) ([]dto.OvertimeRequestResponse, error) {
@@ -96,7 +113,16 @@ func (u *overtimeRequestUsecase) GetPendingForManager(ctx context.Context, manag
 	if err != nil {
 		return nil, err
 	}
-	return u.mapper.ToResponseList(requests), nil
+
+	responses := u.mapper.ToResponseList(requests)
+	// Enrich with employee data
+	employeeIDs := make([]string, 0, len(requests))
+	for _, r := range requests {
+		employeeIDs = append(employeeIDs, r.EmployeeID)
+	}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
+	u.mapper.EnrichResponseList(responses, employeeMap)
+	return responses, nil
 }
 
 func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOvertimeRequestDTO, employeeID string) (*dto.OvertimeRequestResponse, error) {
@@ -308,11 +334,25 @@ func (u *overtimeRequestUsecase) GetUnnotifiedPendingRequests(ctx context.Contex
 	}
 
 	notifications := make([]dto.PendingOvertimeNotification, len(requests))
+	// Enrich notifications with employee data
+	employeeIDs := make([]string, 0, len(requests))
+	for _, r := range requests {
+		employeeIDs = append(employeeIDs, r.EmployeeID)
+	}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
 	for i, r := range requests {
-		notifications[i] = dto.PendingOvertimeNotification{
-			OvertimeRequest: *u.mapper.ToResponse(&r),
-			// Employee and division names would be populated from joins in production
+		resp := u.mapper.ToResponse(&r)
+		u.mapper.EnrichResponse(resp, employeeMap)
+		notification := dto.PendingOvertimeNotification{
+			OvertimeRequest: *resp,
 		}
+		if emp, ok := employeeMap[r.EmployeeID]; ok {
+			notification.EmployeeName = emp.Name
+			if emp.Division != nil {
+				notification.DivisionName = emp.Division.Name
+			}
+		}
+		notifications[i] = notification
 	}
 
 	return notifications, nil
@@ -320,4 +360,30 @@ func (u *overtimeRequestUsecase) GetUnnotifiedPendingRequests(ctx context.Contex
 
 func (u *overtimeRequestUsecase) MarkAsNotified(ctx context.Context, ids []string) error {
 	return u.repo.MarkNotified(ctx, ids)
+}
+
+// buildEmployeeMap batch-fetches employees by IDs and builds a lookup map
+func (u *overtimeRequestUsecase) buildEmployeeMap(ctx context.Context, ids []string) map[string]*orgModels.Employee {
+	m := make(map[string]*orgModels.Employee)
+	if len(ids) == 0 {
+		return m
+	}
+
+	unique := make(map[string]bool)
+	dedupIDs := make([]string, 0)
+	for _, id := range ids {
+		if !unique[id] {
+			unique[id] = true
+			dedupIDs = append(dedupIDs, id)
+		}
+	}
+
+	employees, err := u.employeeRepo.FindByIDs(ctx, dedupIDs)
+	if err != nil {
+		return m
+	}
+	for i := range employees {
+		m[employees[i].ID] = &employees[i]
+	}
+	return m
 }

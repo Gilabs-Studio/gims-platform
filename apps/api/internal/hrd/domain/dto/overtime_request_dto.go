@@ -4,7 +4,7 @@ package dto
 
 // CreateOvertimeRequestDTO represents the request to create an overtime request
 type CreateOvertimeRequestDTO struct {
-	Date        string `json:"date" binding:"required"` // YYYY-MM-DD
+	Date        string `json:"date" binding:"required"`       // YYYY-MM-DD
 	StartTime   string `json:"start_time" binding:"required"` // HH:MM
 	EndTime     string `json:"end_time" binding:"required"`   // HH:MM
 	Reason      string `json:"reason" binding:"required,max=500"`
@@ -49,6 +49,8 @@ type ListOvertimeRequestsRequest struct {
 type OvertimeRequestResponse struct {
 	ID                 string  `json:"id"`
 	EmployeeID         string  `json:"employee_id"`
+	EmployeeName       string  `json:"employee_name"`
+	EmployeeCode       string  `json:"employee_code"`
 	Date               string  `json:"date"`
 	RequestType        string  `json:"request_type"`
 	StartTime          string  `json:"start_time"`
@@ -77,15 +79,15 @@ type OvertimeRequestResponse struct {
 
 // OvertimeSummaryResponse represents overtime summary for an employee
 type OvertimeSummaryResponse struct {
-	EmployeeID           string `json:"employee_id"`
-	Year                 int    `json:"year"`
-	Month                int    `json:"month"`
-	TotalRequestedMinutes int   `json:"total_requested_minutes"`
-	TotalApprovedMinutes int    `json:"total_approved_minutes"`
-	TotalRejectedMinutes int    `json:"total_rejected_minutes"`
-	PendingRequests      int    `json:"pending_requests"`
-	ApprovedRequests     int    `json:"approved_requests"`
-	RejectedRequests     int    `json:"rejected_requests"`
+	EmployeeID            string `json:"employee_id"`
+	Year                  int    `json:"year"`
+	Month                 int    `json:"month"`
+	TotalRequestedMinutes int    `json:"total_requested_minutes"`
+	TotalApprovedMinutes  int    `json:"total_approved_minutes"`
+	TotalRejectedMinutes  int    `json:"total_rejected_minutes"`
+	PendingRequests       int    `json:"pending_requests"`
+	ApprovedRequests      int    `json:"approved_requests"`
+	RejectedRequests      int    `json:"rejected_requests"`
 }
 
 // PendingOvertimeNotification represents a pending overtime for notification

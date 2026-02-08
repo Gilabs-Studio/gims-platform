@@ -21,24 +21,24 @@ type ClockOutRequest struct {
 
 // ManualAttendanceRequest represents the request to create a manual attendance entry
 type ManualAttendanceRequest struct {
-	EmployeeID   string   `json:"employee_id" binding:"required,uuid"`
-	Date         string   `json:"date" binding:"required"`           // YYYY-MM-DD
-	CheckInTime  *string  `json:"check_in_time"`                      // HH:MM
-	CheckOutTime *string  `json:"check_out_time"`                     // HH:MM
-	CheckInType  string   `json:"check_in_type" binding:"required,oneof=NORMAL WFH FIELD_WORK"`
-	Status       string   `json:"status" binding:"required,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH"`
-	Notes        string   `json:"notes" binding:"max=1000"`
-	Reason       string   `json:"reason" binding:"required,max=500"` // Reason for manual entry
+	EmployeeID   string  `json:"employee_id" binding:"required,uuid"`
+	Date         string  `json:"date" binding:"required"` // YYYY-MM-DD
+	CheckInTime  *string `json:"check_in_time"`           // HH:MM
+	CheckOutTime *string `json:"check_out_time"`          // HH:MM
+	CheckInType  string  `json:"check_in_type" binding:"required,oneof=NORMAL WFH FIELD_WORK"`
+	Status       string  `json:"status" binding:"required,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH"`
+	Notes        string  `json:"notes" binding:"max=1000"`
+	Reason       string  `json:"reason" binding:"required,max=500"` // Reason for manual entry
 }
 
 // UpdateAttendanceRecordRequest represents the request to update an attendance record
 type UpdateAttendanceRecordRequest struct {
-	CheckInTime       *string  `json:"check_in_time"`
-	CheckOutTime      *string  `json:"check_out_time"`
-	CheckInType       *string  `json:"check_in_type" binding:"omitempty,oneof=NORMAL WFH FIELD_WORK"`
-	Status            *string  `json:"status" binding:"omitempty,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH OFF_DAY HOLIDAY"`
-	Notes             *string  `json:"notes" binding:"omitempty,max=1000"`
-	ManualEntryReason *string  `json:"manual_entry_reason" binding:"omitempty,max=500"`
+	CheckInTime       *string `json:"check_in_time"`
+	CheckOutTime      *string `json:"check_out_time"`
+	CheckInType       *string `json:"check_in_type" binding:"omitempty,oneof=NORMAL WFH FIELD_WORK"`
+	Status            *string `json:"status" binding:"omitempty,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH OFF_DAY HOLIDAY"`
+	Notes             *string `json:"notes" binding:"omitempty,max=1000"`
+	ManualEntryReason *string `json:"manual_entry_reason" binding:"omitempty,max=500"`
 }
 
 // ListAttendanceRecordsRequest represents the request to list attendance records
@@ -60,6 +60,9 @@ type ListAttendanceRecordsRequest struct {
 type AttendanceRecordResponse struct {
 	ID                string   `json:"id"`
 	EmployeeID        string   `json:"employee_id"`
+	EmployeeName      string   `json:"employee_name"`
+	EmployeeCode      string   `json:"employee_code"`
+	DivisionName      string   `json:"division_name,omitempty"`
 	Date              string   `json:"date"`
 	CheckInTime       *string  `json:"check_in_time"`
 	CheckInType       string   `json:"check_in_type"`
@@ -103,22 +106,22 @@ type TodayAttendanceResponse struct {
 
 // MonthlyAttendanceStats represents monthly attendance statistics
 type MonthlyAttendanceStats struct {
-	EmployeeID            string `json:"employee_id"`
-	Year                  int    `json:"year"`
-	Month                 int    `json:"month"`
-	PresentDays           int    `json:"present_days"`
-	AbsentDays            int    `json:"absent_days"`
-	LateDays              int    `json:"late_days"`
-	HalfDays              int    `json:"half_days"`
-	LeaveDays             int    `json:"leave_days"`
-	HolidayDays           int    `json:"holiday_days"`
-	TotalWorkingMinutes   int    `json:"total_working_minutes"`
-	TotalWorkingHours     string `json:"total_working_hours"` // Formatted
-	TotalOvertimeMinutes  int    `json:"total_overtime_minutes"`
-	TotalOvertimeHours    string `json:"total_overtime_hours"` // Formatted
-	TotalLateMinutes      int    `json:"total_late_minutes"`
-	TotalEarlyLeaveMinutes int   `json:"total_early_leave_minutes"`
-	AttendancePercentage  float64 `json:"attendance_percentage"`
+	EmployeeID             string  `json:"employee_id"`
+	Year                   int     `json:"year"`
+	Month                  int     `json:"month"`
+	PresentDays            int     `json:"present_days"`
+	AbsentDays             int     `json:"absent_days"`
+	LateDays               int     `json:"late_days"`
+	HalfDays               int     `json:"half_days"`
+	LeaveDays              int     `json:"leave_days"`
+	HolidayDays            int     `json:"holiday_days"`
+	TotalWorkingMinutes    int     `json:"total_working_minutes"`
+	TotalWorkingHours      string  `json:"total_working_hours"` // Formatted
+	TotalOvertimeMinutes   int     `json:"total_overtime_minutes"`
+	TotalOvertimeHours     string  `json:"total_overtime_hours"` // Formatted
+	TotalLateMinutes       int     `json:"total_late_minutes"`
+	TotalEarlyLeaveMinutes int     `json:"total_early_leave_minutes"`
+	AttendancePercentage   float64 `json:"attendance_percentage"`
 }
 
 // MonthlyReportRequest represents the request for monthly report
@@ -127,4 +130,31 @@ type MonthlyReportRequest struct {
 	Month      int    `form:"month" binding:"required,gte=1,lte=12"`
 	EmployeeID string `form:"employee_id" binding:"omitempty,uuid"`
 	DivisionID string `form:"division_id" binding:"omitempty,uuid"`
+}
+
+// AttendanceFormDataResponse represents form data for attendance management
+type AttendanceFormDataResponse struct {
+	Employees    []EmployeeFormOption              `json:"employees"`
+	Divisions    []DivisionFormOption              `json:"divisions"`
+	Schedules    []AttendanceScheduleFormOption    `json:"schedules"`
+	CheckInTypes []AttendanceCheckInTypeFormOption `json:"check_in_types"`
+	Statuses     []AttendanceStatusFormOption      `json:"statuses"`
+}
+
+// AttendanceScheduleFormOption represents a work schedule option for dropdowns
+type AttendanceScheduleFormOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AttendanceCheckInTypeFormOption represents a check-in type option for dropdowns
+type AttendanceCheckInTypeFormOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// AttendanceStatusFormOption represents an attendance status option for dropdowns
+type AttendanceStatusFormOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
