@@ -33,6 +33,8 @@ Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template ev
   Criteria scores di-manage sebagai unit bersama evaluasi induknya. Delete/recreate saat update. Trade-off: slightly more writes, tapi simpler logic.
 
 ## Struktur Folder
+
+### Backend
 ```
 internal/hrd/
 ├── data/
@@ -71,6 +73,35 @@ internal/hrd/
     └── routers.go                         # Domain aggregator (updated)
 ```
 
+### Frontend
+```
+features/hrd/evaluation/
+├── types/
+│   └── index.d.ts                         # All TypeScript interfaces & types
+├── schemas/
+│   └── evaluation.schema.ts               # Zod schemas with i18n (group, criteria, evaluation)
+├── services/
+│   └── evaluation-service.ts              # API service (3 service objects)
+├── hooks/
+│   └── use-evaluations.ts                 # TanStack Query hooks (all CRUD + form data)
+├── components/
+│   ├── evaluation-page.tsx                # Main page with tabs
+│   ├── evaluation-group-list.tsx          # Group list with search/filter/pagination
+│   ├── evaluation-group-form.tsx          # Create/edit group dialog
+│   ├── evaluation-group-detail-modal.tsx  # Group detail + criteria management
+│   ├── evaluation-criteria-form.tsx       # Create/edit criteria dialog
+│   ├── employee-evaluation-list.tsx       # Evaluation list with status workflow
+│   ├── employee-evaluation-form.tsx       # Create/edit evaluation with scores
+│   └── employee-evaluation-detail-modal.tsx # Evaluation detail with score breakdown
+└── i18n/
+    ├── en.ts                              # English translations
+    └── id.ts                              # Indonesian translations
+
+app/[locale]/(dashboard)/hrd/evaluation/
+├── page.tsx                               # Route page with PermissionGuard
+└── loading.tsx                            # Loading skeleton
+```
+
 ## API Endpoints
 
 ### Evaluation Groups
@@ -106,6 +137,8 @@ internal/hrd/
 | DELETE | `/hrd/employee-evaluations/:id` | evaluation.delete | Delete evaluation (DRAFT only) |
 
 ## Cara Test Manual
+
+### Backend (API)
 1. Login sebagai admin/HR
 2. **Create Evaluation Group**: POST `/hrd/evaluation-groups` dengan name "Performance Review FY25"
 3. **Add Criteria**: POST `/hrd/evaluation-criteria` dengan evaluation_group_id, name "Communication", weight 30
@@ -119,6 +152,28 @@ internal/hrd/
 11. **Finalize**: POST `/hrd/employee-evaluations/:id/status` dengan status "FINALIZED"
 12. **Verify Edit Block**: Try PUT on finalized evaluation → should return error
 
+### Frontend (UI)
+1. Login sebagai admin/HR
+2. Navigate ke `/hrd/evaluation`
+3. **Evaluation Groups Tab**:
+   - Click "Evaluation Groups" tab
+   - Click "Add Evaluation Group" → fill form → Submit
+   - Click group row → detail modal opens with criteria table
+   - Add criteria via "Add Criteria" button → check weight validation
+   - Edit/delete criteria from detail modal
+4. **Evaluations Tab**:
+   - Click "Evaluations" tab (default)
+   - Click "Add Evaluation" → fill employee, group, type, period, criteria scores
+   - Verify criteria auto-populate when group is selected
+   - Submit → should show in list with DRAFT status badge
+   - Click dropdown → "Submit for Review" → status changes to SUBMITTED
+   - Click dropdown → "Mark as Reviewed" → status changes to REVIEWED
+   - Click dropdown → "Finalize" → status changes to FINALIZED
+   - Click row → detail modal with score breakdown + progress bar
+5. **Search & Filter**: Search by employee name, filter by status/type
+6. **Loading States**: Verify skeleton shows while data loads
+7. **Empty States**: Verify empty message when no data
+
 ## Automated Testing
 - **Unit Tests**: `apps/api/internal/hrd/domain/usecase/evaluation_group_usecase_test.go`
 - **Integration Tests**: `apps/api/test/hrd/evaluation_integration_test.go`
@@ -130,15 +185,19 @@ cd apps/api && go test ./internal/hrd/...
 
 ## Dependencies
 - **Backend**: GORM (models + queries), UUID (primary keys)
-- **Integration**: Organization module (employee data via EmployeeRepository)
+- **Frontend**: TanStack Query v5 (data fetching), Zod (validation), react-hook-form (form state), date-fns (period formatting), next-intl (i18n), shadcn/ui (components), NumericInput (score entry)
+- **Integration**: Organization module (employee data via EmployeeRepository), route registered in `route-validator.ts`, i18n registered in `request.ts`
 - **Database**: PostgreSQL with pg_trgm extension for GIN indexes
 
 ## Notes & Improvements
 - **Known Limitation**: Saat ini belum support evaluation period templates (quarterly, annual auto-generation)
+- **Known Limitation**: React Compiler shows cosmetic warnings for react-hook-form `watch()` usage — not a blocker
 - **Future Improvement**: 
   - Add evaluation period templates for auto-scheduling
   - Add PDF export for finalized evaluations
   - Add notification system for pending reviews
   - Add dashboard with evaluation score trends
   - Add 360-degree evaluation support (PEER type)
+  - Add bulk evaluation creation for all employees in a group
+  - Add evaluation comparison view (side-by-side periods)
 - **Performance**: GIN indexes on evaluation_groups.name and evaluation_criteria.name for prefix search

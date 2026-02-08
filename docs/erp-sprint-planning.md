@@ -1072,8 +1072,10 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Performance and Recruitment management
-- [ ] **Frontend:** Evaluation and Recruitment UI
+- [x] **API:** Evaluation management (Group, Criteria, Employee Evaluation)
+- [x] **Frontend:** Evaluation UI (template management, scoring, workflow)
+- [ ] **API:** Recruitment management
+- [ ] **Frontend:** Recruitment UI
 
 ### API Tasks
 
@@ -1081,14 +1083,21 @@ erDiagram
 - [x] `EvaluationCriteria` - CRUD with weights
 - [x] `EmployeeEvaluation` - CRUD + Score
 - [x] `EmployeeEvaluationCriteria` - Scoring per criteria
+- [x] `EmployeeEvaluation` Form Data endpoint
+- [x] Evaluation seeder data
 - [ ] `RecruitmentRequest` - CRUD + Approve
 
 ### Frontend Tasks
 
-- [ ] Evaluation template management
-- [ ] Employee evaluation form
-- [ ] Score entry with weighted calculation
-- [ ] Evaluation history
+- [x] Evaluation template management (EvaluationGroupList + Form)
+- [x] Evaluation criteria management (within group detail modal)
+- [x] Employee evaluation form with criteria score entry
+- [x] Score entry with weighted calculation & overall score display
+- [x] Evaluation listing with status filters & search
+- [x] Evaluation detail modal with score breakdown
+- [x] Status workflow actions (submit/review/finalize)
+- [x] Tabbed page (Evaluations + Evaluation Groups)
+- [x] i18n translations (en/id)
 - [ ] Recruitment request form
 - [ ] Recruitment approval workflow
 - [ ] Position opening list
@@ -1098,13 +1107,17 @@ erDiagram
 - [x] Criteria weights sum to 100%
 - [x] OverallScore = Σ(Score × Weight)
 - [x] Evaluation period validation
+- [x] Evaluation CRUD with status workflow
+- [x] Form data endpoint for dropdowns
 - [ ] Recruitment approval workflow complete
 - [ ] Position filling status tracked
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC) - evaluation.read/create/update/delete
+- [x] i18n integration check (request.ts) - evaluationEn/evaluationId registered
+- [ ] Recruitment permission integration
+- [ ] Recruitment i18n integration
 
 ### Table Relations
 
