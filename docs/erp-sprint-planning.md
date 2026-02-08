@@ -1075,7 +1075,7 @@ erDiagram
 - [x] **API:** Evaluation management (Group, Criteria, Employee Evaluation)
 - [x] **Frontend:** Evaluation UI (template management, scoring, workflow)
 - [x] **API:** Recruitment management
-- [ ] **Frontend:** Recruitment UI
+- [x] **Frontend:** Recruitment UI
 
 ### API Tasks
 
@@ -1098,9 +1098,9 @@ erDiagram
 - [x] Status workflow actions (submit/review/finalize)
 - [x] Tabbed page (Evaluations + Evaluation Groups)
 - [x] i18n translations (en/id)
-- [ ] Recruitment request form
-- [ ] Recruitment approval workflow
-- [ ] Position opening list
+- [x] Recruitment request form
+- [x] Recruitment approval workflow
+- [x] Position opening list
 
 ### Success Criteria
 
@@ -1116,8 +1116,8 @@ erDiagram
 
 - [x] Permission integration check (RBAC) - evaluation.read/create/update/delete
 - [x] i18n integration check (request.ts) - evaluationEn/evaluationId registered
-- [ ] Recruitment permission integration
-- [ ] Recruitment i18n integration
+- [x] Recruitment permission integration
+- [x] Recruitment i18n integration
 
 ### Table Relations
 

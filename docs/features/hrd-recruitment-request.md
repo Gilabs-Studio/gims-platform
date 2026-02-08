@@ -3,7 +3,7 @@
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 15  
 > **Version:** 1.0.0  
-> **Status:** ✅ Complete (API) | ⏳ Pending (Frontend)  
+> **Status:** ✅ Complete (API + Frontend)  
 > **Last Updated:** February 2026
 
 ---
@@ -96,6 +96,33 @@ apps/api/internal/hrd/
 ```
 apps/api/seeders/
 └── recruitment_request_seeder.go  # 5 sample records with various statuses
+```
+
+### Frontend
+```
+apps/web/src/features/hrd/recruitment/
+├── types/
+│   └── index.d.ts                     # TypeScript interfaces (entity, params, API responses, form data)
+├── schemas/
+│   └── recruitment.schema.ts          # Zod schemas with i18n validation messages
+├── services/
+│   └── recruitment-service.ts         # API client calls (CRUD + status + filled count + form data)
+├── hooks/
+│   └── use-recruitment.ts             # TanStack Query hooks (queries, mutations, optimistic updates)
+├── components/
+│   ├── recruitment-list.tsx           # Smart list component (search, filter, table, pagination, actions)
+│   ├── recruitment-form.tsx           # Dialog form (2 tabs: basic info + requirements)
+│   └── recruitment-detail-modal.tsx   # Detail modal (3 tabs: general + requirements + workflow)
+└── i18n/
+    ├── en.ts                          # English translations
+    └── id.ts                          # Indonesian translations
+```
+
+### App Route
+```
+apps/web/app/[locale]/(dashboard)/hrd/recruitment/
+├── page.tsx                           # Dynamic import + PermissionGuard
+└── loading.tsx                        # Skeleton loading state
 ```
 
 ---
@@ -273,6 +300,8 @@ apps/api/seeders/
 
 ## Manual Testing
 
+### Backend (API)
+
 1. **Login** sebagai admin (admin@example.com / admin123)
 2. **Create**: POST `/api/v1/hrd/recruitment-requests` dengan body lengkap
    - Verify response berisi auto-generated `request_code` (format RR-YYYYMM-XXXX)
@@ -294,6 +323,24 @@ apps/api/seeders/
 11. **Delete**: DELETE `/api/v1/hrd/recruitment-requests/:id` (hanya DRAFT)
 12. **Form Data**: GET `/api/v1/hrd/recruitment-requests/form-data`
     - Verify employees, divisions, positions, employment types, priorities, statuses
+
+### Frontend (UI)
+
+1. **Login** sebagai admin di `localhost:3000`
+2. **Navigate** ke `/hrd/recruitment`
+3. **Verify** list tampil dengan data dari seeder (5 records)
+4. **Search** by request code → verify filter berfungsi
+5. **Filter** by status dropdown → verify hanya record dengan status terpilih yang tampil
+6. **Click request code** → verify detail modal terbuka dengan 3 tabs (General, Requirements, Workflow)
+7. **Click "Add Request"** → verify form dialog terbuka dengan 2 tabs (Basic Info, Requirements)
+8. **Fill form** → select division, position, isi required count, pilih employment type, pilih tanggal, isi job description dan qualifications
+9. **Submit** → verify toast success, list ter-refresh dengan record baru
+10. **Edit** DRAFT request → verify form pre-filled dengan data existing
+11. **Submit for Approval** dari dropdown menu → verify status berubah ke PENDING
+12. **Approve** PENDING request → verify status berubah ke APPROVED
+13. **Open** APPROVED request → verify status berubah ke OPEN
+14. **Close** OPEN request → verify status berubah ke CLOSED
+15. **Delete** DRAFT request → verify dialog konfirmasi, lalu record terhapus
 
 ---
 
@@ -319,11 +366,21 @@ cd apps/api && go test ./internal/hrd/...
   - Organization module (Division, JobPosition repositories)
   - Employee module (Employee repository for requester/approver lookup)
   - Core errors (centralized error code mapping)
+
+- **Frontend**:
+  - TanStack Query (data fetching, caching, optimistic updates)
+  - Zod (form validation with i18n messages)
+  - react-hook-form (form state management with zodResolver)
+  - next-intl (internationalization — EN + ID)
+  - shadcn/ui (UI components: Dialog, Table, Badge, Tabs, Select, Calendar, etc.)
+  - date-fns (date formatting and parsing)
+  - Sonner (toast notifications)
+  - Lucide React (icons)
   
 - **Integration**:
   - Employee module (untuk requester dan approver data)
   - Organization module (untuk Division dan JobPosition data)
-  - Permission module (RBAC: recruitment.read/create/update/delete)
+  - Permission module (RBAC: recruitment.read/create/update/delete/approve)
 
 ---
 

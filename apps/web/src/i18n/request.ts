@@ -68,6 +68,8 @@ import { settingsEn } from "@/features/settings/i18n/en";
 import { settingsId } from "@/features/settings/i18n/id";
 import { evaluationEn } from "@/features/hrd/evaluation/i18n/en";
 import { evaluationId } from "@/features/hrd/evaluation/i18n/id";
+import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
+import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -106,6 +108,7 @@ const messages = {
     stock_opname: stockOpnameEn,
     ...settingsEn,
     ...evaluationEn,
+    ...recruitmentEn,
   },
   id: {
     ...globalIdMessages,
@@ -141,6 +144,7 @@ const messages = {
     stock_opname: stockOpnameId,
     ...settingsId,
     ...evaluationId,
+    ...recruitmentId,
   },
 } as const;
 
