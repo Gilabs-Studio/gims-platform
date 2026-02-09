@@ -1276,6 +1276,12 @@
 											"value": "20"
 										},
 										{
+											"key": "search",
+											"value": "",
+											"description": "Search by employee name or code",
+											"disabled": true
+										},
+										{
 											"key": "date_from",
 											"value": "2024-01-01"
 										},
@@ -1295,7 +1301,7 @@
 										}
 									]
 								},
-								"description": "List attendance records with filters. Requires `attendance.read` permission. Responses are enriched with employee_name, employee_code, and division_name.\n\n**Filters:**\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
+								"description": "List attendance records with filters. Requires `attendance.read` permission. Responses are enriched with employee_name, employee_code, and division_name.\n\n**Filters:**\n- `search` - Search by employee name or employee code\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
 							},
 							"response": []
 						},
@@ -1393,7 +1399,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"date\": \"2024-01-15\",\n  \"check_in_time\": \"08:00\",\n  \"check_out_time\": \"17:00\",\n  \"check_in_type\": \"NORMAL\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Manual entry for missed clock-in\",\n  \"reason\": \"Employee forgot to clock in due to urgent meeting\"\n}",
+									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"date\": \"2024-01-15\",\n  \"check_in_time\": \"08:00\",\n  \"check_out_time\": \"17:00\",\n  \"check_in_type\": \"NORMAL\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Manual entry for missed clock-in\",\n  \"reason\": \"Employee forgot to clock in due to urgent meeting (optional)\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1411,7 +1417,7 @@
 										"manual"
 									]
 								},
-								"description": "Create manual attendance entry. Requires `attendance.create` permission.\n\n**Use Cases:**\n- Employee forgot to clock in\n- System was down\n- Correction of incorrect records"
+								"description": "Create manual attendance entry. Requires `attendance.create` permission. The `reason` field is optional.\n\n**Use Cases:**\n- Employee forgot to clock in\n- System was down\n- Correction of incorrect records"
 							},
 							"response": []
 						},

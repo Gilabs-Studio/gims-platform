@@ -148,7 +148,7 @@ export const hrdId = {
         checkOutTimeDesc: "Waktu karyawan absen pulang",
         reason: "Alasan",
         reasonPlaceholder: "Jelaskan alasan input manual ini...",
-        reasonDesc: "Wajib untuk input absensi manual",
+        reasonDesc: "Opsional untuk input absensi manual",
         notes: "Catatan",
         notesPlaceholder: "Tambahkan catatan tambahan...",
         notesDesc: "Catatan opsional tentang rekaman ini",

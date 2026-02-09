@@ -50,6 +50,8 @@ import {
 import {
   useAttendanceRecords,
   useDeleteAttendanceRecord,
+  useCreateManualAttendance,
+  useUpdateAttendanceRecord,
 } from "../hooks/use-attendance-records";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -94,11 +96,11 @@ export function AttendanceList() {
     () => ({
       page,
       per_page: pageSize,
+      search: debouncedSearch || undefined,
       status:
         statusFilter !== "all" ? (statusFilter as AttendanceStatus) : undefined,
-      // Backend doesn't support text search on attendance, use employee_id filter from form-data
     }),
-    [page, pageSize, statusFilter]
+    [page, pageSize, debouncedSearch, statusFilter]
   );
 
   const {
@@ -113,6 +115,8 @@ export function AttendanceList() {
   const canView = useUserPermission("attendance.read");
 
   const deleteRecord = useDeleteAttendanceRecord();
+  const createMutation = useCreateManualAttendance();
+  const updateMutation = useUpdateAttendanceRecord();
 
   const records = listData?.data ?? [];
   const pagination = listData?.meta?.pagination;
@@ -275,7 +279,7 @@ export function AttendanceList() {
             <div className="relative flex-1 min-w-[300px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={`${t("title")}...`}
+                placeholder={t("actions.search")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -550,14 +554,35 @@ export function AttendanceList() {
                 : undefined
             }
             onSubmit={async (data) => {
-              // Form handles create/update internally
-              setIsFormOpen(false);
-              setEditingRecord(null);
+              try {
+                if (editingRecord) {
+                  await updateMutation.mutateAsync({
+                    id: editingRecord.id,
+                    data: {
+                      check_in_time: data.check_in_time,
+                      check_out_time: data.check_out_time,
+                      check_in_type: data.check_in_type,
+                      status: data.status,
+                      notes: data.notes,
+                      manual_entry_reason: data.reason,
+                    },
+                  });
+                  toast.success(t("messages.updateSuccess"));
+                } else {
+                  await createMutation.mutateAsync(data);
+                  toast.success(t("messages.createSuccess"));
+                }
+                setIsFormOpen(false);
+                setEditingRecord(null);
+              } catch {
+                // Error handled by api-client
+              }
             }}
             onCancel={() => {
               setIsFormOpen(false);
               setEditingRecord(null);
             }}
+            isLoading={editingRecord ? updateMutation.isPending : createMutation.isPending}
           />
         </DialogContent>
       </Dialog>
@@ -567,6 +592,10 @@ export function AttendanceList() {
         open={!!detailRecord}
         onClose={() => setDetailRecord(null)}
         record={detailRecord}
+        onEdit={(record) => {
+          setDetailRecord(null);
+          handleEdit(record);
+        }}
       />
 
       {/* Delete Dialog */}

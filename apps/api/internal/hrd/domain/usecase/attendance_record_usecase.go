@@ -126,6 +126,23 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 	// Enrich with employee data
 	employeeMap := u.buildEmployeeMap(ctx, []string{ar.EmployeeID})
 	u.mapper.EnrichResponse(resp, employeeMap)
+
+	// Enrich with work schedule name
+	if ar.WorkScheduleID != "" {
+		ws, wsErr := u.workScheduleRepo.FindByID(ctx, ar.WorkScheduleID)
+		if wsErr == nil && ws != nil {
+			resp.WorkScheduleName = ws.Name
+		}
+	}
+
+	// Enrich with approver name
+	if ar.ApprovedBy != nil && *ar.ApprovedBy != "" {
+		approverMap := u.buildEmployeeMap(ctx, []string{*ar.ApprovedBy})
+		if approver, ok := approverMap[*ar.ApprovedBy]; ok {
+			resp.ApprovedByName = approver.Name
+		}
+	}
+
 	return resp, nil
 }
 

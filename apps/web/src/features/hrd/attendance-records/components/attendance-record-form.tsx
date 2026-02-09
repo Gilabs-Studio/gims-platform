@@ -1,8 +1,8 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, User, FileText, MapPin, Loader2 } from "lucide-react";
+import { Clock, User, FileText, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import {
   attendanceRecordSchema,
   type AttendanceRecordFormData,
@@ -20,9 +20,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAttendanceFormData } from "../hooks/use-attendance-records";
 import type { CalendarEvent } from "../types";
-import { sortOptions } from "@/lib/utils";
+import { sortOptions, cn } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import { useTranslations } from "next-intl";
 
@@ -82,7 +88,6 @@ export function AttendanceRecordForm({
   });
 
   const employeeIdValue = useWatch({ control, name: "employee_id" });
-  const dateValue = useWatch({ control, name: "date" });
   const statusValue = useWatch({ control, name: "status" });
   const checkInTypeValue = useWatch({ control, name: "check_in_type" });
 
@@ -124,12 +129,7 @@ export function AttendanceRecordForm({
               <SelectContent>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id} className="cursor-pointer">
-                    <span className="font-medium">{employee.name}</span>
-                    {employee.employee_code && (
-                      <span className="ml-1 text-muted-foreground text-xs">
-                        ({employee.employee_code})
-                      </span>
-                    )}
+                    {employee.employee_code} - {employee.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,11 +139,42 @@ export function AttendanceRecordForm({
 
           <Field orientation="vertical">
             <FieldLabel>{t("form.date")} *</FieldLabel>
-            <Input
-              type="date"
-              value={dateValue ?? ""}
-              onChange={(e) => setValue("date", e.target.value, { shouldValidate: true })}
-              disabled={isEdit}
+            <Controller
+              name="date"
+              control={control}
+              render={({ field }) => (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                      disabled={isEdit}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field.value
+                        ? new Date(field.value).toLocaleDateString("id-ID", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : t("form.date")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date: Date | undefined) => {
+                        field.onChange(date ? date.toISOString().split("T")[0] : "");
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             />
             {errors.date && <FieldError>{errors.date.message}</FieldError>}
           </Field>
@@ -234,7 +265,7 @@ export function AttendanceRecordForm({
         </div>
 
         <Field orientation="vertical">
-          <FieldLabel>{t("form.reason")} *</FieldLabel>
+          <FieldLabel>{t("form.reason")}</FieldLabel>
           <Textarea
             {...register("reason")}
             placeholder={t("form.reasonPlaceholder")}

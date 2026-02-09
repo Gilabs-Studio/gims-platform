@@ -49,6 +49,9 @@ func (h *AttendanceRecordHandler) List(c *gin.Context) {
 		Filters: map[string]interface{}{},
 	}
 
+	if req.Search != "" {
+		meta.Filters["search"] = req.Search
+	}
 	if req.EmployeeID != "" {
 		meta.Filters["employee_id"] = req.EmployeeID
 	}

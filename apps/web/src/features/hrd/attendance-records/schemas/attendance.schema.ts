@@ -45,7 +45,7 @@ export const manualAttendanceSchema = z.object({
   check_in_type: checkInTypeSchema,
   status: attendanceStatusSchema,
   notes: z.string().max(1000).optional(),
-  reason: z.string().min(1, "Reason is required").max(500),
+  reason: z.string().max(500).optional(),
 });
 
 export type ManualAttendanceFormData = z.infer<typeof manualAttendanceSchema>;
@@ -71,7 +71,7 @@ export const attendanceRecordSchema = z.object({
   check_in_type: checkInTypeSchema,
   status: attendanceStatusSchema,
   notes: z.string().max(1000).optional(),
-  reason: z.string().min(1, "Reason is required").max(500),
+  reason: z.string().max(500).optional(),
 });
 
 export type AttendanceRecordFormData = z.infer<typeof attendanceRecordSchema>;

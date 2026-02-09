@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  Pencil,
   Trash2,
+  Pencil,
   CheckCircle2,
   XCircle,
   Clock,
@@ -14,6 +14,8 @@ import {
   Home,
   Coffee,
   Briefcase,
+  Globe,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,12 +41,14 @@ interface AttendanceDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly record: AttendanceRecord | null;
+  readonly onEdit?: (record: AttendanceRecord) => void;
 }
 
 export function AttendanceDetailModal({
   open,
   onClose,
   record,
+  onEdit,
 }: AttendanceDetailModalProps) {
   const deleteRecord = useDeleteAttendanceRecord();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -161,6 +165,19 @@ export function AttendanceDetailModal({
                 </div>
               </div>
               <div className="flex gap-2">
+                {canEdit && onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      onEdit(displayRecord);
+                      onClose();
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
                 {canDelete && (
                   <Button
                     variant="ghost"
@@ -244,6 +261,16 @@ export function AttendanceDetailModal({
                         </span>
                       </div>
                     )}
+                    {(displayRecord.check_in_latitude != null && displayRecord.check_in_longitude != null) && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-muted-foreground">
+                          GPS:
+                        </span>
+                        <span className="col-span-2 font-mono text-xs">
+                          {displayRecord.check_in_latitude?.toFixed(6)}, {displayRecord.check_in_longitude?.toFixed(6)}
+                        </span>
+                      </div>
+                    )}
                     {displayRecord.check_in_note && (
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-muted-foreground">
@@ -275,6 +302,16 @@ export function AttendanceDetailModal({
                         </span>
                         <span className="col-span-2 font-medium">
                           {displayRecord.check_out_address}
+                        </span>
+                      </div>
+                    )}
+                    {(displayRecord.check_out_latitude != null && displayRecord.check_out_longitude != null) && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-muted-foreground">
+                          GPS:
+                        </span>
+                        <span className="col-span-2 font-mono text-xs">
+                          {displayRecord.check_out_latitude?.toFixed(6)}, {displayRecord.check_out_longitude?.toFixed(6)}
                         </span>
                       </div>
                     )}
@@ -361,6 +398,61 @@ export function AttendanceDetailModal({
                   )}
                 </div>
               )}
+
+              {/* Additional Info: Approved By, Leave Request, Timestamps */}
+              <div className="bg-muted/30 p-4 rounded-xl space-y-2">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Shield className="h-4 w-4" /> {t("detail.notesAndInfo")}
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {displayRecord.approved_by && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-muted-foreground">
+                        Approved By:
+                      </span>
+                      <span className="col-span-2 font-medium">
+                        {displayRecord.approved_by_name || displayRecord.approved_by}
+                      </span>
+                    </div>
+                  )}
+                  {displayRecord.leave_request_id && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-muted-foreground">
+                        Leave Request:
+                      </span>
+                      <span className="col-span-2 font-mono text-xs">
+                        {displayRecord.leave_request_id}
+                      </span>
+                    </div>
+                  )}
+                  {displayRecord.work_schedule_id && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-muted-foreground">
+                        Work Schedule:
+                      </span>
+                      <span className="col-span-2 font-medium">
+                        {displayRecord.work_schedule_name || displayRecord.work_schedule_id}
+                      </span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-muted-foreground">Created:</span>
+                    <span className="col-span-2">
+                      {displayRecord.created_at
+                        ? new Date(displayRecord.created_at).toLocaleString("id-ID")
+                        : "-"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-muted-foreground">Updated:</span>
+                    <span className="col-span-2">
+                      {displayRecord.updated_at
+                        ? new Date(displayRecord.updated_at).toLocaleString("id-ID")
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

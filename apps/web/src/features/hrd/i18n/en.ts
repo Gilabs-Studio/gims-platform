@@ -148,7 +148,7 @@ export const hrdEn = {
         checkOutTimeDesc: "Time when employee checked out",
         reason: "Reason",
         reasonPlaceholder: "Explain the reason for this manual entry...",
-        reasonDesc: "Required for manual attendance entries",
+        reasonDesc: "Optional reason for manual attendance entries",
         notes: "Notes",
         notesPlaceholder: "Add any additional notes...",
         notesDesc: "Optional notes about this record",

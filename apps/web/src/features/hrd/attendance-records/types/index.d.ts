@@ -42,11 +42,13 @@ export interface AttendanceRecord {
   readonly late_minutes: number;
   readonly early_leave_minutes: number;
   readonly work_schedule_id: string;
+  readonly work_schedule_name?: string;
   readonly leave_request_id: string | null;
   readonly notes: string;
   readonly is_manual_entry: boolean;
   readonly manual_entry_reason: string;
   readonly approved_by: string | null;
+  readonly approved_by_name?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -125,7 +127,7 @@ export interface ManualAttendanceRequest {
   readonly check_in_type: CheckInType;
   readonly status: AttendanceStatus;
   readonly notes?: string;
-  readonly reason: string;
+  readonly reason?: string;
 }
 
 export interface UpdateAttendanceRequest {
@@ -141,6 +143,7 @@ export interface UpdateAttendanceRequest {
 export interface ListAttendanceRecordsParams {
   page?: number;
   per_page?: number;
+  search?: string;
   employee_id?: string;
   status?: AttendanceStatus;
   check_in_type?: CheckInType;

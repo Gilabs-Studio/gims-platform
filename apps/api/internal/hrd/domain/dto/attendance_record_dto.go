@@ -28,7 +28,7 @@ type ManualAttendanceRequest struct {
 	CheckInType  string  `json:"check_in_type" binding:"required,oneof=NORMAL WFH FIELD_WORK"`
 	Status       string  `json:"status" binding:"required,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH"`
 	Notes        string  `json:"notes" binding:"max=1000"`
-	Reason       string  `json:"reason" binding:"required,max=500"` // Reason for manual entry
+	Reason       string  `json:"reason" binding:"omitempty,max=500"` // Reason for manual entry (optional)
 }
 
 // UpdateAttendanceRecordRequest represents the request to update an attendance record
@@ -45,6 +45,7 @@ type UpdateAttendanceRecordRequest struct {
 type ListAttendanceRecordsRequest struct {
 	Page         int    `form:"page" binding:"omitempty,min=1"`
 	PerPage      int    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search       string `form:"search" binding:"omitempty"`
 	EmployeeID   string `form:"employee_id" binding:"omitempty,uuid"`
 	Status       string `form:"status" binding:"omitempty,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH OFF_DAY HOLIDAY"`
 	CheckInType  string `form:"check_in_type" binding:"omitempty,oneof=NORMAL WFH FIELD_WORK"`
@@ -83,11 +84,13 @@ type AttendanceRecordResponse struct {
 	LateMinutes       int      `json:"late_minutes"`
 	EarlyLeaveMinutes int      `json:"early_leave_minutes"`
 	WorkScheduleID    string   `json:"work_schedule_id"`
+	WorkScheduleName  string   `json:"work_schedule_name,omitempty"`
 	LeaveRequestID    *string  `json:"leave_request_id"`
 	Notes             string   `json:"notes"`
 	IsManualEntry     bool     `json:"is_manual_entry"`
 	ManualEntryReason string   `json:"manual_entry_reason"`
 	ApprovedBy        *string  `json:"approved_by"`
+	ApprovedByName    string   `json:"approved_by_name,omitempty"`
 	CreatedAt         string   `json:"created_at"`
 	UpdatedAt         string   `json:"updated_at"`
 }
