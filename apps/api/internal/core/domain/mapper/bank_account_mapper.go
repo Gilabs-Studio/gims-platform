@@ -23,6 +23,7 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 		AccountNumber: model.AccountNumber,
 		AccountHolder: model.AccountHolder,
 		Currency:      model.Currency,
+		ChartOfAccountID: model.ChartOfAccountID,
 		IsActive:      model.IsActive,
 		CreatedAt:     model.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     model.UpdatedAt.Format(time.RFC3339),

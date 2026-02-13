@@ -1,0 +1,44 @@
+export const financeJournalsEn = {
+  title: "Journal Entries",
+  description: "Manage journal entries.",
+  search: "Search description...",
+  toast: {
+    created: "Journal created",
+    updated: "Journal updated",
+    deleted: "Journal deleted",
+    posted: "Journal posted",
+    failed: "Something went wrong",
+    unbalanced: "Journal must be balanced (debit = credit)",
+  },
+  actions: {
+    create: "Create",
+    edit: "Edit",
+    delete: "Delete",
+    post: "Post",
+    view: "View",
+    trialBalance: "Trial Balance",
+  },
+  fields: {
+    entryDate: "Entry Date",
+    description: "Description",
+    status: "Status",
+    debit: "Debit",
+    credit: "Credit",
+    memo: "Memo",
+    account: "Account",
+  },
+  status: {
+    draft: "Draft",
+    posted: "Posted",
+  },
+  form: {
+    createTitle: "Create Journal",
+    editTitle: "Edit Journal",
+    submit: "Save",
+    cancel: "Cancel",
+    addLine: "Add line",
+  },
+  placeholders: {
+    select: "Select...",
+  },
+};

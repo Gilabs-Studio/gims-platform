@@ -88,7 +88,7 @@ func SeedStockMovement() error {
 			Date:         date,
 			MovementType: inventoryModels.MovementTypeIn,
 			RefType:      "GoodsReceipt", // Or OpeningStock
-			RefID:        uuid.NewString(), // Mock GR ID since we don't have separate GR table yet, or use Batch ID
+			RefID:        batch.ID, // Use real ID to avoid mock references
 			RefNumber:    fmt.Sprintf("GR-INIT-%s", batch.BatchNumber),
 			Source:       "Initial Stock / Supplier",
 			ProductID:    batch.ProductID,
@@ -131,6 +131,11 @@ func SeedStockMovement() error {
 				cost = prod.CostPrice
 			}
 
+			warehouseID := ""
+			if do.WarehouseID != nil {
+				warehouseID = *do.WarehouseID
+			}
+
 			evt := inventoryModels.StockMovement{
 				ID:           uuid.NewString(),
 				Date:         movementDate,
@@ -140,7 +145,7 @@ func SeedStockMovement() error {
 				RefNumber:    do.Code, // e.g. DO-2024-0001
 				Source:       "Customer", // Ideally should fetch Customer Name from SO -> Customer
 				ProductID:    item.ProductID,
-				WarehouseID:  "00000000-0000-0000-0000-000000000000", // DO items don't have warehouse_id in the model provided in context?
+				WarehouseID:  warehouseID,
 				// Note: DO Item struct in seeder context didn't show WarehouseID. 
 				// In a real app, DO Item allocates from a specific Warehouse.
 				// We need to find a warehouse. Let's pick the first one from products or default.
@@ -153,7 +158,7 @@ func SeedStockMovement() error {
 			
 			// Try to find a valid warehouse for this product from batches (lazy way)
 			// OR just assign to the first warehouse found in batches for this product
-			assigned := false
+			assigned := evt.WarehouseID != ""
 			for _, b := range batches {
 				if b.ProductID == item.ProductID {
 					evt.WarehouseID = b.WarehouseID

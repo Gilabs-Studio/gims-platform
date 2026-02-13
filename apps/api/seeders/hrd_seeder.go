@@ -1,11 +1,13 @@
 package seeders
 
 import (
+	"errors"
 	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -79,8 +81,6 @@ func SeedWorkSchedules() error {
 
 // SeedHolidays seeds Indonesia national holidays for current and next year
 func SeedHolidays() error {
-	currentYear := time.Now().Year()
-	
 	// Indonesia National Holidays 2024-2025
 	holidays := []models.Holiday{
 		// 2024 Holidays
@@ -122,14 +122,6 @@ func SeedHolidays() error {
 		{Date: time.Date(2025, 12, 25, 0, 0, 0, 0, time.Local), Name: "Hari Raya Natal", Type: models.HolidayTypeNational, Year: 2025, IsActive: true},
 	}
 
-	// Filter to only current and next year
-	var filteredHolidays []models.Holiday
-	for _, h := range holidays {
-		if h.Year >= currentYear {
-			filteredHolidays = append(filteredHolidays, h)
-		}
-	}
-
 	// Add collective leave examples (Cuti Bersama)
 	collectiveLeaves := []models.Holiday{
 		{Date: time.Date(2024, 4, 8, 0, 0, 0, 0, time.Local), Name: "Cuti Bersama Idul Fitri", Type: models.HolidayTypeCollective, Year: 2024, IsCollectiveLeave: true, CutsAnnualLeave: true, IsActive: true},
@@ -138,18 +130,36 @@ func SeedHolidays() error {
 		{Date: time.Date(2024, 12, 26, 0, 0, 0, 0, time.Local), Name: "Cuti Bersama Natal", Type: models.HolidayTypeCollective, Year: 2024, IsCollectiveLeave: true, CutsAnnualLeave: true, IsActive: true},
 	}
 
-	allHolidays := append(filteredHolidays, collectiveLeaves...)
+	allHolidays := append(holidays, collectiveLeaves...)
 
 	for _, h := range allHolidays {
-		// Use upsert based on date and year
-		result := database.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "date"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_collective_leave", "cuts_annual_leave", "updated_at"}),
-		}).Create(&h)
+		// Avoid relying on DB uniqueness constraints; upsert manually by exact date.
+		var existing models.Holiday
+		err := database.DB.Where("date = ?", h.Date).First(&existing).Error
+		if err == nil {
+			updates := map[string]any{
+				"name":               h.Name,
+				"description":        h.Description,
+				"type":               h.Type,
+				"year":               h.Year,
+				"is_collective_leave": h.IsCollectiveLeave,
+				"cuts_annual_leave":   h.CutsAnnualLeave,
+				"is_recurring":        h.IsRecurring,
+				"is_active":           h.IsActive,
+				"updated_at":          time.Now(),
+			}
+			if uerr := database.DB.Model(&existing).Updates(updates).Error; uerr != nil {
+				log.Printf("Error updating holiday %s (%s): %v", h.Name, h.Date.Format("2006-01-02"), uerr)
+			}
+			continue
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("Error querying holiday %s (%s): %v", h.Name, h.Date.Format("2006-01-02"), err)
+			continue
+		}
 
-		if result.Error != nil {
-			log.Printf("Error seeding holiday %s: %v", h.Name, result.Error)
-			// Continue with other holidays even if one fails
+		if cerr := database.DB.Create(&h).Error; cerr != nil {
+			log.Printf("Error creating holiday %s (%s): %v", h.Name, h.Date.Format("2006-01-02"), cerr)
 			continue
 		}
 	}

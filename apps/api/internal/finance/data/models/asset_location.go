@@ -1,0 +1,30 @@
+package models
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type AssetLocation struct {
+	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+
+	Name        string `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
+	Description string `gorm:"type:text" json:"description"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (AssetLocation) TableName() string {
+	return "asset_locations"
+}
+
+func (l *AssetLocation) BeforeCreate(tx *gorm.DB) error {
+	if l.ID == "" {
+		l.ID = uuid.New().String()
+	}
+	return nil
+}

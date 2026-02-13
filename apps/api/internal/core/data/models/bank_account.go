@@ -14,6 +14,7 @@ type BankAccount struct {
 	AccountNumber string         `gorm:"type:varchar(50);not null;index" json:"account_number"`
 	AccountHolder string         `gorm:"type:varchar(150);not null" json:"account_holder"`
 	Currency      string         `gorm:"type:varchar(10);not null;default:'IDR';index" json:"currency"`
+	ChartOfAccountID *string     `gorm:"type:uuid;index" json:"chart_of_account_id"`
 	IsActive      bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"index" json:"updated_at"`

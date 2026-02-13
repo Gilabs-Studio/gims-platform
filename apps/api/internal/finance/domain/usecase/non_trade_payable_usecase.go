@@ -1,0 +1,227 @@
+package usecase
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrNonTradePayableNotFound = errors.New("non-trade payable not found")
+)
+
+type NonTradePayableUsecase interface {
+	Create(ctx context.Context, req *dto.CreateNonTradePayableRequest) (*dto.NonTradePayableResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdateNonTradePayableRequest) (*dto.NonTradePayableResponse, error)
+	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
+	List(ctx context.Context, req *dto.ListNonTradePayablesRequest) ([]dto.NonTradePayableResponse, int64, error)
+}
+
+type nonTradePayableUsecase struct {
+	db      *gorm.DB
+	coaRepo repositories.ChartOfAccountRepository
+	repo    repositories.NonTradePayableRepository
+	mapper  *mapper.NonTradePayableMapper
+}
+
+func NewNonTradePayableUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.NonTradePayableRepository, mapper *mapper.NonTradePayableMapper) NonTradePayableUsecase {
+	return &nonTradePayableUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper}
+}
+
+func parseOptDate(value *string) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+	v := strings.TrimSpace(*value)
+	if v == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse("2006-01-02", v)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func (uc *nonTradePayableUsecase) Create(ctx context.Context, req *dto.CreateNonTradePayableRequest) (*dto.NonTradePayableResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	d, err := time.Parse("2006-01-02", strings.TrimSpace(req.TransactionDate))
+	if err != nil {
+		return nil, errors.New("invalid transaction_date")
+	}
+	due, err := parseOptDate(req.DueDate)
+	if err != nil {
+		return nil, errors.New("invalid due_date")
+	}
+
+	if _, err := uc.coaRepo.FindByID(ctx, req.ChartOfAccountID); err != nil {
+		return nil, err
+	}
+
+	item := &financeModels.NonTradePayable{
+		TransactionDate: d,
+		Description:     strings.TrimSpace(req.Description),
+		ChartOfAccountID: strings.TrimSpace(req.ChartOfAccountID),
+		Amount:          req.Amount,
+		VendorName:      strings.TrimSpace(req.VendorName),
+		DueDate:         due,
+		ReferenceNo:     strings.TrimSpace(req.ReferenceNo),
+		CreatedBy:       &actorID,
+	}
+	if err := uc.db.WithContext(ctx).Create(item).Error; err != nil {
+		return nil, err
+	}
+
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *nonTradePayableUsecase) Update(ctx context.Context, id string, req *dto.UpdateNonTradePayableRequest) (*dto.NonTradePayableResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	if _, err := uc.repo.FindByID(ctx, id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNonTradePayableNotFound
+		}
+		return nil, err
+	}
+
+	d, err := time.Parse("2006-01-02", strings.TrimSpace(req.TransactionDate))
+	if err != nil {
+		return nil, errors.New("invalid transaction_date")
+	}
+	due, err := parseOptDate(req.DueDate)
+	if err != nil {
+		return nil, errors.New("invalid due_date")
+	}
+
+	if _, err := uc.coaRepo.FindByID(ctx, req.ChartOfAccountID); err != nil {
+		return nil, err
+	}
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"transaction_date":  d,
+		"description":       strings.TrimSpace(req.Description),
+		"chart_of_account_id": strings.TrimSpace(req.ChartOfAccountID),
+		"amount":            req.Amount,
+		"vendor_name":       strings.TrimSpace(req.VendorName),
+		"due_date":          due,
+		"reference_no":      strings.TrimSpace(req.ReferenceNo),
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(full)
+	return &res, nil
+}
+
+func (uc *nonTradePayableUsecase) Delete(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("id is required")
+	}
+	if _, err := uc.repo.FindByID(ctx, id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrNonTradePayableNotFound
+		}
+		return err
+	}
+	return uc.db.WithContext(ctx).Delete(&financeModels.NonTradePayable{}, "id = ?", id).Error
+}
+
+func (uc *nonTradePayableUsecase) GetByID(ctx context.Context, id string) (*dto.NonTradePayableResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNonTradePayableNotFound
+		}
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *nonTradePayableUsecase) List(ctx context.Context, req *dto.ListNonTradePayablesRequest) ([]dto.NonTradePayableResponse, int64, error) {
+	if req == nil {
+		req = &dto.ListNonTradePayablesRequest{}
+	}
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	var startDate *time.Time
+	if req.StartDate != nil && strings.TrimSpace(*req.StartDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.StartDate))
+		if err != nil {
+			return nil, 0, errors.New("invalid start_date")
+		}
+		startDate = &parsed
+	}
+	var endDate *time.Time
+	if req.EndDate != nil && strings.TrimSpace(*req.EndDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.EndDate))
+		if err != nil {
+			return nil, 0, errors.New("invalid end_date")
+		}
+		endDate = &parsed
+	}
+
+	items, total, err := uc.repo.List(ctx, repositories.NonTradePayableListParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		SortBy:    req.SortBy,
+		SortDir:   req.SortDir,
+		Limit:     perPage,
+		Offset:    (page - 1) * perPage,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	res := make([]dto.NonTradePayableResponse, 0, len(items))
+	for i := range items {
+		mapped := uc.mapper.ToResponse(&items[i])
+		res = append(res, mapped)
+	}
+	return res, total, nil
+}

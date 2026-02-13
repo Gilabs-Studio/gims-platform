@@ -8,6 +8,7 @@ import (
 
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
@@ -98,6 +99,26 @@ func AutoMigrate() error {
 		&core.SOSource{},
 		&core.LeaveType{},
 		&core.BankAccount{},
+		// Finance entities (Sprint 10)
+		&finance.ChartOfAccount{},
+		&finance.JournalEntry{},
+		&finance.JournalLine{},
+		// Finance entities (Sprint 11)
+		&finance.Payment{},
+		&finance.PaymentAllocation{},
+		&finance.Budget{},
+		&finance.BudgetItem{},
+		&finance.CashBankJournal{},
+		&finance.CashBankJournalLine{},
+		// Finance entities (Sprint 12)
+		&finance.AssetCategory{},
+		&finance.AssetLocation{},
+		&finance.Asset{},
+		&finance.AssetDepreciation{},
+		&finance.AssetTransaction{},
+		&finance.FinancialClosing{},
+		&finance.TaxInvoice{},
+		&finance.NonTradePayable{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},

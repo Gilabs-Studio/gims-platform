@@ -52,6 +52,7 @@ func (u *bankAccountUsecase) Create(ctx context.Context, req *dto.CreateBankAcco
 		AccountNumber: strings.TrimSpace(req.AccountNumber),
 		AccountHolder: strings.TrimSpace(req.AccountHolder),
 		Currency:      currency,
+		ChartOfAccountID: req.ChartOfAccountID,
 		IsActive:      isActive,
 	}
 	if err := u.repo.Create(ctx, m); err != nil {
@@ -98,6 +99,7 @@ func (u *bankAccountUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	item.AccountNumber = strings.TrimSpace(req.AccountNumber)
 	item.AccountHolder = strings.TrimSpace(req.AccountHolder)
 	item.Currency = currency
+	item.ChartOfAccountID = req.ChartOfAccountID
 	if req.IsActive != nil {
 		item.IsActive = *req.IsActive
 	}

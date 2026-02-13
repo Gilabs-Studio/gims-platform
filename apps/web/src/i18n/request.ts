@@ -73,6 +73,37 @@ import { supplierInvoiceDPId } from "@/features/purchase/supplier-invoice-down-p
 import { purchasePaymentEn } from "@/features/purchase/payments/i18n/en";
 import { purchasePaymentId } from "@/features/purchase/payments/i18n/id";
 
+import { financeCoaEn } from "@/features/finance/coa/i18n/en";
+import { financeCoaId } from "@/features/finance/coa/i18n/id";
+import { financeJournalsEn } from "@/features/finance/journals/i18n/en";
+import { financeJournalsId } from "@/features/finance/journals/i18n/id";
+import { financeBankAccountsEn } from "@/features/finance/bank-accounts/i18n/en";
+import { financeBankAccountsId } from "@/features/finance/bank-accounts/i18n/id";
+import { financePaymentsEn } from "@/features/finance/payments/i18n/en";
+import { financePaymentsId } from "@/features/finance/payments/i18n/id";
+import { financeBudgetEn } from "@/features/finance/budget/i18n/en";
+import { financeBudgetId } from "@/features/finance/budget/i18n/id";
+import { financeCashBankEn } from "@/features/finance/cash-bank/i18n/en";
+import { financeCashBankId } from "@/features/finance/cash-bank/i18n/id";
+import { financeAgingReportsEn } from "@/features/finance/aging-reports/i18n/en";
+import { financeAgingReportsId } from "@/features/finance/aging-reports/i18n/id";
+import { financeAssetCategoriesEn } from "@/features/finance/asset-categories/i18n/en";
+import { financeAssetCategoriesId } from "@/features/finance/asset-categories/i18n/id";
+import { financeAssetLocationsEn } from "@/features/finance/asset-locations/i18n/en";
+import { financeAssetLocationsId } from "@/features/finance/asset-locations/i18n/id";
+import { financeAssetsEn } from "@/features/finance/assets/i18n/en";
+import { financeAssetsId } from "@/features/finance/assets/i18n/id";
+import { financeClosingEn } from "@/features/finance/closing/i18n/en";
+import { financeClosingId } from "@/features/finance/closing/i18n/id";
+import { financeTaxInvoicesEn } from "@/features/finance/tax-invoices/i18n/en";
+import { financeTaxInvoicesId } from "@/features/finance/tax-invoices/i18n/id";
+import { financeNonTradePayablesEn } from "@/features/finance/non-trade-payables/i18n/en";
+import { financeNonTradePayablesId } from "@/features/finance/non-trade-payables/i18n/id";
+import { financeUpCountryCostEn } from "@/features/finance/up-country-cost/i18n/en";
+import { financeUpCountryCostId } from "@/features/finance/up-country-cost/i18n/id";
+import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
+import { financeSalaryId } from "@/features/finance/salary/i18n/id";
+
 // Merge all messages
 const messages = {
   en: {
@@ -109,6 +140,21 @@ const messages = {
     supplierInvoice: supplierInvoiceEn,
     supplierInvoiceDP: supplierInvoiceDPEn,
     purchasePayment: purchasePaymentEn,
+    financeCoa: financeCoaEn,
+    financeJournals: financeJournalsEn,
+    financeBankAccounts: financeBankAccountsEn,
+    financePayments: financePaymentsEn,
+    financeBudget: financeBudgetEn,
+    financeCashBank: financeCashBankEn,
+    financeAgingReports: financeAgingReportsEn,
+    financeAssetCategories: financeAssetCategoriesEn,
+    financeAssetLocations: financeAssetLocationsEn,
+    financeAssets: financeAssetsEn,
+    financeClosing: financeClosingEn,
+    financeTaxInvoices: financeTaxInvoicesEn,
+    financeNonTradePayables: financeNonTradePayablesEn,
+    financeUpCountryCost: financeUpCountryCostEn,
+    financeSalary: financeSalaryEn,
   },
   id: {
     ...globalIdMessages,
@@ -143,6 +189,21 @@ const messages = {
     supplierInvoice: supplierInvoiceId,
     supplierInvoiceDP: supplierInvoiceDPId,
     purchasePayment: purchasePaymentId,
+    financeCoa: financeCoaId,
+    financeJournals: financeJournalsId,
+    financeBankAccounts: financeBankAccountsId,
+    financePayments: financePaymentsId,
+    financeBudget: financeBudgetId,
+    financeCashBank: financeCashBankId,
+    financeAgingReports: financeAgingReportsId,
+    financeAssetCategories: financeAssetCategoriesId,
+    financeAssetLocations: financeAssetLocationsId,
+    financeAssets: financeAssetsId,
+    financeClosing: financeClosingId,
+    financeTaxInvoices: financeTaxInvoicesId,
+    financeNonTradePayables: financeNonTradePayablesId,
+    financeUpCountryCost: financeUpCountryCostId,
+    financeSalary: financeSalaryId,
   },
 } as const;
 

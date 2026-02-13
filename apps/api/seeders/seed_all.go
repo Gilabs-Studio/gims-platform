@@ -106,6 +106,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// Finance - Asset & Closing seeder (Sprint 12)
+	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
+	// Integration Flow seeder (Purchase → Stock → Sales → Finance)
+	if err := SeedIntegrationFlow(); err != nil {
+		return err
+	}
+
 	// Sales Visit Interest Questions seeder (Sprint 7)
 	if err := SeedSalesVisitInterestQuestions(); err != nil {
 		return err
@@ -130,7 +140,7 @@ func SeedAll() error {
 	if err := SeedHolidays(); err != nil {
 		return err
 	}
-	
+
 	// Stock Movement seeder (Sprint 9)
 	if err := SeedStockMovement(); err != nil {
 		return err
@@ -143,4 +153,3 @@ func SeedAll() error {
 
 	return nil
 }
-

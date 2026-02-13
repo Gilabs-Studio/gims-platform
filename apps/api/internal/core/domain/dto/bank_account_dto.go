@@ -6,6 +6,7 @@ type BankAccountResponse struct {
 	AccountNumber string `json:"account_number"`
 	AccountHolder string `json:"account_holder"`
 	Currency      string `json:"currency"`
+	ChartOfAccountID *string `json:"chart_of_account_id"`
 	IsActive      bool   `json:"is_active"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
@@ -16,6 +17,7 @@ type CreateBankAccountRequest struct {
 	AccountNumber string `json:"account_number" binding:"required"`
 	AccountHolder string `json:"account_holder" binding:"required"`
 	Currency      string `json:"currency" binding:"required"`
+	ChartOfAccountID *string `json:"chart_of_account_id"`
 	IsActive      *bool  `json:"is_active"`
 }
 
@@ -24,5 +26,6 @@ type UpdateBankAccountRequest struct {
 	AccountNumber string `json:"account_number" binding:"required"`
 	AccountHolder string `json:"account_holder" binding:"required"`
 	Currency      string `json:"currency" binding:"required"`
+	ChartOfAccountID *string `json:"chart_of_account_id"`
 	IsActive      *bool  `json:"is_active"`
 }
