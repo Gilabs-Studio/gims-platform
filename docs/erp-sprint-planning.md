@@ -1006,25 +1006,25 @@ erDiagram
 
 ### API Tasks
 
-- [ ] `LeaveRequest` - CRUD + Approve workflow
-- [ ] Leave balance calculation
-- [ ] `EmployeeContract` - CRUD
-- [ ] `EmployeeEducationHistory` - CRUD
-- [ ] `EmployeeCertification` - CRUD
-- [ ] `EmployeeAsset` - CRUD (company assets borrowed)
+- [x] `LeaveRequest` - CRUD + Approve workflow
+- [x] Leave balance calculation
+- [x] `EmployeeContract` - CRUD
+- [x] `EmployeeEducationHistory` - CRUD
+- [x] `EmployeeCertification` - CRUD
+- [x] `EmployeeAsset` - CRUD (company assets borrowed) ✅ **Backend API Complete**
 - [ ] `SalaryStructure` - CRUD
 - [ ] `UpCountryCost` - Travel expense
 
 ### Frontend Tasks
 
-- [ ] Leave request form with date range
-- [ ] Leave approval workflow
-- [ ] Leave balance display
+- [x] Leave request form with date range
+- [x] Leave approval workflow
+- [x] Leave balance display
 - [ ] Employee documents upload
-- [ ] Contract management
-- [ ] Education history
-- [ ] Certification tracking
-- [ ] Company asset assignment
+- [x] Contract management
+- [x] Education history
+- [x] Certification tracking
+- [x] Company asset assignment
 - [ ] Salary structure management
 - [ ] Travel expense form (Up Country)
 

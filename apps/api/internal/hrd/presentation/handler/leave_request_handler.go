@@ -1,0 +1,300 @@
+package handler
+
+import (
+	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
+	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
+	"github.com/gin-gonic/gin"
+)
+
+// LeaveRequestHandler handles HTTP requests for leave requests
+type LeaveRequestHandler struct {
+	leaveRequestUsecase usecase.LeaveRequestUsecase
+}
+
+// NewLeaveRequestHandler creates a new LeaveRequestHandler
+func NewLeaveRequestHandler(leaveRequestUsecase usecase.LeaveRequestUsecase) *LeaveRequestHandler {
+	return &LeaveRequestHandler{
+		leaveRequestUsecase: leaveRequestUsecase,
+	}
+}
+
+// Create handles POST /api/v1/hrd/leave-requests
+func (h *LeaveRequestHandler) Create(c *gin.Context) {
+	var req dto.CreateLeaveRequestDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.HandleValidationError(c, err)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Create(c.Request.Context(), &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponseCreated(c, result, nil)
+}
+
+// List handles GET /api/v1/hrd/leave-requests
+func (h *LeaveRequestHandler) List(c *gin.Context) {
+	var filters dto.LeaveRequestListFilterDTO
+	if err := c.ShouldBindQuery(&filters); err != nil {
+		errors.HandleValidationError(c, err)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	results, total, err := h.leaveRequestUsecase.List(c.Request.Context(), &filters, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	page := filters.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := filters.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+
+	meta := response.NewPaginationMeta(page, perPage, int(total))
+
+	response.SuccessResponse(c, results, &response.Meta{Pagination: meta})
+}
+
+// GetByID handles GET /api/v1/hrd/leave-requests/:id
+func (h *LeaveRequestHandler) GetByID(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.GetByID(c.Request.Context(), id, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Update handles PUT /api/v1/hrd/leave-requests/:id
+func (h *LeaveRequestHandler) Update(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	var req dto.UpdateLeaveRequestDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.HandleValidationError(c, err)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Update(c.Request.Context(), id, &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Delete handles DELETE /api/v1/hrd/leave-requests/:id
+func (h *LeaveRequestHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	err := h.leaveRequestUsecase.Delete(c.Request.Context(), id, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"message": "Leave request deleted successfully"}, nil)
+}
+
+// GetBalance handles GET /api/v1/hrd/leave-requests/balance/:employee_id
+func (h *LeaveRequestHandler) GetBalance(c *gin.Context) {
+	employeeID := c.Param("employee_id")
+	if employeeID == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Employee ID is required"}, nil)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.CalculateBalance(c.Request.Context(), employeeID, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Approve handles POST /api/v1/hrd/leave-requests/:id/approve
+func (h *LeaveRequestHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	var req dto.ApproveLeaveRequestDTO
+	_ = c.ShouldBindJSON(&req) // Allow empty body
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Approve(c.Request.Context(), id, &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// GetFormData handles GET /api/v1/hrd/leave-requests/form-data
+func (h *LeaveRequestHandler) GetFormData(c *gin.Context) {
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.GetFormData(c.Request.Context(), currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Reject handles POST /api/v1/hrd/leave-requests/:id/reject
+func (h *LeaveRequestHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	var req dto.RejectLeaveRequestDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.HandleValidationError(c, err)
+		return
+	}
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Reject(c.Request.Context(), id, &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Cancel handles POST /api/v1/hrd/leave-requests/:id/cancel
+func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	var req dto.CancelLeaveRequestDTO
+	_ = c.ShouldBindJSON(&req) // Allow empty body (cancellation note is optional)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.leaveRequestUsecase.Cancel(c.Request.Context(), id, &req, currentUserID.(string))
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// handleUsecaseError maps usecase errors to appropriate HTTP responses
+func handleUsecaseError(c *gin.Context, err error) {
+	errMsg := err.Error()
+
+	switch {
+	case strings.Contains(errMsg, "FORBIDDEN"):
+		errors.ErrorResponse(c, "FORBIDDEN", nil, nil)
+	case strings.Contains(errMsg, "INSUFFICIENT_LEAVE_BALANCE"):
+		errors.ErrorResponse(c, "INSUFFICIENT_LEAVE_BALANCE", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "OVERLAPPING_LEAVE_REQUEST"):
+		errors.ErrorResponse(c, "OVERLAPPING_LEAVE_REQUEST", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "INVALID_DATE_FORMAT"):
+		errors.ErrorResponse(c, "INVALID_DATE_FORMAT", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "INVALID_STATUS"):
+		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "VALIDATION_ERROR"):
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "NOT_FOUND"):
+		errors.ErrorResponse(c, "LEAVE_REQUEST_NOT_FOUND", nil, nil)
+	default:
+		errors.ErrorResponse(c, "INTERNAL_ERROR", map[string]interface{}{"message": "An unexpected error occurred"}, nil)
+	}
+}

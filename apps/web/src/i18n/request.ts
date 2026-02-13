@@ -32,6 +32,16 @@ import { soSourceEn } from "@/features/master-data/payment-and-couriers/so-sourc
 import { soSourceId } from "@/features/master-data/payment-and-couriers/so-source/i18n/id";
 import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
+import { leaveRequestEn } from "@/features/hrd/leave-request/i18n/en";
+import { leaveRequestId } from "@/features/hrd/leave-request/i18n/id";
+import { employeeContractEn } from "@/features/hrd/employee-contract/i18n/en";
+import { employeeContractId } from "@/features/hrd/employee-contract/i18n/id";
+import { educationHistoryEn } from "@/features/hrd/education-history/i18n/en";
+import { educationHistoryId } from "@/features/hrd/education-history/i18n/id";
+import { certificationEn } from "@/features/hrd/certifications/i18n/en";
+import { certificationId } from "@/features/hrd/certifications/i18n/id";
+import { employeeAssetsEn } from "@/features/hrd/employee-assets/i18n/en";
+import { employeeAssetsId } from "@/features/hrd/employee-assets/i18n/id";
 import { quotationEn } from "@/features/sales/quotation/i18n/en";
 import { quotationId } from "@/features/sales/quotation/i18n/id";
 import { orderEn } from "@/features/sales/order/i18n/en";
@@ -54,6 +64,8 @@ import { inventoryEn } from "@/features/stock/inventory/i18n/en";
 import { inventoryId } from "@/features/stock/inventory/i18n/id";
 import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
 import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
+import { settingsEn } from "@/features/settings/i18n/en";
+import { settingsId } from "@/features/settings/i18n/id";
 
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
@@ -121,6 +133,11 @@ const messages = {
     courierAgency: courierAgencyEn,
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
+    ...leaveRequestEn,
+    ...employeeContractEn,
+    ...educationHistoryEn,
+    ...certificationEn,
+    ...employeeAssetsEn,
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
@@ -134,6 +151,7 @@ const messages = {
     ...hrdEn,
     ...inventoryEn,
     stock_opname: stockOpnameEn,
+    ...settingsEn,
     purchaseRequisition: purchaseRequisitionEn,
     purchaseOrder: purchaseOrderEn,
     goodsReceipt: goodsReceiptEn,
@@ -171,6 +189,11 @@ const messages = {
     courierAgency: courierAgencyId,
     soSource: soSourceId,
     leaveType: leaveTypeId,
+    ...employeeContractId,
+    ...educationHistoryId,
+    ...certificationId,
+    ...employeeAssetsId,
+    ...leaveRequestId,
     ...quotationId,
     ...orderId,
     ...deliveryId,
@@ -183,6 +206,7 @@ const messages = {
     ...hrdId,
     ...inventoryId,
     stock_opname: stockOpnameId,
+    ...settingsId,
     purchaseRequisition: purchaseRequisitionId,
     purchaseOrder: purchaseOrderId,
     goodsReceipt: goodsReceiptId,

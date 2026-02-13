@@ -16,5 +16,6 @@ func RegisterUploadRoutes(rg *gin.RouterGroup, jwtManager *jwt.JWTManager, permi
 	upload.Use(middleware.RateLimitMiddleware("upload"))
 	{
 		upload.POST("/image", h.UploadImage)
+		upload.POST("/document", h.UploadDocument)
 	}
 }

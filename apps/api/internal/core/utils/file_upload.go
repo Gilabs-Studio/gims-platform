@@ -35,6 +35,15 @@ var AllowedImageTypes = map[string]bool{
 	"image/webp": true,
 }
 
+// AllowedDocumentTypes defines allowed MIME types for document uploads
+var AllowedDocumentTypes = map[string]bool{
+	"application/pdf":    true, // PDF
+	"application/msword": true, // DOC
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true, // DOCX
+	"application/vnd.ms-excel": true, // XLS
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true, // XLSX
+}
+
 // FileUploadConfig holds configuration for file uploads
 type FileUploadConfig struct {
 	MaxSize   int64  // Maximum file size in bytes
@@ -197,4 +206,109 @@ func DeleteFile(filename string, uploadDir string) error {
 	}
 
 	return os.Remove(fullPath)
+}
+
+// ValidateDocumentFile validates document file type and size
+func ValidateDocumentFile(file multipart.File, header *multipart.FileHeader, maxSize int64) error {
+	// 1. Check file size
+	if header.Size > maxSize {
+		return ErrFileTooLarge
+	}
+
+	// 2. Read first 512 bytes for magic number detection
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return ErrFileProcessing
+	}
+
+	// Reset file pointer to beginning
+	if _, err := file.Seek(0, 0); err != nil {
+		return ErrFileProcessing
+	}
+
+	// 3. Detect file type using magic bytes
+	kind, err := filetype.Match(buf[:n])
+	if err != nil {
+		return ErrInvalidFileType
+	}
+
+	// 4. Validate MIME type
+	if !AllowedDocumentTypes[kind.MIME.Value] {
+		return ErrInvalidFileType
+	}
+
+	return nil
+}
+
+// SaveDocumentFile saves an uploaded document file with security best practices
+func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config FileUploadConfig) (*UploadedFile, error) {
+	// 1. Validate file
+	if err := ValidateDocumentFile(file, header, config.MaxSize); err != nil {
+		return nil, err
+	}
+
+	// 2. Detect file type for extension
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return nil, ErrFileProcessing
+	}
+
+	// Reset file pointer
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, ErrFileProcessing
+	}
+
+	kind, err := filetype.Match(buf[:n])
+	if err != nil {
+		return nil, ErrInvalidFileType
+	}
+
+	// 3. Generate secure filename using UUID with proper extension
+	filename := fmt.Sprintf("%s.%s", uuid.New().String(), kind.Extension)
+
+	// 4. Ensure upload directory exists
+	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
+		return nil, ErrFileProcessing
+	}
+
+	// 5. Create full path (prevent directory traversal)
+	fullPath := filepath.Join(config.UploadDir, filename)
+
+	// 6. Validate path is within upload directory (security check)
+	absUploadDir, err := filepath.Abs(config.UploadDir)
+	if err != nil {
+		return nil, ErrFileProcessing
+	}
+	absFilePath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return nil, ErrFileProcessing
+	}
+	if !strings.HasPrefix(absFilePath, absUploadDir) {
+		return nil, errors.New("invalid file path")
+	}
+
+	// 7. Read full file content
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		return nil, ErrFileProcessing
+	}
+
+	// 8. Write file with restricted permissions (no execute)
+	if err := os.WriteFile(fullPath, fileContent, 0644); err != nil {
+		return nil, ErrFileProcessing
+	}
+
+	// 9. Build public URL
+	url := fmt.Sprintf("%s/%s", strings.TrimSuffix(config.BaseURL, "/"), filename)
+
+	return &UploadedFile{
+		Filename:     filename,
+		OriginalName: header.Filename,
+		Path:         fullPath,
+		URL:          url,
+		Size:         header.Size,
+		MimeType:     kind.MIME.Value,
+	}, nil
 }
