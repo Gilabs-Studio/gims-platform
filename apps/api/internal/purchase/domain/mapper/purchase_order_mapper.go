@@ -1,9 +1,18 @@
 package mapper
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
+
+func safePtrString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(*v)
+}
 
 type PurchaseOrderMapper struct{}
 
@@ -15,6 +24,20 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 	if po == nil {
 		return nil
 	}
+
+	supplierObj := any(po.Supplier)
+	if strings.TrimSpace(po.SupplierNameSnapshot) != "" || strings.TrimSpace(po.SupplierCodeSnapshot) != "" {
+		supplierObj = &struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		}{
+			ID:   safePtrString(po.SupplierID),
+			Code: strings.TrimSpace(po.SupplierCodeSnapshot),
+			Name: strings.TrimSpace(po.SupplierNameSnapshot),
+		}
+	}
+
 	return &dto.PurchaseOrderListResponse{
 		ID:          po.ID,
 		Code:        po.Code,
@@ -22,7 +45,7 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		DueDate:     po.DueDate,
 		Status:      string(po.Status),
 		TotalAmount: po.TotalAmount,
-		Supplier:    po.Supplier,
+		Supplier:    supplierObj,
 		CreatedAt:   po.CreatedAt,
 	}
 }
@@ -39,8 +62,56 @@ func (m *PurchaseOrderMapper) ToDetailResponse(po *models.PurchaseOrder) *dto.Pu
 	if po == nil {
 		return nil
 	}
+
+	supplierObj := any(po.Supplier)
+	if strings.TrimSpace(po.SupplierNameSnapshot) != "" || strings.TrimSpace(po.SupplierCodeSnapshot) != "" {
+		supplierObj = &struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		}{
+			ID:   safePtrString(po.SupplierID),
+			Code: strings.TrimSpace(po.SupplierCodeSnapshot),
+			Name: strings.TrimSpace(po.SupplierNameSnapshot),
+		}
+	}
+
+	paymentTermsObj := any(po.PaymentTerms)
+	if strings.TrimSpace(po.PaymentTermsNameSnapshot) != "" {
+		paymentTermsObj = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   safePtrString(po.PaymentTermsID),
+			Name: strings.TrimSpace(po.PaymentTermsNameSnapshot),
+		}
+	}
+
+	businessUnitObj := any(po.BusinessUnit)
+	if strings.TrimSpace(po.BusinessUnitNameSnapshot) != "" {
+		businessUnitObj = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   safePtrString(po.BusinessUnitID),
+			Name: strings.TrimSpace(po.BusinessUnitNameSnapshot),
+		}
+	}
+
 	items := make([]dto.PurchaseOrderItemResponse, 0, len(po.Items))
 	for _, it := range po.Items {
+		productObj := any(it.Product)
+		if strings.TrimSpace(it.ProductNameSnapshot) != "" || strings.TrimSpace(it.ProductCodeSnapshot) != "" {
+			productObj = &struct {
+				ID   string `json:"id"`
+				Code string `json:"code"`
+				Name string `json:"name"`
+			}{
+				ID:   strings.TrimSpace(it.ProductID),
+				Code: strings.TrimSpace(it.ProductCodeSnapshot),
+				Name: strings.TrimSpace(it.ProductNameSnapshot),
+			}
+		}
 		items = append(items, dto.PurchaseOrderItemResponse{
 			ID:        it.ID,
 			ProductID: it.ProductID,
@@ -49,7 +120,7 @@ func (m *PurchaseOrderMapper) ToDetailResponse(po *models.PurchaseOrder) *dto.Pu
 			Discount:  it.Discount,
 			Subtotal:  it.Subtotal,
 			Notes:     it.Notes,
-			Product:   it.Product,
+			Product:   productObj,
 		})
 	}
 
@@ -73,9 +144,9 @@ func (m *PurchaseOrderMapper) ToDetailResponse(po *models.PurchaseOrder) *dto.Pu
 		OtherCost:            po.OtherCost,
 		SubTotal:             po.SubTotal,
 		TotalAmount:          po.TotalAmount,
-		Supplier:             po.Supplier,
-		PaymentTerms:         po.PaymentTerms,
-		BusinessUnit:         po.BusinessUnit,
+		Supplier:             supplierObj,
+		PaymentTerms:         paymentTermsObj,
+		BusinessUnit:         businessUnitObj,
 		Creator:              po.Creator,
 		Items:                items,
 		CreatedAt:            po.CreatedAt,

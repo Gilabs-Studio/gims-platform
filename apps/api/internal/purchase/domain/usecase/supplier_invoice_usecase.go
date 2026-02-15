@@ -235,6 +235,10 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			Items:          items,
 		}
 
+		if err := snapshotSupplierInvoice(ctx, tx, &si, nil); err != nil {
+			return err
+		}
+
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}
@@ -368,10 +372,38 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		tax := subTotal * req.TaxRate / 100
 		amount := subTotal + tax + req.DeliveryCost + req.OtherCost
 
+		updatedDraft := &models.SupplierInvoice{
+			ID:             si.ID,
+			Type:           si.Type,
+			PurchaseOrderID: po.ID,
+			SupplierID:     *po.SupplierID,
+			PaymentTermsID: &pt.ID,
+			Code:           si.Code,
+			InvoiceNumber:  req.InvoiceNumber,
+			InvoiceDate:    req.InvoiceDate,
+			DueDate:        req.DueDate,
+			TaxRate:        req.TaxRate,
+			TaxAmount:      tax,
+			DeliveryCost:   req.DeliveryCost,
+			OtherCost:      req.OtherCost,
+			SubTotal:       subTotal,
+			Amount:         amount,
+			Status:         si.Status,
+			Notes:          req.Notes,
+			CreatedBy:      si.CreatedBy,
+			Items:          newItems,
+		}
+		if err := snapshotSupplierInvoice(ctx, tx, updatedDraft, &si); err != nil {
+			return err
+		}
+
 		updates := map[string]interface{}{
 			"purchase_order_id":  po.ID,
 			"supplier_id":       *po.SupplierID,
 			"payment_terms_id":  pt.ID,
+			"supplier_code_snapshot": updatedDraft.SupplierCodeSnapshot,
+			"supplier_name_snapshot": updatedDraft.SupplierNameSnapshot,
+			"payment_terms_name_snapshot": updatedDraft.PaymentTermsNameSnapshot,
 			"invoice_number":    req.InvoiceNumber,
 			"invoice_date":      req.InvoiceDate,
 			"due_date":          req.DueDate,
@@ -393,6 +425,8 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		}
 		for i := range newItems {
 			newItems[i].SupplierInvoiceID = si.ID
+			newItems[i].ProductCodeSnapshot = updatedDraft.Items[i].ProductCodeSnapshot
+			newItems[i].ProductNameSnapshot = updatedDraft.Items[i].ProductNameSnapshot
 		}
 		if err := tx.Create(&newItems).Error; err != nil {
 			return err

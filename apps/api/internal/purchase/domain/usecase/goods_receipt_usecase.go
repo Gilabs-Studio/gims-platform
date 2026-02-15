@@ -170,6 +170,10 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			})
 		}
 
+		if err := snapshotGoodsReceipt(ctx, tx, gr, nil); err != nil {
+			return err
+		}
+
 		if err := tx.Omit("Items").Create(gr).Error; err != nil {
 			return err
 		}
@@ -269,6 +273,10 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 			QuantityReceived:    qty,
 			Notes:               it.Notes,
 		})
+	}
+
+	if err := snapshotGoodsReceipt(ctx, uc.db, gr, existing); err != nil {
+		return nil, err
 	}
 
 	updated, err := uc.repo.Update(ctx, gr)

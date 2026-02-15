@@ -131,6 +131,13 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	po.TaxAmount = tax
 	po.TotalAmount = total
 
+	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, nil); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, nil); err != nil {
+		return nil, err
+	}
+
 	// If create from PR: validate PR approved and not already converted to PO
 	if po.PurchaseRequisitionID != nil && strings.TrimSpace(*po.PurchaseRequisitionID) != "" {
 		existingPR, err := uc.prRepo.GetByID(ctx, *po.PurchaseRequisitionID)
@@ -279,6 +286,13 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		po.TaxAmount = tax
 		po.TotalAmount = total
 
+		if err := snapshotPurchaseOrderHeader(ctx, tx, po, nil); err != nil {
+			return err
+		}
+		if err := snapshotPurchaseOrderItems(ctx, tx, po, nil); err != nil {
+			return err
+		}
+
 		poRepoTx := repositories.NewPurchaseOrderRepository(tx)
 		created, err := poRepoTx.Create(ctx, po)
 		if err != nil {
@@ -374,6 +388,13 @@ func (uc *purchaseOrderUsecase) Update(ctx context.Context, id string, req *dto.
 	po.SubTotal = sub
 	po.TaxAmount = tax
 	po.TotalAmount = total
+
+	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, existing); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, existing); err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, po)
 	if err != nil {

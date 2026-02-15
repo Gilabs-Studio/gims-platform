@@ -29,12 +29,18 @@ type PurchaseOrder struct {
 	SupplierID *string                 `gorm:"type:uuid;index" json:"supplier_id"`
 	Supplier   *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
 
+	SupplierCodeSnapshot string            `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
+	SupplierNameSnapshot string            `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
+
 	PaymentTermsID *string               `gorm:"type:uuid;index" json:"payment_terms_id"`
 	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
+
+	PaymentTermsNameSnapshot string        `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
 
 	BusinessUnitID *string               `gorm:"type:uuid;index" json:"business_unit_id"`
 	BusinessUnit   *orgModels.BusinessUnit `gorm:"foreignKey:BusinessUnitID" json:"business_unit,omitempty"`
 
+	BusinessUnitNameSnapshot string        `gorm:"type:varchar(150)" json:"business_unit_name_snapshot,omitempty"`
 	CreatedBy string          `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
 

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"gorm.io/gorm"
 )
+
+func formatFloatKey(v float64) string {
+	return fmt.Sprintf("%.6f", v)
+}
 
 var (
 	ErrJournalNotFound        = errors.New("journal entry not found")
@@ -99,10 +104,13 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 			return err
 		}
+		coaByID := make(map[string]*financeModels.ChartOfAccount, len(req.Lines))
 		for _, ln := range req.Lines {
-			if _, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID); err != nil {
+			coa, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID)
+			if err != nil {
 				return err
 			}
+			coaByID[ln.ChartOfAccountID] = coa
 		}
 
 		entry := &financeModels.JournalEntry{
@@ -117,12 +125,17 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 			return err
 		}
 		for _, ln := range req.Lines {
+			memo := strings.TrimSpace(ln.Memo)
+			coa := coaByID[ln.ChartOfAccountID]
 			line := &financeModels.JournalLine{
-				JournalEntryID:   entry.ID,
-				ChartOfAccountID: ln.ChartOfAccountID,
-				Debit:            ln.Debit,
-				Credit:           ln.Credit,
-				Memo:             strings.TrimSpace(ln.Memo),
+				JournalEntryID:              entry.ID,
+				ChartOfAccountID:            ln.ChartOfAccountID,
+				ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
+				ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
+				ChartOfAccountTypeSnapshot: string(coa.Type),
+				Debit:                       ln.Debit,
+				Credit:                      ln.Credit,
+				Memo:                        memo,
 			}
 			if err := tx.Create(line).Error; err != nil {
 				return err
@@ -175,6 +188,12 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 			return err
 		}
+
+		existingLineSnapshot := make(map[string]financeModels.JournalLine)
+		for _, ln := range entry.Lines {
+			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + strings.TrimSpace(ln.Memo) + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
+			existingLineSnapshot[key] = ln
+		}
 		if err := tx.Model(&financeModels.JournalEntry{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
@@ -190,13 +209,48 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 			return err
 		}
 
+		coaByID := make(map[string]*financeModels.ChartOfAccount, len(req.Lines))
 		for _, ln := range req.Lines {
+			if _, ok := coaByID[ln.ChartOfAccountID]; ok {
+				continue
+			}
+			coa, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID)
+			if err != nil {
+				return err
+			}
+			coaByID[ln.ChartOfAccountID] = coa
+		}
+
+		for _, ln := range req.Lines {
+			memo := strings.TrimSpace(ln.Memo)
+			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + memo + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
+			if snap, ok := existingLineSnapshot[key]; ok && (snap.ChartOfAccountCodeSnapshot != "" || snap.ChartOfAccountNameSnapshot != "" || snap.ChartOfAccountTypeSnapshot != "") {
+				line := &financeModels.JournalLine{
+					JournalEntryID:              id,
+					ChartOfAccountID:            ln.ChartOfAccountID,
+					ChartOfAccountCodeSnapshot: snap.ChartOfAccountCodeSnapshot,
+					ChartOfAccountNameSnapshot: snap.ChartOfAccountNameSnapshot,
+					ChartOfAccountTypeSnapshot: snap.ChartOfAccountTypeSnapshot,
+					Debit:                       ln.Debit,
+					Credit:                      ln.Credit,
+					Memo:                        memo,
+				}
+				if err := tx.Create(line).Error; err != nil {
+					return err
+				}
+				continue
+			}
+
+			coa := coaByID[ln.ChartOfAccountID]
 			line := &financeModels.JournalLine{
-				JournalEntryID:   id,
-				ChartOfAccountID: ln.ChartOfAccountID,
-				Debit:            ln.Debit,
-				Credit:           ln.Credit,
-				Memo:             strings.TrimSpace(ln.Memo),
+				JournalEntryID:              id,
+				ChartOfAccountID:            ln.ChartOfAccountID,
+				ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
+				ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
+				ChartOfAccountTypeSnapshot: string(coa.Type),
+				Debit:                       ln.Debit,
+				Credit:                      ln.Credit,
+				Memo:                        memo,
 			}
 			if err := tx.Create(line).Error; err != nil {
 				return err

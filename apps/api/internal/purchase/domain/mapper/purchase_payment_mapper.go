@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
@@ -34,7 +36,18 @@ func (m *PurchasePaymentMapper) ToListResponse(p *models.PurchasePayment) *dto.P
 		return nil
 	}
 	var bankSummary *dto.PurchasePaymentBankAccountSummary
-	if p.BankAccount != nil {
+	if strings.TrimSpace(p.BankAccountNameSnapshot) != "" ||
+		strings.TrimSpace(p.BankAccountNumberSnapshot) != "" ||
+		strings.TrimSpace(p.BankAccountHolderSnapshot) != "" ||
+		strings.TrimSpace(p.BankAccountCurrencySnapshot) != "" {
+		bankSummary = &dto.PurchasePaymentBankAccountSummary{
+			ID:            p.BankAccountID,
+			Name:          p.BankAccountNameSnapshot,
+			AccountNumber: p.BankAccountNumberSnapshot,
+			AccountHolder: p.BankAccountHolderSnapshot,
+			Currency:      p.BankAccountCurrencySnapshot,
+		}
+	} else if p.BankAccount != nil {
 		bankSummary = &dto.PurchasePaymentBankAccountSummary{
 			ID:            p.BankAccount.ID,
 			Name:          p.BankAccount.Name,

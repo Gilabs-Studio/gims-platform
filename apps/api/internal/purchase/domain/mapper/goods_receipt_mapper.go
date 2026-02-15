@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -36,7 +37,9 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 	if gr.PurchaseOrder != nil {
 		resp.PurchaseOrder = &dto.GoodsReceiptPurchaseOrderMini{ID: gr.PurchaseOrder.ID, Code: gr.PurchaseOrder.Code}
 	}
-	if gr.Supplier != nil {
+	if strings.TrimSpace(gr.SupplierNameSnapshot) != "" || strings.TrimSpace(gr.SupplierCodeSnapshot) != "" {
+		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.SupplierID, Name: strings.TrimSpace(gr.SupplierNameSnapshot)}
+	} else if gr.Supplier != nil {
 		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.Supplier.ID, Name: gr.Supplier.Name}
 	}
 
@@ -75,7 +78,9 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	if gr.PurchaseOrder != nil {
 		resp.PurchaseOrder = &dto.GoodsReceiptPurchaseOrderDetail{ID: gr.PurchaseOrder.ID, Code: gr.PurchaseOrder.Code, Status: string(gr.PurchaseOrder.Status)}
 	}
-	if gr.Supplier != nil {
+	if strings.TrimSpace(gr.SupplierNameSnapshot) != "" || strings.TrimSpace(gr.SupplierCodeSnapshot) != "" {
+		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.SupplierID, Name: strings.TrimSpace(gr.SupplierNameSnapshot)}
+	} else if gr.Supplier != nil {
 		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.Supplier.ID, Name: gr.Supplier.Name}
 	}
 
@@ -86,7 +91,14 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 			QuantityReceived:   it.QuantityReceived,
 			Notes:              it.Notes,
 		}
-		if it.Product != nil {
+		if strings.TrimSpace(it.ProductNameSnapshot) != "" || strings.TrimSpace(it.ProductCodeSnapshot) != "" {
+			sku := (*string)(nil)
+			if it.Product != nil && it.Product.Sku != "" {
+				s := it.Product.Sku
+				sku = &s
+			}
+			item.Product = &dto.ProductMini{ID: it.ProductID, Name: strings.TrimSpace(it.ProductNameSnapshot), SKU: sku}
+		} else if it.Product != nil {
 			sku := (*string)(nil)
 			if it.Product.Sku != "" {
 				s := it.Product.Sku

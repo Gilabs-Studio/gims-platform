@@ -31,6 +31,10 @@ type PurchasePayment struct {
 
 	BankAccountID string               `gorm:"type:uuid;not null;index" json:"bank_account_id"`
 	BankAccount   *coreModels.BankAccount `gorm:"foreignKey:BankAccountID" json:"bank_account,omitempty"`
+	BankAccountNameSnapshot string      `gorm:"type:varchar(150)" json:"bank_account_name_snapshot,omitempty"`
+	BankAccountNumberSnapshot string    `gorm:"type:varchar(50)" json:"bank_account_number_snapshot,omitempty"`
+	BankAccountHolderSnapshot string    `gorm:"type:varchar(150)" json:"bank_account_holder_snapshot,omitempty"`
+	BankAccountCurrencySnapshot string  `gorm:"type:varchar(10)" json:"bank_account_currency_snapshot,omitempty"`
 
 	PaymentDate string `gorm:"type:varchar(20);not null;index" json:"payment_date"`
 	Amount      float64 `gorm:"type:decimal(15,2);not null;default:0" json:"amount"`

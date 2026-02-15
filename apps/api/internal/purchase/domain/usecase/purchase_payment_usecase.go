@@ -181,6 +181,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			Notes:             req.Notes,
 			CreatedBy:         actorID,
 		}
+		snapshotPurchasePayment(p, &ba)
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}

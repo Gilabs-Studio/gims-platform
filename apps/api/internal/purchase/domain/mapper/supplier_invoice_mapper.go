@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
@@ -22,7 +24,13 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 	}
 
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
-	if si.PaymentTerms != nil {
+	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" {
+		id := ""
+		if si.PaymentTermsID != nil {
+			id = strings.TrimSpace(*si.PaymentTermsID)
+		}
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot)}
+	} else if si.PaymentTerms != nil {
 		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name}
 	}
 
@@ -67,17 +75,35 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 	}
 
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
-	if si.PaymentTerms != nil {
+	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" {
+		id := ""
+		if si.PaymentTermsID != nil {
+			id = strings.TrimSpace(*si.PaymentTermsID)
+		}
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot)}
+	} else if si.PaymentTerms != nil {
 		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name}
 	}
 
 	items := make([]dto.SupplierInvoiceItemResponse, 0, len(si.Items))
 	for _, it := range si.Items {
+		productObj := any(it.Product)
+		if strings.TrimSpace(it.ProductNameSnapshot) != "" || strings.TrimSpace(it.ProductCodeSnapshot) != "" {
+			productObj = &struct {
+				ID   string `json:"id"`
+				Code string `json:"code"`
+				Name string `json:"name"`
+			}{
+				ID:   strings.TrimSpace(it.ProductID),
+				Code: strings.TrimSpace(it.ProductCodeSnapshot),
+				Name: strings.TrimSpace(it.ProductNameSnapshot),
+			}
+		}
 		items = append(items, dto.SupplierInvoiceItemResponse{
 			ID:                 it.ID,
 			SupplierInvoiceID:  it.SupplierInvoiceID,
 			ProductID:          it.ProductID,
-			Product:            it.Product,
+			Product:            productObj,
 			Quantity:           it.Quantity,
 			Price:              it.Price,
 			Discount:           it.Discount,

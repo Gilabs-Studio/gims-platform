@@ -1,6 +1,9 @@
 package mapper
 
 import (
+	"strings"
+	"time"
+
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 )
@@ -26,7 +29,18 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		creditTotal += ln.Credit
 
 		var coaResp *dto.ChartOfAccountResponse
-		if ln.ChartOfAccount != nil {
+		if strings.TrimSpace(ln.ChartOfAccountCodeSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountNameSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountTypeSnapshot) != "" {
+			coaResp = &dto.ChartOfAccountResponse{
+				ID:        ln.ChartOfAccountID,
+				Code:      ln.ChartOfAccountCodeSnapshot,
+				Name:      ln.ChartOfAccountNameSnapshot,
+				Type:      financeModels.AccountType(ln.ChartOfAccountTypeSnapshot),
+				ParentID:  nil,
+				IsActive:  true,
+				CreatedAt: time.Time{},
+				UpdatedAt: time.Time{},
+			}
+		} else if ln.ChartOfAccount != nil {
 			v := m.coaMapper.ToResponse(ln.ChartOfAccount)
 			coaResp = &v
 		}
