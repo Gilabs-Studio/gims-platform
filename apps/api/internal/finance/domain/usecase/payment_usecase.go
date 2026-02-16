@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +68,10 @@ func validateAllocations(allocs []dto.PaymentAllocationRequest) (float64, error)
 	return sum, nil
 }
 
+func paymentAmountKey(v float64) string {
+	return strconv.FormatFloat(v, 'f', 6, 64)
+}
+
 func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequest) (*dto.PaymentResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is required")
@@ -95,15 +100,24 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 	if bankAccountID == "" {
 		return nil, errors.New("bank_account_id is required")
 	}
-	if err := uc.db.WithContext(ctx).First(&coreModels.BankAccount{}, "id = ?", bankAccountID).Error; err != nil {
+	var bank coreModels.BankAccount
+	if err := uc.db.WithContext(ctx).First(&bank, "id = ?", bankAccountID).Error; err != nil {
 		return nil, err
 	}
 
 	var createdID string
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Allocations))
 		for _, al := range req.Allocations {
-			if _, err := uc.coaRepo.FindByID(ctx, al.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(al.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, al := range req.Allocations {
+			if coaByID[strings.TrimSpace(al.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -111,6 +125,10 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 			PaymentDate:   payDate,
 			Description:   strings.TrimSpace(req.Description),
 			BankAccountID: bankAccountID,
+			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
+			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
+			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
+			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
 			TotalAmount:   req.TotalAmount,
 			Status:        financeModels.PaymentStatusDraft,
 			CreatedBy:     &actorID,
@@ -119,9 +137,17 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 			return err
 		}
 		for _, al := range req.Allocations {
+			coa := coaByID[strings.TrimSpace(al.ChartOfAccountID)]
+			codeSnap := ""
+			nameSnap := ""
+			typeSnap := ""
+			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.PaymentAllocation{
 				PaymentID:       p.ID,
 				ChartOfAccountID: strings.TrimSpace(al.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				ReferenceType:   al.ReferenceType,
 				ReferenceID:     al.ReferenceID,
 				Amount:          al.Amount,
@@ -183,14 +209,48 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 	if bankAccountID == "" {
 		return nil, errors.New("bank_account_id is required")
 	}
-	if err := uc.db.WithContext(ctx).First(&coreModels.BankAccount{}, "id = ?", bankAccountID).Error; err != nil {
+	var bank coreModels.BankAccount
+	if err := uc.db.WithContext(ctx).First(&bank, "id = ?", bankAccountID).Error; err != nil {
 		return nil, err
 	}
 
+	bankNameSnap := p.BankAccountNameSnapshot
+	bankNumberSnap := p.BankAccountNumberSnapshot
+	bankHolderSnap := p.BankAccountHolderSnapshot
+	bankCurrencySnap := p.BankAccountCurrencySnapshot
+	if strings.TrimSpace(bankAccountID) != strings.TrimSpace(p.BankAccountID) {
+		bankNameSnap = strings.TrimSpace(bank.Name)
+		bankNumberSnap = strings.TrimSpace(bank.AccountNumber)
+		bankHolderSnap = strings.TrimSpace(bank.AccountHolder)
+		bankCurrencySnap = strings.TrimSpace(bank.Currency)
+	}
+
+	existingAllocSnap := map[string]financeModels.PaymentAllocation{}
+	for _, al := range p.Allocations {
+		refType := ""
+		if al.ReferenceType != nil {
+			refType = strings.TrimSpace(*al.ReferenceType)
+		}
+		refID := ""
+		if al.ReferenceID != nil {
+			refID = strings.TrimSpace(*al.ReferenceID)
+		}
+		k := strings.TrimSpace(al.ChartOfAccountID) + "|" + refType + "|" + refID + "|" + paymentAmountKey(al.Amount) + "|" + strings.TrimSpace(al.Memo)
+		existingAllocSnap[k] = al
+	}
+
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Allocations))
 		for _, al := range req.Allocations {
-			if _, err := uc.coaRepo.FindByID(ctx, al.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(al.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, al := range req.Allocations {
+			if coaByID[strings.TrimSpace(al.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -200,6 +260,10 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 				"payment_date":    payDate,
 				"description":     strings.TrimSpace(req.Description),
 				"bank_account_id": bankAccountID,
+				"bank_account_name_snapshot":     bankNameSnap,
+				"bank_account_number_snapshot":   bankNumberSnap,
+				"bank_account_holder_snapshot":   bankHolderSnap,
+				"bank_account_currency_snapshot": bankCurrencySnap,
 				"total_amount":    req.TotalAmount,
 			}).Error; err != nil {
 			return err
@@ -209,9 +273,31 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 			return err
 		}
 		for _, al := range req.Allocations {
+			refType := ""
+			if al.ReferenceType != nil {
+				refType = strings.TrimSpace(*al.ReferenceType)
+			}
+			refID := ""
+			if al.ReferenceID != nil {
+				refID = strings.TrimSpace(*al.ReferenceID)
+			}
+			k := strings.TrimSpace(al.ChartOfAccountID) + "|" + refType + "|" + refID + "|" + paymentAmountKey(al.Amount) + "|" + strings.TrimSpace(al.Memo)
+			existing := existingAllocSnap[k]
+
+			codeSnap := strings.TrimSpace(existing.ChartOfAccountCodeSnapshot)
+			nameSnap := strings.TrimSpace(existing.ChartOfAccountNameSnapshot)
+			typeSnap := strings.TrimSpace(existing.ChartOfAccountTypeSnapshot)
+			if codeSnap == "" && nameSnap == "" && typeSnap == "" {
+				coa := coaByID[strings.TrimSpace(al.ChartOfAccountID)]
+				snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
+			}
+
 			item := &financeModels.PaymentAllocation{
 				PaymentID:        id,
 				ChartOfAccountID: strings.TrimSpace(al.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				ReferenceType:    al.ReferenceType,
 				ReferenceID:      al.ReferenceID,
 				Amount:           al.Amount,

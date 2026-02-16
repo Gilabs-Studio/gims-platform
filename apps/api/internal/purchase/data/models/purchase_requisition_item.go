@@ -18,6 +18,9 @@ type PurchaseRequisitionItem struct {
 	ProductID string               `gorm:"type:uuid;not null;index" json:"product_id"`
 	Product   *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 
+	ProductCodeSnapshot string `gorm:"type:varchar(50)" json:"product_code_snapshot,omitempty"`
+	ProductNameSnapshot string `gorm:"type:varchar(200)" json:"product_name_snapshot,omitempty"`
+
 	Quantity      float64 `gorm:"type:decimal(15,3);not null" json:"quantity"`
 	PurchasePrice float64 `gorm:"type:decimal(15,2);not null" json:"purchase_price"`
 	Discount      float64 `gorm:"type:decimal(5,2);default:0" json:"discount"` // percentage 0..100

@@ -71,7 +71,8 @@ func (uc *nonTradePayableUsecase) Create(ctx context.Context, req *dto.CreateNon
 		return nil, errors.New("invalid due_date")
 	}
 
-	if _, err := uc.coaRepo.FindByID(ctx, req.ChartOfAccountID); err != nil {
+	coa, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(req.ChartOfAccountID))
+	if err != nil {
 		return nil, err
 	}
 
@@ -79,6 +80,9 @@ func (uc *nonTradePayableUsecase) Create(ctx context.Context, req *dto.CreateNon
 		TransactionDate: d,
 		Description:     strings.TrimSpace(req.Description),
 		ChartOfAccountID: strings.TrimSpace(req.ChartOfAccountID),
+		ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
+		ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
+		ChartOfAccountTypeSnapshot: strings.TrimSpace(string(coa.Type)),
 		Amount:          req.Amount,
 		VendorName:      strings.TrimSpace(req.VendorName),
 		DueDate:         due,
@@ -102,7 +106,8 @@ func (uc *nonTradePayableUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, errors.New("request is required")
 	}
 
-	if _, err := uc.repo.FindByID(ctx, id); err != nil {
+	existing, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNonTradePayableNotFound
 		}
@@ -118,14 +123,31 @@ func (uc *nonTradePayableUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, errors.New("invalid due_date")
 	}
 
-	if _, err := uc.coaRepo.FindByID(ctx, req.ChartOfAccountID); err != nil {
+	coaID := strings.TrimSpace(req.ChartOfAccountID)
+	if coaID == "" {
+		return nil, errors.New("chart_of_account_id is required")
+	}
+	coa, err := uc.coaRepo.FindByID(ctx, coaID)
+	if err != nil {
 		return nil, err
+	}
+
+	coaCodeSnap := strings.TrimSpace(existing.ChartOfAccountCodeSnapshot)
+	coaNameSnap := strings.TrimSpace(existing.ChartOfAccountNameSnapshot)
+	coaTypeSnap := strings.TrimSpace(existing.ChartOfAccountTypeSnapshot)
+	if strings.TrimSpace(existing.ChartOfAccountID) != coaID || (coaCodeSnap == "" && coaNameSnap == "" && coaTypeSnap == "") {
+		coaCodeSnap = strings.TrimSpace(coa.Code)
+		coaNameSnap = strings.TrimSpace(coa.Name)
+		coaTypeSnap = strings.TrimSpace(string(coa.Type))
 	}
 
 	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"transaction_date":  d,
 		"description":       strings.TrimSpace(req.Description),
-		"chart_of_account_id": strings.TrimSpace(req.ChartOfAccountID),
+		"chart_of_account_id": coaID,
+		"chart_of_account_code_snapshot": coaCodeSnap,
+		"chart_of_account_name_snapshot": coaNameSnap,
+		"chart_of_account_type_snapshot": coaTypeSnap,
 		"amount":            req.Amount,
 		"vendor_name":       strings.TrimSpace(req.VendorName),
 		"due_date":          due,

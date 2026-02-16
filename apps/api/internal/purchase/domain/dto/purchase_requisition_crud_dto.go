@@ -83,11 +83,7 @@ type PurchaseRequisitionDetailResponse struct {
 		Code string `json:"code"`
 	} `json:"supplier,omitempty"`
 
-	PaymentTerms *struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		Days int    `json:"days"`
-	} `json:"payment_terms,omitempty"`
+	PaymentTerms *PurchaseRequisitionPaymentTermsMini `json:"payment_terms,omitempty"`
 
 	BusinessUnit *struct {
 		ID   string `json:"id"`

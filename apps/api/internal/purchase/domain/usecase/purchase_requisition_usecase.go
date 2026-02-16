@@ -114,6 +114,13 @@ func (uc *purchaseRequisitionUsecase) Create(ctx context.Context, req *dto.Creat
 	pr.TaxAmount = taxAmount
 	pr.TotalAmount = total
 
+	if err := snapshotPurchaseRequisitionHeader(ctx, uc.db, pr, nil); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseRequisitionItems(ctx, uc.db, pr, nil); err != nil {
+		return nil, err
+	}
+
 	created, err := uc.repo.Create(ctx, pr)
 	if err != nil {
 		return nil, err
@@ -181,6 +188,13 @@ func (uc *purchaseRequisitionUsecase) Update(ctx context.Context, id string, req
 	pr.Subtotal = subtotal
 	pr.TaxAmount = taxAmount
 	pr.TotalAmount = total
+
+	if err := snapshotPurchaseRequisitionHeader(ctx, uc.db, pr, existing); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseRequisitionItems(ctx, uc.db, pr, existing); err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, pr)
 	if err != nil {

@@ -1,6 +1,9 @@
 package mapper
 
 import (
+	"strings"
+	"time"
+
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 )
@@ -36,7 +39,18 @@ func (m *BudgetMapper) ToResponse(item *financeModels.Budget) dto.BudgetResponse
 		resp.Items = make([]dto.BudgetItemResponse, 0, len(item.Items))
 		for _, it := range item.Items {
 			var coaResp *dto.ChartOfAccountResponse
-			if it.ChartOfAccount != nil {
+			if strings.TrimSpace(it.ChartOfAccountCodeSnapshot) != "" || strings.TrimSpace(it.ChartOfAccountNameSnapshot) != "" || strings.TrimSpace(it.ChartOfAccountTypeSnapshot) != "" {
+				coaResp = &dto.ChartOfAccountResponse{
+					ID:        it.ChartOfAccountID,
+					Code:      strings.TrimSpace(it.ChartOfAccountCodeSnapshot),
+					Name:      strings.TrimSpace(it.ChartOfAccountNameSnapshot),
+					Type:      financeModels.AccountType(strings.TrimSpace(it.ChartOfAccountTypeSnapshot)),
+					ParentID:  nil,
+					IsActive:  true,
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				}
+			} else if it.ChartOfAccount != nil {
 				mapped := m.coaMapper.ToResponse(it.ChartOfAccount)
 				coaResp = &mapped
 			}

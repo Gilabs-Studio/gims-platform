@@ -38,7 +38,17 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 		UpdatedAt:      pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 
-	if pr.Supplier != nil {
+	if pr.SupplierID != nil && *pr.SupplierID != "" && (pr.SupplierCodeSnapshot != "" || pr.SupplierNameSnapshot != "") {
+		resp.Supplier = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			Code string `json:"code"`
+		}{
+			ID:   *pr.SupplierID,
+			Name: pr.SupplierNameSnapshot,
+			Code: pr.SupplierCodeSnapshot,
+		}
+	} else if pr.Supplier != nil {
 		resp.Supplier = &struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
@@ -50,19 +60,22 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 		}
 	}
 
-	if pr.PaymentTerms != nil {
-		resp.PaymentTerms = &struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-			Days int    `json:"days"`
-		}{
-			ID:   pr.PaymentTerms.ID,
-			Name: pr.PaymentTerms.Name,
-			Days: pr.PaymentTerms.Days,
-		}
+	if pr.PaymentTermsID != nil && *pr.PaymentTermsID != "" && (pr.PaymentTermsNameSnapshot != "" || pr.PaymentTermsDaysSnapshot != nil) {
+		resp.PaymentTerms = &dto.PurchaseRequisitionPaymentTermsMini{ID: *pr.PaymentTermsID, Name: pr.PaymentTermsNameSnapshot, Days: pr.PaymentTermsDaysSnapshot}
+	} else if pr.PaymentTerms != nil {
+		days := pr.PaymentTerms.Days
+		resp.PaymentTerms = &dto.PurchaseRequisitionPaymentTermsMini{ID: pr.PaymentTerms.ID, Name: pr.PaymentTerms.Name, Days: &days}
 	}
 
-	if pr.BusinessUnit != nil {
+	if pr.BusinessUnitID != nil && *pr.BusinessUnitID != "" && pr.BusinessUnitNameSnapshot != "" {
+		resp.BusinessUnit = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   *pr.BusinessUnitID,
+			Name: pr.BusinessUnitNameSnapshot,
+		}
+	} else if pr.BusinessUnit != nil {
 		resp.BusinessUnit = &struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
@@ -122,7 +135,17 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 		Items:          make([]dto.PurchaseRequisitionItemResponse, 0, len(pr.Items)),
 	}
 
-	if pr.Supplier != nil {
+	if pr.SupplierID != nil && *pr.SupplierID != "" && (pr.SupplierCodeSnapshot != "" || pr.SupplierNameSnapshot != "") {
+		resp.Supplier = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			Code string `json:"code"`
+		}{
+			ID:   *pr.SupplierID,
+			Name: pr.SupplierNameSnapshot,
+			Code: pr.SupplierCodeSnapshot,
+		}
+	} else if pr.Supplier != nil {
 		resp.Supplier = &struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
@@ -134,19 +157,22 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 		}
 	}
 
-	if pr.PaymentTerms != nil {
-		resp.PaymentTerms = &struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-			Days int    `json:"days"`
-		}{
-			ID:   pr.PaymentTerms.ID,
-			Name: pr.PaymentTerms.Name,
-			Days: pr.PaymentTerms.Days,
-		}
+	if pr.PaymentTermsID != nil && *pr.PaymentTermsID != "" && (pr.PaymentTermsNameSnapshot != "" || pr.PaymentTermsDaysSnapshot != nil) {
+		resp.PaymentTerms = &dto.PurchaseRequisitionPaymentTermsMini{ID: *pr.PaymentTermsID, Name: pr.PaymentTermsNameSnapshot, Days: pr.PaymentTermsDaysSnapshot}
+	} else if pr.PaymentTerms != nil {
+		days := pr.PaymentTerms.Days
+		resp.PaymentTerms = &dto.PurchaseRequisitionPaymentTermsMini{ID: pr.PaymentTerms.ID, Name: pr.PaymentTerms.Name, Days: &days}
 	}
 
-	if pr.BusinessUnit != nil {
+	if pr.BusinessUnitID != nil && *pr.BusinessUnitID != "" && pr.BusinessUnitNameSnapshot != "" {
+		resp.BusinessUnit = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   *pr.BusinessUnitID,
+			Name: pr.BusinessUnitNameSnapshot,
+		}
+	} else if pr.BusinessUnit != nil {
 		resp.BusinessUnit = &struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
@@ -188,7 +214,17 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 			Subtotal:      it.Subtotal,
 			Notes:         it.Notes,
 		}
-		if it.Product != nil {
+		if it.ProductID != "" && (it.ProductCodeSnapshot != "" || it.ProductNameSnapshot != "") {
+			itemResp.Product = &struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+				Code string `json:"code"`
+			}{
+				ID:   it.ProductID,
+				Name: it.ProductNameSnapshot,
+				Code: it.ProductCodeSnapshot,
+			}
+		} else if it.Product != nil {
 			itemResp.Product = &struct {
 				ID   string `json:"id"`
 				Name string `json:"name"`

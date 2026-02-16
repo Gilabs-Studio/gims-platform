@@ -37,6 +37,7 @@ type NonTradePayableResponse struct {
 	TransactionDate time.Time `json:"transaction_date"`
 	Description string `json:"description"`
 	ChartOfAccountID string `json:"chart_of_account_id"`
+	ChartOfAccount *ChartOfAccountResponse `json:"chart_of_account,omitempty"`
 	Amount float64 `json:"amount"`
 	VendorName string `json:"vendor_name"`
 	DueDate *time.Time `json:"due_date"`

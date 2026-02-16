@@ -86,15 +86,24 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 	if bankAccountID == "" {
 		return nil, errors.New("bank_account_id is required")
 	}
-	if err := uc.db.WithContext(ctx).First(&coreModels.BankAccount{}, "id = ?", bankAccountID).Error; err != nil {
+	var bank coreModels.BankAccount
+	if err := uc.db.WithContext(ctx).First(&bank, "id = ?", bankAccountID).Error; err != nil {
 		return nil, err
 	}
 
 	var createdID string
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Lines))
 		for _, ln := range req.Lines {
-			if _, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, ln := range req.Lines {
+			if coaByID[strings.TrimSpace(ln.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -103,6 +112,10 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 			Type:            req.Type,
 			Description:     strings.TrimSpace(req.Description),
 			BankAccountID:   bankAccountID,
+			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
+			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
+			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
+			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
 			TotalAmount:     sum,
 			Status:          financeModels.CashBankStatusDraft,
 			CreatedBy:       &actorID,
@@ -111,9 +124,17 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 			return err
 		}
 		for _, ln := range req.Lines {
+			coa := coaByID[strings.TrimSpace(ln.ChartOfAccountID)]
+			codeSnap := ""
+			nameSnap := ""
+			typeSnap := ""
+			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.CashBankJournalLine{
 				CashBankJournalID: cb.ID,
 				ChartOfAccountID:  strings.TrimSpace(ln.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				ReferenceType:     ln.ReferenceType,
 				ReferenceID:       ln.ReferenceID,
 				Amount:            ln.Amount,
@@ -178,14 +199,34 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 	if bankAccountID == "" {
 		return nil, errors.New("bank_account_id is required")
 	}
-	if err := uc.db.WithContext(ctx).First(&coreModels.BankAccount{}, "id = ?", bankAccountID).Error; err != nil {
+	var bank coreModels.BankAccount
+	if err := uc.db.WithContext(ctx).First(&bank, "id = ?", bankAccountID).Error; err != nil {
 		return nil, err
 	}
 
+	bankNameSnap := cb.BankAccountNameSnapshot
+	bankNumberSnap := cb.BankAccountNumberSnapshot
+	bankHolderSnap := cb.BankAccountHolderSnapshot
+	bankCurrencySnap := cb.BankAccountCurrencySnapshot
+	if strings.TrimSpace(bankAccountID) != strings.TrimSpace(cb.BankAccountID) {
+		bankNameSnap = strings.TrimSpace(bank.Name)
+		bankNumberSnap = strings.TrimSpace(bank.AccountNumber)
+		bankHolderSnap = strings.TrimSpace(bank.AccountHolder)
+		bankCurrencySnap = strings.TrimSpace(bank.Currency)
+	}
+
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Lines))
 		for _, ln := range req.Lines {
-			if _, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, ln := range req.Lines {
+			if coaByID[strings.TrimSpace(ln.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -196,6 +237,10 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 				"type":             req.Type,
 				"description":      strings.TrimSpace(req.Description),
 				"bank_account_id":  bankAccountID,
+				"bank_account_name_snapshot":     bankNameSnap,
+				"bank_account_number_snapshot":   bankNumberSnap,
+				"bank_account_holder_snapshot":   bankHolderSnap,
+				"bank_account_currency_snapshot": bankCurrencySnap,
 				"total_amount":     sum,
 			}).Error; err != nil {
 			return err
@@ -205,9 +250,17 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 			return err
 		}
 		for _, ln := range req.Lines {
+			coa := coaByID[strings.TrimSpace(ln.ChartOfAccountID)]
+			codeSnap := ""
+			nameSnap := ""
+			typeSnap := ""
+			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.CashBankJournalLine{
 				CashBankJournalID: id,
 				ChartOfAccountID:  strings.TrimSpace(ln.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				ReferenceType:     ln.ReferenceType,
 				ReferenceID:       ln.ReferenceID,
 				Amount:            ln.Amount,

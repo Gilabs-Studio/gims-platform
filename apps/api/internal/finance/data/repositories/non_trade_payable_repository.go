@@ -34,7 +34,9 @@ func NewNonTradePayableRepository(db *gorm.DB) NonTradePayableRepository {
 
 func (r *nonTradePayableRepository) FindByID(ctx context.Context, id string) (*financeModels.NonTradePayable, error) {
 	var item financeModels.NonTradePayable
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Preload("ChartOfAccount").
+		First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -51,7 +53,7 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 	var items []financeModels.NonTradePayable
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{})
+	q := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Preload("ChartOfAccount")
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("non_trade_payables.description ILIKE ? OR non_trade_payables.vendor_name ILIKE ? OR non_trade_payables.reference_no ILIKE ?", like, like, like)

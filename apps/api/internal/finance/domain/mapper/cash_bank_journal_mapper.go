@@ -1,6 +1,9 @@
 package mapper
 
 import (
+	"strings"
+	"time"
+
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 )
@@ -33,11 +36,35 @@ func (m *CashBankJournalMapper) ToResponse(item *financeModels.CashBankJournal) 
 		UpdatedAt:       item.UpdatedAt,
 	}
 
+	if strings.TrimSpace(item.BankAccountNameSnapshot) != "" ||
+		strings.TrimSpace(item.BankAccountNumberSnapshot) != "" ||
+		strings.TrimSpace(item.BankAccountHolderSnapshot) != "" ||
+		strings.TrimSpace(item.BankAccountCurrencySnapshot) != "" {
+		resp.BankAccount = &dto.BankAccountMini{
+			ID:            item.BankAccountID,
+			Name:          strings.TrimSpace(item.BankAccountNameSnapshot),
+			AccountNumber: strings.TrimSpace(item.BankAccountNumberSnapshot),
+			AccountHolder: strings.TrimSpace(item.BankAccountHolderSnapshot),
+			Currency:      strings.TrimSpace(item.BankAccountCurrencySnapshot),
+		}
+	}
+
 	if len(item.Lines) > 0 {
 		resp.Lines = make([]dto.CashBankJournalLineResponse, 0, len(item.Lines))
 		for _, ln := range item.Lines {
 			var coaResp *dto.ChartOfAccountResponse
-			if ln.ChartOfAccount != nil {
+			if strings.TrimSpace(ln.ChartOfAccountCodeSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountNameSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountTypeSnapshot) != "" {
+				coaResp = &dto.ChartOfAccountResponse{
+					ID:        ln.ChartOfAccountID,
+					Code:      strings.TrimSpace(ln.ChartOfAccountCodeSnapshot),
+					Name:      strings.TrimSpace(ln.ChartOfAccountNameSnapshot),
+					Type:      financeModels.AccountType(strings.TrimSpace(ln.ChartOfAccountTypeSnapshot)),
+					ParentID:  nil,
+					IsActive:  true,
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				}
+			} else if ln.ChartOfAccount != nil {
 				mapped := m.coaMapper.ToResponse(ln.ChartOfAccount)
 				coaResp = &mapped
 			}

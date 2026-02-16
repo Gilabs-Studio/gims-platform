@@ -36,6 +36,7 @@ type PurchaseOrder struct {
 	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
 
 	PaymentTermsNameSnapshot string        `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
+	PaymentTermsDaysSnapshot *int          `gorm:"type:int" json:"payment_terms_days_snapshot,omitempty"`
 
 	BusinessUnitID *string               `gorm:"type:uuid;index" json:"business_unit_id"`
 	BusinessUnit   *orgModels.BusinessUnit `gorm:"foreignKey:BusinessUnitID" json:"business_unit,omitempty"`

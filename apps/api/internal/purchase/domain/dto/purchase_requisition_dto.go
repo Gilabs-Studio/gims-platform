@@ -1,5 +1,11 @@
 package dto
 
+type PurchaseRequisitionPaymentTermsMini struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Days *int   `json:"days,omitempty"`
+}
+
 type PurchaseRequisitionListResponse struct {
 	ID             string  `json:"id"`
 	Code           string  `json:"code"`
@@ -23,11 +29,7 @@ type PurchaseRequisitionListResponse struct {
 		Code string `json:"code"`
 	} `json:"supplier,omitempty"`
 
-	PaymentTerms *struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		Days int    `json:"days"`
-	} `json:"payment_terms,omitempty"`
+	PaymentTerms *PurchaseRequisitionPaymentTermsMini `json:"payment_terms,omitempty"`
 
 	BusinessUnit *struct {
 		ID   string `json:"id"`

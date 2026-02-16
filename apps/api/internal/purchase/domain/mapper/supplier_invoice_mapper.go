@@ -24,14 +24,15 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 	}
 
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
-	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" {
+	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" || si.PaymentTermsDaysSnapshot != nil {
 		id := ""
 		if si.PaymentTermsID != nil {
 			id = strings.TrimSpace(*si.PaymentTermsID)
 		}
-		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot)}
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot), Days: si.PaymentTermsDaysSnapshot}
 	} else if si.PaymentTerms != nil {
-		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name}
+		days := si.PaymentTerms.Days
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name, Days: &days}
 	}
 
 	return &dto.SupplierInvoiceListResponse{
@@ -75,14 +76,15 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 	}
 
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
-	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" {
+	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" || si.PaymentTermsDaysSnapshot != nil {
 		id := ""
 		if si.PaymentTermsID != nil {
 			id = strings.TrimSpace(*si.PaymentTermsID)
 		}
-		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot)}
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: id, Name: strings.TrimSpace(si.PaymentTermsNameSnapshot), Days: si.PaymentTermsDaysSnapshot}
 	} else if si.PaymentTerms != nil {
-		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name}
+		days := si.PaymentTerms.Days
+		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name, Days: &days}
 	}
 
 	items := make([]dto.SupplierInvoiceItemResponse, 0, len(si.Items))

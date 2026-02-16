@@ -404,6 +404,12 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			"supplier_code_snapshot": updatedDraft.SupplierCodeSnapshot,
 			"supplier_name_snapshot": updatedDraft.SupplierNameSnapshot,
 			"payment_terms_name_snapshot": updatedDraft.PaymentTermsNameSnapshot,
+			"payment_terms_days_snapshot": func() interface{} {
+				if updatedDraft.PaymentTermsDaysSnapshot == nil {
+					return nil
+				}
+				return *updatedDraft.PaymentTermsDaysSnapshot
+			}(),
 			"invoice_number":    req.InvoiceNumber,
 			"invoice_date":      req.InvoiceDate,
 			"due_date":          req.DueDate,

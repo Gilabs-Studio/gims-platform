@@ -60,6 +60,7 @@ type CashBankJournalResponse struct {
 	Type            financeModels.CashBankType `json:"type"`
 	Description     string                   `json:"description"`
 	BankAccountID   string                   `json:"bank_account_id"`
+	BankAccount     *BankAccountMini         `json:"bank_account,omitempty"`
 	TotalAmount     float64                  `json:"total_amount"`
 	Status          financeModels.CashBankStatus `json:"status"`
 	JournalEntryID  *string                  `json:"journal_entry_id"`

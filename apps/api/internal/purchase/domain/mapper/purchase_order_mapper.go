@@ -77,13 +77,15 @@ func (m *PurchaseOrderMapper) ToDetailResponse(po *models.PurchaseOrder) *dto.Pu
 	}
 
 	paymentTermsObj := any(po.PaymentTerms)
-	if strings.TrimSpace(po.PaymentTermsNameSnapshot) != "" {
+	if strings.TrimSpace(po.PaymentTermsNameSnapshot) != "" || po.PaymentTermsDaysSnapshot != nil {
 		paymentTermsObj = &struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
+			Days *int   `json:"days,omitempty"`
 		}{
 			ID:   safePtrString(po.PaymentTermsID),
 			Name: strings.TrimSpace(po.PaymentTermsNameSnapshot),
+			Days: po.PaymentTermsDaysSnapshot,
 		}
 	}
 

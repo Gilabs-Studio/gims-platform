@@ -17,6 +17,7 @@ type SupplierInvoicePurchaseOrderMini struct {
 type SupplierInvoicePaymentTermsMini struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	Days *int   `json:"days,omitempty"`
 }
 
 type SupplierInvoiceListResponse struct {

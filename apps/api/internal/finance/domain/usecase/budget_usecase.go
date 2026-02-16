@@ -90,9 +90,17 @@ func (uc *budgetUsecase) Create(ctx context.Context, req *dto.CreateBudgetReques
 
 	var createdID string
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Items))
 		for _, it := range req.Items {
-			if _, err := uc.coaRepo.FindByID(ctx, it.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(it.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, it := range req.Items {
+			if coaByID[strings.TrimSpace(it.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -109,9 +117,17 @@ func (uc *budgetUsecase) Create(ctx context.Context, req *dto.CreateBudgetReques
 			return err
 		}
 		for _, it := range req.Items {
+			coa := coaByID[strings.TrimSpace(it.ChartOfAccountID)]
+			codeSnap := ""
+			nameSnap := ""
+			typeSnap := ""
+			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.BudgetItem{
 				BudgetID:        b.ID,
 				ChartOfAccountID: strings.TrimSpace(it.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				Amount:          it.Amount,
 				Memo:            strings.TrimSpace(it.Memo),
 			}
@@ -175,9 +191,17 @@ func (uc *budgetUsecase) Update(ctx context.Context, id string, req *dto.UpdateB
 	}
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		coaIDs := make([]string, 0, len(req.Items))
 		for _, it := range req.Items {
-			if _, err := uc.coaRepo.FindByID(ctx, it.ChartOfAccountID); err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(it.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, it := range req.Items {
+			if coaByID[strings.TrimSpace(it.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
 		}
 
@@ -197,9 +221,17 @@ func (uc *budgetUsecase) Update(ctx context.Context, id string, req *dto.UpdateB
 			return err
 		}
 		for _, it := range req.Items {
+			coa := coaByID[strings.TrimSpace(it.ChartOfAccountID)]
+			codeSnap := ""
+			nameSnap := ""
+			typeSnap := ""
+			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.BudgetItem{
 				BudgetID:         id,
 				ChartOfAccountID: strings.TrimSpace(it.ChartOfAccountID),
+				ChartOfAccountCodeSnapshot: codeSnap,
+				ChartOfAccountNameSnapshot: nameSnap,
+				ChartOfAccountTypeSnapshot: typeSnap,
 				Amount:           it.Amount,
 				Memo:             strings.TrimSpace(it.Memo),
 			}

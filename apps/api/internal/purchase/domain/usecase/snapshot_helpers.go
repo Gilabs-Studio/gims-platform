@@ -19,6 +19,10 @@ func normalizePtr(v *string) string {
 	return strings.TrimSpace(*v)
 }
 
+func intPtr(v int) *int {
+	return &v
+}
+
 func snapshotPurchaseOrderHeader(ctx context.Context, db *gorm.DB, po *models.PurchaseOrder, existing *models.PurchaseOrder) error {
 	if po == nil || db == nil {
 		return nil
@@ -49,16 +53,19 @@ func snapshotPurchaseOrderHeader(ctx context.Context, db *gorm.DB, po *models.Pu
 	if existing != nil {
 		oldPTID = normalizePtr(existing.PaymentTermsID)
 	}
-	if existing != nil && newPTID != "" && newPTID == oldPTID {
+	if existing != nil && newPTID != "" && newPTID == oldPTID && (strings.TrimSpace(existing.PaymentTermsNameSnapshot) != "" || existing.PaymentTermsDaysSnapshot != nil) {
 		po.PaymentTermsNameSnapshot = existing.PaymentTermsNameSnapshot
+		po.PaymentTermsDaysSnapshot = existing.PaymentTermsDaysSnapshot
 	} else if newPTID != "" {
 		var pt coreModels.PaymentTerms
-		if err := db.WithContext(ctx).Select("id", "name").First(&pt, "id = ?", newPTID).Error; err != nil {
+		if err := db.WithContext(ctx).Select("id", "name", "days").First(&pt, "id = ?", newPTID).Error; err != nil {
 			return err
 		}
 		po.PaymentTermsNameSnapshot = strings.TrimSpace(pt.Name)
+		po.PaymentTermsDaysSnapshot = intPtr(pt.Days)
 	} else {
 		po.PaymentTermsNameSnapshot = ""
+		po.PaymentTermsDaysSnapshot = nil
 	}
 
 	newBUID := normalizePtr(po.BusinessUnitID)
@@ -143,6 +150,137 @@ func snapshotPurchaseOrderItems(ctx context.Context, db *gorm.DB, po *models.Pur
 		}
 		po.Items[i].ProductCodeSnapshot = strings.TrimSpace(p.Code)
 		po.Items[i].ProductNameSnapshot = strings.TrimSpace(p.Name)
+	}
+	return nil
+}
+
+func snapshotPurchaseRequisitionHeader(ctx context.Context, db *gorm.DB, pr *models.PurchaseRequisition, existing *models.PurchaseRequisition) error {
+	if pr == nil || db == nil {
+		return nil
+	}
+
+	newSupplierID := normalizePtr(pr.SupplierID)
+	oldSupplierID := ""
+	if existing != nil {
+		oldSupplierID = normalizePtr(existing.SupplierID)
+	}
+	if existing != nil && newSupplierID != "" && newSupplierID == oldSupplierID && (strings.TrimSpace(existing.SupplierCodeSnapshot) != "" || strings.TrimSpace(existing.SupplierNameSnapshot) != "") {
+		pr.SupplierCodeSnapshot = existing.SupplierCodeSnapshot
+		pr.SupplierNameSnapshot = existing.SupplierNameSnapshot
+	} else if newSupplierID != "" {
+		var sup supplierModels.Supplier
+		if err := db.WithContext(ctx).Select("id", "code", "name").First(&sup, "id = ?", newSupplierID).Error; err != nil {
+			return err
+		}
+		pr.SupplierCodeSnapshot = strings.TrimSpace(sup.Code)
+		pr.SupplierNameSnapshot = strings.TrimSpace(sup.Name)
+	} else {
+		pr.SupplierCodeSnapshot = ""
+		pr.SupplierNameSnapshot = ""
+	}
+
+	newPTID := normalizePtr(pr.PaymentTermsID)
+	oldPTID := ""
+	if existing != nil {
+		oldPTID = normalizePtr(existing.PaymentTermsID)
+	}
+	if existing != nil && newPTID != "" && newPTID == oldPTID && (strings.TrimSpace(existing.PaymentTermsNameSnapshot) != "" || existing.PaymentTermsDaysSnapshot != nil) {
+		pr.PaymentTermsNameSnapshot = existing.PaymentTermsNameSnapshot
+		pr.PaymentTermsDaysSnapshot = existing.PaymentTermsDaysSnapshot
+	} else if newPTID != "" {
+		var pt coreModels.PaymentTerms
+		if err := db.WithContext(ctx).Select("id", "name", "days").First(&pt, "id = ?", newPTID).Error; err != nil {
+			return err
+		}
+		pr.PaymentTermsNameSnapshot = strings.TrimSpace(pt.Name)
+		pr.PaymentTermsDaysSnapshot = intPtr(pt.Days)
+	} else {
+		pr.PaymentTermsNameSnapshot = ""
+		pr.PaymentTermsDaysSnapshot = nil
+	}
+
+	newBUID := normalizePtr(pr.BusinessUnitID)
+	oldBUID := ""
+	if existing != nil {
+		oldBUID = normalizePtr(existing.BusinessUnitID)
+	}
+	if existing != nil && newBUID != "" && newBUID == oldBUID && strings.TrimSpace(existing.BusinessUnitNameSnapshot) != "" {
+		pr.BusinessUnitNameSnapshot = existing.BusinessUnitNameSnapshot
+	} else if newBUID != "" {
+		var bu orgModels.BusinessUnit
+		if err := db.WithContext(ctx).Select("id", "name").First(&bu, "id = ?", newBUID).Error; err != nil {
+			return err
+		}
+		pr.BusinessUnitNameSnapshot = strings.TrimSpace(bu.Name)
+	} else {
+		pr.BusinessUnitNameSnapshot = ""
+	}
+
+	return nil
+}
+
+func snapshotPurchaseRequisitionItems(ctx context.Context, db *gorm.DB, pr *models.PurchaseRequisition, existing *models.PurchaseRequisition) error {
+	if pr == nil || db == nil {
+		return nil
+	}
+
+	existingByProductID := map[string]struct{ code, name string }{}
+	if existing != nil {
+		for _, it := range existing.Items {
+			pid := strings.TrimSpace(it.ProductID)
+			if pid == "" {
+				continue
+			}
+			if it.ProductCodeSnapshot != "" || it.ProductNameSnapshot != "" {
+				existingByProductID[pid] = struct{ code, name string }{code: it.ProductCodeSnapshot, name: it.ProductNameSnapshot}
+			}
+		}
+	}
+
+	productIDs := make([]string, 0, len(pr.Items))
+	needLookup := make(map[string]struct{})
+	for i := range pr.Items {
+		pid := strings.TrimSpace(pr.Items[i].ProductID)
+		if pid == "" {
+			continue
+		}
+		if v, ok := existingByProductID[pid]; ok {
+			pr.Items[i].ProductCodeSnapshot = v.code
+			pr.Items[i].ProductNameSnapshot = v.name
+			continue
+		}
+		if _, ok := needLookup[pid]; !ok {
+			needLookup[pid] = struct{}{}
+			productIDs = append(productIDs, pid)
+		}
+	}
+
+	if len(productIDs) == 0 {
+		return nil
+	}
+
+	var products []productModels.Product
+	if err := db.WithContext(ctx).Select("id", "code", "name").Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+		return err
+	}
+	prodByID := make(map[string]productModels.Product, len(products))
+	for _, p := range products {
+		prodByID[p.ID] = p
+	}
+	for i := range pr.Items {
+		pid := strings.TrimSpace(pr.Items[i].ProductID)
+		if pid == "" {
+			continue
+		}
+		if pr.Items[i].ProductCodeSnapshot != "" || pr.Items[i].ProductNameSnapshot != "" {
+			continue
+		}
+		p, ok := prodByID[pid]
+		if !ok {
+			continue
+		}
+		pr.Items[i].ProductCodeSnapshot = strings.TrimSpace(p.Code)
+		pr.Items[i].ProductNameSnapshot = strings.TrimSpace(p.Name)
 	}
 	return nil
 }
@@ -260,16 +398,19 @@ func snapshotSupplierInvoice(ctx context.Context, db *gorm.DB, si *models.Suppli
 	if existing != nil {
 		oldPTID = normalizePtr(existing.PaymentTermsID)
 	}
-	if existing != nil && newPTID != "" && newPTID == oldPTID {
+	if existing != nil && newPTID != "" && newPTID == oldPTID && (strings.TrimSpace(existing.PaymentTermsNameSnapshot) != "" || existing.PaymentTermsDaysSnapshot != nil) {
 		si.PaymentTermsNameSnapshot = existing.PaymentTermsNameSnapshot
+		si.PaymentTermsDaysSnapshot = existing.PaymentTermsDaysSnapshot
 	} else if newPTID != "" {
 		var pt coreModels.PaymentTerms
-		if err := db.WithContext(ctx).Select("id", "name").First(&pt, "id = ?", newPTID).Error; err != nil {
+		if err := db.WithContext(ctx).Select("id", "name", "days").First(&pt, "id = ?", newPTID).Error; err != nil {
 			return err
 		}
 		si.PaymentTermsNameSnapshot = strings.TrimSpace(pt.Name)
+		si.PaymentTermsDaysSnapshot = intPtr(pt.Days)
 	} else {
 		si.PaymentTermsNameSnapshot = ""
+		si.PaymentTermsDaysSnapshot = nil
 	}
 
 	existingByProductID := map[string]struct{ code, name string }{}

@@ -14,6 +14,10 @@ type NonTradePayable struct {
 	Description     string    `gorm:"type:text" json:"description"`
 
 	ChartOfAccountID string  `gorm:"type:uuid;not null;index" json:"chart_of_account_id"`
+	ChartOfAccount   *ChartOfAccount `gorm:"foreignKey:ChartOfAccountID" json:"chart_of_account,omitempty"`
+	ChartOfAccountCodeSnapshot string `gorm:"type:varchar(50)" json:"chart_of_account_code_snapshot,omitempty"`
+	ChartOfAccountNameSnapshot string `gorm:"type:varchar(200)" json:"chart_of_account_name_snapshot,omitempty"`
+	ChartOfAccountTypeSnapshot string `gorm:"type:varchar(20)" json:"chart_of_account_type_snapshot,omitempty"`
 	Amount           float64 `gorm:"type:numeric(18,2);not null" json:"amount"`
 
 	VendorName string     `gorm:"type:varchar(200)" json:"vendor_name"`

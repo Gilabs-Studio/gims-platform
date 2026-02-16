@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -10,7 +12,18 @@ import (
 
 type backfillStep struct {
 	name string
-	sql  string
+	path string
+}
+
+//go:embed sql/*.sql
+var sqlFS embed.FS
+
+func mustReadSQL(path string) string {
+	b, err := sqlFS.ReadFile(path)
+	if err != nil {
+		log.Fatalf("Failed to read SQL file (%s): %v", path, err)
+	}
+	return strings.TrimSpace(string(b))
 }
 
 func main() {
@@ -28,140 +41,97 @@ func main() {
 	steps := []backfillStep{
 		{
 			name: "purchase_orders.supplier snapshots",
-			sql: `
-UPDATE purchase_orders po
-SET supplier_code_snapshot = s.code,
-    supplier_name_snapshot = s.name
-FROM suppliers s
-WHERE po.supplier_id = s.id
-  AND (po.supplier_code_snapshot IS NULL OR btrim(po.supplier_code_snapshot) = ''
-    OR po.supplier_name_snapshot IS NULL OR btrim(po.supplier_name_snapshot) = '');
-`,
+			path: "sql/001_purchase_orders_supplier.sql",
 		},
 		{
-			name: "purchase_orders.payment_terms snapshot",
-			sql: `
-UPDATE purchase_orders po
-SET payment_terms_name_snapshot = pt.name
-FROM payment_terms pt
-WHERE po.payment_terms_id = pt.id
-  AND (po.payment_terms_name_snapshot IS NULL OR btrim(po.payment_terms_name_snapshot) = '');
-`,
+			name: "purchase_orders.payment_terms snapshots",
+			path: "sql/002_purchase_orders_payment_terms.sql",
 		},
 		{
 			name: "purchase_orders.business_unit snapshot",
-			sql: `
-UPDATE purchase_orders po
-SET business_unit_name_snapshot = bu.name
-FROM business_units bu
-WHERE po.business_unit_id = bu.id
-  AND (po.business_unit_name_snapshot IS NULL OR btrim(po.business_unit_name_snapshot) = '');
-`,
+			path: "sql/003_purchase_orders_business_unit.sql",
 		},
 		{
 			name: "purchase_order_items.product snapshots",
-			sql: `
-UPDATE purchase_order_items poi
-SET product_code_snapshot = p.code,
-    product_name_snapshot = p.name
-FROM products p
-WHERE poi.product_id = p.id
-  AND (poi.product_code_snapshot IS NULL OR btrim(poi.product_code_snapshot) = ''
-    OR poi.product_name_snapshot IS NULL OR btrim(poi.product_name_snapshot) = '');
-`,
+			path: "sql/004_purchase_order_items_product.sql",
 		},
 		{
 			name: "goods_receipts.supplier snapshots",
-			sql: `
-UPDATE goods_receipts gr
-SET supplier_code_snapshot = s.code,
-    supplier_name_snapshot = s.name
-FROM suppliers s
-WHERE gr.supplier_id = s.id
-  AND (gr.supplier_code_snapshot IS NULL OR btrim(gr.supplier_code_snapshot) = ''
-    OR gr.supplier_name_snapshot IS NULL OR btrim(gr.supplier_name_snapshot) = '');
-`,
+			path: "sql/005_goods_receipts_supplier.sql",
 		},
 		{
 			name: "goods_receipt_items.product snapshots",
-			sql: `
-UPDATE goods_receipt_items gri
-SET product_code_snapshot = p.code,
-    product_name_snapshot = p.name
-FROM products p
-WHERE gri.product_id = p.id
-  AND (gri.product_code_snapshot IS NULL OR btrim(gri.product_code_snapshot) = ''
-    OR gri.product_name_snapshot IS NULL OR btrim(gri.product_name_snapshot) = '');
-`,
+			path: "sql/006_goods_receipt_items_product.sql",
 		},
 		{
 			name: "supplier_invoices.supplier snapshots",
-			sql: `
-UPDATE supplier_invoices si
-SET supplier_code_snapshot = s.code,
-    supplier_name_snapshot = s.name
-FROM suppliers s
-WHERE si.supplier_id = s.id
-  AND (si.supplier_code_snapshot IS NULL OR btrim(si.supplier_code_snapshot) = ''
-    OR si.supplier_name_snapshot IS NULL OR btrim(si.supplier_name_snapshot) = '');
-`,
+			path: "sql/007_supplier_invoices_supplier.sql",
 		},
 		{
-			name: "supplier_invoices.payment_terms snapshot",
-			sql: `
-UPDATE supplier_invoices si
-SET payment_terms_name_snapshot = pt.name
-FROM payment_terms pt
-WHERE si.payment_terms_id = pt.id
-  AND (si.payment_terms_name_snapshot IS NULL OR btrim(si.payment_terms_name_snapshot) = '');
-`,
+			name: "supplier_invoices.payment_terms snapshots",
+			path: "sql/008_supplier_invoices_payment_terms.sql",
 		},
 		{
 			name: "supplier_invoice_items.product snapshots",
-			sql: `
-UPDATE supplier_invoice_items sii
-SET product_code_snapshot = p.code,
-    product_name_snapshot = p.name
-FROM products p
-WHERE sii.product_id = p.id
-  AND (sii.product_code_snapshot IS NULL OR btrim(sii.product_code_snapshot) = ''
-    OR sii.product_name_snapshot IS NULL OR btrim(sii.product_name_snapshot) = '');
-`,
+			path: "sql/009_supplier_invoice_items_product.sql",
 		},
 		{
 			name: "purchase_payments.bank_account snapshots",
-			sql: `
-UPDATE purchase_payments pp
-SET bank_account_name_snapshot = ba.name,
-    bank_account_number_snapshot = ba.account_number,
-    bank_account_holder_snapshot = ba.account_holder,
-    bank_account_currency_snapshot = ba.currency
-FROM bank_accounts ba
-WHERE pp.bank_account_id = ba.id
-  AND (pp.bank_account_name_snapshot IS NULL OR btrim(pp.bank_account_name_snapshot) = ''
-    OR pp.bank_account_number_snapshot IS NULL OR btrim(pp.bank_account_number_snapshot) = ''
-    OR pp.bank_account_holder_snapshot IS NULL OR btrim(pp.bank_account_holder_snapshot) = ''
-    OR pp.bank_account_currency_snapshot IS NULL OR btrim(pp.bank_account_currency_snapshot) = '');
-`,
+			path: "sql/010_purchase_payments_bank_account.sql",
+		},
+		{
+			name: "purchase_requisitions.supplier snapshots",
+			path: "sql/011_purchase_requisitions_supplier.sql",
+		},
+		{
+			name: "purchase_requisitions.payment_terms snapshots",
+			path: "sql/012_purchase_requisitions_payment_terms.sql",
+		},
+		{
+			name: "purchase_requisitions.business_unit snapshot",
+			path: "sql/013_purchase_requisitions_business_unit.sql",
+		},
+		{
+			name: "purchase_requisition_items.product snapshots",
+			path: "sql/014_purchase_requisition_items_product.sql",
 		},
 		{
 			name: "journal_lines.coa snapshots",
-			sql: `
-UPDATE journal_lines jl
-SET chart_of_account_code_snapshot = coa.code,
-    chart_of_account_name_snapshot = coa.name,
-    chart_of_account_type_snapshot = coa.type
-FROM chart_of_accounts coa
-WHERE jl.chart_of_account_id = coa.id
-  AND (jl.chart_of_account_code_snapshot IS NULL OR btrim(jl.chart_of_account_code_snapshot) = ''
-    OR jl.chart_of_account_name_snapshot IS NULL OR btrim(jl.chart_of_account_name_snapshot) = ''
-    OR jl.chart_of_account_type_snapshot IS NULL OR btrim(jl.chart_of_account_type_snapshot) = '');
-`,
+			path: "sql/015_journal_lines_coa.sql",
+		},
+		{
+			name: "cash_bank_journals.bank_account snapshots",
+			path: "sql/016_cash_bank_journals_bank_account.sql",
+		},
+		{
+			name: "cash_bank_journal_lines.coa snapshots",
+			path: "sql/017_cash_bank_journal_lines_coa.sql",
+		},
+		{
+			name: "payments.bank_account snapshots",
+			path: "sql/018_payments_bank_account.sql",
+		},
+		{
+			name: "payment_allocations.coa snapshots",
+			path: "sql/019_payment_allocations_coa.sql",
+		},
+		{
+			name: "budget_items.coa snapshots",
+			path: "sql/020_budget_items_coa.sql",
+		},
+		{
+			name: "non_trade_payables.coa snapshots",
+			path: "sql/021_non_trade_payables_coa.sql",
 		},
 	}
 
 	for _, step := range steps {
-		res := database.DB.Exec(step.sql)
+		sql := mustReadSQL(step.path)
+		if sql == "" {
+			log.Printf("Skip empty SQL (%s)", step.name)
+			continue
+		}
+		res := database.DB.Exec(sql)
 		if res.Error != nil {
 			log.Fatalf("Backfill failed (%s): %v", step.name, res.Error)
 		}

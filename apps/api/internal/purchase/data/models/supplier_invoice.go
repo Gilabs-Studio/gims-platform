@@ -42,6 +42,7 @@ type SupplierInvoice struct {
 	PaymentTermsID *string                `gorm:"type:uuid;index" json:"payment_terms_id"`
 	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
 	PaymentTermsNameSnapshot string       `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
+	PaymentTermsDaysSnapshot *int         `gorm:"type:int" json:"payment_terms_days_snapshot,omitempty"`
 
 	Code          string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	InvoiceNumber string `gorm:"type:varchar(100);index;not null" json:"invoice_number"`
