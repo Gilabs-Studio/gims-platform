@@ -227,6 +227,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	},
 
 	// System Errors
+	"NOT_IMPLEMENTED": {
+		HTTPStatus: http.StatusNotImplemented,
+		Message:    "This feature is not implemented yet",
+	},
 	"INTERNAL_SERVER_ERROR": {
 		HTTPStatus: http.StatusInternalServerError,
 		Message:    "An internal server error occurred. Our team has been notified",
@@ -242,6 +246,14 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"INVALID_REQUEST_BODY": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid request body",
+	},
+	"INVALID_PATH_PARAM": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid path parameter",
+	},
+	"INVALID_ID": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid ID",
 	},
 	"INVALID_QUERY_PARAM": {
 		HTTPStatus: http.StatusBadRequest,

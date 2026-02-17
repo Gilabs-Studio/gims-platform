@@ -12,7 +12,7 @@
 | 3-4 | Master Data | Employee, Supplier, Product |
 | 5-6 | Sales | Quotation, Order, Delivery |
 | 7 | Sales | Invoice, Visit, Target |
-| 8 | Purchase | Requisition → PO → Receipt → Invoice |
+| 8 | Purchase | Requisition → PO → Receipt → Invoice | 
 | 9 | Stock | Inventory, Movement, Opname |
 | 10-11 | Finance | COA, Journal, Payment, Budget |
 | 12 | Finance | Asset, Tax, Closing |

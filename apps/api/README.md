@@ -68,6 +68,17 @@ cd apps/api
 go run cmd/server/main.go
 ```
 
+### Maintenance Tools
+
+**Backfill snapshot (immutability transaksi Purchase + Finance)**
+
+Jika kolom snapshot baru sudah ada di DB (AutoMigrate), jalankan tool ini sekali untuk mengisi snapshot pada data transaksi yang sudah ada agar tampilan historis tidak berubah saat master data berubah:
+
+```bash
+cd apps/api
+go run ./cmd/tools/backfill-snapshots
+```
+
 ### Environment Variables
 
 Copy `.env.example` ke `.env` dan sesuaikan:

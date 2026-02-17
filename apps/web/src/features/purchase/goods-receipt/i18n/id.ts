@@ -1,0 +1,82 @@
+export const goodsReceiptId = {
+  title: "Penerimaan Barang",
+  description: "Catat penerimaan barang dari purchase order yang sudah disetujui.",
+  search: "Cari berdasarkan kode, catatan...",
+  toast: {
+    created: "Penerimaan barang berhasil dibuat",
+    updated: "Penerimaan barang berhasil diperbarui",
+    confirmed: "Penerimaan barang berhasil dikonfirmasi",
+    deleted: "Penerimaan barang berhasil dihapus",
+    failed: "Terjadi kesalahan",
+  },
+  detail: {
+    title: "Detail Penerimaan Barang",
+    failed: "Gagal memuat penerimaan barang",
+  },
+  auditTrail: {
+    title: "Jejak Audit",
+    empty: "Tidak ada data jejak audit",
+    columns: {
+      action: "Aksi",
+      user: "Pengguna",
+      time: "Waktu",
+      details: "Detail",
+    },
+    actions: {
+      create: "Buat",
+      update: "Ubah",
+      delete: "Hapus",
+      confirm: "Konfirmasi",
+      export: "Ekspor",
+      view: "Lihat",
+      auditTrail: "Jejak Audit",
+    },
+  },
+  form: {
+    createTitle: "Buat Penerimaan Barang",
+    editTitle: "Ubah Penerimaan Barang",
+    invalid: "Mohon periksa field wajib",
+  },
+  fields: {
+    purchaseOrder: "Purchase Order",
+    receiptDate: "Tanggal Terima",
+    supplier: "Supplier",
+    notes: "Catatan",
+    status: "Status",
+  },
+  items: {
+    title: "Item",
+    fields: {
+      product: "Produk",
+      orderedQty: "Dipesan",
+      receivedQty: "Diterima",
+      notes: "Catatan",
+    },
+  },
+  columns: {
+    code: "Kode",
+    purchaseOrder: "PO",
+    supplier: "Supplier",
+    receiptDate: "Tanggal Terima",
+    status: "Status",
+    createdAt: "Dibuat",
+  },
+  status: {
+    draft: "Draft",
+    confirmed: "Terkonfirmasi",
+  },
+  actions: {
+    create: "Buat",
+    export: "Ekspor",
+    view: "Lihat",
+    edit: "Ubah",
+    delete: "Hapus",
+    confirm: "Konfirmasi",
+    auditTrail: "Jejak Audit",
+    save: "Simpan",
+    cancel: "Batal",
+  },
+  placeholders: {
+    select: "Pilih...",
+  },
+};

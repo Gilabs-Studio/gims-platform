@@ -81,6 +81,7 @@ func SeedWorkSchedules() error {
 func SeedHolidays() error {
 	log.Println("Seeding holidays...")
 
+	// Indonesia National Holidays 2025-2026
 	holidays := []models.Holiday{
 		// 2025 National Holidays
 		{ID: "c0000001-0000-0000-0000-000000000001", Date: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), Name: "Tahun Baru Masehi", Type: models.HolidayTypeNational, Year: 2025, IsActive: true},

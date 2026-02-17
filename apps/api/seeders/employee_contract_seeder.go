@@ -12,11 +12,11 @@ import (
 
 // Employee Contract IDs (fixed UUIDs for consistency)
 const (
-	AdminContractID     = "c1111111-1111-1111-1111-111111111111"
-	ManagerContractID   = "c2222222-2222-2222-2222-222222222222"
-	StaffContractID     = "c3333333-3333-3333-3333-333333333333"
-	StaffProbationID    = "c4444444-4444-4444-4444-444444444444"
-	ManagerInternshipID = "c5555555-5555-5555-5555-555555555555"
+	AdminContractID       = "c1111111-1111-1111-1111-111111111111"
+	ManagerContractID     = "c2222222-2222-2222-2222-222222222222"
+	StaffContractID       = "c3333333-3333-3333-3333-333333333333"
+	ProbationContractID   = "c4444444-4444-4444-4444-444444444444"
+	InternshipContractID  = "c5555555-5555-5555-5555-555555555555"
 )
 
 // SeedEmployeeContracts seeds initial employee contract data
@@ -87,7 +87,7 @@ func SeedEmployeeContracts() error {
 			UpdatedBy:      nil,
 		},
 		{
-			ID:             uuid.MustParse(StaffProbationID),
+			ID:             uuid.MustParse(ProbationContractID),
 			EmployeeID:     staffEmpID,
 			ContractNumber: "CONTRACT-2025-004",
 			ContractType:   models.ContractTypeProbation,
@@ -103,7 +103,7 @@ func SeedEmployeeContracts() error {
 			UpdatedBy:      nil,
 		},
 		{
-			ID:             uuid.MustParse(ManagerInternshipID),
+			ID:             uuid.MustParse(InternshipContractID),
 			EmployeeID:     managerEmpID,
 			ContractNumber: "CONTRACT-2024-005",
 			ContractType:   models.ContractTypeInternship,
@@ -123,13 +123,13 @@ func SeedEmployeeContracts() error {
 	// Upsert contracts
 	// Clean up old contracts with random UUIDs that may conflict on contract_number
 	db.Exec("DELETE FROM employee_contracts WHERE contract_number IN (?, ?) AND id NOT IN (?, ?)",
-		"CONTRACT-2025-004", "CONTRACT-2024-005", StaffProbationID, ManagerInternshipID)
+		"CONTRACT-2025-004", "CONTRACT-2024-005", ProbationContractID, InternshipContractID)
 
 	for _, contract := range contracts {
 		result := db.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
+			Columns: []clause.Column{{Name: "contract_number"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"contract_number", "contract_type", "start_date", "end_date",
+				"employee_id", "contract_number", "contract_type", "start_date", "end_date",
 				"salary", "job_title", "department", "terms", "document_path",
 				"status", "updated_at",
 			}),

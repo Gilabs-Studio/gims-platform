@@ -72,6 +72,14 @@ func SeedAll() error {
 	if err := SeedLeaveType(); err != nil {
 		return err
 	}
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
+
+	// Purchase Requisition seeder (Sprint 8)
+	if err := SeedPurchaseRequisition(); err != nil {
+		return err
+	}
 
 	// Sales Estimation seeder (Sprint 8)
 	if err := SeedSalesEstimation(); err != nil {
@@ -95,6 +103,16 @@ func SeedAll() error {
 
 	// Customer Invoice seeder (Sprint 7)
 	if err := SeedCustomerInvoice(); err != nil {
+		return err
+	}
+
+	// Finance - Asset & Closing seeder (Sprint 12)
+	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
+	// Integration Flow seeder (Purchase → Stock → Sales → Finance)
+	if err := SeedIntegrationFlow(); err != nil {
 		return err
 	}
 
