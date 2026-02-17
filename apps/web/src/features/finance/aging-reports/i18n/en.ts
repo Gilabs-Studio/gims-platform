@@ -1,0 +1,25 @@
+export const financeAgingReportsEn = {
+  title: "Aging Reports",
+  description: "View AR/AP aging by due date.",
+  fields: {
+    asOfDate: "As of Date",
+    search: "Search",
+    code: "Code",
+    invoiceNumber: "Invoice Number",
+    invoiceDate: "Invoice Date",
+    dueDate: "Due Date",
+    daysPastDue: "Days Past Due",
+    remaining: "Remaining",
+    current: "Current",
+    days1To30: "1-30",
+    days31To60: "31-60",
+    days61To90: "61-90",
+    over90: ">90",
+    supplier: "Supplier",
+  },
+  sections: {
+    ar: "AR Aging",
+    ap: "AP Aging",
+  },
+  searchPlaceholder: "Search invoices...",
+};

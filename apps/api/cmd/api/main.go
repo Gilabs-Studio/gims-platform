@@ -59,6 +59,8 @@ import (
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
+	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
+	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 )
 
 func initInfrastructure() {
@@ -280,6 +282,9 @@ func main() {
 		// Core Master Data (Sprint 4 - PaymentTerms, CourierAgency, SOSource, LeaveType)
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
+		// Finance module (Sprint 10 - COA & Journals)
+		financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
@@ -295,6 +300,9 @@ func main() {
 
 		// Stock Opname module (Sprint 9)
 		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Purchase module (Sprint 8 - Purchase Requisitions)
+		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

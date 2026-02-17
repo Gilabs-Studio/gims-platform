@@ -1,0 +1,88 @@
+package repositories
+
+import (
+	"context"
+	"strings"
+
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"gorm.io/gorm"
+)
+
+type FinancialClosingListParams struct {
+	Limit   int
+	Offset  int
+	SortBy  string
+	SortDir string
+}
+
+type FinancialClosingRepository interface {
+	FindByID(ctx context.Context, id string) (*financeModels.FinancialClosing, error)
+	List(ctx context.Context, params FinancialClosingListParams) ([]financeModels.FinancialClosing, int64, error)
+	LatestApproved(ctx context.Context) (*financeModels.FinancialClosing, error)
+}
+
+type financialClosingRepository struct {
+	db *gorm.DB
+}
+
+func NewFinancialClosingRepository(db *gorm.DB) FinancialClosingRepository {
+	return &financialClosingRepository{db: db}
+}
+
+func (r *financialClosingRepository) FindByID(ctx context.Context, id string) (*financeModels.FinancialClosing, error) {
+	var item financeModels.FinancialClosing
+	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+var financialClosingAllowedSort = map[string]string{
+	"created_at":      "financial_closings.created_at",
+	"updated_at":      "financial_closings.updated_at",
+	"period_end_date": "financial_closings.period_end_date",
+	"status":          "financial_closings.status",
+}
+
+func (r *financialClosingRepository) List(ctx context.Context, params FinancialClosingListParams) ([]financeModels.FinancialClosing, int64, error) {
+	var items []financeModels.FinancialClosing
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&financeModels.FinancialClosing{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	sortCol := financialClosingAllowedSort[params.SortBy]
+	if sortCol == "" {
+		sortCol = financialClosingAllowedSort["period_end_date"]
+	}
+	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
+	if sortDir != "asc" {
+		sortDir = "desc"
+	}
+	q = q.Order(sortCol + " " + sortDir)
+
+	if params.Limit > 0 {
+		q = q.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		q = q.Offset(params.Offset)
+	}
+
+	if err := q.Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+}
+
+func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*financeModels.FinancialClosing, error) {
+	var item financeModels.FinancialClosing
+	if err := r.db.WithContext(ctx).
+		Where("status = ?", financeModels.FinancialClosingStatusApproved).
+		Order("period_end_date desc").
+		First(&item).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}

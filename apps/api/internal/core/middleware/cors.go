@@ -15,7 +15,9 @@ func CORSMiddleware() gin.HandlerFunc {
 	// Get allowed origins from environment variable or use defaults
 	allowedOrigins := []string{
 		"http://localhost:3000",
+		"http://127.0.0.1:3000",
 		"http://localhost:3001",
+		"http://127.0.0.1:3001",
 		// Production origins (add more if needed)
 		"https://api.gilabs.id",
 		"https://crm-demo.gilabs.id",

@@ -1,0 +1,82 @@
+export const goodsReceiptEn = {
+  title: "Goods Receipts",
+  description: "Record received items for approved purchase orders.",
+  search: "Search by code, notes...",
+  toast: {
+    created: "Goods receipt created",
+    updated: "Goods receipt updated",
+    confirmed: "Goods receipt confirmed",
+    deleted: "Goods receipt deleted",
+    failed: "Something went wrong",
+  },
+  detail: {
+    title: "Goods Receipt Detail",
+    failed: "Failed to load goods receipt",
+  },
+  auditTrail: {
+    title: "Audit Trail",
+    empty: "No audit trail entries",
+    columns: {
+      action: "Action",
+      user: "User",
+      time: "Time",
+      details: "Details",
+    },
+    actions: {
+      create: "Create",
+      update: "Update",
+      delete: "Delete",
+      confirm: "Confirm",
+      export: "Export",
+      view: "View",
+      auditTrail: "Audit Trail",
+    },
+  },
+  form: {
+    createTitle: "Create Goods Receipt",
+    editTitle: "Edit Goods Receipt",
+    invalid: "Please check required fields",
+  },
+  fields: {
+    purchaseOrder: "Purchase Order",
+    receiptDate: "Receipt Date",
+    supplier: "Supplier",
+    notes: "Notes",
+    status: "Status",
+  },
+  items: {
+    title: "Items",
+    fields: {
+      product: "Product",
+      orderedQty: "Ordered",
+      receivedQty: "Received",
+      notes: "Notes",
+    },
+  },
+  columns: {
+    code: "Code",
+    purchaseOrder: "PO",
+    supplier: "Supplier",
+    receiptDate: "Receipt Date",
+    status: "Status",
+    createdAt: "Created At",
+  },
+  status: {
+    draft: "Draft",
+    confirmed: "Confirmed",
+  },
+  actions: {
+    create: "Create",
+    export: "Export",
+    view: "View",
+    edit: "Edit",
+    delete: "Delete",
+    confirm: "Confirm",
+    auditTrail: "Audit Trail",
+    save: "Save",
+    cancel: "Cancel",
+  },
+  placeholders: {
+    select: "Select...",
+  },
+};

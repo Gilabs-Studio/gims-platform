@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -61,6 +62,13 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		c.Set("user_id", claims.UserID)
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
+
+		// Also set values on request context for infrastructure services (e.g. audit)
+		reqCtx := c.Request.Context()
+		reqCtx = context.WithValue(reqCtx, "user_id", claims.UserID)
+		reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
+		reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
+		c.Request = c.Request.WithContext(reqCtx)
 
 		// Load Permissions
 		perms, err := permService.GetPermissions(claims.Role)

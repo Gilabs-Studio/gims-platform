@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatError } from "./i18n/error-messages";
 import { useRateLimitStore } from "./stores/useRateLimitStore";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
 // Flag to track if we've validated rate limit state after app load
 let rateLimitValidated = false;

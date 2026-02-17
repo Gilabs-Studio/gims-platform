@@ -1,0 +1,191 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { MoreHorizontal, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useUserPermission } from "@/hooks/use-user-permission";
+
+import type { FinancialClosing } from "../types";
+import { useApproveFinanceClosing, useFinanceClosings } from "../hooks/use-finance-closing";
+import { ClosingForm } from "./closing-form";
+
+function formatDate(value: string) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toISOString().slice(0, 10);
+}
+
+export function ClosingList() {
+  const t = useTranslations("financeClosing");
+  const tCommon = useTranslations("common");
+
+  const canCreate = useUserPermission("financial_closing.create");
+  const canApprove = useUserPermission("financial_closing.approve");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [approving, setApproving] = useState<FinancialClosing | null>(null);
+
+  const { data, isLoading, isError } = useFinanceClosings({
+    page,
+    per_page: pageSize,
+    sort_by: "period_end_date",
+    sort_dir: "desc",
+  });
+
+  const rows = useMemo(() => data?.data ?? [], [data?.data]);
+  const pagination = data?.meta?.pagination;
+
+  const approveMutation = useApproveFinanceClosing();
+
+  if (isError) {
+    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
+        </div>
+
+        {canCreate && (
+          <Button onClick={() => setFormOpen(true)} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.create")}
+          </Button>
+        )}
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("fields.periodEndDate")}</TableHead>
+              <TableHead>{t("fields.status")}</TableHead>
+              <TableHead>{t("fields.approvedAt")}</TableHead>
+              <TableHead>{t("fields.notes")}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={5}>
+                    <Skeleton className="h-10 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  -
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{formatDate(item.period_end_date)}</TableCell>
+                  <TableCell>{t(`status.${item.status}`)}</TableCell>
+                  <TableCell>{item.approved_at ? formatDate(item.approved_at) : "-"}</TableCell>
+                  <TableCell className="max-w-[520px] truncate">{item.notes || "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="cursor-pointer">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {canApprove && item.status === "draft" && (
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => setApproving(item)}>
+                            {t("actions.approve")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <DataTablePagination
+        pageIndex={pagination?.page ?? page}
+        pageSize={pagination?.per_page ?? pageSize}
+        rowCount={pagination?.total ?? rows.length}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          setPage(1);
+        }}
+      />
+
+      <ClosingForm open={formOpen} onOpenChange={setFormOpen} />
+
+      <DialogApprove
+        open={!!approving}
+        onOpenChange={(open) => {
+          if (!open) setApproving(null);
+        }}
+        onConfirm={async () => {
+          const id = approving?.id ?? "";
+          if (!id) return;
+          try {
+            await approveMutation.mutateAsync(id);
+            toast.success(t("toast.approved"));
+            setApproving(null);
+          } catch {
+            toast.error(t("toast.failed"));
+          }
+        }}
+        isLoading={approveMutation.isPending}
+      />
+    </div>
+  );
+}
+
+function DialogApprove({
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
+  isLoading: boolean;
+}) {
+  const t = useTranslations("financeClosing");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("actions.approve")}</DialogTitle>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
+            {t("form.cancel")}
+          </Button>
+          <Button type="button" onClick={onConfirm} className="cursor-pointer" disabled={isLoading}>
+            {t("actions.approve")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

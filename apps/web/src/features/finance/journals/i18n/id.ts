@@ -1,0 +1,44 @@
+export const financeJournalsId = {
+  title: "Journal Entries",
+  description: "Kelola jurnal.",
+  search: "Cari deskripsi...",
+  toast: {
+    created: "Jurnal dibuat",
+    updated: "Jurnal diperbarui",
+    deleted: "Jurnal dihapus",
+    posted: "Jurnal diposting",
+    failed: "Terjadi kesalahan",
+    unbalanced: "Jurnal harus seimbang (debit = kredit)",
+  },
+  actions: {
+    create: "Buat",
+    edit: "Ubah",
+    delete: "Hapus",
+    post: "Posting",
+    view: "Lihat",
+    trialBalance: "Neraca Saldo",
+  },
+  fields: {
+    entryDate: "Tanggal",
+    description: "Deskripsi",
+    status: "Status",
+    debit: "Debit",
+    credit: "Kredit",
+    memo: "Memo",
+    account: "Akun",
+  },
+  status: {
+    draft: "Draft",
+    posted: "Posted",
+  },
+  form: {
+    createTitle: "Buat Jurnal",
+    editTitle: "Ubah Jurnal",
+    submit: "Simpan",
+    cancel: "Batal",
+    addLine: "Tambah baris",
+  },
+  placeholders: {
+    select: "Pilih...",
+  },
+};
