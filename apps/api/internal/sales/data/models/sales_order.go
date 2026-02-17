@@ -108,6 +108,10 @@ type SalesOrderItem struct {
 	Discount         float64   `gorm:"type:decimal(15,2);default:0" json:"discount"` // Discount amount, not percentage
 	Subtotal         float64   `gorm:"type:decimal(15,2);not null" json:"subtotal"`
 	
+	// Snapshot fields
+	ProductCode      string    `gorm:"type:varchar(50)" json:"product_code"`
+	ProductName      string    `gorm:"type:varchar(255)" json:"product_name"`
+	
 	// Stock reservation tracking
 	ReservedQuantity float64   `gorm:"type:decimal(15,3);default:0" json:"reserved_quantity"`
 	DeliveredQuantity float64 `gorm:"type:decimal(15,3);default:0" json:"delivered_quantity"`

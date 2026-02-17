@@ -150,6 +150,23 @@ func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem) dto.SalesOrderItemR
 			SellingPrice: m.Product.SellingPrice,
 			ImageURL:     m.Product.ImageURL,
 		}
+	} else if m.ProductCode != "" || m.ProductName != "" {
+		// Fallback to snapshot if product relation is missing
+		response.Product = &dto.ProductResponse{
+			ID:   m.ProductID,
+			Code: m.ProductCode,
+			Name: m.ProductName,
+		}
+	}
+
+	// Override with snapshot data if available
+	if response.Product != nil {
+		if m.ProductCode != "" {
+			response.Product.Code = m.ProductCode
+		}
+		if m.ProductName != "" {
+			response.Product.Name = m.ProductName
+		}
 	}
 
 	return response

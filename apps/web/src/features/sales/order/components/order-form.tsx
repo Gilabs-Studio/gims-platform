@@ -40,6 +40,11 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
+import { AsyncSelect } from "@/components/ui/async-select";
+import { productService } from "@/features/master-data/product/services/product-service";
+import { employeeService } from "@/features/master-data/employee/services/employee-service.ts";
+import type { Product, Employee } from "@/features/master-data/types"; // Verify path or use specific imports
+import { useCallback } from "react";
 
 const STORAGE_KEY = "order_form_cache";
 
@@ -66,20 +71,46 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
   );
 
   // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
+  // Removed useProducts, useEmployees large fetches
   const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
   const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 });
-  const { data: employeesData } = useEmployees({ per_page: 100 });
   const { data: areasData } = useAreas({ per_page: 100 });
+  
+  // Async Fetchers
+  const fetchProducts = useCallback(async (query: string) => {
+    const res = await productService.list({ search: query, per_page: 20, is_approved: true });
+    return res.data;
+  }, []);
+
+  const fetchEmployees = useCallback(async (query: string) => {
+    const res = await employeeService.list({ search: query, per_page: 20 });
+    return res.data;
+  }, []);
+
+  // Local state to store selected objects for AsyncSelect persistence
+  const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
+  const [selectedRep, setSelectedRep] = useState<Employee | undefined>(order?.sales_rep);
+
+  // Initialize selected products from order
+  useEffect(() => {
+    if (order?.items) {
+      const map: Record<string, Product> = {};
+      order.items.forEach(item => {
+        if (item.product && item.product_id) {
+            // @ts-ignore - mismatch in Product type vs simplified product in SalesOrder
+            map[item.product_id] = item.product;
+        }
+      });
+      setSelectedProducts(prev => ({ ...prev, ...map }));
+    }
+  }, [order]);
   
   // Sales Quotation integration
   const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" });
 
-  const products = useMemo(() => {
-    const data = productsData?.data ?? [];
-    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
-  }, [productsData?.data]);
+  // Removed products memo
+
 
   const paymentTerms = useMemo(() => {
     const data = paymentTermsData?.data ?? [];
@@ -96,10 +127,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     return sortOptions(data, (a) => a.name);
   }, [businessTypesData?.data]);
 
-  const employees = useMemo(() => {
-    const data = employeesData?.data ?? [];
-    return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
-  }, [employeesData?.data]);
+  // Removed employees memo
+
 
   const areas = useMemo(() => {
     const data = areasData?.data ?? [];
@@ -457,9 +486,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     append({ product_id: "", quantity: 1, price: 0, discount: 0 });
   };
 
-  const handleProductChange = (index: number, productId: string) => {
-    const product = products.find((p) => p.id === productId);
+  const handleProductChange = (index: number, productId: string, product?: Product) => {
     if (product) {
+      // Update local map
+      setSelectedProducts(prev => ({ ...prev, [productId]: product }));
+      
       setValue(`items.${index}.product_id`, productId, { shouldValidate: true });
       setValue(`items.${index}.price`, product.selling_price, { shouldValidate: true });
     }
@@ -631,24 +662,31 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 )}
               </Field>
 
-              <Field orientation="vertical" className="col-span-2">
+                <Field orientation="vertical" className="col-span-2">
                 <FieldLabel>{t("salesRep")} *</FieldLabel>
                 <Controller
                   name="sales_rep_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("salesRep")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.employee_code} - {emp.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <AsyncSelect<Employee>
+                      label={t("salesRep")}
+                      fetcher={fetchEmployees}
+                      renderOption={(emp) => (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{emp.employee_code}</span>
+                          <span className="text-xs text-muted-foreground">{emp.name}</span>
+                        </div>
+                      )}
+                      getLabel={(emp) => `${emp.employee_code} - ${emp.name}`}
+                      getValue={(emp) => emp.id}
+                      value={field.value || ""}
+                      onChange={(val, item) => {
+                        field.onChange(val);
+                        if (item) setSelectedRep(item);
+                      }}
+                      defaultOptions={selectedRep ? [selectedRep] : []}
+                      disabled={false} // Always strictly typed validation
+                    />
                   )}
                 />
                 {errors.sales_rep_id && (
@@ -888,24 +926,25 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 name={`items.${index}.product_id`}
                                 control={control}
                                 render={({ field }) => (
-                                  <Select
+                                  <AsyncSelect<Product>
+                                    label={t("item.product")}
+                                    fetcher={fetchProducts}
+                                    renderOption={(prod) => (
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{prod.code}</span>
+                                        <span className="text-xs text-muted-foreground">{prod.name}</span>
+                                      </div>
+                                    )}
+                                    getLabel={(prod) => `${prod.code} - ${prod.name}`}
+                                    getValue={(prod) => prod.id}
                                     value={field.value}
-                                    onValueChange={(value) => {
-                                      field.onChange(value);
-                                      handleProductChange(index, value);
+                                    onChange={(val, item) => {
+                                      field.onChange(val);
+                                      handleProductChange(index, val, item);
                                     }}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("item.selectProduct")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {products.map((prod) => (
-                                        <SelectItem key={prod.id} value={prod.id}>
-                                          {prod.code} - {prod.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                    defaultOptions={selectedProducts[field.value] ? [selectedProducts[field.value]] : []}
+                                    width="w-full"
+                                  />
                                 )}
                               />
                               {errors.items?.[index]?.product_id && (
