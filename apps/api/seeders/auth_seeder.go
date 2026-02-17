@@ -53,13 +53,18 @@ func SeedUsers() error {
 		return err
 	}
 
+	var defaultEmail = os.Getenv("SEED_DEFAULT_EMAIL")
+	if defaultEmail == "" {
+		defaultEmail = "admin@example.com"
+	}
+
 	users := []user.User{
 		{
 			ID:        AdminUserID,
-			Email:     "admin@example.com",
+			Email:     defaultEmail,
 			Password:  string(hashedPassword),
 			Name:      "Admin User",
-			AvatarURL: "https://api.dicebear.com/7.x/lorelei/svg?seed=admin@example.com",
+			AvatarURL: fmt.Sprintf("https://api.dicebear.com/7.x/lorelei/svg?seed=%s", defaultEmail),
 			RoleID:    AdminRoleID,
 			Status:    "active",
 		},

@@ -46,8 +46,13 @@ func SeedIntegrationFlow() error {
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Admin user
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
 		var adminUser userModels.User
-		if err := tx.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			if err := tx.First(&adminUser).Error; err != nil {
 				return err
 			}
@@ -547,8 +552,13 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 		}
 
 		// Best-effort created_by: admin if present
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
 		var adminUser userModels.User
-		if err := tx.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			_ = tx.First(&adminUser).Error
 		}
 		adminID := adminUser.ID
