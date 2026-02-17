@@ -358,19 +358,85 @@ const onSubmit = async (data) => {
 
 ## Phase 4: Cross-Cutting Concerns (10 mins)
 
-### 4.1 Documentation
+### 4.1 Documentation Review
 
 #### Code Comments
 
-- [ ] Complex logic explained (WHY, not WHAT)?
-- [ ] TODO comments for future work?
-- [ ] No commented-out code?
+- [ ] **WHY Comments**: Complex logic explained (WHY, not WHAT)?
+- [ ] **Function Documentation**: Exported functions have GoDoc/JSDoc?
+- [ ] **TODO Comments**: Marked for future work with issue references?
+- [ ] **No Dead Code**: No commented-out code?
+- [ ] **Business Logic**: Rules explained with context?
 
-#### Documentation Files
+**Example Good Comment:**
 
-- [ ] docs/features/<feature>.md updated?
-- [ ] API changes documented?
-- [ ] Postman collection updated?
+```go
+// ValidateOwnership checks if the requesting user has permission to access this entity.
+// This prevents IDOR (Insecure Direct Object Reference) attacks by ensuring
+// users can only access resources they own or have explicit permission to access.
+// See: docs/security/idor-prevention.md
+func (u *Usecase) ValidateOwnership(ctx context.Context, entityID, userID uuid.UUID) error
+```
+
+#### Feature Documentation
+
+**Required Documentation Files:**
+
+1. **Feature Documentation** (for new features)
+   - [ ] `docs/features/<domain>_<feature>.md` created/updated
+   - [ ] Overview and business value explained
+   - [ ] Technical architecture documented
+   - [ ] API endpoints documented
+   - [ ] Database schema documented
+   - [ ] Testing scenarios included
+
+2. **API Documentation**
+   - [ ] `docs/api-standart/` updated if patterns changed
+   - [ ] `docs/postman/postman.json` updated with new endpoints
+   - [ ] Request/response examples included
+   - [ ] Error codes documented
+   - [ ] Authentication requirements specified
+
+3. **Database Documentation**
+   - [ ] `docs/erp-database-relations.mmd` updated if schema changed
+   - [ ] New entities added to ERD
+   - [ ] Relationships documented
+   - [ ] Indexes and constraints noted
+
+4. **Sprint Documentation**
+   - [ ] `docs/erp-sprint-planning.md` updated with progress
+   - [ ] Feature marked as complete
+   - [ ] Any blockers or notes added
+
+#### Documentation Quality Checklist
+
+**Completeness:**
+
+- [ ] All new features have documentation
+- [ ] All API changes are documented
+- [ ] All database changes are documented
+- [ ] Business rules are documented
+
+**Accuracy:**
+
+- [ ] Documentation matches implementation
+- [ ] Code examples are correct and runnable
+- [ ] File paths are accurate
+- [ ] API endpoints are correct
+
+**Clarity:**
+
+- [ ] Written for target audience
+- [ ] Technical terms explained
+- [ ] Examples provided where helpful
+- [ ] Formatting is consistent
+
+**Maintainability:**
+
+- [ ] Easy to update when code changes
+- [ ] Version controlled with code
+- [ ] Links to related docs work
+- [ ] Change log maintained
 
 ### 4.2 Testing
 

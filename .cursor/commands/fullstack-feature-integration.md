@@ -676,11 +676,652 @@ const validRoutes = [
 - [ ] Route registered in route-validator.ts
 - [ ] All user-facing strings translated
 
-### Documentation
+---
 
-- [ ] Update docs/features/{feature}.md
-- [ ] Update docs/erp-sprint-planning.md progress
-- [ ] Update Postman collection
+## Phase 5: Documentation (20 mins)
+
+### 5.1 Create Comprehensive Feature Documentation
+
+**Location**: `docs/features/<domain>_<feature>.md`
+
+Create documentation following industry standards:
+
+```markdown
+# <Feature Name> Feature Documentation
+
+## 1. Executive Summary
+
+**Version**: 1.0  
+**Last Updated**: 2024-01-15  
+**Domain**: <Domain> (HRD/Sales/Purchase/etc.)  
+**Sprint**: <Sprint Number>  
+**Status**: ✅ Complete
+
+### Business Value
+
+Brief description of the business value this feature provides to the organization.
+
+### Overview
+
+Comprehensive description of what this feature does and how it fits into the ERP system.
+
+---
+
+## 2. Functional Requirements
+
+### 2.1 Features
+
+- ✅ **Feature 1**: Description
+- ✅ **Feature 2**: Description
+- ✅ **Feature 3**: Description
+
+### 2.2 User Stories
+
+1. **As a** [role], **I want** [goal], **so that** [benefit]
+2. **As a** [role], **I want** [goal], **so that** [benefit]
+
+### 2.3 Business Rules
+
+1. **Rule 1**: Description
+   - Validation: <validation logic>
+   - Error Message: "<error message>"
+2. **Rule 2**: Description
+   - Validation: <validation logic>
+   - Error Message: "<error message>"
+
+### 2.4 Workflow
+```
+
+[Start] → [Step 1] → [Step 2] → [Step 3] → [End]
+↓ ↓ ↓
+[Alt 1] [Alt 2] [Alt 3]
+
+````
+
+---
+
+## 3. Technical Implementation
+
+### 3.1 Architecture
+- **Pattern**: Vertical Slice / Feature-Based
+- **Backend**: Clean Architecture (Repository → Usecase → Handler)
+- **Frontend**: Feature-Based (Types → Services → Hooks → Components)
+- **State Management**: TanStack Query + Zustand
+
+### 3.2 Database Schema
+
+#### Table: `<table_name>`
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PK | Primary key |
+| name | VARCHAR(100) | NOT NULL, INDEX | Entity name |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'ACTIVE' | Status |
+| created_at | TIMESTAMP | NOT NULL | Creation time |
+| updated_at | TIMESTAMP | NOT NULL | Update time |
+| deleted_at | TIMESTAMP | INDEX | Soft delete |
+| created_by | UUID | FK | Created by user |
+| updated_by | UUID | FK | Updated by user |
+
+#### Indexes
+- `idx_name` on `name` (for search)
+- `idx_status` on `status` (for filtering)
+- `idx_deleted_at` on `deleted_at` (for soft delete)
+
+#### Relationships
+- **Has Many**: RelatedEntity (1:N)
+- **Belongs To**: ParentEntity (N:1)
+
+### 3.3 API Specification
+
+#### Base URL
+`/api/v1/<entities>`
+
+#### Endpoints
+
+##### 1. List Entities
+**GET** `/api/v1/<entities>`
+
+**Query Parameters**:
+| Param | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| page | int | No | 1 | Page number |
+| per_page | int | No | 20 | Items per page (max 100) |
+| search | string | No | - | Search by name |
+| status | string | No | - | Filter by status |
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": [...],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "per_page": 20,
+      "total": 100,
+      "total_pages": 5
+    }
+  },
+  "timestamp": "2024-01-15T10:30:45+07:00",
+  "request_id": "req_abc123"
+}
+````
+
+##### 2. Get Entity by ID
+
+**GET** `/api/v1/<entities>/{id}`
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "timestamp": "2024-01-15T10:30:45+07:00",
+  "request_id": "req_def456"
+}
+```
+
+**Error Response** (404 Not Found):
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ENTITY_NOT_FOUND",
+    "message": "Entity not found"
+  }
+}
+```
+
+##### 3. Create Entity
+
+**POST** `/api/v1/<entities>`
+
+**Request Body**:
+
+```json
+{
+  "name": "Entity Name",
+  "description": "Description",
+  "status": "ACTIVE"
+}
+```
+
+**Validation Rules**:
+
+- `name`: required, min 3, max 100
+- `description`: optional, max 500
+- `status`: required, enum ['ACTIVE', 'INACTIVE']
+
+##### 4. Update Entity
+
+**PUT** `/api/v1/<entities>/{id}`
+
+##### 5. Delete Entity
+
+**DELETE** `/api/v1/<entities>/{id}`
+
+**Note**: Soft delete, record remains in database with deleted_at timestamp
+
+##### 6. Get Form Data
+
+**GET** `/api/v1/<entities>/form-data`
+
+**Purpose**: Get dropdown data for create/edit forms
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "statuses": [
+      { "value": "ACTIVE", "label": "Active" },
+      { "value": "INACTIVE", "label": "Inactive" }
+    ],
+    "related_entities": [{ "id": "uuid", "name": "Name" }]
+  }
+}
+```
+
+#### Error Codes
+
+| Code             | HTTP Status | Description               |
+| ---------------- | ----------- | ------------------------- |
+| VALIDATION_ERROR | 400         | Request validation failed |
+| ENTITY_NOT_FOUND | 404         | Entity does not exist     |
+| UNAUTHORIZED     | 401         | Authentication required   |
+| FORBIDDEN        | 403         | Insufficient permissions  |
+
+### 3.4 Frontend Implementation
+
+#### Folder Structure
+
+```
+features/<feature>/
+├── types/
+│   └── index.d.ts          # TypeScript interfaces
+├── schemas/
+│   └── <feature>.schema.ts # Zod validation schemas
+├── services/
+│   └── <feature>-service.ts # API service layer
+├── hooks/
+│   └── use-<feature>.ts    # React Query hooks
+├── components/
+│   ├── <feature>-list.tsx  # List view
+│   ├── <feature>-form.tsx  # Create/Edit form
+│   ├── <feature>-detail-modal.tsx # Detail view
+│   └── index.ts            # Exports
+└── i18n/
+    ├── en.ts               # English translations
+    └── id.ts               # Indonesian translations
+```
+
+#### State Management
+
+- **Server State**: TanStack Query
+  - Query keys: `['entities']`, `['entity', id]`
+  - Stale time: 5 minutes
+  - Cache invalidation on mutations
+- **Client State**: Zustand (if needed)
+  - UI state (modals, filters)
+
+#### Routes
+
+| Route                 | Component       | Permission       |
+| --------------------- | --------------- | ---------------- |
+| `/<feature>`          | `<Feature>List` | <feature>.read   |
+| `/<feature>/new`      | `<Feature>Form` | <feature>.create |
+| `/<feature>/:id/edit` | `<Feature>Form` | <feature>.update |
+
+#### Component API
+
+**<Feature>List**
+
+- Props: None
+- Features: Pagination, Search, Filter, Sort
+- State: TanStack Query
+
+**<Feature>Form**
+
+- Props:
+  - `open: boolean`
+  - `onOpenChange: (open: boolean) => void`
+  - `entityId?: string`
+- Validation: Zod schema
+- Submit: React Hook Form
+
+### 3.5 Security Considerations
+
+- ✅ Input validation on all endpoints
+- ✅ Authorization checks (permission-based)
+- ✅ IDOR prevention (ownership validation)
+- ✅ SQL injection prevention (parameterized queries)
+- ✅ XSS prevention (input sanitization)
+- ✅ CSRF protection (double-submit cookie)
+
+### 3.6 Performance Optimizations
+
+- Database indexes on frequently queried columns
+- GIN indexes for text search (using pg_trgm)
+- Pagination (max 100 per page)
+- Preload() for relationships (avoid N+1)
+- Query caching with TanStack Query
+- Optimistic updates
+
+---
+
+## 4. Testing
+
+### 4.1 Test Strategy
+
+- **Unit Tests**: Business logic, validation, mapping
+- **Integration Tests**: API endpoints, database operations
+- **E2E Tests**: Complete user workflows
+- **Coverage Target**: 80%+ for usecase, 60%+ for handlers
+
+### 4.2 Backend Tests
+
+#### Unit Tests
+
+```bash
+# Run usecase tests
+go test ./internal/<domain>/domain/usecase/... -v
+
+# Run repository tests
+go test ./internal/<domain>/data/repositories/... -v
+
+# Run with coverage
+go test -cover ./internal/<domain>/...
+```
+
+#### Test Cases
+
+1. **Create Entity**
+   - ✅ Valid data creates entity
+   - ✅ Empty name returns validation error
+   - ✅ Duplicate name returns conflict error
+
+2. **Update Entity**
+   - ✅ Valid update succeeds
+   - ✅ Non-existent ID returns 404
+   - ✅ Unauthorized user returns 403
+
+3. **Delete Entity**
+   - ✅ Soft deletes entity
+   - ✅ Non-existent ID returns 404
+   - ✅ Cascading effects (if applicable)
+
+### 4.3 Frontend Tests
+
+#### Unit Tests
+
+```bash
+# Run hook tests
+npx pnpm test use-<feature>.test.ts
+
+# Run component tests
+npx pnpm test <feature>-list.test.tsx
+
+# Run with coverage
+npx pnpm test --coverage
+```
+
+#### Test Cases
+
+1. **List Component**
+   - ✅ Displays loading state
+   - ✅ Displays empty state
+   - ✅ Displays error state
+   - ✅ Pagination works
+   - ✅ Search filters results
+
+2. **Form Component**
+   - ✅ Validates required fields
+   - ✅ Shows validation errors
+   - ✅ Submits successfully
+   - ✅ Handles API errors
+
+### 4.4 E2E Tests
+
+```bash
+# Run E2E tests
+npx playwright test <feature>.spec.ts
+```
+
+#### Test Scenarios
+
+1. Complete CRUD workflow
+2. Form validation
+3. Error handling
+4. Permission-based access
+
+### 4.5 Manual Testing Checklist
+
+- [ ] Create entity with valid data
+- [ ] Create entity with invalid data (verify validation)
+- [ ] Edit entity and verify changes
+- [ ] Delete entity and verify soft delete
+- [ ] Test pagination
+- [ ] Test search functionality
+- [ ] Test filter functionality
+- [ ] Verify responsive design
+- [ ] Check accessibility (keyboard navigation)
+- [ ] Test in both languages (en/id)
+
+---
+
+## 5. Deployment
+
+### 5.1 Database Migration
+
+```sql
+-- Migration script
+CREATE TABLE IF NOT EXISTS <table_name> (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    ...
+);
+
+CREATE INDEX idx_name ON <table_name>(name);
+```
+
+### 5.2 Environment Variables
+
+| Variable       | Required | Default | Description                  |
+| -------------- | -------- | ------- | ---------------------------- |
+| `API_BASE_URL` | Yes      | -       | Backend API URL              |
+| `DATABASE_URL` | Yes      | -       | PostgreSQL connection string |
+
+### 5.3 Rollback Plan
+
+1. Database: Keep backup before migration
+2. API: Deploy behind feature flag
+3. Frontend: Version rollback capability
+
+---
+
+## 6. Dependencies
+
+### 6.1 Internal Dependencies
+
+- **Required Modules**:
+  - User Module (for created_by/updated_by)
+  - Department Module (if applicable)
+- **Dependent Modules**:
+  - Report Module (uses this data)
+
+### 6.2 External Dependencies
+
+- PostgreSQL 15+
+- Go 1.21+
+- Node.js 20+
+
+---
+
+## 7. Monitoring & Logging
+
+### 7.1 Key Metrics
+
+- API response time (p95 < 200ms)
+- Database query time (p95 < 50ms)
+- Error rate (< 0.1%)
+- Cache hit rate (> 80%)
+
+### 7.2 Logging
+
+```go
+// Key log points
+- Entity created: {id, user, timestamp}
+- Entity updated: {id, changes, user, timestamp}
+- Entity deleted: {id, user, timestamp}
+- Validation errors: {field, value, error}
+```
+
+---
+
+## 8. Troubleshooting
+
+### 8.1 Common Issues
+
+**Issue**: Entity not appearing in list  
+**Cause**: Soft deleted or wrong status filter  
+**Solution**: Check deleted_at column, verify status filter
+
+**Issue**: Form validation fails  
+**Cause**: Frontend and backend validation mismatch  
+**Solution**: Ensure Zod schema matches DTO validation
+
+### 8.2 Debug Commands
+
+```bash
+# Check database
+docker exec -it postgres psql -U postgres -d gims_db -c "SELECT * FROM <table> WHERE id = '...'"
+
+# Check API logs
+docker logs gims-api | grep ERROR
+
+# Test endpoint
+curl -X GET http://localhost:8080/api/v1/<entities>
+```
+
+---
+
+## 9. Related Documentation
+
+### Internal Docs
+
+- [API Standards](../api-standart/api-error-codes.md)
+- [Database Relations](../erp-database-relations.mmd)
+- [Sprint Planning](../erp-sprint-planning.md)
+- [Security Guidelines](../TEMPLATE_SECURITY_PERFORMANCE_PLAN.md)
+- [Testing Guide](../testing-guide.md)
+
+### External References
+
+- [Gin Framework](https://gin-gonic.com/)
+- [GORM Documentation](https://gorm.io/)
+- [Next.js Documentation](https://nextjs.org/)
+- [TanStack Query](https://tanstack.com/query/latest)
+
+---
+
+## 10. Change Log
+
+| Date       | Version | Author  | Changes                    |
+| ---------- | ------- | ------- | -------------------------- |
+| 2024-01-15 | 1.0     | @author | Initial implementation     |
+| 2024-01-16 | 1.1     | @author | Added search functionality |
+
+---
+
+## 11. Approval
+
+| Role          | Name | Signature | Date |
+| ------------- | ---- | --------- | ---- |
+| Tech Lead     |      |           |      |
+| Product Owner |      |           |      |
+| QA Lead       |      |           |      |
+
+````
+
+### 5.2 Update Supporting Documentation
+
+#### A. Update Sprint Planning
+**File**: `docs/erp-sprint-planning.md`
+- Mark feature as complete
+- Update progress percentage
+- Add any notes or issues encountered
+- Update remaining tasks estimate
+
+#### B. Update API Documentation
+**File**: `docs/postman/postman.json`
+- Add all endpoints
+- Include request examples
+- Include response examples
+- Add error examples
+- Organize by feature
+
+#### C. Update Database Relations
+**File**: `docs/erp-database-relations.mmd`
+- Add new entity to ERD
+- Show relationships
+- Update cardinality
+
+#### D. Create Architecture Decision Record (ADR)
+**File**: `docs/decisions/ADR-XXX-<feature>.md` (if significant decisions)
+```markdown
+# ADR-XXX: <Decision Title>
+
+## Status
+- Proposed / Accepted / Deprecated / Superseded
+
+## Context
+What is the issue that we're seeing that is motivating this decision?
+
+## Decision
+What is the change that we're proposing or have agreed to implement?
+
+## Consequences
+What becomes easier or more difficult to do?
+
+## Alternatives Considered
+- Alternative 1: Why not chosen
+- Alternative 2: Why not chosen
+````
+
+### 5.3 Code Documentation
+
+#### Backend Comments
+
+```go
+// EntityUsecase defines the business logic for entity management.
+// It handles validation, authorization, and orchestrates data persistence.
+type EntityUsecase interface {
+    // Create validates and creates a new entity.
+    // Returns validation error if name is empty or duplicate.
+    Create(ctx context.Context, req CreateRequest, userID uuid.UUID) (*EntityResponse, error)
+}
+```
+
+#### Frontend Comments
+
+```typescript
+/**
+ * Hook for managing entity list data
+ * Uses TanStack Query for caching and synchronization
+ * @param query - Pagination and filter parameters
+ * @returns Query result with entities, loading state, and error
+ */
+export function useEntities(query: EntityListQuery) {
+  return useQuery({...});
+}
+```
+
+---
+
+## Phase 6: Final Verification (10 mins)
+
+### Backend Checklist
+
+- [ ] Model registered in migrate.go
+- [ ] All imports use full module path
+- [ ] go mod tidy executed
+- [ ] go build ./... passes
+- [ ] All endpoints respond correctly
+- [ ] GetFormData created if foreign keys (BEFORE /:id route)
+- [ ] Pagination max 100 enforced
+- [ ] Error codes match api-error-codes.md
+
+### Frontend Checklist
+
+- [ ] Types defined (no any)
+- [ ] Zod schema created
+- [ ] Service layer created
+- [ ] Hooks created with TanStack Query
+- [ ] Components have NO business logic
+- [ ] Loading/error/empty states handled
+- [ ] cursor-pointer on clickable elements
+- [ ] i18n for both en and id
+- [ ] i18n registered in request.ts
+- [ ] Page created with PageMotion
+- [ ] loading.tsx created
+- [ ] Route registered in route-validator.ts
+- [ ] All user-facing strings translated
+
+### Documentation Checklist
+
+- [ ] Comprehensive feature documentation created
+- [ ] API endpoints fully documented
+- [ ] Database schema documented
+- [ ] Business rules documented
+- [ ] Testing scenarios documented
+- [ ] Sprint planning updated
+- [ ] Postman collection updated
+- [ ] Database relations diagram updated
+- [ ] Change log maintained
+- [ ] Code comments added (JSDoc/GoDoc)
 
 ---
 

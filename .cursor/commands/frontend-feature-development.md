@@ -1189,28 +1189,165 @@ const validRoutes = [
 
 ---
 
-## Phase 10: Validation & Testing (10 mins)
+## Phase 10: Documentation (10 mins)
 
-### 10.1 Validation Checklist
+### 10.1 Create Frontend Feature Documentation
 
+**Location**: `docs/features/<domain>_<feature>_frontend.md`
+
+Create documentation following this structure:
+
+````markdown
+# <Feature Name> Frontend Documentation
+
+## Overview
+
+Brief description of the frontend feature.
+
+## User Interface
+
+### Pages & Routes
+
+| Route               | Component     | Description    |
+| ------------------- | ------------- | -------------- |
+| /<feature>          | <Feature>Page | Main list page |
+| /<feature>/new      | <Feature>Form | Create form    |
+| /<feature>/:id/edit | <Feature>Form | Edit form      |
+
+### Components
+
+#### <Feature>List
+
+**Purpose**: Display paginated list with search/filter
+**Props**: None (uses hooks)
+**Features**:
+
+- Pagination (20 items per page)
+- Search by name
+- Filter by status
+- Sortable columns
+
+#### <Feature>Form
+
+**Purpose**: Create/edit form with validation
+**Props**:
+
+- `open`: boolean
+- `onOpenChange`: (open: boolean) => void
+- `entityId?`: string
+  **Validation**: Zod schema
+  **Features**:
+- Real-time validation
+- Form data loading (dropdowns)
+- Error messages
+
+### State Management
+
+- **Server State**: TanStack Query
+  - Query keys: ['entities'], ['entity', id]
+  - Stale time: 5 minutes
+- **Client State**: (if applicable)
+  - Modal state
+  - Filter state
+
+### API Integration
+
+| Hook              | API Endpoint                | Purpose     |
+| ----------------- | --------------------------- | ----------- |
+| use<Entities>     | GET /api/v1/entities        | List data   |
+| use<Entity>       | GET /api/v1/entities/:id    | Single item |
+| useCreate<Entity> | POST /api/v1/entities       | Create      |
+| useUpdate<Entity> | PUT /api/v1/entities/:id    | Update      |
+| useDelete<Entity> | DELETE /api/v1/entities/:id | Delete      |
+
+### Form Validation
+
+**Schema**: `<feature>.schema.ts`
+**Rules**:
+
+- name: required, min 3, max 100
+- description: optional, max 500
+- status: required, enum
+
+### Internationalization (i18n)
+
+**Keys**:
+
+- `<feature>.title`: Page title
+- `<feature>.list.title`: List title
+- `<feature>.form.create`: Create button
+- ...
+
+### Testing
+
+**Component Tests**:
+
+```bash
+npx pnpm test <feature>-list.test.tsx
+npx pnpm test <feature>-form.test.tsx
+```
+````
+
+**Test Coverage**:
+
+- Loading states
+- Error states
+- Empty states
+- User interactions
+- Form validation
+
+### Performance Considerations
+
+- Pagination prevents large data loads
+- Query caching reduces API calls
+- Memoization for expensive calculations
+- Lazy loading for modal components
+
+### Accessibility
+
+- ARIA labels on interactive elements
+- Keyboard navigation support
+- Focus management in modals
+- Screen reader friendly
+
+## Change Log
+
+| Date       | Version | Changes                | Author  |
+| ---------- | ------- | ---------------------- | ------- |
+| 2024-01-15 | 1.0     | Initial implementation | @author |
+
+```
+
+### 10.2 Update Documentation References
+- [ ] Add link to main feature doc if exists
+- [ ] Update component library docs if new components added
+- [ ] Document any custom hooks in shared hooks documentation
+- [ ] Update i18n documentation if new patterns used
+
+### 10.3 Add Code Comments
+- [ ] JSDoc comments on exported functions
+- [ ] Inline comments for complex logic
+- [ ] WHY comments (not WHAT)
+- [ ] TODO/FIXME comments if applicable
+
+## Phase 11: Validation & Testing (10 mins)
+
+### 11.1 Validation Checklist
 Before finishing, verify:
 
 **Types & Schema**:
-
 - [ ] Types defined in types/index.d.ts
 - [ ] No `any` types used
 - [ ] Zod schema created with proper validation
 - [ ] Schema types exported
 
 **Service & Hooks**:
-
 - [ ] Service layer created with apiClient
 - [ ] Hooks created with TanStack Query
 - [ ] Proper query keys used
 - [ ] Mutations invalidate queries correctly
 
 **Components**:
-
 - [ ] Components have NO business logic (only UI)
 - [ ] Loading states handled with Skeleton
 - [ ] Error states handled with proper messages
@@ -1219,20 +1356,23 @@ Before finishing, verify:
 - [ ] PageMotion wrapper used
 
 **i18n**:
-
 - [ ] English translations created
 - [ ] Indonesian translations created
 - [ ] i18n registered in request.ts
 - [ ] All user-facing strings translated
 
 **Routing**:
-
 - [ ] Page created with proper layout
 - [ ] loading.tsx created
 - [ ] Route registered in route-validator.ts
 
-### 10.2 Testing Checklist
+**Documentation**:
+- [ ] Frontend feature documentation created
+- [ ] Component documentation complete
+- [ ] API integration documented
+- [ ] Testing steps documented
 
+### 11.2 Testing Checklist
 - [ ] List loads correctly
 - [ ] Pagination works
 - [ ] Search/filter works
@@ -1247,6 +1387,7 @@ Before finishing, verify:
 - [ ] Loading states visible
 - [ ] Error states handled properly
 - [ ] Empty state shown when no data
+- [ ] Documentation reviewed and accurate
 
 ---
 
@@ -1317,3 +1458,4 @@ See existing implementations:
 6. Create documentation
 
 Ready? Start with Phase 1!
+```

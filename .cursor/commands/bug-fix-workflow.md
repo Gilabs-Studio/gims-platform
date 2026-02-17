@@ -280,32 +280,312 @@ npx pnpm type-check
 
 ---
 
-## Phase 5: Documentation (5 mins)
+## Phase 5: Documentation (10 mins)
 
-### 5.1 Update Documentation
+### 5.1 Create Bug Fix Documentation
 
-- [ ] Add comment explaining the fix (WHY, not WHAT)
-- [ ] Update docs if behavior changed
-- [ ] Update API docs if needed
+**File**: `docs/bugs/BUG-XXX-<short-description>.md` (for significant bugs)
 
-### 5.2 Commit Message
+````markdown
+# Bug Report: <Bug Title>
+
+## Bug ID
+
+BUG-XXX or Issue #XXX
+
+## Reported By
+
+@reporter-name
+
+## Reported Date
+
+YYYY-MM-DD
+
+## Severity
+
+- [ ] Critical - System down/data loss
+- [ ] High - Major feature broken
+- [x] Medium - Feature partially broken
+- [ ] Low - UI/cosmetic issue
+
+## Affected Components
+
+- Component A
+- Component B
+- Module C
+
+## Environment
+
+- **Version**: v1.2.3
+- **Environment**: Production/Staging/Development
+- **Browser**: Chrome 120 (if applicable)
+- **OS**: Windows 11 (if applicable)
+
+## Description
+
+Detailed description of the bug.
+
+## Steps to Reproduce
+
+1. Step 1
+2. Step 2
+3. Step 3
+4. Expected: <expected behavior>
+5. Actual: <actual behavior>
+
+## Root Cause Analysis
+
+### Investigation
+
+What was discovered during investigation?
+
+### Root Cause
+
+What was the underlying cause?
+
+- Code defect
+- Configuration issue
+- Race condition
+- Missing validation
+- etc.
+
+### Why It Happened
+
+- Human error
+- Missing test case
+- Design flaw
+- Edge case not considered
+
+## Solution Implemented
+
+### Code Changes
+
+```diff
+- Old code
++ New code
+```
+````
+
+### Explanation
+
+Why this fix works.
+
+## Testing Performed
+
+- [ ] Unit tests added
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+- [ ] Regression testing completed
+
+### Test Cases
+
+1. Test case 1
+2. Test case 2
+
+## Prevention Measures
+
+- [ ] Added unit test to prevent regression
+- [ ] Updated documentation
+- [ ] Added validation
+- [ ] Improved error handling
+
+## References
+
+- Issue: #XXX
+- PR: #XXX
+- Related: #YYY
+
+## Resolution
+
+- **Status**: Fixed
+- **Fixed By**: @developer-name
+- **Fixed Date**: YYYY-MM-DD
+- **Deployed In**: v1.2.4
+
+````
+
+### 5.2 Update Feature Documentation
+
+**File**: `docs/features/<domain>_<feature>.md`
+
+If the bug affects a documented feature:
+
+```markdown
+## Known Issues (in relevant feature doc)
+
+### Fixed Issues
+| Issue | Description | Fix Version | Date |
+|-------|-------------|-------------|------|
+| #123 | Entity list shows blank page when no data | v1.2.4 | 2024-01-15 |
+````
+
+### 5.3 Update Code Comments
+
+#### Backend Comments
+
+```go
+// FIX(2024-01-15, BUG-123): Added null check to prevent panic
+// Root cause: Data could be nil when database connection fails
+// Solution: Check for nil before accessing properties
+if data == nil {
+    return nil, errors.New("data not available")
+}
+```
+
+#### Frontend Comments
+
+```typescript
+// FIX(BUG-123, 2024-01-15): Handle undefined data gracefully
+// Issue: Component crashed when API returned empty response
+// Solution: Add optional chaining and default value
+const name = data?.name ?? "N/A";
+```
+
+### 5.4 Update API Documentation
+
+**File**: `docs/api-standart/known-issues.md` (if API behavior changed)
+
+```markdown
+## Fixed API Issues
+
+### POST /api/v1/entities
+
+**Issue**: Validation error response format inconsistent  
+**Fixed**: v1.2.4  
+**Before**: Returned string error message  
+**After**: Returns structured error object
+```
+
+### 5.5 Update Changelog
+
+**File**: `CHANGELOG.md`
+
+```markdown
+## [1.2.4] - 2024-01-15
+
+### Fixed
+
+- Fixed entity list blank page issue (#123)
+- Resolved null pointer exception in handler
+- Fixed validation error message format
+```
+
+### 5.6 Commit Message
 
 ```
-fix: resolve issue with [brief description]
+fix: resolve entity list blank page issue (#123)
 
-- Root cause: [what was causing the bug]
-- Solution: [how it was fixed]
-- Impact: [what areas are affected]
+Root cause: API returned empty array when no entities exist,
+but frontend expected object with data property.
 
-Fixes #issue-number
+Solution:
+- Updated frontend to handle empty array response
+- Added loading state check before data access
+- Added nullish coalescing for safe property access
+
+Changes:
+- apps/web/src/features/entity/components/entity-list.tsx
+- apps/web/src/features/entity/hooks/use-entities.ts
+
+Testing:
+- Added unit test for empty data scenario
+- Verified fix with manual testing
+
+Fixes #123
+Refs #456
 ```
 
-### 5.3 Create PR
+### 5.7 Create Pull Request
 
-- [ ] Reference the issue
-- [ ] Describe the fix
-- [ ] Include test results
-- [ ] Add screenshots (if UI related)
+#### PR Title
+
+`fix: resolve entity list blank page issue (#123)`
+
+#### PR Description
+
+```markdown
+## Description
+
+Fixes blank page issue when entity list is empty.
+
+Fixes #123
+
+## Type of Change
+
+- [x] Bug fix (non-breaking change which fixes an issue)
+
+## Root Cause
+
+API was returning empty array `[]` when no entities exist,
+but frontend component expected response with `data` property.
+
+## Solution
+
+- Added proper null/undefined checks in component
+- Updated hook to handle empty response
+- Added fallback UI for empty state
+
+## Changes Made
+
+- `apps/web/src/features/entity/components/entity-list.tsx`
+  - Added loading state check
+  - Added empty state handling
+  - Safe property access with ?. operator
+- `apps/web/src/features/entity/hooks/use-entities.ts`
+  - Added error boundary
+  - Improved error message
+
+## Testing
+
+- [x] Unit tests added
+- [x] Manual testing completed
+- [x] Regression testing completed
+
+### Test Results
+
+Before fix:
+
+- ❌ Blank page shown when no entities
+- ❌ Console error: "Cannot read property of undefined"
+
+After fix:
+
+- ✅ Empty state illustration shown
+- ✅ No console errors
+- ✅ Create button visible
+
+## Screenshots
+
+### Before
+
+[Insert before screenshot]
+
+### After
+
+[Insert after screenshot]
+
+## Checklist
+
+- [x] Code follows style guidelines
+- [x] Self-review completed
+- [x] Comments added for complex logic
+- [x] Tests added/updated
+- [x] Documentation updated
+- [x] No new warnings
+- [x] CHANGELOG.md updated
+```
+
+### 5.8 Documentation Checklist
+
+- [ ] Bug report created (for significant issues)
+- [ ] Root cause documented
+- [ ] Solution documented
+- [ ] Code comments added (WHY, not WHAT)
+- [ ] Feature documentation updated (if applicable)
+- [ ] API documentation updated (if applicable)
+- [ ] CHANGELOG.md updated
+- [ ] Commit message follows conventional commits
+- [ ] PR description is comprehensive
 
 ---
 

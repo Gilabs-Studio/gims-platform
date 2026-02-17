@@ -1188,6 +1188,300 @@ jobs:
 
 ---
 
+## Phase 8: Test Documentation (15 mins)
+
+### 8.1 Create Test Documentation
+
+**Location**: `docs/testing/<feature>-test-plan.md`
+
+````markdown
+# <Feature Name> Test Plan
+
+## Overview
+
+- **Feature**: <Feature Name>
+- **Domain**: <Domain> (HRD/Sales/Purchase/etc.)
+- **Version**: 1.0
+- **Last Updated**: YYYY-MM-DD
+
+## Test Scope
+
+### In Scope
+
+- Unit tests for business logic
+- Integration tests for API endpoints
+- Component tests for UI
+- E2E tests for critical workflows
+
+### Out of Scope
+
+- Third-party integrations (mocked)
+- Performance testing (separate plan)
+- Security testing (separate plan)
+
+## Test Strategy
+
+### Unit Tests
+
+**Coverage Target**: 80%+
+**Tools**: Go testing, Jest, React Testing Library
+
+#### Backend Unit Tests
+
+| Component  | Test File              | Coverage |
+| ---------- | ---------------------- | -------- |
+| Usecase    | `*_usecase_test.go`    | 85%      |
+| Repository | `*_repository_test.go` | 70%      |
+| Handler    | `*_handler_test.go`    | 60%      |
+
+#### Frontend Unit Tests
+
+| Component | Test File           | Coverage |
+| --------- | ------------------- | -------- |
+| Hooks     | `use-*.test.ts`     | 80%      |
+| Services  | `*-service.test.ts` | 70%      |
+| Schemas   | `*.schema.test.ts`  | 90%      |
+
+### Integration Tests
+
+**Scope**: API endpoints with database
+**Tools**: httptest, testcontainers
+
+#### Test Scenarios
+
+1. **Create Entity**
+   - Valid request → 201 Created
+   - Invalid request → 400 Bad Request
+   - Duplicate → 409 Conflict
+
+2. **Get Entity**
+   - Existing ID → 200 OK
+   - Non-existing ID → 404 Not Found
+   - Invalid ID format → 400 Bad Request
+
+### E2E Tests
+
+**Scope**: Complete user workflows
+**Tools**: Playwright
+
+#### Test Cases
+
+1. **CRUD Workflow**
+   - Create entity
+   - View in list
+   - Edit entity
+   - Delete entity
+
+2. **Error Handling**
+   - Network error
+   - Validation error
+   - Permission denied
+
+## Test Data
+
+### Test Fixtures
+
+```typescript
+// Fixture file: src/test/fixtures/entities.ts
+export const mockEntities = [
+  {
+    id: "test-uuid-1",
+    name: "Test Entity 1",
+    status: "ACTIVE",
+  },
+  // ...
+];
+```
+````
+
+### Test Database
+
+- **Name**: gims_test
+- **Reset**: Before each test suite
+- **Seed**: Minimal required data
+
+## Test Execution
+
+### Pre-requisites
+
+```bash
+# Start test database
+docker-compose -f docker-compose.test.yml up -d
+
+# Run migrations
+cd apps/api && go run cmd/migrate/main.go
+
+# Seed test data
+cd apps/api && go run cmd/seed/main.go --env=test
+```
+
+### Running Tests
+
+```bash
+# All tests
+make test
+
+# Specific domain
+cd apps/api && go test ./internal/hrd/...
+
+# With coverage
+cd apps/api && go test -cover ./...
+
+# E2E tests
+cd apps/web && npx playwright test
+```
+
+## Test Results
+
+### Coverage Reports
+
+- **Backend**: `apps/api/coverage.out`
+- **Frontend**: `apps/web/coverage/`
+
+### Current Status
+
+| Test Type   | Total | Passed | Failed | Coverage |
+| ----------- | ----- | ------ | ------ | -------- |
+| Unit        | 50    | 50     | 0      | 82%      |
+| Integration | 20    | 20     | 0      | -        |
+| E2E         | 10    | 10     | 0      | -        |
+
+## Known Issues
+
+| Issue            | Severity | Workaround | Ticket |
+| ---------------- | -------- | ---------- | ------ |
+| Flaky test in CI | Medium   | Retry 3x   | #XXX   |
+
+## Maintenance
+
+- Review and update monthly
+- Update when feature changes
+- Add tests for new bugs
+
+## Related Documentation
+
+- [Testing Strategy](../testing-strategy.md)
+- [API Testing Guide](../api-testing-guide.md)
+- [E2E Testing Guide](../e2e-testing-guide.md)
+
+````
+
+### 8.2 Document Test Cases
+
+#### Create Test Case Documentation
+**Location**: `docs/testing/test-cases/<feature>.md`
+
+```markdown
+## Test Case: TC-001 - Create Valid Entity
+
+**Objective**: Verify entity can be created with valid data
+
+**Pre-conditions**:
+- User is authenticated
+- User has 'entity.create' permission
+
+**Steps**:
+1. Navigate to /entities
+2. Click "Create" button
+3. Fill in valid data:
+   - Name: "Test Entity"
+   - Status: "ACTIVE"
+4. Click "Save"
+
+**Expected Results**:
+1. Form validates successfully
+2. API returns 201 Created
+3. Success toast appears
+4. Entity appears in list
+5. URL redirects to list
+
+**Test Data**:
+```json
+{
+  "name": "Test Entity",
+  "status": "ACTIVE"
+}
+````
+
+**Automated**: ✅ Yes (e2e/entity.spec.ts)
+
+````
+
+### 8.3 Update Feature Documentation
+
+Add testing section to feature docs:
+
+```markdown
+## Testing
+
+### Automated Tests
+```bash
+# Run all tests for this feature
+cd apps/api && go test ./internal/<domain>/... -v
+cd apps/web && npx pnpm test <feature>
+````
+
+### Test Coverage
+
+- Backend: 85% (usecase), 70% (repository)
+- Frontend: 80% (hooks), 60% (components)
+
+### Manual Testing
+
+1. Create entity with valid data
+2. Verify validation errors
+3. Test pagination
+4. Test search/filter
+
+````
+
+### 8.4 Create Testing Cheat Sheet
+**Location**: `docs/testing/<feature>-cheatsheet.md`
+
+Quick reference for developers:
+```markdown
+# <Feature> Testing Cheat Sheet
+
+## Quick Commands
+```bash
+# Unit tests
+cd apps/api && go test ./internal/<domain>/domain/usecase/... -v
+
+# Component tests
+cd apps/web && npx pnpm test <feature>-list.test.tsx
+
+# E2E
+cd apps/web && npx playwright test <feature>.spec.ts --headed
+````
+
+## Common Test Scenarios
+
+1. Empty list → Should show empty state
+2. API error → Should show error message
+3. Form validation → Required fields error
+4. Create success → List should update
+
+## Debugging
+
+- Check `apps/api/logs/test.log`
+- Use `console.log` in tests
+- React DevTools Profiler for performance
+
+````
+
+### 8.5 Documentation Checklist
+- [ ] Test plan created
+- [ ] Test cases documented
+- [ ] Test data fixtures created
+- [ ] Automated tests referenced in docs
+- [ ] Manual test steps documented
+- [ ] Coverage targets defined
+- [ ] Known issues documented
+- [ ] Debugging guide provided
+- [ ] Feature documentation updated with testing section
+
+---
+
 ## Quick Test Commands
 
 ```bash
@@ -1210,6 +1504,6 @@ cd apps/web
 npx playwright test                 # All E2E
 npx playwright test --headed       # See browser
 npx playwright test --debug        # Debug mode
-```
+````
 
 Ready to test thoroughly!

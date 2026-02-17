@@ -1,22 +1,29 @@
 # backend-feature-development
 
 Complete Backend Feature Development Workflow
+
 1. Cursor Workflow JSON Configuration
-Create this file in your project: .cursor/rules/backend-feature-workflow.mdc
+   Create this file in your project: .cursor/rules/backend-feature-workflow.mdc
+
 ---
+
 description: Backend Feature Development - Vertical Slice Architecture
-globs: apps/api/internal/**/*.go
+globs: apps/api/internal/\*_/_.go
 alwaysApply: false
+
 ---
- Backend Feature Development Workflow
- When to Use
+
+Backend Feature Development Workflow
+When to Use
 When adding a new entity/feature to the GIMS backend following vertical slice architecture.
- Prerequisites
+Prerequisites
+
 - Feature requirements from docs/erp-sprint-planning.md
 - Database relation understanding from docs/erp-database-relations.mmd
 - Understanding of which domain this belongs to (hrd, sales, product, etc.)
- Workflow Steps
- Phase 1: Setup & Planning (5 mins)
+  Workflow Steps
+  Phase 1: Setup & Planning (5 mins)
+
 1. **Read sprint planning**
    - Check `docs/erp-sprint-planning.md` for business logic
    - Note table relations and success criteria
@@ -25,7 +32,7 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
    - Choose appropriate domain folder: `apps/api/internal/<domain>/`
    - Examples: `hrd`, `sales`, `product`, `finance`, `stock`
    - If new domain, create full folder structure
- Phase 2: Model Layer (10 mins)
+     Phase 2: Model Layer (10 mins)
 3. **Create GORM Model**
    - Location: `apps/api/internal/<domain>/data/models/<entity>.go`
    - Required fields:
@@ -43,7 +50,7 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
    - Add import: `<domain> "github.com/gilabs/gims/api/internal/<domain>/data/models"`
    - Add to `migrateWithErrorHandling()`: `&<domain>.<ModelName>{},`
    - Place in appropriate section with comment: `// <Domain> <Feature> entities`
- Phase 3: Repository Layer (15 mins)
+     Phase 3: Repository Layer (15 mins)
 5. **Create Repository Interface**
    - Location: `apps/api/internal/<domain>/data/repositories/<entity>_repository.go`
    - Define interface with methods:
@@ -62,7 +69,7 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
    - Add prefix search for indexed columns (e.g., `name%` not `%name%`)
    - Use FOR UPDATE for concurrent updates
    - Add proper error handling
- Phase 4: Domain Layer (20 mins)
+     Phase 4: Domain Layer (20 mins)
 7. **Create DTOs**
    - Location: `apps/api/internal/<domain>/domain/dto/<entity>_dto.go`
    - Create request DTOs:
@@ -103,7 +110,7 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
     - Set CreatedBy/UpdatedBy fields
     - Use transactions for complex operations
     - Add context timeout (30s): `ctx, cancel := context.WithTimeout(ctx, 30*time.Second)`
- Phase 5: Presentation Layer (15 mins)
+      Phase 5: Presentation Layer (15 mins)
 11. **Create Handler**
     - Location: `apps/api/internal/<domain>/presentation/handler/<entity>_handler.go`
     - Create struct with usecase dependency
@@ -128,10 +135,8 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
       - `PUT /:id` → Update
       - `DELETE /:id` → Delete
       - `GET /form-data` → GetFormData (BEFORE /:id route!)
-    - Apply middleware:
-      - `middleware.Authentication()`
-      - `middleware.RequirePermission("<entity>.read")` etc.
- Phase 6: Integration (10 mins)
+    - Apply middleware: - `middleware.Authentication()` - `middleware.RequirePermission("<entity>.read")` etc.
+      Phase 6: Integration (10 mins)
 13. **Register in Domain Router**
     - Open: `apps/api/internal/<domain>/presentation/routers.go`
     - Add repository, usecase, handler imports
@@ -142,28 +147,129 @@ When adding a new entity/feature to the GIMS backend following vertical slice ar
     - Verify no relative imports
     - Check: `go build ./...`
     - Fix any import errors
- Phase 7: Testing & Documentation (10 mins)
-15. **Create Seeder (if needed)**
+      Phase 7: Documentation (15 mins)
+
+15. **Create Feature Documentation**
+    - Location: `docs/features/<domain>_<feature>.md`
+    - Follow documentation template structure
+
+    ```markdown
+    # <Feature Name> Module
+
+    ## Overview
+
+    Brief description of the feature and its purpose in the ERP system.
+
+    ## Features
+
+    - Feature 1: Description
+    - Feature 2: Description
+    - Feature 3: Description
+
+    ## Business Rules
+
+    1. Rule 1: Description and validation
+    2. Rule 2: Description and validation
+    3. Rule 3: Description and validation
+
+    ## Technical Implementation
+
+    ### Database Schema
+
+    - Table: `<table_name>`
+    - Fields:
+      - `id`: UUID, Primary Key
+      - `name`: VARCHAR(100), Required
+      - ...
+    - Indexes:
+      - `idx_name` on name column
+      - ...
+
+    ### API Endpoints
+
+    | Method | Endpoint                   | Description       | Permission    |
+    | ------ | -------------------------- | ----------------- | ------------- |
+    | GET    | /api/v1/entities           | List all          | entity.read   |
+    | GET    | /api/v1/entities/:id       | Get by ID         | entity.read   |
+    | POST   | /api/v1/entities           | Create            | entity.create |
+    | PUT    | /api/v1/entities/:id       | Update            | entity.update |
+    | DELETE | /api/v1/entities/:id       | Delete            | entity.delete |
+    | GET    | /api/v1/entities/form-data | Get dropdown data | entity.read   |
+
+    ### Architecture
+
+    - **Layer**: Vertical slice in `internal/<domain>/`
+    - **Pattern**: Repository + Usecase + Handler
+    - **Relations**: List related entities
+
+    ## Testing
+
+    ### Manual Testing
+
+    1. Test Case 1: Steps and expected result
+    2. Test Case 2: Steps and expected result
+
+    ### Automated Testing
+
+    - Unit tests: `go test ./internal/<domain>/...`
+    - Coverage: X%
+
+    ## Dependencies
+
+    - Depends on: Module A, Module B
+    - Used by: Module C, Module D
+
+    ## Related Documentation
+
+    - [API Error Codes](../api-standart/api-error-codes.md)
+    - [Database Relations](../erp-database-relations.mmd)
+    - [Sprint Planning](../erp-sprint-planning.md)
+
+    ## Change Log
+
+    | Date       | Version | Changes                | Author  |
+    | ---------- | ------- | ---------------------- | ------- |
+    | 2024-01-15 | 1.0     | Initial implementation | @author |
+    ```
+
+16. **Update Sprint Documentation**
+    - File: `docs/erp-sprint-planning.md`
+    - Mark feature as complete
+    - Update progress percentage
+    - Add any notes or issues encountered
+
+17. **Update API Documentation**
+    - File: `docs/postman/postman.json`
+    - Add all endpoints with examples
+    - Include request/response schemas
+    - Add error response examples
+    - Organize by feature/module
+
+18. **Update Database Relations**
+    - File: `docs/erp-database-relations.mmd`
+    - Add entity to ERD diagram
+    - Show relationships with other entities
+    - Update cardinality (1:N, N:M, etc.)
+
+Phase 8: Testing & Verification (10 mins)
+
+19. **Create Seeder (if needed)**
     - Location: `apps/api/seeders/<entity>_seeder.go`
     - Use hex-only UUIDs: `0-9`, `a-f` only
     - Use local variables for pointer fields
     - Register in `seeders/seed_all.go`
-16. **Update Postman Collection**
-    - Add endpoints to `docs/postman/postman.json`
-    - Include:
-      - Request examples with headers
-      - Request body structure
-      - Expected responses
-      - Error scenarios
-    - Organize by feature/module
-17. **Test the Implementation**
+
+20. **Test the Implementation**
     - Start API: `npx pnpm dev --filter=api`
     - Test CRUD operations
     - Test GetFormData endpoint
     - Verify database tables created
     - Check logs for errors
- Validation Checklist
-Before marking complete:
+
+21. **Verify Documentation** - [ ] Feature documentation created - [ ] API endpoints documented - [ ] Business rules documented - [ ] Testing steps documented - [ ] Sprint planning updated
+    Validation Checklist
+    Before marking complete:
+
 - [ ] Model registered in migrate.go
 - [ ] All imports use full module path (github.com/gilabs/gims/api/...)
 - [ ] Import order: Standard → External → Internal
@@ -180,49 +286,51 @@ Before marking complete:
 - [ ] go build ./... passes
 - [ ] Seeder uses hex-only UUIDs
 - [ ] Postman collection updated
- Common Mistakes to Avoid
-❌ **NEVER use relative imports**: `import "internal/..."`
-✅ **ALWAYS use full path**: `import "github.com/gilabs/gims/api/internal/..."`
-❌ **NEVER put business logic in handler**
-✅ **ALWAYS delegate to usecase**
-❌ **NEVER forget to register model in migrate.go**
-✅ **Register IMMEDIATELY after creating model**
-❌ **NEVER use non-hex UUIDs in seeders**: `"rr000001-..."`
-✅ **ALWAYS hex-only**: `"ae000001-..."`
-❌ **NEVER take address of constant**: `&AdminEmployeeID`
-✅ **Use local variable**: `adminID := AdminEmployeeID; &adminID`
-❌ **NEVER place GetFormData AFTER /:id route**
-✅ **ALWAYS place BEFORE parameterized routes**
- Example: EmployeeContract Feature
- File Structure Created:
-apps/api/internal/hrd/
-├── data/
-│   ├── models/
-│   │   └── employee_contract.go
-│   └── repositories/
-│       ├── employee_contract_repository.go
-│       └── employee_contract_repository_impl.go
-├── domain/
-│   ├── dto/
-│   │   └── employee_contract_dto.go
-│   ├── mapper/
-│   │   └── employee_contract_mapper.go
-│   └── usecase/
-│       ├── employee_contract_usecase.go
-│       └── employee_contract_usecase_impl.go
-└── presentation/
-    ├── handler/
-    │   └── employee_contract_handler.go
-    └── router/
-        └── employee_contract_router.go
+      Common Mistakes to Avoid
+      ❌ **NEVER use relative imports**: `import "internal/..."`
+      ✅ **ALWAYS use full path**: `import "github.com/gilabs/gims/api/internal/..."`
+      ❌ **NEVER put business logic in handler**
+      ✅ **ALWAYS delegate to usecase**
+      ❌ **NEVER forget to register model in migrate.go**
+      ✅ **Register IMMEDIATELY after creating model**
+      ❌ **NEVER use non-hex UUIDs in seeders**: `"rr000001-..."`
+      ✅ **ALWAYS hex-only**: `"ae000001-..."`
+      ❌ **NEVER take address of constant**: `&AdminEmployeeID`
+      ✅ **Use local variable**: `adminID := AdminEmployeeID; &adminID`
+      ❌ **NEVER place GetFormData AFTER /:id route**
+      ✅ **ALWAYS place BEFORE parameterized routes**
+      Example: EmployeeContract Feature
+      File Structure Created:
+      apps/api/internal/hrd/
+      ├── data/
+      │ ├── models/
+      │ │ └── employee_contract.go
+      │ └── repositories/
+      │ ├── employee_contract_repository.go
+      │ └── employee_contract_repository_impl.go
+      ├── domain/
+      │ ├── dto/
+      │ │ └── employee_contract_dto.go
+      │ ├── mapper/
+      │ │ └── employee_contract_mapper.go
+      │ └── usecase/
+      │ ├── employee_contract_usecase.go
+      │ └── employee_contract_usecase_impl.go
+      └── presentation/
+      ├── handler/
+      │ └── employee_contract_handler.go
+      └── router/
+      └── employee_contract_router.go
+
 ### Migration Registration:
+
 ```go
 // In apps/api/internal/core/infrastructure/database/migrate.go
 import hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 func AutoMigrate() error {
     err := migrateWithErrorHandling(
         // ... other models ...
-        
+
         // HRD Employee Contracts entities (Sprint 14)
         &hrd.EmployeeContract{},
     )
@@ -238,3 +346,4 @@ contracts := router.Group("/employee-contracts")
     contracts.PUT("/:id", middleware.RequirePermission("employee-contract.update"), handler.Update)
     contracts.DELETE("/:id", middleware.RequirePermission("employee-contract.delete"), handler.Delete)
 }
+```

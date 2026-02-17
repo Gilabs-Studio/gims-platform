@@ -595,6 +595,385 @@ docker exec -it gims-platform-postgres-1 psql -U postgres -d gims_db -c "SELECT 
 
 ---
 
+## Phase 8: Documentation (15 mins)
+
+### 8.1 Create Database Schema Documentation
+
+**Location**: `docs/database/schemas/<domain>_<entity>.md`
+
+````markdown
+# <Entity> Database Schema
+
+## Overview
+
+- **Table**: `<table_name>`
+- **Domain**: <Domain> (HRD/Sales/Purchase/etc.)
+- **Created**: YYYY-MM-DD
+- **Version**: 1.0
+
+## Business Context
+
+Why this table exists and what it represents.
+
+## Schema
+
+### Columns
+
+| Column      | Type          | Nullable | Default           | Constraints         | Description           |
+| ----------- | ------------- | -------- | ----------------- | ------------------- | --------------------- |
+| id          | UUID          | NO       | gen_random_uuid() | PRIMARY KEY         | Unique identifier     |
+| name        | VARCHAR(100)  | NO       | -                 | NOT NULL            | Entity name           |
+| status      | VARCHAR(20)   | NO       | 'ACTIVE'          | -                   | Current status        |
+| amount      | DECIMAL(15,2) | YES      | 0                 | CHECK >= 0          | Monetary amount       |
+| category_id | UUID          | YES      | -                 | FK → categories(id) | Parent category       |
+| created_at  | TIMESTAMP     | NO       | CURRENT_TIMESTAMP | -                   | Creation timestamp    |
+| updated_at  | TIMESTAMP     | NO       | CURRENT_TIMESTAMP | -                   | Update timestamp      |
+| deleted_at  | TIMESTAMP     | YES      | NULL              | -                   | Soft delete timestamp |
+| created_by  | UUID          | NO       | -                 | FK → users(id)      | Creator user          |
+| updated_by  | UUID          | YES      | NULL              | FK → users(id)      | Last updater          |
+
+### Indexes
+
+| Name                       | Type   | Columns    | Purpose             |
+| -------------------------- | ------ | ---------- | ------------------- |
+| idx\_<entity>\_name        | B-Tree | name       | Fast name lookup    |
+| idx\_<entity>\_status      | B-Tree | status     | Status filtering    |
+| idx\_<entity>\_created_at  | B-Tree | created_at | Sorting by date     |
+| idx\_<entity>\_deleted_at  | B-Tree | deleted_at | Soft delete queries |
+| idx\_<entity>\_name_search | GIN    | name       | Full-text search    |
+
+### Constraints
+
+| Name                  | Type        | Columns | Condition                 |
+| --------------------- | ----------- | ------- | ------------------------- |
+| pk\_<entity>\_id      | PRIMARY KEY | id      | -                         |
+| uq\_<entity>\_code    | UNIQUE      | code    | -                         |
+| chk\_<entity>\_status | CHECK       | status  | IN ('ACTIVE', 'INACTIVE') |
+| chk\_<entity>\_amount | CHECK       | amount  | >= 0                      |
+
+## Relationships
+
+### Foreign Keys
+
+| Column      | References     | On Delete | On Update |
+| ----------- | -------------- | --------- | --------- |
+| category_id | categories(id) | SET NULL  | CASCADE   |
+| created_by  | users(id)      | NO ACTION | CASCADE   |
+| updated_by  | users(id)      | SET NULL  | CASCADE   |
+
+### Referenced By
+
+| Table       | Column    | Relationship |
+| ----------- | --------- | ------------ |
+| order_items | entity_id | One-to-Many  |
+| audit_logs  | entity_id | One-to-Many  |
+
+## Triggers
+
+### Auto-Update Timestamp
+
+```sql
+CREATE TRIGGER update_<entity>_timestamp
+BEFORE UPDATE ON <table_name>
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+```
+````
+
+## Migrations
+
+### Create Table
+
+**File**: `migrations/20240115_create_<entity>_table.sql`
+
+```sql
+CREATE TABLE IF NOT EXISTS <table_name> (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP,
+    created_by UUID NOT NULL,
+    updated_by UUID,
+
+    CONSTRAINT uq_<entity>_code UNIQUE (code)
+);
+
+CREATE INDEX idx_<entity>_name ON <table_name>(name);
+CREATE INDEX idx_<entity>_status ON <table_name>(status);
+```
+
+### Rollback
+
+```sql
+DROP TABLE IF EXISTS <table_name>;
+```
+
+## Data
+
+### Seed Data
+
+**File**: `apps/api/seeders/<entity>_seeder.go`
+
+| ID           | Name    | Status | Created By |
+| ------------ | ------- | ------ | ---------- |
+| ae000001-... | Default | ACTIVE | system     |
+
+## Usage
+
+### Common Queries
+
+#### List Active Entities
+
+```sql
+SELECT * FROM <table_name>
+WHERE status = 'ACTIVE'
+AND deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT 20 OFFSET 0;
+```
+
+#### Search by Name
+
+```sql
+SELECT * FROM <table_name>
+WHERE name ILIKE 'search%'
+AND deleted_at IS NULL;
+```
+
+#### Get with Relations
+
+```sql
+SELECT e.*, c.name as category_name
+FROM <table_name> e
+LEFT JOIN categories c ON e.category_id = c.id
+WHERE e.id = 'uuid'::uuid;
+```
+
+## Maintenance
+
+### VACUUM Schedule
+
+- Daily: Auto-vacuum enabled
+- Weekly: Full VACUUM ANALYZE
+
+### Index Maintenance
+
+- Weekly: REINDEX if fragmentation > 30%
+
+### Monitoring
+
+- Table size growth
+- Index usage stats
+- Query performance
+
+## Change Log
+
+| Date       | Version | Changes                 | Author  |
+| ---------- | ------- | ----------------------- | ------- |
+| 2024-01-15 | 1.0     | Initial schema          | @author |
+| 2024-01-20 | 1.1     | Added name_search index | @author |
+
+````
+
+### 8.2 Update Entity Relationship Diagram
+**File**: `docs/erp-database-relations.mmd`
+
+Add to Mermaid diagram:
+```mermaid
+erDiagram
+    ENTITY ||--o{ ORDER_ITEM : contains
+    ENTITY {
+        uuid id PK
+        string name
+        string status
+        decimal amount
+        uuid category_id FK
+        timestamp created_at
+        timestamp deleted_at
+    }
+````
+
+### 8.3 Document Migration Script
+
+**Location**: `docs/database/migrations/MIGRATION-XXX.md`
+
+````markdown
+# Migration: Add <Entity> Table
+
+## Migration ID
+
+MIGRATION-XXX
+
+## Date
+
+YYYY-MM-DD
+
+## Author
+
+@developer-name
+
+## Description
+
+Create <entity> table to store <description>.
+
+## Changes
+
+- Create table <table_name>
+- Add indexes for performance
+- Add foreign key constraints
+
+## SQL
+
+### Up
+
+```sql
+CREATE TABLE IF NOT EXISTS <table_name> (...);
+```
+````
+
+### Down
+
+```sql
+DROP TABLE IF EXISTS <table_name>;
+```
+
+## Impact
+
+- **Downtime Required**: No
+- **Data Migration**: No
+- **Rollback**: Simple (DROP TABLE)
+
+## Verification
+
+```sql
+-- Verify table exists
+SELECT * FROM information_schema.tables
+WHERE table_name = '<table_name>';
+
+-- Verify indexes
+SELECT * FROM pg_indexes
+WHERE tablename = '<table_name>';
+```
+
+## Related
+
+- PR: #XXX
+- Feature: docs/features/<domain>\_<feature>.md
+
+````
+
+### 8.4 Update Feature Documentation
+
+Add database section to feature docs:
+
+```markdown
+## Database Schema
+
+### Entity: <TableName>
+See: docs/database/schemas/<domain>_<entity>.md
+
+### Key Points
+- Soft delete implemented (deleted_at column)
+- Indexes on name, status for performance
+- Foreign key to categories table
+- Audit fields (created_by, updated_by)
+
+### Migration
+```bash
+# Run migration
+cd apps/api
+go run cmd/migrate/main.go
+
+# Verify
+make db-status
+````
+
+````
+
+### 8.5 Document Seeder
+
+**Location**: `docs/database/seeders/<entity>_seeder.md`
+
+```markdown
+# <Entity> Seeder
+
+## Purpose
+Populate <table_name> with initial/reference data.
+
+## Seed Data
+
+### Default Entities
+| ID | Name | Code | Status |
+|----|------|------|--------|
+| ae000001-... | Default | DEF001 | ACTIVE |
+
+## Running the Seeder
+```bash
+cd apps/api
+go run cmd/seed/main.go
+````
+
+## Verification
+
+```sql
+SELECT COUNT(*) FROM <table_name>;
+-- Expected: 5 rows
+```
+
+````
+
+### 8.6 Update API Error Codes
+
+If new error codes added:
+
+**File**: `docs/api-standart/api-error-codes.md`
+
+```markdown
+## <Domain> Errors
+
+### <ENTITY>_NOT_FOUND
+- **Code**: <ENTITY>_NOT_FOUND
+- **Status**: 404
+- **Message**: "<Entity> not found"
+- **Scenario**: Requested entity ID does not exist
+
+### <ENTITY>_ALREADY_EXISTS
+- **Code**: <ENTITY>_ALREADY_EXISTS
+- **Status**: 409
+- **Message**: "<Entity> with this code already exists"
+- **Scenario**: Attempting to create duplicate entity
+````
+
+### 8.7 Update Glossary
+
+**File**: `docs/glossary.md`
+
+```markdown
+## <Entity>
+
+<Definition of the entity and its role in the system>
+
+### Related Terms
+
+- **<Related Term>**: Definition
+```
+
+### 8.8 Documentation Checklist
+
+- [ ] Database schema document created
+- [ ] ERD diagram updated
+- [ ] Migration documented
+- [ ] Seeder documented
+- [ ] Feature docs updated with DB section
+- [ ] API error codes updated (if needed)
+- [ ] Glossary updated (if new terms)
+- [ ] Common queries documented
+- [ ] Maintenance procedures noted
+
+---
+
 ## Complete Checklist
 
 ### Model Checklist

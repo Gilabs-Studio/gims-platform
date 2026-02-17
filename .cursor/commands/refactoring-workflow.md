@@ -567,44 +567,392 @@ npx pnpm build
 
 ---
 
-## Phase 5: Documentation (10 mins)
+## Phase 5: Documentation (15 mins)
 
-### 5.1 Update Documentation
+### 5.1 Create Refactoring Documentation
 
-```markdown
-## Refactoring: Entity Module
+**Location**: `docs/refactoring/REF-XXX-<description>.md`
 
-### Changes Made
+````markdown
+# Refactoring Report: <Feature/Module Name>
 
-- Extracted validation logic to usecase
-- Simplified handler methods
-- Added comprehensive tests
+## Refactoring ID
 
-### Breaking Changes
+REF-XXX
 
-- None (backward compatible)
+## Date
 
-### Performance Impact
+YYYY-MM-DD
 
-- 30% reduction in API response time
-- Reduced bundle size by 15%
+## Author
 
-### Testing
+@developer-name
 
-- All existing tests pass
-- Added 15 new unit tests
-- No regressions detected
-```
+## Status
 
-### 5.2 Code Comments
+- [ ] Planned
+- [x] In Progress
+- [x] Completed
+- [ ] Reviewed
+
+## Overview
+
+### What Changed
+
+Brief description of the refactoring.
+
+### Why It Was Needed
+
+- Reason 1: Technical debt
+- Reason 2: Performance issues
+- Reason 3: Maintainability
+
+### Scope
+
+- **Files Modified**: 10
+- **Lines Changed**: +500, -800
+- **Breaking Changes**: No
+
+## Before & After
+
+### Architecture
+
+**Before**:
+
+- Description of old architecture
+- Issues with old approach
+
+**After**:
+
+- Description of new architecture
+- Benefits of new approach
+
+### Code Example
+
+**Before**:
 
 ```go
-// REFACTOR(2024-01-15): Extracted from handler to improve testability
+// Old code - 200+ lines in handler
+func (h *Handler) Process(c *gin.Context) {
+    // Validation
+    // Business logic
+    // Database calls
+    // Response
+}
+```
+````
+
+**After**:
+
+```go
+// New code - Separated concerns
+func (h *Handler) Process(c *gin.Context) {
+    result, err := h.usecase.Process(ctx, req)
+    // Just handle response
+}
+
+func (u *Usecase) Process(ctx context.Context, req Request) (Result, error) {
+    // Business logic only
+}
+```
+
+## Changes Detail
+
+### Backend Changes
+
+| File            | Change Type | Description              |
+| --------------- | ----------- | ------------------------ |
+| handler.go      | Modified    | Extracted business logic |
+| usecase.go      | Created     | New usecase layer        |
+| usecase_impl.go | Created     | Implementation           |
+
+### Frontend Changes
+
+| File             | Change Type | Description             |
+| ---------------- | ----------- | ----------------------- |
+| use-feature.ts   | Modified    | Improved error handling |
+| feature-list.tsx | Modified    | Better loading states   |
+
+### Database Changes
+
+- [ ] No changes
+- [x] Schema migration (describe)
+- [ ] Index added
+
+## Impact Analysis
+
+### Performance
+
+| Metric            | Before | After | Improvement   |
+| ----------------- | ------ | ----- | ------------- |
+| API Response Time | 200ms  | 140ms | 30% faster    |
+| Database Queries  | 25     | 15    | 40% reduction |
+| Bundle Size       | 500KB  | 425KB | 15% smaller   |
+| Test Execution    | 45s    | 30s   | 33% faster    |
+
+### Maintainability
+
+- **Cyclomatic Complexity**: Reduced from 25 to 10
+- **Code Duplication**: Reduced by 60%
+- **Test Coverage**: Increased from 60% to 85%
+
+### Developer Experience
+
+- Easier to test (unit testable)
+- Clearer separation of concerns
+- Better error messages
+- More consistent patterns
+
+## Risks & Mitigation
+
+| Risk                   | Likelihood | Impact | Mitigation                 |
+| ---------------------- | ---------- | ------ | -------------------------- |
+| Breaking changes       | Low        | High   | Backward compatible design |
+| Performance regression | Low        | Medium | Benchmark tests            |
+| Regression bugs        | Medium     | Medium | Comprehensive testing      |
+
+## Testing
+
+### Tests Performed
+
+- [x] Unit tests updated
+- [x] Integration tests pass
+- [x] E2E tests pass
+- [x] Manual testing completed
+- [x] Performance benchmarks
+
+### Coverage Report
+
+```
+Before: 60% coverage
+After: 85% coverage
++25% improvement
+```
+
+## Migration Guide
+
+### For Developers
+
+No changes required - backward compatible.
+
+### For DevOps
+
+No infrastructure changes.
+
+## Rollback Plan
+
+If issues occur:
+
+1. Revert commit: `git revert <commit-hash>`
+2. Database: No rollback needed (no schema changes)
+3. Notify team in #dev channel
+
+## Lessons Learned
+
+1. **What Worked Well**:
+   - Extracting usecases improved testability
+   - Early validation caught issues
+
+2. **What Could Be Better**:
+   - Could have done smaller PRs
+   - More documentation upfront
+
+3. **Recommendations**:
+   - Apply same pattern to other modules
+   - Document patterns for team
+
+## Related
+
+- PR: #XXX
+- Issue: #YYY
+- ADR: docs/decisions/ADR-XXX.md
+
+## Approval
+
+- [x] Tech Lead Review
+- [x] QA Sign-off
+- [ ] Product Owner Approval
+
+````
+
+### 5.2 Update Feature Documentation
+
+Update existing feature docs to reflect changes:
+
+```markdown
+## Architecture Update (v2.0)
+
+### Changes in v2.0 (2024-01-15)
+- **Refactored**: Moved business logic from handlers to usecases
+- **Improved**: Response time reduced by 30%
+- **Added**: Comprehensive test coverage (85%)
+
+### Migration Notes
+No migration required. All changes are backward compatible.
+````
+
+### 5.3 Create Architecture Decision Record (ADR)
+
+**Location**: `docs/decisions/ADR-XXX-<decision-title>.md`
+
+```markdown
+# ADR-XXX: Refactor to Vertical Slice Architecture
+
+## Status
+
+- Proposed: 2024-01-10
+- Accepted: 2024-01-15
+- Implemented: 2024-01-15
+
+## Context
+
+Original codebase had business logic scattered across handlers,
+leading to:
+
+- Difficult to test
+- Code duplication
+- Tight coupling
+
+## Decision
+
+Migrate to Vertical Slice Architecture with clear layers:
+
+1. Handler: HTTP layer only
+2. Usecase: Business logic
+3. Repository: Data access
+
+## Consequences
+
+### Positive
+
+- Better testability
+- Clear separation of concerns
+- Easier maintenance
+
+### Negative
+
+- More files to manage
+- Learning curve for team
+
+## Implementation
+
+See: docs/refactoring/REF-XXX.md
+
+## References
+
+- [Vertical Slice Architecture](https://link)
+- [Clean Architecture](https://link)
+```
+
+### 5.4 Update API Documentation
+
+If API behavior changed:
+
+```markdown
+## API Changes
+
+### Version 2.0 (2024-01-15)
+
+**Breaking Changes**: None
+
+**Improvements**:
+
+- Response time reduced by 30%
+- Better error messages
+- Consistent error format
+
+**Deprecations**:
+
+- Old endpoint still works (deprecated)
+- Will be removed in v3.0
+```
+
+### 5.5 Code Comments
+
+```go
+// REFACTOR(2024-01-15, REF-XXX): Extracted from handler to improve testability
 // Previous implementation had 200+ lines, now split into focused methods
+// See: docs/refactoring/REF-XXX-entity-module.md
 func (u *Usecase) ValidateAndProcess(req Request) error {
     // ...
 }
+
+// OPTIMIZE(2024-01-15): Added database index on status column
+// Improves query performance by 40% for filtered lists
+// Migration: migrations/20240115_add_status_index.sql
 ```
+
+### 5.6 Update Change Log
+
+**File**: `CHANGELOG.md`
+
+```markdown
+## [2.0.0] - 2024-01-15
+
+### Changed
+
+- **Refactored**: Entity module to vertical slice architecture
+  - Moved business logic from handlers to usecases
+  - Improved testability and maintainability
+  - 30% performance improvement
+  - See: docs/refactoring/REF-XXX.md
+
+### Improved
+
+- API response time reduced by 30%
+- Test coverage increased to 85%
+- Reduced bundle size by 15%
+```
+
+### 5.7 Update Team Documentation
+
+**File**: `docs/team/development-patterns.md`
+
+```markdown
+## Patterns
+
+### Vertical Slice Architecture (New)
+
+Following REF-XXX refactoring, we now use:
+```
+
+internal/<domain>/
+├── data/
+│ ├── models/
+│ └── repositories/
+├── domain/
+│ ├── dto/
+│ ├── mapper/
+│ └── usecase/
+└── presentation/
+├── handler/
+└── router/
+
+```
+
+**Benefits**:
+- Better testability
+- Clear separation of concerns
+- Easier to understand
+
+**Example**: See entity module implementation
+```
+
+### 5.8 Documentation Checklist
+
+- [ ] Refactoring report created
+- [ ] ADR created (if architectural change)
+- [ ] Feature documentation updated
+- [ ] API documentation updated
+- [ ] Code comments added
+- [ ] CHANGELOG.md updated
+- [ ] Team patterns documented
+- [ ] Migration guide provided (if needed)
+- [ ] Rollback plan documented
+      // ...
+      }
+
+````
 
 ---
 
@@ -630,7 +978,7 @@ type EntityRepository interface {
 func NewUsecase(repo EntityRepository) *Usecase {
     return &Usecase{repo: repo}
 }
-```
+````
 
 **Add Context for Cancellation**
 
