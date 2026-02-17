@@ -56,6 +56,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { AttendanceRecord, AttendanceStatus } from "../types";
+import type { CalendarEvent } from "../types";
 import { useTranslations } from "next-intl";
 import { AttendanceCalendar } from "./attendance-calendar";
 import { AttendanceDayView } from "./attendance-day-view";
@@ -69,6 +70,48 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+/** Build a minimal AttendanceRecord from a calendar day-view event for detail modal and edit form. */
+function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord {
+  const dateStr =
+    event.date instanceof Date
+      ? event.date.toISOString().split("T")[0]
+      : String(event.date);
+  return {
+    id: event.id,
+    employee_id: event.employeeId,
+    employee_name: event.employeeName,
+    employee_code: event.employeeCode,
+    division_name: event.divisionName,
+    date: dateStr,
+    check_in_time: event.checkInTime,
+    check_in_type: event.checkInType,
+    check_in_latitude: null,
+    check_in_longitude: null,
+    check_in_address: "",
+    check_in_note: "",
+    check_out_time: event.checkOutTime,
+    check_out_latitude: null,
+    check_out_longitude: null,
+    check_out_address: "",
+    check_out_note: "",
+    status: event.status,
+    working_minutes: 0,
+    working_hours: event.workingHours ?? "0",
+    overtime_minutes: 0,
+    overtime_hours: "0",
+    late_minutes: event.lateMinutes ?? 0,
+    early_leave_minutes: 0,
+    work_schedule_id: "",
+    leave_request_id: null,
+    notes: event.notes ?? "",
+    is_manual_entry: event.isManualEntry ?? false,
+    manual_entry_reason: "",
+    approved_by: null,
+    created_at: "",
+    updated_at: "",
+  };
+}
 
 export function AttendanceList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
@@ -498,7 +541,13 @@ export function AttendanceList() {
               selectedDate={calendar.selectedDate}
               events={calendar.selectedDateEvents}
               onBack={calendar.handleBackToMonth}
-              onEventClick={calendar.handleEventClick}
+              onEventClick={(event) =>
+                setDetailRecord(calendarEventToAttendanceRecord(event))
+              }
+              onEdit={(event) =>
+                handleEdit(calendarEventToAttendanceRecord(event))
+              }
+              canEdit={canUpdate}
               onCreateNew={() => setIsFormOpen(true)}
             />
           ) : (

@@ -15,7 +15,9 @@ interface AttendanceDayViewProps {
   readonly events: readonly CalendarEvent[];
   readonly onBack: () => void;
   readonly onEventClick: (event: CalendarEvent) => void;
+  readonly onEdit?: (event: CalendarEvent) => void;
   readonly onCreateNew: () => void;
+  readonly canEdit?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -62,7 +64,9 @@ export function AttendanceDayView({
   events,
   onBack,
   onEventClick,
+  onEdit,
   onCreateNew,
+  canEdit = false,
 }: AttendanceDayViewProps) {
   return (
     <div className="flex h-full flex-col">
@@ -185,19 +189,22 @@ export function AttendanceDayView({
                           )}
                         </div>
 
-                        {/* Hover Actions */}
+                        {/* Hover Actions: View detail on card click, Edit via button */}
                         <div className="ml-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick(event);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {canEdit && onEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(event);
+                              }}
+                              title="Edit attendance"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

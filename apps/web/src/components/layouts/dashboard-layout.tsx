@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { useLogout } from "@/features/auth/hooks/use-logout";
+import { UserMenuAttendance } from "@/features/hrd/attendance-records/components/user-menu-attendance";
 import { CommandPalette } from "@/features/command-palette";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
@@ -230,10 +231,12 @@ const Header = memo(function Header({
                 </div>
               </div>
               <Separator className="my-1" />
+              <UserMenuAttendance />
+              <Separator className="my-1" />
               <div className="flex flex-col gap-1">
                 <Link
                   href="/profile"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent transition-colors"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
                 >
                   <Settings className="h-4 w-4" />
                   Settings
@@ -241,7 +244,7 @@ const Header = memo(function Header({
                 <button
                   type="button"
                   onClick={logout}
-                  className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+                  className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
                   Logout
                 </button>
