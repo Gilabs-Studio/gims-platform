@@ -32,8 +32,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
 	estimationUC := usecase.NewSalesEstimationUsecase(estimationRepo, quotationRepo, productRepo)
-	orderUC := usecase.NewSalesOrderUsecase(orderRepo, quotationRepo, productRepo, invUC, employeeRepo)
-	deliveryUC := usecase.NewDeliveryOrderUsecase(deliveryRepo, orderRepo, productRepo, invUC)
+	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, quotationRepo, productRepo, invUC, employeeRepo)
+	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, invUC)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(invoiceRepo, productRepo)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(yearlyTargetRepo)

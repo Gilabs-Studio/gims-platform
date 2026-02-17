@@ -58,6 +58,19 @@ type InventoryBatchItem struct {
 	Available        float64    `json:"available"`
 }
 
+// InventoryBatchDetail provides detailed batch info for validation
+type InventoryBatchDetail struct {
+	ID               string     `json:"id"`
+	ProductID        string     `json:"product_id"`
+	WarehouseID      string     `json:"warehouse_id"`
+	BatchNumber      string     `json:"batch_number"`
+	ExpiryDate       *time.Time `json:"expiry_date"`
+	CurrentQuantity  float64    `json:"current_quantity"`
+	ReservedQuantity float64    `json:"reserved_quantity"`
+	Available        float64    `json:"available"`
+	IsActive         bool       `json:"is_active"`
+}
+
 // Tree View DTOs
 
 type GetInventoryTreeWarehousesResponse struct {

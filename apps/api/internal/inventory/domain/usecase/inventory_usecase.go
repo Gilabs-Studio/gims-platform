@@ -2,10 +2,16 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"math"
 
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
+)
+
+var (
+	ErrBatchNotFound          = errors.New("inventory batch not found")
+	ErrInsufficientBatchStock = errors.New("insufficient stock in selected batch")
 )
 
 type InventoryUsecase interface {
@@ -22,6 +28,11 @@ type InventoryUsecase interface {
 	DeductStock(ctx context.Context, batchID string, quantity float64) error
 	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
 	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error
+
+	// Batch-level Stock Reservation
+	ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error
+	ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error
+	ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error
 }
 
 type inventoryUsecase struct {
@@ -165,5 +176,27 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 
 func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error {
 	return u.repo.CreateStockMovement(ctx, req)
+}
+
+func (u *inventoryUsecase) ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error {
+	batch, err := u.repo.GetBatchByID(ctx, batchID)
+	if err != nil {
+		return err
+	}
+	if batch == nil {
+		return ErrBatchNotFound
+	}
+	if batch.Available < requiredQty {
+		return ErrInsufficientBatchStock
+	}
+	return nil
+}
+
+func (u *inventoryUsecase) ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error {
+	return u.repo.UpdateBatchReservedQuantity(ctx, batchID, quantity)
+}
+
+func (u *inventoryUsecase) ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error {
+	return u.repo.UpdateBatchReservedQuantity(ctx, batchID, -quantity)
 }
 

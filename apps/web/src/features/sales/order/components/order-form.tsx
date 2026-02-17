@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -162,6 +163,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           business_unit_id: order.business_unit_id ?? "",
           business_type_id: order.business_type_id ?? undefined,
           delivery_area_id: order.delivery_area_id ?? undefined,
+          customer_name: order.customer_name ?? "",
+          customer_contact: order.customer_contact ?? "",
+          customer_phone: order.customer_phone ?? "",
+          customer_email: order.customer_email ?? "",
           tax_rate: order.tax_rate ?? 11,
           delivery_cost: order.delivery_cost ?? 0,
           other_cost: order.other_cost ?? 0,
@@ -182,6 +187,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_name: "",
+          customer_contact: "",
+          customer_phone: "",
+          customer_email: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
           sales_quotation_id: undefined,
         },
@@ -301,6 +310,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
             business_unit_id: orderData.business_unit_id ?? "",
             business_type_id: orderData.business_type_id ?? undefined,
             delivery_area_id: orderData.delivery_area_id ?? undefined,
+            customer_name: orderData.customer_name ?? "",
+            customer_contact: orderData.customer_contact ?? "",
+            customer_phone: orderData.customer_phone ?? "",
+            customer_email: orderData.customer_email ?? "",
             tax_rate: orderData.tax_rate ?? 11,
             delivery_cost: orderData.delivery_cost ?? 0,
             other_cost: orderData.other_cost ?? 0,
@@ -334,6 +347,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           business_unit_id: "",
           business_type_id: "",
           delivery_area_id: "",
+          customer_name: "",
+          customer_contact: "",
+          customer_phone: "",
+          customer_email: "",
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
@@ -351,6 +368,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         business_unit_id: "",
         business_type_id: "",
         delivery_area_id: "",
+        customer_name: "",
+        customer_contact: "",
+        customer_phone: "",
+        customer_email: "",
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
@@ -376,6 +397,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         "business_unit_id",
         "business_type_id",
         "delivery_area_id",
+        "customer_name",
+        "customer_contact",
+        "customer_phone",
+        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -436,6 +461,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         "business_unit_id",
         "business_type_id",
         "delivery_area_id",
+        "customer_name",
+        "customer_contact",
+        "customer_phone",
+        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -515,6 +544,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
       "business_unit_id",
       "business_type_id",
       "delivery_area_id",
+      "customer_name",
+      "customer_contact",
+      "customer_phone",
+      "customer_email",
       "tax_rate",
       "delivery_cost",
       "other_cost",
@@ -766,6 +799,38 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 />
                 {errors.delivery_area_id && (
                   <FieldError>{errors.delivery_area_id.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("customerName")}</FieldLabel>
+                <Input {...register("customer_name")} placeholder={t("customerName")} />
+                {errors.customer_name && (
+                  <FieldError>{errors.customer_name.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("customerContact")}</FieldLabel>
+                <Input {...register("customer_contact")} placeholder={t("customerContact")} />
+                {errors.customer_contact && (
+                  <FieldError>{errors.customer_contact.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("customerPhone")}</FieldLabel>
+                <Input {...register("customer_phone")} placeholder={t("customerPhone")} />
+                {errors.customer_phone && (
+                  <FieldError>{errors.customer_phone.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("customerEmail")}</FieldLabel>
+                <Input {...register("customer_email")} placeholder={t("customerEmail")} type="email" />
+                {errors.customer_email && (
+                  <FieldError>{errors.customer_email.message}</FieldError>
                 )}
               </Field>
             </div>

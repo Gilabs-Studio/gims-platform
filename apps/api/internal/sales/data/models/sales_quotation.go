@@ -41,6 +41,12 @@ type SalesQuotation struct {
 	BusinessTypeID *string              `gorm:"type:uuid;index" json:"business_type_id"`
 	BusinessType   *orgModels.BusinessType `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	
+	// Customer snapshot (stored at quotation creation for display without joins)
+	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`
+	CustomerContact string `gorm:"type:varchar(255)" json:"customer_contact"`
+	CustomerPhone   string `gorm:"type:varchar(50)" json:"customer_phone"`
+	CustomerEmail   string `gorm:"type:varchar(255)" json:"customer_email"`
+	
 	// Financial calculations
 	Subtotal       float64   `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
 	DiscountAmount float64   `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`

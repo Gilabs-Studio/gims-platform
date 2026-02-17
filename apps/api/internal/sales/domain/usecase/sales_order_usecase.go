@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -42,6 +44,7 @@ type SalesOrderUsecase interface {
 }
 
 type salesOrderUsecase struct {
+	db            *gorm.DB
 	orderRepo     salesRepos.SalesOrderRepository
 	quotationRepo salesQuotationRepos.SalesQuotationRepository
 	productRepo   productRepos.ProductRepository
@@ -51,6 +54,7 @@ type salesOrderUsecase struct {
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
 func NewSalesOrderUsecase(
+	db *gorm.DB,
 	orderRepo salesRepos.SalesOrderRepository,
 	quotationRepo salesQuotationRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
@@ -58,6 +62,7 @@ func NewSalesOrderUsecase(
 	employeeRepo organizationRepos.EmployeeRepository,
 ) SalesOrderUsecase {
 	return &salesOrderUsecase{
+		db:            db,
 		orderRepo:     orderRepo,
 		quotationRepo: quotationRepo,
 		productRepo:   productRepo,
@@ -378,35 +383,50 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, ErrInvalidOrderStatusTransition
 	}
 
-	// Handle stock reservation on confirmation
+	// Handle stock reservation on confirmation (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusConfirmed && !order.ReservedStock {
-		// Reserve stock for each item
-		for _, item := range order.Items {
-			if err := u.inventoryUC.ReserveStock(ctx, item.ProductID, item.Quantity); err != nil {
-				return nil, err
-			}
-		}
+		err := u.db.Transaction(func(tx *gorm.DB) error {
+			txCtx := database.WithTx(ctx, tx)
 
-		// Mark as reserved in SO
-		if err := u.orderRepo.ReserveStock(ctx, id); err != nil {
-			// Rollback reservation? Ideally this should be in transaction.
-			// For now, if SO update fails, we might have inconsistent reserved count.
-			// TODO: Wrap in transaction or handle rollback
+			// Reserve stock at product level for each item
+			for _, item := range order.Items {
+				if err := u.inventoryUC.ReserveStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return err
+				}
+			}
+
+			// Mark as reserved in SO
+			if err := u.orderRepo.ReserveStock(txCtx, id); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Handle stock release on cancellation
+	// Handle stock release on cancellation (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusCancelled && order.ReservedStock {
-		// Release stock for each item
-		for _, item := range order.Items {
-			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
-				return nil, err
-			}
-		}
+		err := u.db.Transaction(func(tx *gorm.DB) error {
+			txCtx := database.WithTx(ctx, tx)
 
-		// Mark as released in SO
-		if err := u.orderRepo.ReleaseStock(ctx, id); err != nil {
+			// Release stock at product level for each item
+			for _, item := range order.Items {
+				if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return err
+				}
+			}
+
+			// Mark as released in SO
+			if err := u.orderRepo.ReleaseStock(txCtx, id); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -452,8 +472,24 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 		return nil, err
 	}
 
-	// Convert quotation to order
-	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, req.Notes, code, createdBy)
+	// Convert quotation to order (pass customer info — use request fields with quotation fallback)
+	customerName := req.CustomerName
+	if customerName == "" {
+		customerName = quotation.CustomerName
+	}
+	customerContact := req.CustomerContact
+	if customerContact == "" {
+		customerContact = quotation.CustomerContact
+	}
+	customerPhone := req.CustomerPhone
+	if customerPhone == "" {
+		customerPhone = quotation.CustomerPhone
+	}
+	customerEmail := req.CustomerEmail
+	if customerEmail == "" {
+		customerEmail = quotation.CustomerEmail
+	}
+	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, customerName, customerContact, customerPhone, customerEmail, req.Notes, code, createdBy)
 	if err != nil {
 		return nil, err
 	}
@@ -465,8 +501,7 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 
 	// Update quotation status to converted
 	if err := u.quotationRepo.UpdateStatus(ctx, quotation.ID, models.SalesQuotationStatusConverted, createdBy, nil); err != nil {
-		// Log error but don't fail the order creation
-		// TODO: Add logging
+		log.Printf("Warning: failed to update quotation %s status to converted: %v", quotation.ID, err)
 	}
 
 	// Fetch created order with relations

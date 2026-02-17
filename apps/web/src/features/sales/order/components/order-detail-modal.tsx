@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History, PieChart } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Package, Truck, Info, DollarSign, History, PieChart, User, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -371,6 +371,66 @@ export function OrderDetailModal({
                       </div>
                     </div>
                   </div>
+
+                  {/* Customer Information Card */}
+                  {((displayOrder as SalesOrder).customer_name || (displayOrder as SalesOrder).customer_contact || (displayOrder as SalesOrder).customer_phone || (displayOrder as SalesOrder).customer_email) && (
+                    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                      <div className="bg-muted/50 px-6 py-4">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                          <User className="h-4 w-4 text-primary" />
+                          {t("customerInfo")}
+                        </h3>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 gap-5">
+                          {(displayOrder as SalesOrder).customer_name && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerName")}</p>
+                                <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).customer_name}</p>
+                              </div>
+                            </div>
+                          )}
+                          {(displayOrder as SalesOrder).customer_contact && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerContact")}</p>
+                                <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).customer_contact}</p>
+                              </div>
+                            </div>
+                          )}
+                          {(displayOrder as SalesOrder).customer_phone && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Phone className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerPhone")}</p>
+                                <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).customer_phone}</p>
+                              </div>
+                            </div>
+                          )}
+                          {(displayOrder as SalesOrder).customer_email && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Mail className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerEmail")}</p>
+                                <p className="text-sm font-medium truncate">{(displayOrder as SalesOrder).customer_email}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Section - Financial Breakdown */}
@@ -401,8 +461,8 @@ export function OrderDetailModal({
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("common.customer")}</p>
-                              <p className="text-sm font-medium truncate" title={(displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "N/A"}>
-                                {(displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "TODO BELUM DIIMPLEMENT"}
+                              <p className="text-sm font-medium truncate" title={(displayOrder as SalesOrder).customer_name || (displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "N/A"}>
+                                {(displayOrder as SalesOrder).customer_name || (displayOrder as SalesOrder).sales_quotation?.sales_prospect?.company?.name || "N/A"}
                               </p>
                             </div>
                             <div className="space-y-1.5">

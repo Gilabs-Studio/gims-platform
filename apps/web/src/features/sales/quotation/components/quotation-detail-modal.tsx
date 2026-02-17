@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Info, DollarSign, Package, History } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Info, DollarSign, Package, History, User, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -447,6 +447,66 @@ export function QuotationDetailModal({
                       </div>
                     </div>
                   </div>
+
+                  {/* Customer Information Card */}
+                  {(displayQuotation.customer_name || displayQuotation.customer_contact || displayQuotation.customer_phone || displayQuotation.customer_email) && (
+                    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                      <div className="bg-muted/50 px-6 py-4">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                          <User className="h-4 w-4 text-primary" />
+                          {t("customerInfo")}
+                        </h3>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 gap-5">
+                          {displayQuotation.customer_name && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerName")}</p>
+                                <p className="text-sm font-medium truncate">{displayQuotation.customer_name}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayQuotation.customer_contact && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerContact")}</p>
+                                <p className="text-sm font-medium truncate">{displayQuotation.customer_contact}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayQuotation.customer_phone && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Phone className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerPhone")}</p>
+                                <p className="text-sm font-medium truncate">{displayQuotation.customer_phone}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayQuotation.customer_email && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Mail className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("customerEmail")}</p>
+                                <p className="text-sm font-medium truncate">{displayQuotation.customer_email}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Section - Financial Breakdown */}

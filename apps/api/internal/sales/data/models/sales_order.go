@@ -48,6 +48,12 @@ type SalesOrder struct {
 	DeliveryAreaID *string              `gorm:"type:uuid;index" json:"delivery_area_id"`
 	DeliveryArea   *orgModels.Area      `gorm:"foreignKey:DeliveryAreaID" json:"delivery_area,omitempty"`
 	
+	// Customer snapshot (stored at order creation for display without joins)
+	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`
+	CustomerContact string `gorm:"type:varchar(255)" json:"customer_contact"`
+	CustomerPhone   string `gorm:"type:varchar(50)" json:"customer_phone"`
+	CustomerEmail   string `gorm:"type:varchar(255)" json:"customer_email"`
+	
 	// Financial calculations
 	Subtotal       float64   `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
 	DiscountAmount float64   `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`

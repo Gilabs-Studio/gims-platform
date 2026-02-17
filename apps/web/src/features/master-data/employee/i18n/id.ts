@@ -118,6 +118,7 @@ export const employeeId: EmployeeTranslations = {
     reject: "Tolak",
     assignAreas: "Kelola Area",
     save: "Simpan",
+    saving: "Menyimpan...",
     cancel: "Batal",
     confirm: "Konfirmasi",
   },
