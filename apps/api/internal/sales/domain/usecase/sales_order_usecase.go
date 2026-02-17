@@ -257,6 +257,11 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
+		return nil, err
+	}
+
+	// Check if order can be modified
 	if order.Status != models.SalesOrderStatusDraft {
 		return nil, ErrInvalidOrderStatus
 	}
@@ -324,6 +329,12 @@ func (u *salesOrderUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
+	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
+		return err
+	}
+
+
 	// Only allow deletion of draft orders
 	if order.Status != models.SalesOrderStatusDraft {
 		return ErrInvalidOrderStatus
@@ -352,6 +363,11 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrSalesOrderNotFound
 		}
+		return nil, err
+	}
+
+	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
 		return nil, err
 	}
 
@@ -475,7 +491,9 @@ func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.Sales
 
 	// If no user context, assume internal call or unsecured? 
 	if userID == "" {
-		return nil 
+		// Secure by default: if we don't know who you are, you can't touch it.
+		// Unless it's a system process (which might not have user_id but should be handled via different context or role)
+		return ErrSalesOrderNotFound 
 	}
 
 	// Check if user is the creator
@@ -484,14 +502,19 @@ func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.Sales
 	}
 
 	// Check if user is the assigned Sales Rep
-	employee, err := u.employeeRepo.FindByUserID(ctx, userID)
-	if err != nil {
-		// If user is not an employee, they probably shouldn't see orders unless they created them
-		return ErrSalesOrderNotFound // Obfuscate
-	}
+	// Optimization: Avoid DB call if SalesRepID matches directly
+	if order.SalesRepID != nil {
+		// First check if the user IS the sales rep directly (if user ID matches employee ID logic, but usually they are different)
+		// We need to fetch employee record for the user to compare with SalesRepID
+		employee, err := u.employeeRepo.FindByUserID(ctx, userID)
+		if err != nil {
+			// If user is not an employee, they probably shouldn't see orders
+			return ErrSalesOrderNotFound
+		}
 
-	if order.SalesRepID != nil && *order.SalesRepID == employee.ID {
-		return nil
+		if *order.SalesRepID == employee.ID {
+			return nil
+		}
 	}
 
 	return ErrSalesOrderNotFound // Access Denied (Obfuscated)
