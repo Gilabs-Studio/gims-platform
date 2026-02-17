@@ -529,7 +529,7 @@ apps/web/app/[locale]/(dashboard)/hrd/contracts/
 **Features:**
 - Translation support via `getMsg(t, key, fallback)` helper
 - Field validations:
-  - `employee_id`: UUID required
+  - `employee_id`: UUID-format string required (permissive regex to accept seed/test UUIDs; see [Fixed Issues](#fixed-issues))
   - `contract_number`: string 1-50 chars, required
   - `contract_type`: enum required
   - `start_date`: string required
@@ -1172,6 +1172,13 @@ const VALID_DASHBOARD_ROUTES = [
    - Not yet implemented as dashboard widget
    - Data available via `useExpiringContracts()` hook
    - Can be added to HRD dashboard in future sprint
+
+### Fixed Issues
+
+1. **Employee field "Invalid ID format" on Create/Edit Contract** (Fixed):
+   - **Symptom**: Form showed "Invalid ID format" on the Employee select when creating or editing a contract, even though the form-data API returned valid-looking UUIDs.
+   - **Cause**: Zod’s `z.string().uuid()` follows RFC 4122 strictly: the variant nibble (first character of the 4th segment) must be 8, 9, a, or b. Seed/test UUIDs (e.g. `11111111-1111-1111-1111-111111111111`) have 4th segment `1111` (variant 0), so they were rejected.
+   - **Fix**: In `employee-contract.schema.ts`, `employee_id` validation was changed from `z.string().uuid()` to a permissive UUID-format regex (8-4-4-4-12 hex) so all UUID-shaped strings, including seed data, are accepted. Form and Select logic were already sending the correct UUID; only schema validation was updated.
 
 ### Future Frontend Enhancements
 

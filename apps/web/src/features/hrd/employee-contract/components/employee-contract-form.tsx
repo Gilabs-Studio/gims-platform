@@ -51,21 +51,10 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
     register,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<EmployeeContractFormData>({
     resolver: zodResolver(schema),
-    defaultValues: isEdit && contract ? {
-      employee_id: contract.employee_id,
-      contract_number: contract.contract_number,
-      contract_type: contract.contract_type,
-      start_date: contract.start_date,
-      end_date: contract.end_date || undefined,
-      salary: contract.salary,
-      job_title: contract.job_title,
-      department: contract.department || undefined,
-      terms: contract.terms || undefined,
-      document_path: contract.document_path || undefined,
-      status: contract.status,
-    } : {
+    defaultValues: {
       employee_id: "",
       contract_number: "",
       contract_type: undefined,
@@ -80,6 +69,37 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
     },
   });
 
+  // If employee_id is stored as label (e.g. "EMP-002 - Manager User"), normalize to UUID so validation passes
+  const employeeIdValue = useWatch({ control, name: "employee_id" });
+  useEffect(() => {
+    if (!employeeIdValue || typeof employeeIdValue !== "string" || employees.length === 0) return;
+    const s = employeeIdValue.trim();
+    const isUuid = employees.some((e) => String(e.id) === s);
+    if (isUuid) return; // already UUID
+    const byLabel = employees.find((e) => `${e.employee_code} - ${e.name}` === s);
+    if (byLabel) {
+      setValue("employee_id", String(byLabel.id));
+    }
+  }, [employeeIdValue, employees, setValue]);
+
+  // Reset form when contract loads in edit mode so employee_id and other fields are filled
+  useEffect(() => {
+    if (!isEdit || !contract) return;
+    reset({
+      employee_id: contract.employee_id != null ? String(contract.employee_id) : "",
+      contract_number: contract.contract_number ?? "",
+      contract_type: contract.contract_type,
+      start_date: contract.start_date ?? "",
+      end_date: contract.end_date ?? undefined,
+      salary: contract.salary ?? 0,
+      job_title: contract.job_title ?? "",
+      department: contract.department ?? undefined,
+      terms: contract.terms ?? undefined,
+      document_path: contract.document_path ?? undefined,
+      status: contract.status ?? "ACTIVE",
+    });
+  }, [isEdit, contract, reset]);
+
   // Use useWatch instead of watch to avoid React Compiler warning
   const contractType = useWatch({ control, name: "contract_type" });
 
@@ -92,20 +112,21 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
 
   const onSubmit = async (data: EmployeeContractFormData) => {
     try {
+      // Ensure employee_id is always the UUID (in case it was stored as label anywhere)
+      const employeeId =
+        employees.find((e) => String(e.id) === data.employee_id)?.id ??
+        employees.find((e) => `${e.employee_code} - ${e.name}` === data.employee_id)?.id ??
+        data.employee_id;
+      const payload = { ...data, employee_id: String(employeeId), end_date: data.end_date || undefined };
+
       if (isEdit && contractId) {
         await updateContract.mutateAsync({
           id: contractId,
-          data: {
-            ...data,
-            end_date: data.end_date || undefined,
-          },
+          data: payload,
         });
         toast.success(t("messages.updateSuccess"));
       } else {
-        await createContract.mutateAsync({
-          ...data,
-          end_date: data.end_date || undefined,
-        });
+        await createContract.mutateAsync(payload);
         toast.success(t("messages.createSuccess"));
       }
       onClose();
@@ -139,20 +160,40 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
               <Controller
                 name="employee_id"
                 control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isEdit}>
+                render={({ field }) => {
+                  // Normalize: ensure we always store UUID. Radix passes item value; if we ever get label, resolve to id.
+                  const normalizedValue = field.value ? String(field.value).trim() : "";
+                  const displayValue =
+                    normalizedValue && employees.some((e) => String(e.id) === normalizedValue)
+                      ? normalizedValue
+                      : employees.find((e) => `${e.employee_code} - ${e.name}` === normalizedValue)?.id ?? normalizedValue;
+                  // Always pass a string so Select stays controlled (avoids "uncontrolled to controlled" warning).
+                  const selectValue = typeof displayValue === "string" ? displayValue : "";
+                  return (
+                  <Select
+                    value={selectValue}
+                    onValueChange={(val) => {
+                      const id =
+                        employees.find((e) => String(e.id) === val) !== undefined
+                          ? val
+                          : employees.find((e) => `${e.employee_code} - ${e.name}` === val)?.id ?? val;
+                      field.onChange(typeof id === "string" ? id : String(id));
+                    }}
+                    disabled={isEdit}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder={t("fields.employeePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
+                        <SelectItem key={employee.id} value={String(employee.id)}>
                           {employee.employee_code} - {employee.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
+                  );
+                }}
               />
               {errors.employee_id && <FieldError>{errors.employee_id.message}</FieldError>}
             </Field>
