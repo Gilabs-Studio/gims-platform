@@ -147,6 +147,7 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 }
 
 func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error) {
+	employeeID = u.resolveEmployeeID(ctx, employeeID)
 	today := time.Now()
 
 	// Get today's attendance record
@@ -171,6 +172,7 @@ func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employ
 }
 
 func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string, req *dto.ClockInRequest) (*dto.AttendanceRecordResponse, error) {
+	employeeID = u.resolveEmployeeID(ctx, employeeID)
 	today := time.Now()
 
 	// Check if already checked in
@@ -276,6 +278,7 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 }
 
 func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID string, req *dto.ClockOutRequest) (*dto.AttendanceRecordResponse, error) {
+	employeeID = u.resolveEmployeeID(ctx, employeeID)
 	today := time.Now()
 
 	// Get today's attendance
@@ -515,6 +518,17 @@ func (u *attendanceRecordUsecase) calculateDistance(lat1, lon1, lat2, lon2 float
 	return R * c
 }
 
+// resolveEmployeeID returns the actual employee ID for use in attendance records.
+// Auth context may set only user_id; when the given id is a user_id (an employee exists with user_id = id),
+// we return that employee's ID so that the attendance record stores the real employee_id and list enrichment finds the employee.
+func (u *attendanceRecordUsecase) resolveEmployeeID(ctx context.Context, userIDOrEmployeeID string) string {
+	emp, err := u.employeeRepo.FindByUserID(ctx, userIDOrEmployeeID)
+	if err == nil && emp != nil {
+		return emp.ID
+	}
+	return userIDOrEmployeeID
+}
+
 // buildEmployeeMap batch-fetches employees by IDs and builds a lookup map
 func (u *attendanceRecordUsecase) buildEmployeeMap(ctx context.Context, ids []string) map[string]*orgModels.Employee {
 	m := make(map[string]*orgModels.Employee)
@@ -537,6 +551,17 @@ func (u *attendanceRecordUsecase) buildEmployeeMap(ctx context.Context, ids []st
 	}
 	for i := range employees {
 		m[employees[i].ID] = &employees[i]
+	}
+	// Fallback: some attendance records may have been stored with user_id in employee_id (e.g. before resolveEmployeeID existed).
+	// Look up by user_id so list enrichment still shows employee name and division.
+	for _, id := range dedupIDs {
+		if _, ok := m[id]; ok {
+			continue
+		}
+		emp, err := u.employeeRepo.FindByUserID(ctx, id)
+		if err == nil && emp != nil {
+			m[id] = emp
+		}
 	}
 	return m
 }
