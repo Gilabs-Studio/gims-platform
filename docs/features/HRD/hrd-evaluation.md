@@ -219,10 +219,10 @@ cd apps/api && go test ./internal/hrd/...
 #### 3. Search Only Worked on Notes Field (Feb 2025)
 
 - **Problem**: Search in evaluation list only matched `notes` field, not employee names or group names
-- **Fix**: Extended search query to include subqueries on employee name and evaluation group name:
+- **Fix**: Extended search query to include subqueries on employee name and evaluation group name. Cast both sides to `text` to handle type mismatch (`employee_id` is `character`, `id` is `uuid`):
   ```go
-  notes ILIKE ? OR employee_id IN (SELECT id FROM employees WHERE name ILIKE ?)
-  OR evaluation_group_id IN (SELECT id FROM evaluation_groups WHERE name ILIKE ?)
+  notes ILIKE ? OR employee_id::text IN (SELECT id::text FROM employees WHERE name ILIKE ?)
+  OR evaluation_group_id::text IN (SELECT id::text FROM evaluation_groups WHERE name ILIKE ?)
   ```
 - **Files Changed**:
   - `apps/api/internal/hrd/data/repositories/employee_evaluation_repository_impl.go`
