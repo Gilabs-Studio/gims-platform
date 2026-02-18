@@ -10,7 +10,6 @@ import {
   getEvaluationCriteriaSchema,
   getUpdateEvaluationCriteriaSchema,
   type CreateEvaluationCriteriaFormData,
-  type UpdateEvaluationCriteriaFormData,
 } from "../schemas/evaluation.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +47,6 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
   const schema = isEdit
     ? getUpdateEvaluationCriteriaSchema(t)
     : getEvaluationCriteriaSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<
-    CreateEvaluationCriteriaFormData | UpdateEvaluationCriteriaFormData
-  >;
 
   const {
     register,
@@ -58,30 +54,23 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
     reset,
     control,
     formState: { errors },
-  } = useForm<CreateEvaluationCriteriaFormData | UpdateEvaluationCriteriaFormData>({
-    resolver: formResolver,
-    defaultValues: criteria
-      ? {
-          name: criteria.name,
-          description: criteria.description ?? "",
-          weight: criteria.weight,
-          max_score: criteria.max_score,
-          sort_order: criteria.sort_order,
-        }
-      : {
-          evaluation_group_id: defaultGroupId ?? "",
-          name: "",
-          description: "",
-          weight: 0,
-          max_score: 100,
-          sort_order: 0,
-        },
+  } = useForm<CreateEvaluationCriteriaFormData>({
+    resolver: zodResolver(schema) as Resolver<CreateEvaluationCriteriaFormData>,
+    defaultValues: {
+      evaluation_group_id: criteria ? (criteria.evaluation_group_id ?? "") : (defaultGroupId ?? ""),
+      name: criteria?.name ?? "",
+      description: criteria?.description ?? "",
+      weight: criteria?.weight ?? 0,
+      max_score: criteria?.max_score ?? 100,
+      sort_order: criteria?.sort_order ?? 0,
+    },
   });
 
   useEffect(() => {
     if (open) {
       if (criteria) {
         reset({
+          evaluation_group_id: criteria.evaluation_group_id ?? "",
           name: criteria.name,
           description: criteria.description ?? "",
           weight: criteria.weight,
@@ -96,21 +85,22 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
           weight: 0,
           max_score: 100,
           sort_order: 0,
-        } as CreateEvaluationCriteriaFormData);
+        });
       }
     }
   }, [open, criteria, defaultGroupId, reset]);
 
-  const onSubmit = async (data: CreateEvaluationCriteriaFormData | UpdateEvaluationCriteriaFormData) => {
+  const onSubmit = async (data: CreateEvaluationCriteriaFormData) => {
     try {
       if (isEdit && criteria) {
+        const { evaluation_group_id: _, ...updateData } = data;
         await updateCriteria.mutateAsync({
           id: criteria.id,
-          data: data as UpdateEvaluationCriteriaFormData,
+          data: updateData,
         });
         toast.success(t("criteria.updated"));
       } else {
-        await createCriteria.mutateAsync(data as CreateEvaluationCriteriaFormData);
+        await createCriteria.mutateAsync(data);
         toast.success(t("criteria.created"));
       }
       onClose();
@@ -136,7 +126,7 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
                 control={control}
                 render={({ field }) => (
                   <Select
-                    value={(field.value as string) ?? ""}
+                    value={field.value || undefined}
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger className="cursor-pointer">

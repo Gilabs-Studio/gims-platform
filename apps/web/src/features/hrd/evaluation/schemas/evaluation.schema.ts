@@ -2,6 +2,10 @@ import { z } from "zod";
 
 type TranslationFn = (key: string) => string;
 
+// Loose UUID regex: accepts any hex UUID-formatted string (not strict RFC 4122)
+// This is needed because seeder UUIDs don't have valid version/variant bits
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Helper to get message or default
 const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) => {
   return t ? t(key) : defaultMsg;
@@ -28,7 +32,7 @@ export const getEvaluationCriteriaSchema = (t?: TranslationFn) =>
   z.object({
     evaluation_group_id: z
       .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid evaluation group ID"))
+      .regex(UUID_REGEX, getMsg(t, "validation.invalidId", "Invalid evaluation group ID"))
       .min(1, getMsg(t, "validation.required", "Evaluation group is required")),
     name: z
       .string()
@@ -55,7 +59,7 @@ export const getCriteriaScoreSchema = (t?: TranslationFn) =>
   z.object({
     evaluation_criteria_id: z
       .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid criteria ID")),
+      .regex(UUID_REGEX, getMsg(t, "validation.invalidId", "Invalid criteria ID")),
     score: z
       .number()
       .min(0, getMsg(t, "validation.scoreMin", "Score cannot be negative")),
@@ -68,15 +72,15 @@ export const getEmployeeEvaluationSchema = (t?: TranslationFn) =>
   z.object({
     employee_id: z
       .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid employee ID"))
+      .regex(UUID_REGEX, getMsg(t, "validation.invalidId", "Invalid employee ID"))
       .min(1, getMsg(t, "validation.required", "Employee is required")),
     evaluation_group_id: z
       .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid evaluation group ID"))
+      .regex(UUID_REGEX, getMsg(t, "validation.invalidId", "Invalid evaluation group ID"))
       .min(1, getMsg(t, "validation.required", "Evaluation group is required")),
     evaluator_id: z
       .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid evaluator ID"))
+      .regex(UUID_REGEX, getMsg(t, "validation.invalidId", "Invalid evaluator ID"))
       .min(1, getMsg(t, "validation.required", "Evaluator is required")),
     evaluation_type: z.enum(["SELF", "MANAGER"], {
       message: getMsg(t, "validation.required", "Evaluation type is required"),

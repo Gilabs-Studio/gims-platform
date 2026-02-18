@@ -3,6 +3,7 @@
 Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template evaluasi (Evaluation Group + Criteria), pelaksanaan evaluasi per karyawan dengan scoring per kriteria, dan workflow status (DRAFT → SUBMITTED → REVIEWED → FINALIZED).
 
 ## Fitur Utama
+
 - Template evaluasi (Evaluation Group) dengan kriteria berbobot
 - Validasi total bobot kriteria ≤ 100%
 - Evaluasi karyawan dengan scoring per kriteria
@@ -13,6 +14,7 @@ Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template ev
 - Pagination, search, dan filter multi-parameter
 
 ## Business Rules
+
 - Total weight semua criteria dalam satu group tidak boleh melebihi 100%
 - Weight di-copy dari criteria ke evaluation criteria score saat evaluasi dibuat (snapshot at eval time)
 - Overall score = Σ(score × weight / 100) untuk semua criteria scores
@@ -23,9 +25,9 @@ Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template ev
 - Period end harus setelah period start
 
 ## Keputusan Teknis
-- **Mengapa weight di-copy ke evaluation criteria score**: 
+
+- **Mengapa weight di-copy ke evaluation criteria score**:
   Agar perubahan weight di template tidak mengubah hasil evaluasi yang sudah ada. Trade-off: duplikasi data minimal.
-  
 - **Mengapa tidak ada REJECTED status**:
   Flow evaluasi bersifat one-way (forward-only). Jika reviewer tidak setuju, mereka bisa menambahkan notes dan tidak memajukan status. Trade-off: tidak bisa "return to draft".
 
@@ -35,6 +37,7 @@ Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template ev
 ## Struktur Folder
 
 ### Backend
+
 ```
 internal/hrd/
 ├── data/
@@ -74,6 +77,7 @@ internal/hrd/
 ```
 
 ### Frontend
+
 ```
 features/hrd/evaluation/
 ├── types/
@@ -106,39 +110,40 @@ app/[locale]/(dashboard)/hrd/evaluation/
 
 ### Evaluation Groups
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/hrd/evaluation-groups` | evaluation.read | List all evaluation groups (paginated) |
-| GET | `/hrd/evaluation-groups/:id` | evaluation.read | Get group by ID (with criteria) |
-| POST | `/hrd/evaluation-groups` | evaluation.create | Create evaluation group |
-| PUT | `/hrd/evaluation-groups/:id` | evaluation.update | Update evaluation group |
-| DELETE | `/hrd/evaluation-groups/:id` | evaluation.delete | Delete evaluation group (soft) |
+| Method | Endpoint                     | Permission        | Description                            |
+| ------ | ---------------------------- | ----------------- | -------------------------------------- |
+| GET    | `/hrd/evaluation-groups`     | evaluation.read   | List all evaluation groups (paginated) |
+| GET    | `/hrd/evaluation-groups/:id` | evaluation.read   | Get group by ID (with criteria)        |
+| POST   | `/hrd/evaluation-groups`     | evaluation.create | Create evaluation group                |
+| PUT    | `/hrd/evaluation-groups/:id` | evaluation.update | Update evaluation group                |
+| DELETE | `/hrd/evaluation-groups/:id` | evaluation.delete | Delete evaluation group (soft)         |
 
 ### Evaluation Criteria
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/hrd/evaluation-criteria/group/:group_id` | evaluation.read | Get criteria by group |
-| GET | `/hrd/evaluation-criteria/:id` | evaluation.read | Get criteria by ID |
-| POST | `/hrd/evaluation-criteria` | evaluation.create | Create criteria (validates weight) |
-| PUT | `/hrd/evaluation-criteria/:id` | evaluation.update | Update criteria (validates weight) |
-| DELETE | `/hrd/evaluation-criteria/:id` | evaluation.delete | Delete criteria (soft) |
+| Method | Endpoint                                   | Permission        | Description                        |
+| ------ | ------------------------------------------ | ----------------- | ---------------------------------- |
+| GET    | `/hrd/evaluation-criteria/group/:group_id` | evaluation.read   | Get criteria by group              |
+| GET    | `/hrd/evaluation-criteria/:id`             | evaluation.read   | Get criteria by ID                 |
+| POST   | `/hrd/evaluation-criteria`                 | evaluation.create | Create criteria (validates weight) |
+| PUT    | `/hrd/evaluation-criteria/:id`             | evaluation.update | Update criteria (validates weight) |
+| DELETE | `/hrd/evaluation-criteria/:id`             | evaluation.delete | Delete criteria (soft)             |
 
 ### Employee Evaluations
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/hrd/employee-evaluations` | evaluation.read | List evaluations (paginated, filtered) |
-| GET | `/hrd/employee-evaluations/:id` | evaluation.read | Get evaluation with full details |
-| GET | `/hrd/employee-evaluations/form-data` | Auth | Get form dropdown data |
-| POST | `/hrd/employee-evaluations` | evaluation.create | Create evaluation with scores |
-| PUT | `/hrd/employee-evaluations/:id` | evaluation.update | Update evaluation (DRAFT only) |
-| POST | `/hrd/employee-evaluations/:id/status` | evaluation.update | Transition status |
-| DELETE | `/hrd/employee-evaluations/:id` | evaluation.delete | Delete evaluation (DRAFT only) |
+| Method | Endpoint                               | Permission        | Description                            |
+| ------ | -------------------------------------- | ----------------- | -------------------------------------- |
+| GET    | `/hrd/employee-evaluations`            | evaluation.read   | List evaluations (paginated, filtered) |
+| GET    | `/hrd/employee-evaluations/:id`        | evaluation.read   | Get evaluation with full details       |
+| GET    | `/hrd/employee-evaluations/form-data`  | Auth              | Get form dropdown data                 |
+| POST   | `/hrd/employee-evaluations`            | evaluation.create | Create evaluation with scores          |
+| PUT    | `/hrd/employee-evaluations/:id`        | evaluation.update | Update evaluation (DRAFT only)         |
+| POST   | `/hrd/employee-evaluations/:id/status` | evaluation.update | Transition status                      |
+| DELETE | `/hrd/employee-evaluations/:id`        | evaluation.delete | Delete evaluation (DRAFT only)         |
 
 ## Cara Test Manual
 
 ### Backend (API)
+
 1. Login sebagai admin/HR
 2. **Create Evaluation Group**: POST `/hrd/evaluation-groups` dengan name "Performance Review FY25"
 3. **Add Criteria**: POST `/hrd/evaluation-criteria` dengan evaluation_group_id, name "Communication", weight 30
@@ -153,6 +158,7 @@ app/[locale]/(dashboard)/hrd/evaluation/
 12. **Verify Edit Block**: Try PUT on finalized evaluation → should return error
 
 ### Frontend (UI)
+
 1. Login sebagai admin/HR
 2. Navigate ke `/hrd/evaluation`
 3. **Evaluation Groups Tab**:
@@ -175,24 +181,46 @@ app/[locale]/(dashboard)/hrd/evaluation/
 7. **Empty States**: Verify empty message when no data
 
 ## Automated Testing
+
 - **Unit Tests**: `apps/api/internal/hrd/domain/usecase/evaluation_group_usecase_test.go`
 - **Integration Tests**: `apps/api/test/hrd/evaluation_integration_test.go`
 
 **Run Tests**:
+
 ```bash
 cd apps/api && go test ./internal/hrd/...
 ```
 
 ## Dependencies
+
 - **Backend**: GORM (models + queries), UUID (primary keys)
 - **Frontend**: TanStack Query v5 (data fetching), Zod (validation), react-hook-form (form state), date-fns (period formatting), next-intl (i18n), shadcn/ui (components), NumericInput (score entry)
 - **Integration**: Organization module (employee data via EmployeeRepository), route registered in `route-validator.ts`, i18n registered in `request.ts`
 - **Database**: PostgreSQL with pg_trgm extension for GIN indexes
 
 ## Notes & Improvements
+
+### Bugs Fixed
+
+#### 1. `is_active` Always `true` in API Response (Feb 2025)
+
+- **Root Cause**: The GORM model `EvaluationGroup` had `default:true` tag on `IsActive` field. When creating with `is_active=false`, GORM skips zero-value fields that have a `default` tag, so the database default `true` was applied instead of the intended `false`.
+- **Fix**: Removed `default:true` from the GORM tag in `evaluation_group.go`. The Go-level mapper (`ToEvaluationGroupModel`) already handles the default value, so the GORM tag default was redundant and harmful.
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/models/evaluation_group.go`
+
+#### 2. "Invalid Selection" on Seeder Evaluation Groups (Feb 2025)
+
+- **Root Cause**: Zod v4's `.uuid()` enforces strict RFC 4122 validation (version nibble must be 1-5, variant nibble must be 8/9/a/b). Seeder UUIDs like `e0000001-0000-0000-0000-000000000001` have `0` in both positions, failing this strict check. Groups created via the form use Go's `uuid.New()` which generates valid RFC 4122 v4 UUIDs.
+- **Fix**: Replaced all `.uuid()` calls with `.regex(UUID_REGEX, ...)` using a loose hex-only UUID pattern (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) that accepts any UUID-formatted hex string without enforcing RFC 4122 version/variant bits.
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
+
+### Known Limitations
+
 - **Known Limitation**: Saat ini belum support evaluation period templates (quarterly, annual auto-generation)
 - **Known Limitation**: React Compiler shows cosmetic warnings for react-hook-form `watch()` usage — not a blocker
-- **Future Improvement**: 
+- **Future Improvement**:
   - Add evaluation period templates for auto-scheduling
   - Add PDF export for finalized evaluations
   - Add notification system for pending reviews

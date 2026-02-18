@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -10,7 +10,6 @@ import {
   getEvaluationGroupSchema,
   getUpdateEvaluationGroupSchema,
   type CreateEvaluationGroupFormData,
-  type UpdateEvaluationGroupFormData,
 } from "../schemas/evaluation.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,32 +34,22 @@ export function EvaluationGroupForm({ open, onClose, group }: EvaluationGroupFor
   const updateGroup = useUpdateEvaluationGroup();
 
   const schema = isEdit ? getUpdateEvaluationGroupSchema(t) : getEvaluationGroupSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<CreateEvaluationGroupFormData | UpdateEvaluationGroupFormData>;
+  const formResolver = zodResolver(schema) as Resolver<CreateEvaluationGroupFormData>;
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
+    control,
     formState: { errors },
-  } = useForm<CreateEvaluationGroupFormData | UpdateEvaluationGroupFormData>({
+  } = useForm<CreateEvaluationGroupFormData>({
     resolver: formResolver,
-    defaultValues: group
-      ? {
-          name: group.name,
-          description: group.description ?? "",
-          is_active: group.is_active,
-        }
-      : {
-          name: "",
-          description: "",
-          is_active: true,
-        },
+    defaultValues: {
+      name: group?.name ?? "",
+      description: group?.description ?? "",
+      is_active: group?.is_active ?? true,
+    },
   });
-
-  // Use useWatch for React Compiler compatibility
-  const isActive = watch("is_active") as boolean | undefined;
 
   useEffect(() => {
     if (open) {
@@ -76,13 +65,13 @@ export function EvaluationGroupForm({ open, onClose, group }: EvaluationGroupFor
     }
   }, [open, group, reset]);
 
-  const onSubmit = async (data: CreateEvaluationGroupFormData | UpdateEvaluationGroupFormData) => {
+  const onSubmit = async (data: CreateEvaluationGroupFormData) => {
     try {
       if (isEdit && group) {
         await updateGroup.mutateAsync({ id: group.id, data });
         toast.success(t("group.updated"));
       } else {
-        await createGroup.mutateAsync(data as CreateEvaluationGroupFormData);
+        await createGroup.mutateAsync(data);
         toast.success(t("group.created"));
       }
       onClose();
@@ -119,9 +108,15 @@ export function EvaluationGroupForm({ open, onClose, group }: EvaluationGroupFor
           <Field>
             <div className="flex items-center justify-between">
               <FieldLabel>{t("group.isActive")}</FieldLabel>
-              <Switch
-                checked={isActive ?? true}
-                onCheckedChange={(checked) => setValue("is_active", checked)}
+              <Controller
+                name="is_active"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value ?? true}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
               />
             </div>
           </Field>
