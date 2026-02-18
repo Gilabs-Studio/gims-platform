@@ -6,8 +6,10 @@ Employee education history tracking feature for managing employee educational ba
 ## Features
 - Track employee education from elementary to doctorate level
 - Support ongoing education (no end date required)
-- GPA tracking (optional, 0-4.0 scale)
-- Document upload support for certificates/diplomas
+- GPA tracking (optional, 0–4.0 scale) with auto-cap and form validation (no browser default warning)
+- Document upload via FileUpload component (same as HRD Contracts): PDF, DOC, DOCX, XLS, XLSX; max 10MB
+- List shows employee name and code (from API); Employee column is clickable to open detail modal
+- Detail modal: Employee information section (avatar, name, code, email, position, View profile link) and document section with download
 - Search by institution or field of study
 - Filter by employee and degree level
 - Chronological ordering (most recent first)
@@ -40,7 +42,7 @@ Employee education history tracking feature for managing employee educational ba
 | PUT | `/hrd/employee-education-histories/:id` | `education_history.update` | Update existing record |
 | DELETE | `/hrd/employee-education-histories/:id` | `education_history.delete` | Soft delete record |
 | GET | `/hrd/employee-education-histories/:id` | `education_history.read` | Get record details |
-| GET | `/hrd/employee-education-histories` | `education_history.read` | List all with pagination/filters |
+| GET | `/hrd/employee-education-histories` | `education_history.read` | List all with pagination/filters; response items include `employee_name` and `employee_code` (enriched from employee) |
 | GET | `/hrd/employee-education-histories/employee/:employee_id` | `education_history.read` | Get all records for employee |
 
 ## Data Structure
@@ -131,6 +133,8 @@ GET /hrd/employee-education-histories?page=1&per_page=20&search=university&degre
 ```
 
 ### List Response
+List items include `employee_name` and `employee_code` (populated by backend from employee record) for display in the table and detail modal fallback.
+
 ```json
 {
   "success": true,
@@ -138,6 +142,8 @@ GET /hrd/employee-education-histories?page=1&per_page=20&search=university&degre
     {
       "id": "e1111111-1111-1111-1111-111111111111",
       "employee_id": "11111111-1111-1111-1111-111111111111",
+      "employee_name": "John Doe",
+      "employee_code": "EMP-001",
       "institution": "University of Indonesia",
       "degree": "BACHELOR",
       "field_of_study": "Computer Science",
@@ -164,7 +170,7 @@ GET /hrd/employee-education-histories?page=1&per_page=20&search=university&degre
 ## Validation Rules
 
 ### Create Request
-- `employee_id`: required, valid UUID, employee must exist
+- `employee_id`: required, valid UUID format (permissive regex to support seed UUIDs e.g. `11111111-...`), employee must exist
 - `institution`: required, max 200 characters
 - `degree`: required, one of valid degree levels
 - `field_of_study`: optional, max 200 characters
@@ -227,7 +233,7 @@ education-history/
 - **Pagination**: Server-side with configurable page size (default 20)
 - **Permission-based Actions**: Create/Edit/Delete buttons shown only with proper permissions
 - **Responsive Table**: 7 columns:
-  1. Employee (displays employee_id - UUID)
+  1. **Employee**: Displays employee name (primary) and employee code (muted secondary line). Cell is clickable (cursor-pointer, hover underline); click opens the detail modal (same as View action). Data from API `employee_name` and `employee_code`.
   2. Institution
   3. Degree (colored badge)
   4. Field of Study
@@ -265,38 +271,42 @@ education-history/
 - **Mode Detection**: Automatically detects create vs edit mode
 - **GetFormData Integration**: Fetches employees + degree levels from backend on open
 - **React Hook Form**: Form state management with Zod validation
+- **Employee Field**: Same pattern as Leave Request—permissive UUID validation; if user selects by label (e.g. "EMP-001 - Name"), form normalizes to UUID via `employees.find(byLabel)` and `setValue("employee_id", id)`. Submit resolves `employee_id` from employees (by id or label) before sending.
+- **Reset on Edit Open**: When dialog opens in edit mode, form is reset with `educationHistory` (all fields including document_path); `documentPathDisplay` and "ongoing" checkbox are synced.
 - **Ongoing Checkbox**: Custom logic to hide end_date field when checked
 - **Date Pickers**: Calendar component with Popover (shadcn/ui)
 - **Real-time Validation**: Inline error messages below fields
 - **Toast Notifications**: Success/error feedback on submit
+- **Accessibility**: Dialog uses `DialogDescription` (title + subtitle) to satisfy aria-describedby and avoid console warnings.
 
 **Form Fields**:
-1. `employee_id`: Select dropdown (disabled in edit mode)
+1. `employee_id`: Select dropdown (value = employee id; options show "code - name"; disabled in edit mode)
 2. `institution`: Text input (required, max 200 chars)
 3. `degree`: Select dropdown (7 options, required)
 4. `field_of_study`: Text input (optional, max 200 chars)
 5. `start_date`: Date picker (required)
 6. `ongoing`: Checkbox (hides end_date when checked)
 7. `end_date`: Date picker (optional, hidden if ongoing)
-8. `gpa`: Number input (0-4 range, optional)
+8. `gpa`: Controlled number input (Controller): `inputMode="decimal"`, value clamped to 0–4 on change and onBlur; no native `max` to avoid browser tooltip; Zod validates 0–4.
 9. `description`: Textarea (optional)
-10. `document_path`: Text input (optional, max 255 chars)
+10. `document_path`: **FileUpload** component (same as HRD Contracts): upload endpoint `/upload/document`, accept `.pdf,.doc,.docx,.xls,.xlsx`, maxSize 10MB; display/clear in edit mode via `documentPathDisplay` state and reset effect.
 
 **Validation**:
 - Custom Zod refinement: end_date >= start_date
-- GPA range: 0.00 - 4.00
+- GPA: 0.00–4.00 (Zod); input auto-caps at 4 to avoid browser warning
+- employee_id: permissive UUID format (same regex as employee contract/leave request)
 - Required field indicators with red asterisk
 
 #### EducationHistoryDetailModal
-**Purpose**: Read-only detail view with edit/delete actions
+**Purpose**: Read-only detail view with edit/delete actions (aligned with Employee Contract detail modal where applicable)
 
 **Layout Sections**:
-1. **Header**: Icon, title, institution name, action buttons
-2. **Employee Information**: Employee ID display
+1. **Header**: Icon, title, institution name, action buttons. Uses `DialogDescription` (institution name) for accessibility.
+2. **Employee Information**: Section similar to contract detail (not in a separate tab). Fetches employee by `employee_id` when modal is open (`useEmployee(displayEducation.employee_id)`). Displays: avatar, name, code, email, position badge, and **View profile** button (Link to `/master-data/employees?openId={employee_id}`). Below that, a grid with employee code, email, phone, position, department. If employee details fail to load, fallback shows `employee_name` / `employee_code` from list response or `employee_id`, plus View profile link.
 3. **Education Information**: Institution, degree badge, field, GPA (2-column grid)
 4. **Timeline**: Start date, end date, status badge, duration (2-column grid)
 5. **Description**: Full text block (if present)
-6. **Document Information**: Document path with icon (or "No document")
+6. **Document Information**: If `document_path` exists: **Download** button (same URL logic as contract—`NEXT_PUBLIC_API_URL` + path, `download` attribute, `target="_blank"`). Otherwise "No document" text.
 7. **Timestamps**: Created/updated at (footer)
 
 **InfoRow Component**: Reusable display component with icon, label, value
@@ -373,7 +383,7 @@ All methods use `apiClient` wrapper with typed responses.
 3. **degrees** (7 keys): Degree level labels (localized)
 4. **filters** (4 keys): Filter dropdowns
 5. **validation** (6 keys): Error messages
-6. **details** (6 keys): Detail modal sections
+6. **details** (14 keys): Detail modal sections—title, employeeInfo, educationInfo, documentInfo, timeline, noDocument, **viewProfile**, **employeeCode**, **email**, **phone**, **position**, **department**, **downloadDocument**
 7. **form** (7 keys): Form placeholders
 
 **Degree Localizations (Indonesian)**:
@@ -477,6 +487,8 @@ DegreeLevel: "ELEMENTARY" | "JUNIOR_HIGH" | ... | "DOCTORATE"
 EmployeeEducationHistory: {
   id: string
   employee_id: string
+  employee_name?: string   // from list API for table and detail fallback
+  employee_code?: string   // from list API for table and detail fallback
   institution: string
   degree: DegreeLevel
   field_of_study: string
@@ -523,7 +535,7 @@ getEducationHistorySchema(t: Function)
 ```
 
 **Validations**:
-- employee_id: UUID, required
+- employee_id: Required; permissive UUID format (regex aligned with leave request / employee contract) so seed UUIDs (e.g. `11111111-...`) pass
 - institution: string (1-200 chars), required
 - degree: enum [7 values], required
 - field_of_study: string (0-200 chars), optional
@@ -704,7 +716,8 @@ go test -v ./internal/hrd/domain/usecase -run TestEmployeeEducationHistory
 - Use pagination for large result sets (enforced max 100 per page)
 - Search is case-insensitive and searches both institution and field_of_study
 - Computed fields (`is_completed`, `duration_years`) calculated on-the-fly (not stored)
-- Document path is stored, actual file upload handled by Upload Module
+- Document: Stored path from Upload Module; frontend uses FileUpload component (endpoint `/upload/document`, same as HRD Contracts) for upload and display/clear in form; detail modal provides download via API base URL + path.
+- List API returns `employee_name` and `employee_code` per item (backend enriches from employee record) for table display and detail modal fallback.
 
 ## Related Features
 - **Employee Contract**: Contract management with education requirement validation (future)
