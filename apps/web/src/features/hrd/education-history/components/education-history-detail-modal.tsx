@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
@@ -17,6 +18,8 @@ import {
   useDeleteEducationHistory,
   useEducationHistory,
 } from "../hooks/use-education-history";
+import { useEmployee } from "@/features/master-data/employee/hooks/use-employees";
+import { Link } from "@/i18n/routing";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -68,13 +71,19 @@ export function EducationHistoryDetailModal({
     }
   );
 
+  // Use detailed data if available, otherwise use passed education history
+  const displayEducation = detailData?.data ?? educationHistory;
+
+  // Fetch employee details for employee section (like contract detail modal)
+  const { data: employeeResponse, isLoading: isLoadingEmployee } = useEmployee(
+    open && displayEducation?.employee_id ? displayEducation.employee_id : undefined
+  );
+  const employeeDetails = employeeResponse?.data;
+
   const canEdit = useUserPermission("education_history.update");
   const canDelete = useUserPermission("education_history.delete");
 
   if (!educationHistory) return null;
-
-  // Use detailed data if available, otherwise use passed education history
-  const displayEducation = detailData?.data ?? educationHistory;
 
   const handleDelete = async () => {
     try {
@@ -101,9 +110,9 @@ export function EducationHistoryDetailModal({
                   <DialogTitle className="text-xl">
                     {t("details.title")}
                   </DialogTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <DialogDescription>
                     {displayEducation.institution}
-                  </p>
+                  </DialogDescription>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -142,18 +151,92 @@ export function EducationHistoryDetailModal({
               </>
             ) : (
               <>
-                {/* Employee Information */}
+                {/* Employee Information (same structure as contract detail — view profile, no separate tab) */}
                 <div>
                   <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                     <User className="h-4 w-4" />
                     {t("details.employeeInfo")}
                   </h3>
-                  <div className="grid grid-cols-1 gap-2 bg-muted/50 p-4 rounded-lg">
-                    <InfoRow
-                      label={t("employee")}
-                      value={displayEducation.employee_id}
-                    />
-                  </div>
+                  {isLoadingEmployee ? (
+                    <div className="rounded-lg border bg-card p-6">
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  ) : employeeDetails ? (
+                    <div className="rounded-lg border bg-card p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <User className="h-8 w-8 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <h3 className="text-xl font-semibold">{employeeDetails.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {employeeDetails.employee_code}
+                            {employeeDetails.email && ` • ${employeeDetails.email}`}
+                          </p>
+                          {employeeDetails.job_position?.name && (
+                            <Badge variant="outline">{employeeDetails.job_position.name}</Badge>
+                          )}
+                        </div>
+                        <Link
+                          href={
+                            displayEducation.employee_id
+                              ? `/master-data/employees?openId=${displayEducation.employee_id}`
+                              : "/master-data/employees"
+                          }
+                        >
+                          <Button variant="outline" size="sm" className="cursor-pointer shrink-0">
+                            {t("details.viewProfile")}
+                          </Button>
+                        </Link>
+                      </div>
+                      <Separator className="my-4" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">{t("details.employeeCode")}</p>
+                          <p className="font-medium">{employeeDetails.employee_code}</p>
+                        </div>
+                        {employeeDetails.email && (
+                          <div>
+                            <p className="text-muted-foreground">{t("details.email")}</p>
+                            <p className="font-medium">{employeeDetails.email}</p>
+                          </div>
+                        )}
+                        {employeeDetails.phone && (
+                          <div>
+                            <p className="text-muted-foreground">{t("details.phone")}</p>
+                            <p className="font-medium">{employeeDetails.phone}</p>
+                          </div>
+                        )}
+                        {employeeDetails.job_position?.name && (
+                          <div>
+                            <p className="text-muted-foreground">{t("details.position")}</p>
+                            <p className="font-medium">{employeeDetails.job_position.name}</p>
+                          </div>
+                        )}
+                        {employeeDetails.division?.name && (
+                          <div>
+                            <p className="text-muted-foreground">{t("details.department")}</p>
+                            <p className="font-medium">{employeeDetails.division.name}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        {displayEducation.employee_name
+                          ? `${displayEducation.employee_name}${displayEducation.employee_code ? ` (${displayEducation.employee_code})` : ""}`
+                          : displayEducation.employee_id}
+                      </p>
+                      {displayEducation.employee_id && (
+                        <Link href={`/master-data/employees?openId=${displayEducation.employee_id}`}>
+                          <Button variant="outline" size="sm" className="mt-2 cursor-pointer">
+                            {t("details.viewProfile")}
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -258,21 +341,32 @@ export function EducationHistoryDetailModal({
 
                 <Separator />
 
-                {/* Document Information */}
+                {/* Document Information — download like contract detail */}
                 <div>
                   <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     {t("details.documentInfo")}
                   </h3>
                   <div className="bg-muted/50 p-4 rounded-lg">
-                    <InfoRow
-                      label={t("documentPath")}
-                      value={
-                        displayEducation.document_path ||
-                        t("details.noDocument")
-                      }
-                      icon={FileText}
-                    />
+                    {displayEducation.document_path ? (
+                      <Button variant="outline" size="sm" asChild className="cursor-pointer">
+                        <a
+                          href={
+                            displayEducation.document_path.startsWith("http")
+                              ? displayEducation.document_path
+                              : `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087"}${displayEducation.document_path.startsWith("/") ? displayEducation.document_path : `/${displayEducation.document_path}`}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={displayEducation.document_path.split("/").pop() ?? "education-document.pdf"}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          {t("details.downloadDocument")}
+                        </a>
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t("details.noDocument")}</p>
+                    )}
                   </div>
                 </div>
 

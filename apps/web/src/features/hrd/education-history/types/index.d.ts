@@ -29,6 +29,8 @@ export interface DegreeLevelOption {
 export interface EmployeeEducationHistory {
   id: string;
   employee_id: string;
+  employee_name?: string;
+  employee_code?: string;
   institution: string;
   degree: DegreeLevel;
   field_of_study: string;

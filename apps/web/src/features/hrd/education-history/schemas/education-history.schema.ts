@@ -12,6 +12,9 @@ const getMsg = (
   return t ? t(key) : defaultMsg;
 };
 
+// UUID format: 8-4-4-4-12 hex. Use regex (not z.uuid()) so test/seed UUIDs like 11111111-1111-1111-1111-111111111111 pass.
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Degree level values
 const degreeLevels: DegreeLevel[] = [
   "ELEMENTARY",
@@ -29,8 +32,12 @@ export const getEducationHistorySchema = (t?: TranslationFn) =>
     .object({
       employee_id: z
         .string()
-        .uuid(getMsg(t, "validation.invalidId", "Invalid employee ID"))
-        .min(1, getMsg(t, "validation.required", "Employee is required")),
+        .refine((val) => (val ?? "").trim().length > 0, {
+          message: getMsg(t, "validation.required", "Employee is required"),
+        })
+        .refine((val) => UUID_FORMAT.test((val ?? "").trim()), {
+          message: getMsg(t, "validation.invalidId", "Invalid ID format"),
+        }),
       institution: z
         .string()
         .min(1, getMsg(t, "validation.required", "Institution is required"))
