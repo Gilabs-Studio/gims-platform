@@ -78,7 +78,7 @@ export const employeeAssetsId = {
       returnInfo: "Informasi Pengembalian",
       notReturned: "Belum dikembalikan",
       daysBorrowedLabel: "Durasi dipinjam:",
-      daysTotal: "{{days}} hari",
+      daysTotal: "{days} hari",
     },
     
     // Return modal
@@ -117,7 +117,7 @@ export const employeeAssetsId = {
       invalid_uuid: "Pilihan karyawan tidak valid",
       invalid_date: "Format tanggal tidak valid",
       invalid_condition: "Pilihan kondisi tidak valid",
-      max_length: "Maksimal {{max}} karakter",
+      max_length: "Maksimal {max} karakter",
     },
   },
 };
