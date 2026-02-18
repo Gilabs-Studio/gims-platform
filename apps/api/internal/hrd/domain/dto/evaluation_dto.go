@@ -86,6 +86,7 @@ type CreateEmployeeEvaluationRequest struct {
 
 // UpdateEmployeeEvaluationRequest represents the request to update an employee evaluation
 type UpdateEmployeeEvaluationRequest struct {
+	EvaluatorID    *string                                `json:"evaluator_id" binding:"omitempty,uuid"`
 	EvaluationType *string                                `json:"evaluation_type" binding:"omitempty,oneof=SELF MANAGER"`
 	PeriodStart    *string                                `json:"period_start" binding:"omitempty"` // YYYY-MM-DD
 	PeriodEnd      *string                                `json:"period_end" binding:"omitempty"`   // YYYY-MM-DD

@@ -311,6 +311,17 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 	}
 
 	// Update fields
+	if req.EvaluatorID != nil {
+		// Validate evaluator exists
+		evaluator, err := u.employeeRepo.FindByID(ctx, *req.EvaluatorID)
+		if err != nil {
+			return nil, err
+		}
+		if evaluator == nil {
+			return nil, errors.New("evaluator not found")
+		}
+		eval.EvaluatorID = *req.EvaluatorID
+	}
 	if req.EvaluationType != nil {
 		eval.EvaluationType = models.EvaluationType(*req.EvaluationType)
 	}

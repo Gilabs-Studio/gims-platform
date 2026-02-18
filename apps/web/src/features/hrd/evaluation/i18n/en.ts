@@ -117,6 +117,7 @@ export const evaluationEn = {
       score: "Score",
       overallScore: "Overall Score",
       weightedScore: "Weighted Score",
+      overview: "Overview",
       criteriaScores: "Criteria Scores",
       notes: "Notes",
       notesPlaceholder: "Enter notes...",

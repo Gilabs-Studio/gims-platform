@@ -23,10 +23,13 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 	query := r.db.WithContext(ctx).Model(&models.EmployeeEvaluation{})
 
-	// Apply search filter on notes (prefix search for GIN index)
+	// Apply search filter on employee name, evaluation group name, and notes
 	if search != "" {
 		searchPattern := search + "%"
-		query = query.Where("notes ILIKE ?", searchPattern)
+		query = query.Where(
+			"employee_evaluations.notes ILIKE ? OR employee_evaluations.employee_id IN (SELECT id FROM employees WHERE name ILIKE ? AND deleted_at IS NULL) OR employee_evaluations.evaluation_group_id IN (SELECT id FROM evaluation_groups WHERE name ILIKE ? AND deleted_at IS NULL)",
+			searchPattern, searchPattern, searchPattern,
+		)
 	}
 
 	// Filter by employee_id
@@ -60,6 +63,9 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 	// Order by created_at DESC (newest first)
 	query = query.Order("created_at DESC")
+
+	// Preload EvaluationGroup for list display
+	query = query.Preload("EvaluationGroup")
 
 	if err := query.Find(&evaluations).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to find employee evaluations: %w", err)

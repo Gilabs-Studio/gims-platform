@@ -149,6 +149,7 @@ export interface CreateEmployeeEvaluationData {
 }
 
 export interface UpdateEmployeeEvaluationData {
+  evaluator_id?: string;
   evaluation_type?: string;
   period_start?: string;
   period_end?: string;

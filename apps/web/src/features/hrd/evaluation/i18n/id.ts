@@ -117,6 +117,7 @@ export const evaluationId = {
       score: "Skor",
       overallScore: "Skor Keseluruhan",
       weightedScore: "Skor Terbobot",
+      overview: "Ringkasan",
       criteriaScores: "Skor Kriteria",
       notes: "Catatan",
       notesPlaceholder: "Masukkan catatan...",

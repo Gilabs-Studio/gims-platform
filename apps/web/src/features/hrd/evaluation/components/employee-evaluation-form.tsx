@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, CalendarIcon } from "lucide-react";
 import {
   getEmployeeEvaluationSchema,
-  getUpdateEmployeeEvaluationSchema,
   type CreateEmployeeEvaluationFormData,
-  type UpdateEmployeeEvaluationFormData,
 } from "../schemas/evaluation.schema";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +31,7 @@ import {
   useEmployeeEvaluationFormData,
   useEvaluationCriteriaByGroup,
 } from "../hooks/use-evaluations";
-import type { EmployeeEvaluation } from "../types";
+import type { EmployeeEvaluation, UpdateEmployeeEvaluationData } from "../types";
 import { toast } from "sonner";
 
 interface EmployeeEvaluationFormProps {
@@ -61,13 +58,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
     return formData?.evaluation_groups ?? [];
   }, [formData?.evaluation_groups]);
 
-  const schema = isEdit
-    ? getUpdateEmployeeEvaluationSchema(t)
-    : getEmployeeEvaluationSchema(t);
-
-  const formResolver = zodResolver(schema) as Resolver<
-    CreateEmployeeEvaluationFormData | UpdateEmployeeEvaluationFormData
-  >;
+  const schema = getEmployeeEvaluationSchema(t);
 
   const {
     handleSubmit,
@@ -75,10 +66,13 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
     control,
     watch,
     formState: { errors },
-  } = useForm<CreateEmployeeEvaluationFormData | UpdateEmployeeEvaluationFormData>({
-    resolver: formResolver,
+  } = useForm<CreateEmployeeEvaluationFormData>({
+    resolver: zodResolver(schema),
     defaultValues: evaluation
       ? {
+          employee_id: evaluation.employee_id,
+          evaluation_group_id: evaluation.evaluation_group_id,
+          evaluator_id: evaluation.evaluator_id,
           evaluation_type: evaluation.evaluation_type,
           period_start: evaluation.period_start,
           period_end: evaluation.period_end,
@@ -101,15 +95,13 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
         },
   });
 
-  const selectedGroupId = watch(
-    isEdit ? ("evaluation_type" as const) : ("evaluation_group_id" as "evaluation_type"),
-  ) as string | undefined;
+  const selectedGroupId = watch("evaluation_group_id");
 
   // Fetch criteria for selected group (for scoring)
   const { data: criteriaData } = useEvaluationCriteriaByGroup(
-    isEdit ? evaluation?.evaluation_group_id ?? "" : selectedGroupId ?? "",
+    selectedGroupId ?? "",
     { per_page: 100 },
-    { enabled: open && !!(isEdit ? evaluation?.evaluation_group_id : selectedGroupId) },
+    { enabled: open && !!selectedGroupId },
   );
 
   const criteria = useMemo(() => criteriaData?.data ?? [], [criteriaData?.data]);
@@ -135,6 +127,9 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
     if (open) {
       if (evaluation) {
         reset({
+          employee_id: evaluation.employee_id,
+          evaluation_group_id: evaluation.evaluation_group_id,
+          evaluator_id: evaluation.evaluator_id,
           evaluation_type: evaluation.evaluation_type,
           period_start: evaluation.period_start,
           period_end: evaluation.period_end,
@@ -155,23 +150,29 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
           period_end: new Date().toISOString().split("T")[0],
           notes: "",
           criteria_scores: [],
-        } as CreateEmployeeEvaluationFormData);
+        });
       }
     }
   }, [open, evaluation, reset]);
 
-  const onSubmit = async (
-    data: CreateEmployeeEvaluationFormData | UpdateEmployeeEvaluationFormData,
-  ) => {
+  const onSubmit = async (data: CreateEmployeeEvaluationFormData) => {
     try {
       if (isEdit && evaluation) {
+        const updateData: UpdateEmployeeEvaluationData = {
+          evaluator_id: data.evaluator_id,
+          evaluation_type: data.evaluation_type,
+          period_start: data.period_start,
+          period_end: data.period_end,
+          notes: data.notes,
+          criteria_scores: data.criteria_scores,
+        };
         await updateEvaluation.mutateAsync({
           id: evaluation.id,
-          data: data as UpdateEmployeeEvaluationFormData,
+          data: updateData,
         });
         toast.success(t("evaluation.updated"));
       } else {
-        await createEvaluation.mutateAsync(data as CreateEmployeeEvaluationFormData);
+        await createEvaluation.mutateAsync(data);
         toast.success(t("evaluation.created"));
       }
       onClose();
@@ -189,88 +190,85 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
           <DialogTitle>{isEdit ? t("evaluation.edit") : t("evaluation.add")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Basic Info */}
-          {!isEdit && (
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>{t("evaluation.employee")}</FieldLabel>
-                <Controller
-                  name="employee_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("common.select")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
-                            {emp.employee_code} - {emp.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {"employee_id" in errors && errors.employee_id && (
-                  <FieldError>{errors.employee_id.message}</FieldError>
-                )}
-              </Field>
-
-              <Field>
-                <FieldLabel>{t("evaluation.evaluationGroup")}</FieldLabel>
-                <Controller
-                  name="evaluation_group_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("common.select")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {evaluationGroups.map((g) => (
-                          <SelectItem key={g.id} value={g.id} className="cursor-pointer">
-                            {g.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {"evaluation_group_id" in errors && errors.evaluation_group_id && (
-                  <FieldError>{errors.evaluation_group_id.message}</FieldError>
-                )}
-              </Field>
-            </div>
-          )}
-
+          {/* Employee + Evaluation Group row */}
           <div className="grid grid-cols-2 gap-4">
-            {!isEdit && (
-              <Field>
-                <FieldLabel>{t("evaluation.evaluator")}</FieldLabel>
-                <Controller
-                  name="evaluator_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("common.select")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
-                            {emp.employee_code} - {emp.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {"evaluator_id" in errors && errors.evaluator_id && (
-                  <FieldError>{errors.evaluator_id.message}</FieldError>
+            <Field>
+              <FieldLabel>{t("evaluation.employee")}</FieldLabel>
+              <Controller
+                name="employee_id"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isEdit}>
+                    <SelectTrigger className={cn(!isEdit && "cursor-pointer")}>
+                      <SelectValue placeholder={t("common.select")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
+                          {emp.employee_code} - {emp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
-              </Field>
-            )}
+              />
+              {errors.employee_id && (
+                <FieldError>{errors.employee_id.message}</FieldError>
+              )}
+            </Field>
+
+            <Field>
+              <FieldLabel>{t("evaluation.evaluationGroup")}</FieldLabel>
+              <Controller
+                name="evaluation_group_id"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isEdit}>
+                    <SelectTrigger className={cn(!isEdit && "cursor-pointer")}>
+                      <SelectValue placeholder={t("common.select")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {evaluationGroups.map((g) => (
+                        <SelectItem key={g.id} value={g.id} className="cursor-pointer">
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.evaluation_group_id && (
+                <FieldError>{errors.evaluation_group_id.message}</FieldError>
+              )}
+            </Field>
+          </div>
+
+          {/* Evaluator + Type row */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel>{t("evaluation.evaluator")}</FieldLabel>
+              <Controller
+                name="evaluator_id"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue placeholder={t("common.select")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
+                          {emp.employee_code} - {emp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.evaluator_id && (
+                <FieldError>{errors.evaluator_id.message}</FieldError>
+              )}
+            </Field>
 
             <Field>
               <FieldLabel>{t("evaluation.type")}</FieldLabel>
@@ -396,6 +394,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
                   const matchedCriteria = criteria.find(
                     (c) => c.id === field.evaluation_criteria_id,
                   );
+                  const maxScore = matchedCriteria?.max_score ?? 100;
                   return (
                     <div
                       key={field.id}
@@ -407,7 +406,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {t("criteria.weight")}: {matchedCriteria?.weight ?? 0}% |{" "}
-                          {t("criteria.maxScore")}: {matchedCriteria?.max_score ?? 100}
+                          {t("criteria.maxScore")}: {maxScore}
                         </p>
                       </div>
                       <Controller
@@ -416,9 +415,13 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
                         render={({ field: scoreField }) => (
                           <NumericInput
                             value={scoreField.value}
-                            onChange={scoreField.onChange}
+                            onChange={(val) => {
+                              scoreField.onChange(
+                                val !== undefined && val > maxScore ? maxScore : val,
+                              );
+                            }}
                             min={0}
-                            max={matchedCriteria?.max_score ?? 100}
+                            max={maxScore}
                           />
                         )}
                       />

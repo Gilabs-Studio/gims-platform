@@ -98,7 +98,7 @@ export const getEmployeeEvaluationSchema = (t?: TranslationFn) =>
 export const getUpdateEmployeeEvaluationSchema = (t?: TranslationFn) =>
   getEmployeeEvaluationSchema(t)
     .partial()
-    .omit({ employee_id: true, evaluation_group_id: true, evaluator_id: true });
+    .omit({ employee_id: true, evaluation_group_id: true });
 
 export const getUpdateEvaluationStatusSchema = () =>
   z.object({

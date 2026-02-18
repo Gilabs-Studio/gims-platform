@@ -121,7 +121,7 @@ export const employeeEvaluationService = {
   },
 
   async updateStatus(id: string, data: UpdateEvaluationStatusData): Promise<EmployeeEvaluationSingleResponse> {
-    const response = await apiClient.patch<EmployeeEvaluationSingleResponse>(
+    const response = await apiClient.post<EmployeeEvaluationSingleResponse>(
       `${EVALUATION_PATH}/${id}/status`,
       data,
     );

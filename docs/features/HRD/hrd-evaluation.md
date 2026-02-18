@@ -202,14 +202,58 @@ cd apps/api && go test ./internal/hrd/...
 
 ### Bugs Fixed
 
-#### 1. `is_active` Always `true` in API Response (Feb 2025)
+#### 1. Detail Modal Horizontal Overflow (Feb 2025)
+
+- **Problem**: Detail modal showed horizontal scrollbar on smaller screens
+- **Fix**: Added `overflow-x-hidden` to `DialogContent`, moved action buttons to `flex-wrap` container, changed table to `table-fixed w-full` with explicit percentage widths and `truncate` on text cells
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-detail-modal.tsx`
+
+#### 2. Evaluation Group Name Missing in List (Feb 2025)
+
+- **Problem**: Evaluation list didn't show group names because `EvaluationGroup` wasn't preloaded
+- **Fix**: Added `.Preload("EvaluationGroup")` to `FindAll` query in repository (mapper already handled it when preloaded)
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/repositories/employee_evaluation_repository_impl.go`
+
+#### 3. Search Only Worked on Notes Field (Feb 2025)
+
+- **Problem**: Search in evaluation list only matched `notes` field, not employee names or group names
+- **Fix**: Extended search query to include subqueries on employee name and evaluation group name:
+  ```go
+  notes ILIKE ? OR employee_id IN (SELECT id FROM employees WHERE name ILIKE ?)
+  OR evaluation_group_id IN (SELECT id FROM evaluation_groups WHERE name ILIKE ?)
+  ```
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/repositories/employee_evaluation_repository_impl.go`
+
+#### 4. Edit Form Missing Read-only Fields (Feb 2025)
+
+- **Problem**: Edit form didn't show Employee, Evaluation Group, and Evaluator fields
+- **Fix**: Display these 3 fields in both create and edit modes. In edit mode, render as read-only styled divs (`bg-muted/50 border`). In create mode, remain as Select dropdowns
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### 5. Status Transition API Method Mismatch (Feb 2025)
+
+- **Problem**: Frontend used `PATCH` but backend expected `POST` for status transitions
+- **Fix**: Changed frontend service from `apiClient.patch` to `apiClient.post` to match backend route (`POST /:id/status`)
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/services/evaluation-service.ts`
+
+#### 6. Inactive Groups Shown in Form (Feb 2025)
+
+- **Problem**: Inactive evaluation groups (is_active=false) were visible in the form dropdown
+- **Fix**: Backend `GetFormData` usecase already filters with `isActive := true` before fetching groups (no code change needed, already working correctly)
+
+#### 7. `is_active` Always `true` in API Response (Feb 2025)
 
 - **Root Cause**: The GORM model `EvaluationGroup` had `default:true` tag on `IsActive` field. When creating with `is_active=false`, GORM skips zero-value fields that have a `default` tag, so the database default `true` was applied instead of the intended `false`.
 - **Fix**: Removed `default:true` from the GORM tag in `evaluation_group.go`. The Go-level mapper (`ToEvaluationGroupModel`) already handles the default value, so the GORM tag default was redundant and harmful.
 - **Files Changed**:
   - `apps/api/internal/hrd/data/models/evaluation_group.go`
 
-#### 2. "Invalid Selection" on Seeder Evaluation Groups (Feb 2025)
+#### 8. "Invalid Selection" on Seeder Evaluation Groups (Feb 2025)
 
 - **Root Cause**: Zod v4's `.uuid()` enforces strict RFC 4122 validation (version nibble must be 1-5, variant nibble must be 8/9/a/b). Seeder UUIDs like `e0000001-0000-0000-0000-000000000001` have `0` in both positions, failing this strict check. Groups created via the form use Go's `uuid.New()` which generates valid RFC 4122 v4 UUIDs.
 - **Fix**: Replaced all `.uuid()` calls with `.regex(UUID_REGEX, ...)` using a loose hex-only UUID pattern (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) that accepts any UUID-formatted hex string without enforcing RFC 4122 version/variant bits.
@@ -217,6 +261,55 @@ cd apps/api && go test ./internal/hrd/...
   - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
 
 ### Improvements
+
+#### Edit Form Shows Select Dropdowns (Feb 2025)
+
+- **Feature**: Employee dan Evaluation Group fields sekarang tampil sebagai Select dropdown di mode edit (sebelumnya read-only text divs)
+- **Implementation**: Menggunakan `<Select disabled>` sehingga terlihat sebagai dropdown tapi tidak bisa diubah, mempertahankan UI consistency
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Criteria Scores Editable in Edit Mode (Feb 2025)
+
+- **Feature**: Criteria scores bisa diedit saat mode edit
+- **Implementation**:
+  - Default values untuk edit mode sekarang populate `employee_id`, `evaluation_group_id`, `evaluator_id` menggunakan form yang sama dengan create mode
+  - Fix `selectedGroupId` watch yang salah di edit mode
+  - Criteria scores dari evaluasi sekarang bisa diedit
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Evaluator Editable in Edit Mode (Feb 2025)
+
+- **Feature**: Evaluator bisa diganti saat edit evaluasi (sebelumnya locked setelah create)
+- **Implementation**:
+  - **Backend**: `EvaluatorID` ditambahkan ke `UpdateEmployeeEvaluationRequest` DTO dan ditangani di usecase
+  - **Frontend**: Schema update sekarang include `evaluator_id`, form selalu render evaluator sebagai Select yang bisa diedit
+- **Files Changed**:
+  - `apps/api/internal/hrd/domain/dto/evaluation_dto.go`
+  - `apps/api/internal/hrd/domain/usecase/employee_evaluation_usecase_impl.go`
+  - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
+  - `apps/web/src/features/hrd/evaluation/types/index.d.ts`
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Score Auto-caps to Max Score on Input (Feb 2025)
+
+- **Feature**: Score otomatis di-clamp ke max_score saat user input (tidak perlu tekan Enter)
+- **Implementation**: Score `onChange` sekarang melakukan clamp: `val > maxScore ? maxScore : val` secara real-time
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Detail Modal Uses Tabs for Overview / Criteria Scores (Feb 2025)
+
+- **Feature**: Detail modal dibagi menjadi 2 tab: "Overview" dan "Criteria Scores"
+- **Implementation**:
+  - Tab "Overview": overall score, details grid, notes dengan `whitespace-pre-wrap`
+  - Tab "Criteria Scores": tabel criteria dengan notes yang fully visible (tidak truncate)
+  - Remove `table-fixed` constraint untuk natural column sizing
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-detail-modal.tsx`
+  - `apps/web/src/features/hrd/evaluation/i18n/en.ts`
+  - `apps/web/src/features/hrd/evaluation/i18n/id.ts`
 
 #### Weight Cap and Real-time Info in Criteria Form (Feb 2025)
 
