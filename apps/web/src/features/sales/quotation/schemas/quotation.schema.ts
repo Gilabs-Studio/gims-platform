@@ -9,7 +9,9 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
 
 // Sales Quotation Item Schema
 export const getQuotationItemSchema = (t?: TranslationFn) => z.object({
-  product_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
+  product_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Product is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid product ID")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
@@ -27,14 +29,15 @@ export const getQuotationSchema = (t?: TranslationFn) => z.object({
     .min(1, getMsg(t, "validation.required", "Quotation date is required")),
   valid_until: z.string().optional(),
   payment_terms_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID"))
-    .min(1, getMsg(t, "validation.required", "Payment terms is required")),
+    .min(1, getMsg(t, "validation.required", "Payment terms is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid payment terms ID")),
   sales_rep_id: z.string()
-    .min(1, getMsg(t, "validation.required", "Sales representative is required")),
+    .min(1, getMsg(t, "validation.required", "Sales representative is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid sales representative ID")),
   business_unit_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid business unit ID"))
-    .min(1, getMsg(t, "validation.required", "Business unit is required")),
-  business_type_id: z.string().uuid().optional(),
+    .min(1, getMsg(t, "validation.required", "Business unit is required"))
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid business unit ID")),
+  business_type_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),

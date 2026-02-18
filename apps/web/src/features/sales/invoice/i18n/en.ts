@@ -92,6 +92,10 @@ export const invoiceEn = {
     grossProfit: "Gross Profit",
     summary: "Summary",
     notes: "Notes",
+    customerInfo: "Customer Information",
+    customerName: "Customer Name",
+    customerPhone: "Customer Phone",
+    customerEmail: "Customer Email",
     items: "Items",
     addItem: "Add Item",
     removeItem: "Remove Item",
@@ -132,6 +136,7 @@ export const invoiceEn = {
       pay: "Record Payment",
       cancel: "Cancel Invoice",
       markPaid: "Mark as Paid",
+      markAsPaid: "Mark as Paid",
       viewOrder: "View Sales Order",
     },
 
