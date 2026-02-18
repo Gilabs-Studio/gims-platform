@@ -152,7 +152,7 @@ export function useCreateEvaluationCriteria() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
-      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
     },
   });
 }
@@ -165,9 +165,8 @@ export function useUpdateEvaluationCriteria() {
       evaluationCriteriaService.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
-      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
     },
   });
 }
@@ -178,9 +177,8 @@ export function useDeleteEvaluationCriteria() {
   return useMutation({
     mutationFn: (id: string) => evaluationCriteriaService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
-      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
     },
   });
 }

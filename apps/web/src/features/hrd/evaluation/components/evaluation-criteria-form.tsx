@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 import {
   getEvaluationCriteriaSchema,
   getUpdateEvaluationCriteriaSchema,
@@ -24,9 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateEvaluationCriteria, useUpdateEvaluationCriteria, useEvaluationGroups } from "../hooks/use-evaluations";
+import { useCreateEvaluationCriteria, useUpdateEvaluationCriteria, useEvaluationGroups, useEvaluationGroup } from "../hooks/use-evaluations";
 import type { EvaluationCriteria } from "../types";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+
 
 interface EvaluationCriteriaFormProps {
   readonly open: boolean;
@@ -66,6 +68,24 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
     },
   });
 
+  // Watch selected group to compute remaining weight
+  const watchedGroupId = useWatch({ control, name: "evaluation_group_id" }) as string | undefined;
+  const selectedGroupId = isEdit ? criteria?.evaluation_group_id : watchedGroupId;
+
+  // Fetch full group detail (with total_weight) for the selected group
+  const { data: selectedGroupData } = useEvaluationGroup(selectedGroupId ?? "", {
+    enabled: !!selectedGroupId,
+  });
+  const selectedGroup = selectedGroupData?.data;
+
+  // Calculate remaining weight: 100 - current total weight (+ current criteria weight if editing)
+  const remainingWeight = useMemo(() => {
+    if (!selectedGroup) return 100;
+    const currentTotal = selectedGroup.total_weight ?? 0;
+    const ownWeight = isEdit && criteria ? criteria.weight : 0;
+    return Math.max(0, 100 - currentTotal + ownWeight);
+  }, [selectedGroup, isEdit, criteria]);
+
   useEffect(() => {
     if (open) {
       if (criteria) {
@@ -93,7 +113,8 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
   const onSubmit = async (data: CreateEvaluationCriteriaFormData) => {
     try {
       if (isEdit && criteria) {
-        const { evaluation_group_id: _, ...updateData } = data;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { evaluation_group_id: _groupId, ...updateData } = data;
         await updateCriteria.mutateAsync({
           id: criteria.id,
           data: updateData,
@@ -164,6 +185,24 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
             {errors.description && <FieldError>{errors.description.message}</FieldError>}
           </Field>
 
+          {/* Weight info */}
+          {selectedGroup && (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+              <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">
+                {t("criteria.currentTotalWeight")}:{" "}
+                <Badge variant={selectedGroup.total_weight === 100 ? "success" : "outline"} className="mx-1">
+                  {selectedGroup.total_weight}%
+                </Badge>
+                {" · "}
+                {t("criteria.remainingWeight")}:{" "}
+                <Badge variant={remainingWeight === 0 ? "destructive" : "secondary"} className="mx-1">
+                  {remainingWeight}%
+                </Badge>
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-4">
             <Field>
               <FieldLabel>{t("criteria.weight")}</FieldLabel>
@@ -173,7 +212,11 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
                 render={({ field }) => (
                   <NumericInput
                     value={field.value as number}
-                    onChange={field.onChange}
+                    onChange={(val) => {
+                      // Cap the value at remainingWeight
+                      const capped = Math.min(val ?? 0, remainingWeight);
+                      field.onChange(capped);
+                    }}
                   />
                 )}
               />

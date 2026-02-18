@@ -216,6 +216,30 @@ cd apps/api && go test ./internal/hrd/...
 - **Files Changed**:
   - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
 
+### Improvements
+
+#### Weight Cap and Real-time Info in Criteria Form (Feb 2025)
+
+- **Feature**: Real-time display of current total weight and remaining weight capacity when creating/editing criteria
+- **Implementation**:
+  - Added `useWatch` to track selected `evaluation_group_id` in criteria form
+  - Uses `useEvaluationGroup` hook to fetch group details including `total_weight`
+  - Computes `remainingWeight = 100 - total_weight + ownWeight` (adds back criteria's own weight when editing)
+  - Automatically caps weight input value if it exceeds remaining capacity
+  - Displays info bar with Badge components showing current total weight and remaining weight
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/evaluation-criteria-form.tsx`
+  - `apps/web/src/features/hrd/evaluation/i18n/en.ts`
+  - `apps/web/src/features/hrd/evaluation/i18n/id.ts`
+
+#### Auto-refresh Detail Modal After Criteria CRUD (Feb 2025)
+
+- **Problem**: After creating, updating, or deleting criteria, the detail modal showing group info with total weight was not refreshing
+- **Root Cause**: Criteria mutations only invalidated `evaluationGroupKeys.lists()` but not `evaluationGroupKeys.details()`
+- **Fix**: Changed mutation `onSuccess` to invalidate `evaluationGroupKeys.all` which covers both lists and detail queries
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/hooks/use-evaluations.ts`
+
 ### Known Limitations
 
 - **Known Limitation**: Saat ini belum support evaluation period templates (quarterly, annual auto-generation)

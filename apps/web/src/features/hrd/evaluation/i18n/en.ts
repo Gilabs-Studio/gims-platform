@@ -87,6 +87,8 @@ export const evaluationEn = {
       weight: "Weight",
       maxScore: "Max Score",
       sortOrder: "Order",
+      currentTotalWeight: "Current total weight",
+      remainingWeight: "Remaining",
       search: "Search criteria...",
       add: "Add Criteria",
       edit: "Edit Criteria",

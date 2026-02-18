@@ -87,6 +87,8 @@ export const evaluationId = {
       weight: "Bobot",
       maxScore: "Skor Maksimal",
       sortOrder: "Urutan",
+      currentTotalWeight: "Total bobot saat ini",
+      remainingWeight: "Sisa",
       search: "Cari kriteria...",
       add: "Tambah Kriteria",
       edit: "Ubah Kriteria",
