@@ -12,9 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
+type FinanceDeps struct {
+	JournalUC usecase.JournalEntryUsecase
+	CoaUC     usecase.ChartOfAccountUsecase
+	AssetUC   usecase.AssetUsecase
+}
+
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
-}) {
+}) *FinanceDeps {
 	_ = r
 
 	coaRepo := repositories.NewChartOfAccountRepository(db)
@@ -85,4 +91,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterTaxInvoiceRoutes(group, taxInvoiceH)
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
+
+	return &FinanceDeps{
+		JournalUC: journalUC,
+		CoaUC:     coaUC,
+		AssetUC:   assetUC,
+	}
 }

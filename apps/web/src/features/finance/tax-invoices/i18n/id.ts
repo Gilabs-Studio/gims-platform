@@ -9,6 +9,9 @@ export const financeTaxInvoicesId = {
     vat: "PPN",
     total: "Total",
     notes: "Catatan",
+    linkedInvoice: "Link ke Invoice Supplier",
+    invoiceValue: "Nilai Invoice",
+    discrepancy: "Selisih PPN Terdeteksi!",
   },
   actions: {
     create: "Buat",

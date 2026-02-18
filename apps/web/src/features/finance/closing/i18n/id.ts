@@ -14,6 +14,14 @@ export const financeClosingId = {
   actions: {
     create: "Buat",
     approve: "Setujui",
+    view: "Lihat Detail",
+  },
+  detail_title: "Detail Analisis Penutupan",
+  analysis: {
+    account_name: "Nama Akun",
+    closing_balance: "Saldo Akhir Akun",
+    opening_balance: "Saldo Awal Tahun",
+    difference: "Selisih",
   },
   form: {
     createTitle: "Buat Tutup Buku",

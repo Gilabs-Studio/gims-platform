@@ -18,4 +18,9 @@ export const financeClosingService = {
     const response = await apiClient.post<ApiResponse<FinancialClosing>>(`${BASE_URL}/${id}/approve`);
     return response.data;
   },
+
+  getAnalysis: async (id: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>(`${BASE_URL}/${id}/analysis`);
+    return response.data;
+  },
 };

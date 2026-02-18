@@ -19,12 +19,26 @@ type ListFinancialClosingsRequest struct {
 }
 
 type FinancialClosingResponse struct {
-	ID string `json:"id"`
-	PeriodEndDate time.Time `json:"period_end_date"`
-	Status financeModels.FinancialClosingStatus `json:"status"`
-	Notes string `json:"notes"`
-	ApprovedAt *time.Time `json:"approved_at"`
-	ApprovedBy *string `json:"approved_by"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            string                               `json:"id"`
+	PeriodEndDate time.Time                            `json:"period_end_date"`
+	Status        financeModels.FinancialClosingStatus `json:"status"`
+	Notes         string                               `json:"notes"`
+	ApprovedAt    *time.Time                           `json:"approved_at"`
+	ApprovedBy    *string                              `json:"approved_by"`
+	CreatedAt     time.Time                            `json:"created_at"`
+	UpdatedAt     time.Time                            `json:"updated_at"`
+}
+
+type FinancialClosingAnalysisRow struct {
+	AccountID      string  `json:"account_id"`
+	AccountCode    string  `json:"account_code"`
+	AccountName    string  `json:"account_name"`
+	ClosingBalance float64 `json:"closing_balance"`
+	OpeningBalance float64 `json:"opening_balance"`
+	Difference     float64 `json:"difference"`
+}
+
+type FinancialClosingAnalysisResponse struct {
+	Closing FinancialClosingResponse      `json:"closing"`
+	Rows    []FinancialClosingAnalysisRow `json:"rows"`
 }
