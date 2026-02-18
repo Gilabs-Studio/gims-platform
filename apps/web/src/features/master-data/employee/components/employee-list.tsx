@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Table,
@@ -49,6 +50,7 @@ import { sortOptions } from "@/lib/utils";
 import type { Employee, EmployeeStatus } from "../types";
 import {
   useEmployees,
+  useEmployee,
   useDeleteEmployee,
   useUpdateEmployee,
   useSubmitEmployeeForApproval,
@@ -68,6 +70,11 @@ const STATUS_OPTIONS: EmployeeStatus[] = [
 
 export function EmployeeList() {
   const t = useTranslations("employee");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const openIdFromUrl = searchParams.get("openId");
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
@@ -80,6 +87,15 @@ export function EmployeeList() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const { data: openEmployeeData } = useEmployee(openIdFromUrl ?? undefined);
+
+  useEffect(() => {
+    if (!openIdFromUrl || !openEmployeeData?.data) return;
+    setDetailEmployee(openEmployeeData.data);
+    setIsDetailOpen(true);
+    router.replace(pathname, { scroll: false });
+  }, [openIdFromUrl, openEmployeeData?.data, pathname, router]);
 
   const { data, isLoading, isError } = useEmployees({
     page,

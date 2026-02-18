@@ -285,8 +285,17 @@ export function EmployeeContractDetailModal({
             {contract.document_path && (
               <div>
                 <h3 className="font-semibold mb-2">{t("common.document")}</h3>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={contract.document_path} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" asChild className="cursor-pointer">
+                  <a
+                    href={
+                      contract.document_path.startsWith("http")
+                        ? contract.document_path
+                        : `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087"}${contract.document_path.startsWith("/") ? contract.document_path : `/${contract.document_path}`}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={contract.document_path.split("/").pop() ?? "contract-document.pdf"}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     {t("buttons.downloadDocument")}
                   </a>
@@ -356,8 +365,14 @@ export function EmployeeContractDetailModal({
                 <Badge variant="outline">{employeeDetails.job_position.name}</Badge>
               )}
             </div>
-            <Link href={`/organization/employees/${contract?.employee_id}`}>
-              <Button variant="outline" size="sm">
+            <Link
+              href={
+                contract?.employee_id
+                  ? `/master-data/employees?openId=${contract.employee_id}`
+                  : "/master-data/employees"
+              }
+            >
+              <Button variant="outline" size="sm" className="cursor-pointer">
                 {t("buttons.viewProfile")}
               </Button>
             </Link>

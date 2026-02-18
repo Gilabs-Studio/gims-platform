@@ -84,6 +84,11 @@ export const employeeContractId = {
     // Subtitle
     subtitle: "Kelola kontrak karyawan dengan pelacakan masa berlaku dan manajemen status",
 
+    // Actions (list/page level)
+    actions: {
+      add: "Tambah Kontrak",
+    },
+
     // Filters
     filters: {
       all: "Semua Kontrak",

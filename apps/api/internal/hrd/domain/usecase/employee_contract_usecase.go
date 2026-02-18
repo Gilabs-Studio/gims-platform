@@ -152,6 +152,10 @@ func (u *employeeContractUsecase) Update(ctx context.Context, id uuid.UUID, req 
 
 	if req.ContractType != "" {
 		contract.ContractType = req.ContractType
+		// PERMANENT contracts must not have end_date; clear it when switching to PERMANENT
+		if contract.ContractType == models.ContractTypePermanent {
+			contract.EndDate = nil
+		}
 	}
 
 	if req.StartDate != "" {
@@ -202,8 +206,8 @@ func (u *employeeContractUsecase) Update(ctx context.Context, id uuid.UUID, req 
 		contract.Terms = req.Terms
 	}
 
-	if req.DocumentPath != "" {
-		contract.DocumentPath = req.DocumentPath
+	if req.DocumentPath != nil {
+		contract.DocumentPath = *req.DocumentPath
 	}
 
 	if req.Status != "" {
