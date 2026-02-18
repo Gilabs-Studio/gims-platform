@@ -53,6 +53,10 @@ export const getOrderSchema = (t?: TranslationFn) => z.object({
     .min(0, getMsg(t, "validation.discountAmountMin", "Discount amount cannot be negative"))
     .default(0),
   notes: z.string().optional(),
+  customer_name: z.string().optional(),
+  customer_contact: z.string().optional(),
+  customer_phone: z.string().optional(),
+  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
   items: z.array(getOrderItemSchema(t))
     .min(1, getMsg(t, "validation.itemsMin", "At least one item is required")),
 });
@@ -74,6 +78,10 @@ export const getConvertQuotationToOrderSchema = (t?: TranslationFn) => z.object(
     .min(1, getMsg(t, "validation.required", "Quotation is required")),
   order_date: z.string()
     .min(1, getMsg(t, "validation.required", "Order date is required")),
+  customer_name: z.string().optional(),
+  customer_contact: z.string().optional(),
+  customer_phone: z.string().optional(),
+  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
   notes: z.string().optional(),
 });
 

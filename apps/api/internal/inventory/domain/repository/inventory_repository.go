@@ -25,4 +25,8 @@ type InventoryRepository interface {
 	UpdateProductAverageCost(ctx context.Context, productID string, newCost float64) error
 	GetProductCostInfo(ctx context.Context, productID string) (float64, float64, error) // Returns CurrentHpp, TotalStock
 	UpdateProductStock(ctx context.Context, productID string, delta float64) error
+
+	// Batch-level Stock Reservation
+	GetBatchByID(ctx context.Context, batchID string) (*dto.InventoryBatchDetail, error)
+	UpdateBatchReservedQuantity(ctx context.Context, batchID string, quantity float64) error
 }

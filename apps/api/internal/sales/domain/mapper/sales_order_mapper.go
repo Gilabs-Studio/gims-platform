@@ -21,6 +21,10 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 		OtherCost:           m.OtherCost,
 		TotalAmount:         m.TotalAmount,
 		ReservedStock:       m.ReservedStock,
+		CustomerName:        m.CustomerName,
+		CustomerContact:     m.CustomerContact,
+		CustomerPhone:       m.CustomerPhone,
+		CustomerEmail:       m.CustomerEmail,
 		Status:              string(m.Status),
 		Notes:               m.Notes,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
@@ -150,6 +154,23 @@ func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem) dto.SalesOrderItemR
 			SellingPrice: m.Product.SellingPrice,
 			ImageURL:     m.Product.ImageURL,
 		}
+	} else if m.ProductCode != "" || m.ProductName != "" {
+		// Fallback to snapshot if product relation is missing
+		response.Product = &dto.ProductResponse{
+			ID:   m.ProductID,
+			Code: m.ProductCode,
+			Name: m.ProductName,
+		}
+	}
+
+	// Override with snapshot data if available
+	if response.Product != nil {
+		if m.ProductCode != "" {
+			response.Product.Code = m.ProductCode
+		}
+		if m.ProductName != "" {
+			response.Product.Name = m.ProductName
+		}
 	}
 
 	return response
@@ -171,6 +192,10 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 		BusinessUnitID:  req.BusinessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
 		DeliveryAreaID:  req.DeliveryAreaID,
+		CustomerName:    req.CustomerName,
+		CustomerContact: req.CustomerContact,
+		CustomerPhone:   req.CustomerPhone,
+		CustomerEmail:   req.CustomerEmail,
 		TaxRate:         req.TaxRate,
 		DeliveryCost:    req.DeliveryCost,
 		OtherCost:       req.OtherCost,
@@ -257,6 +282,22 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 		m.Notes = *req.Notes
 	}
 
+	if req.CustomerName != nil {
+		m.CustomerName = *req.CustomerName
+	}
+
+	if req.CustomerContact != nil {
+		m.CustomerContact = *req.CustomerContact
+	}
+
+	if req.CustomerPhone != nil {
+		m.CustomerPhone = *req.CustomerPhone
+	}
+
+	if req.CustomerEmail != nil {
+		m.CustomerEmail = *req.CustomerEmail
+	}
+
 	// Update items if provided
 	if len(req.Items) > 0 {
 		m.Items = make([]salesModels.SalesOrderItem, len(req.Items))
@@ -277,7 +318,7 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 }
 
 // ConvertQuotationToOrderModel converts a SalesQuotation to SalesOrder model
-func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliveryAreaID *string, notes string, code string, createdBy *string) (*salesModels.SalesOrder, error) {
+func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliveryAreaID *string, customerName string, customerContact string, customerPhone string, customerEmail string, notes string, code string, createdBy *string) (*salesModels.SalesOrder, error) {
 	order := &salesModels.SalesOrder{
 		Code:            code,
 		OrderDate:       time.Now(),
@@ -287,6 +328,10 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 		BusinessUnitID:  quotation.BusinessUnitID,
 		BusinessTypeID:  quotation.BusinessTypeID,
 		DeliveryAreaID:  deliveryAreaID,
+		CustomerName:    customerName,
+		CustomerContact: customerContact,
+		CustomerPhone:   customerPhone,
+		CustomerEmail:   customerEmail,
 		TaxRate:         quotation.TaxRate,
 		DeliveryCost:    quotation.DeliveryCost,
 		OtherCost:       quotation.OtherCost,

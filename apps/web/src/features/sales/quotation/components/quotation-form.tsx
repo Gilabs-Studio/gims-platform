@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -117,6 +118,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           sales_rep_id: quotation.sales_rep_id ?? "",
           business_unit_id: quotation.business_unit_id ?? "",
           business_type_id: quotation.business_type_id ?? undefined,
+          customer_name: quotation.customer_name ?? "",
+          customer_contact: quotation.customer_contact ?? "",
+          customer_phone: quotation.customer_phone ?? "",
+          customer_email: quotation.customer_email ?? "",
           tax_rate: quotation.tax_rate ?? 11,
           delivery_cost: quotation.delivery_cost ?? 0,
           other_cost: quotation.other_cost ?? 0,
@@ -136,6 +141,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_name: "",
+          customer_contact: "",
+          customer_phone: "",
+          customer_email: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         },
   });
@@ -199,6 +208,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
             sales_rep_id: quotationData.sales_rep_id ?? "",
             business_unit_id: quotationData.business_unit_id ?? "",
             business_type_id: quotationData.business_type_id ?? undefined,
+            customer_name: quotationData.customer_name ?? "",
+            customer_contact: quotationData.customer_contact ?? "",
+            customer_phone: quotationData.customer_phone ?? "",
+            customer_email: quotationData.customer_email ?? "",
             tax_rate: quotationData.tax_rate ?? 11,
             delivery_cost: quotationData.delivery_cost ?? 0,
             other_cost: quotationData.other_cost ?? 0,
@@ -231,6 +244,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_name: "",
+          customer_contact: "",
+          customer_phone: "",
+          customer_email: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
       }
@@ -241,6 +258,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         delivery_cost: 0,
         other_cost: 0,
         discount_amount: 0,
+        customer_name: "",
+        customer_contact: "",
+        customer_phone: "",
+        customer_email: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
     }
@@ -260,6 +281,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         "sales_rep_id",
         "business_unit_id",
         "business_type_id",
+        "customer_name",
+        "customer_contact",
+        "customer_phone",
+        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -297,6 +322,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         "sales_rep_id",
         "business_unit_id",
         "business_type_id",
+        "customer_name",
+        "customer_contact",
+        "customer_phone",
+        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -369,6 +398,10 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
       "sales_rep_id",
       "business_unit_id",
       "business_type_id",
+      "customer_name",
+      "customer_contact",
+      "customer_phone",
+      "customer_email",
       "tax_rate",
       "delivery_cost",
       "other_cost",
@@ -593,6 +626,38 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 />
                 {errors.business_type_id && (
                   <FieldError>{errors.business_type_id.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("customerName")}</FieldLabel>
+                <Input {...register("customer_name")} placeholder={t("customerName")} />
+                {errors.customer_name && (
+                  <FieldError>{errors.customer_name.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("customerContact")}</FieldLabel>
+                <Input {...register("customer_contact")} placeholder={t("customerContact")} />
+                {errors.customer_contact && (
+                  <FieldError>{errors.customer_contact.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("customerPhone")}</FieldLabel>
+                <Input {...register("customer_phone")} placeholder={t("customerPhone")} />
+                {errors.customer_phone && (
+                  <FieldError>{errors.customer_phone.message}</FieldError>
+                )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("customerEmail")}</FieldLabel>
+                <Input {...register("customer_email")} placeholder={t("customerEmail")} type="email" />
+                {errors.customer_email && (
+                  <FieldError>{errors.customer_email.message}</FieldError>
                 )}
               </Field>
             </div>

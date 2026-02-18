@@ -3,6 +3,7 @@ package seeders
 import (
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"time"
 
@@ -38,8 +39,13 @@ func SeedStockMovement() error {
 	log.Println("Seeding stock movements from existing entities...")
 
 	// 1. Get Admin User for CreatedBy
+	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+	if defaultEmail == "" {
+		defaultEmail = "admin@example.com"
+	}
+
 	var adminUser userModels.User
-	if err := db.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+	if err := db.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 		// Fallback to any user
 		db.First(&adminUser)
 	}

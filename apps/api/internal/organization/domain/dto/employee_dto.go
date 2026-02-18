@@ -178,3 +178,18 @@ type ProvinceResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// EmployeeListItemResponse represents a brief employee response for lists (no PII)
+type EmployeeListItemResponse struct {
+	ID            string               `json:"id"`
+	EmployeeCode  string               `json:"employee_code"`
+	Name          string               `json:"name"`
+	Email         string               `json:"email"`
+	Phone         string               `json:"phone"`
+	Division      *DivisionResponse    `json:"division,omitempty"`
+	JobPosition   *JobPositionResponse `json:"job_position,omitempty"`
+	Company       *CompanyBriefResponse `json:"company,omitempty"`
+	Status        string               `json:"status"`
+	IsActive      bool                 `json:"is_active"`
+}
+

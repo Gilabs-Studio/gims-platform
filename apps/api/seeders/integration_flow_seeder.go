@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
@@ -27,67 +28,72 @@ func SeedIntegrationFlow() error {
 
 	log.Println("Seeding enhanced integration flow (purchase → stock → sales → finance)...")
 
-	// 1) Admin user
-	var adminUser userModels.User
-	if err := db.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
-		if err := db.First(&adminUser).Error; err != nil {
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 1) Admin user
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
+		var adminUser userModels.User
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
+			if err := tx.First(&adminUser).Error; err != nil {
+				return err
+			}
+		}
+		adminID := adminUser.ID
+		if adminID == "" {
+			adminID = "00000000-0000-0000-0000-000000000000"
+		}
+
+		// 2) Get common dependencies
+		var supplier supplierModels.Supplier
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&supplier).Error; err != nil {
 			return err
 		}
-	}
-	adminID := adminUser.ID
-	if adminID == "" {
-		adminID = "00000000-0000-0000-0000-000000000000"
-	}
 
-	// 2) Get common dependencies
-	var supplier supplierModels.Supplier
-	if err := db.Where("is_active = ?", true).Order("created_at ASC").First(&supplier).Error; err != nil {
-		return err
-	}
-
-	var pt coreModels.PaymentTerms
-	if err := db.Where("is_active = ?", true).Order("created_at ASC").First(&pt).Error; err != nil {
-		return err
-	}
-
-	var bu orgModels.BusinessUnit
-	if err := db.Where("is_active = ?", true).Order("created_at ASC").First(&bu).Error; err != nil {
-		return err
-	}
-
-	var warehouse warehouseModels.Warehouse
-	if err := db.Where("is_active = ?", true).Order("created_at ASC").First(&warehouse).Error; err != nil {
-		return err
-	}
-
-	var bankAccount coreModels.BankAccount
-	if err := db.Where("is_active = ?", true).Order("created_at ASC").First(&bankAccount).Error; err != nil {
-		return err
-	}
-
-	// 3) Get Products
-	var products []productModels.Product
-	if err := db.Where("is_active = ?", true).Limit(5).Find(&products).Error; err != nil || len(products) == 0 {
-		return errors.New("no products found for seeding integration flow")
-	}
-
-	// Helper to get COA ID by code
-	getCOA := func(tx *gorm.DB, code string) string {
-		var coa financeModels.ChartOfAccount
-		if err := tx.Where("code = ?", code).First(&coa).Error; err != nil {
-			return ""
+		var pt coreModels.PaymentTerms
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&pt).Error; err != nil {
+			return err
 		}
-		return coa.ID
-	}
 
-	now := time.Now()
+		var bu orgModels.BusinessUnit
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bu).Error; err != nil {
+			return err
+		}
 
-	// Seed 5 different integration sets
-	for i := 1; i <= 5; i++ {
-		tag := fmt.Sprintf("%s-%03d", now.Format("20060102"), i)
-		prod := products[i%len(products)]
+		var warehouse warehouseModels.Warehouse
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&warehouse).Error; err != nil {
+			return err
+		}
 
-		err := db.Transaction(func(tx *gorm.DB) error {
+		var bankAccount coreModels.BankAccount
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bankAccount).Error; err != nil {
+			return err
+		}
+
+		// 3) Get Products
+		var products []productModels.Product
+		if err := tx.Where("is_active = ?", true).Limit(5).Find(&products).Error; err != nil || len(products) == 0 {
+			return errors.New("no products found for seeding integration flow")
+		}
+
+		// Helper to get COA ID by code
+		getCOA := func(tx *gorm.DB, code string) string {
+			var coa financeModels.ChartOfAccount
+			if err := tx.Where("code = ?", code).First(&coa).Error; err != nil {
+				return ""
+			}
+			return coa.ID
+		}
+
+		now := time.Now()
+
+		// Seed 5 different integration sets
+		for i := 1; i <= 5; i++ {
+			tag := fmt.Sprintf("%s-%03d", now.Format("20060102"), i)
+			prod := products[i%len(products)]
+
 			// A) Purchase Order
 			poQty := 10.0 + float64(i*5)
 			poPrice := prod.CostPrice
@@ -291,16 +297,11 @@ func SeedIntegrationFlow() error {
 					_ = tx.Create(&je).Error
 				}
 			}
-
-			return nil
-		})
-		if err != nil {
-			log.Printf("Failed to seed integration set %d: %v", i, err)
 		}
-	}
 
-	log.Println("Enhanced integration flow seeded successfully")
-	return nil
+		log.Println("Enhanced integration flow seeded successfully")
+		return nil
+	})
 }
 
 func logIntegrationFlowReport(db *gorm.DB) {
@@ -430,8 +431,13 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 		}
 
 		// Best-effort created_by: admin if present
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
 		var adminUser userModels.User
-		if err := tx.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			_ = tx.First(&adminUser).Error
 		}
 		adminID := adminUser.ID

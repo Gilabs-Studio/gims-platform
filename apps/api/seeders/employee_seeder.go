@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -48,13 +49,18 @@ func SeedEmployees() error {
 		villageID = &village.ID
 	}
 
+	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+	if defaultEmail == "" {
+		defaultEmail = "admin@example.com"
+	}
+
 	// 2. Define Employees linked to fixed Users and Org Units
 	employees := []models.Employee{
 		{
 			ID:           AdminEmployeeID,
 			EmployeeCode: "EMP-001",
 			Name:         "Admin User",
-			Email:        "admin@example.com",
+			Email:        defaultEmail,
 			Phone:        "081234567890",
 			UserID:       strPtr(AdminUserID),
 			

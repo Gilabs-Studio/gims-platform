@@ -429,3 +429,39 @@ func (r *inventoryRepository) GetProductCostInfo(ctx context.Context, productID 
 	}
 	return res.CurrentHpp, res.CurrentStock, nil
 }
+
+// GetBatchByID fetches a single batch with computed available quantity
+func (r *inventoryRepository) GetBatchByID(ctx context.Context, batchID string) (*dto.InventoryBatchDetail, error) {
+	var item dto.InventoryBatchDetail
+
+	err := r.DB(ctx).Table("inventory_batches ib").
+		Select(`
+			ib.id,
+			ib.product_id,
+			ib.warehouse_id,
+			ib.batch_number,
+			ib.expiry_date,
+			ib.current_quantity,
+			ib.reserved_quantity,
+			(ib.current_quantity - ib.reserved_quantity) as available,
+			ib.is_active
+		`).
+		Where("ib.deleted_at IS NULL").
+		Where("ib.id = ?", batchID).
+		First(&item).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+// UpdateBatchReservedQuantity adjusts the reserved_quantity on an inventory batch (delta-based)
+func (r *inventoryRepository) UpdateBatchReservedQuantity(ctx context.Context, batchID string, quantity float64) error {
+	return r.DB(ctx).Table("inventory_batches").Where("id = ?", batchID).
+		Update("reserved_quantity", gorm.Expr("COALESCE(reserved_quantity, 0) + ?", quantity)).Error
+}

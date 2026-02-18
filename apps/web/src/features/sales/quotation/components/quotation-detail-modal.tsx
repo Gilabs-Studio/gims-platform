@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Info, DollarSign, Package, History } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,7 +27,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 import type { SalesQuotation } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 interface QuotationDetailModalProps {
@@ -49,12 +48,10 @@ export function QuotationDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("quotation");
 
-  // Fetch full detail WITHOUT items when modal opens
   const { data: detailData, isLoading } = useQuotation(quotation?.id ?? "", {
     enabled: open && !!quotation?.id,
   });
 
-  // Fetch items separately with server-side pagination
   const { data: itemsData, isLoading: itemsLoading } = useQuotationItems(
     quotation?.id ?? "",
     { page: itemsPage, per_page: pageSize },
@@ -69,18 +66,11 @@ export function QuotationDetailModal({
 
   if (!quotation) return null;
 
-  // Use detailed data if available, otherwise use passed quotation
   const displayQuotation = detailData?.data ?? quotation;
-  
-  // Use server-side paginated items
   const items = itemsData?.data ?? [];
   const itemsPagination = itemsData?.meta?.pagination;
   
-  // Server pagination values
   const totalItems = itemsPagination?.total ?? 0;
-  const totalPages = itemsPagination?.total_pages ?? 0;
-  const hasNextPage = itemsPagination?.has_next ?? false;
-  const hasPrevPage = itemsPagination?.has_prev ?? false;
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -172,7 +162,7 @@ export function QuotationDetailModal({
         data: { status: "converted" },
       });
       toast.success(t("status.converted"));
-    } catch (error) {
+    }catch (error) {
       console.error("Failed to convert quotation:", error);
       toast.error(t("common.error"));
     }
@@ -257,335 +247,236 @@ export function QuotationDetailModal({
           </DialogHeader>
 
           {isLoading ? (
-            <div className="space-y-6 py-4">
-              <div className="flex gap-6">
-                <Skeleton className="h-20 flex-1" />
-                <Skeleton className="h-20 flex-1" />
-              </div>
-              <Separator />
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <Skeleton className="h-32 w-full" />
-                  <Skeleton className="h-32 w-full" />
-                </div>
-                <div className="space-y-4">
-                  <Skeleton className="h-32 w-full" />
-                </div>
-              </div>
+            <div className="space-y-4 py-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-64 w-full" />
             </div>
           ) : (
             <Tabs defaultValue="general" className="w-full">
               <TabsList>
-                <TabsTrigger value="general">
-                  <Info className="h-4 w-4 mr-2" />
-                  {t("tabs.general")}
-                </TabsTrigger>
-                <TabsTrigger value="items">
-                  <Package className="h-4 w-4 mr-2" />
-                  {t("tabs.items")}
-                </TabsTrigger>
+                <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
+                <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
               </TabsList>
 
-            {/* General Tab */}
-            <TabsContent value="general" className="space-y-8 py-6">
-              {/* Total Amount Card - Hero Section */}
-              <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-sm">
-                <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
-                <div className="relative p-8">
-                  <div className="flex items-start justify-between gap-6">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <DollarSign className="h-5 w-5" />
-                        <span className="text-sm font-medium uppercase tracking-wide">{t("totalAmount")}</span>
-                      </div>
-                      <div className="text-4xl font-bold tracking-tight text-primary">
-                        {formatCurrency(displayQuotation.total_amount)}
-                      </div>
-                      {displayQuotation.notes && (
-                        <p className="text-sm text-muted-foreground mt-4 max-w-2xl leading-relaxed">
-                          {displayQuotation.notes}
-                        </p>
-                      )}
-                    </div>
-                    {(displayQuotation.approved_at || displayQuotation.rejected_at || displayQuotation.converted_at) && (
-                      <div className="flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-xl p-4 border shadow-sm min-w-[200px]">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                          <History className="h-3.5 w-3.5" />
-                          {t("common.workflow")}
-                        </div>
-                        {displayQuotation.approved_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-green-700 dark:text-green-400">{t("status.approved")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayQuotation.approved_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {displayQuotation.rejected_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-red-700 dark:text-red-400">{t("status.rejected")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayQuotation.rejected_at).toLocaleString()}
-                              </p>
-                              {displayQuotation.rejection_reason && (
-                                <p className="text-xs mt-1.5 italic text-muted-foreground border-l-2 border-red-300 pl-2">
-                                  {displayQuotation.rejection_reason}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {displayQuotation.converted_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <FileText className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-blue-700 dark:text-blue-400">{t("status.converted")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayQuotation.converted_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Content Grid */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {/* Left Section - Quotation Details & Related Info */}
-                <div className="space-y-6">
-                  {/* Quotation Information Card */}
-                  <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-                    <div className="bg-muted/50 px-6 py-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        {t("common.quotation")}
-                      </h3>
-                    </div>
-                    <div className="p-6 space-y-5">
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("code")}</p>
-                        <p className="text-base font-semibold">{displayQuotation.code}</p>
-                      </div>
-                      <Separator />
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("quotationDate")}</p>
-                          <p className="text-sm font-medium">{new Date(displayQuotation.quotation_date).toLocaleDateString()}</p>
-                        </div>
-                        {displayQuotation.valid_until && (
-                          <div className="space-y-1.5">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("validUntil")}</p>
-                            <p className="text-sm font-medium">{new Date(displayQuotation.valid_until).toLocaleDateString()}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Related Information Card */}
-                  <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-                    <div className="bg-muted/50 px-6 py-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-                        <Info className="h-4 w-4 text-primary" />
-                        {t("common.related")}
-                      </h3>
-                    </div>
-                    <div className="p-6">
-                      <div className="grid grid-cols-1 gap-5">
-                        {displayQuotation.payment_terms && (
-                          <div className="flex items-start gap-3 group">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <DollarSign className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1 flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t("paymentTerms")}</p>
-                              <p className="text-sm font-medium truncate">{displayQuotation.payment_terms.name}</p>
-                            </div>
-                          </div>
-                        )}
-                        {displayQuotation.sales_rep && (
-                          <div className="flex items-start gap-3 group">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <Send className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1 flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t("salesRep")}</p>
-                              <p className="text-sm font-medium truncate">{displayQuotation.sales_rep.name}</p>
-                            </div>
-                          </div>
-                        )}
-                        {displayQuotation.business_unit && (
-                          <div className="flex items-start gap-3 group">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <Package className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1 flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t("businessUnit")}</p>
-                              <p className="text-sm font-medium truncate">{displayQuotation.business_unit.name}</p>
-                            </div>
-                          </div>
-                        )}
-                        {displayQuotation.business_type && (
-                          <div className="flex items-start gap-3 group">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <FileText className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1 flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t("businessType")}</p>
-                              <p className="text-sm font-medium truncate">{displayQuotation.business_type.name}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Section - Financial Breakdown */}
-                <div className="space-y-6">
-                  {/* Financial Summary Card */}
-                  <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-                    <div className="bg-muted/50 px-6 py-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-primary" />
-                        {t("common.financial")}
-                      </h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      {/* Subtotal */}
-                      <div className="flex items-center justify-between py-3 border-b border-dashed">
-                        <span className="text-sm font-medium text-muted-foreground">{t("subtotal")}</span>
-                        <span className="text-base font-semibold">{formatCurrency(displayQuotation.subtotal)}</span>
-                      </div>
-
-                      {/* Discount */}
-                      {displayQuotation.discount_amount > 0 && (
-                        <div className="flex items-center justify-between py-3 border-b border-dashed">
-                          <span className="text-sm font-medium text-muted-foreground">{t("discountAmount")}</span>
-                          <span className="text-base font-semibold text-destructive">
-                            -{formatCurrency(displayQuotation.discount_amount)}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Tax */}
-                      <div className="flex items-center justify-between py-3 border-b border-dashed">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {t("taxAmount")} ({displayQuotation.tax_rate}%)
-                        </span>
-                        <span className="text-base font-semibold">{formatCurrency(displayQuotation.tax_amount)}</span>
-                      </div>
-
-                      {/* Delivery Cost */}
-                      {displayQuotation.delivery_cost > 0 && (
-                        <div className="flex items-center justify-between py-3 border-b border-dashed">
-                          <span className="text-sm font-medium text-muted-foreground">{t("deliveryCost")}</span>
-                          <span className="text-base font-semibold">{formatCurrency(displayQuotation.delivery_cost)}</span>
-                        </div>
-                      )}
-
-                      {/* Other Cost */}
-                      {displayQuotation.other_cost > 0 && (
-                        <div className="flex items-center justify-between py-3 border-b border-dashed">
-                          <span className="text-sm font-medium text-muted-foreground">{t("otherCost")}</span>
-                          <span className="text-base font-semibold">{formatCurrency(displayQuotation.other_cost)}</span>
-                        </div>
-                      )}
-
-                      {/* Total - Highlighted */}
-                      <div className="flex items-center justify-between py-4 px-4 bg-primary/5 rounded-lg border border-primary/20 mt-4">
-                        <span className="text-base font-bold text-primary">{t("totalAmount")}</span>
-                        <span className="text-2xl font-bold text-primary">{formatCurrency(displayQuotation.total_amount)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Cost Info Card */}
-                  {(displayQuotation.delivery_cost > 0 || displayQuotation.other_cost > 0 || displayQuotation.discount_amount > 0) && (
-                    <div className="bg-muted/30 rounded-xl border border-dashed p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-background">
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-1 flex-1">
-                          <p className="text-sm font-medium">Cost Breakdown</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Total includes {displayQuotation.discount_amount > 0 && 'discount, '}
-                            {displayQuotation.delivery_cost > 0 && 'delivery cost, '}
-                            {displayQuotation.other_cost > 0 && 'additional costs, '}
-                            and applicable taxes.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Items Tab */}
-            <TabsContent value="items" className="space-y-4 py-4">
-              {itemsLoading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
+              <TabsContent value="general" className="space-y-6 py-4">
+                
+                {/* Main Information Table */}
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
+                        <TableCell>{displayQuotation.code}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("quotationDate")}</TableCell>
+                        <TableCell>{new Date(displayQuotation.quotation_date).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
+                        <TableCell>{getStatusBadge(displayQuotation.status)}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("validUntil")}</TableCell>
+                        <TableCell>
+                          {displayQuotation.valid_until 
+                            ? new Date(displayQuotation.valid_until).toLocaleDateString() 
+                            : "-"}
+                        </TableCell>
+                      </TableRow>
+                      {displayQuotation.payment_terms && (
                         <TableRow>
-                          <TableHead>{t("item.product")}</TableHead>
-                          <TableHead className="text-right">{t("item.quantity")}</TableHead>
-                          <TableHead className="text-right">{t("item.price")}</TableHead>
-                          <TableHead className="text-right">{t("item.discount")}</TableHead>
-                          <TableHead className="text-right">{t("item.subtotal")}</TableHead>
+                          <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>
+                          <TableCell>{displayQuotation.payment_terms.name}</TableCell>
+                          <TableCell className="font-medium bg-muted/50">{t("salesRep")}</TableCell>
+                          <TableCell>{displayQuotation.sales_rep?.name ?? "-"}</TableCell>
                         </TableRow>
-                      </TableHeader>
+                      )}
+                      {displayQuotation.business_unit && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("businessUnit")}</TableCell>
+                          <TableCell>{displayQuotation.business_unit.name}</TableCell>
+                          <TableCell className="font-medium bg-muted/50">{t("businessType")}</TableCell>
+                          <TableCell>{displayQuotation.business_type?.name ?? "-"}</TableCell>
+                        </TableRow>
+                      )}
+                      {displayQuotation.notes && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("notes")}</TableCell>
+                          <TableCell colSpan={3}>{displayQuotation.notes}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Customer Information Table */}
+                {(displayQuotation.customer_name || displayQuotation.customer_contact || 
+                  displayQuotation.customer_phone || displayQuotation.customer_email) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3">{t("customerInfo")}</h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
+                              <TableCell>{displayQuotation.customer_name ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
+                              <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
+                              <TableCell>{displayQuotation.customer_phone ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
+                              <TableCell>{displayQuotation.customer_email ?? "-"}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Financial Summary Table */}
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">{t("common.financial")}</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
                       <TableBody>
-                        {items.length === 0 ? (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50 w-48">{t("subtotal")}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(displayQuotation.subtotal)}</TableCell>
+                        </TableRow>
+                        {displayQuotation.discount_amount > 0 && (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                              <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                              <p>{t("noItems")}</p>
+                            <TableCell className="font-medium bg-muted/50">{t("discountAmount")}</TableCell>
+                            <TableCell className="text-right text-destructive">
+                              -{formatCurrency(displayQuotation.discount_amount)}
                             </TableCell>
                           </TableRow>
-                        ) : (
-                          items.map((item) => (
-                            <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                  {item.product?.code && (
-                                    <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">{item.quantity}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(item.discount ?? 0)}</TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatCurrency(item.subtotal)}
-                              </TableCell>
-                            </TableRow>
-                          ))
                         )}
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">
+                            {t("taxAmount")} ({displayQuotation.tax_rate}%)
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(displayQuotation.tax_amount)}</TableCell>
+                        </TableRow>
+                        {displayQuotation.delivery_cost > 0 && (
+                          <TableRow>
+                            <TableCell className="font-medium bg-muted/50">{t("deliveryCost")}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(displayQuotation.delivery_cost)}</TableCell>
+                          </TableRow>
+                        )}
+                        {displayQuotation.other_cost > 0 && (
+                          <TableRow>
+                            <TableCell className="font-medium bg-muted/50">{t("otherCost")}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(displayQuotation.other_cost)}</TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow className="border-t-2">
+                          <TableCell className="font-bold bg-muted">{t("totalAmount")}</TableCell>
+                          <TableCell className="text-right font-bold text-lg">
+                            {formatCurrency(displayQuotation.total_amount)}
+                          </TableCell>
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
+                </div>
 
-                  {/* Pagination Controls */}
-                  {totalItems > 0 && (
-                    <div className="mt-4">
+                {/* Workflow History */}
+                {(displayQuotation.approved_at || displayQuotation.rejected_at || displayQuotation.converted_at) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3">{t("common.workflow")}</h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableBody>
+                            {displayQuotation.approved_at && (
+                              <TableRow>
+                                <TableCell className="font-medium bg-muted/50 w-48">{t("status.approved")}</TableCell>
+                                <TableCell>{new Date(displayQuotation.approved_at).toLocaleString()}</TableCell>
+                              </TableRow>
+                            )}
+                            {displayQuotation.rejected_at && (
+                              <>
+                                <TableRow>
+                                  <TableCell className="font-medium bg-muted/50">{t("status.rejected")}</TableCell>
+                                  <TableCell>{new Date(displayQuotation.rejected_at).toLocaleString()}</TableCell>
+                                </TableRow>
+                                {displayQuotation.rejection_reason && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("rejectionReason")}</TableCell>
+                                    <TableCell>{displayQuotation.rejection_reason}</TableCell>
+                                  </TableRow>
+                                )}
+                              </>
+                            )}
+                            {displayQuotation.converted_at && (
+                              <TableRow>
+                                <TableCell className="font-medium bg-muted/50">{t("status.converted")}</TableCell>
+                                <TableCell>{new Date(displayQuotation.converted_at).toLocaleString()}</TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="items" className="space-y-4 py-4">
+                {itemsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("item.product")}</TableHead>
+                            <TableHead className="text-right">{t("item.quantity")}</TableHead>
+                            <TableHead className="text-right">{t("item.price")}</TableHead>
+                            <TableHead className="text-right">{t("item.discount")}</TableHead>
+                            <TableHead className="text-right">{t("item.subtotal")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                {t("noItems")}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            items.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                    {item.product?.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.discount ?? 0)}</TableCell>
+                                <TableCell className="text-right font-medium">
+                                  {formatCurrency(item.subtotal)}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {totalItems > 0 && (
                       <DataTablePagination
                         pageIndex={itemsPage}
                         pageSize={pageSize}
@@ -596,17 +487,15 @@ export function QuotationDetailModal({
                           setItemsPage(1);
                         }}
                       />
-                    </div>
-                  )}
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       {quotation && (
         <QuotationForm
           open={isEditDialogOpen}
@@ -617,7 +506,6 @@ export function QuotationDetailModal({
         />
       )}
 
-      {/* Delete Dialog */}
       <DeleteDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

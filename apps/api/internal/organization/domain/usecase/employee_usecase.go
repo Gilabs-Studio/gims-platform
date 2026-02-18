@@ -23,7 +23,7 @@ var (
 type EmployeeUsecase interface {
 	Create(ctx context.Context, req dto.CreateEmployeeRequest, createdBy string) (dto.EmployeeResponse, error)
 	GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error)
-	List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeResponse, int64, error)
+	List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error)
 	Delete(ctx context.Context, id string) error
 	SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error)
@@ -142,7 +142,7 @@ func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeR
 	return mapper.ToEmployeeResponse(employee), nil
 }
 
-func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeResponse, int64, error) {
+func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error) {
 	// Set defaults
 	if params.Page <= 0 {
 		params.Page = 1
@@ -170,7 +170,7 @@ func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParam
 		return nil, 0, err
 	}
 
-	return mapper.ToEmployeeListResponse(employees), total, nil
+	return mapper.ToEmployeeListItemResponseList(employees), total, nil
 }
 
 func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error) {

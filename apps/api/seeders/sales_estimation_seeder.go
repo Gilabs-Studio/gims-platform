@@ -94,77 +94,118 @@ func SeedSalesEstimation() error {
 	}
 
 	// Create sample estimations with different statuses
+	// These will be the source of truth for customer data that flows through pipeline
 	estimations := []struct {
-		status       salesModels.SalesEstimationStatus
-		daysAgo      int
-		itemsCount   int
-		probability  int
-		taxRate      float64
-		deliveryCost float64
-		otherCost    float64
-		discount     float64
-		notes        string
-		customerName string
+		status          salesModels.SalesEstimationStatus
+		daysAgo         int
+		itemsCount      int
+		probability     int
+		taxRate         float64
+		deliveryCost    float64
+		otherCost       float64
+		discount        float64
+		notes           string
+		customerName    string
+		customerContact string
+		customerPhone   string
+		customerEmail   string
+		willConvert     bool // Mark estimations that will be converted to quotations
 	}{
 		{
-			status:       salesModels.SalesEstimationStatusDraft,
-			daysAgo:      1,
-			itemsCount:   2,
-			probability:  25,
-			taxRate:      11.0,
-			deliveryCost: 0,
-			otherCost:    0,
-			discount:     0,
-			notes:        "Initial estimation for new prospect",
-			customerName: "Klinik Sehat Selalu",
+			status:          salesModels.SalesEstimationStatusApproved,
+			daysAgo:         7,
+			itemsCount:      5,
+			probability:     75,
+			taxRate:         11.0,
+			deliveryCost:    100000,
+			otherCost:       25000,
+			discount:        100000,
+			notes:           "Approved, ready for quotation conversion",
+			customerName:    "PT Apotek Sehat Sentosa",
+			customerContact: "Ibu Sri Mulyani",
+			customerPhone:   "+62 21-5551234",
+			customerEmail:   "procurement@apoteksehat.co.id",
+			willConvert:     true, // Will be converted in quotation seeder
 		},
 		{
-			status:       salesModels.SalesEstimationStatusSubmitted,
-			daysAgo:      3,
-			itemsCount:   4,
-			probability:  50,
-			taxRate:      11.0,
-			deliveryCost: 50000,
-			otherCost:    0,
-			discount:     50000,
-			notes:        "Submitted for review, awaiting approval",
-			customerName: "RSIA Bunda Bahagia",
+			status:          salesModels.SalesEstimationStatusApproved,
+			daysAgo:         10,
+			itemsCount:      8,
+			probability:     80,
+			taxRate:         11.0,
+			deliveryCost:    150000,
+			otherCost:       50000,
+			discount:        200000,
+			notes:           "Approved by management, high priority",
+			customerName:    "RS Harapan Kita Jakarta",
+			customerContact: "dr. Bambang Hartono",
+			customerPhone:   "+62 21-5559876",
+			customerEmail:   "logistik@rsharapankita.co.id",
+			willConvert:     true, // Will be converted in quotation seeder
 		},
 		{
-			status:       salesModels.SalesEstimationStatusApproved,
-			daysAgo:      7,
-			itemsCount:   5,
-			probability:  75,
-			taxRate:      11.0,
-			deliveryCost: 100000,
-			otherCost:    25000,
-			discount:     100000,
-			notes:        "Approved, ready for quotation",
-			customerName: "Apotek Kimia Global",
+			status:          salesModels.SalesEstimationStatusApproved,
+			daysAgo:         12,
+			itemsCount:      6,
+			probability:     70,
+			taxRate:         11.0,
+			deliveryCost:    80000,
+			otherCost:       20000,
+			discount:        150000,
+			notes:           "Approved for quotation, regular client",
+			customerName:    "Klinik Pratama Medika",
+			customerContact: "dr. Dewi Sartika",
+			customerPhone:   "+62 22-5554321",
+			customerEmail:   "admin@klinikmedika.com",
+			willConvert:     true, // Will be converted in quotation seeder
 		},
 		{
-			status:       salesModels.SalesEstimationStatusRejected,
-			daysAgo:      5,
-			itemsCount:   3,
-			probability:  10,
-			taxRate:      11.0,
-			deliveryCost: 0,
-			otherCost:    0,
-			discount:     0,
-			notes:        "Customer budget too low",
-			customerName: "Klinik Pratama Jaya",
+			status:          salesModels.SalesEstimationStatusApproved,
+			daysAgo:         15,
+			itemsCount:      10,
+			probability:     85,
+			taxRate:         11.0,
+			deliveryCost:    200000,
+			otherCost:       75000,
+			discount:        500000,
+			notes:           "High value deal, approved for quotation",
+			customerName:    "RS Siloam Hospitals Surabaya",
+			customerContact: "Ibu Retno Widiastuti",
+			customerPhone:   "+62 31-5558765",
+			customerEmail:   "purchasing@siloamsby.co.id",
+			willConvert:     true, // Will be converted in quotation seeder
 		},
 		{
-			status:       salesModels.SalesEstimationStatusConverted,
-			daysAgo:      10,
-			itemsCount:   10,
-			probability:  100,
-			taxRate:      11.0,
-			deliveryCost: 150000,
-			otherCost:    50000,
-			discount:     500000,
-			notes:        "Converted to Quotation successfully",
-			customerName: "RS Umum Daerah",
+			status:          salesModels.SalesEstimationStatusDraft,
+			daysAgo:         1,
+			itemsCount:      2,
+			probability:     25,
+			taxRate:         11.0,
+			deliveryCost:    0,
+			otherCost:       0,
+			discount:        0,
+			notes:           "Initial estimation for new prospect, pending review",
+			customerName:    "Apotek Kimia Farma Cabang Bekasi",
+			customerContact: "Bapak Hendra Wijaya",
+			customerPhone:   "+62 21-5552345",
+			customerEmail:   "bekasi@kimiafarma.co.id",
+			willConvert:     false, // Stays as draft
+		},
+		{
+			status:          salesModels.SalesEstimationStatusSubmitted,
+			daysAgo:         3,
+			itemsCount:      4,
+			probability:     50,
+			taxRate:         11.0,
+			deliveryCost:    50000,
+			otherCost:       0,
+			discount:        50000,
+			notes:           "Submitted for approval, awaiting management review",
+			customerName:    "Puskesmas Cempaka Putih",
+			customerContact: "dr. Siti Nurhaliza",
+			customerPhone:   "+62 21-5556543",
+			customerEmail:   "admin@puskesmascempaka.go.id",
+			willConvert:     false, // Stays submitted
 		},
 	}
 
@@ -226,9 +267,9 @@ func SeedSalesEstimation() error {
 			EstimationDate:    estimationDate,
 			ExpectedCloseDate: &expectedClose,
 			CustomerName:      eData.customerName,
-			CustomerEmail:     fmt.Sprintf("contact@%s.com", fmt.Sprintf("cust%d", i)),
-			CustomerPhone:     fmt.Sprintf("0812345678%d", i),
-			CustomerContact:   fmt.Sprintf("Contact Person %d", i),
+			CustomerEmail:     eData.customerEmail,
+			CustomerPhone:     eData.customerPhone,
+			CustomerContact:   eData.customerContact,
 			SalesRepID:        &employee.ID,
 			BusinessUnitID:    &businessUnit.ID,
 			Probability:       eData.probability,
@@ -251,7 +292,7 @@ func SeedSalesEstimation() error {
 			estimation.AreaID = &area.ID
 		}
 
-		// Set workflow fields
+		// Set workflow fields based on status
 		if eData.status == salesModels.SalesEstimationStatusApproved {
 			approvedAt := estimationDate.AddDate(0, 0, 1)
 			estimation.ApprovedAt = &approvedAt
@@ -260,22 +301,8 @@ func SeedSalesEstimation() error {
 			}
 		}
 
-		if eData.status == salesModels.SalesEstimationStatusRejected {
-			rejectedAt := estimationDate.AddDate(0, 0, 1)
-			estimation.RejectedAt = &rejectedAt
-			reason := "Budget constraints"
-			estimation.RejectionReason = &reason
-			if len(employees) > 1 {
-				estimation.RejectedBy = &employees[(i+1)%len(employees)].ID
-			}
-		}
-
-		if eData.status == salesModels.SalesEstimationStatusConverted {
-			convertedAt := estimationDate.AddDate(0, 0, 2)
-			estimation.ConvertedAt = &convertedAt
-			// We won't link to actual quotation here to avoid circular dependencies complexity in seeding logic
-			// But status reflects it
-		}
+		// Note: Conversion to quotation will be handled by quotation seeder
+		// which will update ConvertedToQuotationID and status to 'converted'
 		
 		// Use createdBy from random employee
 		randomEmployeeID := employees[rand.Intn(len(employees))].ID

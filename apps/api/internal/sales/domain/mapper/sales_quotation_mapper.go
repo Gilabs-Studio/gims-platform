@@ -21,6 +21,10 @@ func ToSalesQuotationResponse(m *salesModels.SalesQuotation) dto.SalesQuotationR
 		OtherCost:           m.OtherCost,
 		TotalAmount:         m.TotalAmount,
 		Status:              string(m.Status),
+		CustomerName:        m.CustomerName,
+		CustomerContact:     m.CustomerContact,
+		CustomerPhone:       m.CustomerPhone,
+		CustomerEmail:       m.CustomerEmail,
 		Notes:               m.Notes,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
@@ -164,6 +168,10 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 		SalesRepID:      &salesRepID,
 		BusinessUnitID:  &businessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
+		CustomerName:    req.CustomerName,
+		CustomerContact: req.CustomerContact,
+		CustomerPhone:   req.CustomerPhone,
+		CustomerEmail:   req.CustomerEmail,
 		TaxRate:         req.TaxRate,
 		DeliveryCost:    req.DeliveryCost,
 		OtherCost:       req.OtherCost,
@@ -237,6 +245,22 @@ func UpdateSalesQuotationModel(m *salesModels.SalesQuotation, req *dto.UpdateSal
 
 	if req.BusinessTypeID != nil {
 		m.BusinessTypeID = req.BusinessTypeID
+	}
+
+	if req.CustomerName != nil {
+		m.CustomerName = *req.CustomerName
+	}
+
+	if req.CustomerContact != nil {
+		m.CustomerContact = *req.CustomerContact
+	}
+
+	if req.CustomerPhone != nil {
+		m.CustomerPhone = *req.CustomerPhone
+	}
+
+	if req.CustomerEmail != nil {
+		m.CustomerEmail = *req.CustomerEmail
 	}
 
 	if req.TaxRate != nil {
