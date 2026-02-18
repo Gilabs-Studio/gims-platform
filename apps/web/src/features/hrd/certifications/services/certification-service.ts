@@ -20,6 +20,7 @@ export const certificationService = {
     if (params?.per_page) searchParams.append("per_page", params.per_page.toString());
     if (params?.search) searchParams.append("search", params.search);
     if (params?.employee_id) searchParams.append("employee_id", params.employee_id);
+    if (params?.status) searchParams.append("status", params.status);
 
     const queryString = searchParams.toString();
     const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL;
@@ -43,21 +44,27 @@ export const certificationService = {
     return response.data;
   },
 
-  // Create a new certification
+  // Create a new certification (skip global 401 logout so only toast is shown on error)
   create: async (data: CreateCertificationData): Promise<CertificationResponse> => {
-    const response = await apiClient.post<CertificationResponse>(BASE_URL, data);
+    const response = await apiClient.post<CertificationResponse>(BASE_URL, data, {
+      skipAuthRedirectOn401: true,
+    } as Parameters<typeof apiClient.post>[2]);
     return response.data;
   },
 
   // Update an existing certification
   update: async (id: string, data: UpdateCertificationData): Promise<CertificationResponse> => {
-    const response = await apiClient.put<CertificationResponse>(`${BASE_URL}/${id}`, data);
+    const response = await apiClient.put<CertificationResponse>(`${BASE_URL}/${id}`, data, {
+      skipAuthRedirectOn401: true,
+    } as Parameters<typeof apiClient.put>[2]);
     return response.data;
   },
 
   // Delete a certification
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`${BASE_URL}/${id}`);
+    await apiClient.delete(`${BASE_URL}/${id}`, {
+      skipAuthRedirectOn401: true,
+    } as Parameters<typeof apiClient.delete>[1]);
   },
 
   // Get form data (employees dropdown)

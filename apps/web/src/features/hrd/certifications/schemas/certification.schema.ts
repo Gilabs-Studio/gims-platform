@@ -1,10 +1,16 @@
 import { z } from "zod";
 
+// Permissive UUID format so seed UUIDs (e.g. 11111111-...) pass; same as leave request / education.
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const getSchema = (t: (key: string) => string) => {
   return {
     certification: z
       .object({
-        employee_id: z.string().uuid(t("validation.invalid_employee")),
+        employee_id: z
+          .string()
+          .min(1, t("validation.invalid_employee"))
+          .refine((val) => UUID_FORMAT.test(val.trim()), { message: t("validation.invalid_employee") }),
         certificate_name: z
           .string()
           .min(1, t("validation.certificate_name_required"))

@@ -18,6 +18,9 @@ export const certificationEn = {
     search_placeholder: "Search by certificate name or issued by...",
     filter_by_employee: "Filter by Employee",
     all_employees: "All Employees",
+    filters: {
+      all_status: "All Status",
+    },
     expiring_soon: "Expiring Soon",
     expired: "Expired",
     valid: "Valid",
@@ -64,6 +67,20 @@ export const certificationEn = {
       cancel: "Cancel",
       create: "Create",
       update: "Update",
+      saving: "Saving...",
+      error: "Something went wrong",
+    },
+
+    // Success messages (toast)
+    success: {
+      created: "Certification created successfully",
+      updated: "Certification updated successfully",
+    },
+
+    // Error messages (toast)
+    error: {
+      create: "Failed to create certification",
+      update: "Failed to update certification",
     },
 
     // Days remaining messages
@@ -145,6 +162,7 @@ export const certificationEn = {
       edit_button: "Edit",
       delete_button: "Delete",
       back_to_list: "Back to List",
+      view_profile: "View profile",
     },
 
     // Status badges

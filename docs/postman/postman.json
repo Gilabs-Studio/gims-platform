@@ -3942,7 +3942,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/hrd/employee-certifications?page=1&per_page=20&search=&employee_id=",
+									"raw": "{{base_url}}/hrd/employee-certifications?page=1&per_page=20&search=&employee_id=&status=",
 									"host": [
 										"{{base_url}}"
 									],
@@ -3970,10 +3970,15 @@
 											"key": "employee_id",
 											"value": "",
 											"description": "Filter by employee ID (UUID)"
+										},
+										{
+											"key": "status",
+											"value": "",
+											"description": "Filter by certification status: no_expiry | valid | expiring_soon | expired"
 										}
 									]
 								},
-								"description": "Get a paginated list of all employee certifications. Supports search by certificate name or issuing organization, and filtering by employee. Requires `certification.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"cert-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"employee_name\": \"John Doe\",\n      \"certificate_name\": \"AWS Certified Solutions Architect\",\n      \"issued_by\": \"Amazon Web Services\",\n      \"issue_date\": \"2024-01-15\",\n      \"expiry_date\": \"2027-01-15\",\n      \"certificate_number\": \"AWS-CSA-12345\",\n      \"certificate_file\": \"/uploads/cert-123.pdf\",\n      \"description\": \"Cloud architecture certification\",\n      \"is_expired\": false,\n      \"days_until_expiry\": 365,\n      \"created_at\": \"2024-01-15T10:00:00+07:00\",\n      \"updated_at\": \"2024-01-15T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 50,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false,\n      \"next_page\": 2\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_list_501\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission"
+								"description": "Get a paginated list of all employee certifications. Supports search by certificate name or issuing organization, filtering by employee, and filtering by status. Requires `certification.read` permission.\n\n**Query Parameters:**\n- `status` (optional): Filter by certification status. Allowed values: `no_expiry` (no expiry date), `valid` (expiry > 30 days), `expiring_soon` (expiry within 30 days), `expired` (already expired).\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"cert-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"employee_name\": \"John Doe\",\n      \"certificate_name\": \"AWS Certified Solutions Architect\",\n      \"issued_by\": \"Amazon Web Services\",\n      \"issue_date\": \"2024-01-15\",\n      \"expiry_date\": \"2027-01-15\",\n      \"certificate_number\": \"AWS-CSA-12345\",\n      \"certificate_file\": \"/uploads/cert-123.pdf\",\n      \"description\": \"Cloud architecture certification\",\n      \"is_expired\": false,\n      \"days_until_expiry\": 365,\n      \"created_at\": \"2024-01-15T10:00:00+07:00\",\n      \"updated_at\": \"2024-01-15T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 50,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false,\n      \"next_page\": 2\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_list_501\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission"
 							},
 							"response": []
 						},

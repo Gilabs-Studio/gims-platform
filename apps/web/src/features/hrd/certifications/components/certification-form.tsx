@@ -1,47 +1,59 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { getCertificationSchema } from "../schemas/certification.schema";
-import type { CreateCertificationData, UpdateCertificationData, EmployeeCertification } from "../types";
+import type { CreateCertificationData, UpdateCertificationData } from "../types";
 import { Field, FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { FileUpload } from "@/components/ui/file-upload";
 import { cn, sortOptions } from "@/lib/utils";
 import { format } from "date-fns";
-import { useCreateCertification, useUpdateCertification, useCertificationFormData } from "../hooks/use-certification";
+import { useCreateCertification, useUpdateCertification, useCertificationFormData, useCertification } from "../hooks/use-certification";
 import { toast } from "sonner";
+
+type FormValues = CreateCertificationData | (UpdateCertificationData & { employee_id?: string });
 
 interface CertificationFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly certification?: EmployeeCertification | null;
+  readonly certificationId?: string | null;
 }
 
-export function CertificationForm({ open, onClose, certification }: CertificationFormProps) {
-  const isEdit = !!certification;
+export function CertificationForm({ open, onClose, certificationId }: CertificationFormProps) {
+  const isEdit = !!certificationId;
   const t = useTranslations("certification");
   const createCertification = useCreateCertification();
   const updateCertification = useUpdateCertification();
 
-  // Fetch form data (employees dropdown)
-  const { data: formData } = useCertificationFormData();
-
+  const { data: formDataResponse, isLoading: isLoadingFormData } = useCertificationFormData();
+  const formData = formDataResponse?.data;
   const employees = useMemo(() => {
-    const data = formData?.data?.employees ?? [];
+    const data = formData?.employees ?? [];
     return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
-  }, [formData?.data?.employees]);
+  }, [formData?.employees]);
+
+  const { data: certificationResponse, isLoading: isLoadingCertification } = useCertification(
+    certificationId ?? "",
+    { enabled: isEdit && !!formData }
+  );
+  const certification = certificationResponse?.data;
 
   const schema = getCertificationSchema(t);
+  const [certificateFileDisplay, setCertificateFileDisplay] = useState<string | undefined>(undefined);
+  const certificateDisplayClearedRef = useRef(false);
+  const lastResetCertId = useRef<string | null>(null);
+  const [hasFormBeenInitialized, setHasFormBeenInitialized] = useState(false);
 
   const {
     register,
@@ -51,68 +63,112 @@ export function CertificationForm({ open, onClose, certification }: Certificatio
     reset,
     watch,
     formState: { errors },
-  } = useForm<CreateCertificationData | UpdateCertificationData>({
+  } = useForm<FormValues>({
     resolver: zodResolver(isEdit ? schema.certificationUpdate : schema.certification),
-    defaultValues: certification
-      ? {
-          certificate_name: certification.certificate_name,
-          issued_by: certification.issued_by,
-          issue_date: certification.issue_date,
-          expiry_date: certification.expiry_date ?? undefined,
-          certificate_number: certification.certificate_number ?? undefined,
-          certificate_file: certification.certificate_file ?? undefined,
-          description: certification.description ?? undefined,
-        }
-      : {
-          employee_id: "",
-          certificate_name: "",
-          issued_by: "",
-          issue_date: new Date().toISOString().split("T")[0],
-          expiry_date: undefined,
-        },
+    defaultValues: {
+      employee_id: "",
+      certificate_name: "",
+      issued_by: "",
+      issue_date: new Date().toISOString().split("T")[0],
+      expiry_date: undefined,
+      certificate_number: undefined,
+      certificate_file: undefined,
+      description: undefined,
+    },
   });
 
   // eslint-disable-next-line react-hooks/incompatible-library -- watch() is safe here for simple value observation
   const hasExpiry = watch("expiry_date");
 
-  // Reset form when dialog opens/closes or certification changes
+  // Normalize employee_id to UUID when user selects by label (create mode)
+  const employeeIdValue = useWatch({ control, name: "employee_id", defaultValue: "" });
+  useEffect(() => {
+    if (!employeeIdValue || typeof employeeIdValue !== "string" || employees.length === 0) return;
+    const byId = employees.find((e) => String(e.id) === employeeIdValue);
+    if (byId) return;
+    const byLabel = employees.find((e) => `${e.employee_code} - ${e.name}` === employeeIdValue);
+    if (byLabel) setValue("employee_id", String(byLabel.id), { shouldValidate: true });
+  }, [employeeIdValue, employees, setValue]);
+
   useEffect(() => {
     if (!open) {
-      reset();
+      lastResetCertId.current = null;
+      certificateDisplayClearedRef.current = false;
+      setCertificateFileDisplay(undefined);
+      setHasFormBeenInitialized(false);
       return;
     }
+    if (!isEdit) {
+      setHasFormBeenInitialized(true);
+      setCertificateFileDisplay(undefined);
+      return;
+    }
+    setHasFormBeenInitialized(false);
+  }, [open, isEdit]);
 
-    if (certification) {
-      reset({
-        certificate_name: certification.certificate_name,
-        issued_by: certification.issued_by,
-        issue_date: certification.issue_date,
-        expiry_date: certification.expiry_date ?? undefined,
-        certificate_number: certification.certificate_number ?? undefined,
-        certificate_file: certification.certificate_file ?? undefined,
-        description: certification.description ?? undefined,
-      });
-    } else {
+  // Reset form when full certification loads in edit mode (same pattern as employee contract form)
+  useEffect(() => {
+    if (!isEdit || !certificationId || !certification) return;
+    if (lastResetCertId.current === certificationId) return;
+    lastResetCertId.current = certificationId;
+    certificateDisplayClearedRef.current = false;
+    reset({
+      employee_id: certification.employee_id ?? "",
+      certificate_name: certification.certificate_name ?? "",
+      issued_by: certification.issued_by ?? "",
+      issue_date: certification.issue_date ?? new Date().toISOString().split("T")[0],
+      expiry_date: certification.expiry_date ?? undefined,
+      certificate_number: certification.certificate_number ?? undefined,
+      certificate_file: certification.certificate_file ?? undefined,
+      description: certification.description ?? undefined,
+    });
+    setCertificateFileDisplay(certification.certificate_file ?? undefined);
+    setHasFormBeenInitialized(true);
+  }, [isEdit, certificationId, certification, reset]);
+
+  // Create mode: reset to empty when dialog opens for create
+  useEffect(() => {
+    if (open && !isEdit) {
       reset({
         employee_id: "",
         certificate_name: "",
         issued_by: "",
         issue_date: new Date().toISOString().split("T")[0],
         expiry_date: undefined,
+        certificate_number: undefined,
+        certificate_file: undefined,
+        description: undefined,
       });
+      setCertificateFileDisplay(undefined);
     }
-  }, [open, certification, reset]);
+  }, [open, isEdit, reset]);
 
-  const onSubmit = async (data: CreateCertificationData | UpdateCertificationData) => {
+  const onSubmit = async (data: FormValues) => {
     try {
       if (isEdit && certification) {
+        const updateData: UpdateCertificationData = {
+          certificate_name: data.certificate_name,
+          issued_by: data.issued_by,
+          issue_date: data.issue_date,
+          expiry_date: data.expiry_date ?? null,
+          certificate_number: data.certificate_number ?? null,
+          certificate_file: data.certificate_file ?? null,
+          description: data.description ?? null,
+        };
         await updateCertification.mutateAsync({
           id: certification.id,
-          data: data as UpdateCertificationData,
+          data: updateData,
         });
         toast.success(t("success.updated"));
       } else {
-        await createCertification.mutateAsync(data as CreateCertificationData);
+        const employeeId =
+          employees.find((e) => String(e.id) === (data as CreateCertificationData).employee_id)?.id ??
+          employees.find((e) => `${e.employee_code} - ${e.name}` === (data as CreateCertificationData).employee_id)?.id ??
+          (data as CreateCertificationData).employee_id;
+        await createCertification.mutateAsync({
+          ...(data as CreateCertificationData),
+          employee_id: String(employeeId),
+        });
         toast.success(t("success.created"));
       }
       onClose();
@@ -122,6 +178,9 @@ export function CertificationForm({ open, onClose, certification }: Certificatio
   };
 
   const isSubmitting = createCertification.isPending || updateCertification.isPending;
+  const isFormReady =
+    !isLoadingFormData &&
+    (!isEdit || (!!certification && !isLoadingCertification && hasFormBeenInitialized));
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -130,36 +189,54 @@ export function CertificationForm({ open, onClose, certification }: Certificatio
           <DialogTitle className="text-2xl font-bold">
             {isEdit ? t("form.edit_title") : t("form.create_title")}
           </DialogTitle>
+          <DialogDescription>
+            {isEdit ? t("form.edit_title") : t("form.create_title")}
+          </DialogDescription>
         </DialogHeader>
 
+        {!isFormReady ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Employee Selection (Create Only) */}
-          {!isEdit && (
-            <Field>
-              <Label>{t("field.employee")} <span className="text-destructive">*</span></Label>
-              <Controller
-                name="employee_id"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isSubmitting}>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- employee_id only exists in create mode union type */}
-                    <SelectTrigger className={cn((errors as any).employee_id && "border-destructive")}>
+          {/* Employee: required in create, read-only in edit (same as employee contract form) */}
+          <Field>
+            <Label>{t("field.employee")} {!isEdit && <span className="text-destructive">*</span>}</Label>
+            <Controller
+              name="employee_id"
+              control={control}
+              render={({ field }) => {
+                const normalizedValue =
+                  typeof field.value === "string" && field.value
+                    ? employees.find((e) => String(e.id) === field.value)
+                      ? field.value
+                      : employees.find((e) => `${e.employee_code} - ${e.name}` === field.value)?.id ?? field.value
+                    : "";
+                return (
+                  <Select
+                    value={String(normalizedValue)}
+                    onValueChange={field.onChange}
+                    disabled={isSubmitting || isEdit}
+                  >
+                    <SelectTrigger className={cn("employee_id" in errors && errors.employee_id && "border-destructive")}>
                       <SelectValue placeholder={t("form.select_employee")} />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
+                        <SelectItem key={employee.id} value={String(employee.id)}>
                           {employee.employee_code} - {employee.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              />
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- employee_id only exists in create mode union type */}
-              {(errors as any).employee_id && <FieldError>{(errors as any).employee_id.message}</FieldError>}
-            </Field>
-          )}
+                );
+              }}
+            />
+            {!isEdit && "employee_id" in errors && errors.employee_id != null && (
+              <FieldError>{errors.employee_id.message}</FieldError>
+            )}
+          </Field>
 
           {/* Certificate Name */}
           <Field>
@@ -283,13 +360,45 @@ export function CertificationForm({ open, onClose, certification }: Certificatio
             />
           </Field>
 
-          {/* Certificate File Path */}
+          {/* Certificate File Upload (same as HRD contracts) */}
           <Field>
             <Label>{t("field.certificate_file")}</Label>
-            <Input
-              {...register("certificate_file")}
-              placeholder={t("form.certificate_file_placeholder")}
-              disabled={isSubmitting}
+            <Controller
+              name="certificate_file"
+              control={control}
+              render={({ field }) => {
+                const fallback =
+                  field.value != null && String(field.value).trim() !== ""
+                    ? String(field.value)
+                    : undefined;
+                const displayValue = certificateDisplayClearedRef.current
+                  ? undefined
+                  : (certificateFileDisplay ?? fallback);
+                const handleChange = (val: string | undefined) => {
+                  const next = val && String(val).trim() !== "" ? val : undefined;
+                  certificateDisplayClearedRef.current = false;
+                  setCertificateFileDisplay(next);
+                  field.onChange(next ?? null);
+                };
+                const handleClear = () => {
+                  certificateDisplayClearedRef.current = true;
+                  setCertificateFileDisplay(undefined);
+                  setValue("certificate_file", undefined, { shouldDirty: true, shouldValidate: false });
+                  field.onChange(undefined);
+                };
+                return (
+                  <FileUpload
+                    key={displayValue ?? "empty"}
+                    value={displayValue}
+                    onChange={handleChange}
+                    onClear={handleClear}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    maxSize={10}
+                    placeholder={t("form.certificate_file_placeholder")}
+                    uploadEndpoint="/upload/document"
+                  />
+                );
+              }}
             />
             <p className="text-xs text-muted-foreground">{t("form.certificate_file_description")}</p>
           </Field>
@@ -324,6 +433,7 @@ export function CertificationForm({ open, onClose, certification }: Certificatio
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

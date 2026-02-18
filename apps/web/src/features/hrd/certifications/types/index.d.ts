@@ -11,6 +11,8 @@ export interface Employee {
 export interface EmployeeCertification {
   id: string;
   employee_id: string;
+  employee_name?: string;
+  employee_code?: string;
   employee?: Employee;
   certificate_name: string;
   issued_by: string;
@@ -31,6 +33,7 @@ export interface ListCertificationsParams {
   per_page?: number;
   search?: string;
   employee_id?: string;
+  status?: "no_expiry" | "valid" | "expiring_soon" | "expired";
 }
 
 // Create request data

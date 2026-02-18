@@ -10,7 +10,7 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 
 - **CRUD Certifications**: Create, read, update, delete certification records untuk karyawan
 - **Expiry Tracking**: Monitor certification expiry dates dengan computed fields (is_expired, days_until_expiry)
-- **Search & Filter**: Cari berdasarkan certificate name atau issued by, filter by employee
+- **Search & Filter**: Cari berdasarkan certificate name atau issued by, filter by employee, filter by status (valid, expiring_soon, expired, no_expiry)
 - **Expiring Certifications Alert**: Query certifications yang akan expire dalam X hari (default 30)
 - **Optional Expiry**: Support untuk certifications tanpa expiry date (lifetime certifications)
 - **Document Management**: Store certificate file paths untuk uploaded documents
@@ -35,6 +35,11 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 - **Max per_page**: 100 (enforced untuk prevent memory issues)
 - **Default per_page**: 20
 - **Ordering**: issue_date DESC (newest first)
+- **Status Filter** (query param `status`): Optional. Allowed values:
+  - `no_expiry`: expiry_date IS NULL
+  - `valid`: expiry_date > (today + 30 days)
+  - `expiring_soon`: expiry_date between today and (today + 30 days)
+  - `expired`: expiry_date < today
 
 ### Expiring Certifications Query
 - **Default Days**: 30 (jika parameter tidak provided)
@@ -107,9 +112,9 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 
 **Implementation**: 
 - Single page `/hrd/certifications` dengan dialog modals untuk create/edit
-- Modal state management di list component (`isFormOpen`, `editingCertification`)
+- Modal state management di list component (`isFormOpen`, `editingCertificationId`); form receives `certificationId` (not full object) and fetches detail by ID in edit mode (same pattern as employee contract form)
 - Dynamic import dengan PermissionGuard untuk code splitting
-- Form component reused untuk create dan edit modes (conditional based on `certification` prop)
+- Form component reused untuk create dan edit modes (conditional based on `certificationId`); in edit mode all fields (including Employee, Expiry Date, Certificate Number, Description) are pre-filled from GET-by-ID; Employee field is read-only in edit
 
 **Trade-off**: 
 - ✅ Better UX: No navigation flicker, context preserved
@@ -123,7 +128,7 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
-| GET | `/hrd/employee-certifications` | certification.read | List all certifications (paginated, searchable) |
+| GET | `/hrd/employee-certifications` | certification.read | List all certifications (paginated, searchable, filter by `status`: no_expiry \| valid \| expiring_soon \| expired) |
 | GET | `/hrd/employee-certifications/:id` | certification.read | Get certification detail by ID |
 | GET | `/hrd/employee-certifications/employee/:employee_id` | certification.read | Get all certifications for specific employee |
 | GET | `/hrd/employee-certifications/expiring?days=30` | certification.read | Get certifications expiring within X days |
@@ -180,7 +185,15 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 2. Should show all certs with "AWS" in name
 3. Filter by employee: Select specific employee
 4. Should show only that employee's certs
-5. Combine search + filter → Should work together
+5. Filter by status: Select "Expiring Soon", "Valid", "Expired", or "No Expiry" from status dropdown
+6. Combine search + status filter (and optionally employee) → Should work together
+
+### Scenario 7: List Employee Column & Detail Modal
+1. List table shows **Employee** column with employee name and code (from API `employee_name`, `employee_code` when enriched)
+2. Clicking the employee cell opens the certification detail modal (same as clicking certificate name)
+3. Detail modal **Employee section**: Shows full employee block (avatar, name, code, email, position, View profile link) when employee detail is loaded via `useEmployee(employee_id)`; fallback to list `employee_name` / `employee_code` with View profile link
+4. Detail modal **Certification details**: If `certificate_file` is set, a "Download Certificate" button uses API base URL for relative paths and opens in new tab with download attribute
+5. Detail modal **Status/days**: Theme-aware styling (no hard-coded light yellow/green/red); uses semantic Badge variants and text-muted-foreground / text-destructive so dark theme is consistent
 
 ## Automated Testing
 
@@ -320,23 +333,28 @@ features/hrd/certifications/
 │   └── id.ts                        # Indonesian translations (mirrors en.ts)
 └── components/
     ├── certification-list.tsx        # Main list component
-    │                                 # - Modal state management (isFormOpen, editingCertification, viewingCertification)
+    │                                 # - Modal state management (isFormOpen, editingCertificationId, viewingCertification)
+    │                                 # - Passes certificationId (not full object) to form for edit
     │                                 # - Debounced search (500ms)
     │                                 # - Permission-based actions (canCreate, canUpdate, canDelete, canView)
-    │                                 # - Status badges: Expired (red), Expiring Soon (yellow), Valid (green), No Expiry (gray)
-    │                                 # - Actions dropdown per row (View, Edit, Delete)
+│                                 # - Status filter dropdown: All Status, Valid, Expiring Soon, Expired, No Expiry (query param status)
+│                                 # - Employee column: employee_name + employee_code (from list response); cell clickable to open detail modal
+│                                 # - Status badges: Expired (red), Expiring Soon (yellow), Valid (green), No Expiry (gray)
+│                                 # - Actions dropdown per row (View, Edit, Delete)
     │                                 # - DataTablePagination with rowCount fix (total not total_items)
     ├── certification-form.tsx        # Dialog-based form (NOT separate page)
-    │                                 # - Conditional schema: create (with employee_id) vs edit (without)
-    │                                 # - React Hook Form with Controller for Select, Calendar
+    │                                 # - Props: certificationId (string | null); edit mode when certificationId is set
+    │                                 # - Edit: useCertification(certificationId) fetches full detail; form pre-fills all fields; Employee field shown but disabled
+    │                                 # - Create: Employee dropdown required; reset to empty when dialog opens
+    │                                 # - Conditional schema: create (with employee_id) vs edit (without employee_id in payload)
+    │                                 # - React Hook Form with Controller for Select, Calendar; hasFormBeenInitialized + isFormReady to avoid flash of empty data
     │                                 # - Optional expiry date with "Clear" button
-    │                                 # - Employee dropdown (create mode only)
-    │                                 # - Type assertion for employee_id errors (union type workaround)
-    │                                 # - Form reset on open/close in useEffect
+    │                                 # - i18n: success.created, success.updated, common.saving, error.create, error.update
     └── certification-detail-modal.tsx # Detail view dialog
-                                      # - useLocale() hook (not prop drilling)
-                                      # - Days remaining calculation with color coding
-                                      # - Download certificate button
+                                      # - useEmployee(employee_id) for full employee block (avatar, name, code, email, position, View profile); fallback to list employee_name/employee_code
+                                      # - Theme-aware status/days styling (Badge variants, text-muted-foreground, text-destructive, no hard-coded light colors)
+                                      # - Download certificate: URL = certificate_file (or NEXT_PUBLIC_API_URL + path if relative), download attribute, target _blank
+                                      # - useLocale() for date formatting
                                       # - Metadata display (created_at, updated_at)
 ```
 
@@ -396,7 +414,27 @@ app/[locale]/(dashboard)/hrd/certifications/
 
 ## Frontend Implementation Notes
 
-### Recent Changes (2026-02-07)
+### Recent Changes (2026-02-17)
+1. **List API & Frontend**:
+   - List response includes `employee_name` and `employee_code` per item (enriched in backend)
+   - New query parameter `status` for list: `no_expiry` | `valid` | `expiring_soon` | `expired`
+   - Frontend: status filter dropdown; Employee column shows name + code and is clickable to open detail modal
+
+2. **Detail Modal**:
+   - Employee section aligned with education detail: full employee block via `useEmployee(employee_id)` (avatar, name, code, email, position, View profile); fallback to list `employee_name`/`employee_code`
+   - Theme-aware status/days styling (semantic Badge variants and text colors for dark/light theme)
+   - Download certificate: link uses `NEXT_PUBLIC_API_URL` + path for relative `certificate_file`, with `download` attribute and `target="_blank"`
+
+3. **Form**:
+   - Employee field validation aligned with leave request (permissive UUID, normalize label→id)
+   - Certificate file upload via FileUpload component (same pattern as HRD contracts)
+
+4. **Edit form (2026-02-17)**:
+   - List passes `certificationId` to form (not full certification object); form fetches detail via `useCertification(id)` in edit mode (same pattern as employee contract form)
+   - All fields pre-filled in edit: employee_id, certificate_name, issued_by, issue_date, expiry_date, certificate_number, certificate_file, description; Employee field shown but disabled in edit
+   - i18n: added `certification.success.created`, `certification.success.updated`, `certification.common.saving`, `certification.error.create`, `certification.error.update` in en.ts and id.ts to fix MISSING_MESSAGE console errors
+
+### Previous Changes (2026-02-07)
 1. **Complete refactor to Dialog-based pattern**:
    - Removed separate `/new` and `/[id]/edit` pages
    - Implemented modal state management in list component
@@ -424,4 +462,6 @@ app/[locale]/(dashboard)/hrd/certifications/
 ## Contributors
 - Implemented: Sprint 14 (2026-02-07)
 - Frontend Refactored: 2026-02-07
-- Last Updated: 2026-02-07
+- List status filter, employee column, detail modal (employee section, theme, download): 2026-02-17
+- Edit form prefill + Employee field + i18n keys: 2026-02-17
+- Last Updated: 2026-02-17

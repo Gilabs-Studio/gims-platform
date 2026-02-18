@@ -148,7 +148,7 @@ func (u *EmployeeCertificationUsecase) GetCertificationByID(ctx context.Context,
 }
 
 // GetAllCertifications retrieves all certifications with pagination and filters
-func (u *EmployeeCertificationUsecase) GetAllCertifications(ctx context.Context, page, perPage int, search, employeeID string) ([]*dto.EmployeeCertificationResponse, int64, error) {
+func (u *EmployeeCertificationUsecase) GetAllCertifications(ctx context.Context, page, perPage int, search, employeeID, status string) ([]*dto.EmployeeCertificationResponse, int64, error) {
 	// Enforce max per_page
 	if perPage > 100 {
 		perPage = 100
@@ -160,12 +160,20 @@ func (u *EmployeeCertificationUsecase) GetAllCertifications(ctx context.Context,
 		page = 1
 	}
 
-	certifications, total, err := u.certificationRepo.FindAll(ctx, page, perPage, search, employeeID)
+	certifications, total, err := u.certificationRepo.FindAll(ctx, page, perPage, search, employeeID, status)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return mapper.ToEmployeeCertificationResponses(certifications), total, nil
+	list := mapper.ToEmployeeCertificationResponses(certifications)
+	for i, cert := range certifications {
+		emp, err := u.employeeRepo.FindByID(ctx, cert.EmployeeID)
+		if err == nil && emp != nil {
+			list[i].EmployeeName = emp.Name
+			list[i].EmployeeCode = emp.EmployeeCode
+		}
+	}
+	return list, total, nil
 }
 
 // GetCertificationsByEmployeeID retrieves all certifications for a specific employee
