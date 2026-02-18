@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
@@ -12,6 +13,10 @@ import (
 
 type inventoryRepository struct {
 	db *gorm.DB
+}
+
+func (r *inventoryRepository) DB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
 }
 
 func NewInventoryRepository(db *gorm.DB) repository.InventoryRepository {
@@ -25,11 +30,11 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	// Base query on Products to ensure we show products even with 0 stock (if desired)
 	// OR query on InventoryBatches and group by Product + Warehouse.
 	// Requirement: show stock inventory with warehouse stats.
-	
+
 	// Complex query to aggregate batches
 	// We'll select from Products and left join aggregated Batches
-	
-	query := r.db.Table("products p").
+
+	query := r.DB(ctx).Table("products p").
 		Select(`
 			p.id as product_id,
 			p.code as product_code,
@@ -56,7 +61,7 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 		// If warehouse_id is provided, we filter inventory batches by that warehouse.
 		// If not, we might be aggregating ALL warehouses (which can be confusing if displayed as single row per product).
 		// The UI shows "Warehouse" column. This implies one row per Product-Warehouse combination.
-		
+
 		// Strategy:
 		// 1. Join InventoryBatches
 		// 2. Join Warehouses via Batches
@@ -74,10 +79,10 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 		// It should probably still appear with "No Warehouse" or similar?
 		// For Sprint 9, let's focus on showing records present in InventoryBatches or Products joined with InventoryBatches.
 		// To show rows per warehouse, we need to Group by Product AND Warehouse.
-		query = query.Where("ib.id IS NOT NULL") // Only show items with inventory records for now? 
+		query = query.Where("ib.id IS NOT NULL") // Only show items with inventory records for now?
 		// Actually, user might want to see products with 0 stock to know they need to order.
 		// Use Right Join? No.
-		// Let's stick to: Show products that have been received (have batch). 
+		// Let's stick to: Show products that have been received (have batch).
 		// If clean requirement: "List all products and their stock in Warehouse X".
 	}
 
@@ -87,24 +92,24 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	}
 
 	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
-	
+
 	// Count Total (Expensive with Group By, use subquery or count distinct)
 	// Approximate count or separate query
 	// Using GORM Count with Group By can be tricky.
-	
+
 	// Let's use a count wrapper
 	// We need total count of rows (Product-Warehouse combinations)
-	
+
 	// Because of the Group By, Count() behavior changes.
 	// Simple approach:
-	if err := r.db.Table("(?) as sub", query).Count(&total).Error; err != nil {
+	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// Pagination
 	offset := (req.Page - 1) * req.PerPage
 	query = query.Limit(req.PerPage).Offset(offset)
-	
+
 	// Order
 	query = query.Order("p.name ASC, w.name ASC")
 
@@ -139,18 +144,18 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 	// Overstock: available > max_stock AND max_stock > 0
 	// OK: otherwise
 
-    // We start from warehouses to ensure we list all active warehouses (or all relevant ones)
-    // Then left join batches to calculate stats.
-    
-    // Note: status logic depends on Product metadata (min/max stock).
-    // So we need to join products via batches.
+	// We start from warehouses to ensure we list all active warehouses (or all relevant ones)
+	// Then left join batches to calculate stats.
+
+	// Note: status logic depends on Product metadata (min/max stock).
+	// So we need to join products via batches.
 
 	// This is a heavy query. In production, this might be a materialized view or cached.
 	// For now, we compute on the fly.
-	
+
 	// Subquery to get product-warehouse availability first
 	// (Same as GetStockList core query but grouped by product+warehouse)
-	
+
 	query := `
 		WITH stock_levels AS (
 			SELECT 
@@ -187,21 +192,21 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 		GROUP BY w.id, w.name
 		ORDER BY w.name ASC
 	`
-	
-	rows, err := r.db.Raw(query).Rows()
+
+	rows, err := r.DB(ctx).Raw(query).Rows()
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var item dto.GetInventoryTreeWarehousesResponse
 		var total, oos, low, over, ok int
-		
+
 		if err := rows.Scan(&item.ID, &item.Name, &total, &oos, &low, &over, &ok); err != nil {
 			return nil, err
 		}
-		
+
 		item.Summary = dto.StockSummary{
 			TotalItems: total,
 			OutOfStock: oos,
@@ -211,7 +216,7 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 		}
 		result = append(result, item)
 	}
-	
+
 	return result, nil
 }
 
@@ -221,7 +226,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	var total int64
 
 	// Filter by WarehouseID IS REQUIRED and enforced by logic calling this
-	query := r.db.Table("products p").
+	query := r.DB(ctx).Table("products p").
 		Select(`
 			p.id as product_id,
 			p.code as product_code,
@@ -255,7 +260,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
 
 	// Count Total
-	if err := r.db.Table("(?) as sub", query).Count(&total).Error; err != nil {
+	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -290,7 +295,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) ([]dto.InventoryBatchItem, error) {
 	var items []dto.InventoryBatchItem
 
-	query := r.db.Table("inventory_batches ib").
+	query := r.DB(ctx).Table("inventory_batches ib").
 		Select(`
 			ib.id,
 			ib.batch_number,
@@ -316,29 +321,29 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 // UpdateProductReservedStock updates the reserved stock counter on the Product
 func (r *inventoryRepository) UpdateProductReservedStock(ctx context.Context, productID string, quantity float64) error {
 	// Note: We are updating the Product table directly as per plan (Soft Reservation)
-	// Even though GetStockList sums batch reserved_quantities, we might need to adjust that query 
+	// Even though GetStockList sums batch reserved_quantities, we might need to adjust that query
 	// or ensure we distribute reservation to batches later.
 	// HOWEVER, if the system design implies Product-level reservation BEFORE batch selection,
 	// then we must have a ReservedStock field on Product.
-	
-	// Let's assume Product model has ReservedStock or we add it. 
+
+	// Let's assume Product model has ReservedStock or we add it.
 	// If it doesn't, we might fail here.
 	// Based on typical GORM, we can use an expression.
-	
-	return r.db.Table("products").Where("id = ?", productID).
+
+	return r.DB(ctx).Table("products").Where("id = ?", productID).
 		Update("reserved_stock", gorm.Expr("COALESCE(reserved_stock, 0) + ?", quantity)).Error
 }
 
 func (r *inventoryRepository) UpdateBatchQuantity(ctx context.Context, batchID string, quantity float64) error {
 	// quantity is the change (delta). If negative, it deducts.
-	return r.db.Table("inventory_batches").Where("id = ?", batchID).
+	return r.DB(ctx).Table("inventory_batches").Where("id = ?", batchID).
 		Update("current_quantity", gorm.Expr("current_quantity + ?", quantity)).Error
 }
 
 func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID string) ([]dto.InventoryBatchItem, error) {
 	var items []dto.InventoryBatchItem
-	
-	query := r.db.Table("inventory_batches ib").
+
+	query := r.DB(ctx).Table("inventory_batches ib").
 		Select(`
 			ib.id,
 			ib.batch_number,
@@ -351,12 +356,12 @@ func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID
 		Where("ib.deleted_at IS NULL").
 		Where("ib.product_id = ?", productID).
 		Where("ib.current_quantity > 0"). // Only available batches? Logic says "SelectBatches"
-		Order("ib.created_at ASC") // Default sort
+		Order("ib.created_at ASC")        // Default sort
 
 	if err := query.Find(&items).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return items, nil
 }
 
@@ -380,6 +385,47 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 		movement.QtyOut = req.Quantity
 	}
 
-	return r.db.Create(&movement).Error
+	return r.DB(ctx).Create(&movement).Error
 }
 
+func (r *inventoryRepository) CreateBatch(ctx context.Context, item *dto.CreateBatchParams) (string, error) {
+	batch := models.InventoryBatch{
+		ProductID:       item.ProductID,
+		WarehouseID:     item.WarehouseID,
+		BatchNumber:     item.BatchNumber,
+		ExpiryDate:      item.ExpiryDate,
+		InitialQuantity: item.InitialQuantity,
+		CurrentQuantity: item.InitialQuantity,
+		CostPrice:       item.CostPrice,
+		IsActive:        true,
+	}
+
+	if err := r.DB(ctx).Create(&batch).Error; err != nil {
+		return "", err
+	}
+	return batch.ID, nil
+}
+
+func (r *inventoryRepository) UpdateProductAverageCost(ctx context.Context, productID string, newCost float64) error {
+	return r.DB(ctx).Table("products").Where("id = ?", productID).Update("current_hpp", newCost).Error
+}
+
+func (r *inventoryRepository) UpdateProductStock(ctx context.Context, productID string, delta float64) error {
+	return r.DB(ctx).Table("products").Where("id = ?", productID).
+		Update("current_stock", gorm.Expr("COALESCE(current_stock, 0) + ?", delta)).Error
+}
+
+func (r *inventoryRepository) GetProductCostInfo(ctx context.Context, productID string) (float64, float64, error) {
+	type costRes struct {
+		CurrentHpp   float64
+		CurrentStock float64
+	}
+	var res costRes
+	if err := r.DB(ctx).Table("products").
+		Select("COALESCE(current_hpp, 0) as current_hpp, COALESCE(current_stock, 0) as current_stock").
+		Where("id = ?", productID).
+		Scan(&res).Error; err != nil {
+		return 0, 0, err
+	}
+	return res.CurrentHpp, res.CurrentStock, nil
+}

@@ -16,6 +16,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import type { FinancialClosing } from "../types";
 import { useApproveFinanceClosing, useFinanceClosings } from "../hooks/use-finance-closing";
 import { ClosingForm } from "./closing-form";
+import { ClosingDetail } from "./closing-detail";
 
 function formatDate(value: string) {
   const d = new Date(value);
@@ -34,6 +35,8 @@ export function ClosingList() {
   const [pageSize, setPageSize] = useState(20);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
 
   const { data, isLoading, isError } = useFinanceClosings({
@@ -109,6 +112,15 @@ export function ClosingList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setDetailId(item.id);
+                            setDetailOpen(true);
+                          }}
+                        >
+                          {t("actions.view")}
+                        </DropdownMenuItem>
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem className="cursor-pointer" onClick={() => setApproving(item)}>
                             {t("actions.approve")}
@@ -136,6 +148,14 @@ export function ClosingList() {
       />
 
       <ClosingForm open={formOpen} onOpenChange={setFormOpen} />
+      <ClosingDetail
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setDetailId(null);
+        }}
+        closingId={detailId}
+      />
 
       <DialogApprove
         open={!!approving}

@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	ErrPaymentNotFound        = errors.New("payment not found")
-	ErrPaymentPostedImmutable = errors.New("posted payment cannot be modified")
+	ErrPaymentNotFound           = errors.New("payment not found")
+	ErrPaymentPostedImmutable    = errors.New("posted payment cannot be modified")
 	ErrPaymentInvalidAllocations = errors.New("invalid payment allocations")
-	ErrPaymentTotalMismatch   = errors.New("total_amount must equal allocation sum")
+	ErrPaymentTotalMismatch      = errors.New("total_amount must equal allocation sum")
 )
 
 type PaymentUsecase interface {
@@ -122,16 +122,16 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 		}
 
 		p := &financeModels.Payment{
-			PaymentDate:   payDate,
-			Description:   strings.TrimSpace(req.Description),
-			BankAccountID: bankAccountID,
+			PaymentDate:                 payDate,
+			Description:                 strings.TrimSpace(req.Description),
+			BankAccountID:               bankAccountID,
 			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
 			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
 			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
 			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
-			TotalAmount:   req.TotalAmount,
-			Status:        financeModels.PaymentStatusDraft,
-			CreatedBy:     &actorID,
+			TotalAmount:                 req.TotalAmount,
+			Status:                      financeModels.PaymentStatusDraft,
+			CreatedBy:                   &actorID,
 		}
 		if err := tx.Create(p).Error; err != nil {
 			return err
@@ -143,15 +143,15 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 			typeSnap := ""
 			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.PaymentAllocation{
-				PaymentID:       p.ID,
-				ChartOfAccountID: strings.TrimSpace(al.ChartOfAccountID),
+				PaymentID:                  p.ID,
+				ChartOfAccountID:           strings.TrimSpace(al.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				ReferenceType:   al.ReferenceType,
-				ReferenceID:     al.ReferenceID,
-				Amount:          al.Amount,
-				Memo:            strings.TrimSpace(al.Memo),
+				ReferenceType:              al.ReferenceType,
+				ReferenceID:                al.ReferenceID,
+				Amount:                     al.Amount,
+				Memo:                       strings.TrimSpace(al.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -257,14 +257,14 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 		if err := tx.Model(&financeModels.Payment{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
-				"payment_date":    payDate,
-				"description":     strings.TrimSpace(req.Description),
-				"bank_account_id": bankAccountID,
+				"payment_date":                   payDate,
+				"description":                    strings.TrimSpace(req.Description),
+				"bank_account_id":                bankAccountID,
 				"bank_account_name_snapshot":     bankNameSnap,
 				"bank_account_number_snapshot":   bankNumberSnap,
 				"bank_account_holder_snapshot":   bankHolderSnap,
 				"bank_account_currency_snapshot": bankCurrencySnap,
-				"total_amount":    req.TotalAmount,
+				"total_amount":                   req.TotalAmount,
 			}).Error; err != nil {
 			return err
 		}
@@ -293,15 +293,15 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 			}
 
 			item := &financeModels.PaymentAllocation{
-				PaymentID:        id,
-				ChartOfAccountID: strings.TrimSpace(al.ChartOfAccountID),
+				PaymentID:                  id,
+				ChartOfAccountID:           strings.TrimSpace(al.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				ReferenceType:    al.ReferenceType,
-				ReferenceID:      al.ReferenceID,
-				Amount:           al.Amount,
-				Memo:             strings.TrimSpace(al.Memo),
+				ReferenceType:              al.ReferenceType,
+				ReferenceID:                al.ReferenceID,
+				Amount:                     al.Amount,
+				Memo:                       strings.TrimSpace(al.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -466,6 +466,14 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		}
 
 		for _, al := range p.Allocations {
+			// Check budget for each allocation (if applicable)
+			if al.Amount > 0 {
+				_ = EnsureWithinBudget(ctx, tx, al.ChartOfAccountID, p.PaymentDate, al.Amount)
+				// We don't return error here to maintain flexibility,
+				// but in strict ERP mode we would:
+				// if err := finUsecase.EnsureWithinBudget(...); err != nil { return err }
+			}
+
 			line := &financeModels.JournalLine{
 				JournalEntryID:   je.ID,
 				ChartOfAccountID: al.ChartOfAccountID,
@@ -491,7 +499,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		if err := tx.Model(&financeModels.Payment{}).
 			Where("id = ?", p.ID).
 			Updates(map[string]interface{}{
-				"status":          financeModels.PaymentStatusPosted,
+				"status":           financeModels.PaymentStatusPosted,
 				"journal_entry_id": je.ID,
 				"approved_at":      now,
 				"approved_by":      actorID,

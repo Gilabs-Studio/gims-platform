@@ -14,6 +14,14 @@ export const financeClosingEn = {
   actions: {
     create: "Create",
     approve: "Approve",
+    view: "View Detail",
+  },
+  detail_title: "Closing Analysis Detail",
+  analysis: {
+    account_name: "Account Name",
+    closing_balance: "Closing Balance",
+    opening_balance: "Opening Balance (YTD)",
+    difference: "Difference",
   },
   form: {
     createTitle: "Create Closing",

@@ -174,8 +174,8 @@ export function PurchaseOrderForm({
         supplier_id: po.supplier_id ?? null,
         payment_terms_id: po.payment_terms_id ?? null,
         business_unit_id: po.business_unit_id ?? null,
-        purchase_requisitions_id: null,
-        sales_order_id: null,
+        purchase_requisitions_id: po.purchase_requisitions_id ?? null,
+        sales_order_id: po.sales_order_id ?? null,
         order_date: po.order_date,
         due_date: po.due_date ?? null,
         tax_rate: po.tax_rate ?? 0,
@@ -185,12 +185,12 @@ export function PurchaseOrderForm({
         items:
           po.items?.length > 0
             ? po.items.map((it) => ({
-                product_id: it.product_id,
-                quantity: it.quantity,
-                price: it.price,
-                discount: it.discount ?? 0,
-                notes: it.notes ?? null,
-              }))
+              product_id: it.product_id,
+              quantity: it.quantity,
+              price: it.price,
+              discount: it.discount ?? 0,
+              notes: it.notes ?? null,
+            }))
             : [{ product_id: "", quantity: 1, price: 0, discount: 0, notes: null }],
       },
       { keepDefaultValues: false },
@@ -222,7 +222,12 @@ export function PurchaseOrderForm({
     for (const it of watchedItems ?? []) {
       const id = it?.product_id;
       if (!id) continue;
-      if (!map.has(id)) map.set(id, { id, name: id });
+      if (!map.has(id)) {
+        // Find in po.items if it's there
+        const poItem = po?.items?.find(x => x.product_id === id);
+        const pInfo = (poItem?.product as any);
+        map.set(id, { id, code: pInfo?.code, name: pInfo?.name || id });
+      }
     }
     return Array.from(map.values());
   }, [supplierProducts, sourceProducts, watchedItems]);
@@ -364,19 +369,19 @@ export function PurchaseOrderForm({
                               items:
                                 pr.items?.length > 0
                                   ? pr.items.map((it) => ({
-                                      product_id: it.product_id,
-                                      quantity: it.quantity,
-                                      price: it.purchase_price,
-                                      discount: it.discount ?? 0,
-                                      notes: it.notes ?? null,
-                                    }))
+                                    product_id: it.product_id,
+                                    quantity: it.quantity,
+                                    price: it.purchase_price,
+                                    discount: it.discount ?? 0,
+                                    notes: it.notes ?? null,
+                                  }))
                                   : [{
-                                      product_id: "",
-                                      quantity: 1,
-                                      price: 0,
-                                      discount: 0,
-                                      notes: null,
-                                    }],
+                                    product_id: "",
+                                    quantity: 1,
+                                    price: 0,
+                                    discount: 0,
+                                    notes: null,
+                                  }],
                             },
                             { keepDefaultValues: false },
                           );
@@ -448,19 +453,19 @@ export function PurchaseOrderForm({
                               items:
                                 (so.items?.length ?? 0) > 0
                                   ? (so.items ?? []).map((it) => ({
-                                      product_id: it.product_id,
-                                      quantity: it.quantity,
-                                      price: 0,
-                                      discount: 0,
-                                      notes: null,
-                                    }))
+                                    product_id: it.product_id,
+                                    quantity: it.quantity,
+                                    price: 0,
+                                    discount: 0,
+                                    notes: null,
+                                  }))
                                   : [{
-                                      product_id: "",
-                                      quantity: 1,
-                                      price: 0,
-                                      discount: 0,
-                                      notes: null,
-                                    }],
+                                    product_id: "",
+                                    quantity: 1,
+                                    price: 0,
+                                    discount: 0,
+                                    notes: null,
+                                  }],
                             },
                             { keepDefaultValues: false },
                           );
@@ -527,6 +532,11 @@ export function PurchaseOrderForm({
                           {s.code ? `${s.code} - ${s.name}` : s.name}
                         </SelectItem>
                       ))}
+                      {isEdit && po?.supplier_id && !suppliers.some(x => x.id === po.supplier_id) && (
+                        <SelectItem value={po.supplier_id} className="cursor-pointer">
+                          {(po.supplier as any)?.code ? `${(po.supplier as any).code} - ${(po.supplier as any).name}` : (po.supplier as any)?.name || po.supplier_id}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 )}
@@ -583,6 +593,11 @@ export function PurchaseOrderForm({
                           {bu.name}
                         </SelectItem>
                       ))}
+                      {isEdit && po?.business_unit_id && !businessUnits.some(x => x.id === po.business_unit_id) && (
+                        <SelectItem value={po.business_unit_id} className="cursor-pointer">
+                          {(po.business_unit as any)?.name || po.business_unit_id}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 )}

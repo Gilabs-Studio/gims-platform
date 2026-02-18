@@ -82,3 +82,13 @@ func (h *FinancialClosingHandler) List(c *gin.Context) {
 	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
 	response.SuccessResponse(c, items, meta)
 }
+
+func (h *FinancialClosingHandler) GetAnalysis(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.GetAnalysis(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_ANALYSIS_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}

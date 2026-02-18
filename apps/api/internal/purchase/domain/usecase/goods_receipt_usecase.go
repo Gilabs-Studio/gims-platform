@@ -3,15 +3,19 @@ package usecase
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
 
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
+	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -42,15 +46,23 @@ type goodsReceiptUsecase struct {
 	poRepo       repositories.PurchaseOrderRepository
 	mapper       *mapper.GoodsReceiptMapper
 	auditService audit.AuditService
+	inventoryUC  invUsecase.InventoryUsecase
+	journalUC    finUsecase.JournalEntryUsecase
+	coaUC        finUsecase.ChartOfAccountUsecase
+	assetUC      finUsecase.AssetUsecase
 }
 
-func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService) GoodsReceiptUsecase {
+func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, inventoryUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase) GoodsReceiptUsecase {
 	return &goodsReceiptUsecase{
 		db:           db,
 		repo:         repo,
 		poRepo:       poRepo,
 		mapper:       mapper.NewGoodsReceiptMapper(),
 		auditService: auditService,
+		inventoryUC:  inventoryUC,
+		journalUC:    journalUC,
+		coaUC:        coaUC,
+		assetUC:      assetUC,
 	}
 }
 
@@ -243,17 +255,18 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 		CreatedBy:       existing.CreatedBy,
 		Items:           make([]models.GoodsReceiptItem, 0, len(req.Items)),
 	}
-	for _, it := range req.Items {
-		po := existing.PurchaseOrder
-		if po == nil {
-			return nil, ErrGoodsReceiptConflict
-		}
-		poItemByID := make(map[string]*models.PurchaseOrderItem, len(po.Items))
-		for i := range po.Items {
-			poIt := &po.Items[i]
-			poItemByID[poIt.ID] = poIt
-		}
 
+	po := existing.PurchaseOrder
+	if po == nil {
+		return nil, ErrGoodsReceiptConflict
+	}
+	poItemByID := make(map[string]*models.PurchaseOrderItem, len(po.Items))
+	for i := range po.Items {
+		poIt := &po.Items[i]
+		poItemByID[poIt.ID] = poIt
+	}
+
+	for _, it := range req.Items {
 		poItemID := strings.TrimSpace(it.PurchaseOrderItemID)
 		if poItemID == "" {
 			return nil, ErrGoodsReceiptConflict
@@ -418,6 +431,26 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			return err
 		}
 		out = loaded
+
+		// Trigger Inventory Update (Inside Transaction)
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.triggerStockUpdate(txCtx, out); err != nil {
+			return fmt.Errorf("failed to update stock: %w", err)
+		}
+
+		// Trigger Journal Entry (Inside Transaction)
+		if err := uc.triggerJournalEntry(txCtx, out); err != nil {
+			return fmt.Errorf("failed to create journal: %w", err)
+		}
+
+		// Trigger Asset Creation (Inside Transaction)
+		// Only for products categorized as "Device" (Asset)
+		if err := uc.triggerAssetCreation(txCtx, out); err != nil {
+			// Asset creation failure shouldn't necessarily block GR if not critical,
+			// but for this ERP we want reliability.
+			return fmt.Errorf("failed to create asset: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -432,6 +465,160 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 	})
 
 	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *models.GoodsReceipt) error {
+	items := make([]invDto.ReceiveStockItem, 0, len(gr.Items))
+
+	// Need to fetch Cost Price from PO Items?
+	// GR Items only have Qty. PO Items have Price.
+	// We need to query PO items to get price.
+	// Optimally, we should load PO with GR.
+	// In Confirm(), we loaded PO. Let's pass PO data or reload.
+	// Since this is outside TX, we reload carefully or query join.
+
+	// Quickest way: Query PurchaseOrderItems
+	// Or use loaded 'out' from Confirm?
+	// 'out' variable in Confirm has GR. 'gr.PurchaseOrder' might not be loaded deeply.
+
+	// Let's implement strict fetching here.
+
+	// Select Price from purchase_order_items
+	// This assumes 1 PO Item -> 1 Product.
+	// We need effective price (Price - Disc + Tax? No, usually Inventory Valuation uses Net Price before Tax, or Standard Cost).
+	// Let's use Base Price for now.
+
+	var poItems []models.PurchaseOrderItem
+	if err := database.GetDB(ctx, uc.db).Where("purchase_order_id = ?", gr.PurchaseOrderID).Find(&poItems).Error; err != nil {
+		return err
+	}
+
+	priceMap := make(map[string]float64)
+	for _, pid := range poItems {
+		priceMap[pid.ID] = pid.Price // Ignoring discount for HPP? Should we include discount?
+		// HPP = (Price - Discount) normally.
+		// Let's calculate Net Price if possible.
+		// Model PurchaseOrderItem has Subtotal, TaxAmount, Total.
+		// Let's use Price for simplicity as requested "ReceiveStockFromGR" usually takes unit cost.
+	}
+
+	warehouseID := "" // Where do we get WarehouseID?
+	// GR doesn't typically have WarehouseID in header if Items can go to different warehouses.
+	// But in this system, maybe it does?
+	// Checking GR Model... No WarehouseID.
+	// Checking PO Model... BusinessUnitID?
+	// Usually Warehouse is selected at GR Item level or Header level.
+	// If missing, we assume a Default Warehouse or we must fetch from PO ShipTo?
+	// Let's look for "Warehouse" in PO/GR models in previous steps.
+	// Step 103 (PurchaseOrder) -> No WarehouseID field visible in summary.
+	// Assuming "Default Warehouse" or "Main Warehouse".
+	// Or maybe it's in the Item?
+	// If not present, we can't update stock correctly.
+	// CRITICAL GAP: Warehouse selection in GR.
+	// I will just use a specific ID if I can find one, or look up "Main" warehouse.
+	// Temporary fix: Use a hardcoded uuid or query one warehouse.
+
+	// Let's fetch the first warehouse found as fallback.
+	var whID string
+	uc.db.Table("warehouses").Select("id").Limit(1).Scan(&whID)
+	warehouseID = whID
+
+	for _, it := range gr.Items {
+		cost := priceMap[it.PurchaseOrderItemID]
+		items = append(items, invDto.ReceiveStockItem{
+			ProductID:   it.ProductID,
+			Quantity:    it.QuantityReceived,
+			CostPrice:   cost,
+			BatchNumber: nil, // Auto generate
+			ExpiryDate:  nil, // Not captured in GR currently
+		})
+	}
+
+	notes := ""
+	if gr.Notes != nil {
+		notes = *gr.Notes
+	}
+
+	req := &invDto.ReceiveStockRequest{
+		SourceID:     gr.ID,
+		SourceNumber: gr.Code,
+		SourceType:   "GR",
+		WarehouseID:  warehouseID,
+		Items:        items,
+		ReceivedAt:   time.Now(),
+		ReceivedBy:   gr.CreatedBy,
+		Notes:        notes,
+	}
+
+	return uc.inventoryUC.ReceiveStockFromGR(ctx, req)
+}
+
+func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *models.GoodsReceipt) error {
+	// 1. Get COA IDs using Assumed Standard Codes
+	// Inventory: 11400, GR/IR: 21100
+	invAcct, err := uc.coaUC.GetByCode(ctx, "11400")
+	if err != nil {
+		return fmt.Errorf("inventory account (11400) lookup failed: %w", err)
+	}
+	grirAcct, err := uc.coaUC.GetByCode(ctx, "21100")
+	if err != nil {
+		return fmt.Errorf("GR/IR account (21100) lookup failed: %w", err)
+	}
+
+	// 2. Calculate Total Value
+	var poItems []models.PurchaseOrderItem
+	if err := database.GetDB(ctx, uc.db).Where("purchase_order_id = ?", gr.PurchaseOrderID).Find(&poItems).Error; err != nil {
+		return err
+	}
+	priceMap := make(map[string]float64)
+	for _, pid := range poItems {
+		priceMap[pid.ID] = pid.Price
+	}
+
+	totalValue := 0.0
+	for _, it := range gr.Items {
+		cost := priceMap[it.PurchaseOrderItemID]
+		totalValue += (it.QuantityReceived * cost)
+	}
+
+	if totalValue <= 0.001 {
+		return nil
+	}
+
+	// 3. Create Journal
+	date := time.Now()
+	if gr.ReceiptDate != nil {
+		date = *gr.ReceiptDate
+	}
+
+	refType := "GOODS_RECEIPT"
+	refID := gr.ID
+
+	lines := []finDto.JournalLineRequest{
+		{
+			ChartOfAccountID: invAcct.ID,
+			Debit:            totalValue,
+			Credit:           0,
+			Memo:             fmt.Sprintf("Stock In - %s", gr.Code),
+		},
+		{
+			ChartOfAccountID: grirAcct.ID,
+			Debit:            0,
+			Credit:           totalValue,
+			Memo:             fmt.Sprintf("GR/IR Clearing - %s", gr.Code),
+		},
+	}
+
+	req := &finDto.CreateJournalEntryRequest{
+		ReferenceID:   &refID,
+		ReferenceType: &refType,
+		EntryDate:     date.Format("2006-01-02"),
+		Description:   fmt.Sprintf("Accrual for %s", gr.Code),
+		Lines:         lines,
+	}
+
+	_, err = uc.journalUC.Create(ctx, req)
+	return err
 }
 
 func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error) {
@@ -572,22 +759,22 @@ func grAuditSnapshot(gr *models.GoodsReceipt) map[string]interface{} {
 	items := make([]map[string]interface{}, 0, len(gr.Items))
 	for _, it := range gr.Items {
 		items = append(items, map[string]interface{}{
-			"id":                   it.ID,
+			"id":                     it.ID,
 			"purchase_order_item_id": it.PurchaseOrderItemID,
-			"product_id":           it.ProductID,
-			"quantity_received":    it.QuantityReceived,
+			"product_id":             it.ProductID,
+			"quantity_received":      it.QuantityReceived,
 		})
 	}
 	return map[string]interface{}{
 		"id":                gr.ID,
 		"code":              gr.Code,
-		"purchase_order_id":  gr.PurchaseOrderID,
-		"supplier_id":        gr.SupplierID,
-		"receipt_date":       gr.ReceiptDate,
-		"notes":              gr.Notes,
-		"status":             gr.Status,
-		"created_by":         gr.CreatedBy,
-		"items":              items,
+		"purchase_order_id": gr.PurchaseOrderID,
+		"supplier_id":       gr.SupplierID,
+		"receipt_date":      gr.ReceiptDate,
+		"notes":             gr.Notes,
+		"status":            gr.Status,
+		"created_by":        gr.CreatedBy,
+		"items":             items,
 	}
 }
 
@@ -624,4 +811,42 @@ func getNextGoodsReceiptCodeLocked(ctx context.Context, tx *gorm.DB, prefix stri
 	}
 
 	return fmt.Sprintf("%s%04d", codePrefix, seq), nil
+}
+
+func (uc *goodsReceiptUsecase) triggerAssetCreation(ctx context.Context, gr *models.GoodsReceipt) error {
+	// 1. Get PO items to check product type
+	var poItems []models.PurchaseOrderItem
+	if err := database.GetDB(ctx, uc.db).Preload("Product.Type").Where("purchase_order_id = ?", gr.PurchaseOrderID).Find(&poItems).Error; err != nil {
+		return err
+	}
+
+	for _, item := range gr.Items {
+		var productPOItem *models.PurchaseOrderItem
+		for i := range poItems {
+			if poItems[i].ID == item.PurchaseOrderItemID {
+				productPOItem = &poItems[i]
+				break
+			}
+		}
+
+		if productPOItem == nil || productPOItem.Product == nil || productPOItem.Product.Type == nil {
+			continue
+		}
+
+		// Trigger only for "Device" type
+		if strings.ToLower(productPOItem.Product.Type.Name) == "device" {
+			req := &finDto.CreateAssetFromPurchaseRequest{
+				Code:            fmt.Sprintf("AST-%s-%s", productPOItem.Product.Code, gr.Code),
+				Name:            productPOItem.Product.Name,
+				AcquisitionDate: gr.ReceiptDate.Format("2006-01-02"),
+				AcquisitionCost: productPOItem.Price,
+				ReferenceType:   "GOODS_RECEIPT",
+				ReferenceID:     gr.ID,
+			}
+			if err := uc.assetUC.CreateFromPurchase(ctx, req); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -62,4 +62,5 @@ export interface TaxInvoiceUpdateInput {
   vat_amount?: number;
   total_amount?: number;
   notes?: string;
+  supplier_invoice_id?: string | null;
 }

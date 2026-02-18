@@ -4,26 +4,26 @@ import "time"
 
 // InventoryStockItem represents the aggregated stock view for the list
 type InventoryStockItem struct {
-	ProductID         string  `json:"product_id"`
-	ProductCode       string  `json:"product_code"`
-	ProductName       string  `json:"product_name"`
-	ProductImageURL   *string `json:"product_image_url"`
-	ProductCategory   *string `json:"product_category"`
-	ProductBrand      *string `json:"product_brand"`
-	
-	WarehouseID       string  `json:"warehouse_id"`
-	WarehouseName     string  `json:"warehouse_name"`
-	
-	OnHand            float64 `json:"on_hand"`
-	Reserved          float64 `json:"reserved"`
-	Available         float64 `json:"available"`
-	
-	MinStock          float64 `json:"min_stock"`
-	MaxStock          float64 `json:"max_stock"`
-	UomName           string  `json:"uom_name"`
-	
-	Status            string  `json:"status"` // "ok", "low", "overstock", "out_of_stock"
-	HasExpiringBatches bool    `json:"has_expiring_batches"`
+	ProductID       string  `json:"product_id"`
+	ProductCode     string  `json:"product_code"`
+	ProductName     string  `json:"product_name"`
+	ProductImageURL *string `json:"product_image_url"`
+	ProductCategory *string `json:"product_category"`
+	ProductBrand    *string `json:"product_brand"`
+
+	WarehouseID   string `json:"warehouse_id"`
+	WarehouseName string `json:"warehouse_name"`
+
+	OnHand    float64 `json:"on_hand"`
+	Reserved  float64 `json:"reserved"`
+	Available float64 `json:"available"`
+
+	MinStock float64 `json:"min_stock"`
+	MaxStock float64 `json:"max_stock"`
+	UomName  string  `json:"uom_name"`
+
+	Status             string `json:"status"` // "ok", "low", "overstock", "out_of_stock"
+	HasExpiringBatches bool   `json:"has_expiring_batches"`
 }
 
 type GetInventoryListRequest struct {
@@ -40,12 +40,12 @@ type GetInventoryListResponse struct {
 }
 
 type PaginationMeta struct {
-	Total       int64 `json:"total"`
-	Page        int   `json:"page"`
-	PerPage     int   `json:"per_page"`
-	TotalPages  int   `json:"total_pages"`
-	HasNext     bool  `json:"has_next"`
-	HasPrev     bool  `json:"has_prev"`
+	Total      int64 `json:"total"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	TotalPages int   `json:"total_pages"`
+	HasNext    bool  `json:"has_next"`
+	HasPrev    bool  `json:"has_prev"`
 }
 
 type InventoryBatchItem struct {
@@ -56,6 +56,17 @@ type InventoryBatchItem struct {
 	CurrentQuantity  float64    `json:"current_quantity"`
 	ReservedQuantity float64    `json:"reserved_quantity"`
 	Available        float64    `json:"available"`
+}
+
+// CreateBatchParams used for repository creation
+type CreateBatchParams struct {
+	ProductID       string
+	WarehouseID     string
+	BatchNumber     string
+	ExpiryDate      *time.Time
+	InitialQuantity float64
+	CostPrice       float64
+	ReceivedAt      time.Time
 }
 
 // Tree View DTOs

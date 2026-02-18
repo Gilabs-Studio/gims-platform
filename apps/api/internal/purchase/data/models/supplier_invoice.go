@@ -34,20 +34,21 @@ type SupplierInvoice struct {
 	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 
-	SupplierID string                  `gorm:"type:uuid;index;not null" json:"supplier_id"`
-	Supplier   *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
-	SupplierCodeSnapshot string        `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
-	SupplierNameSnapshot string        `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
+	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
+	Supplier             *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
+	SupplierCodeSnapshot string                   `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
+	SupplierNameSnapshot string                   `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
 
-	PaymentTermsID *string                `gorm:"type:uuid;index" json:"payment_terms_id"`
-	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
-	PaymentTermsNameSnapshot string       `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
-	PaymentTermsDaysSnapshot *int         `gorm:"type:int" json:"payment_terms_days_snapshot,omitempty"`
+	PaymentTermsID           *string                  `gorm:"type:uuid;index" json:"payment_terms_id"`
+	PaymentTerms             *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
+	PaymentTermsNameSnapshot string                   `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
+	PaymentTermsDaysSnapshot *int                     `gorm:"type:int" json:"payment_terms_days_snapshot,omitempty"`
 
-	Code          string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	InvoiceNumber string `gorm:"type:varchar(100);index;not null" json:"invoice_number"`
-	InvoiceDate   string `gorm:"type:varchar(20);index;not null" json:"invoice_date"`
-	DueDate       string `gorm:"type:varchar(20);index;not null" json:"due_date"`
+	Code             string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	InvoiceNumber    string `gorm:"type:varchar(100);index;not null" json:"invoice_number"`
+	InvoiceDate      string `gorm:"type:varchar(20);index;not null" json:"invoice_date"`
+	DueDate          string `gorm:"type:varchar(20);index;not null" json:"due_date"`
+	TaxInvoiceNumber string `gorm:"type:varchar(100);index" json:"tax_invoice_number,omitempty"`
 
 	TaxRate      float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
 	TaxAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
@@ -57,9 +58,9 @@ type SupplierInvoice struct {
 	Amount       float64 `gorm:"type:decimal(15,2);default:0" json:"amount"`
 
 	Status SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
-	Notes  *string              `gorm:"type:text" json:"notes,omitempty"`
+	Notes  *string               `gorm:"type:text" json:"notes,omitempty"`
 
-	CreatedBy string          `gorm:"type:uuid;index;not null" json:"created_by"`
+	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
 
 	Items []SupplierInvoiceItem `gorm:"foreignKey:SupplierInvoiceID;constraint:OnDelete:CASCADE" json:"items,omitempty"`

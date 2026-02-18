@@ -124,6 +124,8 @@ export function SupplierInvoiceFormDialog({
       notes: detail.notes ?? null,
       items: detail.items.map((it) => ({
         product_id: it.product_id,
+        product_name: (it.product as any)?.name,
+        product_code: (it.product as any)?.code,
         quantity: it.quantity,
         price: it.price,
         discount: it.discount,
@@ -190,192 +192,202 @@ export function SupplierInvoiceFormDialog({
         {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("fields.purchaseOrder")}</Label>
-                <Select
-                  value={selectedPOId}
-                  onValueChange={(value) =>
-                    setFormValue("purchase_order_id", value, { shouldValidate: true })
-                  }
-                  disabled={isBusy || isEdit}
-                >
-                  <SelectTrigger className="cursor-pointer">
-                    <SelectValue placeholder={t("placeholders.select")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(addData?.purchase_orders ?? []).map((po) => (
-                      <SelectItem key={po.id} value={po.id} className="cursor-pointer">
-                        {po.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.paymentTerms")}</Label>
-                <Select
-                  value={form.watch("payment_terms_id")}
-                  onValueChange={(value) => form.setValue("payment_terms_id", value, { shouldValidate: true })}
-                  disabled={isBusy}
-                >
-                  <SelectTrigger className="cursor-pointer">
-                    <SelectValue placeholder={t("placeholders.select")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(addData?.payment_terms ?? []).map((pt) => (
-                      <SelectItem key={pt.id} value={pt.id} className="cursor-pointer">
-                        {pt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.invoiceNumber")}</Label>
-                <Input
-                  value={form.watch("invoice_number")}
-                  onChange={(e) => form.setValue("invoice_number", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.invoiceDate")}</Label>
-                <Input
-                  type="date"
-                  value={form.watch("invoice_date")}
-                  onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.dueDate")}</Label>
-                <Input
-                  type="date"
-                  value={form.watch("due_date")}
-                  onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.taxRate")}</Label>
-                <Input
-                  type="number"
-                  value={form.watch("tax_rate")}
-                  onChange={(e) => form.setValue("tax_rate", Number(e.target.value), { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.deliveryCost")}</Label>
-                <Input
-                  type="number"
-                  value={form.watch("delivery_cost")}
-                  onChange={(e) => form.setValue("delivery_cost", Number(e.target.value), { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("fields.otherCost")}</Label>
-                <Input
-                  type="number"
-                  value={form.watch("other_cost")}
-                  onChange={(e) => form.setValue("other_cost", Number(e.target.value), { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label>{t("fields.notes")}</Label>
-                <Textarea
-                  value={form.watch("notes") ?? ""}
-                  onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t("fields.purchaseOrder")}</Label>
+              <Select
+                value={selectedPOId}
+                onValueChange={(value) =>
+                  setFormValue("purchase_order_id", value, { shouldValidate: true })
+                }
+                disabled={isBusy || isEdit}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("placeholders.select")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(addData?.purchase_orders ?? []).map((po) => (
+                    <SelectItem key={po.id} value={po.id} className="cursor-pointer">
+                      {po.code}
+                    </SelectItem>
+                  ))}
+                  {isEdit && detailQuery.data?.data?.purchase_order && !(addData?.purchase_orders ?? []).some(x => x.id === detailQuery.data?.data?.purchase_order?.id) && (
+                    <SelectItem value={detailQuery.data?.data?.purchase_order?.id} className="cursor-pointer">
+                      {detailQuery.data?.data?.purchase_order?.code}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <div className="font-medium">{t("items.title")}</div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("items.fields.product")}</TableHead>
-                    <TableHead className="text-right">{t("items.fields.quantity")}</TableHead>
-                    <TableHead className="text-right">{t("items.fields.price")}</TableHead>
-                    <TableHead className="text-right">{t("items.fields.discount")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {form.watch("items").map((row, idx) => (
-                    <TableRow key={`${row.product_id}-${idx}`}>
-                      <TableCell className="max-w-[240px] truncate">{row.product_id}</TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={row.quantity}
-                          onChange={(e) => {
-                            const items = form.getValues("items");
-                            items[idx] = { ...items[idx], quantity: Number(e.target.value) };
-                            form.setValue("items", items, { shouldValidate: true });
-                          }}
-                          disabled={isBusy}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={row.price}
-                          onChange={(e) => {
-                            const items = form.getValues("items");
-                            items[idx] = { ...items[idx], price: Number(e.target.value) };
-                            form.setValue("items", items, { shouldValidate: true });
-                          }}
-                          disabled={isBusy}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={row.discount ?? 0}
-                          onChange={(e) => {
-                            const items = form.getValues("items");
-                            items[idx] = { ...items[idx], discount: Number(e.target.value) };
-                            form.setValue("items", items, { shouldValidate: true });
-                          }}
-                          disabled={isBusy}
-                        />
-                      </TableCell>
-                    </TableRow>
+              <Label>{t("fields.paymentTerms")}</Label>
+              <Select
+                value={form.watch("payment_terms_id")}
+                onValueChange={(value) => form.setValue("payment_terms_id", value, { shouldValidate: true })}
+                disabled={isBusy}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("placeholders.select")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(addData?.payment_terms ?? []).map((pt) => (
+                    <SelectItem key={pt.id} value={pt.id} className="cursor-pointer">
+                      {pt.name}
+                    </SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
+            <div className="space-y-2">
+              <Label>{t("fields.invoiceNumber")}</Label>
+              <Input
+                value={form.watch("invoice_number")}
+                onChange={(e) => form.setValue("invoice_number", e.target.value, { shouldValidate: true })}
                 disabled={isBusy}
-                className="cursor-pointer"
-              >
-                {t("actions.cancel")}
-              </Button>
-              <Button type="submit" disabled={isBusy} className="cursor-pointer">
-                {t("actions.save")}
-              </Button>
+              />
             </div>
+
+            <div className="space-y-2">
+              <Label>{t("fields.invoiceDate")}</Label>
+              <Input
+                type="date"
+                value={form.watch("invoice_date")}
+                onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("fields.dueDate")}</Label>
+              <Input
+                type="date"
+                value={form.watch("due_date")}
+                onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("fields.taxRate")}</Label>
+              <Input
+                type="number"
+                value={form.watch("tax_rate")}
+                onChange={(e) => form.setValue("tax_rate", Number(e.target.value), { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("fields.deliveryCost")}</Label>
+              <Input
+                type="number"
+                value={form.watch("delivery_cost")}
+                onChange={(e) => form.setValue("delivery_cost", Number(e.target.value), { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("fields.otherCost")}</Label>
+              <Input
+                type="number"
+                value={form.watch("other_cost")}
+                onChange={(e) => form.setValue("other_cost", Number(e.target.value), { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label>{t("fields.notes")}</Label>
+              <Textarea
+                value={form.watch("notes") ?? ""}
+                onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="font-medium">{t("items.title")}</div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("items.fields.product")}</TableHead>
+                  <TableHead className="text-right">{t("items.fields.quantity")}</TableHead>
+                  <TableHead className="text-right">{t("items.fields.price")}</TableHead>
+                  <TableHead className="text-right">{t("items.fields.discount")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {form.watch("items").map((row, idx) => (
+                  <TableRow key={`${row.product_id}-${idx}`}>
+                    <TableCell className="max-w-[240px] truncate">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{(row as any).product_code || (row.product_id.length > 8 ? row.product_id.slice(0, 8) : row.product_id)}</span>
+                        <span className="text-[10px] text-muted-foreground">{(row as any).product_name || ""}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="h-8 text-right"
+                        value={row.quantity}
+                        onChange={(e) => {
+                          const items = form.getValues("items");
+                          items[idx] = { ...items[idx], quantity: Number(e.target.value) };
+                          form.setValue("items", items, { shouldValidate: true });
+                        }}
+                        disabled={isBusy}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="h-8 text-right"
+                        value={row.price}
+                        onChange={(e) => {
+                          const items = form.getValues("items");
+                          items[idx] = { ...items[idx], price: Number(e.target.value) };
+                          form.setValue("items", items, { shouldValidate: true });
+                        }}
+                        disabled={isBusy}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="h-8 text-right"
+                        value={row.discount ?? 0}
+                        onChange={(e) => {
+                          const items = form.getValues("items");
+                          items[idx] = { ...items[idx], discount: Number(e.target.value) };
+                          form.setValue("items", items, { shouldValidate: true });
+                        }}
+                        disabled={isBusy}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isBusy}
+              className="cursor-pointer"
+            >
+              {t("actions.cancel")}
+            </Button>
+            <Button type="submit" disabled={isBusy} className="cursor-pointer">
+              {t("actions.save")}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

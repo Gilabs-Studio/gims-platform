@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -47,12 +48,9 @@ func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepo
 	return &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper}
 }
 
+// parseDate is kept as an alias for backward compatibility within this file.
 func parseDate(value string) (time.Time, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return time.Time{}, errors.New("date is required")
-	}
-	return time.Parse("2006-01-02", value)
+	return parseDateRequired(value)
 }
 
 func validateLines(lines []dto.JournalLineRequest) (float64, float64, error) {
@@ -74,7 +72,7 @@ func validateLines(lines []dto.JournalLineRequest) (float64, float64, error) {
 		debitTotal += ln.Debit
 		creditTotal += ln.Credit
 	}
-	if math.Abs(debitTotal-creditTotal) > 0.000001 {
+	if math.Abs(math.Round(debitTotal*100)-math.Round(creditTotal*100)) > 0.1 {
 		return debitTotal, creditTotal, ErrJournalUnbalanced
 	}
 	return debitTotal, creditTotal, nil
@@ -100,17 +98,22 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 	}
 
 	var createdID string
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 			return err
 		}
-		coaByID := make(map[string]*financeModels.ChartOfAccount, len(req.Lines))
+		coaIDs := make([]string, 0, len(req.Lines))
 		for _, ln := range req.Lines {
-			coa, err := uc.coaRepo.FindByID(ctx, ln.ChartOfAccountID)
-			if err != nil {
-				return err
+			coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+		}
+		coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+		if err != nil {
+			return err
+		}
+		for _, ln := range req.Lines {
+			if coaByID[strings.TrimSpace(ln.ChartOfAccountID)] == nil {
+				return errors.New("chart of account not found")
 			}
-			coaByID[ln.ChartOfAccountID] = coa
 		}
 
 		entry := &financeModels.JournalEntry{
@@ -128,14 +131,14 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 			memo := strings.TrimSpace(ln.Memo)
 			coa := coaByID[ln.ChartOfAccountID]
 			line := &financeModels.JournalLine{
-				JournalEntryID:              entry.ID,
-				ChartOfAccountID:            ln.ChartOfAccountID,
+				JournalEntryID:             entry.ID,
+				ChartOfAccountID:           ln.ChartOfAccountID,
 				ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
 				ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
 				ChartOfAccountTypeSnapshot: string(coa.Type),
-				Debit:                       ln.Debit,
-				Credit:                      ln.Credit,
-				Memo:                        memo,
+				Debit:                      ln.Debit,
+				Credit:                     ln.Credit,
+				Memo:                       memo,
 			}
 			if err := tx.Create(line).Error; err != nil {
 				return err
@@ -226,14 +229,14 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + memo + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
 			if snap, ok := existingLineSnapshot[key]; ok && (snap.ChartOfAccountCodeSnapshot != "" || snap.ChartOfAccountNameSnapshot != "" || snap.ChartOfAccountTypeSnapshot != "") {
 				line := &financeModels.JournalLine{
-					JournalEntryID:              id,
-					ChartOfAccountID:            ln.ChartOfAccountID,
+					JournalEntryID:             id,
+					ChartOfAccountID:           ln.ChartOfAccountID,
 					ChartOfAccountCodeSnapshot: snap.ChartOfAccountCodeSnapshot,
 					ChartOfAccountNameSnapshot: snap.ChartOfAccountNameSnapshot,
 					ChartOfAccountTypeSnapshot: snap.ChartOfAccountTypeSnapshot,
-					Debit:                       ln.Debit,
-					Credit:                      ln.Credit,
-					Memo:                        memo,
+					Debit:                      ln.Debit,
+					Credit:                     ln.Credit,
+					Memo:                       memo,
 				}
 				if err := tx.Create(line).Error; err != nil {
 					return err
@@ -243,14 +246,14 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 
 			coa := coaByID[ln.ChartOfAccountID]
 			line := &financeModels.JournalLine{
-				JournalEntryID:              id,
-				ChartOfAccountID:            ln.ChartOfAccountID,
+				JournalEntryID:             id,
+				ChartOfAccountID:           ln.ChartOfAccountID,
 				ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
 				ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
 				ChartOfAccountTypeSnapshot: string(coa.Type),
-				Debit:                       ln.Debit,
-				Credit:                      ln.Credit,
-				Memo:                        memo,
+				Debit:                      ln.Debit,
+				Credit:                     ln.Credit,
+				Memo:                       memo,
 			}
 			if err := tx.Create(line).Error; err != nil {
 				return err
@@ -308,33 +311,15 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	if req == nil {
 		req = &dto.ListJournalEntriesRequest{}
 	}
-	page := req.Page
-	if page < 1 {
-		page = 1
-	}
-	perPage := req.PerPage
-	if perPage < 1 {
-		perPage = 10
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
+	page, perPage := normalizePagination(req.Page, req.PerPage)
 
-	var startDate *time.Time
-	if req.StartDate != nil && strings.TrimSpace(*req.StartDate) != "" {
-		v, err := parseDate(*req.StartDate)
-		if err != nil {
-			return nil, 0, err
-		}
-		startDate = &v
+	startDate, err := parseDateOptional(req.StartDate)
+	if err != nil {
+		return nil, 0, err
 	}
-	var endDate *time.Time
-	if req.EndDate != nil && strings.TrimSpace(*req.EndDate) != "" {
-		v, err := parseDate(*req.EndDate)
-		if err != nil {
-			return nil, 0, err
-		}
-		endDate = &v
+	endDate, err := parseDateOptional(req.EndDate)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	params := repositories.JournalEntryListParams{

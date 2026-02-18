@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
-	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
 )
 
@@ -30,15 +30,16 @@ type AssetUsecase interface {
 	Depreciate(ctx context.Context, id string, req *dto.DepreciateAssetRequest) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
 	Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error)
+	CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error
 }
 
 type assetUsecase struct {
-	db           *gorm.DB
-	coaRepo      repositories.ChartOfAccountRepository
-	catRepo      repositories.AssetCategoryRepository
-	locRepo      repositories.AssetLocationRepository
-	repo         repositories.AssetRepository
-	mapper       *mapper.AssetMapper
+	db      *gorm.DB
+	coaRepo repositories.ChartOfAccountRepository
+	catRepo repositories.AssetCategoryRepository
+	locRepo repositories.AssetLocationRepository
+	repo    repositories.AssetRepository
+	mapper  *mapper.AssetMapper
 }
 
 func NewAssetUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, catRepo repositories.AssetCategoryRepository, locRepo repositories.AssetLocationRepository, repo repositories.AssetRepository, mapper *mapper.AssetMapper) AssetUsecase {
@@ -89,17 +90,17 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 	}
 
 	item := &financeModels.Asset{
-		Code:                 strings.TrimSpace(req.Code),
-		Name:                 strings.TrimSpace(req.Name),
-		CategoryID:            strings.TrimSpace(req.CategoryID),
-		LocationID:            strings.TrimSpace(req.LocationID),
-		AcquisitionDate:       acqDate,
-		AcquisitionCost:       req.AcquisitionCost,
-		SalvageValue:          req.SalvageValue,
+		Code:                    strings.TrimSpace(req.Code),
+		Name:                    strings.TrimSpace(req.Name),
+		CategoryID:              strings.TrimSpace(req.CategoryID),
+		LocationID:              strings.TrimSpace(req.LocationID),
+		AcquisitionDate:         acqDate,
+		AcquisitionCost:         req.AcquisitionCost,
+		SalvageValue:            req.SalvageValue,
 		AccumulatedDepreciation: 0,
-		BookValue:             req.AcquisitionCost,
-		Status:                financeModels.AssetStatusActive,
-		CreatedBy:             &actorID,
+		BookValue:               req.AcquisitionCost,
+		Status:                  financeModels.AssetStatusActive,
+		CreatedBy:               &actorID,
 	}
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -107,11 +108,11 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 			return err
 		}
 		txRec := &financeModels.AssetTransaction{
-			AssetID:          item.ID,
-			Type:             financeModels.AssetTransactionTypeAcquire,
-			TransactionDate:  acqDate,
-			Description:      "Asset acquired",
-			CreatedBy:        &actorID,
+			AssetID:         item.ID,
+			Type:            financeModels.AssetTransactionTypeAcquire,
+			TransactionDate: acqDate,
+			Description:     "Asset acquired",
+			CreatedBy:       &actorID,
 		}
 		return tx.Create(txRec).Error
 	})
@@ -189,11 +190,11 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 			return err
 		}
 		txRec := &financeModels.AssetTransaction{
-			AssetID:          id,
-			Type:             financeModels.AssetTransactionTypeUpdate,
-			TransactionDate:  time.Now(),
-			Description:      "Asset updated",
-			CreatedBy:        &actorID,
+			AssetID:         id,
+			Type:            financeModels.AssetTransactionTypeUpdate,
+			TransactionDate: time.Now(),
+			Description:     "Asset updated",
+			CreatedBy:       &actorID,
 		}
 		return tx.Create(txRec).Error
 	})
@@ -359,7 +360,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		if err == nil {
 			return errors.New("asset already depreciated for this period")
 		}
-		if err != nil && err != gorm.ErrRecordNotFound {
+		if err != gorm.ErrRecordNotFound {
 			return err
 		}
 
@@ -484,14 +485,14 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		}
 
 		txRec := &financeModels.AssetTransaction{
-			AssetID:          asset.ID,
-			Type:             financeModels.AssetTransactionTypeDepreciate,
-			TransactionDate:  asOfDate,
-			Description:      fmt.Sprintf("Depreciated for %s", period),
-			ReferenceType:    &refType,
-			ReferenceID:      &d.ID,
-			CreatedBy:        &actorID,
-			CreatedAt:        time.Now(),
+			AssetID:         asset.ID,
+			Type:            financeModels.AssetTransactionTypeDepreciate,
+			TransactionDate: asOfDate,
+			Description:     fmt.Sprintf("Depreciated for %s", period),
+			ReferenceType:   &refType,
+			ReferenceID:     &d.ID,
+			CreatedBy:       &actorID,
+			CreatedAt:       time.Now(),
 		}
 		if err := tx.Create(txRec).Error; err != nil {
 			return err
@@ -626,7 +627,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 		return &res, nil
 	}
 
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, disposalDate); err != nil {
 			return err
 		}
@@ -667,5 +668,59 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 	return &res, nil
 }
 
-// keep import used (sprint 12 success criteria mentions linkage; compile-time only)
-var _ = salesModels.CustomerInvoice{}
+func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error {
+	tx := database.GetDB(ctx, uc.db)
+
+	// Fallback Category
+	var catID string
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		catID = *req.CategoryID
+	} else {
+		var cat financeModels.AssetCategory
+		if err := tx.First(&cat).Error; err == nil {
+			catID = cat.ID
+		}
+	}
+
+	// Fallback Location
+	var locID string
+	if req.LocationID != nil && *req.LocationID != "" {
+		locID = *req.LocationID
+	} else {
+		var loc financeModels.AssetLocation
+		if err := tx.First(&loc).Error; err == nil {
+			locID = loc.ID
+		}
+	}
+
+	parsedDate, _ := time.Parse("2006-01-02", req.AcquisitionDate)
+	if parsedDate.IsZero() {
+		parsedDate = time.Now()
+	}
+
+	asset := financeModels.Asset{
+		Code:            req.Code,
+		Name:            req.Name,
+		CategoryID:      catID,
+		LocationID:      locID,
+		AcquisitionDate: parsedDate,
+		AcquisitionCost: req.AcquisitionCost,
+		Status:          financeModels.AssetStatusActive,
+	}
+
+	if err := tx.Create(&asset).Error; err != nil {
+		return err
+	}
+
+	// Create transaction log
+	tLog := financeModels.AssetTransaction{
+		AssetID:         asset.ID,
+		Type:            financeModels.AssetTransactionTypeAcquire,
+		TransactionDate: parsedDate,
+		Description:     fmt.Sprintf("Acquired from %s #%s", req.ReferenceType, req.ReferenceID),
+		ReferenceType:   &req.ReferenceType,
+		ReferenceID:     &req.ReferenceID,
+	}
+
+	return tx.Create(&tLog).Error
+}

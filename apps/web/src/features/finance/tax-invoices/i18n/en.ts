@@ -9,6 +9,9 @@ export const financeTaxInvoicesEn = {
     vat: "VAT",
     total: "Total",
     notes: "Notes",
+    linkedInvoice: "Link to Supplier Invoice",
+    invoiceValue: "Invoice Value",
+    discrepancy: "VAT Discrepancy Found!",
   },
   actions: {
     create: "Create",

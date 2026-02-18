@@ -112,17 +112,22 @@ func SeedPurchaseRequisition() error {
 	}
 
 	seedDefs := []struct {
-		status purchaseModels.PurchaseRequisitionStatus
+		status  purchaseModels.PurchaseRequisitionStatus
 		daysAgo int
 		items   int
 		taxRate float64
 		notes   string
 	}{
 		{purchaseModels.PurchaseRequisitionStatusDraft, 1, 3, 11, "Draft PR for restock"},
-		{purchaseModels.PurchaseRequisitionStatusDraft, 3, 2, 0, "Urgent PR"},
-		{purchaseModels.PurchaseRequisitionStatusApproved, 7, 4, 11, "Approved PR"},
-		{purchaseModels.PurchaseRequisitionStatusRejected, 10, 2, 11, "Rejected PR sample"},
-		{purchaseModels.PurchaseRequisitionStatusConverted, 14, 5, 11, "Converted PR sample"},
+		{purchaseModels.PurchaseRequisitionStatusDraft, 2, 2, 0, "Urgent PR"},
+		{purchaseModels.PurchaseRequisitionStatusApproved, 3, 4, 11, "Approved PR"},
+		{purchaseModels.PurchaseRequisitionStatusRejected, 4, 2, 11, "Rejected PR sample"},
+		{purchaseModels.PurchaseRequisitionStatusConverted, 5, 5, 11, "Converted PR sample"},
+		{purchaseModels.PurchaseRequisitionStatusApproved, 6, 2, 0, "Equipment PR"},
+		{purchaseModels.PurchaseRequisitionStatusDraft, 7, 3, 11, "Monthly supply PR"},
+		{purchaseModels.PurchaseRequisitionStatusDraft, 8, 1, 11, "Ad-hoc parts PR"},
+		{purchaseModels.PurchaseRequisitionStatusApproved, 9, 2, 0, "Software license PR"},
+		{purchaseModels.PurchaseRequisitionStatusConverted, 10, 3, 11, "Bulk order PR"},
 	}
 
 	for i, def := range seedDefs {
@@ -145,11 +150,11 @@ func SeedPurchaseRequisition() error {
 
 			itSubtotal := calcItemSubtotal(qty, price, discount)
 			items = append(items, purchaseModels.PurchaseRequisitionItem{
-				ProductID:      p.ID,
-				Quantity:       qty,
-				PurchasePrice:  price,
-				Discount:       discount,
-				Subtotal:       itSubtotal,
+				ProductID:     p.ID,
+				Quantity:      qty,
+				PurchasePrice: price,
+				Discount:      discount,
+				Subtotal:      itSubtotal,
 			})
 		}
 
