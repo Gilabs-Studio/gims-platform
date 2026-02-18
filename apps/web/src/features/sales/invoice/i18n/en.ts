@@ -39,6 +39,11 @@ export const invoiceEn = {
       select: "Select",
       selectDate: "Select date",
       validating: "Validating...",
+      customer: "Customer Information",
+      name: "Customer Name",
+      phone: "Phone Number",
+      email: "Email Address",
+      contact: "Contact Person",
     },
 
     // Tabs

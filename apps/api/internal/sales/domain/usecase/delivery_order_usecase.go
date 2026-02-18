@@ -169,6 +169,14 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 		return nil, err
 	}
 
+	// Auto-fill receiver info from sales order customer if not provided
+	if req.ReceiverName == "" && salesOrder.CustomerName != "" {
+		req.ReceiverName = salesOrder.CustomerName
+	}
+	if req.ReceiverPhone == "" && salesOrder.CustomerPhone != "" {
+		req.ReceiverPhone = salesOrder.CustomerPhone
+	}
+
 	// Validate products and batches
 	for _, item := range req.Items {
 		product, err := u.productRepo.FindByID(ctx, item.ProductID)

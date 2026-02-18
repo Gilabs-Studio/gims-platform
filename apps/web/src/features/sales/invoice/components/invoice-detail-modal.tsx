@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, DollarSign, Info, Package, AlertTriangle } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, DollarSign, Info, Package, AlertTriangle, User, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -372,6 +372,66 @@ export function InvoiceDetailModal({
                       </div>
                     </div>
                   </div>
+
+                  {/* Customer Information Card */}
+                  {displayInvoice.sales_order && (
+                    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                      <div className="bg-muted/50 px-6 py-4">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                          <User className="h-4 w-4 text-primary" />
+                          {t("common.customer")}
+                        </h3>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 gap-5">
+                          {displayInvoice.sales_order.customer_name && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("common.name")}</p>
+                                <p className="text-sm font-medium truncate">{displayInvoice.sales_order.customer_name}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayInvoice.sales_order.customer_phone && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Phone className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("common.phone")}</p>
+                                <p className="text-sm font-medium truncate">{displayInvoice.sales_order.customer_phone}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayInvoice.sales_order.customer_email && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <Mail className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("common.email")}</p>
+                                <p className="text-sm font-medium truncate">{displayInvoice.sales_order.customer_email}</p>
+                              </div>
+                            </div>
+                          )}
+                          {displayInvoice.sales_order.customer_contact && (
+                            <div className="flex items-start gap-3 group">
+                              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">{t("common.contact")}</p>
+                                <p className="text-sm font-medium truncate">{displayInvoice.sales_order.customer_contact}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Related Information Card */}
                   <div className="bg-card rounded-xl border shadow-sm overflow-hidden">

@@ -39,6 +39,11 @@ export const invoiceId = {
       select: "Pilih",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
+      customer: "Informasi Pelanggan",
+      name: "Nama Pelanggan",
+      phone: "Nomor Telepon",
+      email: "Alamat Email",
+      contact: "Kontak Person",
     },
 
     // Tabs
