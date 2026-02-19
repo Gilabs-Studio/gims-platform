@@ -5,7 +5,9 @@ import type {
   BusinessUnit,
   BusinessType,
   Area,
-  AreaSupervisor,
+  AreaDetailResponse,
+  AssignAreaSupervisorsData,
+  AssignAreaMembersData,
   Company,
   OrganizationListResponse,
   OrganizationSingleResponse,
@@ -21,9 +23,6 @@ import type {
   UpdateBusinessTypeData,
   CreateAreaData,
   UpdateAreaData,
-  CreateAreaSupervisorData,
-  UpdateAreaSupervisorData,
-  AssignAreasData,
   CreateCompanyData,
   UpdateCompanyData,
   ApproveCompanyData,
@@ -269,62 +268,33 @@ export const areaService = {
     );
     return response.data;
   },
-};
 
-// Area Supervisor Service
-export const areaSupervisorService = {
-  async list(
-    params?: ListOrganizationParams
-  ): Promise<OrganizationListResponse<AreaSupervisor>> {
-    const response = await apiClient.get<OrganizationListResponse<AreaSupervisor>>(
-      `${BASE_PATH}/area-supervisors`,
-      { params }
+  async getDetail(id: string): Promise<OrganizationSingleResponse<AreaDetailResponse>> {
+    const response = await apiClient.get<OrganizationSingleResponse<AreaDetailResponse>>(
+      `${BASE_PATH}/areas/${id}/detail`
     );
     return response.data;
   },
 
-  async getById(id: string): Promise<OrganizationSingleResponse<AreaSupervisor>> {
-    const response = await apiClient.get<OrganizationSingleResponse<AreaSupervisor>>(
-      `${BASE_PATH}/area-supervisors/${id}`
-    );
-    return response.data;
-  },
-
-  async create(
-    data: CreateAreaSupervisorData
-  ): Promise<OrganizationSingleResponse<AreaSupervisor>> {
-    const response = await apiClient.post<OrganizationSingleResponse<AreaSupervisor>>(
-      `${BASE_PATH}/area-supervisors`,
+  async assignSupervisors(id: string, data: AssignAreaSupervisorsData): Promise<OrganizationSingleResponse<AreaDetailResponse>> {
+    const response = await apiClient.post<OrganizationSingleResponse<AreaDetailResponse>>(
+      `${BASE_PATH}/areas/${id}/supervisors`,
       data
     );
     return response.data;
   },
 
-  async update(
-    id: string,
-    data: UpdateAreaSupervisorData
-  ): Promise<OrganizationSingleResponse<AreaSupervisor>> {
-    const response = await apiClient.put<OrganizationSingleResponse<AreaSupervisor>>(
-      `${BASE_PATH}/area-supervisors/${id}`,
+  async assignMembers(id: string, data: AssignAreaMembersData): Promise<OrganizationSingleResponse<AreaDetailResponse>> {
+    const response = await apiClient.post<OrganizationSingleResponse<AreaDetailResponse>>(
+      `${BASE_PATH}/areas/${id}/members`,
       data
     );
     return response.data;
   },
 
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/area-supervisors/${id}`
-    );
-    return response.data;
-  },
-
-  async assignAreas(
-    id: string,
-    data: AssignAreasData
-  ): Promise<OrganizationSingleResponse<AreaSupervisor>> {
-    const response = await apiClient.post<OrganizationSingleResponse<AreaSupervisor>>(
-      `${BASE_PATH}/area-supervisors/${id}/areas`,
-      data
+  async removeEmployee(areaId: string, employeeId: string): Promise<OrganizationSingleResponse<AreaDetailResponse>> {
+    const response = await apiClient.delete<OrganizationSingleResponse<AreaDetailResponse>>(
+      `${BASE_PATH}/areas/${areaId}/employees/${employeeId}`
     );
     return response.data;
   },

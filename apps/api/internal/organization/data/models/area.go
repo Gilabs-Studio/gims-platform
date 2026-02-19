@@ -16,6 +16,10 @@ type Area struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// EmployeeAreas contains all employee assignments (supervisors and members) for this area.
+	// Use IsSupervisor flag to differentiate roles.
+	EmployeeAreas []EmployeeArea `gorm:"foreignKey:AreaID" json:"employee_areas,omitempty"`
 }
 
 // TableName specifies the table name for Area

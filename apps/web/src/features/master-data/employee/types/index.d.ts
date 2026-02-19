@@ -42,6 +42,7 @@ export interface EmployeeArea {
   id: string;
   employee_id: string;
   area_id: string;
+  is_supervisor: boolean;
   area?: Area;
   created_at: string;
 }
@@ -104,7 +105,8 @@ export interface Employee {
     employee_code: string;
     name: string;
   };
-  areas?: Area[];
+  areas?: EmployeeArea[];
+  is_area_supervisor: boolean;
   status: EmployeeStatus;
   is_approved: boolean;
   created_by?: string;
@@ -141,6 +143,7 @@ export interface CreateEmployeeData {
   is_disability?: boolean;
   replacement_for_id?: string;
   area_ids?: string[];
+  supervised_area_ids?: string[];
   is_active?: boolean;
 }
 
@@ -170,6 +173,7 @@ export interface UpdateEmployeeData {
   is_disability?: boolean;
   replacement_for_id?: string;
   area_ids?: string[];
+  supervised_area_ids?: string[];
   is_active?: boolean;
 }
 

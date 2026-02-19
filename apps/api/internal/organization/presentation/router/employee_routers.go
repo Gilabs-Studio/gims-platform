@@ -17,4 +17,5 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("/:id/submit", middleware.RequirePermission("employee.update"), h.SubmitForApproval)
 	g.POST("/:id/approve", middleware.RequirePermission("employee.approve"), h.Approve)
 	g.POST("/:id/areas", middleware.RequirePermission("employee.update"), h.AssignAreas)
+	g.POST("/:id/supervisor-areas", middleware.RequirePermission("employee.assign_area"), h.AssignSupervisorAreas)
 }
