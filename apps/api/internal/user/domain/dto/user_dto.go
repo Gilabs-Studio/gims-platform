@@ -49,6 +49,14 @@ type ChangePasswordRequest struct {
 	ConfirmPassword string `json:"confirm_password" binding:"required,eqfield=NewPassword"`
 }
 
+// AvailableUserResponse is a lightweight DTO for the user-dropdown
+// in the employee form (users not yet linked to any employee).
+type AvailableUserResponse struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
 // ListUsersRequest represents list users query parameters
 // Moved from entity.go to here as it is a request DTO
 type ListUsersRequest struct {

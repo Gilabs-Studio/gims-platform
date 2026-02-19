@@ -8,6 +8,9 @@ import type {
   UpdateEmployeeData,
   ApproveEmployeeData,
   AssignEmployeeAreasData,
+  BulkUpdateEmployeeAreasData,
+  AvailableUsersResponse,
+  EmployeeFormDataResponse,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -79,6 +82,45 @@ export const employeeService = {
     const response = await apiClient.post<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}/areas`,
       data
+    );
+    return response.data;
+  },
+
+  async bulkUpdateAreas(
+    id: string,
+    data: BulkUpdateEmployeeAreasData
+  ): Promise<EmployeeSingleResponse> {
+    const response = await apiClient.put<EmployeeSingleResponse>(
+      `${BASE_PATH}/employees/${id}/areas`,
+      data
+    );
+    return response.data;
+  },
+
+  async removeAreaAssignment(
+    employeeId: string,
+    areaId: string
+  ): Promise<{ success: boolean }> {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `${BASE_PATH}/employees/${employeeId}/areas/${areaId}`
+    );
+    return response.data;
+  },
+
+  async getAvailableUsers(params?: {
+    search?: string;
+    exclude_employee_id?: string;
+  }): Promise<AvailableUsersResponse> {
+    const response = await apiClient.get<AvailableUsersResponse>(
+      "/users/available",
+      { params }
+    );
+    return response.data;
+  },
+
+  async getFormData(): Promise<EmployeeFormDataResponse> {
+    const response = await apiClient.get<EmployeeFormDataResponse>(
+      `${BASE_PATH}/employees/form-data`
     );
     return response.data;
   },

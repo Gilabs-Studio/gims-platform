@@ -109,8 +109,20 @@ export function EmployeeList() {
   const positions = positionsData?.data ?? [];
 
   const handleEdit = (employee: Employee) => {
+    console.log("=== EMPLOYEE LIST: handleEdit called ===");
+    console.log("Employee data being passed to form:", employee);
+    console.log("Employee ID:", employee.id);
+    console.log("Employee name:", employee.name);
+    console.log("Employee user_id:", employee.user_id);
+    console.log("Employee division_id:", employee.division_id);
+    console.log("Employee job_position_id:", employee.job_position_id);
+    console.log("Employee company_id:", employee.company_id);
+    console.log("Employee gender:", employee.gender);
+    console.log("Employee contract_status:", employee.contract_status);
     setEditingEmployee(employee);
     setIsFormOpen(true);
+    console.log("Form should now be opening with employee data");
+    console.log("==========================================");
   };
 
   const handleViewDetail = (employee: Employee) => {
