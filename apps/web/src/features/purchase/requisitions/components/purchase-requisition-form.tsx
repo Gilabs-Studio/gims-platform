@@ -183,12 +183,12 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 			items:
 				detail.items?.length > 0
 					? detail.items.map((it) => ({
-							product_id: it.product_id,
-							quantity: it.quantity,
-							purchase_price: it.purchase_price,
-							discount: it.discount ?? 0,
-							notes: it.notes ?? null,
-						}))
+						product_id: it.product_id,
+						quantity: it.quantity,
+						purchase_price: it.purchase_price,
+						discount: it.discount ?? 0,
+						notes: it.notes ?? null,
+					}))
 					: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 		});
 	}, [detail, isEdit, open, reset]);
@@ -211,6 +211,34 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
 	const businessUnits = useMemo(() => businessUnitsData?.data ?? [], [businessUnitsData?.data]);
 	const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
+
+	const mergedSuppliers = useMemo(() => {
+		const list = [...suppliers];
+		const selected = detail?.supplier;
+		if (selected && !list.some(x => x.id === selected.id)) {
+			list.push(selected as any);
+		}
+		return list;
+	}, [suppliers, detail?.supplier]);
+
+	const mergedPaymentTerms = useMemo(() => {
+		const list = [...paymentTerms];
+		const selected = detail?.payment_terms;
+		if (selected && !list.some(x => x.id === selected.id)) {
+			list.push(selected as any);
+		}
+		return list;
+	}, [paymentTerms, detail?.payment_terms]);
+
+	const mergedBusinessUnits = useMemo(() => {
+		const list = [...businessUnits];
+		const selected = detail?.business_unit;
+		if (selected && !list.some(x => x.id === selected.id)) {
+			list.push(selected as any);
+		}
+		return list;
+	}, [businessUnits, detail?.business_unit]);
+
 	const selectedEmployee = selectedEmployeeData?.data ?? null;
 	const mergedEmployees = useMemo(() => {
 		if (!selectedEmployee) return employees;
@@ -220,9 +248,9 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const overview = usePurchaseRequisitionOverview({
 		control,
-		suppliers,
-		paymentTerms,
-		businessUnits,
+		suppliers: mergedSuppliers,
+		paymentTerms: mergedPaymentTerms,
+		businessUnits: mergedBusinessUnits,
 		employees: mergedEmployees,
 	});
 
@@ -301,168 +329,168 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 					<div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 						<div className="space-y-6 md:col-span-3">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<Field>
-							<FieldLabel>{t("fields.requestDate")}</FieldLabel>
-							<Input type="date" {...register("request_date")} />
-							{errors.request_date && (
-								<FieldError>{t("validation.required")}</FieldError>
-							)}
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.requestDate")}</FieldLabel>
+									<Input type="date" {...register("request_date")} />
+									{errors.request_date && (
+										<FieldError>{t("validation.required")}</FieldError>
+									)}
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.supplier")}</FieldLabel>
-							<Controller
-								control={control}
-								name="supplier_id"
-								render={({ field }) => (
-									<Select
-										value={field.value ?? NONE_VALUE}
-										onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
-									>
-										<SelectTrigger className="cursor-pointer">
-											<SelectValue placeholder={t("placeholders.select")} />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={NONE_VALUE} className="cursor-pointer">
-												{t("placeholders.none")}
-											</SelectItem>
-											{suppliers.map((s) => (
-												<SelectItem key={s.id} value={s.id} className="cursor-pointer">
-													{s.code ? `${s.code} - ${s.name}` : s.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.supplier")}</FieldLabel>
+									<Controller
+										control={control}
+										name="supplier_id"
+										render={({ field }) => (
+											<Select
+												value={field.value ?? NONE_VALUE}
+												onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
+											>
+												<SelectTrigger className="cursor-pointer">
+													<SelectValue placeholder={t("placeholders.select")} />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value={NONE_VALUE} className="cursor-pointer">
+														{t("placeholders.none")}
+													</SelectItem>
+													{mergedSuppliers.map((s) => (
+														<SelectItem key={s.id} value={s.id} className="cursor-pointer">
+															{s.code ? `${s.code} - ${s.name}` : s.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.paymentTerms")}</FieldLabel>
-							<Controller
-								control={control}
-								name="payment_terms_id"
-								render={({ field }) => (
-									<Select
-										value={field.value ?? NONE_VALUE}
-										onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
-									>
-										<SelectTrigger className="cursor-pointer">
-											<SelectValue placeholder={t("placeholders.select")} />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={NONE_VALUE} className="cursor-pointer">
-												{t("placeholders.none")}
-											</SelectItem>
-											{paymentTerms.map((pt) => (
-												<SelectItem key={pt.id} value={pt.id} className="cursor-pointer">
-													{pt.code ? `${pt.code} - ${pt.name}` : pt.name}
-												</SelectItem>
-											))}
-									</SelectContent>
-									</Select>
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.paymentTerms")}</FieldLabel>
+									<Controller
+										control={control}
+										name="payment_terms_id"
+										render={({ field }) => (
+											<Select
+												value={field.value ?? NONE_VALUE}
+												onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
+											>
+												<SelectTrigger className="cursor-pointer">
+													<SelectValue placeholder={t("placeholders.select")} />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value={NONE_VALUE} className="cursor-pointer">
+														{t("placeholders.none")}
+													</SelectItem>
+													{mergedPaymentTerms.map((pt) => (
+														<SelectItem key={pt.id} value={pt.id} className="cursor-pointer">
+															{pt.code ? `${pt.code} - ${pt.name}` : pt.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.businessUnit")}</FieldLabel>
-							<Controller
-								control={control}
-								name="business_unit_id"
-								render={({ field }) => (
-									<Select
-										value={field.value ?? NONE_VALUE}
-										onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
-									>
-										<SelectTrigger className="cursor-pointer">
-											<SelectValue placeholder={t("placeholders.select")} />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={NONE_VALUE} className="cursor-pointer">
-												{t("placeholders.none")}
-											</SelectItem>
-											{businessUnits.map((bu) => (
-												<SelectItem key={bu.id} value={bu.id} className="cursor-pointer">
-													{bu.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.businessUnit")}</FieldLabel>
+									<Controller
+										control={control}
+										name="business_unit_id"
+										render={({ field }) => (
+											<Select
+												value={field.value ?? NONE_VALUE}
+												onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
+											>
+												<SelectTrigger className="cursor-pointer">
+													<SelectValue placeholder={t("placeholders.select")} />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value={NONE_VALUE} className="cursor-pointer">
+														{t("placeholders.none")}
+													</SelectItem>
+													{mergedBusinessUnits.map((bu) => (
+														<SelectItem key={bu.id} value={bu.id} className="cursor-pointer">
+															{bu.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.employee")}</FieldLabel>
-							<Controller
-								control={control}
-								name="employee_id"
-								render={({ field }) => (
-									<Select
-										value={field.value ?? NONE_VALUE}
-										onValueChange={(v) =>
-											field.onChange(
-												v === NONE_VALUE ? null : normalizeEmployeeId(v, mergedEmployees),
-											)
-										}
-									>
-										<SelectTrigger className="cursor-pointer">
-											<SelectValue placeholder={t("placeholders.select")} />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={NONE_VALUE} className="cursor-pointer">
-												{t("placeholders.none")}
-											</SelectItem>
-											{mergedEmployees.map((e) => (
-												<SelectItem key={e.id} value={e.id} className="cursor-pointer">
-													{e.employee_code ? `${e.employee_code} - ${e.name}` : e.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.employee")}</FieldLabel>
+									<Controller
+										control={control}
+										name="employee_id"
+										render={({ field }) => (
+											<Select
+												value={field.value ?? NONE_VALUE}
+												onValueChange={(v) =>
+													field.onChange(
+														v === NONE_VALUE ? null : normalizeEmployeeId(v, mergedEmployees),
+													)
+												}
+											>
+												<SelectTrigger className="cursor-pointer">
+													<SelectValue placeholder={t("placeholders.select")} />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value={NONE_VALUE} className="cursor-pointer">
+														{t("placeholders.none")}
+													</SelectItem>
+													{mergedEmployees.map((e) => (
+														<SelectItem key={e.id} value={e.id} className="cursor-pointer">
+															{e.employee_code ? `${e.employee_code} - ${e.name}` : e.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.taxRate")}</FieldLabel>
-							<Controller
-								control={control}
-								name="tax_rate"
-								render={({ field }) => (
-									<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.taxRate")}</FieldLabel>
+									<Controller
+										control={control}
+										name="tax_rate"
+										render={({ field }) => (
+											<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.deliveryCost")}</FieldLabel>
-							<Controller
-								control={control}
-								name="delivery_cost"
-								render={({ field }) => (
-									<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.deliveryCost")}</FieldLabel>
+									<Controller
+										control={control}
+										name="delivery_cost"
+										render={({ field }) => (
+											<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+										)}
+									/>
+								</Field>
 
-						<Field>
-							<FieldLabel>{t("fields.otherCost")}</FieldLabel>
-							<Controller
-								control={control}
-								name="other_cost"
-								render={({ field }) => (
-									<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-								)}
-							/>
-						</Field>
+								<Field>
+									<FieldLabel>{t("fields.otherCost")}</FieldLabel>
+									<Controller
+										control={control}
+										name="other_cost"
+										render={({ field }) => (
+											<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+										)}
+									/>
+								</Field>
 
-						<Field className="md:col-span-2">
-							<FieldLabel>{t("fields.notes")}</FieldLabel>
-							<Textarea rows={3} {...register("notes")} />
-							{errors.notes && <FieldError>{t("validation.invalid")}</FieldError>}
-						</Field>
+								<Field className="md:col-span-2">
+									<FieldLabel>{t("fields.notes")}</FieldLabel>
+									<Textarea rows={3} {...register("notes")} />
+									{errors.notes && <FieldError>{t("validation.invalid")}</FieldError>}
+								</Field>
 							</div>
 
 							<div className="space-y-3">
@@ -500,134 +528,134 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<SelectContent>
 																<SelectItem value={NONE_VALUE} disabled className="cursor-pointer">
 																	{t("placeholders.select")}
-															</SelectItem>
-															{products.map((p) => (
-																<SelectItem key={p.id} value={p.id} className="cursor-pointer">
-																	{p.code ? `${p.code} - ${p.name}` : p.name}
 																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
+																{products.map((p) => (
+																	<SelectItem key={p.id} value={p.id} className="cursor-pointer">
+																		{p.code ? `${p.code} - ${p.name}` : p.name}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													)}
+												/>
+												{errors.items?.[idx]?.product_id && (
+													<FieldError>{t("validation.required")}</FieldError>
 												)}
-											/>
-											{errors.items?.[idx]?.product_id && (
-												<FieldError>{t("validation.required")}</FieldError>
-											)}
-										</Field>
+											</Field>
 
-										<Field className="md:col-span-2">
-											<FieldLabel>{t("fields.quantity")}</FieldLabel>
-											<Controller
-												control={control}
-												name={`items.${idx}.quantity`}
-												render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)}
-											/>
-										</Field>
+											<Field className="md:col-span-2">
+												<FieldLabel>{t("fields.quantity")}</FieldLabel>
+												<Controller
+													control={control}
+													name={`items.${idx}.quantity`}
+													render={({ field }) => (
+														<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+													)}
+												/>
+											</Field>
 
-										<Field className="md:col-span-2">
-											<FieldLabel>{t("fields.purchasePrice")}</FieldLabel>
-											<Controller
-												control={control}
-												name={`items.${idx}.purchase_price`}
-												render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)}
-											/>
-										</Field>
+											<Field className="md:col-span-2">
+												<FieldLabel>{t("fields.purchasePrice")}</FieldLabel>
+												<Controller
+													control={control}
+													name={`items.${idx}.purchase_price`}
+													render={({ field }) => (
+														<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+													)}
+												/>
+											</Field>
 
-										<Field className="md:col-span-2">
-											<FieldLabel>{t("fields.discount")}</FieldLabel>
-											<Controller
-												control={control}
-												name={`items.${idx}.discount`}
-												render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)}
-											/>
-										</Field>
+											<Field className="md:col-span-2">
+												<FieldLabel>{t("fields.discount")}</FieldLabel>
+												<Controller
+													control={control}
+													name={`items.${idx}.discount`}
+													render={({ field }) => (
+														<NumericInput value={field.value ?? 0} onChange={field.onChange} />
+													)}
+												/>
+											</Field>
 
-										<div className="flex items-end md:col-span-1">
-											<Button
-												type="button"
-												variant="ghost"
-												size="icon"
-												onClick={() => remove(idx)}
-												className="cursor-pointer"
-												disabled={fields.length <= 1}
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
+											<div className="flex items-end md:col-span-1">
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													onClick={() => remove(idx)}
+													className="cursor-pointer"
+													disabled={fields.length <= 1}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
 										</div>
-									</div>
-								))}
+									))}
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<aside>
-						<div className="md:sticky md:top-4">
-							<Card>
-								<CardHeader>
-									<CardTitle>{t("form.overviewTitle")}</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4 text-sm">
-									<div className="space-y-2">
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.requestDate")}</span>
-											<span className="text-right font-medium">{overview.requestDate || "-"}</span>
+						<aside>
+							<div className="md:sticky md:top-4">
+								<Card>
+									<CardHeader>
+										<CardTitle>{t("form.overviewTitle")}</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-4 text-sm">
+										<div className="space-y-2">
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.requestDate")}</span>
+												<span className="text-right font-medium">{overview.requestDate || "-"}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.supplier")}</span>
+												<span className="text-right font-medium">{overview.supplierLabel || "-"}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.paymentTerms")}</span>
+												<span className="text-right font-medium">{overview.paymentTermsLabel || "-"}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.businessUnit")}</span>
+												<span className="text-right font-medium">{overview.businessUnitLabel || "-"}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.employee")}</span>
+												<span className="text-right font-medium">{overview.employeeLabel || "-"}</span>
+											</div>
 										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.supplier")}</span>
-											<span className="text-right font-medium">{overview.supplierLabel || "-"}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.paymentTerms")}</span>
-											<span className="text-right font-medium">{overview.paymentTermsLabel || "-"}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.businessUnit")}</span>
-											<span className="text-right font-medium">{overview.businessUnitLabel || "-"}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.employee")}</span>
-											<span className="text-right font-medium">{overview.employeeLabel || "-"}</span>
-										</div>
-									</div>
 
-									<div className="h-px bg-border" />
+										<div className="h-px bg-border" />
 
-									<div className="space-y-2">
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.items")}</span>
-											<span className="text-right font-medium">{overview.itemsCount}</span>
+										<div className="space-y-2">
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.items")}</span>
+												<span className="text-right font-medium">{overview.itemsCount}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.subtotal")}</span>
+												<span className="text-right font-medium">{formatMoney(overview.subtotal)}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.taxAmount")}</span>
+												<span className="text-right font-medium">{formatMoney(overview.taxAmount)}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.deliveryCost")}</span>
+												<span className="text-right font-medium">{formatMoney(overview.deliveryCost)}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground">{t("fields.otherCost")}</span>
+												<span className="text-right font-medium">{formatMoney(overview.otherCost)}</span>
+											</div>
+											<div className="flex items-center justify-between gap-3">
+												<span className="text-muted-foreground font-semibold">{t("fields.total")}</span>
+												<span className="text-right font-semibold">{formatMoney(overview.totalAmount)}</span>
+											</div>
 										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.subtotal")}</span>
-											<span className="text-right font-medium">{formatMoney(overview.subtotal)}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.taxAmount")}</span>
-											<span className="text-right font-medium">{formatMoney(overview.taxAmount)}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.deliveryCost")}</span>
-											<span className="text-right font-medium">{formatMoney(overview.deliveryCost)}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground">{t("fields.otherCost")}</span>
-											<span className="text-right font-medium">{formatMoney(overview.otherCost)}</span>
-										</div>
-										<div className="flex items-center justify-between gap-3">
-											<span className="text-muted-foreground font-semibold">{t("fields.total")}</span>
-											<span className="text-right font-semibold">{formatMoney(overview.totalAmount)}</span>
-										</div>
-									</div>
-							</CardContent>
-						</Card>
-					</div>
-					</aside>
+									</CardContent>
+								</Card>
+							</div>
+						</aside>
 					</div>
 
 					<div className="flex items-center justify-end gap-2">

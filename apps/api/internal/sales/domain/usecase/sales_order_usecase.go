@@ -3,9 +3,13 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesQuotationRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -24,6 +28,7 @@ var (
 	ErrQuotationNotFound       = errors.New("sales quotation not found")
 	ErrQuotationNotApproved    = errors.New("quotation must be approved before converting to order")
 	ErrInsufficientStock       = errors.New("insufficient stock available")
+	ErrUnauthorizedAccess      = errors.New("unauthorized access to sales order")
 )
 
 // SalesOrderUsecase defines the interface for sales order business logic
@@ -39,28 +44,48 @@ type SalesOrderUsecase interface {
 }
 
 type salesOrderUsecase struct {
+	db            *gorm.DB
 	orderRepo     salesRepos.SalesOrderRepository
 	quotationRepo salesQuotationRepos.SalesQuotationRepository
 	productRepo   productRepos.ProductRepository
 	inventoryUC   inventoryUsecase.InventoryUsecase
+	employeeRepo  organizationRepos.EmployeeRepository
 }
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
 func NewSalesOrderUsecase(
+	db *gorm.DB,
 	orderRepo salesRepos.SalesOrderRepository,
 	quotationRepo salesQuotationRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
 	inventoryUC inventoryUsecase.InventoryUsecase,
+	employeeRepo organizationRepos.EmployeeRepository,
 ) SalesOrderUsecase {
 	return &salesOrderUsecase{
+		db:            db,
 		orderRepo:     orderRepo,
 		quotationRepo: quotationRepo,
 		productRepo:   productRepo,
 		inventoryUC:   inventoryUC,
+		employeeRepo:  employeeRepo,
 	}
 }
 
 func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRequest) ([]dto.SalesOrderResponse, *utils.PaginationResult, error) {
+	// If user is sales rep, enforce filtering by their ID
+	userRole, _ := ctx.Value("user_role").(string)
+	userID, _ := ctx.Value("user_id").(string)
+
+	if userRole != "admin" && userRole != "manager" && userID != "" {
+		employee, err := u.employeeRepo.FindByUserID(ctx, userID)
+		if err == nil && employee != nil {
+			// Enforce sales rep filter if not explicitly set or different
+			if req.SalesRepID == "" || req.SalesRepID != employee.ID {
+				req.SalesRepID = employee.ID
+			}
+		}
+	}
+
 	orders, total, err := u.orderRepo.List(ctx, req)
 	if err != nil {
 		return nil, nil, err
@@ -96,11 +121,16 @@ func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRe
 
 func (u *salesOrderUsecase) ListItems(ctx context.Context, orderID string, req *dto.ListSalesOrderItemsRequest) ([]dto.SalesOrderItemResponse, *utils.PaginationResult, error) {
 	// Verify order exists
-	_, err := u.orderRepo.FindByID(ctx, orderID)
+	order, err := u.orderRepo.FindByID(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, ErrSalesOrderNotFound
 		}
+		return nil, nil, err
+	}
+
+	// Access Control
+	if err := u.checkAccess(ctx, order); err != nil {
 		return nil, nil, err
 	}
 
@@ -148,13 +178,19 @@ func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesO
 		return nil, err
 	}
 
+	// Access Control
+	if err := u.checkAccess(ctx, order); err != nil {
+		return nil, err
+	}
+
 	response := mapper.ToSalesOrderResponse(order)
 	return &response, nil
 }
 
 func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrderRequest, createdBy *string) (*dto.SalesOrderResponse, error) {
 	// Validate products exist and get default prices
-	for _, item := range req.Items {
+	productMap := make(map[string]*productModels.Product)
+	for i, item := range req.Items {
 		product, err := u.productRepo.FindByID(ctx, item.ProductID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -165,8 +201,10 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 
 		// Use product selling price if price not provided
 		if item.Price == 0 {
-			item.Price = product.SellingPrice
+			req.Items[i].Price = product.SellingPrice
 		}
+		
+		productMap[item.ProductID] = product
 	}
 
 	// Generate order number
@@ -183,6 +221,14 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 
 	// Calculate totals
 	u.calculateTotals(order)
+
+	// Populate snapshot fields
+	for i := range order.Items {
+		if p, ok := productMap[order.Items[i].ProductID]; ok {
+			order.Items[i].ProductCode = p.Code
+			order.Items[i].ProductName = p.Name
+		}
+	}
 
 	// Create order
 	if err := u.orderRepo.Create(ctx, order); err != nil {
@@ -216,13 +262,19 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
+		return nil, err
+	}
+
+	// Check if order can be modified
 	if order.Status != models.SalesOrderStatusDraft {
 		return nil, ErrInvalidOrderStatus
 	}
 
 	// Validate products if items are being updated
+	productMap := make(map[string]*productModels.Product)
 	if len(req.Items) > 0 {
-		for _, item := range req.Items {
+		for i, item := range req.Items {
 			product, err := u.productRepo.FindByID(ctx, item.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -233,8 +285,10 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 
 			// Use product selling price if price not provided
 			if item.Price == 0 {
-				item.Price = product.SellingPrice
+				req.Items[i].Price = product.SellingPrice
 			}
+			
+			productMap[item.ProductID] = product
 		}
 	}
 
@@ -245,6 +299,16 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 
 	// Recalculate totals
 	u.calculateTotals(order)
+
+	// Populate snapshot fields if items updated
+	if len(req.Items) > 0 {
+		for i := range order.Items {
+			if p, ok := productMap[order.Items[i].ProductID]; ok {
+				order.Items[i].ProductCode = p.Code
+				order.Items[i].ProductName = p.Name
+			}
+		}
+	}
 
 	// Update order
 	if err := u.orderRepo.Update(ctx, order); err != nil {
@@ -269,6 +333,12 @@ func (u *salesOrderUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
+
+	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
+		return err
+	}
+
 
 	// Only allow deletion of draft orders
 	if order.Status != models.SalesOrderStatusDraft {
@@ -301,6 +371,11 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
+	// Check if order can be modified
+	if err := u.checkAccess(ctx, order); err != nil {
+		return nil, err
+	}
+
 	newStatus := models.SalesOrderStatus(req.Status)
 
 	// Validate status transition
@@ -308,35 +383,50 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, ErrInvalidOrderStatusTransition
 	}
 
-	// Handle stock reservation on confirmation
+	// Handle stock reservation on confirmation (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusConfirmed && !order.ReservedStock {
-		// Reserve stock for each item
-		for _, item := range order.Items {
-			if err := u.inventoryUC.ReserveStock(ctx, item.ProductID, item.Quantity); err != nil {
-				return nil, err
-			}
-		}
+		err := u.db.Transaction(func(tx *gorm.DB) error {
+			txCtx := database.WithTx(ctx, tx)
 
-		// Mark as reserved in SO
-		if err := u.orderRepo.ReserveStock(ctx, id); err != nil {
-			// Rollback reservation? Ideally this should be in transaction.
-			// For now, if SO update fails, we might have inconsistent reserved count.
-			// TODO: Wrap in transaction or handle rollback
+			// Reserve stock at product level for each item
+			for _, item := range order.Items {
+				if err := u.inventoryUC.ReserveStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return err
+				}
+			}
+
+			// Mark as reserved in SO
+			if err := u.orderRepo.ReserveStock(txCtx, id); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Handle stock release on cancellation
+	// Handle stock release on cancellation (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusCancelled && order.ReservedStock {
-		// Release stock for each item
-		for _, item := range order.Items {
-			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
-				return nil, err
-			}
-		}
+		err := u.db.Transaction(func(tx *gorm.DB) error {
+			txCtx := database.WithTx(ctx, tx)
 
-		// Mark as released in SO
-		if err := u.orderRepo.ReleaseStock(ctx, id); err != nil {
+			// Release stock at product level for each item
+			for _, item := range order.Items {
+				if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return err
+				}
+			}
+
+			// Mark as released in SO
+			if err := u.orderRepo.ReleaseStock(txCtx, id); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -382,8 +472,24 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 		return nil, err
 	}
 
-	// Convert quotation to order
-	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, req.Notes, code, createdBy)
+	// Convert quotation to order (pass customer info — use request fields with quotation fallback)
+	customerName := req.CustomerName
+	if customerName == "" {
+		customerName = quotation.CustomerName
+	}
+	customerContact := req.CustomerContact
+	if customerContact == "" {
+		customerContact = quotation.CustomerContact
+	}
+	customerPhone := req.CustomerPhone
+	if customerPhone == "" {
+		customerPhone = quotation.CustomerPhone
+	}
+	customerEmail := req.CustomerEmail
+	if customerEmail == "" {
+		customerEmail = quotation.CustomerEmail
+	}
+	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, customerName, customerContact, customerPhone, customerEmail, req.Notes, code, createdBy)
 	if err != nil {
 		return nil, err
 	}
@@ -395,8 +501,7 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 
 	// Update quotation status to converted
 	if err := u.quotationRepo.UpdateStatus(ctx, quotation.ID, models.SalesQuotationStatusConverted, createdBy, nil); err != nil {
-		// Log error but don't fail the order creation
-		// TODO: Add logging
+		log.Printf("Warning: failed to update quotation %s status to converted: %v", quotation.ID, err)
 	}
 
 	// Fetch created order with relations
@@ -407,6 +512,47 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 
 	response := mapper.ToSalesOrderResponse(created)
 	return &response, nil
+}
+
+// checkAccess verifies if the current user has access to the order
+func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.SalesOrder) error {
+	userRole, _ := ctx.Value("user_role").(string)
+	userID, _ := ctx.Value("user_id").(string)
+
+	// Admin and Manager bypass checks
+	if userRole == "admin" || userRole == "manager" {
+		return nil
+	}
+
+	// If no user context, assume internal call or unsecured? 
+	if userID == "" {
+		// Secure by default: if we don't know who you are, you can't touch it.
+		// Unless it's a system process (which might not have user_id but should be handled via different context or role)
+		return ErrSalesOrderNotFound 
+	}
+
+	// Check if user is the creator
+	if order.CreatedBy != nil && *order.CreatedBy == userID {
+		return nil
+	}
+
+	// Check if user is the assigned Sales Rep
+	// Optimization: Avoid DB call if SalesRepID matches directly
+	if order.SalesRepID != nil {
+		// First check if the user IS the sales rep directly (if user ID matches employee ID logic, but usually they are different)
+		// We need to fetch employee record for the user to compare with SalesRepID
+		employee, err := u.employeeRepo.FindByUserID(ctx, userID)
+		if err != nil {
+			// If user is not an employee, they probably shouldn't see orders
+			return ErrSalesOrderNotFound
+		}
+
+		if *order.SalesRepID == employee.ID {
+			return nil
+		}
+	}
+
+	return ErrSalesOrderNotFound // Access Denied (Obfuscated)
 }
 
 // calculateTotals calculates all financial totals for the order

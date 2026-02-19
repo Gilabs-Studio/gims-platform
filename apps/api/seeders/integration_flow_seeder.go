@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
@@ -22,32 +21,22 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedIntegrationFlow creates a small, coherent dataset that demonstrates cross-module
+// SeedIntegrationFlow creates a coherent dataset that demonstrates cross-module
 // relations Purchase → Stock → Sales → Finance.
 func SeedIntegrationFlow() error {
 	db := database.DB
 
-	var exists int64
-	if err := db.Model(&purchaseModels.PurchaseOrder{}).
-		Where("code LIKE ?", "PO-INT-%").
-		Count(&exists).Error; err != nil {
-		return err
-	}
-	if exists > 0 {
-		log.Println("Integration flow already seeded; ensuring finance artifacts...")
-		if err := ensureIntegrationFinanceArtifacts(db); err != nil {
-			return err
-		}
-		logIntegrationFlowReport(db)
-		return nil
-	}
-
-	log.Println("Seeding integration flow (purchase → stock → sales → finance)...")
+	log.Println("Seeding enhanced integration flow (purchase → stock → sales → finance)...")
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Admin user
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
 		var adminUser userModels.User
-		if err := tx.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			if err := tx.First(&adminUser).Error; err != nil {
 				return err
 			}
@@ -57,57 +46,19 @@ func SeedIntegrationFlow() error {
 			adminID = "00000000-0000-0000-0000-000000000000"
 		}
 
-		// 2) Pick a Sales Order with items (ties Sales module)
-		var so salesModels.SalesOrder
-		if err := tx.Preload("Items").
-			Where("status IN ?", []salesModels.SalesOrderStatus{salesModels.SalesOrderStatusConfirmed, salesModels.SalesOrderStatusProcessing}).
-			Order("created_at DESC").
-			First(&so).Error; err != nil {
-			// fallback: any sales order with items
-			if err := tx.Preload("Items").Order("created_at DESC").First(&so).Error; err != nil {
-				log.Println("Warning: No sales orders found; integration flow will be partial")
-				return nil
-			}
-		}
-		if len(so.Items) == 0 {
-			log.Println("Warning: Sales order has no items; integration flow will be partial")
-			return nil
-		}
-		soItem := so.Items[0]
-
-		// 3) Product + Supplier + BU + Payment terms
-		var product productModels.Product
-		if err := tx.Where("id = ?", soItem.ProductID).First(&product).Error; err != nil {
-			return err
-		}
-
+		// 2) Get common dependencies
 		var supplier supplierModels.Supplier
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&supplier).Error; err != nil {
 			return err
 		}
 
-		var paymentTerms coreModels.PaymentTerms
-		if so.PaymentTermsID != nil {
-			_ = tx.Where("id = ?", *so.PaymentTermsID).First(&paymentTerms).Error
-		}
-		if paymentTerms.ID == "" {
-			if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&paymentTerms).Error; err != nil {
-				return err
-			}
+		var pt coreModels.PaymentTerms
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&pt).Error; err != nil {
+			return err
 		}
 
-		var businessUnit orgModels.BusinessUnit
-		if so.BusinessUnitID != nil {
-			_ = tx.Where("id = ?", *so.BusinessUnitID).First(&businessUnit).Error
-		}
-		if businessUnit.ID == "" {
-			if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&businessUnit).Error; err != nil {
-				return err
-			}
-		}
-
-		var bankAccount coreModels.BankAccount
-		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bankAccount).Error; err != nil {
+		var bu orgModels.BusinessUnit
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bu).Error; err != nil {
 			return err
 		}
 
@@ -116,278 +67,239 @@ func SeedIntegrationFlow() error {
 			return err
 		}
 
+		var bankAccount coreModels.BankAccount
+		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bankAccount).Error; err != nil {
+			return err
+		}
+
+		// 3) Get Products
+		var products []productModels.Product
+		if err := tx.Where("is_active = ?", true).Limit(5).Find(&products).Error; err != nil || len(products) == 0 {
+			return errors.New("no products found for seeding integration flow")
+		}
+
+		// Helper to get COA ID by code
+		getCOA := func(tx *gorm.DB, code string) string {
+			var coa financeModels.ChartOfAccount
+			if err := tx.Where("code = ?", code).First(&coa).Error; err != nil {
+				return ""
+			}
+			return coa.ID
+		}
+
 		now := time.Now()
-		tag := now.Format("20060102")
-		if forcedTag := strings.TrimSpace(os.Getenv("INTEGRATION_TAG")); forcedTag != "" {
-			tag = forcedTag
-		}
 
-		// 4) Purchase Order linked to the Sales Order
-		poCode := fmt.Sprintf("PO-INT-%s-001", tag)
-		poQty := soItem.Quantity + 5
-		poPrice := product.CostPrice
-		if poPrice <= 0 {
-			poPrice = 10000
-		}
-		poSubtotal := poQty * poPrice
-		poTaxRate := 11.0
-		poTaxAmount := poSubtotal * (poTaxRate / 100)
-		poTotal := poSubtotal + poTaxAmount
+		// Seed 5 different integration sets
+		for i := 1; i <= 5; i++ {
+			tag := fmt.Sprintf("%s-%03d", now.Format("20060102"), i)
+			prod := products[i%len(products)]
 
-		po := purchaseModels.PurchaseOrder{
-			Code:             poCode,
-			SupplierID:       stringPtr(supplier.ID),
-			PaymentTermsID:   stringPtr(paymentTerms.ID),
-			BusinessUnitID:   stringPtr(businessUnit.ID),
-			CreatedBy:        adminID,
-			SalesOrderID:     stringPtr(so.ID),
-			OrderDate:        now.Format("2006-01-02"),
-			Notes:            "Integration seed: PO linked to Sales Order",
-			Status:           purchaseModels.PurchaseOrderStatusApproved,
-			TaxRate:          poTaxRate,
-			TaxAmount:        poTaxAmount,
-			SubTotal:         poSubtotal,
-			TotalAmount:      poTotal,
-			Items: []purchaseModels.PurchaseOrderItem{
-				{
-					ProductID: product.ID,
-					Quantity:  poQty,
-					Price:     poPrice,
-					Discount:  0,
-					Subtotal:  poSubtotal,
-					Notes:     stringPtr("Integration item"),
-				},
-			},
-		}
+			// A) Purchase Order
+			poQty := 10.0 + float64(i*5)
+			poPrice := prod.CostPrice
+			if poPrice <= 0 {
+				poPrice = 50000.0 + float64(i*1000)
+			}
+			subtotal := poQty * poPrice
+			taxRate := 11.0
+			tax := subtotal * (taxRate / 100)
+			total := subtotal + tax
 
-		if err := tx.Create(&po).Error; err != nil {
-			return err
-		}
-
-		// Fetch persisted PO items so we have stable IDs for GR/SI linking
-		var poItems []purchaseModels.PurchaseOrderItem
-		if err := tx.Where("purchase_order_id = ?", po.ID).Find(&poItems).Error; err != nil {
-			return err
-		}
-		if len(poItems) == 0 {
-			return fmt.Errorf("integration seed: purchase order has no items")
-		}
-		poItem := poItems[0]
-
-		// 5) Goods Receipt for that PO
-		receiptDate := now.Add(-48 * time.Hour)
-		grCode := fmt.Sprintf("GR-INT-%s-001", tag)
-		gr := purchaseModels.GoodsReceipt{
-			Code:            grCode,
-			PurchaseOrderID: po.ID,
-			SupplierID:      supplier.ID,
-			ReceiptDate:     &receiptDate,
-			Notes:           stringPtr("Integration seed: GR for PO"),
-			Status:          purchaseModels.GoodsReceiptStatusConfirmed,
-			CreatedBy:       adminID,
-			Items: []purchaseModels.GoodsReceiptItem{
-				{
-					PurchaseOrderItemID: poItem.ID,
-					ProductID:           product.ID,
-					QuantityReceived:    poQty,
-					Notes:               stringPtr("Received in full"),
-				},
-			},
-		}
-		if err := tx.Create(&gr).Error; err != nil {
-			return err
-		}
-
-		// 6) Inventory batch representing received goods (Stock module)
-		batchNumber := fmt.Sprintf("INT-%s", grCode)
-		batch := inventoryModels.InventoryBatch{
-			ProductID:        product.ID,
-			WarehouseID:      warehouse.ID,
-			BatchNumber:      batchNumber,
-			InitialQuantity:  poQty,
-			CurrentQuantity:  poQty,
-			ReservedQuantity: 0,
-			CostPrice:        product.CostPrice,
-			IsActive:         true,
-		}
-		if batch.CostPrice <= 0 {
-			batch.CostPrice = poPrice
-		}
-		if err := tx.Create(&batch).Error; err != nil {
-			return err
-		}
-
-		// 7) Delivery Order (links Sales → Stock) using the batch
-		var do salesModels.DeliveryOrder
-		doExists := tx.Preload("Items").
-			Where("sales_order_id = ?", so.ID).
-			Order("created_at DESC").
-			First(&do).Error
-
-		if doExists != nil {
-			doCode := fmt.Sprintf("DO-INT-%s-001", tag)
-			shippedAt := now.Add(-24 * time.Hour)
-			do = salesModels.DeliveryOrder{
-				Code:           doCode,
-				DeliveryDate:   now.Add(-24 * time.Hour),
-				SalesOrderID:   so.ID,
-				WarehouseID:    stringPtr(warehouse.ID),
-				TrackingNumber: fmt.Sprintf("TRK-INT-%s", tag),
-				ReceiverName:   "Integration Receiver",
-				ReceiverPhone:  "080000000000",
-				DeliveryAddress: "Integration Address",
-				Status:         salesModels.DeliveryOrderStatusShipped,
-				Notes:          "Integration seed: DO linked to Sales Order and InventoryBatch",
-				ShippedAt:      &shippedAt,
-				Items: []salesModels.DeliveryOrderItem{
+			po := purchaseModels.PurchaseOrder{
+				Code:           fmt.Sprintf("PO-INT-%s", tag),
+				SupplierID:     &supplier.ID,
+				PaymentTermsID: &pt.ID,
+				BusinessUnitID: &bu.ID,
+				CreatedBy:      adminID,
+				OrderDate:      now.AddDate(0, 0, -i*2).Format("2006-01-02"),
+				Status:         purchaseModels.PurchaseOrderStatusApproved,
+				TaxRate:        taxRate,
+				TaxAmount:      tax,
+				SubTotal:       subtotal,
+				TotalAmount:    total,
+				Items: []purchaseModels.PurchaseOrderItem{
 					{
-						SalesOrderItemID:  stringPtr(soItem.ID),
-						ProductID:         product.ID,
-						InventoryBatchID:  stringPtr(batch.ID),
-						Quantity:          soItem.Quantity,
-						Price:             soItem.Price,
-						Subtotal:          soItem.Price * soItem.Quantity,
-						IsEquipment:       false,
-						InstallationNotes: "",
+						ProductID: prod.ID,
+						Quantity:  poQty,
+						Price:     poPrice,
+						Subtotal:  subtotal,
 					},
 				},
 			}
-			if err := tx.Create(&do).Error; err != nil {
+			if err := tx.Create(&po).Error; err != nil {
 				return err
 			}
-		} else {
-			// If it exists but has no warehouse, attach one (improves stock movement integrity)
-			if do.WarehouseID == nil || *do.WarehouseID == "" {
-				if err := tx.Model(&salesModels.DeliveryOrder{}).Where("id = ?", do.ID).Update("warehouse_id", warehouse.ID).Error; err != nil {
+
+			// B) Goods Receipt (Triggers Stock & Accrual Journal)
+			receiptDate := now.AddDate(0, 0, -i)
+			gr := purchaseModels.GoodsReceipt{
+				Code:            fmt.Sprintf("GR-INT-%s", tag),
+				PurchaseOrderID: po.ID,
+				SupplierID:      supplier.ID,
+				ReceiptDate:     &receiptDate,
+				Status:          purchaseModels.GoodsReceiptStatusConfirmed,
+				CreatedBy:       adminID,
+				Items: []purchaseModels.GoodsReceiptItem{
+					{
+						PurchaseOrderItemID: po.Items[0].ID,
+						ProductID:           prod.ID,
+						QuantityReceived:    poQty,
+					},
+				},
+			}
+			if err := tx.Create(&gr).Error; err != nil {
+				return err
+			}
+
+			// RECORDING: STOCK & ACCRUAL JOURNAL
+			// 1. Inventory Batch
+			batch := inventoryModels.InventoryBatch{
+				ProductID:       prod.ID,
+				WarehouseID:     warehouse.ID,
+				BatchNumber:     fmt.Sprintf("BCH-%s", gr.Code),
+				InitialQuantity: poQty,
+				CurrentQuantity: poQty,
+				CostPrice:       poPrice,
+				IsActive:        true,
+			}
+			if err := tx.Create(&batch).Error; err != nil {
+				return err
+			}
+
+			// 2. Stock Movement
+			move := inventoryModels.StockMovement{
+				ProductID:   prod.ID,
+				WarehouseID: warehouse.ID,
+				RefType:     "GoodsReceipt",
+				RefID:       gr.ID,
+				RefNumber:   gr.Code,
+				QtyIn:       poQty,
+				Cost:        poPrice,
+				Date:        receiptDate,
+				CreatedAt:   receiptDate,
+			}
+			if err := tx.Create(&move).Error; err != nil {
+				return err
+			}
+
+			// 3. Journal: Dr Inventory / Cr GR-IR
+			invCoa := getCOA(tx, "11400")
+			grirCoa := getCOA(tx, "21100")
+			if invCoa != "" && grirCoa != "" {
+				je := financeModels.JournalEntry{
+					EntryDate:     receiptDate,
+					Description:   fmt.Sprintf("Accrual for %s", gr.Code),
+					ReferenceType: stringPtr("GoodsReceipt"),
+					ReferenceID:   stringPtr(gr.ID),
+					Status:        financeModels.JournalStatusPosted,
+					CreatedBy:     stringPtr(adminID),
+					Lines: []financeModels.JournalLine{
+						{ChartOfAccountID: invCoa, Debit: subtotal, Credit: 0, Memo: "Stock In"},
+						{ChartOfAccountID: grirCoa, Debit: 0, Credit: subtotal, Memo: "GR/IR Clearing"},
+					},
+				}
+				_ = tx.Create(&je).Error
+			}
+
+			// C) Supplier Invoice (Triggers AP Journal)
+			si := purchaseModels.SupplierInvoice{
+				Type:            purchaseModels.SupplierInvoiceTypeNormal,
+				PurchaseOrderID: po.ID,
+				SupplierID:      supplier.ID,
+				PaymentTermsID:  &pt.ID,
+				Code:            fmt.Sprintf("SI-INT-%s", tag),
+				InvoiceNumber:   fmt.Sprintf("INV-%s", tag),
+				InvoiceDate:     receiptDate.Format("2006-01-02"),
+				DueDate:         receiptDate.AddDate(0, 0, 30).Format("2006-01-02"),
+				TaxRate:         taxRate,
+				TaxAmount:       tax,
+				SubTotal:        subtotal,
+				Amount:          total,
+				Status:          purchaseModels.SupplierInvoiceStatusUnpaid,
+				CreatedBy:       adminID,
+				Items: []purchaseModels.SupplierInvoiceItem{
+					{
+						PurchaseOrderItemID: &po.Items[0].ID,
+						ProductID:           prod.ID,
+						Quantity:            poQty,
+						Price:               poPrice,
+						SubTotal:            subtotal,
+					},
+				},
+			}
+			if err := tx.Create(&si).Error; err != nil {
+				return err
+			}
+
+			// RECORDING: AP JOURNAL (Dr GR/IR, Dr VAT / Cr AP)
+			apCoa := getCOA(tx, "21000")
+			vatCoa := getCOA(tx, "11800")
+			if apCoa != "" && grirCoa != "" && vatCoa != "" {
+				je := financeModels.JournalEntry{
+					EntryDate:     receiptDate,
+					Description:   fmt.Sprintf("AP Invoice %s", si.Code),
+					ReferenceType: stringPtr("SupplierInvoice"),
+					ReferenceID:   stringPtr(si.ID),
+					Status:        financeModels.JournalStatusPosted,
+					CreatedBy:     stringPtr(adminID),
+					Lines: []financeModels.JournalLine{
+						{ChartOfAccountID: grirCoa, Debit: subtotal, Credit: 0, Memo: "Clear GR/IR"},
+						{ChartOfAccountID: vatCoa, Debit: tax, Credit: 0, Memo: "VAT Input"},
+						{ChartOfAccountID: apCoa, Debit: 0, Credit: total, Memo: "Account Payable"},
+					},
+				}
+				_ = tx.Create(&je).Error
+			}
+
+			// D) Purchase Payment (Triggers Payment Journal) - Seed only for first 3 sets
+			if i <= 3 {
+				pp := purchaseModels.PurchasePayment{
+					SupplierInvoiceID: si.ID,
+					BankAccountID:     bankAccount.ID,
+					PaymentDate:       now.Format("2006-01-02"),
+					Amount:            total,
+					Method:            purchaseModels.PurchasePaymentMethodBank,
+					Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+					ReferenceNumber:   stringPtr(fmt.Sprintf("PAY-%s", tag)),
+					CreatedBy:         adminID,
+				}
+				if err := tx.Create(&pp).Error; err != nil {
 					return err
 				}
-			}
-		}
 
-		// 8) Supplier Invoice + Purchase Payment (Purchase → Finance-ish)
-		siCode := fmt.Sprintf("SI-INT-%s-001", tag)
-		invoiceNumber := fmt.Sprintf("SUP-INV-INT-%s", tag)
-		invoiceDate := now.Add(-24 * time.Hour).Format("2006-01-02")
-		dueDate := now.AddDate(0, 0, 30).Format("2006-01-02")
+				// Update SI status
+				tx.Model(&si).Update("status", purchaseModels.SupplierInvoiceStatusPaid)
 
-		si := purchaseModels.SupplierInvoice{
-			Type:           purchaseModels.SupplierInvoiceTypeNormal,
-			PurchaseOrderID: po.ID,
-			SupplierID:     supplier.ID,
-			PaymentTermsID: stringPtr(paymentTerms.ID),
-			Code:           siCode,
-			InvoiceNumber:  invoiceNumber,
-			InvoiceDate:    invoiceDate,
-			DueDate:        dueDate,
-			TaxRate:        poTaxRate,
-			TaxAmount:      poTaxAmount,
-			SubTotal:       poSubtotal,
-			Amount:         poTotal,
-			Status:         purchaseModels.SupplierInvoiceStatusUnpaid,
-			Notes:          stringPtr("Integration seed: Supplier Invoice from PO"),
-			CreatedBy:      adminID,
-			Items: []purchaseModels.SupplierInvoiceItem{
-				{
-					PurchaseOrderItemID: stringPtr(poItem.ID),
-					ProductID:           product.ID,
-					Quantity:            poQty,
-					Price:               poPrice,
-					Discount:            0,
-					SubTotal:            poSubtotal,
-				},
-			},
-		}
-		if err := tx.Create(&si).Error; err != nil {
-			return err
-		}
-
-		pp := purchaseModels.PurchasePayment{
-			SupplierInvoiceID: si.ID,
-			BankAccountID:     bankAccount.ID,
-			PaymentDate:       now.Format("2006-01-02"),
-			Amount:            si.Amount,
-			Method:            purchaseModels.PurchasePaymentMethodBank,
-			Status:            purchaseModels.PurchasePaymentStatusConfirmed,
-			ReferenceNumber:   stringPtr(fmt.Sprintf("PAY-INT-%s", tag)),
-			Notes:             stringPtr("Integration seed payment"),
-			CreatedBy:         adminID,
-		}
-		if err := tx.Create(&pp).Error; err != nil {
-			return err
-		}
-
-		// 9) Finance Journal Entries + Tax Invoice linking Sales/Purchase
-		var assetCOA financeModels.ChartOfAccount
-		_ = tx.Where("type = ? AND is_active = ?", financeModels.AccountTypeAsset, true).Order("created_at ASC").First(&assetCOA).Error
-		var liabilityCOA financeModels.ChartOfAccount
-		_ = tx.Where("type = ? AND is_active = ?", financeModels.AccountTypeLiability, true).Order("created_at ASC").First(&liabilityCOA).Error
-		var revenueCOA financeModels.ChartOfAccount
-		_ = tx.Where("type = ? AND is_active = ?", financeModels.AccountTypeRevenue, true).Order("created_at ASC").First(&revenueCOA).Error
-
-		if assetCOA.ID != "" && liabilityCOA.ID != "" {
-			refType := "SupplierInvoice"
-			je := financeModels.JournalEntry{
-				EntryDate:      now,
-				Description:    "Integration seed: Supplier invoice journal",
-				ReferenceType:  &refType,
-				ReferenceID:    stringPtr(si.ID),
-				Status:         financeModels.JournalStatusPosted,
-				CreatedBy:      stringPtr(adminID),
-				Lines: []financeModels.JournalLine{
-					{ChartOfAccountID: assetCOA.ID, Debit: si.Amount, Credit: 0, Memo: "Integration debit"},
-					{ChartOfAccountID: liabilityCOA.ID, Debit: 0, Credit: si.Amount, Memo: "Integration credit"},
-				},
-			}
-			if err := tx.Create(&je).Error; err != nil {
-				return err
-			}
-		}
-
-		// Try to link to an existing customer invoice for the selected SO
-		var ci salesModels.CustomerInvoice
-		_ = tx.Where("sales_order_id = ?", so.ID).Order("created_at DESC").First(&ci).Error
-		if ci.ID != "" && assetCOA.ID != "" && revenueCOA.ID != "" {
-			refType := "CustomerInvoice"
-			je := financeModels.JournalEntry{
-				EntryDate:      now,
-				Description:    "Integration seed: Customer invoice journal",
-				ReferenceType:  &refType,
-				ReferenceID:    stringPtr(ci.ID),
-				Status:         financeModels.JournalStatusPosted,
-				CreatedBy:      stringPtr(adminID),
-				Lines: []financeModels.JournalLine{
-					{ChartOfAccountID: assetCOA.ID, Debit: ci.Amount, Credit: 0, Memo: "Integration AR debit"},
-					{ChartOfAccountID: revenueCOA.ID, Debit: 0, Credit: ci.Amount, Memo: "Integration revenue credit"},
-				},
-			}
-			if err := tx.Create(&je).Error; err != nil {
-				return err
-			}
-		}
-
-		taxNumber := fmt.Sprintf("TI-INT-%s-001", tag)
-		tax := financeModels.TaxInvoice{
-			TaxInvoiceNumber: taxNumber,
-			TaxInvoiceDate:   now,
-			CustomerInvoiceID: func() *string {
-				if ci.ID == "" {
-					return nil
+				// RECORDING: PAYMENT JOURNAL (Dr AP / Cr Bank)
+				// We use BankAccount's COA if available, otherwise assume 11100
+				cashCoa := ""
+				var baItem coreModels.BankAccount
+				tx.First(&baItem, "id = ?", bankAccount.ID)
+				if baItem.ChartOfAccountID != nil {
+					cashCoa = *baItem.ChartOfAccountID
+				} else {
+					cashCoa = getCOA(tx, "11100")
 				}
-				return stringPtr(ci.ID)
-			}(),
-			SupplierInvoiceID: stringPtr(si.ID),
-			DPPAmount:         poSubtotal,
-			VATAmount:         poTaxAmount,
-			TotalAmount:       poTotal,
-			Notes:             "Integration seed: linked tax invoice",
-			CreatedBy:         stringPtr(adminID),
-		}
-		if err := tx.Create(&tax).Error; err != nil {
-			return err
+
+				if apCoa != "" && cashCoa != "" {
+					je := financeModels.JournalEntry{
+						EntryDate:     now,
+						Description:   fmt.Sprintf("Payment for %s", si.Code),
+						ReferenceType: stringPtr("PurchasePayment"),
+						ReferenceID:   stringPtr(pp.ID),
+						Status:        financeModels.JournalStatusPosted,
+						CreatedBy:     stringPtr(adminID),
+						Lines: []financeModels.JournalLine{
+							{ChartOfAccountID: apCoa, Debit: total, Credit: 0, Memo: "Debit AP"},
+							{ChartOfAccountID: cashCoa, Debit: 0, Credit: total, Memo: "Credit Cash/Bank"},
+						},
+					}
+					_ = tx.Create(&je).Error
+				}
+			}
 		}
 
-		log.Println("Integration flow seeded successfully")
-		logIntegrationFlowReport(tx)
+		log.Println("Enhanced integration flow seeded successfully")
 		return nil
 	})
 }
@@ -465,45 +377,17 @@ func logIntegrationFlowReport(db *gorm.DB) {
 		}
 	}
 
+	var poCount int64
+	db.Model(&purchaseModels.PurchaseOrder{}).Where("code LIKE ?", "PO-INT-%").Count(&poCount)
+
+	var jeCount int64
+	db.Model(&financeModels.JournalEntry{}).Where("description LIKE ?", "%INT-%").Count(&jeCount)
+
 	log.Println("Integration flow report:")
-	log.Printf("- PO: %s (id=%s, sales_order_id=%s)", po.Code, po.ID, safePtr(po.SalesOrderID))
-	if gr.ID != "" {
-		log.Printf("- GR: %s (id=%s, purchase_order_id=%s)", gr.Code, gr.ID, gr.PurchaseOrderID)
-	} else {
-		log.Printf("- GR: (missing) for PO id=%s", po.ID)
-	}
-	if batch.ID != "" {
-		log.Printf("- Batch: %s (id=%s, product_id=%s, warehouse_id=%s, qty=%v)", batch.BatchNumber, batch.ID, batch.ProductID, batch.WarehouseID, batch.CurrentQuantity)
-	} else if gr.Code != "" {
-		log.Printf("- Batch: (missing) expected INT-%s", gr.Code)
-	} else {
-		log.Printf("- Batch: (skipped) because GR missing")
-	}
-	if do.ID != "" {
-		log.Printf("- DO: %s (id=%s, sales_order_id=%s, status=%s)", do.Code, do.ID, do.SalesOrderID, do.Status)
-	} else {
-		log.Printf("- DO: (missing) DO-INT-* and no fallback DO found")
-	}
-	if si.ID != "" {
-		log.Printf("- SI: %s (id=%s, invoice_number=%s, amount=%v, status=%s)", si.Code, si.ID, si.InvoiceNumber, si.Amount, si.Status)
-	} else {
-		log.Printf("- SI: (missing) for PO id=%s", po.ID)
-	}
-	if payment.ID != "" {
-		log.Printf("- PAY: %s (id=%s, amount=%v, status=%s)", safePtr(payment.ReferenceNumber), payment.ID, payment.Amount, payment.Status)
-	} else {
-		log.Printf("- PAY: (missing) for SI id=%s", si.ID)
-	}
-	if tax.ID != "" {
-		log.Printf("- TI: %s (id=%s, total=%v)", tax.TaxInvoiceNumber, tax.ID, tax.TotalAmount)
-	} else {
-		log.Printf("- TI: (missing) for SI id=%s", si.ID)
-	}
-	if je.ID != "" {
-		log.Printf("- JE: posted (id=%s, reference_id=%s)", je.ID, safePtr(je.ReferenceID))
-	} else {
-		log.Printf("- JE: (missing) for SI id=%s", si.ID)
-	}
+	log.Printf("- Total Integration POs: %d", poCount)
+	log.Printf("- Total Journals Created: %d", jeCount)
+	log.Printf("- Latest PO: %s (id=%s)", po.Code, po.ID)
+	// ... rest of detailed log if needed, but summary is better for large sets
 }
 
 func safePtr(v *string) string {
@@ -547,8 +431,13 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 		}
 
 		// Best-effort created_by: admin if present
+		defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+		if defaultEmail == "" {
+			defaultEmail = "admin@example.com"
+		}
+
 		var adminUser userModels.User
-		if err := tx.Where("email = ?", "admin@example.com").First(&adminUser).Error; err != nil {
+		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			_ = tx.First(&adminUser).Error
 		}
 		adminID := adminUser.ID

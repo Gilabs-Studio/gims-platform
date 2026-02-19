@@ -184,14 +184,16 @@ func (r *salesEstimationRepository) Update(ctx context.Context, se *models.Sales
 			return err
 		}
 
-		// Delete existing items
-		if err := tx.Where("sales_estimation_id = ?", se.ID).Delete(&models.SalesEstimationItem{}).Error; err != nil {
+		// Hard-delete existing items to avoid duplicate key constraint
+		// Soft-delete leaves rows with same PK, causing conflict on re-create
+		if err := tx.Unscoped().Where("sales_estimation_id = ?", se.ID).Delete(&models.SalesEstimationItem{}).Error; err != nil {
 			return err
 		}
 
-		// Create new items
+		// Create new items with fresh UUIDs
 		if len(se.Items) > 0 {
 			for i := range se.Items {
+				se.Items[i].ID = "" // Clear existing ID to generate new UUID via BeforeCreate hook
 				se.Items[i].SalesEstimationID = se.ID
 				se.Items[i].CreatedAt = time.Now()
 				se.Items[i].UpdatedAt = time.Now()

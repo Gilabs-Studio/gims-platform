@@ -153,6 +153,8 @@ func SeedDeliveryOrder() error {
 			Code:        code,
 			DeliveryDate: deliveryDate,
 			SalesOrderID: salesOrder.ID,
+		ReceiverName:  salesOrder.CustomerName,
+		ReceiverPhone: salesOrder.CustomerPhone,
 			Status:      doData.status,
 			Notes:       doData.notes,
 		}

@@ -73,6 +73,10 @@ export interface SalesQuotation {
   business_type?: BusinessType;
   delivery_area_id?: string;
   sales_prospect?: SalesProspect;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   subtotal: number;
   discount_amount: number;
   tax_rate: number;
@@ -171,6 +175,10 @@ export interface CreateSalesQuotationData {
   sales_rep_id: string;
   business_unit_id: string;
   business_type_id?: string;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;
@@ -193,6 +201,10 @@ export interface UpdateSalesQuotationData {
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;

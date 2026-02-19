@@ -15,12 +15,12 @@ import (
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
+	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
-	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -261,8 +261,12 @@ func shouldDropTables() bool {
 	}
 
 	// Only allow dropping tables in development mode
-	// Check environment variable DROP_TABLES
+	// Check environment variable DROP_TABLES or DROP_ALL_TABLES (from package.json scripts)
 	dropTables := os.Getenv("DROP_TABLES")
+	if dropTables == "" {
+		dropTables = os.Getenv("DROP_ALL_TABLES")
+	}
+
 	if dropTables == "true" || dropTables == "1" {
 		// Double check: ensure we're not in production
 		if env == "" || env == "development" || env == "dev" {

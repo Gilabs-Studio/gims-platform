@@ -27,6 +27,7 @@ type ChartOfAccountRepository interface {
 	Update(ctx context.Context, item *financeModels.ChartOfAccount) error
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error)
+	FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
 }
 
 type chartOfAccountRepository struct {
@@ -139,4 +140,12 @@ func (r *chartOfAccountRepository) ExistsByCode(ctx context.Context, code string
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *chartOfAccountRepository) FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	var item financeModels.ChartOfAccount
+	if err := r.db.WithContext(ctx).Where("code = ?", code).First(&item).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
 }

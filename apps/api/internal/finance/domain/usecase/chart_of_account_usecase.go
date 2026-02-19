@@ -25,6 +25,7 @@ type ChartOfAccountUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.ChartOfAccountResponse, error)
 	List(ctx context.Context, req *dto.ListChartOfAccountsRequest) ([]dto.ChartOfAccountResponse, int64, error)
 	Tree(ctx context.Context, onlyActive bool) ([]dto.ChartOfAccountTreeNode, error)
+	GetByCode(ctx context.Context, code string) (*dto.ChartOfAccountResponse, error)
 }
 
 type chartOfAccountUsecase struct {
@@ -304,4 +305,20 @@ func (uc *chartOfAccountUsecase) Tree(ctx context.Context, onlyActive bool) ([]d
 		}
 	}
 	return roots, nil
+}
+
+func (uc *chartOfAccountUsecase) GetByCode(ctx context.Context, code string) (*dto.ChartOfAccountResponse, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, errors.New("code is required")
+	}
+	item, err := uc.repo.FindByCode(ctx, code)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrCOANotFound
+		}
+		return nil, err
+	}
+	resp := uc.mapper.ToResponse(item)
+	return &resp, nil
 }

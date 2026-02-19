@@ -48,6 +48,7 @@ import (
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
+	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
@@ -55,12 +56,11 @@ import (
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
+	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
-	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
-	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 )
 
 func initInfrastructure() {
@@ -78,8 +78,8 @@ func initInfrastructure() {
 	}
 	// Note: Defer database.Close() must be handled in main if we returned db,
 	// but here we are using global or singleton access patterns in this codebase
-	// seeing later usage of database.DB. 
-	// However, original main had defer database.Close(). 
+	// seeing later usage of database.DB.
+	// However, original main had defer database.Close().
 	// We will keep defer in main and just call connect here.
 
 	// Connect to Redis
@@ -150,7 +150,7 @@ func setupJWT() *jwt.JWTManager {
 func main() {
 	// 1. Initialize Infrastructure (Config, Logger, DB, Migrations)
 	initInfrastructure()
-	
+
 	// Ensure cleanup
 	defer database.Close()
 	defer redis.Close()
@@ -243,8 +243,6 @@ func main() {
 		})
 	})
 
-
-
 	// Serve static files from uploads directory
 	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
@@ -283,8 +281,7 @@ func main() {
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Finance module (Sprint 10 - COA & Journals)
-		financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
-
+		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
@@ -302,7 +299,7 @@ func main() {
 		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

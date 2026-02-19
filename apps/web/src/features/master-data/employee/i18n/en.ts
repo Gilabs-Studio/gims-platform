@@ -116,6 +116,7 @@ export const employeeEn = {
     reject: "Reject",
     assignAreas: "Manage Areas",
     save: "Save",
+    saving: "Saving...",
     cancel: "Cancel",
     confirm: "Confirm",
   },

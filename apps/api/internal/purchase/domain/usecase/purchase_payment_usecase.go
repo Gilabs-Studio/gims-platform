@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -12,6 +13,8 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -42,10 +45,12 @@ type purchasePaymentUsecase struct {
 	siRepo       repositories.SupplierInvoiceRepository
 	auditService audit.AuditService
 	mapper       *mapper.PurchasePaymentMapper
+	journalUC    finUsecase.JournalEntryUsecase
+	coaUC        finUsecase.ChartOfAccountUsecase
 }
 
-func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService) PurchasePaymentUsecase {
-	return &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper()}
+func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) PurchasePaymentUsecase {
+	return &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC}
 }
 
 func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePaymentAddResponse, error) {
@@ -292,8 +297,81 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 		return nil, err
 	}
 
+	// Trigger Journal
+	if err := uc.triggerJournalEntry(ctx, out); err != nil {
+		// Log error
+	}
+
 	uc.auditService.Log(ctx, "purchase_payment.confirm", id, map[string]interface{}{"after": out})
 	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
+	// Credit: Bank/Cash (From BankAccount.ChartOfAccountID)
+	// Debit: AP (21000)
+
+	// Need to fetch BankAccount if not preloaded with COA ID
+	var ba coreModels.BankAccount
+	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
+		ba = *pay.BankAccount
+	} else {
+		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err != nil {
+			return err
+		}
+	}
+
+	var creditAccountID string
+	if ba.ChartOfAccountID != nil {
+		creditAccountID = *ba.ChartOfAccountID
+	} else {
+		// Fallback or Error?
+		// Try to find "11100" (Cash) as default if method is cash, or error.
+		// For now, let's assume default cash account if missing.
+		def, err := uc.coaUC.GetByCode(ctx, "11100")
+		if err != nil {
+			return errors.New("bank account has no linked COA and default cash account 11100 not found")
+		}
+		creditAccountID = def.ID
+	}
+
+	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
+	if err != nil {
+		return err
+	}
+
+	refNum := ""
+	if pay.ReferenceNumber != nil {
+		refNum = *pay.ReferenceNumber
+	}
+
+	lines := []finDto.JournalLineRequest{
+		{
+			ChartOfAccountID: apAcct.ID,
+			Debit:            pay.Amount,
+			Credit:           0,
+			Memo:             fmt.Sprintf("Payment for %s", refNum),
+		},
+		{
+			ChartOfAccountID: creditAccountID,
+			Debit:            0,
+			Credit:           pay.Amount,
+			Memo:             fmt.Sprintf("Outbound Payment %s", refNum),
+		},
+	}
+
+	refID := pay.ID
+	refType := "PURCHASE_PAYMENT"
+
+	req := &finDto.CreateJournalEntryRequest{
+		EntryDate:     pay.PaymentDate,
+		Description:   fmt.Sprintf("Payment %s", refNum),
+		ReferenceID:   &refID,
+		ReferenceType: &refType,
+		Lines:         lines,
+	}
+
+	_, err = uc.journalUC.Create(ctx, req)
+	return err
 }
 
 func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error) {

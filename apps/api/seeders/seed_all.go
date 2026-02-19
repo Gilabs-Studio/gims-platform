@@ -1,7 +1,16 @@
 package seeders
 
+import "os"
+
 // SeedAll runs all seeders
 func SeedAll() error {
+	// Check for cleanup flag
+	if os.Getenv("SEED_CLEANUP_DATABASE") == "true" {
+		if err := CleanupDatabase(); err != nil {
+			return err
+		}
+	}
+
 	// Seed in order: roles -> menus -> permissions -> users -> geographic
 	if err := SeedRoles(); err != nil {
 		return err

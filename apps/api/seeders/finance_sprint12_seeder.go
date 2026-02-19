@@ -1,9 +1,11 @@
 package seeders
 
 import (
+	"fmt"
 	"log"
 	"time"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm/clause"
@@ -18,11 +20,16 @@ func SeedFinanceSprint12() error {
 	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable.
 	coaSeeds := []financeModels.ChartOfAccount{
 		{Code: "1100", Name: "Accounts Receivable", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "11100", Name: "Cash on Hand", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "11400", Name: "Merchandise Inventory", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "11800", Name: "VAT Input", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1500", Name: "Fixed Assets", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1590", Name: "Accumulated Depreciation", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "2100", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "21000", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "21100", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "4100", Name: "Sales Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
 		{Code: "6100", Name: "Depreciation Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "61000", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "6200", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 	}
 
@@ -152,7 +159,7 @@ func SeedFinanceSprint12() error {
 		}
 	}
 
-	// 5) Seed a sample Financial Closing (draft) for the last month end.
+	// 6) Financial closing is a manual process, keeping it as a sample.
 	now := time.Now()
 	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	lastMonthEnd := firstOfThisMonth.AddDate(0, 0, -1)
@@ -169,58 +176,134 @@ func SeedFinanceSprint12() error {
 		log.Printf("Warning: Failed to create financial closing: %v", err)
 	}
 
-	// 6) Seed a sample Tax Invoice (no linked invoice by default).
-	taxInvoice := financeModels.TaxInvoice{
-		TaxInvoiceNumber: "010.000-26.00000001",
-		TaxInvoiceDate:   now.AddDate(0, -1, 0),
-		DPPAmount:        10000000,
-		VATAmount:        1100000,
-		TotalAmount:      11100000,
-		Notes:            "Seeded e-Faktur sample",
-	}
-	if err := db.
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "tax_invoice_number"}}, DoNothing: true}).
-		Create(&taxInvoice).Error; err != nil {
-		log.Printf("Warning: Failed to create tax invoice: %v", err)
-	}
-
 	// 7) Seed a sample Non-trade Payable.
 	var nonTradeCount int64
 	db.Model(&financeModels.NonTradePayable{}).Count(&nonTradeCount)
 	if nonTradeCount == 0 {
 		if officeExpenseCOA.ID == "" {
 			log.Printf("Warning: Skipping non-trade payable seeding because office expense COA is missing")
-			return nil
-		}
-
-		due := now.AddDate(0, 0, 14)
-		payables := []financeModels.NonTradePayable{
-			{
-				TransactionDate:  now.AddDate(0, 0, -7),
-				Description:      "Office supplies expense",
-				ChartOfAccountID: officeExpenseCOA.ID,
-				Amount:           250000,
-				VendorName:       "PT Office Supply",
-				DueDate:          &due,
-				ReferenceNo:      "NTP-0001",
-			},
-			{
-				TransactionDate:  now.AddDate(0, 0, -3),
-				Description:      "Internet subscription",
-				ChartOfAccountID: officeExpenseCOA.ID,
-				Amount:           1750000,
-				VendorName:       "ISP Provider",
-				DueDate:          &due,
-				ReferenceNo:      "NTP-0002",
-			},
-		}
-		for i := range payables {
-			if err := db.Create(&payables[i]).Error; err != nil {
-				log.Printf("Warning: Failed to create non-trade payable %s: %v", payables[i].ReferenceNo, err)
+		} else {
+			due := now.AddDate(0, 0, 14)
+			payables := []financeModels.NonTradePayable{
+				{
+					TransactionDate:  now.AddDate(0, 0, -7),
+					Description:      "Office supplies expense",
+					ChartOfAccountID: officeExpenseCOA.ID,
+					Amount:           250000,
+					VendorName:       "PT Office Supply",
+					DueDate:          &due,
+					ReferenceNo:      "NTP-0001",
+				},
+				{
+					TransactionDate:  now.AddDate(0, 0, -3),
+					Description:      "Internet subscription",
+					ChartOfAccountID: officeExpenseCOA.ID,
+					Amount:           1750000,
+					VendorName:       "ISP Provider",
+					DueDate:          &due,
+					ReferenceNo:      "NTP-0002",
+				},
+			}
+			for i := range payables {
+				if err := db.Create(&payables[i]).Error; err != nil {
+					log.Printf("Warning: Failed to create non-trade payable %s: %v", payables[i].ReferenceNo, err)
+				}
 			}
 		}
-	} else {
-		log.Println("Non-trade payables already seeded, skipping...")
+	}
+
+	// 8) Seed Budgets
+	var budgetCount int64
+	db.Model(&financeModels.Budget{}).Count(&budgetCount)
+	if budgetCount == 0 {
+		marketingCoa := "6200" // Office/General as fallback
+		budget := financeModels.Budget{
+			Name:        fmt.Sprintf("Operational Budget %d", now.Year()),
+			Description: "Annual operational and marketing budget",
+			StartDate:   time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:     time.Date(now.Year(), 12, 31, 23, 59, 59, 0, time.UTC),
+			TotalAmount: 500000000,
+			Status:      financeModels.BudgetStatusApproved,
+			Items: []financeModels.BudgetItem{
+				{
+					ChartOfAccountID: officeExpenseCOA.ID,
+					Amount:           300000000,
+					Memo:             "General office expenses",
+				},
+			},
+		}
+		if marketingCoa != "" {
+			var mkt financeModels.ChartOfAccount
+			if err := db.Where("code = ?", marketingCoa).First(&mkt).Error; err == nil {
+				budget.Items = append(budget.Items, financeModels.BudgetItem{
+					ChartOfAccountID: mkt.ID,
+					Amount:           200000000,
+					Memo:             "Marketing activities",
+				})
+			}
+		}
+		if err := db.Create(&budget).Error; err != nil {
+			log.Printf("Warning: Failed to seed budget: %v", err)
+		}
+	}
+
+	// 9) Seed Payments (General/Sales side)
+	var paymentCount int64
+	db.Model(&financeModels.Payment{}).Count(&paymentCount)
+	if paymentCount == 0 {
+		var ba coreModels.BankAccount
+		if err := db.First(&ba).Error; err == nil {
+			arCoa := "1100" // AR
+			var ar financeModels.ChartOfAccount
+			if err := db.Where("code = ?", arCoa).First(&ar).Error; err == nil {
+				payment := financeModels.Payment{
+					PaymentDate:   now.AddDate(0, 0, -2),
+					Description:   "Customer payment collection - Batch A",
+					BankAccountID: ba.ID,
+					TotalAmount:   25000000,
+					Status:        financeModels.PaymentStatusPosted,
+					Allocations: []financeModels.PaymentAllocation{
+						{
+							ChartOfAccountID: ar.ID,
+							Amount:           25000000,
+							Memo:             "Invoice INV-2024-001 collection",
+						},
+					},
+				}
+				if err := db.Create(&payment).Error; err != nil {
+					log.Printf("Warning: Failed to seed payment: %v", err)
+				}
+			}
+		}
+	}
+
+	// 10) Seed Cash/Bank Journals
+	var cbCount int64
+	db.Model(&financeModels.CashBankJournal{}).Count(&cbCount)
+	if cbCount == 0 {
+		var ba coreModels.BankAccount
+		if err := db.First(&ba).Error; err == nil {
+			if officeExpenseCOA.ID != "" {
+				cbj := financeModels.CashBankJournal{
+					TransactionDate: now.AddDate(0, 0, -1),
+					Type:            financeModels.CashBankTypeCashOut,
+					Description:     "Monthly Bank Service Fee",
+					BankAccountID:   ba.ID,
+					TotalAmount:     50000,
+					Status:          financeModels.CashBankStatusPosted,
+					Lines: []financeModels.CashBankJournalLine{
+						{
+							ChartOfAccountID: officeExpenseCOA.ID,
+							Amount:           50000,
+							Memo:             "Bank maintenance fee",
+						},
+					},
+				}
+				if err := db.Create(&cbj).Error; err != nil {
+					log.Printf("Warning: Failed to seed cash bank journal: %v", err)
+				}
+			}
+		}
 	}
 
 	return nil

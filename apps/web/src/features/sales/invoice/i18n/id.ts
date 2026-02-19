@@ -39,6 +39,11 @@ export const invoiceId = {
       select: "Pilih",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
+      customer: "Informasi Pelanggan",
+      name: "Nama Pelanggan",
+      phone: "Nomor Telepon",
+      email: "Alamat Email",
+      contact: "Kontak Person",
     },
 
     // Tabs
@@ -87,6 +92,10 @@ export const invoiceId = {
     grossProfit: "Laba Kotor",
     summary: "Ringkasan",
     notes: "Catatan",
+    customerInfo: "Informasi Pelanggan",
+    customerName: "Nama Pelanggan",
+    customerPhone: "Nomor Telepon",
+    customerEmail: "Alamat Email",
     items: "Item",
     addItem: "Tambah Item",
     removeItem: "Hapus Item",
@@ -127,6 +136,7 @@ export const invoiceId = {
       pay: "Catat Pembayaran",
       cancel: "Batalkan Faktur",
       markPaid: "Tandai Lunas",
+      markAsPaid: "Tandai Lunas",
       viewOrder: "Lihat Pesanan Penjualan",
     },
 

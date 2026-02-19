@@ -19,5 +19,6 @@ func RegisterFinancialClosingRoutes(r *gin.RouterGroup, h *handler.FinancialClos
 	g.POST("", middleware.RequirePermission(financialClosingCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(financialClosingCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(financialClosingRead), h.GetByID)
+	g.GET("/:id/analysis", middleware.RequirePermission(financialClosingRead), h.GetAnalysis)
 	g.POST("/:id/approve", middleware.RequirePermission(financialClosingApprove), h.Approve)
 }

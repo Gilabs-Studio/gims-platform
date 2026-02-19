@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, Controller, useFormContext, FormProvider } from "react-hook-form";
-import type { Resolver, FieldErrors } from "react-hook-form";
+import type { Resolver, FieldErrors, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart } from "lucide-react";
@@ -11,8 +11,9 @@ import {
   getUpdateDeliveryOrderSchema,
   type CreateDeliveryOrderFormData,
   type UpdateDeliveryOrderFormData,
+  type DeliveryOrderItemFormData,
 } from "../schemas/delivery.schema";
-import type { CreateDeliveryOrderData } from "../types";
+import type { CreateDeliveryOrderData, UpdateDeliveryOrderData } from "../types";
 
 import { ButtonLoading } from "@/components/loading";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -39,6 +40,8 @@ import { useCourierAgencies } from "@/features/master-data/payment-and-couriers/
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { useProductBatches } from "@/features/stock/inventory/hooks/use-product-batches";
 import type { DeliveryOrder } from "../types";
+import type { SalesOrderItem } from "../../order/types";
+import type { InventoryBatchItem } from "@/features/stock/inventory/types";
 import { toast } from "sonner";
 
 interface DeliveryFormProps {
@@ -92,16 +95,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const schema = isEdit ? getUpdateDeliveryOrderSchema(t) : getDeliveryOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    control,
-    reset,
-    trigger,
-    getValues,
-    formState: { errors },
-  } = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
+  const form = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
     resolver: formResolver,
     defaultValues: delivery
       ? {
@@ -134,6 +128,17 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
         },
   });
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    reset,
+    trigger,
+    getValues,
+    formState: { errors },
+  } = form;
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
@@ -143,7 +148,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
 
   // Fetch sales order details when selected to ensure we have items
-  const { data: selectedSalesOrderData, isLoading: isLoadingSalesOrder } = useOrder(
+  const { data: selectedSalesOrderData } = useOrder(
     watchedSalesOrderId ?? "",
     { enabled: !!watchedSalesOrderId }
   );
@@ -159,7 +164,9 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       // Create items map to preserve existing inputs if re-populating (optional, but good UX)
       // For now, simpler approach: just overwrite to ensure correctness
       
-      const newItems = salesOrder.items.map((item: any) => {
+      type LocalDeliveryItem = DeliveryOrderItemFormData & { product_name?: string };
+
+      const newItems = salesOrder.items.map((item: SalesOrderItem) => {
         const remainingQty = item.quantity - (item.delivered_quantity ?? 0);
         
         // Skip fully delivered items? Maybe user wants to deliver 0 of them? 
@@ -172,12 +179,12 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
           sales_order_item_id: item.id,
           inventory_batch_id: "",
           quantity: remainingQty,
-          price: item.price || item.unit_price || 0,
+          price: item.price || 0,
           installation_status: "",
           function_test_status: "",
           product_name: `${item.product?.code} - ${item.product?.name}`, // Helper for display
         };
-      }).filter(Boolean) as any[]; // Cast to any to bypass strict form type check for helper field
+      }).filter(Boolean) as LocalDeliveryItem[];
 
       if (newItems.length > 0) {
          setValue("items", newItems);
@@ -186,7 +193,15 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
          setValue("items", []);
       }
     }
-  }, [selectedSalesOrderData, watchedSalesOrderId, isEdit, setValue]);
+
+    // Auto-populate receiver info from sales order customer
+    if (salesOrder?.customer_name && !getValues("receiver_name")) {
+      setValue("receiver_name", salesOrder.customer_name);
+    }
+    if (salesOrder?.customer_phone && !getValues("receiver_phone")) {
+      setValue("receiver_phone", salesOrder.customer_phone);
+    }
+  }, [selectedSalesOrderData, watchedSalesOrderId, isEdit, setValue, getValues]);
 
   // Derive selectedSalesOrderId from watched value
   // const selectedSalesOrderId = useMemo(() => {
@@ -363,22 +378,51 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
 
       // Prepare payload - strip warehouse_id from items as backend doesn't expect it there
       // and ensure header warehouse_id is set
-      const itemsPayload = filteredItems.map(({ warehouse_id, ...rest }) => rest);
-      
-      const payload: any = {
-          ...data,
-          warehouse_id: warehouseId,
-          items: itemsPayload,
-      };
+      const itemsPayload = filteredItems.map((item) => ({
+        product_id: item.product_id,
+        sales_order_item_id: item.sales_order_item_id || undefined,
+        inventory_batch_id: item.inventory_batch_id || undefined,
+        quantity: item.quantity,
+        price: item.price || 0,
+        installation_status: item.installation_status || undefined,
+        function_test_status: item.function_test_status || undefined,
+      }));
 
       if (isEdit && delivery) {
+        const updatePayload: UpdateDeliveryOrderData = {
+          delivery_date: (data as UpdateDeliveryOrderFormData).delivery_date,
+          warehouse_id: warehouseId,
+          delivered_by_id: (data as UpdateDeliveryOrderFormData).delivered_by_id,
+          courier_agency_id: (data as UpdateDeliveryOrderFormData).courier_agency_id,
+          tracking_number: (data as UpdateDeliveryOrderFormData).tracking_number,
+          receiver_name: (data as UpdateDeliveryOrderFormData).receiver_name,
+          receiver_phone: (data as UpdateDeliveryOrderFormData).receiver_phone,
+          delivery_address: (data as UpdateDeliveryOrderFormData).delivery_address,
+          notes: (data as UpdateDeliveryOrderFormData).notes,
+          items: itemsPayload,
+        };
+
         await updateDelivery.mutateAsync({
           id: delivery.id,
-          data: payload,
+          data: updatePayload,
         });
         toast.success(t("updated"));
       } else {
-        await createDelivery.mutateAsync(payload as any as CreateDeliveryOrderData);
+        const createPayload: CreateDeliveryOrderData = {
+          delivery_date: (data as CreateDeliveryOrderFormData).delivery_date!,
+          warehouse_id: warehouseId,
+          sales_order_id: (data as CreateDeliveryOrderFormData).sales_order_id ?? "",
+          delivered_by_id: (data as CreateDeliveryOrderFormData).delivered_by_id,
+          courier_agency_id: (data as CreateDeliveryOrderFormData).courier_agency_id,
+          tracking_number: (data as CreateDeliveryOrderFormData).tracking_number,
+          receiver_name: (data as CreateDeliveryOrderFormData).receiver_name,
+          receiver_phone: (data as CreateDeliveryOrderFormData).receiver_phone,
+          delivery_address: (data as CreateDeliveryOrderFormData).delivery_address,
+          notes: (data as CreateDeliveryOrderFormData).notes,
+          items: itemsPayload,
+        };
+
+        await createDelivery.mutateAsync(createPayload);
         toast.success(t("created"));
       }
       onClose();
@@ -460,17 +504,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               </TabsTrigger>
             </TabsList>
 
-            <FormProvider {...{ 
-                register, 
-                handleSubmit, 
-                setValue, 
-                control, 
-                reset, 
-                trigger, 
-                getValues, 
-                formState: { errors },
-                watch: useWatch as any // casting to satisfy type if needed, though FormProvider expects UseFormReturn
-            } as any}>
+            <FormProvider {...form}>
             <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
               <TabsContent value="basic" className="space-y-4 mt-0">
                 {/* Basic Information */}
@@ -676,9 +710,8 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                       // Get product name from helper field or lookup
                       // We can just use a lookup since we have access to SO data if needed, 
                       // but simpler to assume it's pre-populated since we don't have a products list here
-                      const items = getValues("items");
+                      const items = getValues("items") as Array<DeliveryOrderItemFormData & { product_name?: string }>;
                       const currentItem = items && items[index];
-                      // @ts-ignore
                       const productName = currentItem?.product_name || `Product ID: ${currentItem?.product_id}`;
 
                       return (
@@ -830,19 +863,23 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
 }
 
 // Separate component to handle batch queries per row to avoid granular re-renders of the main form
-function BatchSelectionField({ control, index, error, t }: any) {
+function BatchSelectionField({ control, index, error, t }: {
+  control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+  index: number;
+  error?: string | null;
+  t: (key: string) => string;
+}) {
   const warehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
   const productId = useWatch({ control, name: `items.${index}.product_id` });
   const { setValue } = useFormContext(); // Need to access setValue
 
-  const { data: batchesData, isLoading } = useProductBatches(warehouseId, productId as string, {
+  const { data: batchesData, isLoading } = useProductBatches(warehouseId ?? "", (productId as string) ?? "", {
     enabled: !!warehouseId && !!productId
   });
 
   const batches = useMemo(() => {
     // Access nested data: ApiResponse -> data -> data (InventoryBatchItem[])
-    // @ts-ignore - The types are a bit nested here
-    return batchesData?.data?.data ?? [];
+    return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
   }, [batchesData]);
 
   return (
@@ -854,10 +891,10 @@ function BatchSelectionField({ control, index, error, t }: any) {
         render={({ field }) => (
           <Select 
             value={field.value || undefined} 
-            onValueChange={(val) => {
+              onValueChange={(val) => {
               field.onChange(val);
               // Find selected batch and set max_quantity
-              const batch = batches.find((b: any) => b.id === val);
+              const batch = batches.find((b) => b.id === val);
               if (batch) {
                 setValue(`items.${index}.max_quantity`, batch.available, { shouldValidate: true });
               }
@@ -868,7 +905,7 @@ function BatchSelectionField({ control, index, error, t }: any) {
               <SelectValue placeholder={isLoading ? t("common.loading") : t("item.selectBatch")} />
             </SelectTrigger>
             <SelectContent>
-               {batches.filter((b: any) => b.available > 0).map((batch: any) => (
+               {batches.filter((b) => b.available > 0).map((batch) => (
                 <SelectItem key={batch.id} value={batch.id}>
                   {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : '-'})
                 </SelectItem>

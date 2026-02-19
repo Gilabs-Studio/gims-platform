@@ -9,6 +9,10 @@ type CreateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id" binding:"required"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerName      string   `json:"customer_name"`
+	CustomerContact   string   `json:"customer_contact"`
+	CustomerPhone     string   `json:"customer_phone"`
+	CustomerEmail     string   `json:"customer_email"`
 	TaxRate           float64  `json:"tax_rate" binding:"gte=0,lte=100"`
 	DeliveryCost      float64  `json:"delivery_cost" binding:"gte=0"`
 	OtherCost         float64  `json:"other_cost" binding:"gte=0"`
@@ -33,6 +37,10 @@ type UpdateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerName      *string  `json:"customer_name"`
+	CustomerContact   *string  `json:"customer_contact"`
+	CustomerPhone     *string  `json:"customer_phone"`
+	CustomerEmail     *string  `json:"customer_email"`
 	TaxRate           *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
 	DeliveryCost      *float64 `json:"delivery_cost" binding:"omitempty,gte=0"`
 	OtherCost         *float64 `json:"other_cost" binding:"omitempty,gte=0"`
@@ -72,6 +80,10 @@ type UpdateSalesOrderStatusRequest struct {
 type ConvertFromQuotationRequest struct {
 	QuotationID       string  `json:"quotation_id" binding:"required,uuid"`
 	DeliveryAreaID    *string `json:"delivery_area_id"`
+	CustomerName      string  `json:"customer_name"`
+	CustomerContact   string  `json:"customer_contact"`
+	CustomerPhone     string  `json:"customer_phone"`
+	CustomerEmail     string  `json:"customer_email"`
 	Notes             string  `json:"notes"`
 }
 
@@ -92,6 +104,10 @@ type SalesOrderResponse struct {
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
 	DeliveryAreaID      *string                       `json:"delivery_area_id"`
 	DeliveryArea        *AreaResponse                 `json:"delivery_area,omitempty"`
+	CustomerName        string                        `json:"customer_name"`
+	CustomerContact     string                        `json:"customer_contact"`
+	CustomerPhone       string                        `json:"customer_phone"`
+	CustomerEmail       string                        `json:"customer_email"`
 	Subtotal            float64                       `json:"subtotal"`
 	DiscountAmount      float64                       `json:"discount_amount"`
 	TaxRate             float64                       `json:"tax_rate"`

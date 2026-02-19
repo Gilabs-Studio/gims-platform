@@ -310,19 +310,17 @@ func (r *salesOrderRepository) UpdateStatus(ctx context.Context, id string, stat
 		Updates(updates).Error
 }
 
-// ReserveStock reserves stock for order items (placeholder - will be implemented with InventoryBatch)
+// ReserveStock marks a sales order as having reserved stock.
+// Product-level stock reservation is handled by InventoryUsecase.ReserveStock.
 func (r *salesOrderRepository) ReserveStock(ctx context.Context, orderID string) error {
-	// TODO: Implement stock reservation logic with InventoryBatch
-	// For now, just mark as reserved
 	return r.getDB(ctx).Model(&models.SalesOrder{}).
 		Where("id = ?", orderID).
 		Update("reserved_stock", true).Error
 }
 
-// ReleaseStock releases reserved stock for order items
+// ReleaseStock marks a sales order as no longer having reserved stock.
+// Product-level stock release is handled by InventoryUsecase.ReleaseStock.
 func (r *salesOrderRepository) ReleaseStock(ctx context.Context, orderID string) error {
-	// TODO: Implement stock release logic
-	// For now, just mark as not reserved
 	return r.getDB(ctx).Model(&models.SalesOrder{}).
 		Where("id = ?", orderID).
 		Update("reserved_stock", false).Error

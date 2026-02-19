@@ -2,15 +2,22 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"math"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
 )
 
+var (
+	ErrBatchNotFound          = errors.New("inventory batch not found")
+	ErrInsufficientBatchStock = errors.New("insufficient stock in selected batch")
+)
+
 type InventoryUsecase interface {
 	GetStockList(ctx context.Context, req *dto.GetInventoryListRequest) (*dto.GetInventoryListResponse, error)
-	
+
 	// Tree View
 	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
 	GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) (*dto.GetInventoryTreeProductsResponse, error)
@@ -22,6 +29,14 @@ type InventoryUsecase interface {
 	DeductStock(ctx context.Context, batchID string, quantity float64) error
 	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
 	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error
+
+	// Integration
+	ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error
+
+	// Batch-level Stock Reservation
+	ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error
+	ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error
+	ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error
 }
 
 type inventoryUsecase struct {
@@ -167,3 +182,94 @@ func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.Sto
 	return u.repo.CreateStockMovement(ctx, req)
 }
 
+func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error {
+	for _, item := range req.Items {
+		// 1. Calculate New Average Cost (Weighted Average)
+		currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
+		if err != nil {
+			return err
+		}
+
+		totalQty := currentStock + item.Quantity
+		totalValue := (currentStock * currentHpp) + (item.Quantity * item.CostPrice)
+		newHpp := 0.0
+		if totalQty > 0 {
+			newHpp = math.Round((totalValue/totalQty)*100) / 100
+		} else {
+			newHpp = item.CostPrice
+		}
+
+		// 2. Update Product Cost
+		if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, newHpp); err != nil {
+			return err
+		}
+
+		// 3. Create Batch
+		batchNumber := "GR-" + time.Now().Format("20060102-150405")
+		if item.BatchNumber != nil && *item.BatchNumber != "" {
+			batchNumber = *item.BatchNumber
+		}
+
+		// Map DTO to CreateBatchParams
+		batchParams := &dto.CreateBatchParams{
+			ProductID:       item.ProductID,
+			WarehouseID:     req.WarehouseID,
+			BatchNumber:     batchNumber,
+			ExpiryDate:      item.ExpiryDate,
+			InitialQuantity: item.Quantity,
+			CostPrice:       item.CostPrice,
+			ReceivedAt:      req.ReceivedAt,
+		}
+
+		batchID, err := u.repo.CreateBatch(ctx, batchParams)
+		if err != nil {
+			return err
+		}
+
+		// 4. Create Stock Movement (IN)
+		createdBy := req.ReceivedBy
+		movementReq := &dto.StockMovementRequest{
+			InventoryBatchID: batchID,
+			ProductID:        item.ProductID,
+			WarehouseID:      req.WarehouseID,
+			Type:             "IN",
+			Quantity:         item.Quantity,
+			ReferenceType:    req.SourceType,
+			ReferenceID:      req.SourceID,
+			ReferenceNumber:  req.SourceNumber,
+			Description:      req.Notes,
+			CreatedBy:        &createdBy,
+		}
+		if err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
+			return err
+		}
+
+		// 5. Update Product Stock (Aggregate)
+		if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.Quantity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u *inventoryUsecase) ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error {
+	batch, err := u.repo.GetBatchByID(ctx, batchID)
+	if err != nil {
+		return err
+	}
+	if batch == nil {
+		return ErrBatchNotFound
+	}
+	if batch.Available < requiredQty {
+		return ErrInsufficientBatchStock
+	}
+	return nil
+}
+
+func (u *inventoryUsecase) ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error {
+	return u.repo.UpdateBatchReservedQuantity(ctx, batchID, quantity)
+}
+
+func (u *inventoryUsecase) ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error {
+	return u.repo.UpdateBatchReservedQuantity(ctx, batchID, -quantity)
+}

@@ -58,15 +58,15 @@ func (uc *taxInvoiceUsecase) Create(ctx context.Context, req *dto.CreateTaxInvoi
 	}
 
 	item := &financeModels.TaxInvoice{
-		TaxInvoiceNumber: strings.TrimSpace(req.TaxInvoiceNumber),
-		TaxInvoiceDate:   d,
+		TaxInvoiceNumber:  strings.TrimSpace(req.TaxInvoiceNumber),
+		TaxInvoiceDate:    d,
 		CustomerInvoiceID: req.CustomerInvoiceID,
 		SupplierInvoiceID: req.SupplierInvoiceID,
-		DPPAmount:        req.DPPAmount,
-		VATAmount:        req.VATAmount,
-		TotalAmount:      req.TotalAmount,
-		Notes:            strings.TrimSpace(req.Notes),
-		CreatedBy:        &actorID,
+		DPPAmount:         req.DPPAmount,
+		VATAmount:         req.VATAmount,
+		TotalAmount:       req.TotalAmount,
+		Notes:             strings.TrimSpace(req.Notes),
+		CreatedBy:         &actorID,
 	}
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -87,9 +87,18 @@ func (uc *taxInvoiceUsecase) Create(ctx context.Context, req *dto.CreateTaxInvoi
 			return err
 		}
 		if req.CustomerInvoiceID != nil && strings.TrimSpace(*req.CustomerInvoiceID) != "" {
-			return tx.Model(&salesModels.CustomerInvoice{}).Where("id = ?", strings.TrimSpace(*req.CustomerInvoiceID)).Updates(map[string]interface{}{
+			if err := tx.Model(&salesModels.CustomerInvoice{}).Where("id = ?", strings.TrimSpace(*req.CustomerInvoiceID)).Updates(map[string]interface{}{
 				"tax_invoice_id": item.ID,
-			}).Error
+			}).Error; err != nil {
+				return err
+			}
+		}
+		if req.SupplierInvoiceID != nil && strings.TrimSpace(*req.SupplierInvoiceID) != "" {
+			if err := tx.Model(&purchaseModels.SupplierInvoice{}).Where("id = ?", strings.TrimSpace(*req.SupplierInvoiceID)).Updates(map[string]interface{}{
+				"tax_invoice_number": item.TaxInvoiceNumber,
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
