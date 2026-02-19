@@ -49,6 +49,8 @@ export interface CreateWorkScheduleRequest {
   readonly office_latitude?: number;
   readonly office_longitude?: number;
   readonly division_id?: string;
+  readonly is_default?: boolean;
+  readonly is_active?: boolean;
 }
 
 export type UpdateWorkScheduleRequest = Partial<CreateWorkScheduleRequest>;

@@ -13,7 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
+import {
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldDescription,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -58,7 +63,7 @@ export function WorkScheduleDialog({
     watch,
     reset,
     setValue,
-    formState: { errors },
+    formState: { errors, isValid, isDirty },
   } = useForm<WorkScheduleFormData>({
     resolver: zodResolver(workScheduleSchema),
     defaultValues: {
@@ -76,12 +81,13 @@ export function WorkScheduleDialog({
       working_hours_per_day: 8,
       late_tolerance_minutes: 15,
       early_leave_tolerance_minutes: 0,
-      require_gps: true,
-      gps_radius_meter: 200,
-      office_latitude: undefined,
-      office_longitude: undefined,
+      require_gps: false,
+      gps_radius_meter: 100,
+      office_latitude: -6.2088,
+      office_longitude: 106.8456,
       division_id: undefined,
     },
+    mode: "onChange",
   });
 
   const isFlexible = watch("is_flexible");
@@ -96,7 +102,8 @@ export function WorkScheduleDialog({
         start_time: editingItem.start_time.substring(0, 5),
         end_time: editingItem.end_time.substring(0, 5),
         is_flexible: editingItem.is_flexible,
-        flexible_start_time: editingItem.flexible_start_time?.substring(0, 5) || "",
+        flexible_start_time:
+          editingItem.flexible_start_time?.substring(0, 5) || "",
         flexible_end_time: editingItem.flexible_end_time?.substring(0, 5) || "",
         break_start_time: editingItem.break_start_time?.substring(0, 5) || "",
         break_end_time: editingItem.break_end_time?.substring(0, 5) || "",
@@ -104,7 +111,8 @@ export function WorkScheduleDialog({
         working_days: editingItem.working_days,
         working_hours_per_day: editingItem.working_hours_per_day,
         late_tolerance_minutes: editingItem.late_tolerance_minutes,
-        early_leave_tolerance_minutes: editingItem.early_leave_tolerance_minutes,
+        early_leave_tolerance_minutes:
+          editingItem.early_leave_tolerance_minutes,
         require_gps: editingItem.require_gps,
         gps_radius_meter: editingItem.gps_radius_meter || 200,
         office_latitude: editingItem.office_latitude,
@@ -127,10 +135,10 @@ export function WorkScheduleDialog({
         working_hours_per_day: 8,
         late_tolerance_minutes: 15,
         early_leave_tolerance_minutes: 0,
-        require_gps: true,
-        gps_radius_meter: 200,
-        office_latitude: undefined,
-        office_longitude: undefined,
+        require_gps: false,
+        gps_radius_meter: 100,
+        office_latitude: -6.2088,
+        office_longitude: 106.8456,
         division_id: undefined,
       });
     }
@@ -160,21 +168,13 @@ export function WorkScheduleDialog({
       const payload = {
         name: data.name,
         description: data.description,
-        start_time: data.start_time + ":00",
-        end_time: data.end_time + ":00",
+        start_time: data.start_time,
+        end_time: data.end_time,
         is_flexible: data.is_flexible,
-        flexible_start_time: data.flexible_start_time
-          ? data.flexible_start_time + ":00"
-          : undefined,
-        flexible_end_time: data.flexible_end_time
-          ? data.flexible_end_time + ":00"
-          : undefined,
-        break_start_time: data.break_start_time
-          ? data.break_start_time + ":00"
-          : undefined,
-        break_end_time: data.break_end_time
-          ? data.break_end_time + ":00"
-          : undefined,
+        flexible_start_time: data.flexible_start_time?.trim() || undefined,
+        flexible_end_time: data.flexible_end_time?.trim() || undefined,
+        break_start_time: data.break_start_time?.trim() || undefined,
+        break_end_time: data.break_end_time?.trim() || undefined,
         break_duration: data.break_duration,
         working_days: data.working_days,
         working_hours_per_day: data.working_hours_per_day,
@@ -185,6 +185,8 @@ export function WorkScheduleDialog({
         office_latitude: data.office_latitude,
         office_longitude: data.office_longitude,
         division_id: data.division_id,
+        is_default: false,
+        is_active: true,
       };
 
       if (isEditing && editingItem) {
@@ -198,12 +200,14 @@ export function WorkScheduleDialog({
         toast.success(t("messages.createSuccess"));
       }
       onOpenChange(false);
-    } catch {
+    } catch (error) {
       toast.error(tCommon("error"));
     }
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const handleFormSubmit = handleSubmit(onSubmit);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -215,12 +219,15 @@ export function WorkScheduleDialog({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleFormSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field className="sm:col-span-2">
               <FieldLabel>{t("fields.name")} *</FieldLabel>
-              <Input placeholder="e.g., Standard Office Hours" {...register("name")} />
+              <Input
+                placeholder="e.g., Standard Office Hours"
+                {...register("name")}
+              />
               {errors.name && <FieldError>{errors.name.message}</FieldError>}
             </Field>
 
@@ -231,7 +238,9 @@ export function WorkScheduleDialog({
                 className="resize-none"
                 {...register("description")}
               />
-              {errors.description && <FieldError>{errors.description.message}</FieldError>}
+              {errors.description && (
+                <FieldError>{errors.description.message}</FieldError>
+              )}
             </Field>
           </div>
 
@@ -248,13 +257,17 @@ export function WorkScheduleDialog({
               <Field>
                 <FieldLabel>{t("fields.startTime")} *</FieldLabel>
                 <Input type="time" {...register("start_time")} />
-                {errors.start_time && <FieldError>{errors.start_time.message}</FieldError>}
+                {errors.start_time && (
+                  <FieldError>{errors.start_time.message}</FieldError>
+                )}
               </Field>
 
               <Field>
                 <FieldLabel>{t("fields.endTime")} *</FieldLabel>
                 <Input type="time" {...register("end_time")} />
-                {errors.end_time && <FieldError>{errors.end_time.message}</FieldError>}
+                {errors.end_time && (
+                  <FieldError>{errors.end_time.message}</FieldError>
+                )}
               </Field>
             </div>
 
@@ -286,7 +299,9 @@ export function WorkScheduleDialog({
                   <FieldLabel>{t("fields.flexibleStartTime")}</FieldLabel>
                   <Input type="time" {...register("flexible_start_time")} />
                   {errors.flexible_start_time && (
-                    <FieldError>{errors.flexible_start_time.message}</FieldError>
+                    <FieldError>
+                      {errors.flexible_start_time.message}
+                    </FieldError>
                   )}
                 </Field>
 
@@ -343,7 +358,10 @@ export function WorkScheduleDialog({
                     onCheckedChange={() => toggleDay(index)}
                     className="cursor-pointer"
                   />
-                  <Label htmlFor={`day-${index}`} className="cursor-pointer text-sm">
+                  <Label
+                    htmlFor={`day-${index}`}
+                    className="cursor-pointer text-sm"
+                  >
                     {t(`days.${day.label}`)}
                   </Label>
                 </div>
@@ -357,7 +375,9 @@ export function WorkScheduleDialog({
                   type="number"
                   min={1}
                   max={24}
-                  {...register("working_hours_per_day", { valueAsNumber: true })}
+                  {...register("working_hours_per_day", {
+                    valueAsNumber: true,
+                  })}
                 />
               </Field>
             </div>
@@ -374,7 +394,9 @@ export function WorkScheduleDialog({
                 <Input
                   type="number"
                   min={0}
-                  {...register("late_tolerance_minutes", { valueAsNumber: true })}
+                  {...register("late_tolerance_minutes", {
+                    valueAsNumber: true,
+                  })}
                 />
                 <FieldDescription>minutes</FieldDescription>
               </Field>
@@ -384,7 +406,9 @@ export function WorkScheduleDialog({
                 <Input
                   type="number"
                   min={0}
-                  {...register("early_leave_tolerance_minutes", { valueAsNumber: true })}
+                  {...register("early_leave_tolerance_minutes", {
+                    valueAsNumber: true,
+                  })}
                 />
                 <FieldDescription>minutes</FieldDescription>
               </Field>
@@ -397,15 +421,15 @@ export function WorkScheduleDialog({
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-medium">{t("sections.gpsSettings")}</h3>
+              <h3 className="text-sm font-medium">
+                {t("sections.gpsSettings")}
+              </h3>
             </div>
 
             <Field orientation="horizontal">
               <div className="space-y-0.5">
                 <FieldLabel>{t("fields.requireGPS")}</FieldLabel>
-                <FieldDescription>
-                  {t("descriptions.gps")}
-                </FieldDescription>
+                <FieldDescription>{t("descriptions.gps")}</FieldDescription>
               </div>
               <Controller
                 control={control}
@@ -464,7 +488,11 @@ export function WorkScheduleDialog({
             >
               {tCommon("cancel")}
             </Button>
-            <Button type="submit" disabled={isPending} className="cursor-pointer">
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="cursor-pointer"
+            >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? tCommon("save") : tCommon("create")}
             </Button>

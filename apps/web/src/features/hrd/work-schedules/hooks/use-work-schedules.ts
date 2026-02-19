@@ -2,9 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { workScheduleService } from "../services/work-schedule-service";
-import type { 
-  CreateWorkScheduleRequest, 
-  UpdateWorkScheduleRequest 
+import type {
+  CreateWorkScheduleRequest,
+  UpdateWorkScheduleRequest,
 } from "../types";
 
 const QUERY_KEYS = {
@@ -60,12 +60,17 @@ export function useUpdateWorkSchedule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateWorkScheduleRequest }) =>
-      workScheduleService.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateWorkScheduleRequest;
+    }) => workScheduleService.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
-      queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.workSchedule(variables.id) 
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.workSchedule(variables.id),
       });
     },
   });
