@@ -329,8 +329,26 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 			ar.OvertimeMinutes = int(now.Sub(scheduleEndToday).Minutes()) - 30
 		}
 
+		// Calculate total break duration from all breaks
+		totalBreakMinutes := 0
+		for _, breakTime := range ws.Breaks {
+			// Parse break start and end times
+			breakStartHour := int(breakTime.StartTime[0]-'0')*10 + int(breakTime.StartTime[1]-'0')
+			breakStartMin := int(breakTime.StartTime[3]-'0')*10 + int(breakTime.StartTime[4]-'0')
+			breakEndHour := int(breakTime.EndTime[0]-'0')*10 + int(breakTime.EndTime[1]-'0')
+			breakEndMin := int(breakTime.EndTime[3]-'0')*10 + int(breakTime.EndTime[4]-'0')
+
+			breakStartMinutes := breakStartHour*60 + breakStartMin
+			breakEndMinutes := breakEndHour*60 + breakEndMin
+
+			breakDuration := breakEndMinutes - breakStartMinutes
+			if breakDuration > 0 {
+				totalBreakMinutes += breakDuration
+			}
+		}
+
 		// Subtract break duration from working minutes
-		ar.BreakMinutes = ws.BreakDuration
+		ar.BreakMinutes = totalBreakMinutes
 		ar.WorkingMinutes -= ar.BreakMinutes
 		if ar.WorkingMinutes < 0 {
 			ar.WorkingMinutes = 0

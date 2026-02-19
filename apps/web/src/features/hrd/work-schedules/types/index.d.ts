@@ -1,5 +1,10 @@
 // Work Schedule Types - Sprint 13 HRD Attendance Module
 
+export interface BreakTime {
+  readonly start_time: string;
+  readonly end_time: string;
+}
+
 export interface WorkSchedule {
   readonly id: string;
   readonly name: string;
@@ -11,9 +16,7 @@ export interface WorkSchedule {
   readonly is_flexible: boolean;
   readonly flexible_start_time?: string;
   readonly flexible_end_time?: string;
-  readonly break_start_time?: string;
-  readonly break_end_time?: string;
-  readonly break_duration: number;
+  readonly breaks: BreakTime[];
   readonly working_days: number;
   readonly working_days_display: string[];
   readonly working_hours_per_day: number;
@@ -23,7 +26,7 @@ export interface WorkSchedule {
   readonly gps_radius_meter: number;
   readonly office_latitude?: number;
   readonly office_longitude?: number;
-  readonly division_id?: string;
+  readonly division_id?: string | null;
   readonly division_name?: string;
   readonly created_at: string;
   readonly updated_at: string;
@@ -37,9 +40,7 @@ export interface CreateWorkScheduleRequest {
   readonly is_flexible?: boolean;
   readonly flexible_start_time?: string;
   readonly flexible_end_time?: string;
-  readonly break_start_time?: string;
-  readonly break_end_time?: string;
-  readonly break_duration?: number;
+  readonly breaks: BreakTime[];
   readonly working_days?: number;
   readonly working_hours_per_day?: number;
   readonly late_tolerance_minutes?: number;
@@ -48,7 +49,7 @@ export interface CreateWorkScheduleRequest {
   readonly gps_radius_meter?: number;
   readonly office_latitude?: number;
   readonly office_longitude?: number;
-  readonly division_id?: string;
+  readonly division_id?: string | null;
   readonly is_default?: boolean;
   readonly is_active?: boolean;
 }

@@ -11,6 +11,7 @@ import {
   Star,
   Clock,
   MapPin,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
 } from "../hooks/use-work-schedules";
 import type { WorkSchedule } from "../types";
 import { WorkScheduleDialog } from "./work-schedule-dialog";
+import { WorkScheduleDetailDialog } from "./work-schedule-detail-dialog";
 import {
   Select,
   SelectContent,
@@ -62,6 +64,8 @@ export function WorkScheduleList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WorkSchedule | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<WorkSchedule | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useWorkSchedules({
     page,
@@ -84,6 +88,11 @@ export function WorkScheduleList() {
   const handleEdit = (item: WorkSchedule) => {
     setEditingItem(item);
     setDialogOpen(true);
+  };
+
+  const handleViewDetail = (item: WorkSchedule) => {
+    setDetailItem(item);
+    setDetailOpen(true);
   };
 
   const handleDelete = async () => {
@@ -248,7 +257,12 @@ export function WorkScheduleList() {
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{item.name}</span>
+                      <span
+                        className="font-medium cursor-pointer hover:text-primary hover:underline"
+                        onClick={() => handleViewDetail(item)}
+                      >
+                        {item.name}
+                      </span>
                       {item.is_default && (
                         <Badge variant="outline" className="gap-1">
                           <Star className="h-3 w-3 fill-primary text-primary" />
@@ -278,7 +292,11 @@ export function WorkScheduleList() {
                     {item.working_days_display?.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">
                         {item.working_days_display.map((day) => (
-                          <Badge key={day} variant="outline" className="text-xs">
+                          <Badge
+                            key={day}
+                            variant="outline"
+                            className="text-xs"
+                          >
                             {day}
                           </Badge>
                         ))}
@@ -291,16 +309,16 @@ export function WorkScheduleList() {
                     {item.require_gps ? (
                       <div className="flex items-center gap-1 text-primary">
                         <MapPin className="h-4 w-4" />
-                        <span className="text-xs">{item.gps_radius_meter}m</span>
+                        <span className="text-xs">
+                          {item.gps_radius_meter}m
+                        </span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={item.is_active ? "default" : "secondary"}
-                    >
+                    <Badge variant={item.is_active ? "default" : "secondary"}>
                       {item.is_active ? tCommon("active") : tCommon("inactive")}
                     </Badge>
                   </TableCell>
@@ -316,6 +334,13 @@ export function WorkScheduleList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleViewDetail(item)}
+                          className="cursor-pointer"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {tCommon("view")}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleEdit(item)}
                           className="cursor-pointer"
@@ -379,6 +404,12 @@ export function WorkScheduleList() {
         onConfirm={handleDelete}
         itemName="work schedule"
         isLoading={deleteMutation.isPending}
+      />
+
+      <WorkScheduleDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        item={detailItem}
       />
     </div>
   );

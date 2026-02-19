@@ -16,29 +16,54 @@ func NewWorkScheduleMapper() *WorkScheduleMapper {
 // ToModel converts CreateWorkScheduleRequest to WorkSchedule model
 func (m *WorkScheduleMapper) ToModel(req *dto.CreateWorkScheduleRequest) *models.WorkSchedule {
 	ws := &models.WorkSchedule{
-		Name:                      req.Name,
-		Description:               req.Description,
-		DivisionID:                req.DivisionID,
-		IsDefault:                 req.IsDefault,
-		IsActive:                  req.IsActive,
-		StartTime:                 req.StartTime,
-		EndTime:                   req.EndTime,
-		IsFlexible:                req.IsFlexible,
-		FlexibleStartTime:         req.FlexibleStartTime,
-		FlexibleEndTime:           req.FlexibleEndTime,
-		BreakStartTime:            req.BreakStartTime,
-		BreakEndTime:              req.BreakEndTime,
-		BreakDuration:             req.BreakDuration,
-		WorkingDays:               req.WorkingDays,
-		WorkingHoursPerDay:        req.WorkingHoursPerDay,
-		LateToleranceMinutes:      req.LateToleranceMinutes,
+		Name:                       req.Name,
+		Description:                req.Description,
+		DivisionID:                 req.DivisionID,
+		IsDefault:                  req.IsDefault,
+		IsActive:                   req.IsActive,
+		StartTime:                  req.StartTime,
+		EndTime:                    req.EndTime,
+		IsFlexible:                 req.IsFlexible,
+		FlexibleStartTime:          req.FlexibleStartTime,
+		FlexibleEndTime:            req.FlexibleEndTime,
+		Breaks:                     m.mapBreaksDTOToModel(req.Breaks),
+		WorkingDays:                req.WorkingDays,
+		LateToleranceMinutes:       req.LateToleranceMinutes,
 		EarlyLeaveToleranceMinutes: req.EarlyLeaveToleranceMinutes,
-		RequireGPS:                req.RequireGPS,
-		GPSRadiusMeter:            req.GPSRadiusMeter,
-		OfficeLatitude:            req.OfficeLatitude,
-		OfficeLongitude:           req.OfficeLongitude,
+		RequireGPS:                 req.RequireGPS,
+		GPSRadiusMeter:             req.GPSRadiusMeter,
+		OfficeLatitude:             req.OfficeLatitude,
+		OfficeLongitude:            req.OfficeLongitude,
 	}
+
+	// Calculate working hours from start and end time
+	ws.WorkingHoursPerDay = ws.CalculateWorkingHours()
+
 	return ws
+}
+
+// mapBreaksDTOToModel converts DTO breaks to model breaks
+func (m *WorkScheduleMapper) mapBreaksDTOToModel(breaks []dto.BreakTime) []models.BreakTime {
+	result := make([]models.BreakTime, len(breaks))
+	for i, b := range breaks {
+		result[i] = models.BreakTime{
+			StartTime: b.StartTime,
+			EndTime:   b.EndTime,
+		}
+	}
+	return result
+}
+
+// mapBreaksModelToDTO converts model breaks to DTO breaks
+func (m *WorkScheduleMapper) mapBreaksModelToDTO(breaks []models.BreakTime) []dto.BreakTime {
+	result := make([]dto.BreakTime, len(breaks))
+	for i, b := range breaks {
+		result[i] = dto.BreakTime{
+			StartTime: b.StartTime,
+			EndTime:   b.EndTime,
+		}
+	}
+	return result
 }
 
 // ApplyUpdate applies UpdateWorkScheduleRequest to existing model
@@ -73,20 +98,11 @@ func (m *WorkScheduleMapper) ApplyUpdate(ws *models.WorkSchedule, req *dto.Updat
 	if req.FlexibleEndTime != nil {
 		ws.FlexibleEndTime = *req.FlexibleEndTime
 	}
-	if req.BreakStartTime != nil {
-		ws.BreakStartTime = *req.BreakStartTime
-	}
-	if req.BreakEndTime != nil {
-		ws.BreakEndTime = *req.BreakEndTime
-	}
-	if req.BreakDuration != nil {
-		ws.BreakDuration = *req.BreakDuration
+	if req.Breaks != nil {
+		ws.Breaks = m.mapBreaksDTOToModel(*req.Breaks)
 	}
 	if req.WorkingDays != nil {
 		ws.WorkingDays = *req.WorkingDays
-	}
-	if req.WorkingHoursPerDay != nil {
-		ws.WorkingHoursPerDay = *req.WorkingHoursPerDay
 	}
 	if req.LateToleranceMinutes != nil {
 		ws.LateToleranceMinutes = *req.LateToleranceMinutes
@@ -106,36 +122,39 @@ func (m *WorkScheduleMapper) ApplyUpdate(ws *models.WorkSchedule, req *dto.Updat
 	if req.OfficeLongitude != nil {
 		ws.OfficeLongitude = *req.OfficeLongitude
 	}
+
+	// Recalculate working hours if start or end time changed
+	if req.StartTime != nil || req.EndTime != nil {
+		ws.WorkingHoursPerDay = ws.CalculateWorkingHours()
+	}
 }
 
 // ToResponse converts WorkSchedule model to response DTO
 func (m *WorkScheduleMapper) ToResponse(ws *models.WorkSchedule) *dto.WorkScheduleResponse {
 	resp := &dto.WorkScheduleResponse{
-		ID:                        ws.ID,
-		Name:                      ws.Name,
-		Description:               ws.Description,
-		DivisionID:                ws.DivisionID,
-		IsDefault:                 ws.IsDefault,
-		IsActive:                  ws.IsActive,
-		StartTime:                 ws.StartTime,
-		EndTime:                   ws.EndTime,
-		IsFlexible:                ws.IsFlexible,
-		FlexibleStartTime:         ws.FlexibleStartTime,
-		FlexibleEndTime:           ws.FlexibleEndTime,
-		BreakStartTime:            ws.BreakStartTime,
-		BreakEndTime:              ws.BreakEndTime,
-		BreakDuration:             ws.BreakDuration,
-		WorkingDays:               ws.WorkingDays,
-		WorkingDaysDisplay:        m.bitmaskToWorkingDays(ws.WorkingDays),
-		WorkingHoursPerDay:        ws.WorkingHoursPerDay,
-		LateToleranceMinutes:      ws.LateToleranceMinutes,
+		ID:                         ws.ID,
+		Name:                       ws.Name,
+		Description:                ws.Description,
+		DivisionID:                 ws.DivisionID,
+		IsDefault:                  ws.IsDefault,
+		IsActive:                   ws.IsActive,
+		StartTime:                  ws.StartTime,
+		EndTime:                    ws.EndTime,
+		IsFlexible:                 ws.IsFlexible,
+		FlexibleStartTime:          ws.FlexibleStartTime,
+		FlexibleEndTime:            ws.FlexibleEndTime,
+		Breaks:                     m.mapBreaksModelToDTO(ws.Breaks),
+		WorkingDays:                ws.WorkingDays,
+		WorkingDaysDisplay:         m.bitmaskToWorkingDays(ws.WorkingDays),
+		WorkingHoursPerDay:         ws.WorkingHoursPerDay,
+		LateToleranceMinutes:       ws.LateToleranceMinutes,
 		EarlyLeaveToleranceMinutes: ws.EarlyLeaveToleranceMinutes,
-		RequireGPS:                ws.RequireGPS,
-		GPSRadiusMeter:            ws.GPSRadiusMeter,
-		OfficeLatitude:            ws.OfficeLatitude,
-		OfficeLongitude:           ws.OfficeLongitude,
-		CreatedAt:                 ws.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:                 ws.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		RequireGPS:                 ws.RequireGPS,
+		GPSRadiusMeter:             ws.GPSRadiusMeter,
+		OfficeLatitude:             ws.OfficeLatitude,
+		OfficeLongitude:            ws.OfficeLongitude,
+		CreatedAt:                  ws.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:                  ws.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	return resp
 }
