@@ -228,9 +228,9 @@ Redesign halaman Area agar menampilkan informasi supervisor dan member secara je
 
 ### Deliverables
 
-- [ ] **Frontend:** Redesign Area list dengan supervisor & member visibility
-- [ ] **Frontend:** Area detail page/modal dengan tabs (Info, Supervisors, Members)
-- [ ] **Frontend:** Quick-assign supervisor & member dari halaman Area
+- [x] **Frontend:** Redesign Area list dengan supervisor & member visibility
+- [x] **Frontend:** Area detail page/modal dengan tabs (Info, Supervisors, Members)
+- [x] **Frontend:** Quick-assign supervisor & member dari halaman Area
 
 ### UI Wireframe — Area List (Redesigned)
 
@@ -329,36 +329,36 @@ Redesign halaman Area agar menampilkan informasi supervisor dan member secara je
 
 ### Frontend Tasks
 
-- [ ] **Redesign** `area-list.tsx` — add Supervisors & Members columns with warning indicators
-- [ ] **Create** `area-detail-modal.tsx` — tabbed view (Info, Supervisors, Members)
-- [ ] **Create** `assign-supervisor-dialog.tsx` — employee multi-select for supervisor assignment
-- [ ] **Create** `assign-members-dialog.tsx` — employee multi-select for member assignment
-- [ ] **Add** filters: "No Supervisor", "No Members", "Has Supervisor", "Has Members"
-- [ ] **Update** `area-form.tsx` — keep simple (name, description, is_active)
-- [ ] **Update** i18n — add area supervisor/member related translations (en + id)
-- [ ] **Update** area hooks — add `useAssignSupervisor`, `useAssignMembers`, `useRemoveAssignment` mutations
+- [x] **Redesign** `area-list.tsx` — add Supervisors & Members columns with warning indicators
+- [x] **Create** `area-detail-modal.tsx` — tabbed view (Info, Supervisors, Members)
+- [x] **Create** `assign-employee-dialog.tsx` — unified employee multi-select for supervisor/member assignment
+- [x] **Create** `assign-employee-dialog.tsx` — (merged supervisor + member into single reusable component with `role` prop)
+- [x] **Add** filters: "No Supervisor", "No Members", "Has Supervisor", "Has Members"
+- [x] **Update** `area-form.tsx` — keep simple (name, description, is_active)
+- [x] **Update** i18n — add area supervisor/member related translations (en + id)
+- [x] **Update** area hooks — add `useAssignSupervisors`, `useAssignMembers`, `useRemoveAreaEmployee`, `useAreaDetail` hooks
 
 ### API Tasks
 
-- [ ] `GET /areas` — return `supervisor_count`, `member_count` per area
-- [ ] `GET /areas/:id` — return full supervisors[] and members[] with employee details
-- [ ] `POST /areas/:id/supervisors` — assign employee(s) as supervisor (body: `{ employee_ids: [...] }`)
-- [ ] `DELETE /areas/:id/supervisors/:employee_id` — remove supervisor assignment
-- [ ] `POST /areas/:id/members` — assign employee(s) as member (body: `{ employee_ids: [...] }`)
-- [ ] `DELETE /areas/:id/members/:employee_id` — remove member assignment
+- [x] `GET /areas` — return `supervisor_count`, `member_count` per area (+ `has_supervisor`/`has_members` filter support)
+- [x] `GET /areas/:id/detail` — return full supervisors[] and members[] with employee details
+- [x] `POST /areas/:id/supervisors` — assign employee(s) as supervisor (body: `{ employee_ids: [...] }`)
+- [x] `DELETE /areas/:id/employees/:emp_id` — remove employee assignment (unified route)
+- [x] `POST /areas/:id/members` — assign employee(s) as member (body: `{ employee_ids: [...] }`)
+- [x] `DELETE /areas/:id/employees/:emp_id` — (same unified route for both supervisor/member removal)
 
 ### Success Criteria
 
-- [ ] Area list menampilkan jumlah supervisor dan member per area
-- [ ] Warning icon muncul saat area belum punya supervisor atau member
-- [ ] Supervisor dan member bisa di-assign/remove dari halaman Area detail
-- [ ] Filter berdasarkan status supervisor/member berfungsi
-- [ ] Responsive design untuk mobile
+- [x] Area list menampilkan jumlah supervisor dan member per area
+- [x] Warning icon muncul saat area belum punya supervisor atau member
+- [x] Supervisor dan member bisa di-assign/remove dari halaman Area detail
+- [x] Filter berdasarkan status supervisor/member berfungsi
+- [x] Responsive design untuk mobile
 
 ### Integration Requirements
 
-- [ ] Permission: `area.assign_supervisor`, `area.assign_member` (baru)
-- [ ] i18n: translations untuk semua label baru (en + id)
+- [x] Permission: `area.assign_supervisor`, `area.assign_member` (baru)
+- [x] i18n: translations untuk semua label baru (en + id)
 
 ---
 

@@ -53,9 +53,11 @@ export interface EmployeeInAreaResponse {
   id: string;
   employee_code: string;
   name: string;
+  email?: string;
+  division_id?: string;
+  division_name?: string;
+  job_position?: string;
   is_supervisor: boolean;
-  division?: { id: string; name: string };
-  job_position?: { id: string; name: string };
 }
 
 /** Full area detail with supervisor and member lists */
@@ -245,6 +247,11 @@ export interface ListOrganizationParams {
 export interface ListCompaniesParams extends ListOrganizationParams {
   status?: CompanyStatus;
   village_id?: string;
+}
+
+export interface ListAreasParams extends ListOrganizationParams {
+  has_supervisor?: boolean;
+  has_members?: boolean;
 }
 
 export interface PaginationMeta {
