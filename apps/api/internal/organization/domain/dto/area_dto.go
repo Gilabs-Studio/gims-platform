@@ -54,14 +54,15 @@ type EmployeeInAreaResponse struct {
 
 // AreaResponse represents area response for list endpoints (includes counts)
 type AreaResponse struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Description     string `json:"description"`
-	IsActive        bool   `json:"is_active"`
-	SupervisorCount int    `json:"supervisor_count"`
-	MemberCount     int    `json:"member_count"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	IsActive        bool     `json:"is_active"`
+	SupervisorCount int      `json:"supervisor_count"`
+	SupervisorNames []string `json:"supervisor_names"`
+	MemberCount     int      `json:"member_count"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
 }
 
 // AreaDetailResponse represents a detailed area response, including full member/supervisor lists

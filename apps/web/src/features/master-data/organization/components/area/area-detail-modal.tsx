@@ -22,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +30,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Separator } from "@/components/ui/separator";
 
 import { useAreaDetail, useRemoveAreaEmployee } from "../../hooks/use-areas";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import type { EmployeeInAreaResponse } from "../../types";
 
 interface AreaDetailModalProps {
@@ -51,6 +51,9 @@ export function AreaDetailModal({
   onAssignMembers,
 }: AreaDetailModalProps) {
   const t = useTranslations("organization.area");
+  const canCreate = useUserPermission("area.create");
+  const canAssignSupervisor = useUserPermission("area.assign_supervisor");
+  const canAssignMember = useUserPermission("area.assign_member");
   const { data, isLoading } = useAreaDetail(areaId);
   const removeEmployee = useRemoveAreaEmployee();
 
@@ -78,108 +81,94 @@ export function AreaDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {areaName}
-              {area && (
-                <Badge variant={area.is_active ? "active" : "inactive"}>
-                  {area.is_active ? t("form.isActive") : t("form.isActive")}
-                </Badge>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent size="xl" className="max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {areaName}
+                {area && (
+                  <Badge variant={area.is_active ? "active" : "inactive"}>
+                    {area.is_active ? t("form.isActive") : t("form.isActive")}
+                  </Badge>
+                )}
+              </DialogTitle>
+            </DialogHeader>
 
-          {isLoading ? (
-            <DetailSkeleton />
-          ) : area ? (
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="info" className="gap-1.5">
-                  <Info className="size-3.5" />
-                  {t("detail.info")}
-                </TabsTrigger>
-                <TabsTrigger value="supervisors" className="gap-1.5">
-                  <Shield className="size-3.5" />
-                  {t("detail.supervisors")} ({area.supervisor_count})
-                </TabsTrigger>
-                <TabsTrigger value="members" className="gap-1.5">
-                  <Users className="size-3.5" />
-                  {t("detail.members")} ({area.member_count})
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="info" className="mt-4 space-y-4">
-                <InfoTab area={area} t={t} />
-              </TabsContent>
-
-              <TabsContent value="supervisors" className="mt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    {t("detail.supervisorCount", {
-                      count: area.supervisor_count,
-                    })}
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={onAssignSupervisor}
-                    className="cursor-pointer"
-                  >
-                    <UserPlus className="size-4 mr-1.5" />
-                    {t("assign.supervisor")}
-                  </Button>
+            {/* Body scrolls separately so header stays fixed */}
+            <ScrollArea className="mt-4 max-h-[calc(90vh-6rem)] pr-2">
+              {isLoading ? (
+                <div className="p-4">
+                  <DetailSkeleton />
+                </div>
+              ) : area ? (
+                <div>
+                {/* Left: Info (main flexible column) */}
+                <div className="space-y-4 min-w-0">
+                  <InfoTab area={area} t={t} />
                 </div>
 
-                {area.supervisors.length === 0 ? (
-                  <EmptyState
-                    icon={<AlertTriangle className="size-10 text-amber-500" />}
-                    message={t("detail.noSupervisorWarning")}
-                  />
-                ) : (
-                  <EmployeeList
-                    employees={area.supervisors}
-                    isSupervisor
-                    t={t}
-                    onRemove={(emp) =>
-                      setRemoveTarget({ employee: emp, isSupervisor: true })
-                    }
-                  />
-                )}
-              </TabsContent>
+                {/* Right: Supervisors + Members (fixed width) */}
+                <div className="pt-6 space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Shield className="size-5" />
+                        <div>
+                          <p className="text-sm font-medium">{t("detail.supervisors")}</p>
+                          <p className="text-xs text-muted-foreground">{t("detail.supervisorCount", { count: area.supervisor_count })}</p>
+                        </div>
+                      </div>
+                      {canCreate && canAssignSupervisor ? (
+                        <Button
+                          size="sm"
+                          onClick={onAssignSupervisor}
+                          className="cursor-pointer h-8 w-8 p-0"
+                          aria-label={t("assign.supervisor")}
+                          title={t("assign.supervisor")}
+                        >
+                          <UserPlus className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
 
-              <TabsContent value="members" className="mt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    {t("detail.memberCount", { count: area.member_count })}
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={onAssignMembers}
-                    className="cursor-pointer"
-                  >
-                    <UserPlus className="size-4 mr-1.5" />
-                    {t("assign.members")}
-                  </Button>
+                    {area.supervisors.length === 0 ? (
+                      <EmptyState icon={<AlertTriangle className="size-10 text-amber-500" />} message={t("detail.noSupervisorWarning")} />
+                    ) : (
+                      <EmployeeList employees={area.supervisors} isSupervisor t={t} onRemove={(emp) => setRemoveTarget({ employee: emp, isSupervisor: true })} />
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="size-5" />
+                        <div>
+                          <p className="text-sm font-medium">{t("detail.members")}</p>
+                          <p className="text-xs text-muted-foreground">{t("detail.memberCount", { count: area.member_count })}</p>
+                        </div>
+                      </div>
+                      {canCreate && canAssignMember ? (
+                        <Button
+                          size="sm"
+                          onClick={onAssignMembers}
+                          className="cursor-pointer h-8 w-8 p-0"
+                          aria-label={t("assign.members")}
+                          title={t("assign.members")}
+                        >
+                          <UserPlus className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {area.members.length === 0 ? (
+                      <EmptyState icon={<AlertTriangle className="size-10 text-amber-500" />} message={t("detail.noMembersWarning")} />
+                    ) : (
+                      <EmployeeList employees={area.members} isSupervisor={false} t={t} onRemove={(emp) => setRemoveTarget({ employee: emp, isSupervisor: false })} />
+                    )}
+                  </div>
                 </div>
-
-                {area.members.length === 0 ? (
-                  <EmptyState
-                    icon={<AlertTriangle className="size-10 text-amber-500" />}
-                    message={t("detail.noMembersWarning")}
-                  />
-                ) : (
-                  <EmployeeList
-                    employees={area.members}
-                    isSupervisor={false}
-                    t={t}
-                    onRemove={(emp) =>
-                      setRemoveTarget({ employee: emp, isSupervisor: false })
-                    }
-                  />
-                )}
-              </TabsContent>
-            </Tabs>
-          ) : null}
+              </div>
+            ) : null}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
@@ -254,9 +243,9 @@ function InfoTab({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-start">
+    <div className="flex justify-between items-start gap-4">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-right max-w-[60%]">
+      <span className="text-sm font-medium text-right min-w-0 break-words">
         {value}
       </span>
     </div>
@@ -275,20 +264,20 @@ function EmployeeList({
   onRemove: (emp: EmployeeInAreaResponse) => void;
 }) {
   return (
-    <ScrollArea className="max-h-[350px]">
+    <ScrollArea className="max-h-[50vh]">
       <div className="space-y-2">
         {employees.map((emp) => (
           <div
             key={emp.id}
-            className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+            className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors min-h-[68px]"
           >
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm truncate">
                   {emp.name}
                 </span>
-                <Badge variant="outline" className="shrink-0 text-xs">
-                  <Hash className="size-3 mr-0.5" />
+                <Badge variant="outline" className="shrink-0 text-sm px-2 py-1">
+                  <Hash className="size-3 mr-1" />
                   {emp.employee_code}
                 </Badge>
               </div>

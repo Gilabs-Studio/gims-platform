@@ -37,6 +37,7 @@ import {
   AlertTriangle,
   Shield,
   Users,
+  Eye,
 } from "lucide-react";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { AreaForm } from "./area-form";
@@ -110,6 +111,7 @@ export function AreaList() {
 
   // Permission checks
   const canCreate = useUserPermission("area.create");
+  const canView = useUserPermission("area.read");
   const canUpdate = useUserPermission("area.update");
   const canDelete = useUserPermission("area.delete");
   const canAssignSupervisor = useUserPermission("area.assign_supervisor");
@@ -154,8 +156,9 @@ export function AreaList() {
   );
 
   const handleRowClick = useCallback((area: Area) => {
+    if (!canView) return;
     setDetailArea({ id: area.id, name: area.name });
-  }, []);
+  }, [canView]);
 
   const handleFormClose = useCallback(() => {
     setIsFormOpen(false);
@@ -325,7 +328,7 @@ export function AreaList() {
               areas.map((area) => (
                 <TableRow
                   key={area.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className={canView ? "cursor-pointer hover:bg-muted/50" : ""}
                   onClick={() => handleRowClick(area)}
                 >
                   <TableCell className="font-medium">{area.name}</TableCell>
@@ -335,8 +338,9 @@ export function AreaList() {
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <SupervisorCell
                       count={area.supervisor_count ?? 0}
+                      names={area.supervisor_names ?? []}
                       t={t}
-                      canAssign={canAssignSupervisor}
+                      canAssign={canCreate && canAssignSupervisor}
                       onAssign={() =>
                         setAssignDialog({
                           areaId: area.id,
@@ -350,7 +354,7 @@ export function AreaList() {
                     <MemberCell
                       count={area.member_count ?? 0}
                       t={t}
-                      canAssign={canAssignMember}
+                      canAssign={canCreate && canAssignMember}
                       onAssign={() =>
                         setAssignDialog({
                           areaId: area.id,
@@ -392,6 +396,15 @@ export function AreaList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {canView && (
+                          <DropdownMenuItem
+                            onClick={() => handleRowClick(area)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="mr-2 size-4" />
+                            {t("common.view")}
+                          </DropdownMenuItem>
+                        )}
                         {canUpdate && (
                           <DropdownMenuItem
                             onClick={() => handleEdit(area)}
@@ -501,11 +514,13 @@ export function AreaList() {
 
 function SupervisorCell({
   count,
+  names,
   t,
   canAssign,
   onAssign,
 }: {
   count: number;
+  names: string[];
   t: ReturnType<typeof useTranslations>;
   canAssign: boolean;
   onAssign: () => void;
@@ -521,10 +536,12 @@ function SupervisorCell({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-xs cursor-pointer"
+            className="h-6 w-6 p-0 cursor-pointer"
             onClick={onAssign}
+            aria-label={t("common.create")}
+            title={t("common.create")}
           >
-            +
+            <Plus className="size-3" />
           </Button>
         )}
       </div>
@@ -532,10 +549,24 @@ function SupervisorCell({
   }
 
   return (
-    <Badge variant="info" className="gap-1">
-      <Shield className="size-3" />
-      {count}
-    </Badge>
+    <div className="flex items-center gap-2">
+      <Badge variant="info" className="gap-1">
+        <Shield className="size-3" />
+        {names.join(", ")}
+      </Badge>
+      {canAssign && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 cursor-pointer"
+          onClick={onAssign}
+          aria-label={t("common.create")}
+          title={t("common.create")}
+        >
+          <Plus className="size-3" />
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -561,10 +592,12 @@ function MemberCell({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-xs cursor-pointer"
+            className="h-6 w-6 p-0 cursor-pointer"
             onClick={onAssign}
+            aria-label={t("common.create")}
+            title={t("common.create")}
           >
-            +
+            <Plus className="size-3" />
           </Button>
         )}
       </div>
@@ -572,9 +605,23 @@ function MemberCell({
   }
 
   return (
-    <Badge variant="info" className="gap-1">
-      <Users className="size-3" />
-      {count}
-    </Badge>
+    <div className="flex items-center gap-2">
+      <Badge variant="info" className="gap-1">
+        <Users className="size-3" />
+        {count}
+      </Badge>
+      {canAssign && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 cursor-pointer"
+          onClick={onAssign}
+          aria-label={t("common.create")}
+          title={t("common.create")}
+        >
+          <Plus className="size-3" />
+        </Button>
+      )}
+    </div>
   );
 }
