@@ -21,6 +21,14 @@ func SetupRecruitmentRequestRoutes(router *gin.RouterGroup, h *handler.Recruitme
 		// Status workflow
 		recruitment.POST("/:id/status", middleware.RequirePermission("recruitment.update"), h.UpdateStatus)
 
+		// Status action endpoints (convenience wrappers)
+		recruitment.POST("/:id/submit", middleware.RequirePermission("recruitment.update"), h.Submit)
+		recruitment.POST("/:id/approve", middleware.RequirePermission("recruitment.approve"), h.Approve)
+		recruitment.POST("/:id/reject", middleware.RequirePermission("recruitment.approve"), h.Reject)
+		recruitment.POST("/:id/open", middleware.RequirePermission("recruitment.update"), h.Open)
+		recruitment.POST("/:id/close", middleware.RequirePermission("recruitment.update"), h.Close)
+		recruitment.POST("/:id/cancel", middleware.RequirePermission("recruitment.update"), h.Cancel)
+
 		// Filled count management
 		recruitment.PUT("/:id/filled-count", middleware.RequirePermission("recruitment.update"), h.UpdateFilledCount)
 	}

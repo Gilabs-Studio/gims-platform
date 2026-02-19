@@ -6,17 +6,25 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
   return t ? t(key) : defaultMsg;
 };
 
+// Same as employee-contract: permissive UUID regex so valid IDs from API pass.
+// z.uuid() is RFC 4122 strict and can reject some valid UUIDs.
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const uuidSchema = (t: TranslationFn | undefined, field: "division" | "position") =>
+  z
+    .string()
+    .refine((val) => (val ?? "").trim().length > 0, {
+      message: getMsg(t, "validation.required", `${field} is required`),
+    })
+    .refine((val) => UUID_FORMAT.test((val ?? "").trim()), {
+      message: getMsg(t, "validation.invalidId", `Invalid ${field}`),
+    });
+
 // Recruitment Request Schema
 export const getRecruitmentRequestSchema = (t?: TranslationFn) =>
   z.object({
-    division_id: z
-      .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid division"))
-      .min(1, getMsg(t, "validation.required", "Division is required")),
-    position_id: z
-      .string()
-      .uuid(getMsg(t, "validation.invalidId", "Invalid position"))
-      .min(1, getMsg(t, "validation.required", "Position is required")),
+    division_id: uuidSchema(t, "division"),
+    position_id: uuidSchema(t, "position"),
     required_count: z
       .number()
       .int(getMsg(t, "validation.mustBeInteger", "Must be a whole number"))

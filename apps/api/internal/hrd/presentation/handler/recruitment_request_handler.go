@@ -155,6 +155,74 @@ func (h *RecruitmentRequestHandler) UpdateStatus(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
+// Submit handles POST /recruitment-requests/:id/submit (DRAFT/REJECTED -> PENDING)
+func (h *RecruitmentRequestHandler) Submit(c *gin.Context) {
+	h.updateStatusAction(c, "PENDING")
+}
+
+// Approve handles POST /recruitment-requests/:id/approve (PENDING -> APPROVED)
+func (h *RecruitmentRequestHandler) Approve(c *gin.Context) {
+	h.updateStatusAction(c, "APPROVED")
+}
+
+// Reject handles POST /recruitment-requests/:id/reject (PENDING -> REJECTED)
+func (h *RecruitmentRequestHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+
+	var reqDTO dto.RejectRecruitmentRequestDTO
+	_ = c.ShouldBindJSON(&reqDTO) // Optional body
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	statusDTO := &dto.UpdateRecruitmentStatusDTO{Status: "REJECTED", Notes: reqDTO.Notes}
+	result, err := h.usecase.UpdateStatus(c.Request.Context(), id, statusDTO, userID.(string))
+	if err != nil {
+		handleRecruitmentError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// Open handles POST /recruitment-requests/:id/open (APPROVED -> OPEN)
+func (h *RecruitmentRequestHandler) Open(c *gin.Context) {
+	h.updateStatusAction(c, "OPEN")
+}
+
+// Close handles POST /recruitment-requests/:id/close (OPEN -> CLOSED)
+func (h *RecruitmentRequestHandler) Close(c *gin.Context) {
+	h.updateStatusAction(c, "CLOSED")
+}
+
+// Cancel handles POST /recruitment-requests/:id/cancel (DRAFT/PENDING -> CANCELLED)
+func (h *RecruitmentRequestHandler) Cancel(c *gin.Context) {
+	h.updateStatusAction(c, "CANCELLED")
+}
+
+// updateStatusAction is a helper for simple status transition endpoints
+func (h *RecruitmentRequestHandler) updateStatusAction(c *gin.Context, status string) {
+	id := c.Param("id")
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	statusDTO := &dto.UpdateRecruitmentStatusDTO{Status: status}
+	result, err := h.usecase.UpdateStatus(c.Request.Context(), id, statusDTO, userID.(string))
+	if err != nil {
+		handleRecruitmentError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // UpdateFilledCount handles PUT /recruitment-requests/:id/filled-count
 func (h *RecruitmentRequestHandler) UpdateFilledCount(c *gin.Context) {
 	id := c.Param("id")

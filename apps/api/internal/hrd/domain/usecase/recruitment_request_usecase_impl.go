@@ -185,9 +185,9 @@ func (u *recruitmentRequestUsecase) Update(ctx context.Context, id string, reqDT
 		return nil, errors.New("recruitment request not found")
 	}
 
-	// WHY: Only DRAFT status requests can be edited to prevent modifying approved/open requests
+	// WHY: Only DRAFT and REJECTED requests can be edited; REJECTED allows fixing before resubmission
 	if !existing.IsEditable() {
-		return nil, errors.New("RECRUITMENT_NOT_EDITABLE: only DRAFT requests can be edited")
+		return nil, errors.New("RECRUITMENT_NOT_EDITABLE: only DRAFT and REJECTED requests can be edited")
 	}
 
 	// Validate division if changed

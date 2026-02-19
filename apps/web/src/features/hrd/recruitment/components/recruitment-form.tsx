@@ -33,6 +33,7 @@ import { CalendarIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { RupiahInput } from "./rupiah-input";
 import {
   getRecruitmentRequestSchema,
   type CreateRecruitmentFormData,
@@ -373,20 +374,25 @@ export function RecruitmentForm({
                 </div>
               </div>
 
-              {/* Salary Range */}
+              {/* Salary Range - auto-format as rupiah (e.g. 20000 → 20.000) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="salary_range_min">
                     {t("salaryRangeMin")}
                   </Label>
-                  <Input
-                    id="salary_range_min"
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    {...register("salary_range_min", { valueAsNumber: true })}
-                    className={cn(
-                      errors.salary_range_min && "border-destructive"
+                  <Controller
+                    name="salary_range_min"
+                    control={control}
+                    render={({ field }) => (
+                      <RupiahInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="0"
+                        min={0}
+                        className={cn(
+                          errors.salary_range_min && "border-destructive"
+                        )}
+                      />
                     )}
                   />
                   {errors.salary_range_min && (
@@ -400,14 +406,19 @@ export function RecruitmentForm({
                   <Label htmlFor="salary_range_max">
                     {t("salaryRangeMax")}
                   </Label>
-                  <Input
-                    id="salary_range_max"
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    {...register("salary_range_max", { valueAsNumber: true })}
-                    className={cn(
-                      errors.salary_range_max && "border-destructive"
+                  <Controller
+                    name="salary_range_max"
+                    control={control}
+                    render={({ field }) => (
+                      <RupiahInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="0"
+                        min={0}
+                        className={cn(
+                          errors.salary_range_max && "border-destructive"
+                        )}
+                      />
                     )}
                   />
                   {errors.salary_range_max && (

@@ -129,9 +129,9 @@ func (r *RecruitmentRequest) OpenPositions() int {
 }
 
 // IsEditable returns whether the recruitment request can be edited
-// WHY: Only DRAFT status requests can be modified to prevent approved requests from changing
+// WHY: DRAFT and REJECTED requests can be modified; REJECTED allows fixing issues before resubmission
 func (r *RecruitmentRequest) IsEditable() bool {
-	return r.Status == RecruitmentStatusDraft
+	return r.Status == RecruitmentStatusDraft || r.Status == RecruitmentStatusRejected
 }
 
 // CanBeSubmitted returns whether the request can be submitted for approval
@@ -170,6 +170,7 @@ var ValidRecruitmentStatusTransitions = map[RecruitmentStatus][]RecruitmentStatu
 	RecruitmentStatusPending:  {RecruitmentStatusApproved, RecruitmentStatusRejected, RecruitmentStatusCancelled},
 	RecruitmentStatusApproved: {RecruitmentStatusOpen},
 	RecruitmentStatusOpen:     {RecruitmentStatusClosed},
+	RecruitmentStatusRejected: {RecruitmentStatusPending}, // Resubmit after fixing
 }
 
 // IsValidTransition checks if a status transition is valid

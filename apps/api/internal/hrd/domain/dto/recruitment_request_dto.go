@@ -40,6 +40,11 @@ type UpdateRecruitmentStatusDTO struct {
 	Notes  *string `json:"notes" binding:"omitempty,max=2000"`
 }
 
+// RejectRecruitmentRequestDTO represents the request body for reject action
+type RejectRecruitmentRequestDTO struct {
+	Notes *string `json:"notes" binding:"omitempty,max=2000"`
+}
+
 // UpdateFilledCountDTO represents the request to update filled positions count
 type UpdateFilledCountDTO struct {
 	FilledCount int `json:"filled_count" binding:"required,min=0"`

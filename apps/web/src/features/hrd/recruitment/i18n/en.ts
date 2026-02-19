@@ -107,6 +107,7 @@ export const recruitmentEn = {
     // Actions
     actions: {
       submit: "Submit for Approval",
+      resubmit: "Resubmit for Approval",
       approve: "Approve",
       reject: "Reject",
       open: "Open for Hiring",

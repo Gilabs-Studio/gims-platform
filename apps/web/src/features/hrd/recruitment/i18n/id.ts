@@ -107,6 +107,7 @@ export const recruitmentId = {
     // Actions
     actions: {
       submit: "Ajukan Persetujuan",
+      resubmit: "Ajukan Ulang untuk Persetujuan",
       approve: "Setujui",
       reject: "Tolak",
       open: "Buka untuk Perekrutan",

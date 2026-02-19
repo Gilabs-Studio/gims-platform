@@ -47,7 +47,12 @@ import {
 import {
   useRecruitmentRequests,
   useDeleteRecruitmentRequest,
-  useUpdateRecruitmentStatus,
+  useSubmitRecruitmentRequest,
+  useApproveRecruitmentRequest,
+  useRejectRecruitmentRequest,
+  useOpenRecruitmentRequest,
+  useCloseRecruitmentRequest,
+  useCancelRecruitmentRequest,
 } from "../hooks/use-recruitment";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -86,7 +91,12 @@ export function RecruitmentList() {
   const canApprove = useUserPermission("recruitment.approve");
 
   const deleteRequest = useDeleteRecruitmentRequest();
-  const updateStatus = useUpdateRecruitmentStatus();
+  const submitRequest = useSubmitRecruitmentRequest();
+  const approveRequest = useApproveRecruitmentRequest();
+  const rejectRequest = useRejectRecruitmentRequest();
+  const openRequest = useOpenRecruitmentRequest();
+  const closeRequest = useCloseRecruitmentRequest();
+  const cancelRequest = useCancelRecruitmentRequest();
   const requests = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -116,21 +126,45 @@ export function RecruitmentList() {
     setEditingRequest(null);
   };
 
-  const handleStatusChange = async (
+  const handleStatusAction = async (
     id: string,
-    status: RecruitmentStatus,
+    action: "submit" | "approve" | "reject" | "open" | "close" | "cancel",
     notes?: string
   ) => {
     try {
-      await updateStatus.mutateAsync({
-        id,
-        data: { status, notes },
-      });
+      switch (action) {
+        case "submit":
+          await submitRequest.mutateAsync(id);
+          break;
+        case "approve":
+          await approveRequest.mutateAsync(id);
+          break;
+        case "reject":
+          await rejectRequest.mutateAsync({ id, notes });
+          break;
+        case "open":
+          await openRequest.mutateAsync(id);
+          break;
+        case "close":
+          await closeRequest.mutateAsync(id);
+          break;
+        case "cancel":
+          await cancelRequest.mutateAsync(id);
+          break;
+      }
       toast.success(t("statusUpdated"));
     } catch {
       toast.error(t("common.error"));
     }
   };
+
+  const isStatusActionPending =
+    submitRequest.isPending ||
+    approveRequest.isPending ||
+    rejectRequest.isPending ||
+    openRequest.isPending ||
+    closeRequest.isPending ||
+    cancelRequest.isPending;
 
   const getStatusBadge = (status: RecruitmentStatus) => {
     switch (status) {
@@ -345,31 +379,37 @@ export function RecruitmentList() {
                               {t("common.view")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && request.status === "DRAFT" && (
-                            <DropdownMenuItem
-                              onClick={() => handleEdit(request)}
-                              className="cursor-pointer"
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t("common.edit")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && request.status === "DRAFT" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusChange(request.id, "PENDING")
-                              }
-                              className="cursor-pointer"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              {t("actions.submit")}
-                            </DropdownMenuItem>
-                          )}
+                          {canUpdate &&
+                            (request.status === "DRAFT" ||
+                              request.status === "REJECTED") && (
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(request)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {t("common.edit")}
+                              </DropdownMenuItem>
+                            )}
+                          {canUpdate &&
+                            (request.status === "DRAFT" ||
+                              request.status === "REJECTED") && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleStatusAction(request.id, "submit")
+                                }
+                                className="cursor-pointer"
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                {request.status === "REJECTED"
+                                  ? t("actions.resubmit")
+                                  : t("actions.submit")}
+                              </DropdownMenuItem>
+                            )}
                           {canApprove && request.status === "PENDING" && (
                             <>
                               <DropdownMenuItem
                                 onClick={() =>
-                                  handleStatusChange(request.id, "APPROVED")
+                                  handleStatusAction(request.id, "approve")
                                 }
                                 className="cursor-pointer"
                               >
@@ -378,7 +418,7 @@ export function RecruitmentList() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() =>
-                                  handleStatusChange(request.id, "REJECTED")
+                                  handleStatusAction(request.id, "reject")
                                 }
                                 className="cursor-pointer text-destructive"
                               >
@@ -390,7 +430,7 @@ export function RecruitmentList() {
                           {canUpdate && request.status === "APPROVED" && (
                             <DropdownMenuItem
                               onClick={() =>
-                                handleStatusChange(request.id, "OPEN")
+                                handleStatusAction(request.id, "open")
                               }
                               className="cursor-pointer"
                             >
@@ -401,7 +441,7 @@ export function RecruitmentList() {
                           {canUpdate && request.status === "OPEN" && (
                             <DropdownMenuItem
                               onClick={() =>
-                                handleStatusChange(request.id, "CLOSED")
+                                handleStatusAction(request.id, "close")
                               }
                               className="cursor-pointer"
                             >
@@ -414,7 +454,7 @@ export function RecruitmentList() {
                               request.status === "PENDING") && (
                               <DropdownMenuItem
                                 onClick={() =>
-                                  handleStatusChange(request.id, "CANCELLED")
+                                  handleStatusAction(request.id, "cancel")
                                 }
                                 className="cursor-pointer text-destructive"
                               >
@@ -455,7 +495,7 @@ export function RecruitmentList() {
         />
       )}
 
-      {canCreate && (
+      {(canCreate || canUpdate) && (
         <RecruitmentForm
           open={isFormOpen}
           onClose={handleFormClose}

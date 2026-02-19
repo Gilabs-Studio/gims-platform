@@ -76,6 +76,54 @@ export const recruitmentService = {
     return response.data;
   },
 
+  // ---- Status Action Endpoints ----
+
+  async submit(id: string): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/submit`
+    );
+    return response.data;
+  },
+
+  async approve(id: string): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/approve`
+    );
+    return response.data;
+  },
+
+  async reject(
+    id: string,
+    notes?: string
+  ): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/reject`,
+      notes ? { notes } : undefined
+    );
+    return response.data;
+  },
+
+  async open(id: string): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/open`
+    );
+    return response.data;
+  },
+
+  async close(id: string): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/close`
+    );
+    return response.data;
+  },
+
+  async cancel(id: string): Promise<RecruitmentRequestSingleResponse> {
+    const response = await apiClient.post<RecruitmentRequestSingleResponse>(
+      `${BASE_PATH}/${id}/cancel`
+    );
+    return response.data;
+  },
+
   async updateFilledCount(
     id: string,
     data: UpdateFilledCountData

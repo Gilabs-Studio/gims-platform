@@ -117,7 +117,7 @@ export function useDeleteRecruitmentRequest() {
   });
 }
 
-// Update recruitment status
+// Update recruitment status (legacy - general)
 export function useUpdateRecruitmentStatus() {
   const queryClient = useQueryClient();
 
@@ -133,6 +133,83 @@ export function useUpdateRecruitmentStatus() {
       queryClient.invalidateQueries({
         queryKey: recruitmentKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+// ---- Status Action Hooks ----
+
+export function useSubmitRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => recruitmentService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+export function useApproveRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => recruitmentService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+export function useRejectRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      recruitmentService.reject(id, notes),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: recruitmentKeys.detail(variables.id),
+      });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+export function useOpenRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => recruitmentService.open(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+export function useCloseRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => recruitmentService.close(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
+    },
+  });
+}
+
+export function useCancelRecruitmentRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => recruitmentService.cancel(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: recruitmentKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: recruitmentKeys.lists() });
     },
   });
