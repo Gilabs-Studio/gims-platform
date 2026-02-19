@@ -186,6 +186,85 @@ export interface AssignEmployeeAreasData {
   area_ids: string[];
 }
 
+export interface AreaAssignment {
+  area_id: string;
+  is_supervisor: boolean;
+}
+
+export interface BulkUpdateEmployeeAreasData {
+  assignments: AreaAssignment[];
+}
+
+export interface AvailableUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AvailableUsersResponse {
+  success: boolean;
+  data: AvailableUser[];
+  timestamp: string;
+  request_id: string;
+}
+
+export interface FormOption {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeFormData {
+  divisions: FormOption[];
+  job_positions: FormOption[];
+  companies: FormOption[];
+  areas: FormOption[];
+}
+
+export interface EmployeeFormDataResponse {
+  success: boolean;
+  data: EmployeeFormData;
+  timestamp: string;
+  request_id: string;
+}
+
+// Represents an individual area assignment with role (used by bulk update)
+export interface AreaAssignment {
+  area_id: string;
+  is_supervisor: boolean;
+}
+
+export interface BulkUpdateEmployeeAreasData {
+  assignments: AreaAssignment[];
+}
+
+// Lightweight user returned by GET /users/available
+export interface AvailableUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AvailableUsersResponse {
+  success: boolean;
+  data: AvailableUser[];
+}
+
+// Generic form option returned by GET /employees/form-data
+export interface FormOption {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeFormDataResponse {
+  success: boolean;
+  data: {
+    divisions: FormOption[];
+    job_positions: FormOption[];
+    companies: FormOption[];
+    areas: FormOption[];
+  };
+}
+
 export interface ListEmployeesParams {
   page?: number;
   per_page?: number;

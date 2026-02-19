@@ -84,6 +84,31 @@ type AssignEmployeeSupervisorAreasRequest struct {
 	AreaIDs []string `json:"area_ids" binding:"required"`
 }
 
+// AreaAssignment represents a single area assignment with role designation.
+type AreaAssignment struct {
+	AreaID       string `json:"area_id" binding:"required,uuid"`
+	IsSupervisor bool   `json:"is_supervisor"`
+}
+
+// BulkUpdateEmployeeAreasRequest replaces all area assignments for an employee atomically.
+type BulkUpdateEmployeeAreasRequest struct {
+	Assignments []AreaAssignment `json:"assignments" binding:"required,dive"`
+}
+
+// EmployeeFormDataResponse provides all dropdown/select options needed by the employee form.
+type EmployeeFormDataResponse struct {
+	Divisions    []FormOption `json:"divisions"`
+	JobPositions []FormOption `json:"job_positions"`
+	Companies    []FormOption `json:"companies"`
+	Areas        []FormOption `json:"areas"`
+}
+
+// FormOption is a generic id+label pair for select dropdowns.
+type FormOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // EmployeeListParams represents the query parameters for listing employees
 type EmployeeListParams struct {
 	Page          int    `form:"page"`

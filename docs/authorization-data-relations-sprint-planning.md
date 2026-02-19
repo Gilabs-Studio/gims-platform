@@ -437,18 +437,18 @@ Memperbaiki form Employee agar:
 
 ### Deliverables
 
-- [ ] **API:** Add `GET /users/available` endpoint (users not linked to employee)
-- [ ] **API:** Employee form-data endpoint includes available users, areas
-- [ ] **Frontend:** Add User dropdown to employee form (Tab: Basic Info)
-- [ ] **Frontend:** Add Areas tab to employee form with role selection
-- [ ] **Frontend:** Update employee detail modal to show areas & user link
+- [x] **API:** Add `GET /users/available` endpoint (users not linked to employee)
+- [x] **API:** Employee form-data endpoint includes available users, areas
+- [x] **Frontend:** Add User dropdown to employee form (Tab: Basic Info)
+- [x] **Frontend:** Add Areas tab to employee form with role selection
+- [x] **Frontend:** Update employee detail modal to show areas & user link
 - [ ] **Frontend:** Area page — add "Assign Employee" button (bidirectional assignment)
 
 ### API Tasks
 
-- [ ] `GET /users/available` — returns users where `id NOT IN (SELECT user_id FROM employees WHERE user_id IS NOT NULL AND deleted_at IS NULL)`
-- [ ] `GET /employees/form-data` — returns `{ users: [...], areas: [...], divisions: [...], positions: [...], companies: [...] }`
-- [ ] `PUT /employees/:id/areas` — bulk update area assignments with roles:
+- [x] `GET /users/available` — returns users where `id NOT IN (SELECT user_id FROM employees WHERE user_id IS NOT NULL AND deleted_at IS NULL)`
+- [x] `GET /employees/form-data` — returns `{ users: [...], areas: [...], divisions: [...], positions: [...], companies: [...] }`
+- [x] `PUT /employees/:id/areas` — bulk update area assignments with roles:
   ```json
   {
     "assignments": [
@@ -457,18 +457,18 @@ Memperbaiki form Employee agar:
     ]
   }
   ```
-- [ ] `POST /employees/:id/areas` — add single area assignment
-- [ ] `DELETE /employees/:id/areas/:area_id` — remove area assignment
+- [x] `POST /employees/:id/areas` — add single area assignment
+- [x] `DELETE /employees/:id/areas/:area_id` — remove area assignment
 
 ### Frontend Tasks
 
-- [ ] **Add** Tab "Areas" to `employee-form.tsx` with area assignment table
-- [ ] **Add** User dropdown (combobox with search) to Basic Info tab
-- [ ] **Create** `use-available-users.ts` hook — queries available users
-- [ ] **Update** `employee-form.tsx` schema — add `user_id`, `area_assignments[]`
-- [ ] **Update** `employee-detail-modal.tsx` — show linked User info + area assignments
-- [ ] **Add** i18n keys for new fields (user link, area assignment, role labels)
-- [ ] **Update** Employee types — add `supervised_area_ids`, `area_assignments`
+- [x] **Add** Tab "Areas" to `employee-form.tsx` with area assignment table
+- [x] **Add** User dropdown (combobox with search) to Basic Info tab
+- [x] **Create** `use-available-users.ts` hook — queries available users
+- [x] **Update** `employee-form.tsx` schema — add `user_id`, `area_assignments[]`
+- [x] **Update** `employee-detail-modal.tsx` — show linked User info + area assignments
+- [x] **Add** i18n keys for new fields (user link, area assignment, role labels)
+- [x] **Update** Employee types — add `supervised_area_ids`, `area_assignments`
 
 ### Business Logic
 
@@ -480,17 +480,17 @@ Memperbaiki form Employee agar:
 
 ### Success Criteria
 
-- [ ] User dropdown muncul di form Employee dengan search/filter
-- [ ] Hanya available users yang muncul di dropdown
-- [ ] Tab Areas menampilkan assigned areas dengan role (supervisor/member)
-- [ ] Area bisa di-add/remove/change-role dari form Employee
-- [ ] Assignment dari halaman Area (Sprint 18) & halaman Employee (Sprint 19) sinkron
-- [ ] Employee detail modal menampilkan info User + Areas
+- [x] User dropdown muncul di form Employee dengan search/filter
+- [x] Hanya available users yang muncul di dropdown
+- [x] Tab Areas menampilkan assigned areas dengan role (supervisor/member)
+- [x] Area bisa di-add/remove/change-role dari form Employee
+- [x] Assignment dari halaman Area (Sprint 18) & halaman Employee (Sprint 19) sinkron
+- [x] Employee detail modal menampilkan info User + Areas
 
 ### Integration Requirements
 
-- [ ] Permission: `employee.assign_area` (existing from Sprint 17)
-- [ ] i18n: translations untuk user link, area assignment, role labels (en + id)
+- [x] Permission: `employee.assign_area` (existing from Sprint 17)
+- [x] i18n: translations untuk user link, area assignment, role labels (en + id)
 
 ---
 
