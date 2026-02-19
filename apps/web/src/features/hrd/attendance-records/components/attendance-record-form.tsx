@@ -1,11 +1,13 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, User, FileText, Loader2 } from "lucide-react";
+import { Clock, User, FileText, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import {
   attendanceRecordSchema,
   type AttendanceRecordFormData,
+  STATUS_OPTIONS,
+  CHECK_IN_TYPE_OPTIONS,
 } from "../schemas/attendance.schema";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,11 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useAttendanceRecordReport } from "../hooks/use-attendance-records";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useAttendanceFormData } from "../hooks/use-attendance-records";
 import type { CalendarEvent } from "../types";
-import { format } from "date-fns";
-import { sortOptions } from "@/lib/utils";
+import { sortOptions, cn } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
+import { useTranslations } from "next-intl";
 
 interface AttendanceRecordFormProps {
   readonly event?: CalendarEvent;
@@ -32,14 +40,6 @@ interface AttendanceRecordFormProps {
   readonly isLoading?: boolean;
 }
 
-const STATUS_OPTIONS = [
-  { value: "PRESENT", label: "Present" },
-  { value: "LATE", label: "Late" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "LEAVE", label: "Leave" },
-  { value: "HALF_DAY", label: "Half Day" },
-] as const;
-
 export function AttendanceRecordForm({
   event,
   selectedDate,
@@ -47,10 +47,14 @@ export function AttendanceRecordForm({
   onCancel,
   isLoading,
 }: AttendanceRecordFormProps) {
+  const t = useTranslations("hrd.attendance");
   const isEdit = !!event;
-  const { data: reportData, isLoading: isLoadingReport } = useAttendanceRecordReport();
-  
-  const employees = sortOptions(reportData?.data?.employees || [], (e) => e.name);
+  const { data: formDataResponse, isLoading: isLoadingFormData } = useAttendanceFormData();
+
+  const employees = sortOptions(
+    formDataResponse?.data?.employees ?? [],
+    (e) => e.name
+  );
 
   const {
     register,
@@ -58,43 +62,45 @@ export function AttendanceRecordForm({
     setValue,
     control,
     formState: { errors },
-  } = useForm({
+  } = useForm<AttendanceRecordFormData>({
     resolver: zodResolver(attendanceRecordSchema),
     defaultValues: event
       ? {
           employee_id: event.employeeId,
-          date: event.date,
-          check_in_time: event.checkInTime ? new Date(`1970-01-01T${event.checkInTime}`) : null,
-          check_out_time: event.checkOutTime ? new Date(`1970-01-01T${event.checkOutTime}`) : null,
-          status: event.status,
-          note: event.note || "",
+          date: event.date instanceof Date ? event.date.toISOString().split("T")[0] : String(event.date),
+          check_in_time: event.checkInTime ?? undefined,
+          check_out_time: event.checkOutTime ?? undefined,
+          check_in_type: (event.checkInType as "NORMAL" | "WFH" | "FIELD_WORK") ?? "NORMAL",
+          status: event.status as AttendanceRecordFormData["status"],
+          notes: event.notes ?? "",
+          reason: "",
         }
       : {
           employee_id: "",
-          date: selectedDate || new Date(),
-          check_in_time: null,
-          check_out_time: null,
+          date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          check_in_time: undefined,
+          check_out_time: undefined,
+          check_in_type: "NORMAL" as const,
           status: "PRESENT" as const,
-          note: "",
+          notes: "",
+          reason: "",
         },
   });
 
-  const employeeIdValue = useWatch({ control, name: "employee_id" }) as string | undefined;
-  const dateValue = useWatch({ control, name: "date" }) as Date | undefined;
-  const statusValue = useWatch({ control, name: "status" }) as AttendanceRecordFormData["status"] | undefined;
-  const checkInTime = useWatch({ control, name: "check_in_time" }) as Date | null | undefined;
-  const checkOutTime = useWatch({ control, name: "check_out_time" }) as Date | null | undefined;
+  const employeeIdValue = useWatch({ control, name: "employee_id" });
+  const statusValue = useWatch({ control, name: "status" });
+  const checkInTypeValue = useWatch({ control, name: "check_in_type" });
 
   const handleFormSubmit = async (data: AttendanceRecordFormData) => {
     await onSubmit(data);
   };
 
-  if (isLoadingReport) {
+  if (isLoadingFormData) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm text-muted-foreground">Loading...</span>
+          <span className="text-sm text-muted-foreground">{t("loading")}</span>
         </div>
       </div>
     );
@@ -104,44 +110,72 @@ export function AttendanceRecordForm({
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Employee & Date Section */}
       <div className="space-y-4">
-        <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+        <div className="flex items-center gap-2 pb-2 border-b border-border/50">
           <User className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">Employee Information</h3>
+          <h3 className="text-sm font-medium">{t("form.employeeInfo")}</h3>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field orientation="vertical">
-            <FieldLabel>Employee *</FieldLabel>
+            <FieldLabel>{t("form.employee")} *</FieldLabel>
             <Select
-              value={employeeIdValue || ""}
+              value={employeeIdValue ?? ""}
               onValueChange={(value) => setValue("employee_id", value, { shouldValidate: true })}
+              disabled={isEdit}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee" />
+              <SelectTrigger className="cursor-pointer">
+                <SelectValue placeholder={t("form.selectEmployee")} />
               </SelectTrigger>
               <SelectContent>
                 {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name}
+                  <SelectItem key={employee.id} value={employee.id} className="cursor-pointer">
+                    {employee.employee_code} - {employee.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>Select the employee for this record</FieldDescription>
             {errors.employee_id && <FieldError>{errors.employee_id.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>Date *</FieldLabel>
-            <Input
-              type="date"
-              value={dateValue ? format(dateValue as Date, "yyyy-MM-dd") : ""}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : new Date();
-                setValue("date", date, { shouldValidate: true });
-              }}
+            <FieldLabel>{t("form.date")} *</FieldLabel>
+            <Controller
+              name="date"
+              control={control}
+              render={({ field }) => (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                      disabled={isEdit}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field.value
+                        ? new Date(field.value).toLocaleDateString("id-ID", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : t("form.date")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date: Date | undefined) => {
+                        field.onChange(date ? date.toISOString().split("T")[0] : "");
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             />
-            <FieldDescription>Attendance date</FieldDescription>
             {errors.date && <FieldError>{errors.date.message}</FieldError>}
           </Field>
         </div>
@@ -149,109 +183,117 @@ export function AttendanceRecordForm({
 
       {/* Attendance Details Section */}
       <div className="space-y-4">
-        <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+        <div className="flex items-center gap-2 pb-2 border-b border-border/50">
           <Clock className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">Attendance Details</h3>
+          <h3 className="text-sm font-medium">{t("form.attendanceDetails")}</h3>
         </div>
-
-        <Field orientation="vertical">
-          <FieldLabel>Status *</FieldLabel>
-          <Select
-            value={statusValue || ""}
-            onValueChange={(value) => setValue("status", value as AttendanceRecordFormData["status"], { shouldValidate: true })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((status) => (
-                <SelectItem key={status.value} value={status.value}>
-                  {status.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldDescription>Attendance status</FieldDescription>
-          {errors.status && <FieldError>{errors.status.message}</FieldError>}
-        </Field>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field orientation="vertical">
-            <FieldLabel>Check In Time</FieldLabel>
+            <FieldLabel>{t("form.status")} *</FieldLabel>
+            <Select
+              value={statusValue ?? ""}
+              onValueChange={(value) =>
+                setValue("status", value as AttendanceRecordFormData["status"], { shouldValidate: true })
+              }
+            >
+              <SelectTrigger className="cursor-pointer">
+                <SelectValue placeholder={t("form.selectStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status.value} value={status.value} className="cursor-pointer">
+                    {t(`status.${status.value.toLowerCase()}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.status && <FieldError>{errors.status.message}</FieldError>}
+          </Field>
+
+          <Field orientation="vertical">
+            <FieldLabel>{t("form.checkInType")} *</FieldLabel>
+            <Select
+              value={checkInTypeValue ?? "NORMAL"}
+              onValueChange={(value) =>
+                setValue("check_in_type", value as AttendanceRecordFormData["check_in_type"], { shouldValidate: true })
+              }
+            >
+              <SelectTrigger className="cursor-pointer">
+                <SelectValue placeholder={t("form.selectCheckInType")} />
+              </SelectTrigger>
+              <SelectContent>
+                {CHECK_IN_TYPE_OPTIONS.map((type) => (
+                  <SelectItem key={type.value} value={type.value} className="cursor-pointer">
+                    {t(`checkInType.${type.value.toLowerCase()}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.check_in_type && <FieldError>{errors.check_in_type.message}</FieldError>}
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field orientation="vertical">
+            <FieldLabel>{t("form.checkInTime")}</FieldLabel>
             <Input
               type="time"
-              value={
-                checkInTime
-                  ? format(checkInTime as Date, "HH:mm")
-                  : ""
-              }
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [hours, minutes] = e.target.value.split(":");
-                  const date = new Date();
-                  date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                  setValue("check_in_time", date, { shouldValidate: true });
-                } else {
-                  setValue("check_in_time", null, { shouldValidate: true });
-                }
-              }}
+              {...register("check_in_time")}
             />
-            <FieldDescription>Time when employee checked in</FieldDescription>
+            <FieldDescription>{t("form.checkInTimeDesc")}</FieldDescription>
             {errors.check_in_time && <FieldError>{errors.check_in_time.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>Check Out Time</FieldLabel>
+            <FieldLabel>{t("form.checkOutTime")}</FieldLabel>
             <Input
               type="time"
-              value={
-                checkOutTime
-                  ? format(checkOutTime as Date, "HH:mm")
-                  : ""
-              }
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [hours, minutes] = e.target.value.split(":");
-                  const date = new Date();
-                  date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                  setValue("check_out_time", date, { shouldValidate: true });
-                } else {
-                  setValue("check_out_time", null, { shouldValidate: true });
-                }
-              }}
+              {...register("check_out_time")}
             />
-            <FieldDescription>Time when employee checked out</FieldDescription>
+            <FieldDescription>{t("form.checkOutTimeDesc")}</FieldDescription>
             {errors.check_out_time && <FieldError>{errors.check_out_time.message}</FieldError>}
           </Field>
         </div>
       </div>
 
-      {/* Notes Section */}
+      {/* Reason & Notes Section */}
       <div className="space-y-4">
-        <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+        <div className="flex items-center gap-2 pb-2 border-b border-border/50">
           <FileText className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">Additional Notes</h3>
+          <h3 className="text-sm font-medium">{t("form.reasonAndNotes")}</h3>
         </div>
 
         <Field orientation="vertical">
-          <FieldLabel>Notes</FieldLabel>
+          <FieldLabel>{t("form.reason")}</FieldLabel>
           <Textarea
-            {...register("note")}
-            placeholder="Add any additional notes..."
+            {...register("reason")}
+            placeholder={t("form.reasonPlaceholder")}
+            rows={2}
+          />
+          <FieldDescription>{t("form.reasonDesc")}</FieldDescription>
+          {errors.reason && <FieldError>{errors.reason.message}</FieldError>}
+        </Field>
+
+        <Field orientation="vertical">
+          <FieldLabel>{t("form.notes")}</FieldLabel>
+          <Textarea
+            {...register("notes")}
+            placeholder={t("form.notesPlaceholder")}
             rows={3}
           />
-          <FieldDescription>Optional notes about this attendance record</FieldDescription>
-          {errors.note && <FieldError>{errors.note.message}</FieldError>}
+          <FieldDescription>{t("form.notesDesc")}</FieldDescription>
+          {errors.notes && <FieldError>{errors.notes.message}</FieldError>}
         </Field>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-          Cancel
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="cursor-pointer">
+          {t("form.cancel")}
         </Button>
-        <Button type="submit" disabled={isLoading}>
-          <ButtonLoading loading={isLoading} loadingText="Submitting...">
-            {isEdit ? "Update Record" : "Create Record"}
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
+          <ButtonLoading loading={isLoading} loadingText={t("form.submitting")}>
+            {isEdit ? t("form.update") : t("form.create")}
           </ButtonLoading>
         </Button>
       </div>

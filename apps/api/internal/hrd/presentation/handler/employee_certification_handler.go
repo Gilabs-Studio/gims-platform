@@ -29,13 +29,13 @@ func (h *EmployeeCertificationHandler) CreateCertification(c *gin.Context) {
 	}
 
 	// Get current user (from auth middleware)
-	currentUser, exists := c.Get("currentUser")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{"message": "Unauthorized"}, nil)
 		return
 	}
 
-	certification, err := h.usecase.CreateCertification(c.Request.Context(), &req, currentUser.(string))
+	certification, err := h.usecase.CreateCertification(c.Request.Context(), &req, userID.(string))
 	if err != nil {
 		handleCertificationError(c, err)
 		return
@@ -58,14 +58,14 @@ func (h *EmployeeCertificationHandler) UpdateCertification(c *gin.Context) {
 		return
 	}
 
-	// Get current user
-	currentUser, exists := c.Get("currentUser")
+	// Get current user (from auth middleware)
+	userID, exists := c.Get("user_id")
 	if !exists {
 		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{"message": "Unauthorized"}, nil)
 		return
 	}
 
-	certification, err := h.usecase.UpdateCertification(c.Request.Context(), id, &req, currentUser.(string))
+	certification, err := h.usecase.UpdateCertification(c.Request.Context(), id, &req, userID.(string))
 	if err != nil {
 		handleCertificationError(c, err)
 		return
@@ -114,8 +114,9 @@ func (h *EmployeeCertificationHandler) GetAllCertifications(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 	search := c.Query("search")
 	employeeID := c.Query("employee_id")
+	status := c.Query("status") // no_expiry | valid | expiring_soon | expired
 
-	certifications, total, err := h.usecase.GetAllCertifications(c.Request.Context(), page, perPage, search, employeeID)
+	certifications, total, err := h.usecase.GetAllCertifications(c.Request.Context(), page, perPage, search, employeeID, status)
 	if err != nil {
 		handleCertificationError(c, err)
 		return

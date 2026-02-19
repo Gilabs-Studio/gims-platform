@@ -5,9 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, File, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Read CSRF token from cookie (same as api-client). Required for POST to API when CSRF is enabled. */
+function getCSRFToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 interface FileUploadProps {
   readonly value?: string;
   readonly onChange: (url: string | undefined) => void;
+  readonly onClear?: () => void;
   readonly accept?: string;
   readonly maxSize?: number; // in MB
   readonly disabled?: boolean;
@@ -18,6 +26,7 @@ interface FileUploadProps {
 export function FileUpload({
   value,
   onChange,
+  onClear,
   accept = ".pdf,.doc,.docx,.xls,.xlsx",
   maxSize = 10,
   disabled = false,
@@ -27,6 +36,7 @@ export function FileUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const removeHandledRef = useRef(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,17 +55,28 @@ export function FileUpload({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${uploadEndpoint}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
+      const uploadUrl = `${baseUrl}/api/v1${uploadEndpoint}`;
+      const csrfToken = getCSRFToken();
+      const headers: HeadersInit = {};
+      if (csrfToken) {
+        headers["X-CSRF-Token"] = csrfToken;
+      }
+      const response = await fetch(uploadUrl, {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers,
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const message =
+          (result as { error?: { message?: string } })?.error?.message ?? "Upload failed";
+        throw new Error(message);
       }
 
-      const result = await response.json();
       if (result.success && result.data?.url) {
         onChange(result.data.url);
       } else {
@@ -72,12 +93,28 @@ export function FileUpload({
     }
   };
 
-  const handleRemove = () => {
+  const handleRemove = (e: React.MouseEvent | React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (removeHandledRef.current) return;
+    removeHandledRef.current = true;
     onChange(undefined);
+    onClear?.();
     setError(undefined);
     if (inputRef.current) {
       inputRef.current.value = "";
     }
+  };
+
+  const handleRemovePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) handleRemove(e);
+  };
+
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    if (!removeHandledRef.current && !disabled) handleRemove(e);
+    removeHandledRef.current = false;
   };
 
   const handleClick = () => {
@@ -95,20 +132,25 @@ export function FileUpload({
         className="hidden"
       />
 
-      {value ? (
-        <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+      {value && value.trim() !== "" ? (
+        <div
+          className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <File className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-sm flex-1 truncate">{value.split("/").pop()}</span>
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
+            onClick={handleRemoveClick}
+            onPointerDown={handleRemovePointerDown}
             disabled={disabled}
-            className="h-6 w-6 shrink-0"
+            className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            aria-label="Remove file"
+            data-file-upload-remove
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <X className="h-4 w-4 pointer-events-none" />
+          </button>
         </div>
       ) : (
         <Button

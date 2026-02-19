@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -32,17 +32,17 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
   const createContract = useCreateEmployeeContract();
   const updateContract = useUpdateEmployeeContract();
 
-  // Fetch contract details if editing
-  const { data: contractResponse, isLoading: isLoadingContract } = useEmployeeContract(
-    contractId ?? "",
-    { enabled: isEdit }
-  );
-  const contract = contractResponse?.data;
-
-  // Fetch form data (employees, types, statuses)
+  // Fetch form data first (employees, types, statuses) so selection fields are ready
   const { data: formDataResponse, isLoading: isLoadingFormData } = useEmployeeContractFormData();
   const formData = formDataResponse?.data;
   const employees = formData?.employees ?? [];
+
+  // Fetch contract by id only after form data is loaded (edit mode) so form can populate correctly
+  const { data: contractResponse, isLoading: isLoadingContract } = useEmployeeContract(
+    contractId ?? "",
+    { enabled: isEdit && !!formData }
+  );
+  const contract = contractResponse?.data;
 
   const schema = getEmployeeContractSchema(t);
   const {
@@ -51,21 +51,10 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
     register,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<EmployeeContractFormData>({
     resolver: zodResolver(schema),
-    defaultValues: isEdit && contract ? {
-      employee_id: contract.employee_id,
-      contract_number: contract.contract_number,
-      contract_type: contract.contract_type,
-      start_date: contract.start_date,
-      end_date: contract.end_date || undefined,
-      salary: contract.salary,
-      job_title: contract.job_title,
-      department: contract.department || undefined,
-      terms: contract.terms || undefined,
-      document_path: contract.document_path || undefined,
-      status: contract.status,
-    } : {
+    defaultValues: {
       employee_id: "",
       contract_number: "",
       contract_type: undefined,
@@ -80,6 +69,56 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
     },
   });
 
+  // If employee_id is stored as label (e.g. "EMP-002 - Manager User"), normalize to UUID so validation passes
+  const employeeIdValue = useWatch({ control, name: "employee_id" });
+  useEffect(() => {
+    if (!employeeIdValue || typeof employeeIdValue !== "string" || employees.length === 0) return;
+    const s = employeeIdValue.trim();
+    const isUuid = employees.some((e) => String(e.id) === s);
+    if (isUuid) return; // already UUID
+    const byLabel = employees.find((e) => `${e.employee_code} - ${e.name}` === s);
+    if (byLabel) {
+      setValue("employee_id", String(byLabel.id));
+    }
+  }, [employeeIdValue, employees, setValue]);
+
+  const lastResetContractId = useRef<string | null>(null);
+  const documentDisplayClearedRef = useRef(false);
+  const [hasFormBeenInitialized, setHasFormBeenInitialized] = useState(false);
+  const [documentPathDisplay, setDocumentPathDisplay] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!isEdit) {
+      lastResetContractId.current = null;
+      documentDisplayClearedRef.current = false;
+      setHasFormBeenInitialized(true);
+      setDocumentPathDisplay(undefined);
+      return;
+    }
+    setHasFormBeenInitialized(false);
+  }, [isEdit]);
+  // Reset form once when contract loads in edit mode so fields are filled; don't show form until reset has run (so Selects are populated)
+  useEffect(() => {
+    if (!isEdit || !contractId || !contract) return;
+    if (lastResetContractId.current === contractId) return;
+    lastResetContractId.current = contractId;
+    documentDisplayClearedRef.current = false;
+    reset({
+      employee_id: contract.employee_id != null ? String(contract.employee_id) : "",
+      contract_number: contract.contract_number ?? "",
+      contract_type: contract.contract_type,
+      start_date: contract.start_date ?? "",
+      end_date: contract.end_date ?? undefined,
+      salary: contract.salary ?? 0,
+      job_title: contract.job_title ?? "",
+      department: contract.department ?? undefined,
+      terms: contract.terms ?? undefined,
+      document_path: contract.document_path ?? undefined,
+      status: contract.status ?? "ACTIVE",
+    });
+    setDocumentPathDisplay(contract.document_path ?? undefined);
+    setHasFormBeenInitialized(true);
+  }, [isEdit, contractId, contract, reset]);
+
   // Use useWatch instead of watch to avoid React Compiler warning
   const contractType = useWatch({ control, name: "contract_type" });
 
@@ -92,20 +131,38 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
 
   const onSubmit = async (data: EmployeeContractFormData) => {
     try {
+      const employeeId =
+        employees.find((e) => String(e.id) === data.employee_id)?.id ??
+        employees.find((e) => `${e.employee_code} - ${e.name}` === data.employee_id)?.id ??
+        data.employee_id;
+
       if (isEdit && contractId) {
+        const updateData: Record<string, unknown> = {
+          contract_number: data.contract_number,
+          contract_type: data.contract_type,
+          start_date: data.start_date,
+          salary: data.salary,
+          job_title: data.job_title,
+          department: data.department ?? "",
+          terms: data.terms ?? "",
+          document_path: data.document_path ?? "",
+          status: data.status,
+        };
+        if (data.contract_type !== "PERMANENT") {
+          updateData.end_date = data.end_date || undefined;
+        }
         await updateContract.mutateAsync({
           id: contractId,
-          data: {
-            ...data,
-            end_date: data.end_date || undefined,
-          },
+          data: updateData as Parameters<typeof updateContract.mutateAsync>[0]["data"],
         });
         toast.success(t("messages.updateSuccess"));
       } else {
-        await createContract.mutateAsync({
+        const createPayload = {
           ...data,
-          end_date: data.end_date || undefined,
-        });
+          employee_id: String(employeeId),
+          end_date: data.contract_type === "PERMANENT" ? undefined : (data.end_date || undefined),
+        };
+        await createContract.mutateAsync(createPayload);
         toast.success(t("messages.createSuccess"));
       }
       onClose();
@@ -115,7 +172,10 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
   };
 
   const isPending = createContract.isPending || updateContract.isPending;
-  const isLoading = isLoadingContract || isLoadingFormData;
+  // In edit mode: keep loading until form data, contract by id, AND reset() has run so Select/fields are populated
+  const isFormReady =
+    !isLoadingFormData &&
+    (!isEdit || (!!contract && !isLoadingContract && hasFormBeenInitialized));
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -126,7 +186,7 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
           </DialogTitle>
         </DialogHeader>
 
-        {isLoading ? (
+        {!isFormReady ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -139,20 +199,40 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
               <Controller
                 name="employee_id"
                 control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isEdit}>
+                render={({ field }) => {
+                  // Normalize: ensure we always store UUID. Radix passes item value; if we ever get label, resolve to id.
+                  const normalizedValue = field.value ? String(field.value).trim() : "";
+                  const displayValue =
+                    normalizedValue && employees.some((e) => String(e.id) === normalizedValue)
+                      ? normalizedValue
+                      : employees.find((e) => `${e.employee_code} - ${e.name}` === normalizedValue)?.id ?? normalizedValue;
+                  // Always pass a string so Select stays controlled (avoids "uncontrolled to controlled" warning).
+                  const selectValue = typeof displayValue === "string" ? displayValue : "";
+                  return (
+                  <Select
+                    value={selectValue}
+                    onValueChange={(val) => {
+                      const id =
+                        employees.find((e) => String(e.id) === val) !== undefined
+                          ? val
+                          : employees.find((e) => `${e.employee_code} - ${e.name}` === val)?.id ?? val;
+                      field.onChange(typeof id === "string" ? id : String(id));
+                    }}
+                    disabled={isEdit}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder={t("fields.employeePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
+                        <SelectItem key={employee.id} value={String(employee.id)}>
                           {employee.employee_code} - {employee.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
+                  );
+                }}
               />
               {errors.employee_id && <FieldError>{errors.employee_id.message}</FieldError>}
             </Field>
@@ -174,7 +254,10 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
                 name="contract_type"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(v) => field.onChange(v === "" ? undefined : v)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder={t("fields.contractTypePlaceholder")} />
                     </SelectTrigger>
@@ -318,18 +401,41 @@ export function EmployeeContractForm({ contractId, onClose }: EmployeeContractFo
           <Field>
             <FieldLabel>{t("fields.document")}</FieldLabel>
             <Controller
-              name="document_path"
-              control={control}
-              render={({ field }) => (
-                <FileUpload
-                  value={field.value}
-                  onChange={field.onChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx"
-                  maxSize={10}
-                  placeholder={t("fields.documentPlaceholder")}
-                  uploadEndpoint="/upload/document"
-                />
-              )}
+                name="document_path"
+                control={control}
+                render={({ field }) => {
+                  const fallback =
+                    field.value != null && String(field.value).trim() !== ""
+                      ? String(field.value)
+                      : undefined;
+                  const docValue = documentDisplayClearedRef.current
+                    ? undefined
+                    : (documentPathDisplay ?? fallback);
+                  const handleChange = (val: string | undefined) => {
+                    const next = val && String(val).trim() !== "" ? val : undefined;
+                    documentDisplayClearedRef.current = false;
+                    setDocumentPathDisplay(next);
+                    field.onChange(next);
+                  };
+                  const handleClear = () => {
+                    documentDisplayClearedRef.current = true;
+                    setDocumentPathDisplay(undefined);
+                    setValue("document_path", "", { shouldDirty: true, shouldValidate: false });
+                    field.onChange(undefined);
+                  };
+                  return (
+                    <FileUpload
+                      key={docValue ?? "empty"}
+                      value={docValue}
+                      onChange={handleChange}
+                      onClear={handleClear}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      maxSize={10}
+                      placeholder={t("fields.documentPlaceholder")}
+                      uploadEndpoint="/upload/document"
+                    />
+                  );
+                }}
             />
             {errors.document_path && <FieldError>{errors.document_path.message}</FieldError>}
           </Field>

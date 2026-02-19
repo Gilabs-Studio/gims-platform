@@ -49,6 +49,9 @@ func (h *AttendanceRecordHandler) List(c *gin.Context) {
 		Filters: map[string]interface{}{},
 	}
 
+	if req.Search != "" {
+		meta.Filters["search"] = req.Search
+	}
 	if req.EmployeeID != "" {
 		meta.Filters["employee_id"] = req.EmployeeID
 	}
@@ -312,4 +315,15 @@ func (h *AttendanceRecordHandler) GetMonthlyStats(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, stats, nil)
+}
+
+// GetFormData handles get form data for attendance management
+func (h *AttendanceRecordHandler) GetFormData(c *gin.Context) {
+	formData, err := h.attendanceUC.GetFormData(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, formData, nil)
 }

@@ -18,6 +18,9 @@ export const certificationId = {
     search_placeholder: "Cari berdasarkan nama sertifikat atau penerbit...",
     filter_by_employee: "Filter berdasarkan Karyawan",
     all_employees: "Semua Karyawan",
+    filters: {
+      all_status: "Semua Status",
+    },
     expiring_soon: "Segera Berakhir",
     expired: "Kadaluarsa",
     valid: "Valid",
@@ -64,6 +67,20 @@ export const certificationId = {
       cancel: "Batal",
       create: "Buat",
       update: "Perbarui",
+      saving: "Menyimpan...",
+      error: "Terjadi kesalahan",
+    },
+
+    // Pesan sukses (toast)
+    success: {
+      created: "Sertifikasi berhasil dibuat",
+      updated: "Sertifikasi berhasil diperbarui",
+    },
+
+    // Pesan error (toast)
+    error: {
+      create: "Gagal membuat sertifikasi",
+      update: "Gagal memperbarui sertifikasi",
     },
 
     // Pesan hari tersisa
@@ -148,6 +165,7 @@ export const certificationId = {
       edit_button: "Edit",
       delete_button: "Hapus",
       back_to_list: "Kembali ke Daftar",
+      view_profile: "Lihat profil",
     },
 
     // Badge status

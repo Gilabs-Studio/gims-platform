@@ -12,7 +12,7 @@ type EmployeeCertificationUsecaseInterface interface {
 	UpdateCertification(ctx context.Context, id string, req *dto.UpdateEmployeeCertificationRequest, updatedBy string) (*dto.EmployeeCertificationResponse, error)
 	DeleteCertification(ctx context.Context, id string) error
 	GetCertificationByID(ctx context.Context, id string) (*dto.EmployeeCertificationResponse, error)
-	GetAllCertifications(ctx context.Context, page, perPage int, search, employeeID string) ([]*dto.EmployeeCertificationResponse, int64, error)
+	GetAllCertifications(ctx context.Context, page, perPage int, search, employeeID, status string) ([]*dto.EmployeeCertificationResponse, int64, error)
 	GetCertificationsByEmployeeID(ctx context.Context, employeeID string) ([]*dto.EmployeeCertificationResponse, error)
 	GetExpiringCertifications(ctx context.Context, daysBeforeExpiry int) ([]*dto.EmployeeCertificationResponse, error)
 	GetFormData(ctx context.Context) (*dto.EmployeeCertificationFormDataResponse, error)

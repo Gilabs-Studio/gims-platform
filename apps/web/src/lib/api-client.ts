@@ -229,6 +229,7 @@ apiClient.interceptors.response.use(
     if (status === 401) {
       const originalRequest = error.config as InternalAxiosRequestConfig & {
         _retry?: boolean;
+        skipAuthRedirectOn401?: boolean;
       };
       const requestUrl = originalRequest?.url || "";
 
@@ -237,6 +238,15 @@ apiClient.interceptors.response.use(
         requestUrl.includes("/auth/login") ||
         requestUrl.includes("/auth/refresh")
       ) {
+        return Promise.reject(error);
+      }
+
+      // When requested (e.g. mutations), only show toast and reject — no refresh, no logout
+      if (originalRequest?.skipAuthRedirectOn401) {
+        if (typeof window !== "undefined") {
+          const msg = formatError("backend", "unauthorized");
+          toast.error(msg.title, { description: msg.description });
+        }
         return Promise.reject(error);
       }
 

@@ -12,7 +12,7 @@ type EmployeeCertificationRepositoryInterface interface {
 	Update(ctx context.Context, certification *models.EmployeeCertification) error
 	Delete(ctx context.Context, id string) error
 	FindByID(ctx context.Context, id string) (*models.EmployeeCertification, error)
-	FindAll(ctx context.Context, page, perPage int, search, employeeID string) ([]*models.EmployeeCertification, int64, error)
+	FindAll(ctx context.Context, page, perPage int, search, employeeID, status string) ([]*models.EmployeeCertification, int64, error)
 	FindByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeCertification, error)
 	FindExpiringCertifications(ctx context.Context, daysBeforeExpiry int) ([]*models.EmployeeCertification, error)
 }

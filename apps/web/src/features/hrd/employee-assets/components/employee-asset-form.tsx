@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -53,11 +53,12 @@ export function EmployeeAssetForm({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<EmployeeAssetFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      employee_id: asset?.employee_id ?? "",
+      employee_id: asset?.employee_id != null ? String(asset.employee_id) : "",
       asset_name: asset?.asset_name ?? "",
       asset_code: asset?.asset_code ?? "",
       asset_category: asset?.asset_category ?? "",
@@ -68,6 +69,17 @@ export function EmployeeAssetForm({
   });
 
   const isReturned = asset?.status === "RETURNED";
+
+  // Normalize employee_id: if value is label (e.g. "EMP-002 - Name"), resolve to id so UUID validation passes
+  const employeeIdValue = useWatch({ control, name: "employee_id" });
+  useEffect(() => {
+    if (!employeeIdValue || typeof employeeIdValue !== "string" || employees.length === 0) return;
+    const s = employeeIdValue.trim();
+    const isUuid = employees.some((e) => String(e.id) === s);
+    if (isUuid) return;
+    const byLabel = employees.find((e) => `${e.employee_code} - ${e.name}` === s);
+    if (byLabel) setValue("employee_id", String(byLabel.id), { shouldValidate: true });
+  }, [employeeIdValue, employees, setValue]);
 
   useEffect(() => {
     if (isReturned) {
@@ -90,8 +102,8 @@ export function EmployeeAssetForm({
           name="employee_id"
           render={({ field }) => (
             <Select
+              value={field.value}
               onValueChange={field.onChange}
-              defaultValue={field.value}
               disabled={!!asset || isReturned}
             >
               <SelectTrigger>
@@ -99,7 +111,7 @@ export function EmployeeAssetForm({
               </SelectTrigger>
               <SelectContent>
                 {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
+                  <SelectItem key={emp.id} value={String(emp.id)}>
                     {emp.employee_code} - {emp.name}
                   </SelectItem>
                 ))}
@@ -213,8 +225,8 @@ export function EmployeeAssetForm({
           name="borrow_condition"
           render={({ field }) => (
             <Select
+              value={field.value}
               onValueChange={field.onChange}
-              defaultValue={field.value}
               disabled={isReturned}
             >
               <SelectTrigger>

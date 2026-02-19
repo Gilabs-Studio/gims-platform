@@ -18,21 +18,21 @@ export const workScheduleService = {
   }): Promise<WorkScheduleListResponse> {
     const response = await apiClient.get<WorkScheduleListResponse>(
       "/hrd/work-schedules",
-      { params }
+      { params },
     );
     return response.data;
   },
 
   async getById(id: string): Promise<WorkScheduleResponse> {
     const response = await apiClient.get<WorkScheduleResponse>(
-      `/hrd/work-schedules/${id}`
+      `/hrd/work-schedules/${id}`,
     );
     return response.data;
   },
 
   async getDefault(): Promise<WorkScheduleResponse> {
     const response = await apiClient.get<WorkScheduleResponse>(
-      "/hrd/work-schedules/default"
+      "/hrd/work-schedules/default",
     );
     return response.data;
   },
@@ -40,32 +40,32 @@ export const workScheduleService = {
   async create(data: CreateWorkScheduleRequest): Promise<WorkScheduleResponse> {
     const response = await apiClient.post<WorkScheduleResponse>(
       "/hrd/work-schedules",
-      data
+      data,
     );
     return response.data;
   },
 
   async update(
     id: string,
-    data: UpdateWorkScheduleRequest
+    data: UpdateWorkScheduleRequest,
   ): Promise<WorkScheduleResponse> {
     const response = await apiClient.put<WorkScheduleResponse>(
       `/hrd/work-schedules/${id}`,
-      data
+      data,
     );
     return response.data;
   },
 
   async setDefault(id: string): Promise<WorkScheduleResponse> {
     const response = await apiClient.post<WorkScheduleResponse>(
-      `/hrd/work-schedules/${id}/set-default`
+      `/hrd/work-schedules/${id}/set-default`,
     );
     return response.data;
   },
 
   async delete(id: string): Promise<DeleteResponse> {
     const response = await apiClient.delete<DeleteResponse>(
-      `/hrd/work-schedules/${id}`
+      `/hrd/work-schedules/${id}`,
     );
     return response.data;
   },

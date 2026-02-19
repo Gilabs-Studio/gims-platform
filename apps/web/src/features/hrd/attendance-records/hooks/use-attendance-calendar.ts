@@ -39,8 +39,8 @@ export function useAttendanceCalendar() {
 
   // Fetch attendance records for the current month
   const { data, isLoading } = useAttendanceRecords({
-    start_date: format(startDate, "yyyy-MM-dd"),
-    end_date: format(endDate, "yyyy-MM-dd"),
+    date_from: format(startDate, "yyyy-MM-dd"),
+    date_to: format(endDate, "yyyy-MM-dd"),
     per_page: 100, // Get all records for the month
   });
 
@@ -56,13 +56,17 @@ export function useAttendanceCalendar() {
       id: record.id,
       employeeId: record.employee_id,
       employeeName: record.employee_name ?? "Unknown",
+      employeeCode: record.employee_code ?? "",
+      divisionName: record.division_name,
       date: parseISO(record.date),
       checkInTime: record.check_in_time,
       checkOutTime: record.check_out_time,
+      checkInType: record.check_in_type ?? "NORMAL",
       status: record.status,
-      isLate: record.is_late,
       lateMinutes: record.late_minutes,
-      note: record.note,
+      workingHours: record.working_hours ?? "",
+      notes: record.notes ?? "",
+      isManualEntry: record.is_manual_entry ?? false,
     }));
   }, [data]);
 

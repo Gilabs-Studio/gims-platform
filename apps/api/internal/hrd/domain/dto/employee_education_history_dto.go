@@ -33,6 +33,8 @@ type UpdateEmployeeEducationHistoryRequest struct {
 type EmployeeEducationHistoryResponse struct {
 	ID            uuid.UUID          `json:"id"`
 	EmployeeID    uuid.UUID          `json:"employee_id"`
+	EmployeeName  string             `json:"employee_name,omitempty"`
+	EmployeeCode  string             `json:"employee_code,omitempty"`
 	Institution   string             `json:"institution"`
 	Degree        models.DegreeLevel `json:"degree"`
 	FieldOfStudy  string             `json:"field_of_study"`

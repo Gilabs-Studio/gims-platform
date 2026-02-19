@@ -56,15 +56,17 @@ export function EmployeeAssetDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>{t("detail.title")}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle>
             {asset.asset_code} - {asset.asset_name}
+          </DialogTitle>
+          <DialogDescription>
+            {t("detail.title")}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Asset Information */}
           <div>
             <h3 className="mb-3 font-semibold">{t("detail.assetInfo")}</h3>

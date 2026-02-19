@@ -15,10 +15,12 @@ interface AttendanceDayViewProps {
   readonly events: readonly CalendarEvent[];
   readonly onBack: () => void;
   readonly onEventClick: (event: CalendarEvent) => void;
+  readonly onEdit?: (event: CalendarEvent) => void;
   readonly onCreateNew: () => void;
+  readonly canEdit?: boolean;
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PRESENT: {
     label: "Present",
     className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
@@ -47,14 +49,24 @@ const STATUS_CONFIG = {
     label: "Holiday",
     className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
   },
-} as const;
+  WFH: {
+    label: "Work From Home",
+    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20",
+  },
+  OFF_DAY: {
+    label: "Off Day",
+    className: "bg-gray-500/10 text-gray-700 border-gray-500/20",
+  },
+};
 
 export function AttendanceDayView({
   selectedDate,
   events,
   onBack,
   onEventClick,
+  onEdit,
   onCreateNew,
+  canEdit = false,
 }: AttendanceDayViewProps) {
   return (
     <div className="flex h-full flex-col">
@@ -105,7 +117,7 @@ export function AttendanceDayView({
           ) : (
             <div className="space-y-3">
               {events.map((event) => {
-                const statusConfig = STATUS_CONFIG[event.status];
+                const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.PRESENT;
 
                 return (
                   <Card
@@ -162,7 +174,7 @@ export function AttendanceDayView({
                           </div>
 
                           {/* Note */}
-                          {event.note && (
+                          {event.notes && (
                             <>
                               <Separator />
                               <div>
@@ -170,26 +182,29 @@ export function AttendanceDayView({
                                   Note
                                 </p>
                                 <p className="mt-1 text-sm leading-relaxed">
-                                  {event.note}
+                                  {event.notes}
                                 </p>
                               </div>
                             </>
                           )}
                         </div>
 
-                        {/* Hover Actions */}
+                        {/* Hover Actions: View detail on card click, Edit via button */}
                         <div className="ml-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick(event);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {canEdit && onEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(event);
+                              }}
+                              title="Edit attendance"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

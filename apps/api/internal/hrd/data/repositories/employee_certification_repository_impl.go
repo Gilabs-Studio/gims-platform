@@ -43,7 +43,7 @@ func (r *EmployeeCertificationRepository) FindByID(ctx context.Context, id strin
 }
 
 // FindAll retrieves all employee certifications with pagination and optional filters
-func (r *EmployeeCertificationRepository) FindAll(ctx context.Context, page, perPage int, search, employeeID string) ([]*models.EmployeeCertification, int64, error) {
+func (r *EmployeeCertificationRepository) FindAll(ctx context.Context, page, perPage int, search, employeeID, status string) ([]*models.EmployeeCertification, int64, error) {
 	var certifications []*models.EmployeeCertification
 	var total int64
 
@@ -58,6 +58,21 @@ func (r *EmployeeCertificationRepository) FindAll(ctx context.Context, page, per
 	// Employee filter
 	if employeeID != "" {
 		query = query.Where("employee_id = ?", employeeID)
+	}
+
+	// Status filter: no_expiry | valid | expiring_soon | expired
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	expiringSoonEnd := today.AddDate(0, 0, 30)
+	switch status {
+	case "no_expiry":
+		query = query.Where("expiry_date IS NULL")
+	case "expired":
+		query = query.Where("expiry_date IS NOT NULL AND expiry_date < ?", today)
+	case "expiring_soon":
+		query = query.Where("expiry_date IS NOT NULL AND expiry_date >= ? AND expiry_date <= ?", today, expiringSoonEnd)
+	case "valid":
+		query = query.Where("expiry_date IS NOT NULL AND expiry_date > ?", expiringSoonEnd)
 	}
 
 	// Count total

@@ -91,6 +91,11 @@ export const employeeContractEn = {
       audit: "Audit",
     },
 
+    // Actions (list/page level)
+    actions: {
+      add: "Add Contract",
+    },
+
     // Filters
     filters: {
       all: "All Contracts",

@@ -66,6 +66,10 @@ import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
 import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
 import { settingsEn } from "@/features/settings/i18n/en";
 import { settingsId } from "@/features/settings/i18n/id";
+import { evaluationEn } from "@/features/hrd/evaluation/i18n/en";
+import { evaluationId } from "@/features/hrd/evaluation/i18n/id";
+import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
+import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
@@ -152,6 +156,8 @@ const messages = {
     ...inventoryEn,
     stock_opname: stockOpnameEn,
     ...settingsEn,
+    ...evaluationEn,
+    ...recruitmentEn,
     purchaseRequisition: purchaseRequisitionEn,
     purchaseOrder: purchaseOrderEn,
     goodsReceipt: goodsReceiptEn,
@@ -207,6 +213,8 @@ const messages = {
     ...inventoryId,
     stock_opname: stockOpnameId,
     ...settingsId,
+    ...evaluationId,
+    ...recruitmentId,
     purchaseRequisition: purchaseRequisitionId,
     purchaseOrder: purchaseOrderId,
     goodsReceipt: goodsReceiptId,

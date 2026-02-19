@@ -74,6 +74,15 @@ func (r *attendanceRecordRepository) List(ctx context.Context, req *dto.ListAtte
 
 	query := r.getDB(ctx).Model(&models.AttendanceRecord{})
 
+	// Apply search filter (searches employee name and code via subquery)
+	if req.Search != "" {
+		searchPattern := "%" + req.Search + "%"
+		query = query.Where(
+			"employee_id IN (SELECT id FROM employees WHERE LOWER(name) LIKE LOWER(?) OR LOWER(employee_code) LIKE LOWER(?))",
+			searchPattern, searchPattern,
+		)
+	}
+
 	// Apply employee filter
 	if req.EmployeeID != "" {
 		query = query.Where("employee_id = ?", req.EmployeeID)

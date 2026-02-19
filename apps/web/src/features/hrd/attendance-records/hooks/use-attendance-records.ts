@@ -2,27 +2,34 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { attendanceRecordService } from "../services/attendance-record-service";
-import type { 
-  ClockInRequest, 
-  ClockOutRequest, 
-  ManualAttendanceRequest 
+import type {
+  ClockInRequest,
+  ClockOutRequest,
+  ManualAttendanceRequest,
+  UpdateAttendanceRequest,
+  ListAttendanceRecordsParams,
 } from "../types";
 
-const QUERY_KEYS = {
-  attendanceRecords: (params?: unknown) => ["attendance-records", params],
-  attendanceRecord: (id: string) => ["attendance-records", id],
-  todayAttendance: () => ["attendance", "today"],
-  myStats: (params?: unknown) => ["attendance", "my-stats", params],
-  employeeStats: (id: string, params?: unknown) => ["attendance", "stats", id, params],
+// Query key factory - consistent with visit feature pattern
+export const attendanceKeys = {
+  all: ["attendance"] as const,
+  lists: () => [...attendanceKeys.all, "list"] as const,
+  list: (params?: ListAttendanceRecordsParams) => [...attendanceKeys.lists(), params] as const,
+  details: () => [...attendanceKeys.all, "detail"] as const,
+  detail: (id: string) => [...attendanceKeys.details(), id] as const,
+  today: () => [...attendanceKeys.all, "today"] as const,
+  myStats: (params?: Record<string, unknown>) => [...attendanceKeys.all, "my-stats", params] as const,
+  employeeStats: (id: string, params?: Record<string, unknown>) => [...attendanceKeys.all, "stats", id, params] as const,
+  formData: () => [...attendanceKeys.all, "form-data"] as const,
 } as const;
 
 // Self-service hooks
 export function useTodayAttendance() {
   return useQuery({
-    queryKey: QUERY_KEYS.todayAttendance(),
+    queryKey: attendanceKeys.today(),
     queryFn: () => attendanceRecordService.getTodayAttendance(),
-    staleTime: 1000 * 30, // 30 seconds - refresh frequently for clock in/out
-    refetchInterval: 1000 * 60, // Refetch every minute
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
   });
 }
 
@@ -32,8 +39,8 @@ export function useClockIn() {
   return useMutation({
     mutationFn: (data: ClockInRequest) => attendanceRecordService.clockIn(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todayAttendance() });
-      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.today() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
     },
   });
 }
@@ -44,46 +51,44 @@ export function useClockOut() {
   return useMutation({
     mutationFn: (data: ClockOutRequest) => attendanceRecordService.clockOut(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todayAttendance() });
-      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
-      queryClient.invalidateQueries({ queryKey: ["overtime"] }); // Overtime may be auto-detected
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.today() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["overtime"] });
     },
   });
 }
 
 export function useMyMonthlyStats(params?: { month?: number; year?: number }) {
   return useQuery({
-    queryKey: QUERY_KEYS.myStats(params),
+    queryKey: attendanceKeys.myStats(params),
     queryFn: () => attendanceRecordService.getMyMonthlyStats(params),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// Form data hook - replaces useAttendanceRecordReport
+export function useAttendanceFormData() {
+  return useQuery({
+    queryKey: attendanceKeys.formData(),
+    queryFn: () => attendanceRecordService.getFormData(),
+    staleTime: 1000 * 60 * 10,
   });
 }
 
 // Admin hooks
-export function useAttendanceRecords(params?: {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  employee_id?: string;
-  date?: string;
-  start_date?: string;
-  end_date?: string;
-  status?: string;
-  sort_by?: string;
-  sort_order?: string;
-}) {
+export function useAttendanceRecords(params?: ListAttendanceRecordsParams) {
   return useQuery({
-    queryKey: QUERY_KEYS.attendanceRecords(params),
+    queryKey: attendanceKeys.list(params),
     queryFn: () => attendanceRecordService.list(params),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-export function useAttendanceRecord(id: string) {
+export function useAttendanceRecord(id: string, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: QUERY_KEYS.attendanceRecord(id),
+    queryKey: attendanceKeys.detail(id),
     queryFn: () => attendanceRecordService.getById(id),
-    enabled: !!id,
+    enabled: options?.enabled ?? !!id,
   });
 }
 
@@ -92,7 +97,7 @@ export function useEmployeeMonthlyStats(
   params?: { month?: number; year?: number }
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.employeeStats(employeeId, params),
+    queryKey: attendanceKeys.employeeStats(employeeId, params),
     queryFn: () => attendanceRecordService.getEmployeeMonthlyStats(employeeId, params),
     enabled: !!employeeId,
     staleTime: 1000 * 60 * 5,
@@ -106,7 +111,8 @@ export function useCreateManualAttendance() {
     mutationFn: (data: ManualAttendanceRequest) =>
       attendanceRecordService.createManual(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.today() });
     },
   });
 }
@@ -115,10 +121,11 @@ export function useUpdateAttendanceRecord() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<ManualAttendanceRequest> }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateAttendanceRequest }) =>
       attendanceRecordService.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.details() });
     },
   });
 }
@@ -129,7 +136,7 @@ export function useDeleteAttendanceRecord() {
   return useMutation({
     mutationFn: (id: string) => attendanceRecordService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
     },
   });
 }
@@ -139,36 +146,7 @@ export function useCreateAttendanceRecord() {
   return useCreateManualAttendance();
 }
 
-// Report hook for admin forms
-interface Employee {
-  id: string;
-  name: string;
-}
-
-interface ReportData {
-  data: {
-    employees: Employee[];
-  };
-}
-
+// Backward compatibility alias
 export function useAttendanceRecordReport() {
-  return useQuery<ReportData>({
-    queryKey: ["attendance", "report-data"],
-    queryFn: async () => {
-      // Fetch employees for dropdown - this can be extended
-      const response = await fetch("/api/v1/employees?per_page=100", {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch report data");
-      }
-      const data = await response.json();
-      return {
-        data: {
-          employees: data.data || [],
-        },
-      };
-    },
-    staleTime: 1000 * 60 * 10, // 10 minutes
-  });
+  return useAttendanceFormData();
 }

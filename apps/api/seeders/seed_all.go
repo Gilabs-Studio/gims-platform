@@ -155,6 +155,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Attendance Records seeder (Sprint 13)
+	if err := SeedAttendanceRecords(); err != nil {
+		return err
+	}
+
+	// HRD - Overtime Requests seeder (Sprint 13)
+	if err := SeedOvertimeRequests(); err != nil {
+		return err
+	}
+
 	// HRD - Employee Contracts seeder (Sprint 14)
 	if err := SeedEmployeeContracts(); err != nil {
 		return err
@@ -172,6 +182,26 @@ func SeedAll() error {
 
 	// HRD - Employee Assets seeder (Sprint 14)
 	if err := SeedEmployeeAssets(); err != nil {
+		return err
+	}
+
+	// HRD - Evaluation Groups seeder (Sprint 15)
+	if err := SeedEvaluationGroups(); err != nil {
+		return err
+	}
+
+	// HRD - Evaluation Criteria seeder (Sprint 15)
+	if err := SeedEvaluationCriteria(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Evaluations seeder (Sprint 15)
+	if err := SeedEmployeeEvaluations(); err != nil {
+		return err
+	}
+
+	// HRD - Recruitment Requests seeder (Sprint 15)
+	if err := SeedRecruitmentRequests(); err != nil {
 		return err
 	}
 

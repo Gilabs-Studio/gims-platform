@@ -486,6 +486,116 @@ STORAGE_MAX_UPLOAD_SIZE=10485760  # 10MB default
    - Organize endpoints by feature/module folders
    - Update collection version and description if needed
 
+### Seeder Guidelines (CRITICAL for Database Seeding)
+
+Seeders live in `apps/api/seeders/` and run automatically on server start via `SeedAll()` in `seed_all.go`.
+
+#### UUID Rules (MUST follow — PostgreSQL enforces)
+- **ONLY hex characters** allowed in UUIDs: `0-9` and `a-f`
+- **NEVER** use non-hex letters like `r`, `g`, `h`, `i`, `j`, etc.
+- PostgreSQL `uuid` column type will **silently reject** invalid UUIDs
+
+```go
+// ❌ WRONG — "rr" is not valid hex, PostgreSQL will reject
+RecruitmentID = "rr000001-0000-0000-0000-000000000001"
+
+// ❌ WRONG — "gh" is not valid hex
+GroupID = "gh000001-0000-0000-0000-000000000001"
+
+// ✅ CORRECT — all hex characters (0-9, a-f)
+RecruitmentID = "ae000001-0000-0000-0000-000000000001"
+EvalGroupID   = "e0000001-0000-0000-0000-000000000001"
+LeaveRequest  = "10000001-0001-0001-0001-000000000001"
+```
+
+#### UUID Prefix Convention (by feature)
+Use a **hex-only prefix** to identify the feature. Suggested mappings:
+- `e0` = Evaluation Group
+- `ec` = Evaluation Criteria  
+- `ee` = Employee Evaluation  
+- `ae` = Recruitment Request
+- `10..80` = Leave Requests (sequential)
+- Use remaining hex prefixes (`a0-af`, `b0-bf`, `c0-cf`, `d0-df`, `f0-ff`) for new features
+
+#### Pointer Fields for Constants (Go constraint)
+Go cannot take the address of a constant (`&MyConst`). Create local variables:
+```go
+// ❌ WRONG — compile error: cannot take address of constant
+CreatedBy: &AdminEmployeeID,
+
+// ✅ CORRECT — use local variable
+adminID := AdminEmployeeID
+CreatedBy: &adminID,
+```
+
+#### Seeder Structure Pattern
+```go
+package seeders
+
+import (
+    "log"
+    "github.com/gilabs/gims/api/internal/core/infrastructure/database"
+    "github.com/gilabs/gims/api/internal/<domain>/data/models"
+    "gorm.io/gorm/clause"
+)
+
+const (
+    // Fixed UUIDs — hex-only characters [0-9a-f]
+    MyEntityID1 = "ab000001-0000-0000-0000-000000000001"
+    MyEntityID2 = "ab000001-0000-0000-0000-000000000002"
+)
+
+func SeedMyEntities() error {
+    log.Println("Seeding my entities...")
+    
+    // Local vars for pointer fields
+    adminID := AdminEmployeeID
+    
+    entities := []models.MyEntity{
+        {
+            ID:        MyEntityID1,
+            CreatedBy: &adminID,
+            // ...
+        },
+    }
+    
+    for _, entity := range entities {
+        if err := database.DB.Clauses(clause.OnConflict{
+            Columns:   []clause.Column{{Name: "id"}},
+            DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+        }).Create(&entity).Error; err != nil {
+            log.Printf("Warning: Failed to seed entity %s: %v", entity.ID, err)
+        }
+    }
+    
+    log.Println("My entities seeded successfully")
+    return nil
+}
+```
+
+#### Registration in seed_all.go (MANDATORY)
+After creating a seeder, register it in `apps/api/seeders/seed_all.go`:
+```go
+// In SeedAll() function, add after existing seeders:
+if err := SeedMyEntities(); err != nil {
+    return err
+}
+```
+
+#### Available Constants (from `seeders/constants.go`)
+- **Employees**: `AdminEmployeeID`, `ManagerEmployeeID`, `StaffEmployeeID`
+- **Divisions**: `SalesDivisionID`, `OpsDivisionID`, `FinanceDivisionID`, `HRDivisionID`, `ITDivisionID`
+- **Positions**: `DirectorPositionID`, `ManagerPositionID`, `SupervisorPositionID`, `StaffPositionID`, `AdminPositionID`, `SalesRepPositionID`
+- **Roles**: `AdminRoleID`, `ManagerRoleID`, `StaffRoleID`, `ViewerRoleID`
+- **Users**: `AdminUserID`, `ManagerUserID`, `StaffUserID`, `ViewerUserID`
+
+#### Common Seeder Mistakes to Avoid
+1. **Non-hex UUID characters** — The #1 cause of seeder failures. Always verify your UUID prefixes are `[0-9a-f]` only.
+2. **Taking address of constants** — Use local variables for pointer fields.
+3. **Forgetting to register in seed_all.go** — Seeder function won't be called.
+4. **Not using `clause.OnConflict`** — Seeder must be idempotent (re-runnable).
+5. **Incorrect FK references** — Always use constants from `constants.go` for related entity IDs.
+
 ### Adding New Frontend Feature
 1. **Read Sprint Planning**: Check UI requirements, success criteria, integration needs
 2. **Create Feature Folder**: `apps/web/src/features/<feature>/`

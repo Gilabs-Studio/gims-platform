@@ -529,7 +529,7 @@ apps/web/app/[locale]/(dashboard)/hrd/contracts/
 **Features:**
 - Translation support via `getMsg(t, key, fallback)` helper
 - Field validations:
-  - `employee_id`: UUID required
+  - `employee_id`: UUID-format string required (permissive regex to accept seed/test UUIDs; see [Fixed Issues](#fixed-issues))
   - `contract_number`: string 1-50 chars, required
   - `contract_type`: enum required
   - `start_date`: string required
@@ -772,11 +772,12 @@ const handleDelete = () => {
 7. **Job Title** (Input)
 8. **Department** (Input)
 9. **Terms** (Textarea)
-10. **Document** (FileUpload - \u2705 IMPLEMENTED)
+10. **Document** (FileUpload - ✅ IMPLEMENTED)
     - Upload contract documents (PDF, DOC, DOCX, XLS, XLSX)
     - Max size: 10MB
     - Automatic upload to `/upload/document` endpoint
-    - Shows uploaded filename with remove option
+    - Shows uploaded filename with remove (X) button
+    - **Edit mode**: Clicking X removes the current document and immediately shows the upload area; user can then upload a new file. On submit, empty `document_path` is sent to clear the document on the backend.
     - Loading state during upload
     - Security: Magic bytes validation, UUID filenames
 11. **Status** (Select - only in edit mode)
@@ -795,7 +796,7 @@ useEffect(() => {
 
 **Form Modes:**
 - **Create Mode**: All fields enabled, status defaults to ACTIVE
-- **Edit Mode**: Employee field disabled (cannot change employee), all other fields editable
+- **Edit Mode**: Form is not shown until contract by ID and form data are loaded and `reset(contract)` has run, so dropdowns (Employee, Contract Type) and all fields are pre-filled. Employee field is disabled (cannot change employee); all other fields editable. Document field shows existing file with remove (X) button; clearing shows upload area immediately and allows uploading a new document.
 
 **Validation:**
 - Zod schema with business rules
@@ -991,10 +992,12 @@ const VALID_DASHBOARD_ROUTES = [
 
 **4. Edit Contract**
 - [ ] Click "Edit" action in table
-- [ ] Dialog opens with pre-filled data
+- [ ] Loading state until contract and form data are loaded (form not shown until ready)
+- [ ] Dialog opens with pre-filled data (Employee, Contract Type, dates, document, etc.)
 - [ ] Employee field is disabled (cannot change)
 - [ ] All other fields are editable
 - [ ] Status field shows (only in edit mode)
+- [ ] **Document**: If contract has a document, filename and X button show; clicking X clears the document and shows upload area immediately; user can upload a new file or submit to save without document
 - [ ] **CRITICAL**: Change type to PERMANENT → end_date clears
 - [ ] **CRITICAL**: Change type to CONTRACT with no end_date → validation error
 - [ ] Update → optimistic update → toast → modal closes → list refreshes
@@ -1164,14 +1167,31 @@ const VALID_DASHBOARD_ROUTES = [
      - Async search with debounce
 
 4. **Document Upload**:
-   - Field `document_path` is text input only
-   - No file upload functionality yet
-   - Planned for Sprint 15
+   - ✅ File upload implemented via `FileUpload` component and `POST /api/v1/upload/document`
+   - Supported: PDF, DOC, DOCX, XLS, XLSX; max 10MB. Upload requires valid session and CSRF token (see Fixed Issues if 403 occurs)
+   - ✅ In edit mode, user can remove the current document (X button); UI switches to upload area immediately; submit with cleared document sends empty string to backend to clear stored path
 
 5. **Expiring Contracts Widget**:
    - Not yet implemented as dashboard widget
    - Data available via `useExpiringContracts()` hook
    - Can be added to HRD dashboard in future sprint
+
+### Fixed Issues
+
+1. **Employee field "Invalid ID format" on Create/Edit Contract** (Fixed):
+   - **Symptom**: Form showed "Invalid ID format" on the Employee select when creating or editing a contract, even though the form-data API returned valid-looking UUIDs.
+   - **Cause**: Zod’s `z.string().uuid()` follows RFC 4122 strictly: the variant nibble (first character of the 4th segment) must be 8, 9, a, or b. Seed/test UUIDs (e.g. `11111111-1111-1111-1111-111111111111`) have 4th segment `1111` (variant 0), so they were rejected.
+   - **Fix**: In `employee-contract.schema.ts`, `employee_id` validation was changed from `z.string().uuid()` to a permissive UUID-format regex (8-4-4-4-12 hex) so all UUID-shaped strings, including seed data, are accepted. Form and Select logic were already sending the correct UUID; only schema validation was updated.
+
+2. **Contract document upload returns 403 "Invalid or missing CSRF token"** (Fixed):
+   - **Symptom**: Uploading a contract document (PDF, etc.) in Create/Edit Employee Contract form returned `POST /api/v1/upload/document 403 (Forbidden)` and UI showed "Invalid or missing CSRF token".
+   - **Cause**: The API protects state-changing requests with CSRF (double-submit cookie). The `FileUpload` component used raw `fetch()` with `credentials: "include"` (so the `gims_csrf_token` cookie was sent) but did not send the `X-CSRF-Token` header required by the backend middleware.
+   - **Fix**: In `apps/web/src/components/ui/file-upload.tsx`, the upload request now reads the CSRF token from the `gims_csrf_token` cookie and sends it in the `X-CSRF-Token` header, matching the behavior of the axios api-client. Ensure the user has loaded a page that prefetches CSRF (e.g. login or any API call via apiClient) so the cookie is set before uploading.
+
+3. **Edit contract: document remove (X) and form loading** (Fixed):
+   - **Symptom**: In edit mode, clicking the X button next to the contract document did not switch the UI to the upload area; form sometimes showed before contract data was loaded, leaving dropdowns empty.
+   - **Cause**: (1) Display value for the document field was derived from React Hook Form state; after clear, RHF update could be delayed so the UI still showed the old path. (2) Form was shown as soon as form-data was ready, before contract by ID was loaded and `reset(contract)` had run.
+   - **Fix**: (1) **Loading**: Form is shown only when `!isLoadingFormData && (!isEdit || (!!contract && !isLoadingContract && hasFormBeenInitialized))`, and `hasFormBeenInitialized` is set to `true` only after `reset(contract)` in the edit-mode effect, so Employee and Contract Type are populated before the form appears. (2) **Document display**: Local state `documentPathDisplay` and ref `documentDisplayClearedRef` drive the FileUpload value; on clear, `documentDisplayClearedRef` is set so the next render uses `undefined` for display (no fallback to stale `field.value`), and the upload area appears immediately. `FileUpload` remove handler uses both `onPointerDown` and `onClick` with a single-fire ref to avoid double execution inside dialogs.
 
 ### Future Frontend Enhancements
 

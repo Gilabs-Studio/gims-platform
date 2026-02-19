@@ -29,6 +29,8 @@ type UpdateEmployeeCertificationRequest struct {
 type EmployeeCertificationResponse struct {
 	ID                string     `json:"id"`
 	EmployeeID        string     `json:"employee_id"`
+	EmployeeName      string     `json:"employee_name,omitempty"`
+	EmployeeCode      string     `json:"employee_code,omitempty"`
 	CertificateName   string     `json:"certificate_name"`
 	IssuedBy          string     `json:"issued_by"`
 	IssueDate         string     `json:"issue_date"`

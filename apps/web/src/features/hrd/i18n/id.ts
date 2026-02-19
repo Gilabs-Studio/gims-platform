@@ -64,9 +64,23 @@ export const hrdId = {
       alreadyClockedOut: "Sudah absen pulang",
       myStats: "Statistik Kehadiran Saya",
       monthlyStats: "Statistik Bulanan",
+      loading: "Memuat...",
+      listView: "Tampilan Daftar",
+      calendarView: "Tampilan Kalender",
+      noRecords: "Tidak ada catatan kehadiran",
+      noRecordsDesc: "Tidak ada catatan kehadiran yang sesuai dengan filter saat ini",
 
       // Status
       status: {
+        present: "Hadir",
+        absent: "Tidak Hadir",
+        late: "Terlambat",
+        early_leave: "Pulang Awal",
+        half_day: "Setengah Hari",
+        holiday: "Libur",
+        leave: "Cuti",
+        wfh: "Kerja dari Rumah",
+        off_day: "Hari Libur",
         PRESENT: "Hadir",
         ABSENT: "Tidak Hadir",
         LATE: "Terlambat",
@@ -74,6 +88,18 @@ export const hrdId = {
         HALF_DAY: "Setengah Hari",
         HOLIDAY: "Libur",
         LEAVE: "Cuti",
+        WFH: "Kerja dari Rumah",
+        OFF_DAY: "Hari Libur",
+      },
+
+      // Check-in type
+      checkInType: {
+        normal: "Kantor",
+        wfh: "Kerja dari Rumah",
+        field_work: "Kerja Lapangan",
+        NORMAL: "Kantor",
+        WFH: "Kerja dari Rumah",
+        FIELD_WORK: "Kerja Lapangan",
       },
 
       // Fields
@@ -81,14 +107,55 @@ export const hrdId = {
         date: "Tanggal",
         checkInTime: "Waktu Masuk",
         checkOutTime: "Waktu Pulang",
+        checkIn: "Masuk",
+        checkOut: "Pulang",
+        checkInType: "Tipe Absen Masuk",
         status: "Status",
         lateMinutes: "Terlambat (menit)",
         workingMinutes: "Waktu Kerja",
+        workingHours: "Jam Kerja",
         overtimeMinutes: "Lembur",
+        overtimeHours: "Jam Lembur",
+        earlyLeaveMinutes: "Pulang Awal (menit)",
         note: "Catatan",
+        notes: "Catatan",
+        reason: "Alasan",
         employee: "Karyawan",
+        employeeName: "Nama Karyawan",
+        employeeCode: "Kode Karyawan",
         division: "Divisi",
         location: "Lokasi",
+        address: "Alamat",
+        isManualEntry: "Input Manual",
+        manualEntryReason: "Alasan Input Manual",
+      },
+
+      // Form
+      form: {
+        employeeInfo: "Informasi Karyawan",
+        attendanceDetails: "Detail Kehadiran",
+        reasonAndNotes: "Alasan & Catatan",
+        employee: "Karyawan",
+        selectEmployee: "Pilih karyawan",
+        date: "Tanggal",
+        status: "Status",
+        selectStatus: "Pilih status",
+        checkInType: "Tipe Absen Masuk",
+        selectCheckInType: "Pilih tipe absen masuk",
+        checkInTime: "Waktu Masuk",
+        checkInTimeDesc: "Waktu karyawan absen masuk",
+        checkOutTime: "Waktu Pulang",
+        checkOutTimeDesc: "Waktu karyawan absen pulang",
+        reason: "Alasan",
+        reasonPlaceholder: "Jelaskan alasan input manual ini...",
+        reasonDesc: "Opsional untuk input absensi manual",
+        notes: "Catatan",
+        notesPlaceholder: "Tambahkan catatan tambahan...",
+        notesDesc: "Catatan opsional tentang rekaman ini",
+        cancel: "Batal",
+        submitting: "Mengirim...",
+        update: "Perbarui Rekaman",
+        create: "Buat Rekaman",
       },
 
       // Actions
@@ -98,6 +165,9 @@ export const hrdId = {
         delete: "Hapus Absensi",
         manualEntry: "Input Manual",
         viewDetails: "Lihat Detail",
+        search: "Cari karyawan...",
+        filterByStatus: "Filter berdasarkan status",
+        allStatuses: "Semua Status",
       },
 
       // Messages
@@ -108,10 +178,27 @@ export const hrdId = {
         updateSuccess: "Catatan absensi berhasil diperbarui",
         deleteSuccess: "Catatan absensi berhasil dihapus",
         deleteConfirm: "Apakah Anda yakin ingin menghapus catatan absensi ini?",
+        deleteConfirmDesc: "Tindakan ini tidak dapat dibatalkan. Catatan absensi akan dihapus secara permanen.",
         locationRequired: "Akses lokasi diperlukan untuk absen",
         outsideRadius: "Anda berada di luar radius lokasi yang diizinkan",
         alreadyClockedIn: "Anda sudah absen masuk hari ini",
         notClockedInYet: "Anda belum absen masuk",
+      },
+
+      // Detail modal
+      detail: {
+        title: "Detail Kehadiran",
+        description: "Lihat informasi catatan kehadiran",
+        employeeInfo: "Informasi Karyawan",
+        checkInDetails: "Detail Masuk",
+        checkOutDetails: "Detail Pulang",
+        workingTime: "Waktu Kerja",
+        notesAndInfo: "Catatan & Informasi",
+        notRecorded: "Belum tercatat",
+        checkInAddress: "Alamat Masuk",
+        checkOutAddress: "Alamat Pulang",
+        checkInNote: "Catatan Masuk",
+        checkOutNote: "Catatan Pulang",
       },
 
       // Stats
@@ -166,6 +253,19 @@ export const hrdId = {
         everyDay: "Setiap Hari",
       },
 
+      sections: {
+        workHours: "Jam Kerja",
+        breakTime: "Waktu Istirahat",
+        workingDays: "Hari Kerja",
+        tolerance: "Toleransi",
+        gpsSettings: "Pengaturan GPS",
+      },
+
+      descriptions: {
+        flexible: "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
+        gps: "Wajibkan karyawan untuk absen masuk/keluar dalam radius GPS yang ditentukan dari kantor",
+      },
+
       days: {
         mon: "Sen",
         tue: "Sel",
@@ -174,6 +274,13 @@ export const hrdId = {
         fri: "Jum",
         sat: "Sab",
         sun: "Min",
+        Mon: "Sen",
+        Tue: "Sel",
+        Wed: "Rab",
+        Thu: "Kam",
+        Fri: "Jum",
+        Sat: "Sab",
+        Sun: "Min",
       },
 
       actions: {

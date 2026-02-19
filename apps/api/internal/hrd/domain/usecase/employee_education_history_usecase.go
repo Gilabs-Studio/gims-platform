@@ -221,7 +221,16 @@ func (u *employeeEducationHistoryUsecase) GetAll(ctx context.Context, req *dto.L
 		return nil, 0, err
 	}
 
-	return u.mapper.ToResponseList(educations), total, nil
+	// Build list with employee name/code (same pattern as contract list)
+	list := u.mapper.ToResponseList(educations)
+	for i, education := range educations {
+		emp, err := u.employeeRepo.FindByID(ctx, education.EmployeeID.String())
+		if err == nil && emp != nil {
+			list[i].EmployeeName = emp.Name
+			list[i].EmployeeCode = emp.EmployeeCode
+		}
+	}
+	return list, total, nil
 }
 
 func (u *employeeEducationHistoryUsecase) GetByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*dto.EmployeeEducationHistoryResponse, error) {

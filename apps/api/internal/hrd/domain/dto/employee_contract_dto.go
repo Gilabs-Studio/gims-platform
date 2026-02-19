@@ -30,7 +30,7 @@ type UpdateEmployeeContractRequest struct {
 	JobTitle       string                `json:"job_title" binding:"omitempty,max=100"`
 	Department     string                `json:"department" binding:"omitempty,max=100"`
 	Terms          string                `json:"terms"`
-	DocumentPath   string                `json:"document_path" binding:"omitempty,max=255"`
+	DocumentPath   *string               `json:"document_path" binding:"omitempty,max=255"` // pointer: nil = not sent, empty = clear document
 	Status         models.ContractStatus `json:"status" binding:"omitempty,oneof=ACTIVE EXPIRED TERMINATED"`
 }
 

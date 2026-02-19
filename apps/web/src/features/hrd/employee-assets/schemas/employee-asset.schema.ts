@@ -5,9 +5,23 @@ export const assetConditionEnum = ["NEW", "GOOD", "FAIR", "POOR", "DAMAGED"] as 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TranslationFn = (key: string, values?: Record<string, any>) => string;
 
+// Same as employee-contract: permissive UUID regex so valid IDs from API pass.
+// z.uuid() is RFC 4122 strict and can reject some valid UUIDs.
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const employeeIdSchema = (t: TranslationFn) =>
+  z
+    .string()
+    .refine((val) => (val ?? "").trim().length > 0, {
+      message: t("validation.required"),
+    })
+    .refine((val) => UUID_FORMAT.test((val ?? "").trim()), {
+      message: t("validation.invalid_uuid"),
+    });
+
 export const getEmployeeAssetSchema = (t: TranslationFn) =>
   z.object({
-    employee_id: z.string().uuid(t("validation.invalid_uuid")),
+    employee_id: employeeIdSchema(t),
     asset_name: z
       .string()
       .min(1, t("validation.required"))

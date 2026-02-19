@@ -5,23 +5,28 @@ import type {
   TodayAttendanceResponse,
   MonthlyStatsResponse,
   ClockActionResponse,
+  AttendanceFormDataResponse,
   ClockInRequest,
   ClockOutRequest,
   ManualAttendanceRequest,
+  UpdateAttendanceRequest,
+  ListAttendanceRecordsParams,
 } from "../types";
+
+const BASE_PATH = "/hrd/attendance";
 
 export const attendanceRecordService = {
   // Self-service endpoints
   async getTodayAttendance(): Promise<TodayAttendanceResponse> {
     const response = await apiClient.get<TodayAttendanceResponse>(
-      "/hrd/attendance/today"
+      `${BASE_PATH}/today`
     );
     return response.data;
   },
 
   async clockIn(data: ClockInRequest): Promise<ClockActionResponse> {
     const response = await apiClient.post<ClockActionResponse>(
-      "/hrd/attendance/clock-in",
+      `${BASE_PATH}/clock-in`,
       data
     );
     return response.data;
@@ -29,7 +34,7 @@ export const attendanceRecordService = {
 
   async clockOut(data: ClockOutRequest): Promise<ClockActionResponse> {
     const response = await apiClient.post<ClockActionResponse>(
-      "/hrd/attendance/clock-out",
+      `${BASE_PATH}/clock-out`,
       data
     );
     return response.data;
@@ -40,27 +45,24 @@ export const attendanceRecordService = {
     year?: number;
   }): Promise<MonthlyStatsResponse> {
     const response = await apiClient.get<MonthlyStatsResponse>(
-      "/hrd/attendance/my-stats",
+      `${BASE_PATH}/my-stats`,
       { params }
     );
     return response.data;
   },
 
+  // Form data for dropdowns
+  async getFormData(): Promise<AttendanceFormDataResponse> {
+    const response = await apiClient.get<AttendanceFormDataResponse>(
+      `${BASE_PATH}/form-data`
+    );
+    return response.data;
+  },
+
   // Admin endpoints
-  async list(params?: {
-    page?: number;
-    per_page?: number;
-    search?: string;
-    employee_id?: string;
-    date?: string;
-    start_date?: string;
-    end_date?: string;
-    status?: string;
-    sort_by?: string;
-    sort_order?: string;
-  }): Promise<AttendanceRecordListResponse> {
+  async list(params?: ListAttendanceRecordsParams): Promise<AttendanceRecordListResponse> {
     const response = await apiClient.get<AttendanceRecordListResponse>(
-      "/hrd/attendance",
+      BASE_PATH,
       { params }
     );
     return response.data;
@@ -68,14 +70,14 @@ export const attendanceRecordService = {
 
   async getById(id: string): Promise<AttendanceRecordResponse> {
     const response = await apiClient.get<AttendanceRecordResponse>(
-      `/hrd/attendance/${id}`
+      `${BASE_PATH}/${id}`
     );
     return response.data;
   },
 
   async createManual(data: ManualAttendanceRequest): Promise<AttendanceRecordResponse> {
     const response = await apiClient.post<AttendanceRecordResponse>(
-      "/hrd/attendance/manual",
+      `${BASE_PATH}/manual`,
       data
     );
     return response.data;
@@ -83,10 +85,10 @@ export const attendanceRecordService = {
 
   async update(
     id: string,
-    data: Partial<ManualAttendanceRequest>
+    data: UpdateAttendanceRequest
   ): Promise<AttendanceRecordResponse> {
     const response = await apiClient.put<AttendanceRecordResponse>(
-      `/hrd/attendance/${id}`,
+      `${BASE_PATH}/${id}`,
       data
     );
     return response.data;
@@ -94,7 +96,7 @@ export const attendanceRecordService = {
 
   async delete(id: string): Promise<{ success: boolean; message: string }> {
     const response = await apiClient.delete<{ success: boolean; message: string }>(
-      `/hrd/attendance/${id}`
+      `${BASE_PATH}/${id}`
     );
     return response.data;
   },
@@ -104,7 +106,7 @@ export const attendanceRecordService = {
     params?: { month?: number; year?: number }
   ): Promise<MonthlyStatsResponse> {
     const response = await apiClient.get<MonthlyStatsResponse>(
-      `/hrd/attendance/stats/${employeeId}`,
+      `${BASE_PATH}/stats/${employeeId}`,
       { params }
     );
     return response.data;

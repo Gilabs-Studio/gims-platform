@@ -2,8 +2,8 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.0.0  
-> **Status:** ✅ Complete (API + Frontend)  
+> **Version:** 1.1.0  
+> **Status:** ✅ Complete (API + Frontend) — Backend improved in Sprint 15  
 > **Last Updated:** January 2026
 
 ---
@@ -29,10 +29,12 @@
 The HRD Attendance Management module provides comprehensive attendance tracking for employees, including:
 
 - **Clock In/Out** with GPS validation
-- **Work Schedule** management with flexible hours support
-- **Holiday** management with calendar view
 - **Overtime** tracking with approval workflow
 - **Monthly Statistics** and reporting
+
+> **Related Documentation:**
+> - [Work Schedule Management](hrd-work-schedules.md) — Schedule configuration, GPS settings, working days
+> - [Holiday Management](hrd-holidays.md) — National holidays, collective leave, calendar view
 
 ### Key Features
 
@@ -40,9 +42,13 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 |---------|-------------|
 | GPS-Based Attendance | Validates employee location during clock in/out |
 | Flexible Schedules | Supports flexible working hours per division |
+| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default |
 | Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule |
 | Multi-Type Holidays | Supports National, Collective, and Company holidays |
 | Real-time Statistics | Monthly attendance statistics with various metrics |
+| Employee Enrichment | Responses include employee name, code, and division (for HRD views) |
+| Detail Enrichment | Get-by-ID returns work schedule name and approver name (not just IDs) |
+| Form Data Endpoint | Single API call for all attendance form dropdown options |
 
 ---
 
@@ -73,44 +79,11 @@ Employee attendance tracking with support for multiple check-in types:
 
 ### 2. Work Schedule
 
-Configurable work schedules with support for:
-
-- **Fixed Hours**: Standard 9-to-5 schedule
-- **Flexible Hours**: Flexible start/end times within a range
-- **GPS Validation**: Configurable office location and radius
-- **Working Days**: Bitmask-based day selection
-- **Late/Early Tolerance**: Grace period for lateness
-
-#### Working Days Bitmask
-
-| Day | Value | Example |
-|-----|-------|---------|
-| Monday | 1 | |
-| Tuesday | 2 | |
-| Wednesday | 4 | |
-| Thursday | 8 | |
-| Friday | 16 | |
-| Saturday | 32 | |
-| Sunday | 64 | |
-| **Mon-Fri** | **31** | 1+2+4+8+16 |
-| **Mon-Sat** | **63** | 1+2+4+8+16+32 |
-| **All Days** | **127** | 1+2+4+8+16+32+64 |
+Configurable work schedules with support for fixed and flexible hours, GPS validation, and division-based assignment. See [Work Schedule Management](hrd-work-schedules.md) for full documentation.
 
 ### 3. Holiday Management
 
-Support for three types of holidays:
-
-| Type | Description |
-|------|-------------|
-| `NATIONAL` | Government-mandated public holidays |
-| `COLLECTIVE` | Company-wide collective leave (Cuti Bersama) |
-| `COMPANY` | Company-specific holidays |
-
-#### Special Flags
-
-- **Is Collective Leave**: Marks as collective leave day
-- **Cuts Annual Leave**: Deducts from employee's annual leave quota
-- **Is Recurring**: Repeats annually (e.g., New Year)
+Support for National, Collective, and Company holidays. See [Holiday Management](hrd-holidays.md) for full documentation.
 
 ### 4. Overtime Management
 
@@ -296,45 +269,11 @@ apps/web/app/[locale]/(dashboard)/hrd/
 
 ### WorkSchedule
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| name | STRING | Schedule name |
-| description | STRING | Description |
-| division_id | UUID | Optional division link |
-| is_default | BOOL | Default schedule flag |
-| is_active | BOOL | Active status |
-| start_time | TIME | Work start time |
-| end_time | TIME | Work end time |
-| is_flexible | BOOL | Flexible hours flag |
-| flexible_start_time | TIME | Earliest start |
-| flexible_end_time | TIME | Latest start |
-| break_start_time | TIME | Break start |
-| break_end_time | TIME | Break end |
-| break_duration | INT | Break in minutes |
-| working_days | INT | Bitmask for days |
-| working_hours_per_day | FLOAT | Expected hours |
-| late_tolerance_minutes | INT | Grace period |
-| early_leave_tolerance_minutes | INT | Early leave grace |
-| require_gps | BOOL | GPS validation |
-| gps_radius_meter | FLOAT | Allowed radius |
-| office_latitude | FLOAT | Office location |
-| office_longitude | FLOAT | Office location |
+See [Work Schedule Management](hrd-work-schedules.md#data-model) for the full WorkSchedule data model.
 
 ### Holiday
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| date | DATE | Holiday date |
-| name | STRING | Holiday name |
-| description | STRING | Description |
-| type | ENUM | NATIONAL, COLLECTIVE, COMPANY |
-| year | INT | Year (extracted) |
-| is_collective_leave | BOOL | Collective leave flag |
-| cuts_annual_leave | BOOL | Deducts from quota |
-| is_recurring | BOOL | Annual recurrence |
-| is_active | BOOL | Active status |
+See [Holiday Management](hrd-holidays.md#data-model) for the full Holiday data model.
 
 ### OvertimeRequest
 
@@ -430,37 +369,20 @@ working_minutes = check_out_time - check_in_time - break_duration
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/attendance` | attendance.read | List all records |
-| GET | `/api/v1/hrd/attendance/:id` | attendance.read | Get by ID |
-| POST | `/api/v1/hrd/attendance/manual` | attendance.create | Manual entry |
+| GET | `/api/v1/hrd/attendance/form-data` | attendance.read | Get form data (employees, schedules, statuses) |
+| GET | `/api/v1/hrd/attendance` | attendance.read | List all records (enriched with employee names, supports `search` query param) |
+| GET | `/api/v1/hrd/attendance/:id` | attendance.read | Get by ID (enriched with employee, work schedule name, approver name) |
+| POST | `/api/v1/hrd/attendance/manual` | attendance.create | Manual entry (`reason` is optional) |
 | PUT | `/api/v1/hrd/attendance/:id` | attendance.update | Update record |
 | DELETE | `/api/v1/hrd/attendance/:id` | attendance.delete | Delete record |
 
 ### Work Schedule Endpoints
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/work-schedules` | work_schedule.read | List schedules |
-| GET | `/api/v1/hrd/work-schedules/default` | work_schedule.read | Get default |
-| GET | `/api/v1/hrd/work-schedules/:id` | work_schedule.read | Get by ID |
-| POST | `/api/v1/hrd/work-schedules` | work_schedule.create | Create |
-| PUT | `/api/v1/hrd/work-schedules/:id` | work_schedule.update | Update |
-| DELETE | `/api/v1/hrd/work-schedules/:id` | work_schedule.delete | Delete |
-| POST | `/api/v1/hrd/work-schedules/:id/set-default` | work_schedule.update | Set default |
+See [Work Schedule Management](hrd-work-schedules.md#api-reference) for full endpoint documentation.
 
 ### Holiday Endpoints
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/holidays` | holiday.read | List holidays |
-| GET | `/api/v1/hrd/holidays/check` | holiday.read | Check date |
-| GET | `/api/v1/hrd/holidays/year/:year` | holiday.read | Get by year |
-| GET | `/api/v1/hrd/holidays/calendar/:year` | holiday.read | Calendar view |
-| GET | `/api/v1/hrd/holidays/:id` | holiday.read | Get by ID |
-| POST | `/api/v1/hrd/holidays` | holiday.create | Create |
-| POST | `/api/v1/hrd/holidays/batch` | holiday.create | Batch create |
-| PUT | `/api/v1/hrd/holidays/:id` | holiday.update | Update |
-| DELETE | `/api/v1/hrd/holidays/:id` | holiday.delete | Delete |
+See [Holiday Management](hrd-holidays.md#api-reference) for full endpoint documentation.
 
 ### Overtime Endpoints
 
@@ -506,38 +428,11 @@ The main HRD dashboard provides an overview of attendance statistics:
 
 ### Work Schedules (`/hrd/work-schedules`)
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `WorkScheduleList` | work-schedule-list.tsx | Paginated table with CRUD actions |
-| `WorkScheduleDialog` | work-schedule-dialog.tsx | Create/Edit form dialog |
-| `WorkSchedulePageClient` | work-schedule-page-client.tsx | Page wrapper with animations |
-
-**Features:**
-- List all work schedules with pagination
-- Create new schedule with flexible hours configuration
-- Working days bitmask selector (Mon-Sun checkboxes)
-- GPS location and radius configuration
-- Break time settings
-- Late/Early tolerance configuration
-- Set default schedule action
+See [Work Schedule Management](hrd-work-schedules.md#frontend-components) for full component documentation.
 
 ### Holidays (`/hrd/holidays`)
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `HolidayList` | holiday-list.tsx | Paginated table with year filter |
-| `HolidayDialog` | holiday-dialog.tsx | Create/Edit holiday form |
-| `HolidayCalendarView` | holiday-calendar-view.tsx | Full year calendar visualization |
-| `HolidayPageClient` | holiday-page-client.tsx | Page wrapper with tab navigation |
-
-**Features:**
-- List view with year filter and type badges
-- Calendar view showing all holidays in a year grid
-- Create single holiday
-- Batch import holidays (JSON/CSV)
-- Holiday type selection (National, Collective, Company)
-- Recurring holiday flag
-- Collective leave and annual leave deduction flags
+See [Holiday Management](hrd-holidays.md#frontend-components) for full component documentation.
 
 ### Overtime (`/hrd/overtime`)
 
@@ -560,11 +455,11 @@ The main HRD dashboard provides an overview of attendance statistics:
 
 | Component | File | Description |
 |-----------|------|-------------|
-| `AttendanceRecordForm` | attendance-record-form.tsx | Manual entry form |
-| `AttendanceRecordList` | attendance-record-list.tsx | Paginated records table |
+| `AttendanceRecordForm` | attendance-record-form.tsx | Manual entry form (Calendar date picker, form-data integration) |
+| `AttendanceList` | attendance-list.tsx | Paginated records table with search + calendar toggle |
 | `AttendanceCalendar` | attendance-calendar.tsx | Monthly calendar view |
 | `AttendanceDayView` | attendance-day-view.tsx | Single day details |
-| `AttendanceEventDetail` | attendance-event-detail.tsx | Event popup/modal |
+| `AttendanceDetailModal` | attendance-detail-modal.tsx | Full detail modal (all API fields, edit action, names instead of IDs) |
 
 **Features:**
 - Monthly calendar with attendance events
@@ -700,14 +595,8 @@ sequenceDiagram
 | Attendance | `attendance.create` | Create manual entries |
 | Attendance | `attendance.update` | Update records |
 | Attendance | `attendance.delete` | Delete records |
-| Work Schedule | `work_schedule.read` | View schedules |
-| Work Schedule | `work_schedule.create` | Create schedules |
-| Work Schedule | `work_schedule.update` | Update schedules |
-| Work Schedule | `work_schedule.delete` | Delete schedules |
-| Holiday | `holiday.read` | View holidays |
-| Holiday | `holiday.create` | Create holidays |
-| Holiday | `holiday.update` | Update holidays |
-| Holiday | `holiday.delete` | Delete holidays |
+| Work Schedule | See [Work Schedule Management](hrd-work-schedules.md#permissions) |
+| Holiday | See [Holiday Management](hrd-holidays.md#permissions) |
 | Overtime | `overtime.read` | View overtime requests |
 | Overtime | `overtime.approve` | Approve/reject requests |
 | Overtime | `overtime.update` | Update requests |
@@ -728,34 +617,7 @@ Authenticated employees can always:
 
 ### Work Schedule Configuration
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `late_tolerance_minutes` | INT | 15 | Grace period for late arrival |
-| `early_leave_tolerance_minutes` | INT | 10 | Grace period for early departure |
-| `require_gps` | BOOL | true | Enable GPS validation |
-| `gps_radius_meter` | FLOAT | 100 | Allowed distance from office |
-| `working_hours_per_day` | FLOAT | 8 | Standard working hours |
-| `break_duration` | INT | 60 | Break time in minutes |
-
-### Default Schedules (Seeder)
-
-```
-Standard Office Hours:
-- Start: 08:00
-- End: 17:00
-- Break: 12:00 - 13:00
-- Working Days: Mon-Fri (31)
-- Late Tolerance: 15 min
-- GPS Required: Yes
-- GPS Radius: 100m
-
-Flexible Hours:
-- Start: 08:00
-- End: 17:00
-- Flexible Start: 07:00 - 10:00
-- Flexible End: 16:00 - 19:00
-- Is Flexible: Yes
-```
+See [Work Schedule Management](hrd-work-schedules.md#configuration) for full schedule configuration details.
 
 ---
 
@@ -784,27 +646,6 @@ Flexible Hours:
 
 ## Appendix
 
-### Indonesia National Holidays 2024-2025 (Seeded)
-
-| Date | Name | Type |
-|------|------|------|
-| 2024-01-01 | Tahun Baru | NATIONAL |
-| 2024-02-08 | Isra Mi'raj | NATIONAL |
-| 2024-02-10 | Tahun Baru Imlek | NATIONAL |
-| 2024-03-11 | Hari Raya Nyepi | NATIONAL |
-| 2024-03-29 | Wafat Isa Almasih | NATIONAL |
-| 2024-04-10 | Hari Raya Idul Fitri | NATIONAL |
-| 2024-04-11 | Hari Raya Idul Fitri | NATIONAL |
-| 2024-05-01 | Hari Buruh | NATIONAL |
-| 2024-05-09 | Kenaikan Isa Almasih | NATIONAL |
-| 2024-05-23 | Hari Raya Waisak | NATIONAL |
-| 2024-06-01 | Hari Lahir Pancasila | NATIONAL |
-| 2024-06-17 | Hari Raya Idul Adha | NATIONAL |
-| 2024-07-07 | Tahun Baru Islam | NATIONAL |
-| 2024-08-17 | Hari Kemerdekaan | NATIONAL |
-| 2024-09-16 | Maulid Nabi Muhammad | NATIONAL |
-| 2024-12-25 | Hari Natal | NATIONAL |
-
 ### Error Codes
 
 | Code | Description |
@@ -821,4 +662,51 @@ Flexible Hours:
 
 ---
 
-*Document generated for GIMS Platform - Sprint 13: HRD Attendance*
+## Keputusan Teknis
+
+- **Mengapa employee enrichment di-batch (buildEmployeeMap)**:
+  Untuk menghindari N+1 queries. Semua employee IDs dikumpulkan dulu, lalu di-fetch sekali via `FindByIDs` dengan preload Division/JobPosition/Company. Trade-off: sedikit lebih complex di usecase, tapi jauh lebih performant.
+
+- **Mengapa division-based schedule lookup (bukan hanya default)**:
+  Tiap divisi bisa punya jadwal kerja berbeda (misal sales di lapangan vs admin di kantor). `getScheduleForEmployee()` cek divisi dulu, fallback ke default. Trade-off: 1 extra query per clock-in, tapi akurasi jadwal jauh lebih baik.
+
+- **Mengapa FormData endpoint (bukan separate calls)**:
+  Mengikuti project convention: single API call untuk semua dropdown options. Mengurangi frontend round-trips dari 3-4 calls menjadi 1.
+
+- **Mengapa overtime GetMonthlySummary di-fix pakai strconv.Atoi**:
+  Bug asli: `c.GetQuery()` returns `(string, bool)`, bukan error. Year/month selalu 0. Fix: proper `strconv.Atoi` parsing dengan default `time.Now()`.
+
+---
+
+## Notes & Improvements
+
+- **Sprint 15 Backend Improvements**:
+  - Added employee enrichment to attendance and overtime responses (name, code, division)
+  - Added `GET /form-data` endpoint following project convention
+  - Fixed `GetMonthlySummary` bug (year/month never parsed from query params)
+  - Added division-based schedule lookup for ClockIn and GetTodayAttendance
+  - Overtime notification enrichment with employee/division names
+
+- **Post-Sprint 15 Enhancements**:
+  - Added `search` query parameter to `GET /hrd/attendance` — searches by employee name and employee code via subquery
+  - Made `reason` field optional on `POST /hrd/attendance/manual` (was previously required)
+  - Integrated POST API into manual attendance form on frontend
+  - Employee select format changed to `{employee_code} - {employee_name}`
+  - Date field now uses Calendar popover date picker (consistent with sales forms)
+  - Detail modal now shows all API response fields: GPS coordinates, approved_by, leave_request_id, work_schedule_id, timestamps
+  - Detail modal now has edit action button (opens edit form dialog)
+  - `GET /hrd/attendance/:id` now returns `work_schedule_name` and `approved_by_name` (resolved from IDs)
+  - Detail modal displays names instead of raw UUIDs for work schedule and approver
+  - Separated holiday and work schedule documentation into standalone files
+  - Updated Postman collection with search param and optional reason
+
+- **Known Limitation**: Attendance records don't link to leave requests yet (planned for integration)
+- **Future Improvement**:
+  - Add attendance report export (CSV/Excel)
+  - Add team attendance dashboard for managers
+  - Add geofencing with multiple office locations
+  - Add shift schedule support (morning/afternoon/night shifts)
+
+---
+
+*Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 15+)*

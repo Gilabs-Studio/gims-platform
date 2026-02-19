@@ -64,9 +64,23 @@ export const hrdEn = {
       alreadyClockedOut: "Already clocked out",
       myStats: "My Attendance Statistics",
       monthlyStats: "Monthly Statistics",
+      loading: "Loading...",
+      listView: "List View",
+      calendarView: "Calendar View",
+      noRecords: "No attendance records found",
+      noRecordsDesc: "No attendance records match the current filters",
 
       // Status
       status: {
+        present: "Present",
+        absent: "Absent",
+        late: "Late",
+        early_leave: "Early Leave",
+        half_day: "Half Day",
+        holiday: "Holiday",
+        leave: "On Leave",
+        wfh: "Work From Home",
+        off_day: "Off Day",
         PRESENT: "Present",
         ABSENT: "Absent",
         LATE: "Late",
@@ -74,6 +88,18 @@ export const hrdEn = {
         HALF_DAY: "Half Day",
         HOLIDAY: "Holiday",
         LEAVE: "On Leave",
+        WFH: "Work From Home",
+        OFF_DAY: "Off Day",
+      },
+
+      // Check-in type
+      checkInType: {
+        normal: "Office",
+        wfh: "Work From Home",
+        field_work: "Field Work",
+        NORMAL: "Office",
+        WFH: "Work From Home",
+        FIELD_WORK: "Field Work",
       },
 
       // Fields
@@ -81,14 +107,55 @@ export const hrdEn = {
         date: "Date",
         checkInTime: "Check In Time",
         checkOutTime: "Check Out Time",
+        checkIn: "Check In",
+        checkOut: "Check Out",
+        checkInType: "Check-In Type",
         status: "Status",
         lateMinutes: "Late (minutes)",
         workingMinutes: "Working Time",
+        workingHours: "Working Hours",
         overtimeMinutes: "Overtime",
+        overtimeHours: "Overtime Hours",
+        earlyLeaveMinutes: "Early Leave (min)",
         note: "Note",
+        notes: "Notes",
+        reason: "Reason",
         employee: "Employee",
+        employeeName: "Employee Name",
+        employeeCode: "Employee Code",
         division: "Division",
         location: "Location",
+        address: "Address",
+        isManualEntry: "Manual Entry",
+        manualEntryReason: "Manual Entry Reason",
+      },
+
+      // Form
+      form: {
+        employeeInfo: "Employee Information",
+        attendanceDetails: "Attendance Details",
+        reasonAndNotes: "Reason & Notes",
+        employee: "Employee",
+        selectEmployee: "Select employee",
+        date: "Date",
+        status: "Status",
+        selectStatus: "Select status",
+        checkInType: "Check-In Type",
+        selectCheckInType: "Select check-in type",
+        checkInTime: "Check In Time",
+        checkInTimeDesc: "Time when employee checked in",
+        checkOutTime: "Check Out Time",
+        checkOutTimeDesc: "Time when employee checked out",
+        reason: "Reason",
+        reasonPlaceholder: "Explain the reason for this manual entry...",
+        reasonDesc: "Optional reason for manual attendance entries",
+        notes: "Notes",
+        notesPlaceholder: "Add any additional notes...",
+        notesDesc: "Optional notes about this record",
+        cancel: "Cancel",
+        submitting: "Submitting...",
+        update: "Update Record",
+        create: "Create Record",
       },
 
       // Actions
@@ -98,6 +165,9 @@ export const hrdEn = {
         delete: "Delete Attendance",
         manualEntry: "Manual Entry",
         viewDetails: "View Details",
+        search: "Search employees...",
+        filterByStatus: "Filter by status",
+        allStatuses: "All Statuses",
       },
 
       // Messages
@@ -108,10 +178,27 @@ export const hrdEn = {
         updateSuccess: "Attendance record updated successfully",
         deleteSuccess: "Attendance record deleted successfully",
         deleteConfirm: "Are you sure you want to delete this attendance record?",
+        deleteConfirmDesc: "This action cannot be undone. The attendance record will be permanently removed.",
         locationRequired: "Location access is required for clock in/out",
         outsideRadius: "You are outside the allowed location radius",
         alreadyClockedIn: "You have already clocked in today",
         notClockedInYet: "You haven't clocked in yet",
+      },
+
+      // Detail modal
+      detail: {
+        title: "Attendance Details",
+        description: "View attendance record information",
+        employeeInfo: "Employee Information",
+        checkInDetails: "Check-In Details",
+        checkOutDetails: "Check-Out Details",
+        workingTime: "Working Time",
+        notesAndInfo: "Notes & Information",
+        notRecorded: "Not recorded",
+        checkInAddress: "Check-In Address",
+        checkOutAddress: "Check-Out Address",
+        checkInNote: "Check-In Note",
+        checkOutNote: "Check-Out Note",
       },
 
       // Stats
@@ -166,6 +253,19 @@ export const hrdEn = {
         everyDay: "Every Day",
       },
 
+      sections: {
+        workHours: "Work Hours",
+        breakTime: "Break Time",
+        workingDays: "Working Days",
+        tolerance: "Tolerance",
+        gpsSettings: "GPS Settings",
+      },
+
+      descriptions: {
+        flexible: "Enable flexible working hours with a range of allowed start and end times",
+        gps: "Require employees to clock in/out within the specified GPS radius of the office",
+      },
+
       days: {
         mon: "Mon",
         tue: "Tue",
@@ -174,6 +274,13 @@ export const hrdEn = {
         fri: "Fri",
         sat: "Sat",
         sun: "Sun",
+        Mon: "Mon",
+        Tue: "Tue",
+        Wed: "Wed",
+        Thu: "Thu",
+        Fri: "Fri",
+        Sat: "Sat",
+        Sun: "Sun",
       },
 
       actions: {

@@ -7,6 +7,7 @@ import type {
   UpdateOvertimeRequest,
   ApproveOvertimeRequest,
   RejectOvertimeRequest,
+  ListOvertimeParams,
 } from "../types";
 
 const QUERY_KEYS = {
@@ -65,17 +66,7 @@ export function useCancelOvertimeRequest() {
 }
 
 // Manager/Admin hooks
-export function useOvertimeRequests(params?: {
-  page?: number;
-  per_page?: number;
-  employee_id?: string;
-  status?: string;
-  type?: string;
-  month?: number;
-  year?: number;
-  sort_by?: string;
-  sort_order?: string;
-}) {
+export function useOvertimeRequests(params?: ListOvertimeParams) {
   return useQuery({
     queryKey: QUERY_KEYS.overtime(params),
     queryFn: () => overtimeService.list(params),

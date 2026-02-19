@@ -78,7 +78,7 @@ export const employeeAssetsEn = {
       returnInfo: "Return Information",
       notReturned: "Not returned yet",
       daysBorrowedLabel: "Days borrowed:",
-      daysTotal: "{{days}} days",
+      daysTotal: "{days} days",
     },
     
     // Return modal
@@ -117,7 +117,7 @@ export const employeeAssetsEn = {
       invalid_uuid: "Invalid employee selection",
       invalid_date: "Invalid date format",
       invalid_condition: "Invalid condition selection",
-      max_length: "Maximum {{max}} characters",
+      max_length: "Maximum {max} characters",
     },
   },
 };

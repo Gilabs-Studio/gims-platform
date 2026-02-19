@@ -1011,7 +1011,7 @@ erDiagram
 - [x] `EmployeeContract` - CRUD
 - [x] `EmployeeEducationHistory` - CRUD
 - [x] `EmployeeCertification` - CRUD
-- [x] `EmployeeAsset` - CRUD (company assets borrowed) ✅ **Backend API Complete**
+- [x] `EmployeeAsset` - CRUD (company assets borrowed)
 - [ ] `SalaryStructure` - CRUD
 - [ ] `UpCountryCost` - Travel expense
 
@@ -1072,39 +1072,52 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Performance and Recruitment management
-- [ ] **Frontend:** Evaluation and Recruitment UI
+- [x] **API:** Evaluation management (Group, Criteria, Employee Evaluation)
+- [x] **Frontend:** Evaluation UI (template management, scoring, workflow)
+- [x] **API:** Recruitment management
+- [x] **Frontend:** Recruitment UI
 
 ### API Tasks
 
-- [ ] `EvaluationGroup` - CRUD
-- [ ] `EvaluationCriteria` - CRUD with weights
-- [ ] `EmployeeEvaluation` - CRUD + Score
-- [ ] `EmployeeEvaluationCriteria` - Scoring per criteria
-- [ ] `RecruitmentRequest` - CRUD + Approve
+- [x] `EvaluationGroup` - CRUD
+- [x] `EvaluationCriteria` - CRUD with weights
+- [x] `EmployeeEvaluation` - CRUD + Score
+- [x] `EmployeeEvaluationCriteria` - Scoring per criteria
+- [x] `EmployeeEvaluation` Form Data endpoint
+- [x] Evaluation seeder data
+- [x] `RecruitmentRequest` - CRUD + Approve
 
 ### Frontend Tasks
 
-- [ ] Evaluation template management
-- [ ] Employee evaluation form
-- [ ] Score entry with weighted calculation
-- [ ] Evaluation history
-- [ ] Recruitment request form
-- [ ] Recruitment approval workflow
-- [ ] Position opening list
+- [x] Evaluation template management (EvaluationGroupList + Form)
+- [x] Evaluation criteria management (within group detail modal)
+- [x] Employee evaluation form with criteria score entry
+- [x] Score entry with weighted calculation & overall score display
+- [x] Evaluation listing with status filters & search
+- [x] Evaluation detail modal with score breakdown
+- [x] Status workflow actions (submit/review/finalize)
+- [x] Tabbed page (Evaluations + Evaluation Groups)
+- [x] i18n translations (en/id)
+- [x] Recruitment request form
+- [x] Recruitment approval workflow
+- [x] Position opening list
 
 ### Success Criteria
 
-- [ ] Criteria weights sum to 100%
-- [ ] OverallScore = Σ(Score × Weight)
-- [ ] Evaluation period validation
-- [ ] Recruitment approval workflow complete
-- [ ] Position filling status tracked
+- [x] Criteria weights sum to 100%
+- [x] OverallScore = Σ(Score × Weight)
+- [x] Evaluation period validation
+- [x] Evaluation CRUD with status workflow
+- [x] Form data endpoint for dropdowns
+- [x] Recruitment approval workflow complete
+- [x] Position filling status tracked
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC) - evaluation.read/create/update/delete
+- [x] i18n integration check (request.ts) - evaluationEn/evaluationId registered
+- [x] Recruitment permission integration
+- [x] Recruitment i18n integration
 
 ### Table Relations
 

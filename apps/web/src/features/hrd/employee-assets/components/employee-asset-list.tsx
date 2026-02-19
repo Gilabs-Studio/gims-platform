@@ -243,31 +243,34 @@ export function EmployeeAssetList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("description")}</p>
-        </div>
-        <Button onClick={handleCreate} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" />
-          {t("addAsset")}
-        </Button>
+      {/* Header - same pattern as employee contracts */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
+      {/* Filters - same row as contract: search, filters, flex-1, Add button */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={t("searchPlaceholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-9"
           />
         </div>
-        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+        <Select
+          value={employeeFilter}
+          onValueChange={(v) => {
+            setEmployeeFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-48">
             <SelectValue placeholder={t("filterByEmployee")} />
           </SelectTrigger>
           <SelectContent>
@@ -281,9 +284,12 @@ export function EmployeeAssetList() {
         </Select>
         <Select
           value={statusFilter}
-          onValueChange={(val) => setStatusFilter(val as AssetStatus | "ALL")}
+          onValueChange={(val) => {
+            setStatusFilter(val as AssetStatus | "ALL");
+            setPage(1);
+          }}
         >
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder={t("filterByStatus")} />
           </SelectTrigger>
           <SelectContent>
@@ -292,6 +298,11 @@ export function EmployeeAssetList() {
             <SelectItem value="RETURNED">{t("status.RETURNED")}</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex-1" />
+        <Button onClick={handleCreate} className="cursor-pointer">
+          <Plus className="mr-2 h-4 w-4" />
+          {t("addAsset")}
+        </Button>
       </div>
 
       {/* List */}
@@ -327,7 +338,12 @@ export function EmployeeAssetList() {
             <TableBody>
               {data.data.map((asset) => (
                 <TableRow key={asset.id}>
-                  <TableCell className="font-medium">{asset.asset_code}</TableCell>
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => handleViewDetail(asset)}
+                  >
+                    {asset.asset_code}
+                  </TableCell>
                   <TableCell>{asset.asset_name}</TableCell>
                   <TableCell>{asset.asset_category}</TableCell>
                   <TableCell>
@@ -420,9 +436,9 @@ export function EmployeeAssetList() {
         />
       )}
 
-      {/* Form Dialog */}
+      {/* Form Dialog - prevent overflow: constrain height and scroll */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>
               {selectedAsset ? t("editAsset") : t("addAsset")}

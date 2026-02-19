@@ -48,7 +48,7 @@ const overtimeFormSchema = z.object({
     .string()
     .min(10, "Reason must be at least 10 characters")
     .max(500, "Reason too long"),
-  type: z.enum(["AUTO_DETECTED", "MANUAL_CLAIM", "PRE_APPROVED"]).optional(),
+  request_type: z.enum(["AUTO_DETECTED", "MANUAL_CLAIM", "PRE_APPROVED"]).optional(),
 });
 
 type OvertimeFormData = z.infer<typeof overtimeFormSchema>;
@@ -85,7 +85,7 @@ export function OvertimeDialog({
       start_time: "18:00",
       end_time: "21:00",
       reason: "",
-      type: "MANUAL_CLAIM",
+      request_type: "MANUAL_CLAIM",
     },
   });
 
@@ -99,7 +99,7 @@ export function OvertimeDialog({
         start_time: editingItem.start_time.substring(0, 5),
         end_time: editingItem.end_time.substring(0, 5),
         reason: editingItem.reason,
-        type: editingItem.type,
+        request_type: editingItem.request_type,
       });
     } else {
       reset({
@@ -107,7 +107,7 @@ export function OvertimeDialog({
         start_time: "18:00",
         end_time: "21:00",
         reason: "",
-        type: "MANUAL_CLAIM",
+        request_type: "MANUAL_CLAIM",
       });
     }
   }, [editingItem, reset]);
@@ -119,7 +119,7 @@ export function OvertimeDialog({
         start_time: data.start_time + ":00",
         end_time: data.end_time + ":00",
         reason: data.reason,
-        type: data.type as OvertimeType,
+        request_type: data.request_type as OvertimeType,
       };
 
       if (isEditing && editingItem) {
@@ -256,7 +256,7 @@ export function OvertimeDialog({
               <FieldLabel>{t("fields.type")}</FieldLabel>
               <Controller
                 control={control}
-                name="type"
+                name="request_type"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="cursor-pointer">
@@ -276,7 +276,7 @@ export function OvertimeDialog({
               <FieldDescription>
                 Manual claims require manager approval
               </FieldDescription>
-              {errors.type && <FieldError>{errors.type.message}</FieldError>}
+              {errors.request_type && <FieldError>{errors.request_type.message}</FieldError>}
             </Field>
           )}
 

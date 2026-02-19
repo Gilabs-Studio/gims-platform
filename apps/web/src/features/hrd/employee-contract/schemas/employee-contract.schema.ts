@@ -7,15 +7,24 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
   return t ? t(key) : defaultMsg;
 };
 
+// UUID format: 8-4-4-4-12 hex. Use regex (not z.uuid()) so test/seed UUIDs like 11111111-1111-1111-1111-111111111111
+// pass; Zod's z.uuid() is RFC 4122 strict and rejects variant 0 (e.g. 4th segment starting with 1).
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Validate employee_id: required non-empty string and UUID format (permissive).
+const employeeIdSchema = (t?: TranslationFn) =>
+  z
+    .string()
+    .refine((val) => (val ?? "").trim().length > 0, {
+      message: getMsg(t, "validation.required", "Employee is required") ?? "Employee is required",
+    })
+    .refine((val) => UUID_FORMAT.test((val ?? "").trim()), {
+      message: getMsg(t, "validation.invalidId", "Invalid ID format") ?? "Invalid ID format",
+    });
+
 // Employee Contract Schema
 export const getEmployeeContractSchema = (t?: TranslationFn) => z.object({
-  employee_id: z.string()
-    .refine((val) => val && val.length > 0, {
-      message: getMsg(t, "validation.required", "Employee is required") || "Employee is required"
-    })
-    .refine((val) => !val || z.string().uuid().safeParse(val).success, {
-      message: getMsg(t, "validation.invalidId", "Invalid employee ID") || "Invalid employee ID"
-    }),
+  employee_id: employeeIdSchema(t),
   contract_number: z.string()
     .min(1, getMsg(t, "validation.required", "Contract number is required"))
     .max(50, getMsg(t, "validation.contractNumberMax", "Contract number must not exceed 50 characters")),

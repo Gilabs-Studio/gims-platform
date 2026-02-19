@@ -1,0 +1,348 @@
+# HRD - Employee Evaluation Management
+
+Fitur untuk mengelola evaluasi kinerja karyawan. Mendukung pembuatan template evaluasi (Evaluation Group + Criteria), pelaksanaan evaluasi per karyawan dengan scoring per kriteria, dan workflow status (DRAFT → SUBMITTED → REVIEWED → FINALIZED).
+
+## Fitur Utama
+
+- Template evaluasi (Evaluation Group) dengan kriteria berbobot
+- Validasi total bobot kriteria ≤ 100%
+- Evaluasi karyawan dengan scoring per kriteria
+- Kalkulasi overall score otomatis: Σ(score × weight / 100)
+- Support evaluasi SELF dan MANAGER
+- Workflow status: DRAFT → SUBMITTED → REVIEWED → FINALIZED
+- Form data endpoint untuk dropdown (employees, groups, types, statuses)
+- Pagination, search, dan filter multi-parameter
+
+## Business Rules
+
+- Total weight semua criteria dalam satu group tidak boleh melebihi 100%
+- Weight di-copy dari criteria ke evaluation criteria score saat evaluasi dibuat (snapshot at eval time)
+- Overall score = Σ(score × weight / 100) untuk semua criteria scores
+- Hanya evaluasi berstatus DRAFT yang bisa di-edit atau di-delete
+- Status transition hanya valid: DRAFT → SUBMITTED → REVIEWED → FINALIZED
+- Evaluasi tidak bisa di-submit tanpa criteria scores
+- Evaluation group harus aktif (is_active=true) untuk bisa digunakan dalam evaluasi baru
+- Period end harus setelah period start
+
+## Keputusan Teknis
+
+- **Mengapa weight di-copy ke evaluation criteria score**:
+  Agar perubahan weight di template tidak mengubah hasil evaluasi yang sudah ada. Trade-off: duplikasi data minimal.
+- **Mengapa tidak ada REJECTED status**:
+  Flow evaluasi bersifat one-way (forward-only). Jika reviewer tidak setuju, mereka bisa menambahkan notes dan tidak memajukan status. Trade-off: tidak bisa "return to draft".
+
+- **Mengapa EmployeeEvaluationCriteria tidak pakai soft delete secara independen**:
+  Criteria scores di-manage sebagai unit bersama evaluasi induknya. Delete/recreate saat update. Trade-off: slightly more writes, tapi simpler logic.
+
+## Struktur Folder
+
+### Backend
+
+```
+internal/hrd/
+├── data/
+│   ├── models/
+│   │   ├── evaluation_group.go           # EvaluationGroup model
+│   │   ├── evaluation_criteria.go        # EvaluationCriteria model
+│   │   └── employee_evaluation.go        # EmployeeEvaluation + EmployeeEvaluationCriteria
+│   └── repositories/
+│       ├── evaluation_group_repository.go          # Interface
+│       ├── evaluation_group_repository_impl.go     # GORM implementation
+│       ├── evaluation_criteria_repository.go       # Interface
+│       ├── evaluation_criteria_repository_impl.go  # GORM implementation
+│       ├── employee_evaluation_repository.go       # Interface
+│       └── employee_evaluation_repository_impl.go  # GORM implementation
+├── domain/
+│   ├── dto/
+│   │   └── evaluation_dto.go             # All evaluation DTOs
+│   ├── mapper/
+│   │   └── evaluation_mapper.go          # All evaluation mappers
+│   └── usecase/
+│       ├── evaluation_group_usecase.go           # Interface
+│       ├── evaluation_group_usecase_impl.go      # Implementation
+│       ├── evaluation_criteria_usecase.go        # Interface
+│       ├── evaluation_criteria_usecase_impl.go   # Implementation
+│       ├── employee_evaluation_usecase.go        # Interface
+│       └── employee_evaluation_usecase_impl.go   # Implementation
+└── presentation/
+    ├── handler/
+    │   ├── evaluation_group_handler.go
+    │   ├── evaluation_criteria_handler.go
+    │   └── employee_evaluation_handler.go
+    ├── router/
+    │   ├── evaluation_group_router.go
+    │   ├── evaluation_criteria_router.go
+    │   └── employee_evaluation_router.go
+    └── routers.go                         # Domain aggregator (updated)
+```
+
+### Frontend
+
+```
+features/hrd/evaluation/
+├── types/
+│   └── index.d.ts                         # All TypeScript interfaces & types
+├── schemas/
+│   └── evaluation.schema.ts               # Zod schemas with i18n (group, criteria, evaluation)
+├── services/
+│   └── evaluation-service.ts              # API service (3 service objects)
+├── hooks/
+│   └── use-evaluations.ts                 # TanStack Query hooks (all CRUD + form data)
+├── components/
+│   ├── evaluation-page.tsx                # Main page with tabs
+│   ├── evaluation-group-list.tsx          # Group list with search/filter/pagination
+│   ├── evaluation-group-form.tsx          # Create/edit group dialog
+│   ├── evaluation-group-detail-modal.tsx  # Group detail + criteria management
+│   ├── evaluation-criteria-form.tsx       # Create/edit criteria dialog
+│   ├── employee-evaluation-list.tsx       # Evaluation list with status workflow
+│   ├── employee-evaluation-form.tsx       # Create/edit evaluation with scores
+│   └── employee-evaluation-detail-modal.tsx # Evaluation detail with score breakdown
+└── i18n/
+    ├── en.ts                              # English translations
+    └── id.ts                              # Indonesian translations
+
+app/[locale]/(dashboard)/hrd/evaluation/
+├── page.tsx                               # Route page with PermissionGuard
+└── loading.tsx                            # Loading skeleton
+```
+
+## API Endpoints
+
+### Evaluation Groups
+
+| Method | Endpoint                     | Permission        | Description                            |
+| ------ | ---------------------------- | ----------------- | -------------------------------------- |
+| GET    | `/hrd/evaluation-groups`     | evaluation.read   | List all evaluation groups (paginated) |
+| GET    | `/hrd/evaluation-groups/:id` | evaluation.read   | Get group by ID (with criteria)        |
+| POST   | `/hrd/evaluation-groups`     | evaluation.create | Create evaluation group                |
+| PUT    | `/hrd/evaluation-groups/:id` | evaluation.update | Update evaluation group                |
+| DELETE | `/hrd/evaluation-groups/:id` | evaluation.delete | Delete evaluation group (soft)         |
+
+### Evaluation Criteria
+
+| Method | Endpoint                                   | Permission        | Description                        |
+| ------ | ------------------------------------------ | ----------------- | ---------------------------------- |
+| GET    | `/hrd/evaluation-criteria/group/:group_id` | evaluation.read   | Get criteria by group              |
+| GET    | `/hrd/evaluation-criteria/:id`             | evaluation.read   | Get criteria by ID                 |
+| POST   | `/hrd/evaluation-criteria`                 | evaluation.create | Create criteria (validates weight) |
+| PUT    | `/hrd/evaluation-criteria/:id`             | evaluation.update | Update criteria (validates weight) |
+| DELETE | `/hrd/evaluation-criteria/:id`             | evaluation.delete | Delete criteria (soft)             |
+
+### Employee Evaluations
+
+| Method | Endpoint                               | Permission        | Description                            |
+| ------ | -------------------------------------- | ----------------- | -------------------------------------- |
+| GET    | `/hrd/employee-evaluations`            | evaluation.read   | List evaluations (paginated, filtered) |
+| GET    | `/hrd/employee-evaluations/:id`        | evaluation.read   | Get evaluation with full details       |
+| GET    | `/hrd/employee-evaluations/form-data`  | Auth              | Get form dropdown data                 |
+| POST   | `/hrd/employee-evaluations`            | evaluation.create | Create evaluation with scores          |
+| PUT    | `/hrd/employee-evaluations/:id`        | evaluation.update | Update evaluation (DRAFT only)         |
+| POST   | `/hrd/employee-evaluations/:id/status` | evaluation.update | Transition status                      |
+| DELETE | `/hrd/employee-evaluations/:id`        | evaluation.delete | Delete evaluation (DRAFT only)         |
+
+## Cara Test Manual
+
+### Backend (API)
+
+1. Login sebagai admin/HR
+2. **Create Evaluation Group**: POST `/hrd/evaluation-groups` dengan name "Performance Review FY25"
+3. **Add Criteria**: POST `/hrd/evaluation-criteria` dengan evaluation_group_id, name "Communication", weight 30
+4. **Add More Criteria**: Tambah criteria lain (total weight ≤ 100%)
+5. **Verify Group**: GET `/hrd/evaluation-groups/:id` → should show group with all criteria
+6. **Get Form Data**: GET `/hrd/employee-evaluations/form-data` → verify dropdowns
+7. **Create Evaluation**: POST `/hrd/employee-evaluations` dengan employee_id, group_id, evaluator_id, criteria_scores
+8. **Verify Score**: GET `/hrd/employee-evaluations/:id` → check overall_score calculation
+9. **Submit**: POST `/hrd/employee-evaluations/:id/status` dengan status "SUBMITTED"
+10. **Review**: POST `/hrd/employee-evaluations/:id/status` dengan status "REVIEWED"
+11. **Finalize**: POST `/hrd/employee-evaluations/:id/status` dengan status "FINALIZED"
+12. **Verify Edit Block**: Try PUT on finalized evaluation → should return error
+
+### Frontend (UI)
+
+1. Login sebagai admin/HR
+2. Navigate ke `/hrd/evaluation`
+3. **Evaluation Groups Tab**:
+   - Click "Evaluation Groups" tab
+   - Click "Add Evaluation Group" → fill form → Submit
+   - Click group row → detail modal opens with criteria table
+   - Add criteria via "Add Criteria" button → check weight validation
+   - Edit/delete criteria from detail modal
+4. **Evaluations Tab**:
+   - Click "Evaluations" tab (default)
+   - Click "Add Evaluation" → fill employee, group, type, period, criteria scores
+   - Verify criteria auto-populate when group is selected
+   - Submit → should show in list with DRAFT status badge
+   - Click dropdown → "Submit for Review" → status changes to SUBMITTED
+   - Click dropdown → "Mark as Reviewed" → status changes to REVIEWED
+   - Click dropdown → "Finalize" → status changes to FINALIZED
+   - Click row → detail modal with score breakdown + progress bar
+5. **Search & Filter**: Search by employee name, filter by status/type
+6. **Loading States**: Verify skeleton shows while data loads
+7. **Empty States**: Verify empty message when no data
+
+## Automated Testing
+
+- **Unit Tests**: `apps/api/internal/hrd/domain/usecase/evaluation_group_usecase_test.go`
+- **Integration Tests**: `apps/api/test/hrd/evaluation_integration_test.go`
+
+**Run Tests**:
+
+```bash
+cd apps/api && go test ./internal/hrd/...
+```
+
+## Dependencies
+
+- **Backend**: GORM (models + queries), UUID (primary keys)
+- **Frontend**: TanStack Query v5 (data fetching), Zod (validation), react-hook-form (form state), date-fns (period formatting), next-intl (i18n), shadcn/ui (components), NumericInput (score entry)
+- **Integration**: Organization module (employee data via EmployeeRepository), route registered in `route-validator.ts`, i18n registered in `request.ts`
+- **Database**: PostgreSQL with pg_trgm extension for GIN indexes
+
+## Notes & Improvements
+
+### Bugs Fixed
+
+#### 1. Detail Modal Horizontal Overflow (Feb 2025)
+
+- **Problem**: Detail modal showed horizontal scrollbar on smaller screens
+- **Fix**: Added `overflow-x-hidden` to `DialogContent`, moved action buttons to `flex-wrap` container, changed table to `table-fixed w-full` with explicit percentage widths and `truncate` on text cells
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-detail-modal.tsx`
+
+#### 2. Evaluation Group Name Missing in List (Feb 2025)
+
+- **Problem**: Evaluation list didn't show group names because `EvaluationGroup` wasn't preloaded
+- **Fix**: Added `.Preload("EvaluationGroup")` to `FindAll` query in repository (mapper already handled it when preloaded)
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/repositories/employee_evaluation_repository_impl.go`
+
+#### 3. Search Only Worked on Notes Field (Feb 2025)
+
+- **Problem**: Search in evaluation list only matched `notes` field, not employee names or group names
+- **Fix**: Extended search query to include subqueries on employee name and evaluation group name. Cast both sides to `text` to handle type mismatch (`employee_id` is `character`, `id` is `uuid`):
+  ```go
+  notes ILIKE ? OR employee_id::text IN (SELECT id::text FROM employees WHERE name ILIKE ?)
+  OR evaluation_group_id::text IN (SELECT id::text FROM evaluation_groups WHERE name ILIKE ?)
+  ```
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/repositories/employee_evaluation_repository_impl.go`
+
+#### 4. Edit Form Missing Read-only Fields (Feb 2025)
+
+- **Problem**: Edit form didn't show Employee, Evaluation Group, and Evaluator fields
+- **Fix**: Display these 3 fields in both create and edit modes. In edit mode, render as read-only styled divs (`bg-muted/50 border`). In create mode, remain as Select dropdowns
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### 5. Status Transition API Method Mismatch (Feb 2025)
+
+- **Problem**: Frontend used `PATCH` but backend expected `POST` for status transitions
+- **Fix**: Changed frontend service from `apiClient.patch` to `apiClient.post` to match backend route (`POST /:id/status`)
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/services/evaluation-service.ts`
+
+#### 6. Inactive Groups Shown in Form (Feb 2025)
+
+- **Problem**: Inactive evaluation groups (is_active=false) were visible in the form dropdown
+- **Fix**: Backend `GetFormData` usecase already filters with `isActive := true` before fetching groups (no code change needed, already working correctly)
+
+#### 7. `is_active` Always `true` in API Response (Feb 2025)
+
+- **Root Cause**: The GORM model `EvaluationGroup` had `default:true` tag on `IsActive` field. When creating with `is_active=false`, GORM skips zero-value fields that have a `default` tag, so the database default `true` was applied instead of the intended `false`.
+- **Fix**: Removed `default:true` from the GORM tag in `evaluation_group.go`. The Go-level mapper (`ToEvaluationGroupModel`) already handles the default value, so the GORM tag default was redundant and harmful.
+- **Files Changed**:
+  - `apps/api/internal/hrd/data/models/evaluation_group.go`
+
+#### 8. "Invalid Selection" on Seeder Evaluation Groups (Feb 2025)
+
+- **Root Cause**: Zod v4's `.uuid()` enforces strict RFC 4122 validation (version nibble must be 1-5, variant nibble must be 8/9/a/b). Seeder UUIDs like `e0000001-0000-0000-0000-000000000001` have `0` in both positions, failing this strict check. Groups created via the form use Go's `uuid.New()` which generates valid RFC 4122 v4 UUIDs.
+- **Fix**: Replaced all `.uuid()` calls with `.regex(UUID_REGEX, ...)` using a loose hex-only UUID pattern (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) that accepts any UUID-formatted hex string without enforcing RFC 4122 version/variant bits.
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
+
+### Improvements
+
+#### Edit Form Shows Select Dropdowns (Feb 2025)
+
+- **Feature**: Employee dan Evaluation Group fields sekarang tampil sebagai Select dropdown di mode edit (sebelumnya read-only text divs)
+- **Implementation**: Menggunakan `<Select disabled>` sehingga terlihat sebagai dropdown tapi tidak bisa diubah, mempertahankan UI consistency
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Criteria Scores Editable in Edit Mode (Feb 2025)
+
+- **Feature**: Criteria scores bisa diedit saat mode edit
+- **Implementation**:
+  - Default values untuk edit mode sekarang populate `employee_id`, `evaluation_group_id`, `evaluator_id` menggunakan form yang sama dengan create mode
+  - Fix `selectedGroupId` watch yang salah di edit mode
+  - Criteria scores dari evaluasi sekarang bisa diedit
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Evaluator Editable in Edit Mode (Feb 2025)
+
+- **Feature**: Evaluator bisa diganti saat edit evaluasi (sebelumnya locked setelah create)
+- **Implementation**:
+  - **Backend**: `EvaluatorID` ditambahkan ke `UpdateEmployeeEvaluationRequest` DTO dan ditangani di usecase
+  - **Frontend**: Schema update sekarang include `evaluator_id`, form selalu render evaluator sebagai Select yang bisa diedit
+- **Files Changed**:
+  - `apps/api/internal/hrd/domain/dto/evaluation_dto.go`
+  - `apps/api/internal/hrd/domain/usecase/employee_evaluation_usecase_impl.go`
+  - `apps/web/src/features/hrd/evaluation/schemas/evaluation.schema.ts`
+  - `apps/web/src/features/hrd/evaluation/types/index.d.ts`
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Score Auto-caps to Max Score on Input (Feb 2025)
+
+- **Feature**: Score otomatis di-clamp ke max_score saat user input (tidak perlu tekan Enter)
+- **Implementation**: Score `onChange` sekarang melakukan clamp: `val > maxScore ? maxScore : val` secara real-time
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-form.tsx`
+
+#### Detail Modal Uses Tabs for Overview / Criteria Scores (Feb 2025)
+
+- **Feature**: Detail modal dibagi menjadi 2 tab: "Overview" dan "Criteria Scores"
+- **Implementation**:
+  - Tab "Overview": overall score, details grid, notes dengan `whitespace-pre-wrap`
+  - Tab "Criteria Scores": tabel criteria dengan notes yang fully visible (tidak truncate)
+  - Remove `table-fixed` constraint untuk natural column sizing
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/employee-evaluation-detail-modal.tsx`
+  - `apps/web/src/features/hrd/evaluation/i18n/en.ts`
+  - `apps/web/src/features/hrd/evaluation/i18n/id.ts`
+
+#### Weight Cap and Real-time Info in Criteria Form (Feb 2025)
+
+- **Feature**: Real-time display of current total weight and remaining weight capacity when creating/editing criteria
+- **Implementation**:
+  - Added `useWatch` to track selected `evaluation_group_id` in criteria form
+  - Uses `useEvaluationGroup` hook to fetch group details including `total_weight`
+  - Computes `remainingWeight = 100 - total_weight + ownWeight` (adds back criteria's own weight when editing)
+  - Automatically caps weight input value if it exceeds remaining capacity
+  - Displays info bar with Badge components showing current total weight and remaining weight
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/components/evaluation-criteria-form.tsx`
+  - `apps/web/src/features/hrd/evaluation/i18n/en.ts`
+  - `apps/web/src/features/hrd/evaluation/i18n/id.ts`
+
+#### Auto-refresh Detail Modal After Criteria CRUD (Feb 2025)
+
+- **Problem**: After creating, updating, or deleting criteria, the detail modal showing group info with total weight was not refreshing
+- **Root Cause**: Criteria mutations only invalidated `evaluationGroupKeys.lists()` but not `evaluationGroupKeys.details()`
+- **Fix**: Changed mutation `onSuccess` to invalidate `evaluationGroupKeys.all` which covers both lists and detail queries
+- **Files Changed**:
+  - `apps/web/src/features/hrd/evaluation/hooks/use-evaluations.ts`
+
+### Known Limitations
+
+- **Known Limitation**: Saat ini belum support evaluation period templates (quarterly, annual auto-generation)
+- **Known Limitation**: React Compiler shows cosmetic warnings for react-hook-form `watch()` usage — not a blocker
+- **Future Improvement**:
+  - Add evaluation period templates for auto-scheduling
+  - Add PDF export for finalized evaluations
+  - Add notification system for pending reviews
+  - Add dashboard with evaluation score trends
+  - Add 360-degree evaluation support (PEER type)
+  - Add bulk evaluation creation for all employees in a group
+  - Add evaluation comparison view (side-by-side periods)
+- **Performance**: GIN indexes on evaluation_groups.name and evaluation_criteria.name for prefix search

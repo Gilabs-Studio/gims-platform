@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 )
 
 // OvertimeRequestMapper handles mapping between OvertimeRequest model and DTOs
@@ -153,6 +154,21 @@ func (m *OvertimeRequestMapper) parseTimeWithDate(date time.Time, timeStr string
 		return time.Time{}, err
 	}
 	return time.Date(date.Year(), date.Month(), date.Day(), t.Hour(), t.Minute(), 0, 0, date.Location()), nil
+}
+
+// EnrichResponse enriches an overtime request response with employee data
+func (m *OvertimeRequestMapper) EnrichResponse(resp *dto.OvertimeRequestResponse, employeeMap map[string]*orgModels.Employee) {
+	if emp, ok := employeeMap[resp.EmployeeID]; ok {
+		resp.EmployeeName = emp.Name
+		resp.EmployeeCode = emp.EmployeeCode
+	}
+}
+
+// EnrichResponseList enriches a list of overtime request responses with employee data
+func (m *OvertimeRequestMapper) EnrichResponseList(responses []dto.OvertimeRequestResponse, employeeMap map[string]*orgModels.Employee) {
+	for i := range responses {
+		m.EnrichResponse(&responses[i], employeeMap)
+	}
 }
 
 // formatMinutesToHours converts minutes to "Xh Ym" format

@@ -97,6 +97,13 @@ export const educationHistoryEn = {
       documentInfo: "Document Information",
       timeline: "Timeline",
       noDocument: "No document uploaded",
+      viewProfile: "View Profile",
+      employeeCode: "Employee Code",
+      email: "Email",
+      phone: "Phone",
+      position: "Position",
+      department: "Department",
+      downloadDocument: "Download Document",
     },
 
     // Form

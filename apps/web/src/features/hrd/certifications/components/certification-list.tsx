@@ -15,9 +15,10 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CertificationForm } from "./certification-form";
 import { CertificationDetailModal } from "./certification-detail-modal";
-import type { EmployeeCertification } from "../types";
+import type { EmployeeCertification, ListCertificationsParams } from "../types";
 import { formatDate } from "@/lib/utils";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function CertificationList() {
   const t = useTranslations("certification");
@@ -25,8 +26,9 @@ export function CertificationList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<ListCertificationsParams["status"]>(undefined);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCertification, setEditingCertification] = useState<EmployeeCertification | null>(null);
+  const [editingCertificationId, setEditingCertificationId] = useState<string | null>(null);
   const [viewingCertification, setViewingCertification] = useState<EmployeeCertification | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -34,6 +36,7 @@ export function CertificationList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    status: statusFilter,
   });
 
   const canCreate = useUserPermission("employee_certification.create");
@@ -46,7 +49,7 @@ export function CertificationList() {
   const pagination = data?.meta?.pagination;
 
   const handleEdit = (certification: EmployeeCertification) => {
-    setEditingCertification(certification);
+    setEditingCertificationId(certification.id);
     setIsFormOpen(true);
   };
 
@@ -58,17 +61,17 @@ export function CertificationList() {
     if (deletingId) {
       try {
         await deleteCertification.mutateAsync(deletingId);
-        toast.success(t("success.deleted"));
+        toast.success(t("toast.delete_success"));
         setDeletingId(null);
       } catch {
-        toast.error(t("error.delete"));
+        toast.error(t("toast.delete_error"));
       }
     }
   };
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setEditingCertification(null);
+    setEditingCertificationId(null);
   };
 
   const getExpiryBadge = (cert: EmployeeCertification) => {
@@ -122,8 +125,8 @@ export function CertificationList() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("search")}
@@ -135,6 +138,24 @@ export function CertificationList() {
             className="pl-9"
           />
         </div>
+        <Select
+          value={statusFilter ?? "all"}
+          onValueChange={(v) => {
+            setStatusFilter(v === "all" ? undefined : (v as ListCertificationsParams["status"]));
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[180px] cursor-pointer">
+            <SelectValue placeholder={t("filters.all_status")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">{t("filters.all_status")}</SelectItem>
+            <SelectItem value="valid" className="cursor-pointer">{t("status.valid")}</SelectItem>
+            <SelectItem value="expiring_soon" className="cursor-pointer">{t("status.expiring_soon", { days: 30 })}</SelectItem>
+            <SelectItem value="expired" className="cursor-pointer">{t("status.expired")}</SelectItem>
+            <SelectItem value="no_expiry" className="cursor-pointer">{t("status.no_expiry")}</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex-1" />
         {canCreate && (
           <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
@@ -166,7 +187,7 @@ export function CertificationList() {
             ) : certifications.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {t("notFound")}
+                  {t("empty.no_results")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -181,11 +202,14 @@ export function CertificationList() {
                       {cert.certificate_name}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {cert.employee ? (
+                  <TableCell
+                    className={canView ? "cursor-pointer font-medium text-primary hover:underline" : undefined}
+                    onClick={canView ? () => handleView(cert) : undefined}
+                  >
+                    {(cert.employee_name ?? cert.employee?.name) ? (
                       <div className="text-sm">
-                        <div className="font-medium">{cert.employee.name}</div>
-                        <div className="text-muted-foreground">{cert.employee.employee_code}</div>
+                        <div className="font-medium">{cert.employee_name ?? cert.employee?.name}</div>
+                        <div className="text-muted-foreground">{cert.employee_code ?? cert.employee?.employee_code ?? "-"}</div>
                       </div>
                     ) : (
                       "-"
@@ -254,7 +278,7 @@ export function CertificationList() {
         <CertificationForm
           open={isFormOpen}
           onClose={handleFormClose}
-          certification={editingCertification}
+          certificationId={editingCertificationId}
         />
       )}
 

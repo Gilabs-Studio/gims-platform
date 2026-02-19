@@ -245,8 +245,16 @@ export function EducationHistoryList() {
             ) : (
               educations.map((education) => (
                 <TableRow key={education.id}>
-                  <TableCell className="font-medium">
-                    {education.employee_id}
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => canView && handleView(education)}
+                  >
+                    <div className="flex flex-col">
+                      <span>{education.employee_name ?? "-"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {education.employee_code ?? ""}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>{education.institution}</TableCell>
                   <TableCell>{getDegreeBadge(education.degree)}</TableCell>

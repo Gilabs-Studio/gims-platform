@@ -97,6 +97,13 @@ export const educationHistoryId = {
       documentInfo: "Informasi Dokumen",
       timeline: "Timeline",
       noDocument: "Tidak ada dokumen diunggah",
+      viewProfile: "Lihat Profil",
+      employeeCode: "Kode Karyawan",
+      email: "Email",
+      phone: "Telepon",
+      position: "Posisi",
+      department: "Departemen",
+      downloadDocument: "Unduh Dokumen",
     },
 
     // Form
