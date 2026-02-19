@@ -10,8 +10,6 @@ import (
 func RegisterAreaRoutes(rg *gin.RouterGroup, h *handler.AreaHandler) {
 	g := rg.Group("/areas")
 	g.GET("", middleware.RequirePermission("area.read"), h.List)
-	// /form-data must be before /:id to avoid route conflicts
-	g.GET("/form-data", middleware.RequirePermission("area.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("area.read"), h.GetByID)
 	g.GET("/:id/detail", middleware.RequirePermission("area.read"), h.GetDetail)
 	g.POST("", middleware.RequirePermission("area.create"), h.Create)

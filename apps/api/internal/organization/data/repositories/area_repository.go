@@ -90,6 +90,30 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
 	}
 
+	// Filter by supervisor presence using subquery on employee_areas
+	if req.HasSupervisor != nil {
+		subquery := r.getDB(ctx).Table("employee_areas").
+			Select("area_id").
+			Where("is_supervisor = ? AND deleted_at IS NULL", true)
+		if *req.HasSupervisor {
+			query = query.Where("id IN (?)", subquery)
+		} else {
+			query = query.Where("id NOT IN (?)", subquery)
+		}
+	}
+
+	// Filter by member presence using subquery on employee_areas
+	if req.HasMembers != nil {
+		subquery := r.getDB(ctx).Table("employee_areas").
+			Select("area_id").
+			Where("is_supervisor = ? AND deleted_at IS NULL", false)
+		if *req.HasMembers {
+			query = query.Where("id IN (?)", subquery)
+		} else {
+			query = query.Where("id NOT IN (?)", subquery)
+		}
+	}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

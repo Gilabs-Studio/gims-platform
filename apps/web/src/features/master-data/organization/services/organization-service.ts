@@ -12,6 +12,7 @@ import type {
   OrganizationListResponse,
   OrganizationSingleResponse,
   ListOrganizationParams,
+  ListAreasParams,
   ListCompaniesParams,
   CreateDivisionData,
   UpdateDivisionData,
@@ -225,7 +226,7 @@ export const businessTypeService = {
 // Area Service
 export const areaService = {
   async list(
-    params?: ListOrganizationParams
+    params?: ListAreasParams
   ): Promise<OrganizationListResponse<Area>> {
     const response = await apiClient.get<OrganizationListResponse<Area>>(
       `${BASE_PATH}/areas`,
