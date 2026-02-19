@@ -253,6 +253,19 @@ export const hrdId = {
         everyDay: "Setiap Hari",
       },
 
+      sections: {
+        workHours: "Jam Kerja",
+        breakTime: "Waktu Istirahat",
+        workingDays: "Hari Kerja",
+        tolerance: "Toleransi",
+        gpsSettings: "Pengaturan GPS",
+      },
+
+      descriptions: {
+        flexible: "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
+        gps: "Wajibkan karyawan untuk absen masuk/keluar dalam radius GPS yang ditentukan dari kantor",
+      },
+
       days: {
         mon: "Sen",
         tue: "Sel",
@@ -261,6 +274,13 @@ export const hrdId = {
         fri: "Jum",
         sat: "Sab",
         sun: "Min",
+        Mon: "Sen",
+        Tue: "Sel",
+        Wed: "Rab",
+        Thu: "Kam",
+        Fri: "Jum",
+        Sat: "Sab",
+        Sun: "Min",
       },
 
       actions: {

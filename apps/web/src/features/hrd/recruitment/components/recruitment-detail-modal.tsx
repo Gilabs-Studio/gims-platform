@@ -23,12 +23,7 @@ import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import {
   useRecruitmentRequest,
-  useSubmitRecruitmentRequest,
-  useApproveRecruitmentRequest,
-  useRejectRecruitmentRequest,
-  useOpenRecruitmentRequest,
-  useCloseRecruitmentRequest,
-  useCancelRecruitmentRequest,
+  useUpdateRecruitmentStatus,
 } from "../hooks/use-recruitment";
 import type {
   RecruitmentRequest,
@@ -74,46 +69,17 @@ export function RecruitmentDetailModal({
     { enabled: open }
   );
   const detail = detailResponse?.data ?? recruitmentRequest;
-  const submitRequest = useSubmitRecruitmentRequest();
-  const approveRequest = useApproveRecruitmentRequest();
-  const rejectRequest = useRejectRecruitmentRequest();
-  const openRequest = useOpenRecruitmentRequest();
-  const closeRequest = useCloseRecruitmentRequest();
-  const cancelRequest = useCancelRecruitmentRequest();
+  const updateStatus = useUpdateRecruitmentStatus();
 
-  const isStatusActionPending =
-    submitRequest.isPending ||
-    approveRequest.isPending ||
-    rejectRequest.isPending ||
-    openRequest.isPending ||
-    closeRequest.isPending ||
-    cancelRequest.isPending;
-
-  const handleStatusAction = async (
-    action: "submit" | "approve" | "reject" | "open" | "close" | "cancel",
+  const handleStatusChange = async (
+    status: RecruitmentStatus,
     notes?: string
   ) => {
     try {
-      switch (action) {
-        case "submit":
-          await submitRequest.mutateAsync(detail.id);
-          break;
-        case "approve":
-          await approveRequest.mutateAsync(detail.id);
-          break;
-        case "reject":
-          await rejectRequest.mutateAsync({ id: detail.id, notes });
-          break;
-        case "open":
-          await openRequest.mutateAsync(detail.id);
-          break;
-        case "close":
-          await closeRequest.mutateAsync(detail.id);
-          break;
-        case "cancel":
-          await cancelRequest.mutateAsync(detail.id);
-          break;
-      }
+      await updateStatus.mutateAsync({
+        id: detail.id,
+        data: { status, notes },
+      });
       toast.success(t("statusUpdated"));
     } catch {
       toast.error(t("common.error"));
@@ -356,8 +322,8 @@ export function RecruitmentDetailModal({
                   detail.status === "REJECTED") && (
                   <Button
                     size="sm"
-                    onClick={() => handleStatusAction("submit")}
-                    disabled={isStatusActionPending}
+                    onClick={() => handleStatusChange("PENDING")}
+                    disabled={updateStatus.isPending}
                     className="cursor-pointer"
                   >
                     <Send className="h-4 w-4 mr-1" />
@@ -371,8 +337,8 @@ export function RecruitmentDetailModal({
                   <Button
                     size="sm"
                     variant="default"
-                    onClick={() => handleStatusAction("approve")}
-                    disabled={isStatusActionPending}
+                    onClick={() => handleStatusChange("APPROVED")}
+                    disabled={updateStatus.isPending}
                     className="cursor-pointer"
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -381,8 +347,8 @@ export function RecruitmentDetailModal({
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleStatusAction("reject")}
-                    disabled={isStatusActionPending}
+                    onClick={() => handleStatusChange("REJECTED")}
+                    disabled={updateStatus.isPending}
                     className="cursor-pointer"
                   >
                     <XCircle className="h-4 w-4 mr-1" />
@@ -393,8 +359,8 @@ export function RecruitmentDetailModal({
               {canUpdate && detail.status === "APPROVED" && (
                 <Button
                   size="sm"
-                  onClick={() => handleStatusAction("open")}
-                  disabled={isStatusActionPending}
+                  onClick={() => handleStatusChange("OPEN")}
+                  disabled={updateStatus.isPending}
                   className="cursor-pointer"
                 >
                   <Briefcase className="h-4 w-4 mr-1" />
@@ -405,8 +371,8 @@ export function RecruitmentDetailModal({
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => handleStatusAction("close")}
-                  disabled={isStatusActionPending}
+                  onClick={() => handleStatusChange("CLOSED")}
+                  disabled={updateStatus.isPending}
                   className="cursor-pointer"
                 >
                   <Lock className="h-4 w-4 mr-1" />
@@ -419,8 +385,8 @@ export function RecruitmentDetailModal({
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleStatusAction("cancel")}
-                    disabled={isStatusActionPending}
+                    onClick={() => handleStatusChange("CANCELLED")}
+                    disabled={updateStatus.isPending}
                     className="cursor-pointer"
                   >
                     <Ban className="h-4 w-4 mr-1" />

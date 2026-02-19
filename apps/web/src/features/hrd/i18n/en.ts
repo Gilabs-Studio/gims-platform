@@ -253,6 +253,19 @@ export const hrdEn = {
         everyDay: "Every Day",
       },
 
+      sections: {
+        workHours: "Work Hours",
+        breakTime: "Break Time",
+        workingDays: "Working Days",
+        tolerance: "Tolerance",
+        gpsSettings: "GPS Settings",
+      },
+
+      descriptions: {
+        flexible: "Enable flexible working hours with a range of allowed start and end times",
+        gps: "Require employees to clock in/out within the specified GPS radius of the office",
+      },
+
       days: {
         mon: "Mon",
         tue: "Tue",
@@ -261,6 +274,13 @@ export const hrdEn = {
         fri: "Fri",
         sat: "Sat",
         sun: "Sun",
+        Mon: "Mon",
+        Tue: "Tue",
+        Wed: "Wed",
+        Thu: "Thu",
+        Fri: "Fri",
+        Sat: "Sat",
+        Sun: "Sun",
       },
 
       actions: {
