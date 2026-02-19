@@ -16,7 +16,6 @@ const VALID_DASHBOARD_ROUTES = [
   "/master-data/business-units",
   "/master-data/business-types",
   "/master-data/areas",
-  "/master-data/area-supervisors",
   "/master-data/employees",
   "/master-data/suppliers",
   "/master-data/supplier-types",

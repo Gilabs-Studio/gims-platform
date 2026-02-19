@@ -42,7 +42,6 @@ export const navigationConfig: NavItem[] = [
           { name: "Business Units", url: "/master-data/business-units", icon: "layout-list", permission: "business_unit.read" },
           { name: "Business Types", url: "/master-data/business-types", icon: "tag", permission: "business_type.read" },
           { name: "Areas", url: "/master-data/areas", icon: "map", permission: "area.read" },
-          { name: "Area Supervisors", url: "/master-data/area-supervisors", icon: "user-check", permission: "area_supervisor.read" },
         ],
       },
       { name: "Employees", url: "/master-data/employees", icon: "users", permission: "employee.read" },

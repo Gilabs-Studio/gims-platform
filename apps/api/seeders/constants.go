@@ -41,6 +41,15 @@ const (
 	UnitWholesaleID = "4b5c6d7e-8f9a-0b1c-2d3e-4f5a6b7c8d9e"
 )
 
+// Area IDs (Fixed)
+const (
+	AreaJabodetabekID = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
+	AreaJawaBaratID   = "a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2"
+	AreaJawaTengahID  = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
+	AreaJawaTimurID   = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
+	AreaBaliID        = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
+)
+
 // Employee IDs (Fixed)
 const (
 	AdminEmployeeID   = "11111111-1111-1111-1111-111111111111"

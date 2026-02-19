@@ -12,13 +12,15 @@ import (
 // AreaRepository defines the interface for area data access
 type AreaRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Area, error)
+	FindByIDWithMembers(ctx context.Context, id string) (*models.Area, error)
 	FindByName(ctx context.Context, name string) (*models.Area, error)
 	FindByIDs(ctx context.Context, ids []string) ([]models.Area, error)
 	List(ctx context.Context, req *dto.ListAreasRequest) ([]models.Area, int64, error)
 	Create(ctx context.Context, a *models.Area) error
 	Update(ctx context.Context, a *models.Area) error
 	Delete(ctx context.Context, id string) error
-	HasSupervisors(ctx context.Context, areaID string) (bool, error)
+	// HasAssignedEmployees checks if any employees (supervisor or member) are assigned to the area.
+	HasAssignedEmployees(ctx context.Context, areaID string) (bool, error)
 }
 
 type areaRepository struct {
@@ -37,6 +39,21 @@ func (r *areaRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *areaRepository) FindByID(ctx context.Context, id string) (*models.Area, error) {
 	var area models.Area
 	err := r.getDB(ctx).Where("id = ?", id).First(&area).Error
+	if err != nil {
+		return nil, err
+	}
+	return &area, nil
+}
+
+func (r *areaRepository) FindByIDWithMembers(ctx context.Context, id string) (*models.Area, error) {
+	var area models.Area
+	err := r.getDB(ctx).
+		Preload("EmployeeAreas").
+		Preload("EmployeeAreas.Employee").
+		Preload("EmployeeAreas.Employee.Division").
+		Preload("EmployeeAreas.Employee.JobPosition").
+		Where("id = ?", id).
+		First(&area).Error
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +119,11 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 		sortDir = "ASC"
 	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&areas).Error
+	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).
+		Offset(offset).
+		Limit(perPage).
+		Preload("EmployeeAreas").
+		Find(&areas).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -122,9 +143,9 @@ func (r *areaRepository) Delete(ctx context.Context, id string) error {
 	return r.getDB(ctx).Where("id = ?", id).Delete(&models.Area{}).Error
 }
 
-func (r *areaRepository) HasSupervisors(ctx context.Context, areaID string) (bool, error) {
+func (r *areaRepository) HasAssignedEmployees(ctx context.Context, areaID string) (bool, error) {
 	var count int64
-	err := r.getDB(ctx).Model(&models.AreaSupervisorArea{}).Where("area_id = ?", areaID).Count(&count).Error
+	err := r.getDB(ctx).Model(&models.EmployeeArea{}).Where("area_id = ?", areaID).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

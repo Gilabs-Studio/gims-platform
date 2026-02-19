@@ -29,6 +29,8 @@ type EmployeeUsecase interface {
 	SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error)
 	Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error)
 	AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error)
+	// AssignSupervisorAreas sets the areas in which the employee acts as supervisor.
+	AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error)
 }
 
 type employeeUsecase struct {
@@ -118,9 +120,16 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		return dto.EmployeeResponse{}, err
 	}
 
-	// Assign areas if provided
+	// Assign member areas if provided
 	if len(req.AreaIDs) > 0 {
 		if err := u.employeeAreaRepo.AssignAreas(ctx, employee.ID, req.AreaIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+	}
+
+	// Assign supervisor areas if provided
+	if len(req.SupervisedAreaIDs) > 0 {
+		if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, employee.ID, req.SupervisedAreaIDs); err != nil {
 			return dto.EmployeeResponse{}, err
 		}
 	}
@@ -274,13 +283,22 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 		return dto.EmployeeResponse{}, err
 	}
 
-	// Update area assignments if provided
+	// Update area assignments if provided (full replacement for member areas)
 	if req.AreaIDs != nil {
 		if err := u.employeeAreaRepo.RemoveAllAreas(ctx, id); err != nil {
 			return dto.EmployeeResponse{}, err
 		}
 		if len(req.AreaIDs) > 0 {
 			if err := u.employeeAreaRepo.AssignAreas(ctx, id, req.AreaIDs); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	// Update supervised areas if provided (upsert with is_supervisor=true)
+	if req.SupervisedAreaIDs != nil {
+		if len(req.SupervisedAreaIDs) > 0 {
+			if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, id, req.SupervisedAreaIDs); err != nil {
 				return dto.EmployeeResponse{}, err
 			}
 		}
@@ -364,7 +382,7 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		return dto.EmployeeResponse{}, ErrEmployeeNotFound
 	}
 
-	// Replace all area assignments
+	// Replace all area assignments (member role only)
 	if err := u.employeeAreaRepo.RemoveAllAreas(ctx, id); err != nil {
 		return dto.EmployeeResponse{}, err
 	}
@@ -373,6 +391,26 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		if err := u.employeeAreaRepo.AssignAreas(ctx, id, req.AreaIDs); err != nil {
 			return dto.EmployeeResponse{}, err
 		}
+	}
+
+	// Reload with preloaded data
+	employee, err = u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	return mapper.ToEmployeeResponse(employee), nil
+}
+
+func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error) {
+	employee, err := u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	// Upsert areas with is_supervisor = true
+	if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, id, req.AreaIDs); err != nil {
+		return dto.EmployeeResponse{}, err
 	}
 
 	// Reload with preloaded data

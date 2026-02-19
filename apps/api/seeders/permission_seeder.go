@@ -85,11 +85,11 @@ func SeedPermissions() error {
 		{"/master-data/areas", "area.create", "Create Areas", "CREATE", "area"},
 		{"/master-data/areas", "area.update", "Edit Areas", "EDIT", "area"},
 		{"/master-data/areas", "area.delete", "Delete Areas", "DELETE", "area"},
-
-		{"/master-data/area-supervisors", "area_supervisor.read", "View Area Supervisors", "VIEW", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.create", "Create Area Supervisors", "CREATE", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.update", "Edit Area Supervisors", "EDIT", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.delete", "Delete Area Supervisors", "DELETE", "area_supervisor"},
+		// Sprint 17: supervisor/member assignment now lives on employee_areas
+		{"/master-data/areas", "area.assign_supervisor", "Assign Area Supervisors", "EDIT", "area"},
+		{"/master-data/areas", "area.assign_member", "Assign Area Members", "EDIT", "area"},
+		// Employees can be marked as supervisor of an area from the employee side
+		{"/master-data/employees", "employee.assign_area", "Assign Employee to Area", "EDIT", "employee"},
 
 		// Master Data - Employee
 		{"/master-data/employees", "employee.read", "View Employees", "VIEW", "employee"},

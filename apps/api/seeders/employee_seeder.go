@@ -161,5 +161,29 @@ func SeedEmployees() error {
 	}
 
 	log.Println("Employees seeded successfully")
+
+	// 3. Assign areas to employees via EmployeeArea (Sprint 17)
+	log.Println("Assigning employee areas...")
+	employeeAreas := []models.EmployeeArea{
+		// Admin: supervisor of Jabodetabek and Jawa Barat
+		{EmployeeID: AdminEmployeeID, AreaID: AreaJabodetabekID, IsSupervisor: true},
+		{EmployeeID: AdminEmployeeID, AreaID: AreaJawaBaratID, IsSupervisor: true},
+		// Manager: supervisor of Jawa Tengah, member of Jawa Timur
+		{EmployeeID: ManagerEmployeeID, AreaID: AreaJawaTengahID, IsSupervisor: true},
+		{EmployeeID: ManagerEmployeeID, AreaID: AreaJawaTimurID, IsSupervisor: false},
+		// Staff: member of Jabodetabek
+		{EmployeeID: StaffEmployeeID, AreaID: AreaJabodetabekID, IsSupervisor: false},
+	}
+
+	for _, ea := range employeeAreas {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
+		}).Create(&ea).Error; err != nil {
+			log.Printf("Warning: Failed to assign area %s to employee %s: %v", ea.AreaID, ea.EmployeeID, err)
+		}
+	}
+	log.Println("Employee areas assigned successfully")
+
 	return nil
 }
