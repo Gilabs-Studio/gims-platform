@@ -43,6 +43,7 @@ export interface Area {
   description?: string;
   is_active: boolean;
   supervisor_count?: number;
+  supervisor_names?: string[];
   member_count?: number;
   created_at: string;
   updated_at: string;

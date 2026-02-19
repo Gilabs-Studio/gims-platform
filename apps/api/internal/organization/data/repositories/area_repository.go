@@ -146,7 +146,7 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).
 		Offset(offset).
 		Limit(perPage).
-		Preload("EmployeeAreas").
+		Preload("EmployeeAreas.Employee").
 		Find(&areas).Error
 	if err != nil {
 		return nil, 0, err

@@ -16,9 +16,14 @@ func ToAreaResponse(m *models.Area) *dto.AreaResponse {
 
 	supervisorCount := 0
 	memberCount := 0
+	supervisorNames := make([]string, 0)
+	
 	for _, ea := range m.EmployeeAreas {
 		if ea.IsSupervisor {
 			supervisorCount++
+			if ea.Employee != nil {
+				supervisorNames = append(supervisorNames, ea.Employee.Name)
+			}
 		} else {
 			memberCount++
 		}
@@ -30,6 +35,7 @@ func ToAreaResponse(m *models.Area) *dto.AreaResponse {
 		Description:     m.Description,
 		IsActive:        m.IsActive,
 		SupervisorCount: supervisorCount,
+		SupervisorNames: supervisorNames,
 		MemberCount:     memberCount,
 		CreatedAt:       m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       m.UpdatedAt.Format(time.RFC3339),
