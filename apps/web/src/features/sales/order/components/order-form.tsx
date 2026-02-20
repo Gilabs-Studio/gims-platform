@@ -30,11 +30,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, sortOptions } from "@/lib/utils";
 import { useCreateOrder, useUpdateOrder, useOrder } from "../hooks/use-orders";
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
-import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import type { SalesOrder } from "../types";
 import { toast } from "sonner";
@@ -43,8 +41,9 @@ import { ButtonLoading } from "@/components/loading";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { productService } from "@/features/master-data/product/services/product-service";
-import { employeeService } from "@/features/master-data/employee/services/employee-service.ts";
-import type { Product, Employee } from "@/features/master-data/types"; // Verify path or use specific imports
+import { employeeService } from "@/features/master-data/employee/services/employee-service";
+import type { Product } from "@/features/master-data/product/types";
+import type { Employee } from "@/features/master-data/employee/types";
 import { useCallback } from "react";
 
 const STORAGE_KEY = "order_form_cache";
@@ -91,7 +90,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
   // Local state to store selected objects for AsyncSelect persistence
   const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
-  const [selectedRep, setSelectedRep] = useState<Employee | undefined>(order?.sales_rep);
+  const [selectedRep, setSelectedRep] = useState<Employee | undefined>(order?.sales_rep as Employee | undefined);
 
   // Initialize selected products from order
   useEffect(() => {
@@ -99,7 +98,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
       const map: Record<string, Product> = {};
       order.items.forEach(item => {
         if (item.product && item.product_id) {
-            // @ts-ignore - mismatch in Product type vs simplified product in SalesOrder
+            // @ts-expect-error - simplified product shape in SalesOrder is compatible at runtime
             map[item.product_id] = item.product;
         }
       });
@@ -218,47 +217,63 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     enabled: !!watchedQuotationId && !isEdit,
   });
 
-  // Auto-populate form from Quotation
+  // Auto-populate form from selected Sales Quotation (create mode only)
   useEffect(() => {
     if (quotationData?.data && !isEdit && watchedQuotationId) {
       const q = quotationData.data;
-      
+
+      // --- General / order fields ---
       setValue("payment_terms_id", q.payment_terms_id ?? "", { shouldValidate: true });
       setValue("sales_rep_id", q.sales_rep_id ?? "", { shouldValidate: true });
       setValue("business_unit_id", q.business_unit_id ?? "", { shouldValidate: true });
       setValue("business_type_id", q.business_type_id ?? undefined, { shouldValidate: true });
-      // setValue("delivery_area_id", q.delivery_area_id ?? undefined); // Quotation might not have it or different field
-      
+
+      // Update AsyncSelect display for sales rep
+      if (q.sales_rep) {
+        setSelectedRep(q.sales_rep as Employee);
+      }
+
+      // --- Customer information ---
+      setValue("customer_name", q.customer_name ?? "", { shouldValidate: true });
+      setValue("customer_contact", q.customer_contact ?? "", { shouldValidate: true });
+      setValue("customer_phone", q.customer_phone ?? "", { shouldValidate: true });
+      setValue("customer_email", q.customer_email ?? "", { shouldValidate: true });
+
+      // --- Financial summary ---
       setValue("tax_rate", q.tax_rate ?? 11, { shouldValidate: true });
       setValue("delivery_cost", q.delivery_cost ?? 0, { shouldValidate: true });
       setValue("other_cost", q.other_cost ?? 0, { shouldValidate: true });
       setValue("discount_amount", q.discount_amount ?? 0, { shouldValidate: true });
       setValue("notes", q.notes ?? "", { shouldValidate: true });
-      
-      // Items are handled separately via useQuotationItems or if they are in q.items
-      // Assuming useQuotationItems returns the items list
-      if (quotationItemsData?.data) {
-        const newItems = quotationItemsData.data.map(item => ({
-           product_id: item.product_id,
-           quantity: item.quantity,
-           price: item.price,
-           discount: item.discount ?? 0,
-        }));
-        
-        // Replace existing items
-        setValue("items", newItems, { shouldValidate: true });
-      } else if (q.items && q.items.length > 0) {
-         // Fallback if items are in the detail response
-         const newItems = q.items.map(item => ({
-           product_id: item.product_id,
-           quantity: item.quantity,
-           price: item.price,
-           discount: item.discount ?? 0,
+
+      // --- Items ---
+      // Prefer paginated items endpoint; fall back to embedded items in detail response
+      const sourceItems = quotationItemsData?.data?.length
+        ? quotationItemsData.data
+        : (q.items ?? []);
+
+      if (sourceItems.length > 0) {
+        const newItems = sourceItems.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount ?? 0,
         }));
         setValue("items", newItems, { shouldValidate: true });
+
+        // Populate selectedProducts map so AsyncSelect shows product labels
+        const productMap: Record<string, Product> = {};
+        sourceItems.forEach((item) => {
+          if (item.product && item.product_id) {
+            productMap[item.product_id] = item.product as Product;
+          }
+        });
+        if (Object.keys(productMap).length > 0) {
+          setSelectedProducts((prev) => ({ ...prev, ...productMap }));
+        }
       }
     }
-  }, [quotationData, quotationItemsData, isEdit, setValue, watchedQuotationId]);
+  }, [quotationData, quotationItemsData, isEdit, setValue, watchedQuotationId, setSelectedRep, setSelectedProducts]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -1007,7 +1022,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                       field.onChange(val);
                                       handleProductChange(index, val, item);
                                     }}
-                                    defaultOptions={selectedProducts[field.value] ? [selectedProducts[field.value]] : []}
+                                    defaultOptions={field.value && selectedProducts[field.value] ? [selectedProducts[field.value]] : []}
                                     width="w-full"
                                   />
                                 )}
