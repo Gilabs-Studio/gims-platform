@@ -51,8 +51,14 @@ func AutoMigrate() error {
 	}
 
 	// Use a custom migration approach that handles constraint errors gracefully
+	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
+	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
+	// If Role migrates first, the scope column from RolePermission gets lost.
+	// By migrating RolePermission first, the table is created with scope, and Role's
+	// many2many reuses the existing table without dropping scope.
 	err := migrateWithErrorHandling(
 		&user.User{},
+		&role.RolePermission{},
 		&role.Role{},
 		&permission.Permission{},
 		&permission.Menu{},
@@ -70,8 +76,8 @@ func AutoMigrate() error {
 		&organization.BusinessUnit{},
 		&organization.BusinessType{},
 		&organization.Area{},
-		&organization.AreaSupervisor{},
-		&organization.AreaSupervisorArea{},
+		// NOTE: AreaSupervisor and AreaSupervisorArea removed in Sprint 17.
+		// Supervisor role is now captured via EmployeeArea.IsSupervisor flag.
 		&organization.Company{},
 		// Employee entities (Sprint 3)
 		&organization.Employee{},
@@ -189,9 +195,76 @@ func AutoMigrate() error {
 
 	log.Println("Database migrations completed")
 
+	// Safety net: ensure role_permissions.scope column exists even when GORM's
+	// AutoMigrate did not add it (e.g. the many2many relationship on Role
+	// created the table first without the scope column).
+	if err := DB.Exec(`
+		ALTER TABLE role_permissions
+		ADD COLUMN IF NOT EXISTS scope VARCHAR(20) NOT NULL DEFAULT 'ALL'
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
+	}
+
+	// Sprint 17: Migrate area_supervisors data to employee_areas
+	if err := migrateAreaSupervisorsToEmployeeAreas(); err != nil {
+		log.Printf("Warning: Area supervisor migration skipped or failed: %v", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
+	}
+
+	return nil
+}
+
+// migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
+// employee_areas with is_supervisor=true. This is idempotent — if the source
+// tables no longer exist the function silently returns nil.
+func migrateAreaSupervisorsToEmployeeAreas() error {
+	// Check if the legacy tables still exist
+	var exists bool
+	DB.Raw(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.tables
+		WHERE table_schema = 'public' AND table_name = 'area_supervisor_areas'
+	)`).Scan(&exists)
+	if !exists {
+		log.Println("Sprint 17 migration: area_supervisor_areas table not found, skipping.")
+		return nil
+	}
+
+	// Only migrate if there is data to migrate and the source references employees.
+	// The legacy area_supervisors table has name/email/phone but no employee_id.
+	// We try to match by email first, then by name as a fallback.
+	migrationSQL := `
+		INSERT INTO employee_areas (id, employee_id, area_id, is_supervisor, created_at)
+		SELECT
+			gen_random_uuid()::text,
+			e.id,
+			asa.area_id,
+			true,
+			NOW()
+		FROM area_supervisor_areas asa
+		JOIN area_supervisors asup ON asup.id = asa.area_supervisor_id
+		JOIN employees e ON (
+			(asup.email <> '' AND lower(e.email) = lower(asup.email))
+			OR (asup.email = '' AND lower(e.name) = lower(asup.name))
+		)
+		WHERE NOT EXISTS (
+			SELECT 1 FROM employee_areas ea
+			WHERE ea.employee_id = e.id AND ea.area_id = asa.area_id
+		)
+		ON CONFLICT DO NOTHING;
+	`
+	result := DB.Exec(migrationSQL)
+	if result.Error != nil {
+		return fmt.Errorf("area supervisor migration failed: %w", result.Error)
+	}
+
+	if result.RowsAffected > 0 {
+		log.Printf("Sprint 17 migration: Migrated %d area supervisor records to employee_areas", result.RowsAffected)
+	} else {
+		log.Println("Sprint 17 migration: No new records to migrate (already migrated or no matches).")
 	}
 
 	return nil

@@ -28,8 +28,11 @@ type CreateEmployeeRequest struct {
 	PTKPStatus        string     `json:"ptkp_status" binding:"max=10"`
 	IsDisability      bool       `json:"is_disability"`
 	ReplacementForID  *string    `json:"replacement_for_id"`
-	AreaIDs           []string   `json:"area_ids"`
-	IsActive          *bool      `json:"is_active"`
+	// AreaIDs assigns the employee as a regular member of the specified areas.
+	AreaIDs []string `json:"area_ids"`
+	// SupervisedAreaIDs assigns the employee as a supervisor of the specified areas.
+	SupervisedAreaIDs []string `json:"supervised_area_ids"`
+	IsActive          *bool    `json:"is_active"`
 }
 
 // UpdateEmployeeRequest represents the request to update an employee
@@ -58,8 +61,11 @@ type UpdateEmployeeRequest struct {
 	PTKPStatus        *string    `json:"ptkp_status" binding:"omitempty,max=10"`
 	IsDisability      *bool      `json:"is_disability"`
 	ReplacementForID  *string    `json:"replacement_for_id"`
-	AreaIDs           []string   `json:"area_ids"`
-	IsActive          *bool      `json:"is_active"`
+	// AreaIDs replaces all member area assignments when provided (nil = no change).
+	AreaIDs []string `json:"area_ids"`
+	// SupervisedAreaIDs replaces all supervisor area assignments when provided (nil = no change).
+	SupervisedAreaIDs []string `json:"supervised_area_ids"`
+	IsActive          *bool    `json:"is_active"`
 }
 
 // ApproveEmployeeRequest represents the request to approve/reject an employee
@@ -71,6 +77,36 @@ type ApproveEmployeeRequest struct {
 // AssignEmployeeAreasRequest represents the request to assign areas to an employee
 type AssignEmployeeAreasRequest struct {
 	AreaIDs []string `json:"area_ids" binding:"required"`
+}
+
+// AssignEmployeeSupervisorAreasRequest represents the request to set an employee's supervised areas
+type AssignEmployeeSupervisorAreasRequest struct {
+	AreaIDs []string `json:"area_ids" binding:"required"`
+}
+
+// AreaAssignment represents a single area assignment with role designation.
+type AreaAssignment struct {
+	AreaID       string `json:"area_id" binding:"required,uuid"`
+	IsSupervisor bool   `json:"is_supervisor"`
+}
+
+// BulkUpdateEmployeeAreasRequest replaces all area assignments for an employee atomically.
+type BulkUpdateEmployeeAreasRequest struct {
+	Assignments []AreaAssignment `json:"assignments" binding:"required,dive"`
+}
+
+// EmployeeFormDataResponse provides all dropdown/select options needed by the employee form.
+type EmployeeFormDataResponse struct {
+	Divisions    []FormOption `json:"divisions"`
+	JobPositions []FormOption `json:"job_positions"`
+	Companies    []FormOption `json:"companies"`
+	Areas        []FormOption `json:"areas"`
+}
+
+// FormOption is a generic id+label pair for select dropdowns.
+type FormOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // EmployeeListParams represents the query parameters for listing employees
@@ -86,6 +122,15 @@ type EmployeeListParams struct {
 	IsActive      *bool  `form:"is_active"`
 	SortBy        string `form:"sort_by"`
 	SortDir       string `form:"sort_dir"`
+}
+
+// EmployeeAreaSummary represents an area assignment for an employee, including the supervisor flag
+type EmployeeAreaSummary struct {
+	AreaID       string `json:"area_id"`
+	AreaName     string `json:"area_name"`
+	Description  string `json:"description"`
+	IsActive     bool   `json:"is_active"`
+	IsSupervisor bool   `json:"is_supervisor"`
 }
 
 // EmployeeResponse represents the employee response DTO
@@ -121,7 +166,10 @@ type EmployeeResponse struct {
 	IsDisability      bool               `json:"is_disability"`
 	ReplacementForID  *string            `json:"replacement_for_id"`
 	ReplacementFor    *EmployeeBriefResponse `json:"replacement_for,omitempty"`
-	Areas             []AreaResponse     `json:"areas,omitempty"`
+	// Areas contains all assigned areas with their role (supervisor or member).
+	Areas            []EmployeeAreaSummary `json:"areas,omitempty"`
+	// IsAreaSupervisor is true when the employee supervises at least one area.
+	IsAreaSupervisor bool               `json:"is_area_supervisor"`
 	Status            string             `json:"status"`
 	IsApproved        bool               `json:"is_approved"`
 	CreatedBy         *string            `json:"created_by"`

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
@@ -87,6 +88,9 @@ func (r *salesVisitRepository) List(ctx context.Context, req *dto.ListSalesVisit
 	var total int64
 
 	query := r.getDB(ctx).Model(&models.SalesVisit{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
 	// Apply search filter
 	if req.Search != "" {

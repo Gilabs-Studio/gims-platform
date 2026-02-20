@@ -306,3 +306,91 @@ func (h *EmployeeHandler) AssignAreas(c *gin.Context) {
 
 	response.SuccessResponse(c, resp, nil)
 }
+
+// AssignSupervisorAreas handles POST /employees/:id/supervisor-areas
+func (h *EmployeeHandler) AssignSupervisorAreas(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.AssignEmployeeSupervisorAreasRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.AssignSupervisorAreas(c.Request.Context(), id, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// BulkUpdateAreas handles PUT /employees/:id/areas — replaces all area assignments atomically.
+func (h *EmployeeHandler) BulkUpdateAreas(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.BulkUpdateEmployeeAreasRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.BulkUpdateAreas(c.Request.Context(), id, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// RemoveAreaAssignment handles DELETE /employees/:id/areas/:area_id
+func (h *EmployeeHandler) RemoveAreaAssignment(c *gin.Context) {
+	id := c.Param("id")
+	areaID := c.Param("area_id")
+
+	if err := h.employeeUC.RemoveAreaAssignment(c.Request.Context(), id, areaID); err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, nil, nil)
+}
+
+// GetFormData handles GET /employees/form-data — returns dropdown options for the employee form.
+func (h *EmployeeHandler) GetFormData(c *gin.Context) {
+	formData, err := h.employeeUC.GetFormData(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, formData, nil)
+}

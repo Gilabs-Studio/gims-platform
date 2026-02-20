@@ -402,11 +402,11 @@ export function DeliveryList() {
         />
       )}
 
-      {viewingSalesOrder && (
+      {viewingSalesOrder && 'subtotal' in viewingSalesOrder && (
         <OrderDetailModal
-          open={!!viewingSalesOrder}
+          open={true}
           onClose={() => setViewingSalesOrder(null)}
-          order={viewingSalesOrder}
+          order={viewingSalesOrder as SalesOrder}
         />
       )}
 

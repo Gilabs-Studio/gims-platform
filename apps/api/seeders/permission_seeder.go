@@ -85,11 +85,11 @@ func SeedPermissions() error {
 		{"/master-data/areas", "area.create", "Create Areas", "CREATE", "area"},
 		{"/master-data/areas", "area.update", "Edit Areas", "EDIT", "area"},
 		{"/master-data/areas", "area.delete", "Delete Areas", "DELETE", "area"},
-
-		{"/master-data/area-supervisors", "area_supervisor.read", "View Area Supervisors", "VIEW", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.create", "Create Area Supervisors", "CREATE", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.update", "Edit Area Supervisors", "EDIT", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.delete", "Delete Area Supervisors", "DELETE", "area_supervisor"},
+		// Sprint 17: supervisor/member assignment now lives on employee_areas
+		{"/master-data/areas", "area.assign_supervisor", "Assign Area Supervisors", "EDIT", "area"},
+		{"/master-data/areas", "area.assign_member", "Assign Area Members", "EDIT", "area"},
+		// Employees can be marked as supervisor of an area from the employee side
+		{"/master-data/employees", "employee.assign_area", "Assign Employee to Area", "EDIT", "employee"},
 
 		// Master Data - Employee
 		{"/master-data/employees", "employee.read", "View Employees", "VIEW", "employee"},
@@ -498,20 +498,20 @@ func SeedPermissions() error {
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
 
-	// Assign all permissions to admin role
+	// Assign all permissions to admin role with ALL scope
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
 		log.Printf("Warning: Admin role not found: %v", err)
 	} else {
 		for _, permID := range permissionIDs {
 			if err := database.DB.Exec(
-				"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
 				adminRole.ID, permID,
 			).Error; err != nil {
 				log.Printf("Warning: Failed to assign permission to admin: %v", err)
 			}
 		}
-		log.Printf("Assigned %d permissions to admin role", len(permissionIDs))
+		log.Printf("Assigned %d permissions to admin role (scope=ALL)", len(permissionIDs))
 	}
 
 	// Sync all permissions to admin role
@@ -519,7 +519,7 @@ func SeedPermissions() error {
 		log.Printf("Warning: Failed to sync admin permissions: %v", err)
 	}
 
-	// Assign VIEW permissions to viewer role
+	// Assign VIEW permissions to viewer role with OWN scope
 	var viewerRole role.Role
 	if err := database.DB.Where("code = ?", "viewer").First(&viewerRole).Error; err == nil {
 		var viewPermissions []permission.Permission
@@ -527,7 +527,7 @@ func SeedPermissions() error {
 			viewerCount := 0
 			for _, perm := range viewPermissions {
 				if err := database.DB.Exec(
-					"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
 					viewerRole.ID, perm.ID,
 				).Error; err != nil {
 					log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
@@ -535,15 +535,108 @@ func SeedPermissions() error {
 					viewerCount++
 				}
 			}
-			log.Printf("Assigned %d VIEW permissions to viewer role", viewerCount)
+			log.Printf("Assigned %d VIEW permissions to viewer role (scope=OWN)", viewerCount)
 		}
 	}
+
+	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
+	assignScopedPermissionsToRole("manager", map[string]string{
+		"sales":    "DIVISION",
+		"purchase": "DIVISION",
+		"hrd":      "DIVISION",
+		"finance":  "DIVISION",
+		"stock":    "ALL",
+	}, "ALL")
+
+	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
+	assignScopedPermissionsToRole("staff", map[string]string{
+		"sales":    "OWN",
+		"purchase": "OWN",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "OWN",
+	}, "ALL")
+
+	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
+	assignScopedPermissionsToRole("area_supervisor", map[string]string{
+		"sales":    "AREA",
+		"purchase": "DIVISION",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "AREA",
+	}, "ALL")
+
+	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
+	assignScopedPermissionsToRole("sales_director", map[string]string{
+		"sales":    "ALL",
+		"purchase": "DIVISION",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "ALL",
+	}, "ALL")
+
+	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
+	assignScopedPermissionsToRole("finance_manager", map[string]string{
+		"finance":  "DIVISION",
+		"sales":    "OWN",
+		"purchase": "OWN",
+		"hrd":      "OWN",
+		"stock":    "OWN",
+	}, "ALL")
 
 	log.Println("ERP permissions seeded successfully")
 	return nil
 }
 
-// SyncAdminPermissions syncs all existing permissions to admin role
+// assignScopedPermissionsToRole assigns all permissions to a role with module-aware scopes.
+// moduleScopes maps a module prefix (from permission resource) to a scope value.
+// defaultScope is used for permissions that don't match any module prefix (e.g., master data).
+func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]string, defaultScope string) {
+	var r role.Role
+	if err := database.DB.Where("code = ?", roleCode).First(&r).Error; err != nil {
+		log.Printf("Warning: Role %s not found, skipping scoped assignment: %v", roleCode, err)
+		return
+	}
+
+	var allPerms []permission.Permission
+	if err := database.DB.Find(&allPerms).Error; err != nil {
+		log.Printf("Warning: Failed to load permissions for %s: %v", roleCode, err)
+		return
+	}
+
+	count := 0
+	for _, perm := range allPerms {
+		scope := defaultScope
+		for module, moduleScope := range moduleScopes {
+			if matchesModule(perm.Resource, module) {
+				scope = moduleScope
+				break
+			}
+		}
+
+		if err := database.DB.Exec(
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+			r.ID, perm.ID, scope,
+		).Error; err != nil {
+			log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+		} else {
+			count++
+		}
+	}
+	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
+}
+
+// matchesModule checks if a permission resource belongs to a given module.
+// Uses prefix matching on common resource naming patterns.
+func matchesModule(resource, module string) bool {
+	// Common resource patterns: sales_order, sales_quotation, purchase_order, hrd_leave, finance_journal, etc.
+	if len(resource) >= len(module) && resource[:len(module)] == module {
+		return true
+	}
+	return false
+}
+
+// SyncAdminPermissions syncs all existing permissions to admin role with ALL scope
 func SyncAdminPermissions() error {
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
@@ -558,7 +651,7 @@ func SyncAdminPermissions() error {
 	assignedCount := 0
 	for _, perm := range allPermissions {
 		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
 			adminRole.ID, perm.ID,
 		).Error; err != nil {
 			log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
@@ -567,6 +660,6 @@ func SyncAdminPermissions() error {
 		}
 	}
 
-	log.Printf("Synced %d permissions to admin role (total: %d)", assignedCount, len(allPermissions))
+	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
 	return nil
 }

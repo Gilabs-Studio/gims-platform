@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -103,13 +103,18 @@ export function EducationHistoryForm({
           document_path: "",
         },
   });
+  // Document display state for edit mode (clear → show upload area)
+  const documentDisplayClearedRef = useRef(false);
+  const [documentPathDisplay, setDocumentPathDisplay] = useState<string | undefined>(
+    isEdit ? (educationHistory?.document_path ?? undefined) : undefined
+  );
 
   // Reset form when dialog opens/closes and when educationHistory changes (edit)
   useEffect(() => {
     if (!open) {
       reset();
       documentDisplayClearedRef.current = false;
-      setDocumentPathDisplay(undefined);
+      setTimeout(() => setDocumentPathDisplay(undefined), 0);
       setTimeout(() => setIsOngoing(false), 0);
       return;
     }
@@ -125,11 +130,11 @@ export function EducationHistoryForm({
         description: educationHistory.description ?? "",
         document_path: educationHistory.document_path ?? "",
       });
-      setDocumentPathDisplay(educationHistory.document_path ?? undefined);
+      setTimeout(() => setDocumentPathDisplay(educationHistory.document_path ?? undefined), 0);
       documentDisplayClearedRef.current = false;
-      setIsOngoing(!educationHistory.end_date);
+      setTimeout(() => setIsOngoing(!educationHistory.end_date), 0);
     } else {
-      setDocumentPathDisplay(undefined);
+      setTimeout(() => setDocumentPathDisplay(undefined), 0);
       documentDisplayClearedRef.current = false;
     }
   }, [open, reset, isEdit, educationHistory]);
@@ -186,8 +191,8 @@ export function EducationHistoryForm({
     }
   };
 
-  const employees = formData?.data?.employees ?? [];
-  const degreeLevels = formData?.data?.degree_levels ?? [];
+  const employees = useMemo(() => formData?.data?.employees ?? [], [formData?.data?.employees]);
+  const degreeLevels = useMemo(() => formData?.data?.degree_levels ?? [], [formData?.data?.degree_levels]);
 
   // Normalize employee_id from label to UUID so validation passes (same as leave request / contract)
   const employeeIdValue = useWatch({ control, name: "employee_id" });
@@ -199,22 +204,6 @@ export function EducationHistoryForm({
     if (byLabel) setValue("employee_id", String(byLabel.id));
   }, [employeeIdValue, employees, setValue]);
 
-  // Document display state for edit mode (clear → show upload area)
-  const documentDisplayClearedRef = useRef(false);
-  const [documentPathDisplay, setDocumentPathDisplay] = useState<string | undefined>(
-    isEdit ? (educationHistory?.document_path ?? undefined) : undefined
-  );
-  useEffect(() => {
-    if (!isEdit) {
-      documentDisplayClearedRef.current = false;
-      setDocumentPathDisplay(undefined);
-      return;
-    }
-    if (educationHistory?.document_path != null) {
-      documentDisplayClearedRef.current = false;
-      setDocumentPathDisplay(educationHistory.document_path || undefined);
-    }
-  }, [isEdit, educationHistory?.document_path]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -435,7 +424,7 @@ export function EducationHistoryForm({
               control={control}
               render={({ field }) => {
                 const raw = field.value;
-                const display = raw != null && raw !== "" ? String(raw) : "";
+                const display = raw != null ? String(raw) : "";
                 const clamp = (v: number) => Math.min(4, Math.max(0, v));
                 return (
                   <Input

@@ -84,6 +84,7 @@ export function EducationHistoryDetailModal({
   const canDelete = useUserPermission("education_history.delete");
 
   if (!educationHistory) return null;
+  if (!displayEducation) return null;
 
   const handleDelete = async () => {
     try {

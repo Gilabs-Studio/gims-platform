@@ -42,20 +42,46 @@ export interface Area {
   name: string;
   description?: string;
   is_active: boolean;
+  supervisor_count?: number;
+  supervisor_names?: string[];
+  member_count?: number;
   created_at: string;
   updated_at: string;
 }
 
-// Area Supervisor with assigned areas (M:N)
-export interface AreaSupervisor {
+/** Brief employee entry within an area's supervisor/member list */
+export interface EmployeeInAreaResponse {
   id: string;
+  employee_code: string;
   name: string;
   email?: string;
-  phone?: string;
+  division_id?: string;
+  division_name?: string;
+  job_position?: string;
+  is_supervisor: boolean;
+}
+
+/** Full area detail with supervisor and member lists */
+export interface AreaDetailResponse {
+  id: string;
+  name: string;
+  description?: string;
   is_active: boolean;
-  areas?: Area[];
+  supervisor_count: number;
+  member_count: number;
+  supervisors: EmployeeInAreaResponse[];
+  members: EmployeeInAreaResponse[];
   created_at: string;
   updated_at: string;
+}
+
+/** Summary of an area assignment on an employee */
+export interface EmployeeAreaSummary {
+  area_id: string;
+  area_name: string;
+  description?: string;
+  is_active: boolean;
+  is_supervisor: boolean;
 }
 
 // Company with approval workflow
@@ -203,24 +229,12 @@ export interface UpdateAreaData {
   is_active?: boolean;
 }
 
-export interface CreateAreaSupervisorData {
-  name: string;
-  email?: string;
-  phone?: string;
-  area_ids?: string[];
-  is_active?: boolean;
+export interface AssignAreaSupervisorsData {
+  employee_ids: string[];
 }
 
-export interface UpdateAreaSupervisorData {
-  name?: string;
-  email?: string;
-  phone?: string;
-  area_ids?: string[];
-  is_active?: boolean;
-}
-
-export interface AssignAreasData {
-  area_ids: string[];
+export interface AssignAreaMembersData {
+  employee_ids: string[];
 }
 
 export interface ListOrganizationParams {
@@ -234,6 +248,11 @@ export interface ListOrganizationParams {
 export interface ListCompaniesParams extends ListOrganizationParams {
   status?: CompanyStatus;
   village_id?: string;
+}
+
+export interface ListAreasParams extends ListOrganizationParams {
+  has_supervisor?: boolean;
+  has_members?: boolean;
 }
 
 export interface PaginationMeta {

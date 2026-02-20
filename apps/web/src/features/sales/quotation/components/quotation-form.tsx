@@ -38,6 +38,7 @@ import { useEmployees } from "@/features/master-data/employee/hooks/use-employee
 import type { SalesQuotation } from "../types";
 import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
+import { StockWarningInline } from "@/features/sales/components/stock-warning";
 import { formatCurrency } from "@/lib/utils";
 
 const STORAGE_KEY = "quotation_form_cache";
@@ -844,6 +845,16 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                             </FieldError>
                           )}
                         </Field>
+
+                        {/* Stock availability warning */}
+                        {item?.product_id && (
+                          <div className="col-span-2">
+                            <StockWarningInline
+                              productId={item.product_id}
+                              requiredQuantity={item.quantity ?? 0}
+                            />
+                          </div>
+                        )}
 
                         <Field orientation="vertical">
                           <FieldLabel>{t("item.quantity")} *</FieldLabel>

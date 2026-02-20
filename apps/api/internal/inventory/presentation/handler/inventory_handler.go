@@ -25,6 +25,7 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 	search := c.Query("search")
 	warehouseID := c.Query("warehouse_id")
+	productID := c.Query("product_id")
 	lowStock := c.Query("low_stock") == "true"
 
 	req := &dto.GetInventoryListRequest{
@@ -32,6 +33,7 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 		PerPage:     perPage,
 		Search:      search,
 		WarehouseID: warehouseID,
+		ProductID:   productID,
 		LowStock:    lowStock,
 	}
 

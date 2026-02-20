@@ -69,10 +69,18 @@ export const roleService = {
     await apiClient.delete(`/roles/${id}`);
   },
 
-  async assignPermissions(roleId: string, permissionIds: string[]): Promise<Role> {
+  async assignPermissions(
+    roleId: string,
+    permissionIds: string[],
+    assignments?: Array<{ permission_id: string; scope: string }>
+  ): Promise<Role> {
+    // Use scope-aware format if assignments provided, otherwise legacy format
+    const body = assignments?.length
+      ? { assignments }
+      : { permission_ids: permissionIds };
     const response = await apiClient.post<{ success: boolean; data: Role }>(
       `/roles/${roleId}/permissions`,
-      { permission_ids: permissionIds }
+      body
     );
     return response.data.data;
   },

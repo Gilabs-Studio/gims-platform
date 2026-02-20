@@ -9,6 +9,10 @@ import (
 // RegisterEmployeeRoutes registers employee routes
 func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g := rg.Group("/employees")
+
+	// Static routes BEFORE parameterized /:id to prevent path conflicts
+	g.GET("/form-data", middleware.RequirePermission("employee.read"), h.GetFormData)
+
 	g.GET("", middleware.RequirePermission("employee.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("employee.read"), h.GetByID)
 	g.POST("", middleware.RequirePermission("employee.create"), h.Create)
@@ -17,4 +21,7 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("/:id/submit", middleware.RequirePermission("employee.update"), h.SubmitForApproval)
 	g.POST("/:id/approve", middleware.RequirePermission("employee.approve"), h.Approve)
 	g.POST("/:id/areas", middleware.RequirePermission("employee.update"), h.AssignAreas)
+	g.PUT("/:id/areas", middleware.RequirePermission("employee.update"), h.BulkUpdateAreas)
+	g.DELETE("/:id/areas/:area_id", middleware.RequirePermission("employee.update"), h.RemoveAreaAssignment)
+	g.POST("/:id/supervisor-areas", middleware.RequirePermission("employee.assign_area"), h.AssignSupervisorAreas)
 }

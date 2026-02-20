@@ -32,6 +32,8 @@ var (
 type UserUsecase interface {
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.UserResponse, error)
+	// GetAvailable returns active users not yet linked to an employee.
+	GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error)
 	Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error)
 	UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error)
@@ -155,6 +157,19 @@ func (u *userUsecase) GetByID(ctx context.Context, id string) (*dto.UserResponse
 	}
 
 	return resp, nil
+}
+
+func (u *userUsecase) GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error) {
+	users, err := u.userRepo.FindAvailable(ctx, search, excludeEmployeeID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]dto.AvailableUserResponse, len(users))
+	for i, usr := range users {
+		responses[i] = mapper.ToAvailableUserResponse(&usr)
+	}
+	return responses, nil
 }
 
 func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error) {

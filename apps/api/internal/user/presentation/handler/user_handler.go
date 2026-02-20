@@ -83,6 +83,21 @@ func (h *UserHandler) List(c *gin.Context) {
 	response.SuccessResponse(c, userDTOs, meta)
 }
 
+// GetAvailable returns active users not yet linked to an employee.
+// Query params: search (optional prefix), exclude_employee_id (optional, keeps current employee's user visible during edit).
+func (h *UserHandler) GetAvailable(c *gin.Context) {
+	search := c.Query("search")
+	excludeEmployeeID := c.Query("exclude_employee_id")
+
+	available, err := h.userUC.GetAvailable(c.Request.Context(), search, excludeEmployeeID)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, available, nil)
+}
+
 // GetByID handles get user by ID request
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")

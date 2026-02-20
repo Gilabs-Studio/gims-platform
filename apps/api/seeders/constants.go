@@ -2,10 +2,13 @@ package seeders
 
 // Role IDs (Fixed)
 const (
-	AdminRoleID      = "5a04cc88-8495-4e4f-ab96-f7ec86cb7208"
-	ManagerRoleID    = "b2e2a3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c" // Reusing ID for stability
-	StaffRoleID      = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
-	ViewerRoleID     = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
+	AdminRoleID          = "5a04cc88-8495-4e4f-ab96-f7ec86cb7208"
+	ManagerRoleID        = "b2e2a3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c" // Reusing ID for stability
+	StaffRoleID          = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
+	ViewerRoleID         = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
+	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
+	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
+	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
 )
 
 // User IDs (Fixed)
@@ -41,9 +44,22 @@ const (
 	UnitWholesaleID = "4b5c6d7e-8f9a-0b1c-2d3e-4f5a6b7c8d9e"
 )
 
+// Area IDs (Fixed)
+const (
+	AreaJabodetabekID = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
+	AreaJawaBaratID   = "a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2"
+	AreaJawaTengahID  = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
+	AreaJawaTimurID   = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
+	AreaBaliID        = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
+)
+
 // Employee IDs (Fixed)
 const (
-	AdminEmployeeID   = "11111111-1111-1111-1111-111111111111"
-	ManagerEmployeeID = "22222222-2222-2222-2222-222222222222"
-	StaffEmployeeID   = "33333333-3333-3333-3333-333333333333"
+	AdminEmployeeID      = "11111111-1111-1111-1111-111111111111"
+	ManagerEmployeeID    = "22222222-2222-2222-2222-222222222222"
+	StaffEmployeeID      = "33333333-3333-3333-3333-333333333333"
+	SalesRep1EmployeeID  = "44444444-4444-4444-4444-444444444444"
+	SalesRep2EmployeeID  = "55555555-5555-5555-5555-555555555555"
+	FinanceStaffEmployeeID = "66666666-6666-6666-6666-666666666666"
+	HRStaffEmployeeID    = "77777777-7777-7777-7777-777777777777"
 )

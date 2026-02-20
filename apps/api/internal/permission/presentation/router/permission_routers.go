@@ -11,6 +11,7 @@ const permissionRead = "permission.read"
 
 func RegisterPermissionRoutes(rg *gin.RouterGroup, h *handler.PermissionHandler, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	g := rg.Group("/permissions")
 	g.Use(middleware.AuthMiddleware(jwtManager, permService))

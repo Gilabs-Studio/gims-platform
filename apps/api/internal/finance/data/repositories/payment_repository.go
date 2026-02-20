@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -58,6 +59,10 @@ func (r *paymentRepository) List(ctx context.Context, params PaymentListParams) 
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.Payment{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("payments.description ILIKE ?", like)

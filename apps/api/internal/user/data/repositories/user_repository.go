@@ -13,6 +13,8 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*models.User, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]models.User, int64, error)
+	// FindAvailable returns users not yet linked to any employee (excluding the given employeeID if non-empty).
+	FindAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]models.User, error)
 	Create(ctx context.Context, u *models.User) error
 	Update(ctx context.Context, u *models.User) error
 	Delete(ctx context.Context, id string) error
@@ -32,7 +34,12 @@ func (r *userRepository) getDB(ctx context.Context) *gorm.DB {
 
 func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
 	var u models.User
-	err := r.getDB(ctx).Preload("Role").Preload("Role.Permissions").Where("id = ?", id).First(&u).Error
+	err := r.getDB(ctx).
+		Preload("Role").
+		Preload("Role.Permissions").
+		Preload("Role.RolePermissions").
+		Preload("Role.RolePermissions.Permission").
+		Where("id = ?", id).First(&u).Error
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +48,12 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User,
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var u models.User
-	err := r.getDB(ctx).Preload("Role").Preload("Role.Permissions").Where("email = ?", email).First(&u).Error
+	err := r.getDB(ctx).
+		Preload("Role").
+		Preload("Role.Permissions").
+		Preload("Role.RolePermissions").
+		Preload("Role.RolePermissions.Permission").
+		Where("email = ?", email).First(&u).Error
 	if err != nil {
 		return nil, err
 	}
@@ -111,4 +123,31 @@ func (r *userRepository) Update(ctx context.Context, u *models.User) error {
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {
 	return r.getDB(ctx).Where("id = ?", id).Delete(&models.User{}).Error
+}
+
+// FindAvailable returns active users not yet linked to any employee.
+// If excludeEmployeeID is non-empty, the user already linked to that employee is still included.
+func (r *userRepository) FindAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]models.User, error) {
+	var users []models.User
+
+	query := r.getDB(ctx).Model(&models.User{}).
+		Preload("Role").
+		Where("users.status = ?", "active")
+
+	// Exclude users that are already linked to an employee (except the one being edited)
+	subQuery := "users.id NOT IN (SELECT user_id FROM employees WHERE user_id IS NOT NULL AND deleted_at IS NULL"
+	if excludeEmployeeID != "" {
+		subQuery += " AND id != ?"
+		query = query.Where(subQuery+")", excludeEmployeeID)
+	} else {
+		query = query.Where(subQuery + ")")
+	}
+
+	if search != "" {
+		prefix := search + "%"
+		query = query.Where("users.name ILIKE ? OR users.email ILIKE ?", prefix, prefix)
+	}
+
+	err := query.Order("users.name ASC").Limit(50).Find(&users).Error
+	return users, err
 }

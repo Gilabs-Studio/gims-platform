@@ -5,25 +5,22 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
 import type { MenuWithActions, Action } from "@/features/master-data/user-management/types";
 
-function isItemVisible(item: NavItem, permissions: string[]): boolean {
+function isItemVisible(item: NavItem, permissionCodes: string[]): boolean {
   if (item.permission) {
-    // If specific permission required, check it
-    return permissions.includes(item.permission);
+    return permissionCodes.includes(item.permission);
   }
   if (item.children) {
-    // If has children, must have at least one visible child
-    return item.children.some((child) => isItemVisible(child, permissions));
+    return item.children.some((child) => isItemVisible(child, permissionCodes));
   }
-  // If no permission and no children (e.g. public items or headers), assume visible
   return true; 
 }
 
-function transformItem(item: NavItem, permissions: string[]): MenuWithActions | null {
-  if (!isItemVisible(item, permissions)) return null;
+function transformItem(item: NavItem, permissionCodes: string[]): MenuWithActions | null {
+  if (!isItemVisible(item, permissionCodes)) return null;
 
   const children = item.children
     ? item.children
-        .map((child) => transformItem(child, permissions))
+        .map((child) => transformItem(child, permissionCodes))
         .filter((c): c is MenuWithActions => c !== null)
     : undefined;
 
@@ -55,9 +52,10 @@ export function useNavigation() {
   const { user } = useAuthStore();
   
   const menus = useMemo(() => {
-    const permissions = user?.permissions ?? [];
+    // Extract permission codes from the permissions map (code -> scope)
+    const permissionCodes = Object.keys(user?.permissions ?? {});
     return navigationConfig
-      .map((item) => transformItem(item, permissions))
+      .map((item) => transformItem(item, permissionCodes))
       .filter((item): item is MenuWithActions => item !== null);
   }, [user?.permissions]);
 

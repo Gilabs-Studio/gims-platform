@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -153,6 +154,11 @@ func (u *deliveryOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Del
 			return nil, ErrDeliveryOrderNotFound
 		}
 		return nil, err
+	}
+
+	// Scope-based access control: consistent with List filtering
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrDeliveryOrderNotFound
 	}
 
 	response := mapper.ToDeliveryOrderResponse(deliveryOrder)

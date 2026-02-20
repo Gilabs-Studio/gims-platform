@@ -63,26 +63,6 @@ export const getAreaSchema = (t?: TranslationFn) => z.object({
 
 export type AreaFormData = z.infer<ReturnType<typeof getAreaSchema>>;
 
-// AreaSupervisor schemas
-export const getAreaSupervisorSchema = (t?: TranslationFn) => z.object({
-  name: z.string()
-    .min(2, getMsg(t, "validation.nameMinLength"))
-    .max(100, getMsg(t, "validation.nameMaxLength")),
-  email: z.string().email(getMsg(t, "validation.emailInvalid")).max(100).optional().or(z.literal("")),
-  phone: z.string().max(20, getMsg(t, "validation.phoneMaxLength")).optional().or(z.literal("")),
-  area_ids: z.array(z.string()).optional(),
-  is_active: z.boolean(),
-});
-
-export type AreaSupervisorFormData = z.infer<ReturnType<typeof getAreaSupervisorSchema>>;
-
-// Assign areas schema
-export const assignAreasSchema = z.object({
-  area_ids: z.array(z.string()).min(1, "At least one area must be selected"),
-});
-
-export type AssignAreasFormData = z.infer<typeof assignAreasSchema>;
-
 // Company schemas
 export const getCompanySchema = (t?: TranslationFn) => z.object({
   name: z.string()

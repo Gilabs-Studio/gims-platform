@@ -14,6 +14,7 @@ import (
 // RegisterRoutes registers all warehouse domain routes
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	// Initialize layers
 	repo := repositories.NewWarehouseRepository(db)

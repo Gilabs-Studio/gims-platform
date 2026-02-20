@@ -105,8 +105,12 @@ type Employee struct {
 	ReplacementForID *string   `gorm:"type:uuid;index" json:"replacement_for_id"`
 	ReplacementFor   *Employee `gorm:"foreignKey:ReplacementForID" json:"replacement_for,omitempty"`
 
-	// Area assignments (M:N via EmployeeArea)
+	// Area assignments (M:N via EmployeeArea — includes both supervisor and member roles)
 	Areas []EmployeeArea `gorm:"foreignKey:EmployeeID" json:"areas,omitempty"`
+
+	// IsAreaSupervisor is a derived field (not stored in DB).
+	// It is set to true when at least one EmployeeArea record has IsSupervisor=true.
+	IsAreaSupervisor bool `gorm:"-" json:"is_area_supervisor"`
 
 	// Approval workflow
 	Status     EmployeeStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`

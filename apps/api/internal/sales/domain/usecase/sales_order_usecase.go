@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -72,19 +73,9 @@ func NewSalesOrderUsecase(
 }
 
 func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRequest) ([]dto.SalesOrderResponse, *utils.PaginationResult, error) {
-	// If user is sales rep, enforce filtering by their ID
-	userRole, _ := ctx.Value("user_role").(string)
-	userID, _ := ctx.Value("user_id").(string)
-
-	if userRole != "admin" && userRole != "manager" && userID != "" {
-		employee, err := u.employeeRepo.FindByUserID(ctx, userID)
-		if err == nil && employee != nil {
-			// Enforce sales rep filter if not explicitly set or different
-			if req.SalesRepID == "" || req.SalesRepID != employee.ID {
-				req.SalesRepID = employee.ID
-			}
-		}
-	}
+	// Scope filtering is now handled at the repository level via ApplyScopeFilter.
+	// The ScopeMiddleware + RequirePermission middleware inject scope context values
+	// that the repository reads to apply OWN/DIVISION/AREA/ALL filtering.
 
 	orders, total, err := u.orderRepo.List(ctx, req)
 	if err != nil {
@@ -178,9 +169,9 @@ func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesO
 		return nil, err
 	}
 
-	// Access Control
-	if err := u.checkAccess(ctx, order); err != nil {
-		return nil, err
+	// Scope-based access control: consistent with List filtering
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesOrderNotFound
 	}
 
 	response := mapper.ToSalesOrderResponse(order)
