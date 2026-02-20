@@ -734,6 +734,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                         if (item) setSelectedRep(item);
                       }}
                       defaultOptions={selectedRep ? [selectedRep] : []}
+                      preload
                       disabled={false} // Always strictly typed validation
                     />
                   )}
@@ -1024,6 +1025,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                       handleProductChange(index, val, item);
                                     }}
                                     defaultOptions={field.value && selectedProducts[field.value] ? [selectedProducts[field.value]] : []}
+                                    preload
                                     width="w-full"
                                   />
                                 )}
