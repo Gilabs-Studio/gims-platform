@@ -38,6 +38,7 @@ import type { SalesOrder } from "../types";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
+import { StockWarningInline } from "@/features/sales/components/stock-warning";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { productService } from "@/features/master-data/product/services/product-service";
@@ -1033,6 +1034,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 </FieldError>
                               )}
                             </Field>
+
+                            {/* Stock availability warning */}
+                            {item?.product_id && (
+                              <div className="col-span-2">
+                                <StockWarningInline
+                                  productId={item.product_id}
+                                  requiredQuantity={item.quantity ?? 0}
+                                />
+                              </div>
+                            )}
 
                             <Field orientation="vertical">
                               <FieldLabel>{t("item.quantity")} *</FieldLabel>

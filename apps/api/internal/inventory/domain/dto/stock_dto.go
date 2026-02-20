@@ -31,6 +31,7 @@ type GetInventoryListRequest struct {
 	PerPage     int    `form:"per_page"`
 	Search      string `form:"search"`
 	WarehouseID string `form:"warehouse_id"`
+	ProductID   string `form:"product_id"`
 	LowStock    bool   `form:"low_stock"`
 }
 

@@ -45,6 +45,7 @@ export interface InventoryFilters {
   search?: string;
   warehouse_id?: string;
   low_stock?: boolean;
+  product_id?: string;
 }
 
 export interface PaginationMeta {

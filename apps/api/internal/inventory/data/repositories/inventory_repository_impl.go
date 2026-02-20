@@ -67,18 +67,12 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	if req.WarehouseID != "" {
 		query = query.Where("ib.warehouse_id = ?", req.WarehouseID)
 	} else {
-		// If no warehouse filter, we only show products that HAVE records in inventory_batches (so we know the warehouse)
-		// OR we need to handle "Product X has stock in Warehouse A and Warehouse B" -> Returns 2 rows?
-		// Yes, grouped by Product and Warehouse.
-		// BUT if a product has NO stock anywhere, it won't have inventory_batches and thus no WarehouseID.
-		// It should probably still appear with "No Warehouse" or similar?
-		// For Sprint 9, let's focus on showing records present in InventoryBatches or Products joined with InventoryBatches.
-		// To show rows per warehouse, we need to Group by Product AND Warehouse.
-		query = query.Where("ib.id IS NOT NULL") // Only show items with inventory records for now? 
-		// Actually, user might want to see products with 0 stock to know they need to order.
-		// Use Right Join? No.
-		// Let's stick to: Show products that have been received (have batch). 
-		// If clean requirement: "List all products and their stock in Warehouse X".
+		query = query.Where("ib.id IS NOT NULL")
+	}
+
+	// Apply Product Filter
+	if req.ProductID != "" {
+		query = query.Where("p.id = ?", req.ProductID)
 	}
 
 	if req.Search != "" {

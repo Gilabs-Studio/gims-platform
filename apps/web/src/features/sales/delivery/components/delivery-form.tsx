@@ -5,7 +5,7 @@ import { useForm, useFieldArray, useWatch, Controller, useFormContext, FormProvi
 import type { Resolver, FieldErrors, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart } from "lucide-react";
+import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 import {
   getDeliveryOrderSchema,
   getUpdateDeliveryOrderSchema,
@@ -871,16 +871,22 @@ function BatchSelectionField({ control, index, error, t }: {
 }) {
   const warehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
   const productId = useWatch({ control, name: `items.${index}.product_id` });
-  const { setValue } = useFormContext(); // Need to access setValue
+  const quantity = useWatch({ control, name: `items.${index}.quantity` }) as number | undefined;
+  const { setValue } = useFormContext();
 
   const { data: batchesData, isLoading } = useProductBatches(warehouseId ?? "", (productId as string) ?? "", {
     enabled: !!warehouseId && !!productId
   });
 
   const batches = useMemo(() => {
-    // Access nested data: ApiResponse -> data -> data (InventoryBatchItem[])
     return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
   }, [batchesData]);
+
+  // Aggregate available stock across all batches in the selected warehouse
+  const totalAvailable = batches.reduce((sum, b) => sum + (b.available ?? 0), 0);
+  const hasStock = totalAvailable > 0;
+  const isInsufficient = hasStock && (quantity ?? 0) > 0 && totalAvailable < (quantity ?? 0);
+  const fmt = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
 
   return (
     <Field orientation="vertical">
@@ -889,11 +895,11 @@ function BatchSelectionField({ control, index, error, t }: {
         name={`items.${index}.inventory_batch_id`}
         control={control}
         render={({ field }) => (
-          <Select 
-            value={field.value || undefined} 
-              onValueChange={(val) => {
+          <Select
+            value={field.value || undefined}
+            onValueChange={(val) => {
               field.onChange(val);
-              // Find selected batch and set max_quantity
+              // Persist max_quantity from the selected batch for validation
               const batch = batches.find((b) => b.id === val);
               if (batch) {
                 setValue(`items.${index}.max_quantity`, batch.available, { shouldValidate: true });
@@ -905,9 +911,9 @@ function BatchSelectionField({ control, index, error, t }: {
               <SelectValue placeholder={isLoading ? t("common.loading") : t("item.selectBatch")} />
             </SelectTrigger>
             <SelectContent>
-               {batches.filter((b) => b.available > 0).map((batch) => (
+              {batches.filter((b) => b.available > 0).map((batch) => (
                 <SelectItem key={batch.id} value={batch.id}>
-                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : '-'})
+                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "-"})
                 </SelectItem>
               ))}
               {batches.length === 0 && !isLoading && (
@@ -919,6 +925,34 @@ function BatchSelectionField({ control, index, error, t }: {
           </Select>
         )}
       />
+
+      {/* Stock status indicator for the selected warehouse */}
+      {warehouseId && productId && !isLoading && (
+        <>
+          {!hasStock ? (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              <XCircle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">Out of Stock</span>
+              <span className="opacity-75">— no available batches in this warehouse</span>
+            </div>
+          ) : isInsufficient ? (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">Insufficient Stock</span>
+              <span className="opacity-75">
+                — available: {fmt(totalAvailable)} (need {fmt(quantity ?? 0)})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-green-700 text-xs dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">In Stock</span>
+              <span className="opacity-75">— available: {fmt(totalAvailable)} in this warehouse</span>
+            </div>
+          )}
+        </>
+      )}
+
       {error && <FieldError>{error}</FieldError>}
       {!warehouseId && (
         <p className="text-xs text-muted-foreground mt-1">Select warehouse first</p>
