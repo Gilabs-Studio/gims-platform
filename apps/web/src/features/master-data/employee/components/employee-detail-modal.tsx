@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Employee } from "../types";
 import { Shield, User } from "lucide-react";
 import { useEmployee } from "../hooks/use-employees";
+import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 
 interface EmployeeDetailModalProps {
   open: boolean;
@@ -32,6 +33,10 @@ export function EmployeeDetailModal({
 
   // Fetch fresh employee data when modal opens
   const { data: detailData, isLoading } = useEmployee(employee?.id);
+
+  // Load areas list to resolve area names when API doesn't include nested `area` object
+  // Call unconditionally to preserve hook order across renders
+  const { data: areasData } = useAreas({ per_page: 100 });
 
   if (!employee) return null;
 
@@ -263,7 +268,13 @@ export function EmployeeDetailModal({
                               )}
                             </TableCell>
                             <TableCell className="font-medium">
-                              {ea.area?.name ?? ea.area_id}
+                              {(() => {
+                                // Prefer nested area object if present, otherwise lookup from fetched areas
+                                const nested = ea.area?.name;
+                                if (nested) return nested;
+                                const found = areasData?.data?.find((a) => a.id === ea.area_id)?.name;
+                                return found ?? ea.area_id;
+                              })()}
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant={ea.is_supervisor ? "warning" : "secondary"}>
