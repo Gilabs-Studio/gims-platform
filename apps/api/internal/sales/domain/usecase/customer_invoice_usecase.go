@@ -5,12 +5,14 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
+	"gorm.io/gorm"
 )
 
 // Date format constant
@@ -36,16 +38,19 @@ type CustomerInvoiceUsecase interface {
 }
 
 type customerInvoiceUsecase struct {
+	db          *gorm.DB
 	invoiceRepo repositories.CustomerInvoiceRepository
 	productRepo productRepos.ProductRepository
 }
 
 // NewCustomerInvoiceUsecase creates a new CustomerInvoiceUsecase
 func NewCustomerInvoiceUsecase(
+	db *gorm.DB,
 	invoiceRepo repositories.CustomerInvoiceRepository,
 	productRepo productRepos.ProductRepository,
 ) CustomerInvoiceUsecase {
 	return &customerInvoiceUsecase{
+		db:          db,
 		invoiceRepo: invoiceRepo,
 		productRepo: productRepo,
 	}
@@ -84,6 +89,12 @@ func (uc *customerInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.
 	if err != nil {
 		return nil, ErrCustomerInvoiceNotFound
 	}
+
+	// Scope-based access control: consistent with List filtering
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrCustomerInvoiceNotFound
+	}
+
 	return mapper.MapCustomerInvoiceToResponse(invoice), nil
 }
 

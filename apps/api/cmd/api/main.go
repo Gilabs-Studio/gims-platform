@@ -48,6 +48,7 @@ import (
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
+	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
@@ -55,12 +56,11 @@ import (
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
+	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
-	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
-	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 )
 
 func initInfrastructure() {
@@ -177,7 +177,7 @@ func main() {
 	// Setup Usecases
 	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
-	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient())
+	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 
 	// Setup Handlers

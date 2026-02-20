@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -168,9 +169,9 @@ func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesO
 		return nil, err
 	}
 
-	// Access Control
-	if err := u.checkAccess(ctx, order); err != nil {
-		return nil, err
+	// Scope-based access control: consistent with List filtering
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesOrderNotFound
 	}
 
 	response := mapper.ToSalesOrderResponse(order)
