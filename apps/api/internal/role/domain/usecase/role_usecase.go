@@ -6,10 +6,12 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/events"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/role/data/models"
 	"github.com/gilabs/gims/api/internal/role/data/repositories"
 	"github.com/gilabs/gims/api/internal/role/domain/dto"
@@ -32,7 +34,6 @@ const (
 	cacheRoleListKeyFmt = "roles:list:page:%d:limit:%d"
 	cacheRoleListPage1Limit10 = "roles:list:page:1:limit:10"
 	cacheRoleListPage1Limit20 = "roles:list:page:1:limit:20"
-	cachePermissionsPattern = "permissions:role:*"
 )
 
 type RoleUsecase interface {
@@ -50,13 +51,15 @@ type roleUsecase struct {
 	roleRepo       repositories.RoleRepository
 	eventPublisher infraEvents.EventPublisher
 	redis          *redis.Client
+	permService    security.PermissionService
 }
 
-func NewRoleUsecase(roleRepo repositories.RoleRepository, eventPublisher infraEvents.EventPublisher, redis *redis.Client) RoleUsecase {
+func NewRoleUsecase(roleRepo repositories.RoleRepository, eventPublisher infraEvents.EventPublisher, redis *redis.Client, permService security.PermissionService) RoleUsecase {
 	return &roleUsecase{
 		roleRepo:       roleRepo,
 		eventPublisher: eventPublisher,
 		redis:          redis,
+		permService:    permService,
 	}
 }
 
@@ -336,7 +339,7 @@ func (u *roleUsecase) Delete(ctx context.Context, id string) error {
 
 func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error {
 	// Check if role exists
-	_, err := u.roleRepo.FindByID(ctx, roleID)
+	role, err := u.roleRepo.FindByID(ctx, roleID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrRoleNotFound
@@ -348,7 +351,7 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 		return err
 	}
 
-	u.invalidatePermissionCaches(ctx, roleID)
+	u.invalidatePermissionCaches(ctx, roleID, role.Code)
 
 	// Publish event (async, fire-and-forget)
 	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
@@ -395,7 +398,7 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 		return err
 	}
 
-	u.invalidatePermissionCaches(ctx, roleID)
+	u.invalidatePermissionCaches(ctx, roleID, role.Code)
 
 	// Publish event with permission IDs
 	permIDs := make([]string, 0, len(assignments))
@@ -411,21 +414,26 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 	return nil
 }
 
-// invalidatePermissionCaches clears role and permission caches after assignment changes
-func (u *roleUsecase) invalidatePermissionCaches(ctx context.Context, roleID string) {
+// invalidatePermissionCaches clears role and permission caches after assignment changes.
+// Both L1 (in-memory via PermissionService) and L2 (Redis) caches are invalidated
+// to ensure permission/scope changes take effect immediately.
+func (u *roleUsecase) invalidatePermissionCaches(ctx context.Context, roleID string, roleCode string) {
 	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, roleID))
 	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
-	// Invalidate permission cache patterns (used by PermissionService)
-	pattern := cachePermissionsPattern
-	iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
-	for iter.Next(ctx) {
-		u.redis.Del(ctx, iter.Val())
+
+	// Invalidate L1 in-memory cache in PermissionService (immediate effect)
+	if u.permService != nil {
+		if err := u.permService.InvalidateCache(roleCode); err != nil {
+			log.Printf("[RoleUsecase] failed to invalidate L1 permission cache for role '%s': %v", roleCode, err)
+		}
 	}
-	// Also invalidate scope-specific caches
-	scopePattern := "permissions_scope:*"
-	scopeIter := u.redis.Scan(ctx, 0, scopePattern, 0).Iterator()
-	for scopeIter.Next(ctx) {
-		u.redis.Del(ctx, scopeIter.Val())
+
+	// Invalidate L2 Redis permission caches (correct key patterns)
+	for _, pattern := range []string{"permissions:*", "permissions_scope:*"} {
+		iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
+		for iter.Next(ctx) {
+			u.redis.Del(ctx, iter.Val())
+		}
 	}
 }
 
