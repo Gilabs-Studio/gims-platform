@@ -14,6 +14,7 @@ import (
 // RegisterMasterDataRoutes registers all core master data routes
 func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	// Initialize repositories
 	paymentTermsRepo := repositories.NewPaymentTermsRepository(db)

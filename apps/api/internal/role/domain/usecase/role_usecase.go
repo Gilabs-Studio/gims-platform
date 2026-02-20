@@ -42,6 +42,7 @@ type RoleUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateRoleRequest) (*dto.RoleResponse, error)
 	Delete(ctx context.Context, id string) error
 	AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error
+	AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []dto.PermissionAssignment) error
 	ValidateUserRole(ctx context.Context, userID string, roleID string) (bool, error)
 }
 
@@ -347,15 +348,7 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 		return err
 	}
 
-	// Invalidate cache after assigning permissions
-	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, roleID))
-	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
-	// Also invalidate permission cache patterns
-	pattern := cachePermissionsPattern
-	iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
-	for iter.Next(ctx) {
-		u.redis.Del(ctx, iter.Val())
-	}
+	u.invalidatePermissionCaches(ctx, roleID)
 
 	// Publish event (async, fire-and-forget)
 	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
@@ -365,6 +358,75 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 	}))
 
 	return nil
+}
+
+func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []dto.PermissionAssignment) error {
+	// Validate role exists
+	role, err := u.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return err
+	}
+
+	// Validate all scopes
+	for _, a := range assignments {
+		if !models.IsValidScope(a.Scope) {
+			return fmt.Errorf("invalid scope '%s' for permission '%s'", a.Scope, a.PermissionID)
+		}
+	}
+
+	// Convert to model-level assignments
+	rolePerms := make([]models.RolePermission, 0, len(assignments))
+	for _, a := range assignments {
+		scope := a.Scope
+		if scope == "" {
+			scope = models.ScopeAll
+		}
+		rolePerms = append(rolePerms, models.RolePermission{
+			RoleID:       roleID,
+			PermissionID: a.PermissionID,
+			Scope:        scope,
+		})
+	}
+
+	if err := u.roleRepo.AssignPermissionsWithScope(ctx, roleID, rolePerms); err != nil {
+		return err
+	}
+
+	u.invalidatePermissionCaches(ctx, roleID)
+
+	// Publish event with permission IDs
+	permIDs := make([]string, 0, len(assignments))
+	for _, a := range assignments {
+		permIDs = append(permIDs, a.PermissionID)
+	}
+	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
+		RoleID:        role.ID,
+		PermissionIDs: permIDs,
+		AssignedAt:    time.Now(),
+	}))
+
+	return nil
+}
+
+// invalidatePermissionCaches clears role and permission caches after assignment changes
+func (u *roleUsecase) invalidatePermissionCaches(ctx context.Context, roleID string) {
+	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, roleID))
+	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
+	// Invalidate permission cache patterns (used by PermissionService)
+	pattern := cachePermissionsPattern
+	iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		u.redis.Del(ctx, iter.Val())
+	}
+	// Also invalidate scope-specific caches
+	scopePattern := "permissions_scope:*"
+	scopeIter := u.redis.Scan(ctx, 0, scopePattern, 0).Iterator()
+	for scopeIter.Next(ctx) {
+		u.redis.Del(ctx, scopeIter.Val())
+	}
 }
 
 func (u *roleUsecase) ValidateUserRole(ctx context.Context, userID string, roleID string) (bool, error) {

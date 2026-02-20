@@ -17,6 +17,7 @@ import (
 // RegisterRoutes registers all sales routes
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }, invUC inventoryUsecase.InventoryUsecase) {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
@@ -50,6 +51,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Create sales group under API with auth middleware
 	salesGroup := api.Group("/sales")
 	salesGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	salesGroup.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler)

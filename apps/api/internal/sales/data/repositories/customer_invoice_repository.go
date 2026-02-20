@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
@@ -71,6 +72,9 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	var total int64
 
 	query := r.getDB(ctx).Model(&models.CustomerInvoice{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply search filter
 	if req.Search != "" {

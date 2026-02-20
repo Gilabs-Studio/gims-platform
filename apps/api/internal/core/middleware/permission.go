@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -28,6 +29,10 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 
 		// Admin bypass
 		if roleCode == "admin" {
+			c.Set("permission_scope", "ALL")
+			reqCtx := c.Request.Context()
+			reqCtx = context.WithValue(reqCtx, "permission_scope", "ALL")
+			c.Request = c.Request.WithContext(reqCtx)
 			c.Next()
 			return
 		}
@@ -52,6 +57,20 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		// Inject the permission scope into context for downstream handlers
+		scope := "ALL"
+		if scopeMap, exists := c.Get("user_permissions_scope"); exists {
+			if sm, ok := scopeMap.(map[string]string); ok {
+				if s, found := sm[requiredPermission]; found {
+					scope = s
+				}
+			}
+		}
+		c.Set("permission_scope", scope)
+		reqCtx := c.Request.Context()
+		reqCtx = context.WithValue(reqCtx, "permission_scope", scope)
+		c.Request = c.Request.WithContext(reqCtx)
 
 		c.Next()
 	}

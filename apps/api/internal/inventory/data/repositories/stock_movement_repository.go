@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
@@ -57,6 +58,9 @@ func (r *stockMovementRepository) FindAll(ctx context.Context, req *dto.GetStock
 		Preload("Warehouse").
 		Preload("Creator").
 		Preload("InventoryBatch")
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.StockMovementScopeQueryOptions())
 
 	if req.WarehouseID != "" {
 		query = query.Where("warehouse_id = ?", req.WarehouseID)

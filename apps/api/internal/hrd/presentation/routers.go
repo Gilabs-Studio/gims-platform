@@ -16,6 +16,7 @@ import (
 // RegisterRoutes registers all HRD routes
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	// Initialize repositories
 	workScheduleRepo := repositories.NewWorkScheduleRepository(db)
@@ -73,6 +74,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
 	hrdGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	hrdGroup.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterWorkScheduleRoutes(hrdGroup, workScheduleHandler)

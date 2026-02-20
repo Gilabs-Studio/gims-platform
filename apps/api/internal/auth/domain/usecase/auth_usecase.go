@@ -7,8 +7,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/auth/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/events"
-	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	jwtManager "github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
@@ -81,17 +81,30 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			return ErrInvalidCredentials
 		}
 
-		// Get role code and permissions
+		// Get role code and permissions with scope
 		roleCode := "user"
 		roleName := "User"
-		var permissions []string
+		permissions := make(map[string]string)
 
 		if user.Role != nil {
 			roleCode = user.Role.Code
 			roleName = user.Role.Name
-			if user.Role.Permissions != nil {
+
+			// Prefer RolePermissions (scope-aware) over legacy Permissions
+			if len(user.Role.RolePermissions) > 0 {
+				for _, rp := range user.Role.RolePermissions {
+					if rp.Permission.Code != "" {
+						scope := rp.Scope
+						if scope == "" {
+							scope = "ALL"
+						}
+						permissions[rp.Permission.Code] = scope
+					}
+				}
+			} else if user.Role.Permissions != nil {
+				// Backward compatibility fallback
 				for _, p := range user.Role.Permissions {
-					permissions = append(permissions, p.Code)
+					permissions[p.Code] = "ALL"
 				}
 			}
 		}
@@ -149,9 +162,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			ExpiresIn:    expiresIn,
 		}
 		
-		// Publish login event (async, fire-and-forget) - done AFTER transaction commit technically, 
-		// but typically events are fired within usecase. 
-		// Since it's fire-and-forget, safety is fine.
+		// Publish login event (async, fire-and-forget)
 		u.publishLoginEvent(ctx, user.ID, user.Email, roleCode)
 		
 		return nil
@@ -233,17 +244,29 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			return ErrUserInactive
 		}
 
-		// Get role code and permissions
+		// Get role code and permissions with scope
 		roleCode := "user"
 		roleName := "User"
-		var permissions []string
+		permissions := make(map[string]string)
 
 		if user.Role != nil {
 			roleCode = user.Role.Code
 			roleName = user.Role.Name
-			if user.Role.Permissions != nil {
+
+			// Prefer RolePermissions (scope-aware) over legacy Permissions
+			if len(user.Role.RolePermissions) > 0 {
+				for _, rp := range user.Role.RolePermissions {
+					if rp.Permission.Code != "" {
+						scope := rp.Scope
+						if scope == "" {
+							scope = "ALL"
+						}
+						permissions[rp.Permission.Code] = scope
+					}
+				}
+			} else if user.Role.Permissions != nil {
 				for _, p := range user.Role.Permissions {
-					permissions = append(permissions, p.Code)
+					permissions[p.Code] = "ALL"
 				}
 			}
 		}

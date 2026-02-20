@@ -44,21 +44,21 @@ export function useUserPermissions() {
   const menuData = useMemo(() => {
     if (!query.data?.data) return null;
     
-    const userPermissions = user?.permissions || [];
+    const userPermissions = user?.permissions ?? {};
     const menus = query.data.data.menus;
     
-    // Mark menus with access based on user permissions from login
+    // Mark menus with access based on user permissions map (code -> scope)
     const markMenuAccess = (menu: MenuWithActions): MenuWithActions => {
       const markedActions = menu.actions?.map(action => {
-        const hasAccess = userPermissions.includes(action.code);
+        const hasAccess = action.code in userPermissions;
         
         return {
           ...action,
           access: hasAccess,
         };
-      }) || [];
+      }) ?? [];
       
-      const markedChildren = menu.children?.map(markMenuAccess) || [];
+      const markedChildren = menu.children?.map(markMenuAccess) ?? [];
       
       return {
         ...menu,
