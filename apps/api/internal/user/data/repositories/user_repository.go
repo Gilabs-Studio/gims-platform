@@ -34,7 +34,12 @@ func (r *userRepository) getDB(ctx context.Context) *gorm.DB {
 
 func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
 	var u models.User
-	err := r.getDB(ctx).Preload("Role").Preload("Role.Permissions").Where("id = ?", id).First(&u).Error
+	err := r.getDB(ctx).
+		Preload("Role").
+		Preload("Role.Permissions").
+		Preload("Role.RolePermissions").
+		Preload("Role.RolePermissions.Permission").
+		Where("id = ?", id).First(&u).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +48,12 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User,
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var u models.User
-	err := r.getDB(ctx).Preload("Role").Preload("Role.Permissions").Where("email = ?", email).First(&u).Error
+	err := r.getDB(ctx).
+		Preload("Role").
+		Preload("Role.Permissions").
+		Preload("Role.RolePermissions").
+		Preload("Role.RolePermissions.Permission").
+		Where("email = ?", email).First(&u).Error
 	if err != nil {
 		return nil, err
 	}

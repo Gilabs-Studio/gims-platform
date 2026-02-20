@@ -14,7 +14,8 @@ export function useUserPermission(permission: string): boolean {
     return true;
   }
 
-  return user.permissions.includes(permission);
+  const permissions = user.permissions ?? {};
+  return permission in permissions;
 }
 
 export function useUserPermissions(permissions: string[]): boolean {
@@ -29,5 +30,6 @@ export function useUserPermissions(permissions: string[]): boolean {
     return true;
   }
 
-  return permissions.some((permission) => user.permissions.includes(permission));
+  const userPerms = user.permissions ?? {};
+  return permissions.some((permission) => permission in userPerms);
 }

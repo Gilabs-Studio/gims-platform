@@ -38,6 +38,7 @@ func RegisterRoutes(
 	// Routes
 	stock := v1.Group("/stock")
 	stock.Use(middleware.AuthMiddleware(jwtManager, permissionService))
+	stock.Use(middleware.ScopeMiddleware(db))
 	{
 		stock.GET("/inventory", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
 

@@ -70,8 +70,15 @@ export function useAssignPermissionsToRole() {
   const { user, setUser } = useAuthStore();
 
   return useMutation({
-    mutationFn: ({ roleId, permissionIds }: { roleId: string; permissionIds: string[] }) =>
-      roleService.assignPermissions(roleId, permissionIds),
+    mutationFn: ({
+      roleId,
+      permissionIds,
+      assignments,
+    }: {
+      roleId: string;
+      permissionIds: string[];
+      assignments?: Array<{ permission_id: string; scope: string }>;
+    }) => roleService.assignPermissions(roleId, permissionIds, assignments),
     onSuccess: async (updatedRole, variables) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });
@@ -79,19 +86,20 @@ export function useAssignPermissionsToRole() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       
       // If current user's role code matches the updated role, update permissions in auth store
-      // This enables real-time sidebar update without page refresh
       if (updatedRole?.code === user?.role?.code) {
-        // Extract permission codes from updated role
-        const permissionCodes = updatedRole.permissions?.map(p => p.code) || [];
+        // Build permissions map (code -> scope) from updated role
+        const permissionsMap: Record<string, string> = {};
+        for (const p of updatedRole.permissions ?? []) {
+          permissionsMap[p.code] = p.scope ?? "ALL";
+        }
         
-        // Update user in auth store with new permissions
         setUser({
           ...user!,
-          permissions: permissionCodes,
+          permissions: permissionsMap,
         });
       }
       
-      // Invalidate user-permissions query last to trigger menu re-render with new permissions
+      // Invalidate user-permissions query last to trigger menu re-render
       queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
     },
   });

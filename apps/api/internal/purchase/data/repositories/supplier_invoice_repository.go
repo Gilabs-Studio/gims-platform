@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
 )
@@ -53,6 +54,9 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 	q := r.db.WithContext(ctx).Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
 		Preload("PaymentTerms")
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	q = security.ApplyScopeFilter(q, ctx, security.PurchaseScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

@@ -11,11 +11,19 @@ func ToPermissionResponse(p *models.Permission) *dto.PermissionResponse {
 		ID:     p.ID,
 		Name:   p.Name,
 		Code:   p.Code,
+		Action: p.Action,
 		MenuID: p.MenuID,
 	}
 	if p.Menu != nil {
 		resp.Menu = ToMenuResponse(p.Menu)
 	}
+	return resp
+}
+
+// ToPermissionWithScopeResponse converts Permission to PermissionResponse with scope
+func ToPermissionWithScopeResponse(p *models.Permission, scope string) *dto.PermissionResponse {
+	resp := ToPermissionResponse(p)
+	resp.Scope = scope
 	return resp
 }
 

@@ -291,7 +291,7 @@ apiClient.interceptors.response.use(
                 name: string;
                 avatar_url: string;
                 role: { code: string; name: string };
-                permissions: string[];
+                permissions: Record<string, string>;
               };
             };
           }>("/auth/refresh-token", {}, { headers })

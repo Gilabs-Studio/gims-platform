@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -48,6 +49,9 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	var total int64
 
 	base := r.db.WithContext(ctx).Model(&models.PurchaseOrder{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
 
 	if params.Search != "" {
 		pattern := "%" + params.Search + "%"

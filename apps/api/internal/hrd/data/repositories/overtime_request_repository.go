@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"gorm.io/gorm"
@@ -81,6 +82,9 @@ func (r *overtimeRequestRepository) List(ctx context.Context, req *dto.ListOvert
 	var total int64
 
 	query := r.getDB(ctx).Model(&models.OvertimeRequest{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
 	// Apply employee filter
 	if req.EmployeeID != "" {

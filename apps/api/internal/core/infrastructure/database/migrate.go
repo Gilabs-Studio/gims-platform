@@ -51,8 +51,14 @@ func AutoMigrate() error {
 	}
 
 	// Use a custom migration approach that handles constraint errors gracefully
+	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
+	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
+	// If Role migrates first, the scope column from RolePermission gets lost.
+	// By migrating RolePermission first, the table is created with scope, and Role's
+	// many2many reuses the existing table without dropping scope.
 	err := migrateWithErrorHandling(
 		&user.User{},
+		&role.RolePermission{},
 		&role.Role{},
 		&permission.Permission{},
 		&permission.Menu{},
@@ -181,6 +187,16 @@ func AutoMigrate() error {
 	}
 
 	log.Println("Database migrations completed")
+
+	// Safety net: ensure role_permissions.scope column exists even when GORM's
+	// AutoMigrate did not add it (e.g. the many2many relationship on Role
+	// created the table first without the scope column).
+	if err := DB.Exec(`
+		ALTER TABLE role_permissions
+		ADD COLUMN IF NOT EXISTS scope VARCHAR(20) NOT NULL DEFAULT 'ALL'
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
+	}
 
 	// Sprint 17: Migrate area_supervisors data to employee_areas
 	if err := migrateAreaSupervisorsToEmployeeAreas(); err != nil {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/role/data/repositories"
 	"github.com/gilabs/gims/api/internal/role/domain/dto"
 	"github.com/gilabs/gims/api/internal/role/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -219,7 +220,8 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	response.SuccessResponseDeleted(c, "role", id, meta)
 }
 
-// AssignPermissions handles assign permissions to role request
+// AssignPermissions handles assign permissions to role request.
+// Supports both legacy format (permission_ids only) and scope-aware format (assignments with scope).
 func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.AssignPermissionsRequest
@@ -233,20 +235,48 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 		return
 	}
 
-	err := h.roleUC.AssignPermissions(c.Request.Context(), id, req.PermissionIDs)
-	if err != nil {
-		if err == usecase.ErrRoleNotFound {
-			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
-				"resource": "role",
-				"role_id":  id,
-			}, nil)
+	// Use scope-aware assignments if provided, otherwise fall back to legacy format
+	if len(req.Assignments) > 0 {
+		err := h.roleUC.AssignPermissionsWithScope(c.Request.Context(), id, req.Assignments)
+		if err != nil {
+			if err == usecase.ErrRoleNotFound {
+				errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+					"resource": "role",
+					"role_id":  id,
+				}, nil)
+				return
+			}
+			if err == repositories.ErrInvalidPermissionIDs {
+				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
+				}, nil)
+				return
+			}
+			errors.InternalServerErrorResponse(c, err.Error())
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
+	} else {
+		err := h.roleUC.AssignPermissions(c.Request.Context(), id, req.PermissionIDs)
+		if err != nil {
+			if err == usecase.ErrRoleNotFound {
+				errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+					"resource": "role",
+					"role_id":  id,
+				}, nil)
+				return
+			}
+			if err == repositories.ErrInvalidPermissionIDs {
+				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
+				}, nil)
+				return
+			}
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
 	}
 
-	// Return updated role
+	// Return updated role with scope information
 	updatedRole, err := h.roleUC.GetByID(c.Request.Context(), id)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())

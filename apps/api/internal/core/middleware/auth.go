@@ -12,6 +12,7 @@ import (
 // AuthMiddleware validates JWT token and sets user info in context
 func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenString string
@@ -66,28 +67,40 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		// Also set values on request context for infrastructure services (e.g. audit)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "user_id", claims.UserID)
+		reqCtx = context.WithValue(reqCtx, "user_email", claims.Email)
+		reqCtx = context.WithValue(reqCtx, "user_role", claims.Role)
 		reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
 		reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
 		c.Request = c.Request.WithContext(reqCtx)
 
-		// Load Permissions
-		perms, err := permService.GetPermissions(claims.Role)
+		// Load Permissions with scope (with fallback to non-scoped permissions)
+		permScopeMap, err := permService.GetPermissionsWithScope(claims.Role)
 		if err != nil {
-			// Fail-secure - deny access if we cannot load permissions
-			// This prevents unauthorized access if the permission system fails
-			errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
-				"reason": "unable to load user permissions",
-			}, nil)
-			c.Abort()
-			return
+			// Fallback: try loading non-scoped permissions and default scope to ALL
+			plainPerms, fallbackErr := permService.GetPermissions(claims.Role)
+			if fallbackErr != nil {
+				// Both methods failed - deny access
+				errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
+					"reason": "unable to load user permissions",
+				}, nil)
+				c.Abort()
+				return
+			}
+			// Build scope map with ALL as default for all permissions
+			permScopeMap = make(map[string]string, len(plainPerms))
+			for _, code := range plainPerms {
+				permScopeMap[code] = "ALL"
+			}
 		}
-		
-		// Map for O(1) lookup
-		permMap := make(map[string]bool)
-		for _, p := range perms {
-			permMap[p] = true
+
+		// Build backward-compatible map[string]bool for existing checks
+		permMap := make(map[string]bool, len(permScopeMap))
+		for code := range permScopeMap {
+			permMap[code] = true
 		}
 		c.Set("user_permissions", permMap)
+		// Also set scope-aware map for new scope-based checks
+		c.Set("user_permissions_scope", permScopeMap)
 
 		c.Next()
 	}

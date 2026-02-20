@@ -544,23 +544,23 @@ Membangun sistem permission dengan **scope** (OWN / DIVISION / AREA / ALL) per r
 
 ### Deliverables
 
-- [ ] **API:** Update `role_permissions` junction table — add `scope` column
-- [ ] **API:** Update permission middleware — resolve scope and inject into context
-- [ ] **API:** Update auth flow — include scope info in permission map
-- [ ] **API:** Create `ScopeResolver` service — resolves user's data access boundaries
-- [ ] **Frontend:** Update role management UI — scope selector per permission
-- [ ] **Frontend:** Update permission assignment dialog — show scope options
+- [x] **API:** Update `role_permissions` junction table — add `scope` column
+- [x] **API:** Update permission middleware — resolve scope and inject into context
+- [x] **API:** Update auth flow — include scope info in permission map
+- [x] **API:** Create `ScopeResolver` service — resolves user's data access boundaries
+- [x] **Frontend:** Update role management UI — scope selector per permission
+- [x] **Frontend:** Update permission assignment dialog — show scope options
 
 ### API Tasks
 
 #### Database Schema Change
 
-- [ ] **Migration**: Add `scope` column to `role_permissions`:
+- [x] **Migration**: Add `scope` column to `role_permissions`:
   ```sql
   ALTER TABLE role_permissions ADD COLUMN scope VARCHAR(20) DEFAULT 'ALL';
   -- Valid values: 'OWN', 'DIVISION', 'AREA', 'ALL'
   ```
-- [ ] **Update** Role model — change from `many2many` to explicit junction:
+- [x] **Update** Role model — change from `many2many` to explicit junction:
   ```go
   // New explicit junction model
   type RolePermission struct {
@@ -575,12 +575,12 @@ Membangun sistem permission dengan **scope** (OWN / DIVISION / AREA / ALL) per r
 
 #### Middleware Changes
 
-- [ ] **Update** `AuthMiddleware` — load permissions WITH scope:
+- [x] **Update** `AuthMiddleware` — load permissions WITH scope:
   ```go
   // Change from map[string]bool to map[string]string (code → scope)
   // e.g. {"sales_order.read": "DIVISION", "sales_order.update": "OWN"}
   ```
-- [ ] **Update** `RequirePermission` — now also sets scope in context:
+- [x] **Update** `RequirePermission` — now also sets scope in context:
   ```go
   func RequirePermission(code string) gin.HandlerFunc {
       // ... existing checks ...
@@ -589,14 +589,14 @@ Membangun sistem permission dengan **scope** (OWN / DIVISION / AREA / ALL) per r
       c.Next()
   }
   ```
-- [ ] **Create** `ScopeMiddleware` — resolves user's employee, division, areas:
+- [x] **Create** `ScopeMiddleware` — resolves user's employee, division, areas:
   ```go
   func ScopeMiddleware(employeeRepo EmployeeRepository) gin.HandlerFunc {
       // Fetches user's employee record (with division + areas)
       // Sets "user_employee_id", "user_division_id", "user_area_ids" in context
   }
   ```
-- [ ] **Create** `ScopeResolver` utility:
+- [x] **Create** `ScopeResolver` utility:
   ```go
   type ScopeFilter struct {
       Scope       string   // OWN, DIVISION, AREA, ALL
@@ -622,14 +622,14 @@ Membangun sistem permission dengan **scope** (OWN / DIVISION / AREA / ALL) per r
 
 #### Seeder Changes
 
-- [ ] **Update** `permission_seeder.go` — seed with scope per role:
+- [x] **Update** `permission_seeder.go` — seed with scope per role:
   ```go
   // Admin: ALL scope for everything
   // Manager: DIVISION scope for sales/purchase
   // Staff: OWN scope for sales/purchase
   // Viewer: OWN scope (read-only)
   ```
-- [ ] **Update** `role_seeder.go` — add more roles:
+- [x] **Update** `role_seeder.go` — add more roles:
   ```go
   // Existing: Admin, Manager, Staff, Viewer
   // New: Area Supervisor, Sales Director, Finance Manager
@@ -677,13 +677,13 @@ Membangun sistem permission dengan **scope** (OWN / DIVISION / AREA / ALL) per r
 
 #### Frontend Tasks (Continued)
 
-- [ ] **Update** `assign-permissions-dialog.tsx` — add scope selector per permission
-- [ ] **Update** role types — add `scope` field to role-permission relationship
-- [ ] **Update** permission service — handle scope in assign/unassign APIs
-- [ ] **Update** role hooks — mutations for scope changes
-- [ ] **Add** scope explanation tooltip/info in the UI
-- [ ] **Update** i18n — scope-related translations (en + id)
-- [ ] **Update** auth store/context — store scope info from login response
+- [x] **Update** `assign-permissions-dialog.tsx` — add scope selector per permission
+- [x] **Update** role types — add `scope` field to role-permission relationship
+- [x] **Update** permission service — handle scope in assign/unassign APIs
+- [x] **Update** role hooks — mutations for scope changes
+- [x] **Add** scope explanation tooltip/info in the UI
+- [x] **Update** i18n — scope-related translations (en + id)
+- [x] **Update** auth store/context — store scope info from login response
 
 ### Table Relations
 
@@ -724,20 +724,20 @@ erDiagram
 
 ### Success Criteria
 
-- [ ] `role_permissions` table memiliki kolom `scope`
-- [ ] Middleware menginjeksi scope ke context untuk setiap request
-- [ ] Assign permissions dialog menampilkan scope selector
-- [ ] Seeder membuat role dengan scope yang sesuai (Admin=ALL, Staff=OWN, etc.)
-- [ ] Existing permission checks backward compatible
+- [x] `role_permissions` table memiliki kolom `scope`
+- [x] Middleware menginjeksi scope ke context untuk setiap request
+- [x] Assign permissions dialog menampilkan scope selector
+- [x] Seeder membuat role dengan scope yang sesuai (Admin=ALL, Staff=OWN, etc.)
+- [x] Existing permission checks backward compatible
 - [ ] Unit test untuk ScopeResolver dengan semua scope variants
-- [ ] Auth response includes scope info in permissions
+- [x] Auth response includes scope info in permissions
 
 ### Integration Requirements
 
-- [ ] Database migration yang safe (add column with default `ALL`)
-- [ ] Permission seeder update (idempotent)
-- [ ] Auth DTO update — permissions response includes scope
-- [ ] i18n — scope labels, descriptions (en + id)
+- [x] Database migration yang safe (add column with default `ALL`)
+- [x] Permission seeder update (idempotent)
+- [x] Auth DTO update — permissions response includes scope
+- [x] i18n — scope labels, descriptions (en + id)
 
 ---
 

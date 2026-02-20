@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/repository"
@@ -49,6 +50,9 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.StockOpname{}).Preload("Warehouse")
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if req.Search != "" {
 		search := "%" + strings.ToLower(req.Search) + "%"

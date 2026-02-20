@@ -2,10 +2,14 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gilabs/gims/api/internal/role/data/models"
 	"gorm.io/gorm"
 )
+
+// ErrInvalidPermissionIDs indicates one or more permission IDs do not exist in the database
+var ErrInvalidPermissionIDs = errors.New("one or more permission IDs are invalid or no longer exist")
 
 type RoleRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Role, error)
@@ -15,6 +19,7 @@ type RoleRepository interface {
 	Update(ctx context.Context, ro *models.Role) error
 	Delete(ctx context.Context, id string) error
 	AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error
+	AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []models.RolePermission) error
 	GetPermissions(ctx context.Context, roleID string) ([]string, error)
 	CountUsersByRoleID(ctx context.Context, roleID string) (int64, error)
 	CountAdmins(ctx context.Context) (int64, error)
@@ -30,7 +35,13 @@ func NewRoleRepository(db *gorm.DB) RoleRepository {
 
 func (r *roleRepository) FindByID(ctx context.Context, id string) (*models.Role, error) {
 	var ro models.Role
-	err := r.db.WithContext(ctx).Preload("Permissions").Where("id = ?", id).First(&ro).Error
+	err := r.db.WithContext(ctx).
+		Preload("Permissions").
+		Preload("RolePermissions").
+		Preload("RolePermissions.Permission").
+		Preload("RolePermissions.Permission.Menu").
+		Preload("RolePermissions.Permission.Menu.Parent").
+		Where("id = ?", id).First(&ro).Error
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +50,11 @@ func (r *roleRepository) FindByID(ctx context.Context, id string) (*models.Role,
 
 func (r *roleRepository) FindByCode(ctx context.Context, code string) (*models.Role, error) {
 	var ro models.Role
-	err := r.db.WithContext(ctx).Preload("Permissions").Where("code = ?", code).First(&ro).Error
+	err := r.db.WithContext(ctx).
+		Preload("Permissions").
+		Preload("RolePermissions").
+		Preload("RolePermissions.Permission").
+		Where("code = ?", code).First(&ro).Error
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +72,12 @@ func (r *roleRepository) List(ctx context.Context, page, limit int) ([]models.Ro
 	}
 
 	offset := (page - 1) * limit
-	err := query.Preload("Permissions").
+	err := query.
+		Preload("Permissions").
+		Preload("RolePermissions").
+		Preload("RolePermissions.Permission").
+		Preload("RolePermissions.Permission.Menu").
+		Preload("RolePermissions.Permission.Menu.Parent").
 		Order("status DESC, updated_at DESC").
 		Offset(offset).
 		Limit(limit).
@@ -83,20 +103,68 @@ func (r *roleRepository) Delete(ctx context.Context, id string) error {
 
 func (r *roleRepository) AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// First, clear existing permissions
+		// Validate all permission IDs exist before making changes
+		if len(permissionIDs) > 0 {
+			var validCount int64
+			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permissionIDs).Count(&validCount).Error; err != nil {
+				return err
+			}
+			if int(validCount) != len(permissionIDs) {
+				return ErrInvalidPermissionIDs
+			}
+		}
+
+		// Clear existing permissions
 		if err := tx.Exec("DELETE FROM role_permissions WHERE role_id = ?", roleID).Error; err != nil {
 			return err
 		}
 
-		// Then assign new permissions
-		if len(permissionIDs) > 0 {
-			for _, permID := range permissionIDs {
-				if err := tx.Exec(
-					"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
-					roleID, permID,
-				).Error; err != nil {
-					return err
-				}
+		// Assign new permissions with default ALL scope
+		for _, permID := range permissionIDs {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL')",
+				roleID, permID,
+			).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *roleRepository) AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []models.RolePermission) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Validate all permission IDs exist before making changes
+		if len(assignments) > 0 {
+			permIDs := make([]string, 0, len(assignments))
+			for _, a := range assignments {
+				permIDs = append(permIDs, a.PermissionID)
+			}
+			var validCount int64
+			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Count(&validCount).Error; err != nil {
+				return err
+			}
+			if int(validCount) != len(permIDs) {
+				return ErrInvalidPermissionIDs
+			}
+		}
+
+		// Clear existing permissions
+		if err := tx.Exec("DELETE FROM role_permissions WHERE role_id = ?", roleID).Error; err != nil {
+			return err
+		}
+
+		// Assign new permissions with their respective scopes
+		for _, a := range assignments {
+			scope := a.Scope
+			if scope == "" {
+				scope = "ALL"
+			}
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?)",
+				roleID, a.PermissionID, scope,
+			).Error; err != nil {
+				return err
 			}
 		}
 		return nil

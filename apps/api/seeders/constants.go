@@ -2,10 +2,13 @@ package seeders
 
 // Role IDs (Fixed)
 const (
-	AdminRoleID      = "5a04cc88-8495-4e4f-ab96-f7ec86cb7208"
-	ManagerRoleID    = "b2e2a3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c" // Reusing ID for stability
-	StaffRoleID      = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
-	ViewerRoleID     = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
+	AdminRoleID          = "5a04cc88-8495-4e4f-ab96-f7ec86cb7208"
+	ManagerRoleID        = "b2e2a3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c" // Reusing ID for stability
+	StaffRoleID          = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
+	ViewerRoleID         = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
+	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
+	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
+	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
 )
 
 // User IDs (Fixed)

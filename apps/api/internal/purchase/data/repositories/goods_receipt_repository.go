@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -42,6 +43,10 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	var total int64
 
 	base := r.db.WithContext(ctx).Model(&models.GoodsReceipt{})
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
+
 	if strings.TrimSpace(params.Search) != "" {
 		pattern := "%" + strings.TrimSpace(params.Search) + "%"
 		base = base.Where("code ILIKE ? OR notes ILIKE ?", pattern, pattern)
@@ -54,6 +59,10 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	}
 
 	query := r.db.WithContext(ctx).Model(&models.GoodsReceipt{})
+
+	// Apply scope-based data filtering (must match count query scope)
+	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
+
 	if strings.TrimSpace(params.Search) != "" {
 		pattern := "%" + strings.TrimSpace(params.Search) + "%"
 		query = query.Where("code ILIKE ? OR notes ILIKE ?", pattern, pattern)

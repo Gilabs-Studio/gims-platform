@@ -42,6 +42,27 @@ func SeedRoles() error {
 			Description: "Viewer role with read-only access",
 			Status:      "active",
 		},
+		{
+			ID:          AreaSupervisorRoleID,
+			Name:        "Area Supervisor",
+			Code:        "area_supervisor",
+			Description: "Supervisor with territory-based access to assigned areas",
+			Status:      "active",
+		},
+		{
+			ID:          SalesDirectorRoleID,
+			Name:        "Sales Director",
+			Code:        "sales_director",
+			Description: "Director with full access to all sales data",
+			Status:      "active",
+		},
+		{
+			ID:          FinanceManagerRoleID,
+			Name:        "Finance Manager",
+			Code:        "finance_manager",
+			Description: "Manager with division-level access to finance data",
+			Status:      "active",
+		},
 	}
 
 	for _, r := range roles {

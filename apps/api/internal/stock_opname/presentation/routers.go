@@ -28,5 +28,5 @@ func RegisterRoutes(
 	opnameHandler := handler.NewStockOpnameHandler(opnameUC)
 
 	// Routes
-	router.RegisterStockOpnameRoutes(v1, opnameHandler, jwtManager, permissionService)
+	router.RegisterStockOpnameRoutes(v1, opnameHandler, jwtManager, permissionService, db)
 }

@@ -5,6 +5,8 @@ type PermissionResponse struct {
 	ID     string        `json:"id"`
 	Name   string        `json:"name"`
 	Code   string        `json:"code"`
+	Action string        `json:"action,omitempty"`
+	Scope  string        `json:"scope,omitempty"` // Populated when part of a role assignment
 	MenuID *string       `json:"menu_id,omitempty"`
 	Menu   *MenuResponse `json:"menu,omitempty"`
 }

@@ -10,6 +10,7 @@ import (
 
 func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permissionHandler.PermissionHandler, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	g := rg.Group("/users")
 	g.Use(middleware.AuthMiddleware(jwtManager, permService))
