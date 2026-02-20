@@ -7,14 +7,13 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, AlertTriangle } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
 import { MovementBadge } from "./movement-badge";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { StockMovement, StockMovementType } from "../types";
 import { DateRange } from "react-day-picker";
@@ -116,7 +115,7 @@ export function MovementList() {
                 </SelectContent>
              </Select>
 
-             <Select value={type} onValueChange={(v) => { setType(v as any); setPage(1); }}>
+             <Select value={type} onValueChange={(v) => { setType(v as StockMovementType | "all"); setPage(1); }}>
                 <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder={t("filters.type")} />
                 </SelectTrigger>
