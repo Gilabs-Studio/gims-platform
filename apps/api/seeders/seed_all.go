@@ -215,5 +215,10 @@ func SeedAll() error {
 		return err
 	}
 
+	// AI Intent Registry seeder
+	if err := SeedAIIntentRegistry(); err != nil {
+		return err
+	}
+
 	return nil
 }

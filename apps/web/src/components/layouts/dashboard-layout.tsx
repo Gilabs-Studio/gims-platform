@@ -11,9 +11,11 @@ import { NotificationBadge } from "@/features/notifications/components/notificat
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
+import { useTodayAttendance } from "@/features/hrd/attendance-records/hooks/use-attendance-records";
 import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +25,7 @@ import { getMenuIcon } from "@/lib/menu-icons";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { UserMenuAttendance } from "@/features/hrd/attendance-records/components/user-menu-attendance";
 import { CommandPalette } from "@/features/command-palette";
+import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 
@@ -100,11 +103,13 @@ const Header = memo(function Header({
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
+  showAttendanceIndicator = false,
 }: {
   userName: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
+  showAttendanceIndicator?: boolean;
 }) {
   const locale = useLocale();
   const t = useTranslations("common");
@@ -211,17 +216,37 @@ const Header = memo(function Header({
                 variant="ghost"
                 className="flex h-8 w-8 items-center justify-center rounded-full p-0 hover:bg-muted transition-colors"
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={currentSrc}
-                    alt={userName}
-                    onError={() => {
-                      if (currentSrc !== fallbackAvatarUrl) {
-                        setCurrentSrc(fallbackAvatarUrl);
-                      }
-                    }}
-                  />
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={currentSrc}
+                      alt={userName}
+                      onError={() => {
+                        if (currentSrc !== fallbackAvatarUrl) {
+                          setCurrentSrc(fallbackAvatarUrl);
+                        }
+                      }}
+                    />
+                  </Avatar>
+                  <AnimatePresence>
+                    {showAttendanceIndicator && (
+                      <motion.div
+                        className="absolute -inset-1 rounded-full border-2 border-amber-500/60"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{
+                          opacity: [0.4, 0.8, 0.4],
+                          scale: [1, 1.15, 1],
+                        }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-2" align="end">
@@ -257,17 +282,37 @@ const Header = memo(function Header({
             className="flex h-8 w-8 items-center justify-center rounded-full p-0 hover:bg-muted transition-colors"
             disabled
           >
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={currentSrc}
-                alt={userName}
-                onError={() => {
-                  if (currentSrc !== fallbackAvatarUrl) {
-                    setCurrentSrc(fallbackAvatarUrl);
-                  }
-                }}
-              />
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={currentSrc}
+                  alt={userName}
+                  onError={() => {
+                    if (currentSrc !== fallbackAvatarUrl) {
+                      setCurrentSrc(fallbackAvatarUrl);
+                    }
+                  }}
+                />
+              </Avatar>
+              <AnimatePresence>
+                {showAttendanceIndicator && (
+                  <motion.div
+                    className="absolute -inset-1 rounded-full border-2 border-amber-500/60"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{
+                      opacity: [0.4, 0.8, 0.4],
+                      scale: [1, 1.15, 1],
+                    }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
           </Button>
         )}
       </div>
@@ -475,6 +520,31 @@ export const DashboardLayout = memo(function DashboardLayout({
     user?.avatar_url && user.avatar_url.trim() !== ""
       ? user.avatar_url
       : undefined;
+  const { data: todayData } = useTodayAttendance();
+  const today = todayData?.data;
+
+  const showAttendanceIndicator = useMemo(() => {
+    if (!today || !today.is_working_day || today.has_checked_in) return false;
+
+    const schedule = today.work_schedule;
+    if (!schedule?.start_time) return false;
+
+    try {
+      // Comparison logic: Only pulsing if it's already past start_time
+      const serverTime = new Date(today.current_server_time);
+      const [startH, startM] = schedule.start_time.split(":").map(Number);
+
+      const startTimeDate = new Date(serverTime);
+      startTimeDate.setHours(startH, startM, 0, 0);
+
+      // If current time is after or equal to start time, and not checked in yet
+      return serverTime >= startTimeDate;
+    } catch (e) {
+      // Fallback: if time parsing fails, show if working day and not checked in
+      return today.is_working_day && !today.has_checked_in;
+    }
+  }, [today]);
+
   const fallbackAvatarUrl = "/avatar-placeholder.svg";
 
   // State for dual sidebar - initialize with null/true for SSR consistency
@@ -762,6 +832,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 avatarUrl={primaryAvatarUrl}
                 fallbackAvatarUrl={fallbackAvatarUrl}
                 onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                showAttendanceIndicator={showAttendanceIndicator}
               />
             )}
 
@@ -782,6 +853,9 @@ export const DashboardLayout = memo(function DashboardLayout({
 
         {/* Command Palette */}
         <CommandPalette />
+
+        {/* AI Chat Widget */}
+        <AIChatWidget />
       </div>
     </TooltipProvider>
   );

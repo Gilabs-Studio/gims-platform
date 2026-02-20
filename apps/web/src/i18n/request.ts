@@ -119,6 +119,8 @@ import { financeUpCountryCostEn } from "@/features/finance/up-country-cost/i18n/
 import { financeUpCountryCostId } from "@/features/finance/up-country-cost/i18n/id";
 import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
 import { financeSalaryId } from "@/features/finance/salary/i18n/id";
+import { aiChatEn } from "@/features/ai-chat/i18n/en";
+import { aiChatId } from "@/features/ai-chat/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -179,6 +181,7 @@ const messages = {
     financeNonTradePayables: financeNonTradePayablesEn,
     financeUpCountryCost: financeUpCountryCostEn,
     financeSalary: financeSalaryEn,
+    ...aiChatEn,
   },
   id: {
     ...globalIdMessages,
@@ -236,6 +239,7 @@ const messages = {
     financeNonTradePayables: financeNonTradePayablesId,
     financeUpCountryCost: financeUpCountryCostId,
     financeSalary: financeSalaryId,
+    ...aiChatId,
   },
 } as const;
 
