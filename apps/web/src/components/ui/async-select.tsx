@@ -67,12 +67,14 @@ export function AsyncSelect<T>({
     defaultOptions.find((item) => getValue(item) === value)
   );
 
-  // Initial load or when defaultOptions change
+  // Apply defaultOptions only while the popover is closed (as the initial/fallback state).
+  // Once the user opens the dropdown the fetch effect takes over, and we must NOT
+  // let a new defaultOptions reference (e.g. a recreated array) clobber the fetched results.
   React.useEffect(() => {
-    if (defaultOptions.length > 0) {
+    if (!open && defaultOptions.length > 0) {
       setOptions(defaultOptions);
     }
-  }, [defaultOptions]);
+  }, [defaultOptions, open]);
 
   // Sync selected item if value changes externally
   React.useEffect(() => {
