@@ -20,7 +20,7 @@ export interface User {
   email: string;
   avatar_url: string;
   role: Role;
-  permissions: string[];
+  permissions: Record<string, string>; // code -> scope (OWN|DIVISION|AREA|ALL)
 }
 
 export interface Role {

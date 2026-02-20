@@ -107,11 +107,11 @@ func SeedOrganization() error {
 	if areaCount == 0 {
 		log.Println("Seeding areas...")
 		areas := []models.Area{
-			{Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", IsActive: true},
-			{Name: "Jawa Barat", Description: "Bandung and surrounding areas", IsActive: true},
-			{Name: "Jawa Tengah", Description: "Semarang, Solo, Jogja", IsActive: true},
-			{Name: "Jawa Timur", Description: "Surabaya, Malang", IsActive: true},
-			{Name: "Bali", Description: "Bali region", IsActive: true},
+			{ID: AreaJabodetabekID, Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", IsActive: true},
+			{ID: AreaJawaBaratID, Name: "Jawa Barat", Description: "Bandung and surrounding areas", IsActive: true},
+			{ID: AreaJawaTengahID, Name: "Jawa Tengah", Description: "Semarang, Solo, Jogja", IsActive: true},
+			{ID: AreaJawaTimurID, Name: "Jawa Timur", Description: "Surabaya, Malang", IsActive: true},
+			{ID: AreaBaliID, Name: "Bali", Description: "Bali region", IsActive: true},
 		}
 		for i := range areas {
 			if err := db.Create(&areas[i]).Error; err != nil {
@@ -122,45 +122,8 @@ func SeedOrganization() error {
 		log.Println("Areas already seeded, skipping...")
 	}
 
-	// 6. Seed Area Supervisors (Sample)
-	var supervisorCount int64
-	db.Model(&models.AreaSupervisor{}).Count(&supervisorCount)
-	if supervisorCount == 0 {
-		log.Println("Seeding area supervisors...")
-		
-		// Get some areas first
-		var areas []models.Area
-		db.Find(&areas)
-
-		if len(areas) > 0 {
-			supervisors := []models.AreaSupervisor{
-				{Name: "Budi Santoso", Email: "budi.s@example.com", Phone: "081234567890", IsActive: true},
-				{Name: "Siti Rahma", Email: "siti.r@example.com", Phone: "081298765432", IsActive: true},
-			}
-
-			// Assign areas using pivot
-			for i := range supervisors {
-				if err := db.Create(&supervisors[i]).Error; err != nil {
-					return err
-				}
-				
-				// Assign random areas (first 2 for first sup, etc)
-				if i == 0 && len(areas) >= 2 {
-					// Using explicit join table creation or GORM association if setup
-					// Assuming basic GORM association works if model setup correctly, 
-					// but sticking to direct pivot insert might be safer if unsure.
-					// Let's rely on model Many2Many if properly setup, otherwise manual.
-					// Checking models/area_supervisor.go earlier showed it has `Areas` many2many.
-					
-					db.Model(&supervisors[i]).Association("Areas").Append(&areas[0], &areas[1])
-				} else if i == 1 && len(areas) >= 3 {
-					db.Model(&supervisors[i]).Association("Areas").Append(&areas[2])
-				}
-			}
-		}
-	} else {
-		log.Println("Area supervisors already seeded, skipping...")
-	}
+	// 6. Area supervisor seeding removed in Sprint 17.
+	// Supervisor role is now a flag (is_supervisor) on employee_areas join table.
 
 	// 7. Seed Companies
 	log.Println("Seeding companies...")

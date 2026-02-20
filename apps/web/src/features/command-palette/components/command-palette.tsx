@@ -160,9 +160,9 @@ function usePermissionFilteredItems(
         return true;
       }
 
-      // Check the permissions array directly
-      const permissions = user.permissions ?? [];
-      return permissions.includes(permissionCode);
+      // Check the permissions map (code -> scope)
+      const permissions = user.permissions ?? {};
+      return permissionCode in permissions;
     };
   }, [user]);
 

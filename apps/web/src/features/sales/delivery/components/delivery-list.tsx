@@ -12,21 +12,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText } from "lucide-react";
-import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus } from "../hooks/use-deliveries";
+import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetailModal } from "./delivery-detail-modal";
+
+import { ShipDialog } from "./ship-dialog";
+import { DeliverDialog } from "./deliver-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder, SalesOrderSummary } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
+
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 export function DeliveryList() {
   const t = useTranslations("delivery");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<DeliveryOrderStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
@@ -34,12 +40,35 @@ export function DeliveryList() {
   const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | SalesOrderSummary | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
+  const [deliverDeliveryId, setDeliverDeliveryId] = useState<string | null>(null);
+
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
+
+  // ... (existing code)
+
+  const handleShip = (id: string) => {
+    setShipDeliveryId(id);
+  };
+
+  const handleShipConfirm = async (trackingNumber: string) => {
+    if (!shipDeliveryId) return;
+    try {
+      await shipDelivery.mutateAsync({
+        id: shipDeliveryId,
+        data: { tracking_number: trackingNumber },
+      });
+      toast.success(t("statusUpdated"));
+      setShipDeliveryId(null);
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   const canCreate = useUserPermission("delivery_order.create");
   const canUpdate = useUserPermission("delivery_order.update");
@@ -48,8 +77,12 @@ export function DeliveryList() {
 
   const deleteDelivery = useDeleteDeliveryOrder();
   const updateStatus = useUpdateDeliveryOrderStatus();
+  const shipDelivery = useShipDeliveryOrder();
+  const deliverDelivery = useDeliverDeliveryOrder();
   const deliveries = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const canShip = useUserPermission("delivery_order.ship");
+  const canDeliver = useUserPermission("delivery_order.deliver");
 
   const handleEdit = (delivery: DeliveryOrder) => {
     setEditingDelivery(delivery);
@@ -93,6 +126,41 @@ export function DeliveryList() {
     }
   };
 
+  const handlePrepare = async (id: string) => {
+    try {
+      await updateStatus.mutateAsync({
+        id,
+        data: { status: "prepared" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  // handleShip moved above to set state
+
+  const handleDeliver = (id: string) => {
+    setDeliverDeliveryId(id);
+  };
+
+  const handleDeliverConfirm = async ({ signatureUrl, receiverName }: { signatureUrl: string; receiverName: string }) => {
+    if (!deliverDeliveryId) return;
+    try {
+      await deliverDelivery.mutateAsync({
+        id: deliverDeliveryId,
+        data: { 
+          receiver_signature: signatureUrl,
+          receiver_name: receiverName,
+        },
+      });
+      toast.success(t("statusUpdated"));
+      setDeliverDeliveryId(null);
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
   const getStatusBadge = (status: DeliveryOrderStatus) => {
     switch (status) {
       case "draft":
@@ -104,21 +172,21 @@ export function DeliveryList() {
         );
       case "prepared":
         return (
-          <Badge variant="default" className="bg-yellow-600">
+          <Badge variant="warning">
             <Package className="h-3 w-3 mr-1" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="bg-purple-600">
+          <Badge variant="info">
             <Truck className="h-3 w-3 mr-1" />
             {t("status.shipped")}
           </Badge>
         );
       case "delivered":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.delivered")}
           </Badge>
@@ -267,6 +335,24 @@ export function DeliveryList() {
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
+                          {canUpdate && delivery.status === "draft" && (
+                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer">
+                              <Package className="h-4 w-4 mr-2" />
+                              {t("actions.prepare")}
+                            </DropdownMenuItem>
+                          )}
+                          {canShip && delivery.status === "prepared" && (
+                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer">
+                              <Truck className="h-4 w-4 mr-2" />
+                              {t("actions.ship")}
+                            </DropdownMenuItem>
+                          )}
+                          {canDeliver && delivery.status === "shipped" && (
+                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer">
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.deliver")}
+                            </DropdownMenuItem>
+                          )}
                           {canDelete && delivery.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(delivery.id)}
@@ -287,32 +373,17 @@ export function DeliveryList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (
@@ -331,11 +402,11 @@ export function DeliveryList() {
         />
       )}
 
-      {viewingSalesOrder && (
+      {viewingSalesOrder && 'subtotal' in viewingSalesOrder && (
         <OrderDetailModal
-          open={!!viewingSalesOrder}
+          open={true}
           onClose={() => setViewingSalesOrder(null)}
-          order={viewingSalesOrder}
+          order={viewingSalesOrder as SalesOrder}
         />
       )}
 
@@ -350,6 +421,22 @@ export function DeliveryList() {
           isLoading={deleteDelivery.isPending}
         />
       )}
+
+      <ShipDialog
+        open={!!shipDeliveryId}
+        onOpenChange={(open) => !open && setShipDeliveryId(null)}
+        onConfirm={handleShipConfirm}
+        isLoading={shipDelivery.isPending}
+        initialTrackingNumber={deliveries.find(d => d.id === shipDeliveryId)?.tracking_number}
+      />
+
+      <DeliverDialog
+        open={!!deliverDeliveryId}
+        onOpenChange={(open) => !open && setDeliverDeliveryId(null)}
+        onConfirm={handleDeliverConfirm}
+        isLoading={deliverDelivery.isPending}
+        initialReceiverName={deliveries.find(d => d.id === deliverDeliveryId)?.receiver_name}
+      />
     </div>
   );
 }

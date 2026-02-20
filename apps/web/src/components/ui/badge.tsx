@@ -20,9 +20,11 @@ const badgeVariants = cva(
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         success:
-          "border-transparent bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-green-600 text-white [a&]:hover:bg-green-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         warning:
-          "border-transparent bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-yellow-600 text-white [a&]:hover:bg-yellow-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+        info:
+          "border-transparent bg-blue-600 text-white [a&]:hover:bg-blue-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         active:
           "border-transparent bg-primary/10 text-primary border-primary/20 [a&]:hover:scale-105 [a&]:hover:shadow-sm [a&]:hover:bg-primary/20",
         inactive: "border-transparent bg-muted text-muted-foreground",

@@ -1,0 +1,53 @@
+export const supplierInvoiceDPEn = {
+  title: "Supplier Invoice Down Payments",
+  description: "Create down payment invoices for purchase orders.",
+  search: "Search by code, invoice number...",
+  toast: {
+    created: "Down payment invoice created",
+    updated: "Down payment invoice updated",
+    pending: "Down payment invoice set to unpaid",
+    deleted: "Down payment invoice deleted",
+    failed: "Something went wrong",
+  },
+  form: {
+    createTitle: "Create Down Payment Invoice",
+    editTitle: "Edit Down Payment Invoice",
+  },
+  fields: {
+    purchaseOrder: "Purchase Order",
+    invoiceDate: "Invoice Date",
+    dueDate: "Due Date",
+    amount: "Amount",
+    notes: "Notes",
+    status: "Status",
+  },
+  columns: {
+    code: "Code",
+    invoiceNumber: "Invoice No.",
+    invoiceDate: "Invoice Date",
+    dueDate: "Due Date",
+    purchaseOrder: "PO",
+    amount: "Amount",
+    status: "Status",
+    createdAt: "Created At",
+  },
+  status: {
+    draft: "Draft",
+    unpaid: "Unpaid",
+    partial: "Partial",
+    paid: "Paid",
+  },
+  actions: {
+    create: "Create",
+    export: "Export",
+    view: "View",
+    edit: "Edit",
+    delete: "Delete",
+    pending: "Pending",
+    save: "Save",
+    cancel: "Cancel",
+  },
+  placeholders: {
+    select: "Select...",
+  },
+};

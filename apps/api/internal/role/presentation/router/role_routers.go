@@ -9,6 +9,7 @@ import (
 
 func RegisterRoleRoutes(rg *gin.RouterGroup, h *handler.RoleHandler, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	g := rg.Group("/roles")
 	g.Use(middleware.AuthMiddleware(jwtManager, permService))

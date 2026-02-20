@@ -42,6 +42,7 @@ export interface EmployeeArea {
   id: string;
   employee_id: string;
   area_id: string;
+  is_supervisor: boolean;
   area?: Area;
   created_at: string;
 }
@@ -104,7 +105,8 @@ export interface Employee {
     employee_code: string;
     name: string;
   };
-  areas?: Area[];
+  areas?: EmployeeArea[];
+  is_area_supervisor: boolean;
   status: EmployeeStatus;
   is_approved: boolean;
   created_by?: string;
@@ -141,6 +143,7 @@ export interface CreateEmployeeData {
   is_disability?: boolean;
   replacement_for_id?: string;
   area_ids?: string[];
+  supervised_area_ids?: string[];
   is_active?: boolean;
 }
 
@@ -170,6 +173,7 @@ export interface UpdateEmployeeData {
   is_disability?: boolean;
   replacement_for_id?: string;
   area_ids?: string[];
+  supervised_area_ids?: string[];
   is_active?: boolean;
 }
 
@@ -180,6 +184,85 @@ export interface ApproveEmployeeData {
 
 export interface AssignEmployeeAreasData {
   area_ids: string[];
+}
+
+export interface AreaAssignment {
+  area_id: string;
+  is_supervisor: boolean;
+}
+
+export interface BulkUpdateEmployeeAreasData {
+  assignments: AreaAssignment[];
+}
+
+export interface AvailableUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AvailableUsersResponse {
+  success: boolean;
+  data: AvailableUser[];
+  timestamp: string;
+  request_id: string;
+}
+
+export interface FormOption {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeFormData {
+  divisions: FormOption[];
+  job_positions: FormOption[];
+  companies: FormOption[];
+  areas: FormOption[];
+}
+
+export interface EmployeeFormDataResponse {
+  success: boolean;
+  data: EmployeeFormData;
+  timestamp: string;
+  request_id: string;
+}
+
+// Represents an individual area assignment with role (used by bulk update)
+export interface AreaAssignment {
+  area_id: string;
+  is_supervisor: boolean;
+}
+
+export interface BulkUpdateEmployeeAreasData {
+  assignments: AreaAssignment[];
+}
+
+// Lightweight user returned by GET /users/available
+export interface AvailableUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AvailableUsersResponse {
+  success: boolean;
+  data: AvailableUser[];
+}
+
+// Generic form option returned by GET /employees/form-data
+export interface FormOption {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeFormDataResponse {
+  success: boolean;
+  data: {
+    divisions: FormOption[];
+    job_positions: FormOption[];
+    companies: FormOption[];
+    areas: FormOption[];
+  };
 }
 
 export interface ListEmployeesParams {

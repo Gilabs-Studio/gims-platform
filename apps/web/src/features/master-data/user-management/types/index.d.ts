@@ -29,7 +29,15 @@ export interface Permission {
   menu_id?: string;
   menu?: Menu;
   action?: string;
+  scope?: string;
   description?: string;
+}
+
+export type PermissionScope = "OWN" | "DIVISION" | "AREA" | "ALL";
+
+export interface PermissionAssignment {
+  permission_id: string;
+  scope: PermissionScope;
 }
 
 export interface Menu {

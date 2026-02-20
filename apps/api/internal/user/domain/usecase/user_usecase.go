@@ -32,8 +32,13 @@ var (
 type UserUsecase interface {
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.UserResponse, error)
+	// GetAvailable returns active users not yet linked to an employee.
+	GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error)
 	Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error)
+	UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error)
+	ChangePassword(ctx context.Context, id string, req *dto.ChangePasswordRequest) error
+	UpdateAvatar(ctx context.Context, id string, avatarURL string) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -152,6 +157,19 @@ func (u *userUsecase) GetByID(ctx context.Context, id string) (*dto.UserResponse
 	}
 
 	return resp, nil
+}
+
+func (u *userUsecase) GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error) {
+	users, err := u.userRepo.FindAvailable(ctx, search, excludeEmployeeID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]dto.AvailableUserResponse, len(users))
+	for i, usr := range users {
+		responses[i] = mapper.ToAvailableUserResponse(&usr)
+	}
+	return responses, nil
 }
 
 func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error) {
@@ -351,3 +369,142 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+func (u *userUsecase) UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error) {
+	// Find user
+	usr, err := u.userRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	// Update fields
+	if req.Email != "" {
+		// Check if email already exists (excluding current user)
+		existingUser, err := u.userRepo.FindByEmail(ctx, req.Email)
+		if err == nil && existingUser.ID != id {
+			return nil, ErrUserAlreadyExists
+		}
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+
+		// If email changed, regenerate avatar
+		if usr.Email != req.Email {
+			usr.Email = req.Email
+			// Regenerate avatar URL using dicebear lorelei
+			usr.AvatarURL = "https://api.dicebear.com/7.x/lorelei/svg?seed=" + url.QueryEscape(req.Email)
+		}
+	}
+
+	if req.Name != "" {
+		usr.Name = req.Name
+	}
+
+	if err := u.userRepo.Update(ctx, usr); err != nil {
+		return nil, err
+	}
+
+	// Invalidate cache
+	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+
+	// Invalidate list cache
+	pattern := "users:list:*"
+	iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		u.redis.Del(ctx, iter.Val())
+	}
+
+	// Audit Log
+	u.auditService.Log(ctx, "user.profile_update", id, map[string]interface{}{
+		"updates": req,
+	})
+
+	// Reload with role
+	updatedUser, err := u.userRepo.FindByID(ctx, usr.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Publish event (async, fire-and-forget)
+	u.eventPublisher.PublishAsync(ctx, events.NewUserUpdatedEvent(ctx, events.UserUpdatedPayload{
+		UserID:    usr.ID,
+		Email:     usr.Email,
+		Name:      usr.Name,
+		RoleID:    usr.RoleID,
+		Status:    usr.Status,
+		UpdatedAt: usr.UpdatedAt,
+	}))
+
+	return mapper.ToUserResponse(updatedUser), nil
+}
+
+func (u *userUsecase) ChangePassword(ctx context.Context, id string, req *dto.ChangePasswordRequest) error {
+	// Find user
+	usr, err := u.userRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	// Verify old password
+	if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.OldPassword)); err != nil {
+		return errors.New("invalid old password")
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// Update password
+	usr.Password = string(hashedPassword)
+	if err := u.userRepo.Update(ctx, usr); err != nil {
+		return err
+	}
+
+	// Audit Log
+	u.auditService.Log(ctx, "user.change_password", id, nil)
+
+	return nil
+}
+
+func (u *userUsecase) UpdateAvatar(ctx context.Context, id string, avatarURL string) error {
+	// Find user
+	usr, err := u.userRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	// Update avatar URL
+	usr.AvatarURL = avatarURL
+	if err := u.userRepo.Update(ctx, usr); err != nil {
+		return err
+	}
+
+	// Invalidate cache
+	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+
+	// Invalidate list cache
+	pattern := "users:list:*"
+	iter := u.redis.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		u.redis.Del(ctx, iter.Val())
+	}
+
+	// Audit Log
+	u.auditService.Log(ctx, "user.update_avatar", id, map[string]interface{}{
+		"avatar_url": avatarURL,
+	})
+
+	return nil
+}
+

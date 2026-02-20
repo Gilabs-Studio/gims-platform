@@ -20,10 +20,10 @@ interface AttendanceEventDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onEdit: (event: CalendarEvent) => void;
-  readonly onDelete: (id: number) => void;
+  readonly onDelete: (id: string) => void;
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PRESENT: {
     label: "Present",
     className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
@@ -44,7 +44,23 @@ const STATUS_CONFIG = {
     label: "Half Day",
     className: "bg-violet-500/10 text-violet-700 border-violet-500/20",
   },
-} as const;
+  EARLY_LEAVE: {
+    label: "Early Leave",
+    className: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  },
+  HOLIDAY: {
+    label: "Holiday",
+    className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
+  },
+  WFH: {
+    label: "Work From Home",
+    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20",
+  },
+  OFF_DAY: {
+    label: "Off Day",
+    className: "bg-gray-500/10 text-gray-700 border-gray-500/20",
+  },
+};
 
 export function AttendanceEventDetail({
   event,
@@ -55,7 +71,7 @@ export function AttendanceEventDetail({
 }: AttendanceEventDetailProps) {
   if (!event) return null;
 
-  const statusConfig = STATUS_CONFIG[event.status];
+  const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.PRESENT;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -143,7 +159,7 @@ export function AttendanceEventDetail({
               </div>
             </div>
 
-            {event.note && (
+            {event.notes && (
               <>
                 <Separator />
                 <div className="flex items-start gap-3">
@@ -153,7 +169,7 @@ export function AttendanceEventDetail({
                       Note
                     </p>
                     <p className="text-sm leading-relaxed">
-                      {event.note}
+                      {event.notes}
                     </p>
                   </div>
                 </div>

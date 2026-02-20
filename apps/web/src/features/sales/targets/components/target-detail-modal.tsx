@@ -69,14 +69,14 @@ export function TargetDetailModal({
         );
       case "submitted":
         return (
-          <Badge variant="default" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1.5" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="text-xs font-medium bg-green-600">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1.5" />
             {t("status.approved")}
           </Badge>

@@ -10,10 +10,14 @@ import (
 
 func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permissionHandler.PermissionHandler, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	g := rg.Group("/users")
 	g.Use(middleware.AuthMiddleware(jwtManager, permService))
 	{
+		// Static routes BEFORE parameterized /:id to avoid path conflicts
+		g.GET("/available", middleware.RequirePermission("employee.read"), h.GetAvailable)
+
 		g.GET("", middleware.RequirePermission("user.read"), h.List)
 		g.GET("/:id", middleware.RequirePermission("user.read"), h.GetByID)
 		g.POST("", middleware.RequirePermission("user.create"), h.Create)
@@ -22,5 +26,15 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 
 		// Add permissions route
 		g.GET("/:id/permissions", middleware.RequirePermission("user.read"), ph.GetUserPermissions)
+	}
+
+	// Profile routes - separate from /users CRUD to avoid conflict with /:id and clearer intent
+	// Attach to the parent group (which is likely /api/v1)
+	p := rg.Group("/profile")
+	p.Use(middleware.AuthMiddleware(jwtManager, permService))
+	{
+		p.PUT("", h.UpdateProfile)
+		p.PUT("/password", h.ChangePassword)
+		p.POST("/avatar", h.UploadAvatar)
 	}
 }

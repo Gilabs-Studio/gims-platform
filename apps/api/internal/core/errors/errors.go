@@ -112,6 +112,65 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Pipeline stage not found",
 	},
+	"LEAVE_REQUEST_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Leave request not found",
+	},
+	"EMPLOYEE_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Employee not found",
+	},
+
+	// HRD - Evaluation Errors (Sprint 15)
+	"EVALUATION_GROUP_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Evaluation group not found",
+	},
+	"EVALUATION_CRITERIA_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Evaluation criteria not found",
+	},
+	"EMPLOYEE_EVALUATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Employee evaluation not found",
+	},
+	"EVALUATION_GROUP_INACTIVE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Evaluation group is not active",
+	},
+	"INVALID_STATUS_TRANSITION": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid status transition",
+	},
+	// HRD - Recruitment Errors (Sprint 15)
+	"RECRUITMENT_REQUEST_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Recruitment request not found",
+	},
+	"RECRUITMENT_NOT_EDITABLE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Recruitment request is not editable (only DRAFT status)",
+	},
+	"RECRUITMENT_NOT_OPEN": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Recruitment request is not open for updates",
+	},
+	"INVALID_SALARY_RANGE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Salary range minimum must not exceed maximum",
+	},
+	"FILLED_EXCEEDS_REQUIRED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Filled count cannot exceed required count",
+	},
+	"DIVISION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Division not found",
+	},
+	"POSITION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Job position not found",
+	},
 	"CONFLICT": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Conflict with current state",
@@ -145,7 +204,33 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Failed to create opportunity",
 	},
 
+	// HRD - Leave Request Errors
+	"INSUFFICIENT_LEAVE_BALANCE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Insufficient leave balance for this request",
+	},
+	"OVERLAPPING_LEAVE_REQUEST": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Leave request overlaps with existing request",
+	},
+	"INVALID_DATE_FORMAT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid date format. Use YYYY-MM-DD",
+	},
+	"INVALID_STATUS": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid leave request status for this operation",
+	},
+	"INVALID_DURATION": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid leave duration type",
+	},
+
 	// System Errors
+	"NOT_IMPLEMENTED": {
+		HTTPStatus: http.StatusNotImplemented,
+		Message:    "This feature is not implemented yet",
+	},
 	"INTERNAL_SERVER_ERROR": {
 		HTTPStatus: http.StatusInternalServerError,
 		Message:    "An internal server error occurred. Our team has been notified",
@@ -161,6 +246,14 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"INVALID_REQUEST_BODY": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid request body",
+	},
+	"INVALID_PATH_PARAM": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid path parameter",
+	},
+	"INVALID_ID": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid ID",
 	},
 	"INVALID_QUERY_PARAM": {
 		HTTPStatus: http.StatusBadRequest,

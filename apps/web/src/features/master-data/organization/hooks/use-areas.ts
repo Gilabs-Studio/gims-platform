@@ -3,9 +3,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { areaService } from "../services/organization-service";
 import type {
-  ListOrganizationParams,
+  ListAreasParams,
   CreateAreaData,
   UpdateAreaData,
+  AssignAreaSupervisorsData,
+  AssignAreaMembersData,
   Area,
   OrganizationListResponse,
 } from "../types";
@@ -13,13 +15,12 @@ import type {
 export const areaKeys = {
   all: ["areas"] as const,
   lists: () => [...areaKeys.all, "list"] as const,
-  list: (params?: ListOrganizationParams) =>
-    [...areaKeys.lists(), params] as const,
+  list: (params?: ListAreasParams) => [...areaKeys.lists(), params] as const,
   details: () => [...areaKeys.all, "detail"] as const,
   detail: (id: string) => [...areaKeys.details(), id] as const,
 };
 
-export function useAreas(params?: ListOrganizationParams) {
+export function useAreas(params?: ListAreasParams) {
   return useQuery({
     queryKey: areaKeys.list(params),
     queryFn: () => areaService.list(params),
@@ -30,6 +31,14 @@ export function useArea(id: string) {
   return useQuery({
     queryKey: areaKeys.detail(id),
     queryFn: () => areaService.getById(id),
+    enabled: !!id,
+  });
+}
+
+export function useAreaDetail(id: string) {
+  return useQuery({
+    queryKey: [...areaKeys.detail(id), "full"],
+    queryFn: () => areaService.getDetail(id),
     enabled: !!id,
   });
 }
@@ -84,6 +93,66 @@ export function useDeleteArea() {
     mutationFn: (id: string) => areaService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+    },
+  });
+}
+
+export function useAssignSupervisors() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      areaId,
+      data,
+    }: {
+      areaId: string;
+      data: AssignAreaSupervisorsData;
+    }) => areaService.assignSupervisors(areaId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: areaKeys.detail(variables.areaId),
+      });
+    },
+  });
+}
+
+export function useAssignMembers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      areaId,
+      data,
+    }: {
+      areaId: string;
+      data: AssignAreaMembersData;
+    }) => areaService.assignMembers(areaId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: areaKeys.detail(variables.areaId),
+      });
+    },
+  });
+}
+
+export function useRemoveAreaEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      areaId,
+      employeeId,
+    }: {
+      areaId: string;
+      employeeId: string;
+    }) => areaService.removeEmployee(areaId, employeeId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: areaKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: areaKeys.detail(variables.areaId),
+      });
     },
   });
 }

@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import type { Resolver, FieldErrors } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller, useFormContext, FormProvider } from "react-hook-form";
+import type { Resolver, FieldErrors, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart } from "lucide-react";
+import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 import {
   getDeliveryOrderSchema,
   getUpdateDeliveryOrderSchema,
   type CreateDeliveryOrderFormData,
   type UpdateDeliveryOrderFormData,
+  type DeliveryOrderItemFormData,
 } from "../schemas/delivery.schema";
+import type { CreateDeliveryOrderData, UpdateDeliveryOrderData } from "../types";
 
 import { ButtonLoading } from "@/components/loading";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -32,11 +34,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, formatCurrency, sortOptions } from "@/lib/utils";
 import { useCreateDeliveryOrder, useUpdateDeliveryOrder, useDeliveryOrder } from "../hooks/use-deliveries";
-import { useOrders } from "@/features/sales/order/hooks/use-orders";
+import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useCourierAgencies } from "@/features/master-data/payment-and-couriers/courier-agency/hooks/use-courier-agency";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
+import { useProductBatches } from "@/features/stock/inventory/hooks/use-product-batches";
 import type { DeliveryOrder } from "../types";
+import type { SalesOrderItem } from "../../order/types";
+import type { InventoryBatchItem } from "@/features/stock/inventory/types";
 import { toast } from "sonner";
 
 interface DeliveryFormProps {
@@ -62,7 +67,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   );
 
   // Fetch lookup data
-  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "confirmed" });
+  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "confirmed,processing,partial" });
   const { data: employeesData } = useEmployees({ per_page: 100 });
   const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 });
   const { data: warehousesData } = useWarehouses({ per_page: 100 });
@@ -90,15 +95,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const schema = isEdit ? getUpdateDeliveryOrderSchema(t) : getDeliveryOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    control,
-    reset,
-    trigger,
-    formState: { errors },
-  } = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
+  const form = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
     resolver: formResolver,
     defaultValues: delivery
       ? {
@@ -131,22 +128,90 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
         },
   });
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    reset,
+    trigger,
+    getValues,
+    formState: { errors },
+  } = form;
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
 
+
   const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
 
+  // Fetch sales order details when selected to ensure we have items
+  const { data: selectedSalesOrderData } = useOrder(
+    watchedSalesOrderId ?? "",
+    { enabled: !!watchedSalesOrderId }
+  );
+
+  // Auto-populate items when sales order is selected
+  useEffect(() => {
+    if (!watchedSalesOrderId || isEdit) return;
+    
+    // Use the detailed data if available
+    const salesOrder = selectedSalesOrderData?.data;
+    
+    if (salesOrder?.items && salesOrder.items.length > 0) {
+      // Create items map to preserve existing inputs if re-populating (optional, but good UX)
+      // For now, simpler approach: just overwrite to ensure correctness
+      
+      type LocalDeliveryItem = DeliveryOrderItemFormData & { product_name?: string };
+
+      const newItems = salesOrder.items.map((item: SalesOrderItem) => {
+        const remainingQty = item.quantity - (item.delivered_quantity ?? 0);
+        
+        // Skip fully delivered items? Maybe user wants to deliver 0 of them? 
+        // Better to include them but maybe with 0 qty or disabled?
+        // Let's include them if > 0 remaining
+        if (remainingQty <= 0) return null;
+
+        return {
+          product_id: item.product_id,
+          sales_order_item_id: item.id,
+          inventory_batch_id: "",
+          quantity: remainingQty,
+          price: item.price || 0,
+          installation_status: "",
+          function_test_status: "",
+          product_name: `${item.product?.code} - ${item.product?.name}`, // Helper for display
+        };
+      }).filter(Boolean) as LocalDeliveryItem[];
+
+      if (newItems.length > 0) {
+         setValue("items", newItems);
+      } else {
+         toast.info("All items in this Sales Order have been delivered.");
+         setValue("items", []);
+      }
+    }
+
+    // Auto-populate receiver info from sales order customer
+    if (salesOrder?.customer_name && !getValues("receiver_name")) {
+      setValue("receiver_name", salesOrder.customer_name);
+    }
+    if (salesOrder?.customer_phone && !getValues("receiver_phone")) {
+      setValue("receiver_phone", salesOrder.customer_phone);
+    }
+  }, [selectedSalesOrderData, watchedSalesOrderId, isEdit, setValue, getValues]);
+
   // Derive selectedSalesOrderId from watched value
-  const selectedSalesOrderId = useMemo(() => {
-    return watchedSalesOrderId ?? delivery?.sales_order_id ?? "";
-  }, [watchedSalesOrderId, delivery?.sales_order_id]);
+  // const selectedSalesOrderId = useMemo(() => {
+  //   return watchedSalesOrderId ?? delivery?.sales_order_id ?? "";
+  // }, [watchedSalesOrderId, delivery?.sales_order_id]);
 
   // Get selected sales order items
-  const selectedSalesOrder = useMemo(() => {
-    return salesOrders.find(so => so.id === selectedSalesOrderId);
-  }, [salesOrders, selectedSalesOrderId]);
+  // const selectedSalesOrder = useMemo(() => {
+  //   return salesOrders.find(so => so.id === selectedSalesOrderId);
+  // }, [salesOrders, selectedSalesOrderId]);
 
   // Reset form when delivery data changes
   useEffect(() => {
@@ -172,8 +237,10 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               sales_order_item_id: item.sales_order_item_id ?? "",
               inventory_batch_id: item.inventory_batch_id ?? "",
               quantity: item.quantity,
+              price: item.price || 0,
               installation_status: item.installation_status ?? "",
               function_test_status: item.function_test_status ?? "",
+              product_name: `${item.product?.code} - ${item.product?.name}`, // Helper for display
             })) ?? [],
         });
       }, 10);
@@ -190,29 +257,29 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   }, [open, isEdit, fullDeliveryData, reset]);
 
   // Auto-populate items when sales order is selected
-  useEffect(() => {
-    if (!watchedSalesOrderId || isEdit) return;
+  // useEffect(() => {
+  //   if (!watchedSalesOrderId || isEdit) return;
     
-    const salesOrder = salesOrders.find(so => so.id === watchedSalesOrderId);
-    if (salesOrder?.items && salesOrder.items.length > 0) {
-      const items = salesOrder.items.map(item => ({
-        product_id: item.product_id,
-        sales_order_item_id: item.id,
-        inventory_batch_id: "",
-        quantity: item.quantity - (item.delivered_quantity ?? 0), // Remaining quantity
-        installation_status: "",
-        function_test_status: "",
-      }));
-      setValue("items", items);
-    }
-  }, [watchedSalesOrderId, salesOrders, isEdit, setValue]);
+  //   const salesOrder = salesOrders.find(so => so.id === watchedSalesOrderId);
+  //   if (salesOrder?.items && salesOrder.items.length > 0) {
+  //     const items = salesOrder.items.map(item => ({
+  //       product_id: item.product_id,
+  //       sales_order_item_id: item.id,
+  //       inventory_batch_id: "",
+  //       quantity: item.quantity - (item.delivered_quantity ?? 0), // Remaining quantity
+  //       installation_status: "",
+  //       function_test_status: "",
+  //     }));
+  //     setValue("items", items);
+  //   }
+  // }, [watchedSalesOrderId, salesOrders, isEdit, setValue]);
 
   const handleNext = async () => {
     setIsValidating(true);
     try {
       const basicFields = [
         "delivery_date",
-        "warehouse_id",
+        // "warehouse_id",
         "sales_order_id",
         "delivered_by_id",
         "courier_agency_id",
@@ -266,7 +333,6 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     if (activeTab === "items") {
       const basicFields = [
         "delivery_date",
-        "warehouse_id",
         "sales_order_id",
         "delivered_by_id",
         "courier_agency_id",
@@ -290,17 +356,73 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     try {
       const filteredItems = (data.items ?? []).filter((item) => item.product_id);
       
+      // Validate Warehouses
+      if (filteredItems.length === 0) {
+        toast.error(t("validation.itemsMin") || "At least one item is required");
+        return;
+      }
+
+      const uniqueWarehouses = new Set(filteredItems.map(i => i.warehouse_id).filter(Boolean));
+      
+      if (uniqueWarehouses.size === 0) {
+        toast.error(t("validation.required") + ": " + t("warehouse"));
+        return;
+      }
+
+      if (uniqueWarehouses.size > 1) {
+        toast.error("All items must be from the same warehouse for a single Delivery Order.");
+        return;
+      }
+
+      const warehouseId = Array.from(uniqueWarehouses)[0] as string;
+
+      // Prepare payload - strip warehouse_id from items as backend doesn't expect it there
+      // and ensure header warehouse_id is set
+      const itemsPayload = filteredItems.map((item) => ({
+        product_id: item.product_id,
+        sales_order_item_id: item.sales_order_item_id || undefined,
+        inventory_batch_id: item.inventory_batch_id || undefined,
+        quantity: item.quantity,
+        price: item.price || 0,
+        installation_status: item.installation_status || undefined,
+        function_test_status: item.function_test_status || undefined,
+      }));
+
       if (isEdit && delivery) {
+        const updatePayload: UpdateDeliveryOrderData = {
+          delivery_date: (data as UpdateDeliveryOrderFormData).delivery_date,
+          warehouse_id: warehouseId,
+          delivered_by_id: (data as UpdateDeliveryOrderFormData).delivered_by_id,
+          courier_agency_id: (data as UpdateDeliveryOrderFormData).courier_agency_id,
+          tracking_number: (data as UpdateDeliveryOrderFormData).tracking_number,
+          receiver_name: (data as UpdateDeliveryOrderFormData).receiver_name,
+          receiver_phone: (data as UpdateDeliveryOrderFormData).receiver_phone,
+          delivery_address: (data as UpdateDeliveryOrderFormData).delivery_address,
+          notes: (data as UpdateDeliveryOrderFormData).notes,
+          items: itemsPayload,
+        };
+
         await updateDelivery.mutateAsync({
           id: delivery.id,
-          data: { ...data, items: filteredItems },
+          data: updatePayload,
         });
         toast.success(t("updated"));
       } else {
-        await createDelivery.mutateAsync({
-          ...data,
-          items: filteredItems,
-        } as CreateDeliveryOrderFormData);
+        const createPayload: CreateDeliveryOrderData = {
+          delivery_date: (data as CreateDeliveryOrderFormData).delivery_date!,
+          warehouse_id: warehouseId,
+          sales_order_id: (data as CreateDeliveryOrderFormData).sales_order_id ?? "",
+          delivered_by_id: (data as CreateDeliveryOrderFormData).delivered_by_id,
+          courier_agency_id: (data as CreateDeliveryOrderFormData).courier_agency_id,
+          tracking_number: (data as CreateDeliveryOrderFormData).tracking_number,
+          receiver_name: (data as CreateDeliveryOrderFormData).receiver_name,
+          receiver_phone: (data as CreateDeliveryOrderFormData).receiver_phone,
+          delivery_address: (data as CreateDeliveryOrderFormData).delivery_address,
+          notes: (data as CreateDeliveryOrderFormData).notes,
+          items: itemsPayload,
+        };
+
+        await createDelivery.mutateAsync(createPayload);
         toast.success(t("created"));
       }
       onClose();
@@ -316,6 +438,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       sales_order_item_id: "",
       inventory_batch_id: "",
       quantity: 1,
+      price: 0,
       installation_status: "",
       function_test_status: "",
     });
@@ -333,7 +456,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   const onInvalid = (errors: FieldErrors<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>) => {
     const basicFields = [
       "delivery_date",
-      "warehouse_id",
+      // "warehouse_id", // Validated in items
       "sales_order_id",
       "delivered_by_id",
       "courier_agency_id",
@@ -362,7 +485,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t("edit") : t("add")}
+            {isEdit ? t("edit") : t("create")}
           </DialogTitle>
         </DialogHeader>
 
@@ -381,6 +504,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
               </TabsTrigger>
             </TabsList>
 
+            <FormProvider {...form}>
             <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
               <TabsContent value="basic" className="space-y-4 mt-0">
                 {/* Basic Information */}
@@ -427,34 +551,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                       )}
                     </Field>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("warehouse")} *</FieldLabel>
-                      <Controller
-                        name="warehouse_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            disabled={isEdit}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("warehouse") || "Select Warehouse"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {warehouses.filter(w => w.is_active).map((w) => (
-                                <SelectItem key={w.id} value={w.id}>
-                                  {w.code ? `${w.code} - ${w.name}` : w.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.warehouse_id && (
-                        <FieldError>{errors.warehouse_id.message}</FieldError>
-                      )}
-                    </Field>
+                    {/* Warehouse selection moved to items */}
 
                     <Field orientation="vertical" className="col-span-2">
                       <FieldLabel>{t("salesOrder")} *</FieldLabel>
@@ -610,6 +707,13 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
 
                   <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
                     {fields.map((field, index) => {
+                      // Get product name from helper field or lookup
+                      // We can just use a lookup since we have access to SO data if needed, 
+                      // but simpler to assume it's pre-populated since we don't have a products list here
+                      const items = getValues("items") as Array<DeliveryOrderItemFormData & { product_name?: string }>;
+                      const currentItem = items && items[index];
+                      const productName = currentItem?.product_name || `Product ID: ${currentItem?.product_id}`;
+
                       return (
                         <div
                           key={field.id}
@@ -617,49 +721,56 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                         >
                           <div className="absolute top-2 right-2 flex items-center gap-2">
                             <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
-                            {fields.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => remove(index)}
-                                className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            {/* Remove delete button if derived from Sales Order? 
+                                Maybe allow deleting if partial delivery of LINES. 
+                                Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
+                            */}
+                             <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                              className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 mt-6">
                             <Field orientation="vertical" className="col-span-2">
-                              <FieldLabel>{t("item.product")} *</FieldLabel>
-                              <Controller
-                                name={`items.${index}.product_id`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                    disabled={!!selectedSalesOrder && !isEdit}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("item.selectProduct")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {sortOptions(selectedSalesOrder?.items ?? [], (a) => `${a.product?.code} - ${a.product?.name}`).map((soItem) => (
-                                        <SelectItem key={soItem.id} value={soItem.product_id}>
-                                          {soItem.product?.code} - {soItem.product?.name} (Qty: {soItem.quantity - (soItem.delivered_quantity ?? 0)})
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                              {errors.items?.[index]?.product_id && (
-                                <FieldError>
-                                  {errors.items[index]?.product_id?.message}
-                                </FieldError>
-                              )}
+                              <FieldLabel>{t("item.product")}</FieldLabel>
+                              <div className="p-2 bg-muted rounded-md text-sm font-medium">
+                                {productName}
+                              </div>
+                            </Field>
+
+                            <Field orientation="vertical">
+                                <FieldLabel>{t("warehouse")} *</FieldLabel>
+                                <Controller
+                                  name={`items.${index}.warehouse_id`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <Select
+                                      value={field.value}
+                                      onValueChange={(val) => {
+                                        field.onChange(val);
+                                        // Reset batch when warehouse changes
+                                        setValue(`items.${index}.inventory_batch_id`, "");
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={t("warehouse")} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {warehouses.filter(w => w.is_active).map((w) => (
+                                          <SelectItem key={w.id} value={w.id}>
+                                            {w.code ? `${w.code} - ${w.name}` : w.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
                             </Field>
 
                             <Field orientation="vertical">
@@ -682,26 +793,12 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                               )}
                             </Field>
 
-                            <Field orientation="vertical">
-                              <FieldLabel>{t("item.batch")}</FieldLabel>
-                              <Controller
-                                name={`items.${index}.inventory_batch_id`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select value={field.value || undefined} onValueChange={field.onChange}>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("item.selectBatch")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {/* <SelectItem value="">{t("item.noBatchSelected")}</SelectItem> */}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Batch selection will be available in Sprint 9
-                              </p>
-                            </Field>
+                            <BatchSelectionField 
+                              control={control}
+                              index={index}
+                              error={errors.items?.[index]?.inventory_batch_id?.message}
+                              t={t}
+                            />
                           </div>
                         </div>
                       );
@@ -710,17 +807,18 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                       <FieldError>{errors.items.message}</FieldError>
                     )}
 
-                    {/* Add Item Button - Positioned below last item */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddItem}
-                      className="w-full cursor-pointer border-dashed"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("addItem")}
-                    </Button>
+                    {!watchedSalesOrderId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddItem}
+                        className="w-full cursor-pointer border-dashed"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("addItem")}
+                      </Button>
+                     )}
                   </div>
                 </div>
 
@@ -756,9 +854,109 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                 </div>
               </TabsContent>
             </form>
+            </FormProvider>
           </Tabs>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Separate component to handle batch queries per row to avoid granular re-renders of the main form
+function BatchSelectionField({ control, index, error, t }: {
+  control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+  index: number;
+  error?: string | null;
+  t: (key: string) => string;
+}) {
+  const warehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
+  const productId = useWatch({ control, name: `items.${index}.product_id` });
+  const quantity = useWatch({ control, name: `items.${index}.quantity` }) as number | undefined;
+  const { setValue } = useFormContext();
+
+  const { data: batchesData, isLoading } = useProductBatches(warehouseId ?? "", (productId as string) ?? "", {
+    enabled: !!warehouseId && !!productId
+  });
+
+  const batches = useMemo(() => {
+    return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
+  }, [batchesData]);
+
+  // Aggregate available stock across all batches in the selected warehouse
+  const totalAvailable = batches.reduce((sum, b) => sum + (b.available ?? 0), 0);
+  const hasStock = totalAvailable > 0;
+  const isInsufficient = hasStock && (quantity ?? 0) > 0 && totalAvailable < (quantity ?? 0);
+  const fmt = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
+
+  return (
+    <Field orientation="vertical">
+      <FieldLabel>{t("item.batch")}</FieldLabel>
+      <Controller
+        name={`items.${index}.inventory_batch_id`}
+        control={control}
+        render={({ field }) => (
+          <Select
+            value={field.value || undefined}
+            onValueChange={(val) => {
+              field.onChange(val);
+              // Persist max_quantity from the selected batch for validation
+              const batch = batches.find((b) => b.id === val);
+              if (batch) {
+                setValue(`items.${index}.max_quantity`, batch.available, { shouldValidate: true });
+              }
+            }}
+            disabled={!warehouseId || !productId || isLoading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={isLoading ? t("common.loading") : t("item.selectBatch")} />
+            </SelectTrigger>
+            <SelectContent>
+              {batches.filter((b) => b.available > 0).map((batch) => (
+                <SelectItem key={batch.id} value={batch.id}>
+                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "-"})
+                </SelectItem>
+              ))}
+              {batches.length === 0 && !isLoading && (
+                <div className="p-2 text-sm text-muted-foreground text-center">
+                  {t("item.noBatchesAvailable")}
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        )}
+      />
+
+      {/* Stock status indicator for the selected warehouse */}
+      {warehouseId && productId && !isLoading && (
+        <>
+          {!hasStock ? (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              <XCircle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">Out of Stock</span>
+              <span className="opacity-75">— no available batches in this warehouse</span>
+            </div>
+          ) : isInsufficient ? (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">Insufficient Stock</span>
+              <span className="opacity-75">
+                — available: {fmt(totalAvailable)} (need {fmt(quantity ?? 0)})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-green-700 text-xs dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">In Stock</span>
+              <span className="opacity-75">— available: {fmt(totalAvailable)} in this warehouse</span>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && <FieldError>{error}</FieldError>}
+      {!warehouseId && (
+        <p className="text-xs text-muted-foreground mt-1">Select warehouse first</p>
+      )}
+    </Field>
   );
 }

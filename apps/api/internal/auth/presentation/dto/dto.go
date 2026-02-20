@@ -22,12 +22,12 @@ type LoginResponseDTO struct {
 }
 
 type UserDTO struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Email       string   `json:"email"`
-	AvatarURL   string   `json:"avatar_url"`
-	Role        RoleDTO  `json:"role"`
-	Permissions []string `json:"permissions"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Email       string            `json:"email"`
+	AvatarURL   string            `json:"avatar_url"`
+	Role        RoleDTO           `json:"role"`
+	Permissions map[string]string `json:"permissions"` // code -> scope
 }
 
 type RoleDTO struct {

@@ -27,6 +27,7 @@ export interface DeliveryOrderItem {
     expiry_date?: string;
   };
   quantity: number;
+  price?: number;
   installation_status?: string;
   function_test_status?: string;
   created_at: string;
@@ -140,6 +141,7 @@ export interface CreateDeliveryOrderItemData {
   sales_order_item_id?: string;
   inventory_batch_id?: string;
   quantity: number;
+  price: number;
   installation_status?: string;
   function_test_status?: string;
 }

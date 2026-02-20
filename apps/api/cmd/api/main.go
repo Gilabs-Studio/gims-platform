@@ -48,15 +48,22 @@ import (
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
+	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
+	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
+	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
+	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
+	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
+	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 )
 
-func main() {
+func initInfrastructure() {
 	// Initialize logger
 	logger.Init()
 
@@ -69,13 +76,17 @@ func main() {
 	if err := database.Connect(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	defer database.Close()
+	// Note: Defer database.Close() must be handled in main if we returned db,
+	// but here we are using global or singleton access patterns in this codebase
+	// seeing later usage of database.DB.
+	// However, original main had defer database.Close().
+	// We will keep defer in main and just call connect here.
 
 	// Connect to Redis
 	if err := redis.InitRedis(config.AppConfig); err != nil {
 		log.Printf("Warning: Redis connection failed: %v", err)
 	}
-	defer redis.Close()
+	// Defer redis.Close() also needs to be in main
 
 	// Run migrations
 	if config.AppConfig.Startup.RunMigrations {
@@ -94,8 +105,9 @@ func main() {
 	} else {
 		log.Println("Skipping seeders (RUN_SEEDERS=false)")
 	}
+}
 
-	// Setup JWT Manager
+func setupJWT() *jwt.JWTManager {
 	accessSecret := config.AppConfig.JWT.AccessSecretKey
 	refreshSecret := config.AppConfig.JWT.RefreshSecretKey
 	if accessSecret == "" {
@@ -122,7 +134,7 @@ func main() {
 		}
 	}
 
-	jwtManager := jwt.NewJWTManager(jwt.Options{
+	return jwt.NewJWTManager(jwt.Options{
 		AccessSecretKey:  accessSecret,
 		RefreshSecretKey: refreshSecret,
 		AccessKeys:       accessKeys,
@@ -133,6 +145,18 @@ func main() {
 		AccessTokenTTL:   time.Duration(config.AppConfig.JWT.AccessTokenTTL) * time.Hour,
 		RefreshTokenTTL:  time.Duration(config.AppConfig.JWT.RefreshTokenTTL) * 24 * time.Hour,
 	})
+}
+
+func main() {
+	// 1. Initialize Infrastructure (Config, Logger, DB, Migrations)
+	initInfrastructure()
+
+	// Ensure cleanup
+	defer database.Close()
+	defer redis.Close()
+
+	// 2. Setup JWT
+	jwtManager := setupJWT()
 
 	// Setup repositories
 	refreshTokenRepository := refreshTokenRepo.NewRefreshTokenRepository(database.DB)
@@ -153,7 +177,7 @@ func main() {
 	// Setup Usecases
 	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
-	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient())
+	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 
 	// Setup Handlers
@@ -219,8 +243,6 @@ func main() {
 		})
 	})
 
-
-
 	// Serve static files from uploads directory
 	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
@@ -258,8 +280,26 @@ func main() {
 		// Core Master Data (Sprint 4 - PaymentTerms, CourierAgency, SOSource, LeaveType)
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
+		// Finance module (Sprint 10 - COA & Journals)
+		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Inventory Setup (Shared Dependency)
+		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
+		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
+
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+
+		// HRD module (Sprint 13 - Attendance)
+		hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		// Inventory module (Sprint 9)
+		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+
+		// Stock Opname module (Sprint 9)
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Purchase module (Sprint 8 - Purchase Requisitions)
+		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

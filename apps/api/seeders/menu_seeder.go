@@ -353,10 +353,12 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Requisitions", "clipboard-list", "/purchase/requisitions", 1},
-		{"Purchase Orders", "file-text", "/purchase/orders", 2},
+		{"Requisitions", "clipboard-list", "/purchase/purchase-requisitions", 1},
+		{"Purchase Orders", "file-text", "/purchase/purchase-orders", 2},
 		{"Goods Receipt", "package", "/purchase/goods-receipt", 3},
-		{"Supplier Invoices", "receipt", "/purchase/invoices", 4},
+		{"Supplier Invoices", "receipt", "/purchase/supplier-invoices", 4},
+		{"Supplier Invoice Down Payments", "receipt", "/purchase/supplier-invoice-down-payments", 5},
+		{"Payments", "credit-card", "/purchase/payments", 6},
 	}
 	for _, child := range purchaseChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &purchaseMenu.ID, child.order); err != nil {
@@ -425,10 +427,11 @@ func SeedMenus() error {
 	}{
 		{"Attendance", "clock", "/hrd/attendance", 1},
 		{"Leave Requests", "calendar", "/hrd/leave-requests", 2},
+		{"Overtime", "clock-arrow-up", "/hrd/overtime", 3},
 		{"Evaluation", "star", "/hrd/evaluation", 5},
 		{"Recruitment", "user-plus", "/hrd/recruitment", 6},
-		{"Work Schedule", "calendar", "/hrd/work-schedule", 7},
-		{"Holidays", "calendar", "/hrd/holidays", 8},
+		{"Work Schedule", "calendar-days", "/hrd/work-schedule", 7},
+		{"Holidays", "calendar-check", "/hrd/holidays", 8},
 	}
 	for _, child := range hrdChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &hrdMenu.ID, child.order); err != nil {
@@ -484,6 +487,46 @@ func SeedMenus() error {
 
 // UpdateMenuStructure updates existing menu structure (migration helper)
 func UpdateMenuStructure() error {
-	log.Println("Menu structure update completed (no changes needed for fresh seed)")
+	log.Println("Updating menu structure (migration helper)...")
+
+	type urlMigration struct {
+		oldURL string
+		newURL string
+	}
+
+	// Keep this list small and surgical: only known historical paths.
+	migrations := []urlMigration{
+		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
+		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
+	}
+
+	for _, m := range migrations {
+		var oldMenu permission.Menu
+		if err := database.DB.Where("url = ?", m.oldURL).First(&oldMenu).Error; err != nil {
+			continue
+		}
+
+		var newMenu permission.Menu
+		if err := database.DB.Where("url = ?", m.newURL).First(&newMenu).Error; err == nil {
+			// Target already exists; keep the old row but inactivate it to avoid confusion.
+			if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
+				"status": "inactive",
+			}).Error; err != nil {
+				return err
+			}
+			log.Printf("Menu URL migration skipped (target exists): %s -> %s", m.oldURL, m.newURL)
+			continue
+		}
+
+		if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
+			"url":    m.newURL,
+			"status": "active",
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Migrated menu URL: %s -> %s", m.oldURL, m.newURL)
+	}
+
+	log.Println("Menu structure update completed")
 	return nil
 }

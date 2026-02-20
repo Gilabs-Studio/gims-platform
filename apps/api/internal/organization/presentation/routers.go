@@ -14,6 +14,7 @@ import (
 // RegisterRoutes registers all organization domain routes
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
+	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	// Initialize repositories
 	divisionRepo := repositories.NewDivisionRepository(db)
@@ -21,7 +22,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	businessUnitRepo := repositories.NewBusinessUnitRepository(db)
 	businessTypeRepo := repositories.NewBusinessTypeRepository(db)
 	areaRepo := repositories.NewAreaRepository(db)
-	areaSupervisorRepo := repositories.NewAreaSupervisorRepository(db)
 	companyRepo := repositories.NewCompanyRepository(db)
 	employeeRepo := repositories.NewEmployeeRepository(db)
 	employeeAreaRepo := repositories.NewEmployeeAreaRepository(db)
@@ -31,10 +31,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	jobPositionUC := usecase.NewJobPositionUsecase(jobPositionRepo)
 	businessUnitUC := usecase.NewBusinessUnitUsecase(businessUnitRepo)
 	businessTypeUC := usecase.NewBusinessTypeUsecase(businessTypeRepo)
-	areaUC := usecase.NewAreaUsecase(areaRepo)
-	areaSupervisorUC := usecase.NewAreaSupervisorUsecase(areaSupervisorRepo, areaRepo)
+	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
+	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)
@@ -42,7 +42,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	businessUnitH := handler.NewBusinessUnitHandler(businessUnitUC)
 	businessTypeH := handler.NewBusinessTypeHandler(businessTypeUC)
 	areaH := handler.NewAreaHandler(areaUC)
-	areaSupervisorH := handler.NewAreaSupervisorHandler(areaSupervisorUC)
 	companyH := handler.NewCompanyHandler(companyUC)
 	employeeH := handler.NewEmployeeHandler(employeeUC)
 
@@ -56,7 +55,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterBusinessUnitRoutes(group, businessUnitH)
 	router.RegisterBusinessTypeRoutes(group, businessTypeH)
 	router.RegisterAreaRoutes(group, areaH)
-	router.RegisterAreaSupervisorRoutes(group, areaSupervisorH)
 	router.RegisterCompanyRoutes(group, companyH)
 	router.RegisterEmployeeRoutes(group, employeeH)
 }

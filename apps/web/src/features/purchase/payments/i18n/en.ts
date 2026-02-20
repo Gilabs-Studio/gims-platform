@@ -1,0 +1,72 @@
+export const purchasePaymentEn = {
+  title: "Payments",
+  description: "Manage payments for supplier invoices.",
+  search: "Search by reference, notes, method...",
+  toast: {
+    created: "Payment created",
+    confirmed: "Payment confirmed",
+    deleted: "Payment deleted",
+    failed: "Something went wrong",
+  },
+  actions: {
+    create: "Create",
+    export: "Export",
+    confirm: "Confirm",
+    view: "View",
+    auditTrail: "Audit Trail",
+    delete: "Delete",
+  },
+  status: {
+    pending: "Pending",
+    confirmed: "Confirmed",
+  },
+  method: {
+    bank: "Bank",
+    cash: "Cash",
+  },
+  form: {
+    title: "Create Payment",
+    submit: "Save",
+    cancel: "Cancel",
+  },
+  fields: {
+    invoice: "Invoice",
+    bankAccount: "Bank Account",
+    paymentDate: "Payment Date",
+    amount: "Amount",
+    method: "Method",
+    status: "Status",
+    referenceNumber: "Reference Number",
+    notes: "Notes",
+  },
+  placeholders: {
+    select: "Select...",
+  },
+  overview: {
+    title: "Invoice Overview",
+    invoiceNumber: "Invoice Number",
+    purchaseOrder: "Purchase Order",
+    invoiceDate: "Invoice Date",
+    dueDate: "Due Date",
+    amount: "Invoice Amount",
+    status: "Status",
+  },
+  auditTrail: {
+    title: "Audit Trail",
+    empty: "No audit trail entries",
+    columns: {
+      action: "Action",
+      user: "User",
+      time: "Time",
+      details: "Details",
+    },
+    actions: {
+      create: "Create",
+      delete: "Delete",
+      confirm: "Confirm",
+      export: "Export",
+      view: "View",
+      auditTrail: "Audit Trail",
+    },
+  },
+};

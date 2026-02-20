@@ -18,13 +18,16 @@ interface AttendanceCalendarProps {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const STATUS_DOT_COLORS = {
+const STATUS_DOT_COLORS: Record<string, string> = {
   PRESENT: "bg-emerald-500",
   LATE: "bg-amber-500",
   ABSENT: "bg-red-500",
   LEAVE: "bg-blue-500",
   HALF_DAY: "bg-violet-500",
-} as const;
+  HOLIDAY: "bg-teal-500",
+  WFH: "bg-cyan-500",
+  OFF_DAY: "bg-gray-400",
+};
 
 export function AttendanceCalendar({
   currentDate,
@@ -168,7 +171,7 @@ export function AttendanceCalendar({
                           <div
                             className={cn(
                               "h-2 w-2 rounded-full",
-                              STATUS_DOT_COLORS[status as keyof typeof STATUS_DOT_COLORS]
+                              STATUS_DOT_COLORS[status] ?? "bg-gray-300"
                             )}
                           />
                           {count > 1 && (

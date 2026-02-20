@@ -1,0 +1,121 @@
+export const educationHistoryId = {
+  educationHistory: {
+    // Common
+    common: {
+      educationHistory: "Riwayat Pendidikan",
+      educationHistories: "Riwayat Pendidikan",
+      actions: "Aksi",
+      search: "Cari...",
+      filterBy: "Filter berdasarkan",
+      noResults: "Tidak ada hasil ditemukan",
+      error: "Gagal memuat data",
+      loading: "Memuat...",
+      save: "Simpan",
+      cancel: "Batal",
+      delete: "Hapus",
+      update: "Perbarui",
+      create: "Buat",
+      saving: "Menyimpan...",
+      edit: "Ubah",
+      view: "Lihat",
+      confirmDelete: "Apakah Anda yakin ingin menghapus riwayat pendidikan ini?",
+      deleteWarning: "Tindakan ini tidak dapat dibatalkan.",
+      page: "Halaman",
+      of: "dari",
+      total: "total",
+      previous: "Sebelumnya",
+      next: "Selanjutnya",
+      back: "Kembali",
+      validationError: "Silakan perbaiki field yang ditandai",
+      basicInfo: "Informasi Dasar",
+      select: "Pilih",
+      selectDate: "Pilih tanggal",
+      validating: "Memvalidasi...",
+      completed: "Selesai",
+      ongoing: "Sedang Berlangsung",
+    },
+
+    // Education History
+    title: "Riwayat Pendidikan",
+    subtitle: "Kelola riwayat pendidikan karyawan dari tingkat SD hingga doktoral",
+    employee: "Karyawan",
+    institution: "Institusi",
+    degree: "Tingkat Pendidikan",
+    fieldOfStudy: "Bidang Studi",
+    startDate: "Tanggal Mulai",
+    endDate: "Tanggal Selesai",
+    gpa: "IPK",
+    description: "Deskripsi",
+    documentPath: "Path Dokumen",
+    isCompleted: "Status",
+    durationYears: "Durasi (Tahun)",
+    search: "Cari riwayat pendidikan...",
+    add: "Tambah Riwayat Pendidikan",
+    edit: "Ubah Riwayat Pendidikan",
+    delete: "Hapus Riwayat Pendidikan",
+    notFound: "Tidak ada riwayat pendidikan ditemukan",
+    created: "Riwayat pendidikan berhasil dibuat",
+    updated: "Riwayat pendidikan berhasil diperbarui",
+    deleted: "Riwayat pendidikan berhasil dihapus",
+    deleteDesc:
+      "Apakah Anda yakin ingin menghapus data riwayat pendidikan ini? Tindakan ini tidak dapat dibatalkan.",
+
+    // Degree Levels
+    degrees: {
+      ELEMENTARY: "Sekolah Dasar",
+      JUNIOR_HIGH: "Sekolah Menengah Pertama",
+      SENIOR_HIGH: "Sekolah Menengah Atas",
+      DIPLOMA: "Diploma (D1/D2/D3)",
+      BACHELOR: "Sarjana (S1)",
+      MASTER: "Magister (S2)",
+      DOCTORATE: "Doktor (S3)",
+    },
+
+    // Filters
+    filters: {
+      allDegrees: "Semua Tingkat",
+      selectDegree: "Pilih tingkat pendidikan",
+      selectEmployee: "Pilih karyawan",
+      allEmployees: "Semua Karyawan",
+    },
+
+    // Validation
+    validation: {
+      required: "Field ini wajib diisi",
+      invalidId: "Format ID tidak valid",
+      maxLength: "Panjang maksimal terlampaui",
+      gpaMin: "IPK tidak boleh negatif",
+      gpaMax: "IPK tidak boleh melebihi 4.0",
+      endDateAfterStart: "Tanggal selesai harus setelah tanggal mulai",
+    },
+
+    // Details
+    details: {
+      title: "Detail Riwayat Pendidikan",
+      employeeInfo: "Informasi Karyawan",
+      educationInfo: "Informasi Pendidikan",
+      documentInfo: "Informasi Dokumen",
+      timeline: "Timeline",
+      noDocument: "Tidak ada dokumen diunggah",
+      viewProfile: "Lihat Profil",
+      employeeCode: "Kode Karyawan",
+      email: "Email",
+      phone: "Telepon",
+      position: "Posisi",
+      department: "Departemen",
+      downloadDocument: "Unduh Dokumen",
+    },
+
+    // Form
+    form: {
+      selectEmployee: "Pilih karyawan",
+      selectDegree: "Pilih tingkat pendidikan",
+      institutionPlaceholder: "Masukkan nama institusi",
+      fieldOfStudyPlaceholder: "Masukkan bidang studi (opsional)",
+      gpaPlaceholder: "Masukkan IPK (0-4.0)",
+      descriptionPlaceholder: "Masukkan deskripsi (opsional)",
+      documentPathPlaceholder: "Masukkan path dokumen (opsional)",
+      ongoing: "Pendidikan ini masih berlangsung",
+    },
+  },
+};

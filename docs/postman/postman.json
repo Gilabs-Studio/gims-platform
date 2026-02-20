@@ -1,10 +1,10 @@
 {
-  "info": {
-    "name": "Enterprise API Template",
-    "description": "Enterprise-level API with optimized RBAC and response structure",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "postman"
-  },
+	"info": {
+		"name": "Enterprise API Template",
+		"description": "Enterprise-level API with optimized RBAC and response structure",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "postman"
+	},
 	"item": [
 		{
 			"name": "Auth",
@@ -45,12 +45,13 @@
 							"script": {
 								"exec": [
 									"// Extract CSRF token from cookies",
-									"const cookie = pm.cookies.get(\"csrf_token\");",
+									"const cookie = pm.cookies.get(\"gims_csrf_token\");",
 									"if (cookie) {",
 									"    pm.environment.set(\"csrf_token\", cookie);",
-									"    console.log(\"CSRF Token extracted:\", cookie);",
+									"    console.log(\"✅ CSRF Token extracted:\", cookie);",
+									"    console.log(\"You can now call the Login endpoint.\");",
 									"} else {",
-									"    console.warn(\"CSRF Cookie not found\");",
+									"    console.warn(\"⚠️ CSRF Cookie not found. Check if CSRF middleware is enabled.\");",
 									"}"
 								],
 								"type": "text/javascript"
@@ -76,6 +77,25 @@
 				{
 					"name": "Auth Login",
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Extract CSRF token from cookies",
+									"const csrfToken = pm.cookies.get(\"gims_csrf_token\");",
+									"",
+									"if (csrfToken) {",
+									"    // Set CSRF token in environment for header usage",
+									"    pm.environment.set(\"csrf_token\", csrfToken);",
+									"    console.log(\"CSRF Token extracted from cookie:\", csrfToken);",
+									"} else {",
+									"    console.warn(\"⚠️ CSRF token not found in cookies.\");",
+									"    console.warn(\"Please call 'Get CSRF Token' endpoint first to initialize CSRF cookie.\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
@@ -105,12 +125,8 @@
 							{
 								"key": "X-CSRF-Token",
 								"value": "{{csrf_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Cookie",
-								"value": "csrf_token={{csrf_token}}",
-								"type": "text"
+								"type": "text",
+								"description": "CSRF token extracted from gims_csrf_token cookie"
 							}
 						],
 						"body": {
@@ -267,6 +283,90 @@
 							]
 						},
 						"description": "Logout from current device or all devices.\n\n**Request Body:**\n- `refresh_token`: Current refresh token to revoke\n- `all_devices`: Set to `true` to logout from all devices"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Upload",
+			"description": "File upload endpoints for images and documents with security validation",
+			"item": [
+				{
+					"name": "Upload Image",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						},
+						"description": "Upload image file with automatic WebP conversion and validation.\n\n**Allowed Types:** JPEG, PNG, GIF, WebP\n**Max Size:** 10MB (configurable)\n**Security Features:**\n- Magic bytes validation (not just extension)\n- Automatic WebP conversion for optimization\n- UUID-based filename (prevents path traversal)\n- No execute permissions on uploaded files\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"filename\": \"550e8400-e29b-41d4-a716-446655440000.webp\",\n    \"original_name\": \"photo.jpg\",\n    \"url\": \"/uploads/550e8400-e29b-41d4-a716-446655440000.webp\",\n    \"size\": 245678,\n    \"mime_type\": \"image/webp\"\n  },\n  \"meta\": null,\n  \"timestamp\": \"2026-02-07T10:30:45+07:00\",\n  \"request_id\": \"req_abc123\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/document",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"document"
+							]
+						},
+						"description": "Upload document file (PDF, Word, Excel) with security validation.\n\n**Allowed Types:** PDF, DOC, DOCX, XLS, XLSX\n**Max Size:** 10MB (configurable)\n**Security Features:**\n- Magic bytes validation (not just extension)\n- UUID-based filename (prevents path traversal)\n- No execute permissions on uploaded files\n- Path traversal prevention\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"filename\": \"550e8400-e29b-41d4-a716-446655440000.pdf\",\n    \"original_name\": \"employee_contract.pdf\",\n    \"url\": \"/uploads/550e8400-e29b-41d4-a716-446655440000.pdf\",\n    \"size\": 1245678,\n    \"mime_type\": \"application/pdf\"\n  },\n  \"meta\": null,\n  \"timestamp\": \"2026-02-07T10:30:45+07:00\",\n  \"request_id\": \"req_abc123\"\n}\n```\n\n**Error Responses:**\n- `INVALID_FILE_TYPE`: File type not allowed\n- `FILE_TOO_LARGE`: File exceeds maximum size\n- `INVALID_REQUEST`: No file provided"
 					},
 					"response": []
 				}
@@ -961,6 +1061,4339 @@
 						"description": "Returns permissions grouped by module for UI rendering.\n\n**Response:**\n```json\n{\n  \"user\": [\"read\", \"write\", \"manage\"],\n  \"role\": [\"read\", \"write\", \"manage\"],\n  \"deal\": [\"read\", \"write\", \"manage\", \"approve\", \"export\"]\n}\n```"
 					},
 					"response": []
+				}
+			]
+		},
+		{
+			"name": "HRD",
+			"description": "HRD management endpoints including attendance, leave request, employee documents, evaluations, recruitment, work schedules, and hollidays management.",
+			"item": [
+				{
+					"name": "Attendance",
+					"description": "Employee attendance tracking with GPS validation",
+					"item": [
+						{
+							"name": "Get Today's Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/today",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"today"
+									]
+								},
+								"description": "Get current day's attendance status for the authenticated user.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"has_checked_in\": true,\n    \"has_checked_out\": false,\n    \"attendance_record\": {...},\n    \"work_schedule\": {...},\n    \"is_working_day\": true,\n    \"is_holiday\": false,\n    \"current_server_time\": \"2024-01-15T08:30:00+07:00\"\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Clock In",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"check_in_type\": \"NORMAL\",\n  \"latitude\": -6.2088,\n  \"longitude\": 106.8456,\n  \"address\": \"Jl. Sudirman No. 1, Jakarta\",\n  \"note\": \"On time\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/clock-in",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"clock-in"
+									]
+								},
+								"description": "Clock in with GPS coordinates. GPS is validated against work schedule office location.\n\n**Check-In Types:**\n- `NORMAL` - Regular office (GPS validated)\n- `WFH` - Work from Home (no GPS validation)\n- `FIELD_WORK` - Field work (GPS logged but not validated)\n\n**Error Codes:**\n- `ATTENDANCE_ALREADY_CLOCKED_IN` - Already clocked in today\n- `ATTENDANCE_GPS_OUT_OF_RANGE` - Outside allowed GPS radius\n- `ATTENDANCE_HOLIDAY` - Today is a holiday"
+							},
+							"response": []
+						},
+						{
+							"name": "Clock Out",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"latitude\": -6.2088,\n  \"longitude\": 106.8456,\n  \"address\": \"Jl. Sudirman No. 1, Jakarta\",\n  \"note\": \"Completed all tasks\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/clock-out",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"clock-out"
+									]
+								},
+								"description": "Clock out with GPS coordinates. Auto-creates overtime request if working past schedule end time.\n\n**Note:** If clock out time exceeds schedule end time by more than 30 minutes, an overtime request is automatically created with type `AUTO_DETECTED`."
+							},
+							"response": []
+						},
+						{
+							"name": "Get My Monthly Stats",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/my-stats?year=2024&month=1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"my-stats"
+									],
+									"query": [
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "month",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get monthly attendance statistics for the authenticated user.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"present_days\": 20,\n    \"absent_days\": 1,\n    \"late_days\": 2,\n    \"leave_days\": 1,\n    \"total_working_hours\": \"168h 30m\",\n    \"total_overtime_hours\": \"12h 0m\",\n    \"attendance_percentage\": 95.5\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "List Attendance Records",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance?page=1&per_page=20&date_from=2024-01-01&date_to=2024-01-31",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by employee name or code",
+											"disabled": true
+										},
+										{
+											"key": "date_from",
+											"value": "2024-01-01"
+										},
+										{
+											"key": "date_to",
+											"value": "2024-01-31"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "LATE",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List attendance records with filters. Requires `attendance.read` permission. Responses are enriched with employee_name, employee_code, and division_name.\n\n**Filters:**\n- `search` - Search by employee name or employee code\n- `employee_id` - Filter by employee\n- `status` - PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY\n- `check_in_type` - NORMAL, WFH, FIELD_WORK\n- `date_from`, `date_to` - Date range\n- `is_late` - Filter late arrivals"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Attendance Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"form-data"
+									]
+								},
+								"description": "Get form data for attendance management forms. Returns employees, divisions, work schedules, check-in types, and attendance statuses. Requires `attendance.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [{\"id\": \"uuid\", \"employee_code\": \"EMP001\", \"name\": \"John Doe\"}],\n    \"divisions\": [{\"id\": \"uuid\", \"name\": \"IT Division\"}],\n    \"work_schedules\": [{\"id\": \"uuid\", \"name\": \"Standard Office Hours\", \"start_time\": \"08:00\", \"end_time\": \"17:00\", \"is_default\": true}],\n    \"check_in_types\": [{\"value\": \"NORMAL\", \"label\": \"Normal\"}, {\"value\": \"WFH\", \"label\": \"Work From Home\"}, {\"value\": \"FIELD_WORK\", \"label\": \"Field Work\"}],\n    \"statuses\": [{\"value\": \"PRESENT\", \"label\": \"Present\"}, {\"value\": \"LATE\", \"label\": \"Late\"}, ...]\n  }\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` - Missing attendance.read permission\n- `INTERNAL_ERROR` - Server error"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Attendance By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Get attendance record by ID. Requires `attendance.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Manual Entry",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"date\": \"2024-01-15\",\n  \"check_in_time\": \"08:00\",\n  \"check_out_time\": \"17:00\",\n  \"check_in_type\": \"NORMAL\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Manual entry for missed clock-in\",\n  \"reason\": \"Employee forgot to clock in due to urgent meeting (optional)\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/manual",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										"manual"
+									]
+								},
+								"description": "Create manual attendance entry. Requires `attendance.create` permission. The `reason` field is optional.\n\n**Use Cases:**\n- Employee forgot to clock in\n- System was down\n- Correction of incorrect records"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"check_out_time\": \"18:00\",\n  \"status\": \"PRESENT\",\n  \"notes\": \"Updated clock out time\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Update attendance record. Requires `attendance.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Attendance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/attendance/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"attendance",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{attendance_id}}"
+										}
+									]
+								},
+								"description": "Delete attendance record. Requires `attendance.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Work Schedules",
+					"description": "Work schedule configuration with GPS and flexible hours",
+					"item": [
+						{
+							"name": "List Work Schedules",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "is_active",
+											"value": "true",
+											"disabled": true
+										},
+										{
+											"key": "division_id",
+											"value": "{{division_id}}",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List work schedules. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Default Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/default",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										"default"
+									]
+								},
+								"description": "Get the default work schedule. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Work Schedule By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Get work schedule by ID. Requires `work_schedule.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Standard Office Hours\",\n  \"description\": \"Regular 9-to-5 office schedule\",\n  \"division_id\": null,\n  \"is_default\": true,\n  \"is_active\": true,\n  \"start_time\": \"08:00\",\n  \"end_time\": \"17:00\",\n  \"is_flexible\": false,\n  \"break_start_time\": \"12:00\",\n  \"break_end_time\": \"13:00\",\n  \"break_duration\": 60,\n  \"working_days\": 31,\n  \"working_hours_per_day\": 8,\n  \"late_tolerance_minutes\": 15,\n  \"early_leave_tolerance_minutes\": 10,\n  \"require_gps\": true,\n  \"gps_radius_meter\": 100,\n  \"office_latitude\": -6.2088,\n  \"office_longitude\": 106.8456\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules"
+									]
+								},
+								"description": "Create work schedule. Requires `work_schedule.create` permission.\n\n**Working Days Bitmask:**\n- Monday = 1\n- Tuesday = 2\n- Wednesday = 4\n- Thursday = 8\n- Friday = 16\n- Saturday = 32\n- Sunday = 64\n- Mon-Fri = 31 (1+2+4+8+16)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Schedule Name\",\n  \"late_tolerance_minutes\": 10,\n  \"gps_radius_meter\": 150\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Update work schedule. Requires `work_schedule.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Work Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Delete work schedule. Requires `work_schedule.delete` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Set Default Schedule",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/work-schedules/:id/set-default",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"work-schedules",
+										":id",
+										"set-default"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{work_schedule_id}}"
+										}
+									]
+								},
+								"description": "Set work schedule as default. Requires `work_schedule.update` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Holidays",
+					"description": "Holiday management with calendar view",
+					"item": [
+						{
+							"name": "List Holidays",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays?page=1&per_page=50&year=2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "50"
+										},
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "type",
+											"value": "NATIONAL",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List holidays with filters. Requires `holiday.read` permission.\n\n**Types:**\n- `NATIONAL` - Government holidays\n- `COLLECTIVE` - Cuti Bersama\n- `COMPANY` - Company-specific"
+							},
+							"response": []
+						},
+						{
+							"name": "Check Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/check?date=2024-01-01",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"check"
+									],
+									"query": [
+										{
+											"key": "date",
+											"value": "2024-01-01"
+										}
+									]
+								},
+								"description": "Check if a specific date is a holiday. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holidays By Year",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/year/2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"year",
+										"2024"
+									]
+								},
+								"description": "Get all holidays for a specific year. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holiday Calendar",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/calendar/2024",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"calendar",
+										"2024"
+									]
+								},
+								"description": "Get holidays grouped by month for calendar view. Requires `holiday.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"year\": 2024,\n    \"holidays\": {\n      \"2024-01\": [{\"date\": \"2024-01-01\", \"name\": \"New Year\"}],\n      \"2024-08\": [{\"date\": \"2024-08-17\", \"name\": \"Independence Day\"}]\n    }\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Holiday By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Get holiday by ID. Requires `holiday.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"date\": \"2024-12-25\",\n  \"name\": \"Christmas Day\",\n  \"description\": \"National Christmas Holiday\",\n  \"type\": \"NATIONAL\",\n  \"is_collective_leave\": false,\n  \"cuts_annual_leave\": false,\n  \"is_recurring\": true,\n  \"is_active\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays"
+									]
+								},
+								"description": "Create a holiday. Requires `holiday.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Holidays Batch",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"date\": \"2024-01-01\",\n    \"name\": \"Tahun Baru 2024\",\n    \"type\": \"NATIONAL\",\n    \"is_active\": true\n  },\n  {\n    \"date\": \"2024-08-17\",\n    \"name\": \"Hari Kemerdekaan RI\",\n    \"type\": \"NATIONAL\",\n    \"is_recurring\": true,\n    \"is_active\": true\n  },\n  {\n    \"date\": \"2024-12-26\",\n    \"name\": \"Cuti Bersama Natal\",\n    \"type\": \"COLLECTIVE\",\n    \"is_collective_leave\": true,\n    \"cuts_annual_leave\": true,\n    \"is_active\": true\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/batch",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										"batch"
+									]
+								},
+								"description": "Create multiple holidays at once. Requires `holiday.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Holiday Name\",\n  \"description\": \"Updated description\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Update holiday. Requires `holiday.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Holiday",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/holidays/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"holidays",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{holiday_id}}"
+										}
+									]
+								},
+								"description": "Delete holiday. Requires `holiday.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Overtime",
+					"description": "Overtime request and approval management",
+					"item": [
+						{
+							"name": "Submit Overtime Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"date\": \"2024-01-15\",\n  \"start_time\": \"17:00\",\n  \"end_time\": \"20:00\",\n  \"reason\": \"Complete urgent client deliverable\",\n  \"description\": \"Need to finish the quarterly report before deadline\",\n  \"task_details\": \"1. Finalize report data\\n2. Create presentation\\n3. Send to client\",\n  \"request_type\": \"MANUAL_CLAIM\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime"
+									]
+								},
+								"description": "Submit overtime request. No special permission required (self-service).\n\n**Request Types:**\n- `AUTO_DETECTED` - Created by system on clock out\n- `MANUAL_CLAIM` - Employee manual request\n- `PRE_APPROVED` - Pre-planned overtime"
+							},
+							"response": []
+						},
+						{
+							"name": "Get My Overtime Summary",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/my-summary?year=2024&month=1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"my-summary"
+									],
+									"query": [
+										{
+											"key": "year",
+											"value": "2024"
+										},
+										{
+											"key": "month",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get own monthly overtime summary. No special permission required.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total_requested_minutes\": 600,\n    \"total_approved_minutes\": 480,\n    \"pending_requests\": 2,\n    \"approved_requests\": 8,\n    \"rejected_requests\": 1\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Cancel Overtime Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/cancel",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"cancel"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Cancel own pending overtime request. Only works for requests with status `PENDING`."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Pending Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/pending?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"pending"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get pending overtime requests for approval. Requires `overtime.approve` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"approved_minutes\": 180\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/approve",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Approve overtime request. Requires `overtime.approve` permission.\n\n**Note:** Manager can adjust approved minutes if needed."
+							},
+							"response": []
+						},
+						{
+							"name": "Reject Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Overtime not approved - task can be completed during regular hours\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id/reject",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Reject overtime request with reason. Requires `overtime.approve` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "List Overtime Requests",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime?page=1&per_page=20&status=APPROVED",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "APPROVED"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "request_type",
+											"value": "MANUAL_CLAIM",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List all overtime requests with filters. Requires `overtime.read` permission.\n\n**Status Filter:**\n- `PENDING` - Awaiting approval\n- `APPROVED` - Approved by manager\n- `REJECTED` - Rejected\n- `CANCELED` - Canceled by employee"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Overtime By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Get overtime request by ID. Requires `overtime.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"start_time\": \"17:30\",\n  \"end_time\": \"21:00\",\n  \"reason\": \"Updated reason\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Update overtime request. Requires `overtime.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Overtime",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{overtime_id}}"
+										}
+									]
+								},
+								"description": "Delete overtime request. Requires `overtime.delete` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Overtime Notifications (Polling)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/overtime/notifications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"overtime",
+										"notifications"
+									]
+								},
+								"description": "Get pending overtime notifications for polling. Requires `overtime.approve` permission.\n\nUsed by frontend to show notification badge for pending approvals."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Leave Requests",
+					"description": "Leave request management with approval workflow and balance tracking",
+					"item": [
+						{
+							"name": "Submit Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"leave_type_id\": \"{{leave_type_id}}\",\n  \"start_date\": \"2026-02-10\",\n  \"end_date\": \"2026-02-12\",\n  \"duration\": \"MULTI_DAY\",\n  \"reason\": \"Family vacation - Need to attend family gathering\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests"
+									]
+								},
+								"description": "Submit leave request. No special permission required (self-service).\n\n**Validations:**\n- Working days calculation (excludes weekends & holidays)\n- Balance check (if leave type cuts annual leave)\n- Overlap detection (no pending requests for same dates)\n\n**Error Codes:**\n- `INSUFFICIENT_LEAVE_BALANCE` (422) - Not enough quota\n- `OVERLAPPING_LEAVE_REQUEST` (409) - Pending request exists\n- `LEAVE_TYPE_NOT_FOUND` (404) - Invalid leave type\n- `INVALID_DATE_RANGE` (400) - start_date > end_date or no working days"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Employee Leave Balance",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/balance/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										"balance",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}"
+										}
+									]
+								},
+								"description": "Get leave balance for an employee. IDOR protected (only own balance or with approval permission).\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employee_id\": \"770e8400-e29b-41d4-a716-446655440003\",\n    \"total_quota\": 12,\n    \"used_days\": 5,\n    \"remaining_balance\": 7,\n    \"carry_over_balance\": 0,\n    \"total_available_leave\": 7,\n    \"pending_requests_days\": 3\n  }\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										"form-data"
+									]
+								},
+								"description": "Get dropdown data for leave request form (employees with codes and balances, leave types). Requires `leave.read` permission.\n\n**Use Case:** Populate dropdowns in leave request form and display available balance for each employee.\n\n**Changes (v2.0):**\n- Added `employee_code` field to employee objects\n- Removed `email` field from employee objects\n- Added `remaining_balance` field to each employee object (total_quota - used_leave)\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n        \"name\": \"John Doe\",\n        \"employee_code\": \"EMP001\",\n        \"remaining_balance\": 7.0\n      },\n      {\n        \"id\": \"770e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Jane Smith\",\n        \"employee_code\": \"EMP002\",\n        \"remaining_balance\": 12.0\n      }\n    ],\n    \"leave_types\": [\n      {\n        \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n        \"name\": \"Annual Leave\",\n        \"code\": \"AL\",\n        \"max_days\": 12\n      }\n    ]\n  }\n}\n```\n\n**Note:** Each employee includes their `remaining_balance` for easy reference when creating leave requests."
+							},
+							"response": []
+						},
+						{
+							"name": "List Leave Requests",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests?page=1&per_page=20&status=pending",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "pending"
+										},
+										{
+											"key": "search",
+											"value": "john",
+											"description": "Search by employee name, leave type, or reason (case-insensitive)",
+											"disabled": true
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										},
+										{
+											"key": "leave_type_id",
+											"value": "{{leave_type_id}}",
+											"disabled": true
+										},
+										{
+											"key": "start_date_from",
+											"value": "2024-01-01",
+											"disabled": true
+										},
+										{
+											"key": "start_date_to",
+											"value": "2024-12-31",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List leave requests with filters. Requires `leave.read` permission.\n\n**Filters:**\n- `search` - Search by employee name, leave type, or reason (NEW - uses GIN indexes)\n- `employee_id` - Filter by employee (optional)\n- `status` - PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)\n- `start_date` - Filter by start date (YYYY-MM-DD)\n- `end_date` - Filter by end date (YYYY-MM-DD)\n\n**Pagination:**\n- Max `per_page`: 100 (enforced)\n- Default: 20\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"employee_name\": \"John Doe\",\n      \"leave_type\": \"Annual Leave\",\n      \"start_date\": \"2026-02-10\",\n      \"end_date\": \"2026-02-12\",\n      \"duration\": \"MULTI_DAY\",\n      \"total_days\": 3.0,\n      \"status\": \"PENDING\",\n      \"note\": \"Family vacation\",\n      \"created_at\": \"2026-02-04T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-04T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3\n    }\n  }\n}\n```\n\n**Note:** Response now includes `employee_name` and `leave_type` strings instead of IDs for better readability."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Leave Request By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Get leave request by ID with full details. Requires `leave_request.read` permission or own request.\n\n**IDOR Protection:** Employee can only view own requests unless has `leave_request.read` permission.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"770e8400-e29b-41d4-a716-446655440003\",\n      \"name\": \"John Doe\",\n      \"email\": \"john@example.com\",\n      \"phone\": \"08123456789\",\n      \"employee_code\": \"EMP-001\"\n    },\n    \"leave_type\": {\n      \"id\": \"880e8400-e29b-41d4-a716-446655440004\",\n      \"name\": \"Annual Leave\",\n      \"code\": \"AL\",\n      \"description\": \"Annual paid leave\",\n      \"max_days\": 12,\n      \"is_paid\": true,\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"APPROVED\",\n    \"note\": \"Family vacation\",\n    \"rejection_note\": null,\n    \"approved_by\": \"990e8400-e29b-41d4-a716-446655440005\",\n    \"approved_at\": \"2026-02-05T14:30:00+07:00\",\n    \"is_carry_over\": false,\n    \"remaining_carry_over\": 0.0,\n    \"carry_over_expiry_date\": null,\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_by\": \"770e8400-e29b-41d4-a716-446655440003\",\n    \"updated_by\": \"990e8400-e29b-41d4-a716-446655440005\"\n  }\n}\n```\n\n**Note:** Response now includes full nested `employee` and `leave_type` objects instead of just IDs."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Updated reason - Family event\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Update leave request. Only requester can update and only if status is `pending`.\n\n**Partial Update:** All fields optional. Only provided fields will be updated.\n\n**Restrictions:**\n- Only status `pending` can be updated\n- Only requester can update (IDOR protection)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Delete leave request (soft delete). Only requester can delete and only if status is `pending`.\n\n**Soft Delete:** Record is marked as deleted but retained for audit trail.\n\n**Restrictions:**\n- Only status `pending` can be deleted\n- Only requester can delete (IDOR protection)"
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"approval_notes\": \"Approved - team coverage arranged\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/approve",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Approve leave request. Requires `leave_request.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets approved_by, approved_at\n- Leave balance is NOT deducted here (real-time calculation)\n\n**Restrictions:**\n- Only status `pending` can be approved\n- Cannot approve own request (self-approval prevention)\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-approval attempt or no permission\n- `CANNOT_APPROVE_NON_PENDING` (400) - Status not pending"
+							},
+							"response": []
+						},
+						{
+							"name": "Reject Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"rejection_notes\": \"Insufficient team coverage during requested period\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/reject",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Reject leave request with reason. Requires `leave.approve` permission.\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE)\n- Sets rejected_by, rejected_at\n- rejection_notes is REQUIRED (min 10 characters)\n\n**Restrictions:**\n- Only status `pending` can be rejected\n- Cannot reject own request\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Self-rejection attempt or no permission\n- `VALIDATION_ERROR` (400) - rejection_notes missing or too short"
+							},
+							"response": []
+						},
+						{
+							"name": "Cancel Leave Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"cancellation_note\": \"Employee changed vacation plans\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/leave-requests/:id/cancel",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"leave-requests",
+										":id",
+										"cancel"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{leave_request_id}}"
+										}
+									]
+								},
+								"description": "Cancel a leave request. Requires `leave.approve` permission (only HR/approvers can cancel).\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets status to CANCELLED, records cancellation details\n- Frees up leave balance if leave type cuts annual leave\n- cancellation_note is OPTIONAL but recommended for audit trail\n\n**Restrictions:**\n- Only status `PENDING` or `APPROVED` can be cancelled\n- Cannot cancel REJECTED or already CANCELLED requests\n\n**Request Body (Optional):**\n```json\n{\n  \"cancellation_note\": \"Reason for cancellation\"\n}\n```\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"emp123\",\n      \"name\": \"John Doe\",\n      \"employee_code\": \"EMP001\"\n    },\n    \"leave_type\": {\n      \"id\": \"lt456\",\n      \"name\": \"Annual Leave\",\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"CANCELLED\",\n    \"note\": \"Family vacation\",\n    \"cancellation_note\": \"Employee changed vacation plans\",\n    \"cancelled_by\": \"550e8400-e29b-41d4-a716-446655440002\",\n    \"cancelled_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-05T14:30:00+07:00\",\n  \"request_id\": \"req_cancel_456\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - No `leave.approve` permission\n- `NOT_FOUND` (404) - Leave request not found\n- `INVALID_STATUS` (400) - Cannot cancel from current status (must be PENDING or APPROVED)"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Contracts",
+					"description": "Employee contract management with expiry tracking and document management",
+					"item": [
+						{
+							"name": "Create Contract",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"contract_number\": \"CONTRACT-2026-001\",\n  \"contract_type\": \"PERMANENT\",\n  \"start_date\": \"2026-02-01\",\n  \"salary\": 15000000.00,\n  \"job_title\": \"Senior Developer\",\n  \"department\": \"Information Technology\",\n  \"terms\": \"Standard permanent employee contract with full benefits.\",\n  \"document_path\": \"/documents/contracts/contract_2026_001.pdf\",\n  \"status\": \"ACTIVE\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts"
+									]
+								},
+								"description": "Create new employee contract. Requires `employee_contract.create` permission.\n\n**Business Rules:**\n- PERMANENT contracts MUST NOT have `end_date`\n- CONTRACT, INTERNSHIP, PROBATION MUST have `end_date`\n- Contract number must be unique across system\n- Employee must exist in database\n- End date must be after start date\n\n**Request Body:**\n```json\n{\n  \"employee_id\": \"uuid\",\n  \"contract_number\": \"CONTRACT-2026-001\",\n  \"contract_type\": \"PERMANENT|CONTRACT|INTERNSHIP|PROBATION\",\n  \"start_date\": \"2026-02-01\",\n  \"end_date\": \"2027-02-01\",  // Required for non-PERMANENT\n  \"salary\": 15000000.00,\n  \"job_title\": \"Senior Developer\",\n  \"department\": \"IT\",\n  \"terms\": \"Contract terms...\",\n  \"document_path\": \"/path/to/contract.pdf\",\n  \"status\": \"ACTIVE\"\n}\n```\n\n**Validation:**\n- `contract_number`: max 50 chars, required\n- `job_title`: max 100 chars, required\n- `department`: max 100 chars\n- `document_path`: max 255 chars\n- `salary`: greater than 0\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `CONTRACT_NUMBER_EXISTS` (409) - Duplicate contract number\n- `VALIDATION_ERROR` (400) - Invalid date logic or missing required fields"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Contract",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"salary\": 18000000.00,\n  \"job_title\": \"Lead Developer\",\n  \"status\": \"ACTIVE\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{contract_id}}"
+										}
+									]
+								},
+								"description": "Update existing contract. Requires `employee_contract.update` permission.\n\n**All fields optional** - only provide fields you want to update.\n\n**Business Rules:**\n- Same validation as Create (date logic, contract type rules)\n- Contract number uniqueness checked (excluding current contract)\n- Cannot change employee_id (business logic)\n\n**Request Body (all optional):**\n```json\n{\n  \"contract_number\": \"CONTRACT-2026-001-AMENDED\",\n  \"contract_type\": \"PERMANENT\",\n  \"start_date\": \"2026-02-01\",\n  \"end_date\": \"2027-02-01\",\n  \"salary\": 18000000.00,\n  \"job_title\": \"Lead Developer\",\n  \"department\": \"IT\",\n  \"terms\": \"Updated terms...\",\n  \"document_path\": \"/path/to/amended_contract.pdf\",\n  \"status\": \"ACTIVE|EXPIRED|TERMINATED\"\n}\n```\n\n**Error Codes:**\n- `CONTRACT_NOT_FOUND` (404) - Contract doesn't exist\n- `CONTRACT_NUMBER_EXISTS` (409) - Duplicate contract number\n- `VALIDATION_ERROR` (400) - Invalid data"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Contract",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{contract_id}}"
+										}
+									]
+								},
+								"description": "Soft delete contract. Requires `employee_contract.delete` permission.\n\n**Note:** Uses soft delete (sets `deleted_at` timestamp). Contract remains in database for audit trail but won't appear in normal queries.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Contract deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_delete_123\"\n}\n```\n\n**Error Codes:**\n- `CONTRACT_NOT_FOUND` (404) - Contract doesn't exist or already deleted"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Contract By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{contract_id}}"
+										}
+									]
+								},
+								"description": "Get contract details by ID. Requires `employee_contract.read` permission.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"employee\": null,\n    \"contract_number\": \"CONTRACT-2023-001\",\n    \"contract_type\": \"PERMANENT\",\n    \"start_date\": \"2023-01-01\",\n    \"end_date\": null,\n    \"salary\": 15000000.00,\n    \"job_title\": \"System Administrator\",\n    \"department\": \"Information Technology\",\n    \"terms\": \"Standard permanent employee terms...\",\n    \"document_path\": \"/documents/contracts/admin_contract_2023.pdf\",\n    \"status\": \"ACTIVE\",\n    \"is_expiring_soon\": false,\n    \"days_until_expiry\": null,\n    \"created_at\": \"2023-01-01T08:00:00+07:00\",\n    \"updated_at\": \"2023-01-01T08:00:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_get_123\"\n}\n```\n\n**Note:** `employee` field is `null` - fetch employee details separately if needed.\n\n**Error Codes:**\n- `CONTRACT_NOT_FOUND` (404) - Contract doesn't exist\n- `INVALID_ID` (400) - Invalid UUID format"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										"form-data"
+									]
+								},
+								"description": "Get form select options for create/update contract forms. Requires `employee_contract.read` permission.\n\n**Use Case:** Populate dropdown/select fields in frontend forms.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      },\n      {\n        \"id\": \"22222222-2222-2222-2222-222222222222\",\n        \"employee_code\": \"EMP002\",\n        \"name\": \"Jane Smith\"\n      }\n    ],\n    \"contract_types\": [\n      {\"value\": \"PERMANENT\", \"label\": \"Permanent\"},\n      {\"value\": \"CONTRACT\", \"label\": \"Contract\"},\n      {\"value\": \"INTERNSHIP\", \"label\": \"Internship\"},\n      {\"value\": \"PROBATION\", \"label\": \"Probation\"}\n    ],\n    \"statuses\": [\n      {\"value\": \"ACTIVE\", \"label\": \"Active\"},\n      {\"value\": \"EXPIRED\", \"label\": \"Expired\"},\n      {\"value\": \"TERMINATED\", \"label\": \"Terminated\"}\n    ]\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_formdata_123\"\n}\n```\n\n**Performance:**\n- Returns first 1000 employees (sufficient for most organizations)\n- No pagination - single request for all form options\n- Cache this response in frontend to reduce API calls\n\n**Integration:**\n- Use for Employee select/combobox\n- Use for Contract Type radio/select\n- Use for Status select (if allowing manual status change)"
+							},
+							"response": []
+						},
+						{
+							"name": "List Contracts",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts?page=1&per_page=20&status=ACTIVE&contract_type=PERMANENT&search=",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "ACTIVE"
+										},
+										{
+											"key": "contract_type",
+											"value": "PERMANENT"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by contract_number (case-insensitive, partial match)"
+										},
+										{
+											"key": "employee_id",
+											"value": "{{employee_id}}",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List contracts with filters, search, and pagination. Requires `employee_contract.read` permission.\n\n**Query Parameters:**\n- `page` (int) - Page number (min: 1, default: 1)\n- `per_page` (int) - Items per page (min: 1, max: 100, default: 20)\n- `search` (string) - Search by contract_number (case-insensitive, partial match)\n- `employee_id` (uuid) - Filter by employee\n- `status` (enum) - Filter by status: ACTIVE, EXPIRED, TERMINATED\n- `contract_type` (enum) - Filter by type: PERMANENT, CONTRACT, INTERNSHIP, PROBATION\n\n**Sorting:** Start date DESC, created_at DESC\n\n**Response Format:** Returns `EmployeeContractListResponse` (optimized for list view)\n- **Includes:** employee_name, employee_code (fetched from employee table)\n- **Excludes:** department, terms, document_path (use detail endpoint for full data)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"employee_name\": \"John Doe\",\n      \"employee_code\": \"EMP001\",\n      \"contract_number\": \"CONTRACT-2023-001\",\n      \"contract_type\": \"PERMANENT\",\n      \"start_date\": \"2023-01-01\",\n      \"end_date\": null,\n      \"salary\": 15000000.00,\n      \"job_title\": \"System Administrator\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": false,\n      \"days_until_expiry\": null,\n      \"created_at\": \"2023-01-01T08:00:00+07:00\",\n      \"updated_at\": \"2023-01-01T08:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 5,\n      \"total_pages\": 1\n    }\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_list_123\"\n}\n```\n\n**Note:** This endpoint returns a lighter response without department, terms, and document_path. Use GET /:id for full details."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Expiring Contracts",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/expiring?days=30&page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										"expiring"
+									],
+									"query": [
+										{
+											"key": "days",
+											"value": "30"
+										},
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get contracts expiring within N days. Requires `employee_contract.read` permission.\n\n**Use Case:** Alert system for HR to renew expiring contracts.\n\n**Query Parameters:**\n- `days` (int) - Days threshold (min: 1, max: 180, default: 30)\n- `page` (int) - Page number\n- `per_page` (int) - Items per page (max: 100)\n\n**Business Logic:**\n- Only ACTIVE contracts with `end_date` NOT NULL\n- Filters: `end_date BETWEEN NOW() AND NOW() + N days`\n- Excludes PERMANENT contracts (no end date)\n- Sorted by end_date ASC (most urgent first)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c3333333-3333-3333-3333-333333333333\",\n      \"employee_id\": \"33333333-3333-3333-3333-333333333333\",\n      \"contract_number\": \"CONTRACT-2025-004\",\n      \"contract_type\": \"PROBATION\",\n      \"start_date\": \"2025-10-01\",\n      \"end_date\": \"2026-03-31\",\n      \"salary\": 9000000.00,\n      \"job_title\": \"Junior Developer\",\n      \"department\": \"Information Technology\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": true,\n      \"days_until_expiry\": 53\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 1,\n      \"total_pages\": 1\n    }\n  },\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_expiring_123\"\n}\n```\n\n**Integration:** Schedule daily cron job to check `days=30` and send email notifications to HR."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Contracts By Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-contracts/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-contracts",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "11111111-1111-1111-1111-111111111111"
+										}
+									]
+								},
+								"description": "Get all contracts for specific employee (contract history). Requires `employee_contract.read` permission.\n\n**Use Case:** View employee's contract history, track promotions/changes.\n\n**Sorting:** Start date DESC (most recent first)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"contract_number\": \"CONTRACT-2023-001\",\n      \"contract_type\": \"PERMANENT\",\n      \"start_date\": \"2023-01-01\",\n      \"end_date\": null,\n      \"salary\": 15000000.00,\n      \"job_title\": \"System Administrator\",\n      \"department\": \"Information Technology\",\n      \"status\": \"ACTIVE\",\n      \"is_expiring_soon\": false,\n      \"days_until_expiry\": null,\n      \"created_at\": \"2023-01-01T08:00:00+07:00\",\n      \"updated_at\": \"2023-01-01T08:00:00+07:00\"\n    }\n  ],\n  \"timestamp\": \"2026-02-06T10:00:00+07:00\",\n  \"request_id\": \"req_employee_contracts_123\"\n}\n```\n\n**Note:** Returns all contracts (ACTIVE, EXPIRED, TERMINATED) for complete history.\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `INVALID_ID` (400) - Invalid employee UUID"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Education History",
+					"description": "Employee education history tracking from elementary to doctorate level",
+					"item": [
+						{
+							"name": "Create Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"institution\": \"University of Indonesia\",\n  \"degree\": \"BACHELOR\",\n  \"field_of_study\": \"Computer Science\",\n  \"start_date\": \"2015-09-01\",\n  \"end_date\": \"2019-06-30\",\n  \"gpa\": 3.75,\n  \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n  \"document_path\": \"/documents/education/diploma_ui_2019.pdf\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories"
+									]
+								},
+								"description": "Create new education history record for an employee. Requires `education_history.create` permission.\n\n**Business Rules:**\n- Employee must exist in database\n- `end_date` must be after `start_date` (if provided)\n- `gpa` must be between 0 and 4.0 (if provided)\n- `end_date` is optional (for ongoing education)\n\n**Degree Options:**\n- `ELEMENTARY` - Elementary School\n- `JUNIOR_HIGH` - Junior High School\n- `SENIOR_HIGH` - Senior High School\n- `DIPLOMA` - Diploma (D1/D2/D3)\n- `BACHELOR` - Bachelor's Degree (S1)\n- `MASTER` - Master's Degree (S2)\n- `DOCTORATE` - Doctorate Degree (S3)\n\n**Validation:**\n- `institution`: max 200 chars, required\n- `degree`: required, must be one of valid degrees\n- `field_of_study`: max 200 chars, optional\n- `start_date`: required, format YYYY-MM-DD\n- `end_date`: optional, format YYYY-MM-DD\n- `gpa`: optional, decimal between 0-4.0\n- `document_path`: max 255 chars, optional\n\n**Success Response (201 Created):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.75,\n    \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n    \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:00:00+07:00\",\n  \"request_id\": \"req_create_edu_123\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `VALIDATION_ERROR` (400) - Invalid data (date logic, GPA range, etc.)\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"gpa\": 3.85,\n  \"description\": \"Updated description with honors\",\n  \"document_path\": \"/documents/education/diploma_ui_2019_updated.pdf\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Update existing education history. All fields are optional - only provide fields you want to update. Requires `education_history.update` permission.\n\n**Business Rules:**\n- Same validation as Create (date logic, GPA range)\n- Cannot change employee_id (immutable)\n\n**Request Body (all optional):**\n```json\n{\n  \"institution\": \"University of Indonesia\",\n  \"degree\": \"BACHELOR\",\n  \"field_of_study\": \"Computer Science\",\n  \"start_date\": \"2015-09-01\",\n  \"end_date\": \"2019-06-30\",\n  \"gpa\": 3.85,\n  \"description\": \"Updated description\",\n  \"document_path\": \"/documents/education/updated.pdf\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.85,\n    \"description\": \"Updated description with honors\",\n    \"document_path\": \"/documents/education/diploma_ui_2019_updated.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T14:30:00+07:00\",\n  \"request_id\": \"req_update_edu_456\"\n}\n```\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist\n- `VALIDATION_ERROR` (400) - Invalid data\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Education History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-CSRF-Token",
+										"value": "{{csrf_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Soft delete education history record. Record remains in database for audit trail but won't appear in normal queries. Requires `education_history.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Education history deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T15:00:00+07:00\",\n  \"request_id\": \"req_delete_edu_789\"\n}\n```\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist or already deleted\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Education History By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{education_history_id}}"
+										}
+									]
+								},
+								"description": "Get detailed education history record by ID. Requires `education_history.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e1111111-1111-1111-1111-111111111111\",\n    \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"institution\": \"University of Indonesia\",\n    \"degree\": \"BACHELOR\",\n    \"field_of_study\": \"Computer Science\",\n    \"start_date\": \"2015-09-01\",\n    \"end_date\": \"2019-06-30\",\n    \"gpa\": 3.75,\n    \"description\": \"Bachelor of Computer Science with focus on Software Engineering\",\n    \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n    \"is_completed\": true,\n    \"duration_years\": 3.83,\n    \"created_at\": \"2026-02-07T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_get_edu_101\"\n}\n```\n\n**Computed Fields:**\n- `is_completed`: true if end_date exists and is in the past\n- `duration_years`: Calculated duration in years (decimal)\n\n**Error Codes:**\n- `EDUCATION_HISTORY_NOT_FOUND` (404) - Record doesn't exist\n- `INVALID_ID` (400) - Invalid UUID format\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Education Histories",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories?page=1&per_page=20&search=university&degree=BACHELOR",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page, max 100 (default: 20)"
+										},
+										{
+											"key": "search",
+											"value": "university",
+											"description": "Search in institution or field_of_study (case-insensitive)"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee UUID",
+											"disabled": true
+										},
+										{
+											"key": "degree",
+											"value": "BACHELOR",
+											"description": "Filter by degree level (ELEMENTARY, JUNIOR_HIGH, SENIOR_HIGH, DIPLOMA, BACHELOR, MASTER, DOCTORATE)"
+										}
+									]
+								},
+								"description": "Get paginated list of all education histories with optional filters. Requires `education_history.read` permission.\n\n**Query Parameters:**\n- `page` (optional): Page number (default: 1)\n- `per_page` (optional): Items per page, max 100 (default: 20)\n- `search` (optional): Search in institution or field_of_study\n- `employee_id` (optional): Filter by specific employee UUID\n- `degree` (optional): Filter by degree level\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"University of Indonesia\",\n      \"degree\": \"BACHELOR\",\n      \"field_of_study\": \"Computer Science\",\n      \"start_date\": \"2015-09-01\",\n      \"end_date\": \"2019-06-30\",\n      \"gpa\": 3.75,\n      \"description\": \"Bachelor of Computer Science\",\n      \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 3.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 1,\n      \"total_pages\": 1,\n      \"has_next\": false,\n      \"has_prev\": false\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:00:00+07:00\",\n  \"request_id\": \"req_list_edu_202\"\n}\n```\n\n**Sorting:** Results ordered by start_date DESC (most recent first)\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission\n- `VALIDATION_ERROR` (400) - Invalid query parameters"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Education Histories By Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "11111111-1111-1111-1111-111111111111"
+										}
+									]
+								},
+								"description": "Get all education history records for a specific employee, ordered by most recent first. Requires `education_history.read` permission.\n\n**Use Case:** View employee's complete education background in chronological order.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e2222222-2222-2222-2222-222222222222\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"Stanford University\",\n      \"degree\": \"MASTER\",\n      \"field_of_study\": \"Software Engineering\",\n      \"start_date\": \"2020-09-01\",\n      \"end_date\": \"2022-06-30\",\n      \"gpa\": 3.92,\n      \"description\": \"Master of Science in Software Engineering\",\n      \"document_path\": \"/documents/education/ms_stanford_2022.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 1.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    },\n    {\n      \"id\": \"e1111111-1111-1111-1111-111111111111\",\n      \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n      \"institution\": \"University of Indonesia\",\n      \"degree\": \"BACHELOR\",\n      \"field_of_study\": \"Computer Science\",\n      \"start_date\": \"2015-09-01\",\n      \"end_date\": \"2019-06-30\",\n      \"gpa\": 3.75,\n      \"description\": \"Bachelor of Computer Science\",\n      \"document_path\": \"/documents/education/diploma_ui_2019.pdf\",\n      \"is_completed\": true,\n      \"duration_years\": 3.83,\n      \"created_at\": \"2026-02-07T10:00:00+07:00\",\n      \"updated_at\": \"2026-02-07T10:00:00+07:00\"\n    }\n  ],\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_employee_edu_303\"\n}\n```\n\n**Note:** Results are ordered by `start_date DESC` (most recent education first).\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee doesn't exist\n- `INVALID_ID` (400) - Invalid employee_id UUID format\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-education-histories/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-education-histories",
+										"form-data"
+									]
+								},
+								"description": "Get all necessary data for populating education history form dropdowns. Returns list of employees and degree level options. Requires `education_history.read` permission.\n\n**Use Case:** Load dropdown options when creating/editing education history records.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"Admin Employee\"\n      },\n      {\n        \"id\": \"22222222-2222-2222-2222-222222222222\",\n        \"employee_code\": \"EMP002\",\n        \"name\": \"Manager Employee\"\n      }\n    ],\n    \"degree_levels\": [\n      {\n        \"value\": \"ELEMENTARY\",\n        \"label\": \"Elementary School\"\n      },\n      {\n        \"value\": \"JUNIOR_HIGH\",\n        \"label\": \"Junior High School\"\n      },\n      {\n        \"value\": \"SENIOR_HIGH\",\n        \"label\": \"Senior High School\"\n      },\n      {\n        \"value\": \"DIPLOMA\",\n        \"label\": \"Diploma (D1/D2/D3)\"\n      },\n      {\n        \"value\": \"BACHELOR\",\n        \"label\": \"Bachelor's Degree (S1)\"\n      },\n      {\n        \"value\": \"MASTER\",\n        \"label\": \"Master's Degree (S2)\"\n      },\n      {\n        \"value\": \"DOCTORATE\",\n        \"label\": \"Doctorate Degree (S3)\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_form_data_401\"\n}\n```\n\n**Note:** Only active employees are returned in the employees list.\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission\n- `INTERNAL_ERROR` (500) - Failed to fetch form data"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Certifications",
+					"description": "Employee professional certification management with expiry tracking and alert system",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"form-data"
+									]
+								},
+								"description": "Get all necessary data for populating certification form dropdowns. Returns list of employees. Requires authentication.\n\n**Use Case:** Load dropdown options when creating/editing certifications.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"11111111-1111-1111-1111-111111111111\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"Admin Employee\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_form_data_501\"\n}\n```\n\n**Error Codes:**\n- `UNAUTHORIZED` (401) - Missing authentication"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Certifications",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications?page=1&per_page=20&search=&employee_id=&status=",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by certificate name or issued by"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee ID (UUID)"
+										},
+										{
+											"key": "status",
+											"value": "",
+											"description": "Filter by certification status: no_expiry | valid | expiring_soon | expired"
+										}
+									]
+								},
+								"description": "Get a paginated list of all employee certifications. Supports search by certificate name or issuing organization, filtering by employee, and filtering by status. Requires `certification.read` permission.\n\n**Query Parameters:**\n- `status` (optional): Filter by certification status. Allowed values: `no_expiry` (no expiry date), `valid` (expiry > 30 days), `expiring_soon` (expiry within 30 days), `expired` (already expired).\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"cert-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"employee_name\": \"John Doe\",\n      \"certificate_name\": \"AWS Certified Solutions Architect\",\n      \"issued_by\": \"Amazon Web Services\",\n      \"issue_date\": \"2024-01-15\",\n      \"expiry_date\": \"2027-01-15\",\n      \"certificate_number\": \"AWS-CSA-12345\",\n      \"certificate_file\": \"/uploads/cert-123.pdf\",\n      \"description\": \"Cloud architecture certification\",\n      \"is_expired\": false,\n      \"days_until_expiry\": 365,\n      \"created_at\": \"2024-01-15T10:00:00+07:00\",\n      \"updated_at\": \"2024-01-15T10:00:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 50,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false,\n      \"next_page\": 2\n    }\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_list_501\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Certification By ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Get detailed information about a specific certification by its ID. Requires `certification.read` permission.\n\n**Success Response (200 OK):** Same structure as individual item in list\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Certifications By Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "emp-uuid",
+											"description": "Employee UUID"
+										}
+									]
+								},
+								"description": "Get all certifications for a specific employee. Requires `certification.read` permission.\n\n**Use Case:** View all certifications in employee profile or certification management page.\n\n**Success Response (200 OK):** Array of certifications (same structure as list endpoint)\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Expiring Certifications",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/expiring?days=30",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										"expiring"
+									],
+									"query": [
+										{
+											"key": "days",
+											"value": "30",
+											"description": "Number of days (default: 30)"
+										}
+									]
+								},
+								"description": "Get certifications that will expire within the specified number of days. Useful for dashboard alerts. Requires `certification.read` permission.\n\n**Use Case:** Dashboard alert system showing certifications expiring soon.\n\n**Success Response (200 OK):** Array of expiring certifications\n\n**Note:** Only returns certifications with expiry_date set and expiry_date <= (now + days) AND expiry_date >= now"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"certificate_name\": \"AWS Certified Solutions Architect - Associate\",\n  \"issued_by\": \"Amazon Web Services\",\n  \"issue_date\": \"2024-01-15\",\n  \"expiry_date\": \"2027-01-15\",\n  \"certificate_number\": \"AWS-CSA-12345\",\n  \"certificate_file\": \"/uploads/cert-123.pdf\",\n  \"description\": \"Cloud architecture and AWS services certification\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications"
+									]
+								},
+								"description": "Create a new employee certification record. Requires `certification.create` permission.\n\n**Required Fields:**\n- `employee_id` (UUID): Employee to associate certification with\n- `certificate_name` (string, max 200): Name of the certification\n- `issued_by` (string, max 200): Issuing organization\n- `issue_date` (string, YYYY-MM-DD): Date certification was issued\n\n**Optional Fields:**\n- `expiry_date` (string, YYYY-MM-DD): When certification expires (null for no expiry)\n- `certificate_number` (string, max 100): Official certification number\n- `certificate_file` (string): Path to uploaded certificate document\n- `description` (string, max 1000): Additional notes\n\n**Validation Rules:**\n- If expiry_date is provided, it must be after issue_date\n- Employee must exist in database\n- Dates must be in YYYY-MM-DD format\n\n**Success Response (200 OK):** Created certification object\n\n**Error Codes:**\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist\n- `INVALID_DATE_FORMAT` (400) - Date not in YYYY-MM-DD format\n- `VALIDATION_ERROR` (400) - Expiry date before issue date"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"certificate_name\": \"AWS Certified Solutions Architect - Professional\",\n  \"issued_by\": \"Amazon Web Services\",\n  \"issue_date\": \"2025-01-15\",\n  \"expiry_date\": \"2028-01-15\",\n  \"certificate_number\": \"AWS-CSA-PRO-54321\",\n  \"description\": \"Advanced cloud architecture certification\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Update an existing certification. All fields are optional (partial update). Requires `certification.update` permission.\n\n**Validation Rules:**\n- If both issue_date and expiry_date are provided, expiry must be after issue\n- Dates must be in YYYY-MM-DD format\n\n**Success Response (200 OK):** Updated certification object\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist\n- `VALIDATION_ERROR` (400) - Date validation failed"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Certification",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-certifications/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-certifications",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "cert-uuid",
+											"description": "Certification UUID"
+										}
+									]
+								},
+								"description": "Delete a certification (soft delete). Requires `certification.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Certification deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_delete_501\"\n}\n```\n\n**Error Codes:**\n- `CERTIFICATION_NOT_FOUND` (404) - Certification does not exist"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Assets",
+					"description": "Company asset management tracking borrowed/returned status with condition monitoring",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/form-data",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"form-data"
+									]
+								},
+								"description": "Get dropdown data for asset form (employees). Requires authentication only.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [\n      {\n        \"id\": \"emp-uuid\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      }\n    ]\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_form_100\"\n}\n```"
+							},
+							"response": []
+						},
+						{
+							"name": "List All Assets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets?page=1&per_page=20&search=MacBook&employee_id=&status=BORROWED",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "search",
+											"value": "MacBook",
+											"description": "Search in asset_name, asset_code, asset_category"
+										},
+										{
+											"key": "employee_id",
+											"value": "",
+											"description": "Filter by employee UUID"
+										},
+										{
+											"key": "status",
+											"value": "BORROWED",
+											"description": "Filter by status: BORROWED or RETURNED"
+										}
+									]
+								},
+								"description": "List all employee assets with pagination and filters. Requires `employee_asset.read` permission.\n\n**Query Parameters:**\n- `page` (int): Page number (default: 1)\n- `per_page` (int): Items per page (default: 20, max: 100)\n- `search` (string): Search in asset_name, asset_code, asset_category (prefix search)\n- `employee_id` (uuid): Filter by employee\n- `status` (string): Filter by status (`BORROWED` | `RETURNED`)\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"asset-uuid\",\n      \"employee_id\": \"emp-uuid\",\n      \"employee\": {\n        \"id\": \"emp-uuid\",\n        \"employee_code\": \"EMP001\",\n        \"name\": \"John Doe\"\n      },\n      \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n      \"asset_code\": \"LAP-001\",\n      \"asset_category\": \"Laptop\",\n      \"borrow_date\": \"2024-06-01\",\n      \"return_date\": null,\n      \"borrow_condition\": \"NEW\",\n      \"return_condition\": null,\n      \"notes\": \"For development work\",\n      \"status\": \"BORROWED\",\n      \"days_borrowed\": 19,\n      \"created_at\": \"2024-06-01T10:30:00+07:00\",\n      \"updated_at\": \"2024-06-01T10:30:00+07:00\"\n    }\n  ],\n  \"meta\": {\n    \"pagination\": {\n      \"page\": 1,\n      \"per_page\": 20,\n      \"total\": 45,\n      \"total_pages\": 3,\n      \"has_next\": true,\n      \"has_prev\": false\n    }\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_list_200\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - Missing required permission"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Asset Detail",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Get employee asset detail by ID with employee relation. Requires `employee_asset.read` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"asset-uuid\",\n    \"employee_id\": \"emp-uuid\",\n    \"employee\": {\n      \"id\": \"emp-uuid\",\n      \"employee_code\": \"EMP001\",\n      \"name\": \"John Doe\"\n    },\n    \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n    \"asset_code\": \"LAP-001\",\n    \"asset_category\": \"Laptop\",\n    \"borrow_date\": \"2024-01-15\",\n    \"return_date\": \"2024-06-15\",\n    \"borrow_condition\": \"NEW\",\n    \"return_condition\": \"GOOD\",\n    \"notes\": \"For development work\\n---\\nReturn Notes: All accessories returned\",\n    \"status\": \"RETURNED\",\n    \"days_borrowed\": 152,\n    \"created_at\": \"2024-01-15T10:30:45+07:00\",\n    \"updated_at\": \"2024-06-15T14:20:30+07:00\"\n  },\n  \"timestamp\": \"2026-02-07T10:30:00+07:00\",\n  \"request_id\": \"req_detail_300\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Assets by Employee",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/employee/:employee_id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"employee",
+										":employee_id"
+									],
+									"variable": [
+										{
+											"key": "employee_id",
+											"value": "emp-uuid",
+											"description": "Employee UUID"
+										}
+									]
+								},
+								"description": "Get all assets (borrowed + returned) for a specific employee. Requires `employee_asset.read` permission.\n\n**Use Case:** Employee asset history view\n\n**Success Response (200 OK):** Array of asset objects (same structure as List All Assets)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Borrowed Assets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/borrowed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										"borrowed"
+									]
+								},
+								"description": "Get currently borrowed assets (ReturnDate IS NULL) ordered by borrow_date ASC (oldest first = most urgent). Requires `employee_asset.read` permission.\n\n**Use Case:** Dashboard widget for long-borrowed asset alerts\n\n**Success Response (200 OK):** Array of asset objects (same structure as List All Assets)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Asset (Borrow)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"asset_name\": \"MacBook Pro 16\\\" M3 Max\",\n  \"asset_code\": \"LAP-001\",\n  \"asset_category\": \"Laptop\",\n  \"borrow_date\": \"2024-06-01\",\n  \"borrow_condition\": \"NEW\",\n  \"notes\": \"For development work. Includes charger and USB-C hub.\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets"
+									]
+								},
+								"description": "Create new asset record (borrow asset to employee). Requires `employee_asset.create` permission.\n\n**Request Body:**\n```json\n{\n  \"employee_id\": \"uuid\" (required),\n  \"asset_name\": \"string\" (required, max 200),\n  \"asset_code\": \"string\" (required, max 100, must be unique among unreturned assets),\n  \"asset_category\": \"string\" (required, max 100),\n  \"borrow_date\": \"YYYY-MM-DD\" (required),\n  \"borrow_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (required),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Success Response (200 OK):** Returns created asset object\n\n**Business Rules:**\n- Asset code must be unique among unreturned assets (allows reuse after return)\n- Employee must exist\n- Borrow condition is mandatory\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Invalid request body or duplicate asset code\n- `EMPLOYEE_NOT_FOUND` (404) - Employee does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"asset_name\": \"MacBook Pro 16\\\" M3 Max (Updated)\",\n  \"asset_category\": \"Laptop - Development\",\n  \"notes\": \"Updated notes\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Update asset information (only for unreturned assets). Requires `employee_asset.update` permission.\n\n**Request Body:** All fields optional\n```json\n{\n  \"asset_name\": \"string\" (optional, max 200),\n  \"asset_code\": \"string\" (optional, max 100),\n  \"asset_category\": \"string\" (optional, max 100),\n  \"borrow_date\": \"YYYY-MM-DD\" (optional),\n  \"borrow_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (optional),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Business Rules:**\n- Cannot update assets that have been returned (immutable for audit trail)\n- If changing asset_code, must be unique among unreturned assets\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Cannot update returned asset or duplicate asset code\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Return Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"return_date\": \"2024-06-20\",\n  \"return_condition\": \"GOOD\",\n  \"notes\": \"All accessories returned. Screen and keyboard in excellent condition.\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id/return",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id",
+										"return"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Mark asset as returned with condition assessment. Requires `employee_asset.update` permission.\n\n**Request Body:**\n```json\n{\n  \"return_date\": \"YYYY-MM-DD\" (required),\n  \"return_condition\": \"NEW|GOOD|FAIR|POOR|DAMAGED\" (required),\n  \"notes\": \"string\" (optional, max 1000)\n}\n```\n\n**Business Rules:**\n- Cannot return already returned asset\n- Return date must be after borrow date\n- Return condition is mandatory\n- Notes are merged: \"<borrow_notes>\\n---\\nReturn Notes: <return_notes>\"\n\n**Success Response (200 OK):** Returns updated asset object with status=\"RETURNED\"\n\n**Error Codes:**\n- `VALIDATION_ERROR` (400) - Already returned, return date before borrow date, or invalid condition\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Asset",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-assets/:id",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"hrd",
+										"employee-assets",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "asset-uuid",
+											"description": "Asset UUID"
+										}
+									]
+								},
+								"description": "Delete an asset record (soft delete for audit trail). Requires `employee_asset.delete` permission.\n\n**Success Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Employee asset deleted successfully\"\n  },\n  \"timestamp\": \"2026-02-07T11:30:00+07:00\",\n  \"request_id\": \"req_delete_600\"\n}\n```\n\n**Error Codes:**\n- `EMPLOYEE_ASSET_NOT_FOUND` (404) - Asset does not exist"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Evaluation Groups",
+					"description": "Evaluation template management - create and manage evaluation groups with weighted criteria",
+					"item": [
+						{
+							"name": "Get All Evaluation Groups",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups?page=1&per_page=20&search=&is_active=true",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "per_page", "value": "20" },
+										{ "key": "search", "value": "" },
+										{ "key": "is_active", "value": "true" }
+									]
+								},
+								"description": "List all evaluation groups with optional search and active filter. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Evaluation Group by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Get evaluation group by ID with all criteria. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Performance Review FY25\",\n  \"description\": \"Annual performance review template\",\n  \"is_active\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups"]
+								},
+								"description": "Create a new evaluation group template. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Performance Review FY25 - Updated\",\n  \"is_active\": false\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Update an evaluation group. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Evaluation Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-groups/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-groups", ":id"],
+									"variable": [
+										{ "key": "id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation group. Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Evaluation Criteria",
+					"description": "Manage evaluation criteria within groups - weighted scoring criteria",
+					"item": [
+						{
+							"name": "Get Criteria by Group",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/group/:group_id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", "group", ":group_id"],
+									"variable": [
+										{ "key": "group_id", "value": "group-uuid", "description": "Evaluation Group UUID" }
+									]
+								},
+								"description": "Get all criteria for a specific evaluation group, ordered by sort_order. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Criteria by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Get evaluation criteria by ID. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"evaluation_group_id\": \"group-uuid\",\n  \"name\": \"Communication Skills\",\n  \"description\": \"Ability to communicate effectively\",\n  \"weight\": 30,\n  \"max_score\": 100,\n  \"sort_order\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria"]
+								},
+								"description": "Create a new evaluation criteria. Validates total weight ≤ 100%. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Communication & Teamwork\",\n  \"weight\": 35\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Update evaluation criteria. Validates total weight ≤ 100%. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Evaluation Criteria",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/evaluation-criteria/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "evaluation-criteria", ":id"],
+									"variable": [
+										{ "key": "id", "value": "criteria-uuid", "description": "Criteria UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation criteria. Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Employee Evaluations",
+					"description": "Employee performance evaluations with criteria scoring and status workflow",
+					"item": [
+						{
+							"name": "Get Form Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/form-data",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", "form-data"]
+								},
+								"description": "Get form dropdown data: employees, evaluation groups, evaluation types, and statuses. Auth required."
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Employee Evaluations",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations?page=1&per_page=20&employee_id=&evaluation_group_id=&status=&evaluation_type=",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "per_page", "value": "20" },
+										{ "key": "employee_id", "value": "" },
+										{ "key": "evaluation_group_id", "value": "" },
+										{ "key": "status", "value": "" },
+										{ "key": "evaluation_type", "value": "" }
+									]
+								},
+								"description": "List employee evaluations with filters. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Employee Evaluation by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Get evaluation with full details including criteria scores, employee data, and evaluator data. Requires `evaluation.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"employee_id\": \"employee-uuid\",\n  \"evaluation_group_id\": \"group-uuid\",\n  \"evaluator_id\": \"evaluator-uuid\",\n  \"evaluation_type\": \"MANAGER\",\n  \"period_start\": \"2025-01-01\",\n  \"period_end\": \"2025-06-30\",\n  \"notes\": \"H1 2025 Performance Review\",\n  \"criteria_scores\": [\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-1\",\n      \"score\": 85,\n      \"notes\": \"Excellent communication\"\n    },\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-2\",\n      \"score\": 70,\n      \"notes\": \"Meets expectations\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations"]
+								},
+								"description": "Create a new employee evaluation with optional criteria scores. Status starts as DRAFT. Requires `evaluation.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"notes\": \"Updated review notes\",\n  \"criteria_scores\": [\n    {\n      \"evaluation_criteria_id\": \"criteria-uuid-1\",\n      \"score\": 90,\n      \"notes\": \"Revised score\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Update an evaluation (DRAFT status only). Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Evaluation Status",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"SUBMITTED\",\n  \"notes\": \"Ready for review\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id/status",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id", "status"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Transition evaluation status. Valid transitions: DRAFT→SUBMITTED→REVIEWED→FINALIZED. Requires `evaluation.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Employee Evaluation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/hrd/employee-evaluations/:id",
+									"host": ["{{base_url}}"],
+									"path": ["hrd", "employee-evaluations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "evaluation-uuid", "description": "Evaluation UUID" }
+									]
+								},
+								"description": "Soft delete an evaluation (DRAFT status only). Requires `evaluation.delete` permission."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Recruitment Requests",
+					"description": "Manage recruitment requests including CRUD operations, approval workflow, and position filling tracking.",
+					"item": [
+						{
+							"name": "Get Recruitment Form Data",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/form-data",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", "form-data"]
+								},
+								"description": "Get form dropdown data for recruitment request form. Returns employees, divisions, job positions, employment types, priorities, and statuses. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "List Recruitment Requests",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests?page=1&per_page=20",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "OPEN",
+											"disabled": true
+										},
+										{
+											"key": "division_id",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "position_id",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "priority",
+											"value": "HIGH",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List all recruitment requests with pagination, search, and filters. Supports filtering by status, division_id, position_id, and priority. Search by request code, job description, or requester name. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Recruitment Request by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Get a recruitment request by its ID. Includes requester info, division name, position name, open positions count, and approval details. Requires `recruitment.read` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Create Recruitment Request",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"division_id\": \"{{itDivisionId}}\",\n    \"position_id\": \"{{staffPositionId}}\",\n    \"required_count\": 2,\n    \"employment_type\": \"FULL_TIME\",\n    \"expected_start_date\": \"2026-04-01\",\n    \"salary_range_min\": 15000000,\n    \"salary_range_max\": 25000000,\n    \"job_description\": \"Looking for experienced full-stack developer to join our engineering team.\",\n    \"qualifications\": \"- 3+ years experience in web development\\n- Proficiency in Go and React/TypeScript\\n- Bachelor's degree in CS or related field\",\n    \"priority\": \"HIGH\",\n    \"notes\": \"Replacement for resigned employee\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests"]
+								},
+								"description": "Create a new recruitment request. Auto-generates request_code (RR-YYYYMM-XXXX) and sets status to DRAFT. Requester is automatically set from JWT user. Requires `recruitment.create` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Recruitment Request",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"required_count\": 3,\n    \"priority\": \"URGENT\",\n    \"job_description\": \"Updated: Looking for senior full-stack developer with team lead experience.\",\n    \"notes\": \"Updated requirements based on team discussion\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update a recruitment request. Only DRAFT requests can be updated. Supports partial updates (only changed fields required). Requires `recruitment.update` permission. Returns RECRUITMENT_NOT_EDITABLE error if status is not DRAFT."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Recruitment Request",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Soft delete a recruitment request. Only DRAFT requests can be deleted. Requires `recruitment.delete` permission. Returns RECRUITMENT_NOT_EDITABLE error if status is not DRAFT."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Recruitment Status",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"PENDING\",\n    \"notes\": \"Submitted for approval\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id/status",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id", "status"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update recruitment request status (approval workflow). Valid transitions: DRAFT→PENDING, PENDING→APPROVED/REJECTED/CANCELLED, APPROVED→OPEN, OPEN→CLOSED, DRAFT→CANCELLED. Sets approved_by/rejected_by timestamps automatically. Requires `recruitment.update` permission."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Filled Count",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"filled_count\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/hrd/recruitment-requests/:id/filled-count",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "hrd", "recruitment-requests", ":id", "filled-count"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "ae000001-0000-0000-0000-000000000001",
+											"description": "Recruitment request UUID"
+										}
+									]
+								},
+								"description": "Update the filled count for a recruitment request. Only OPEN requests can have their filled count updated. Filled count cannot exceed required count. Requires `recruitment.update` permission."
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}

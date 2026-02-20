@@ -23,27 +23,47 @@ var (
 type EmployeeUsecase interface {
 	Create(ctx context.Context, req dto.CreateEmployeeRequest, createdBy string) (dto.EmployeeResponse, error)
 	GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error)
-	List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeResponse, int64, error)
+	List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error)
 	Delete(ctx context.Context, id string) error
 	SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error)
 	Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error)
 	AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error)
+	// AssignSupervisorAreas sets the areas in which the employee acts as supervisor.
+	AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error)
+	// BulkUpdateAreas replaces all area assignments for an employee in one operation.
+	BulkUpdateAreas(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeAreasRequest) (dto.EmployeeResponse, error)
+	// RemoveAreaAssignment removes a single area assignment from an employee.
+	RemoveAreaAssignment(ctx context.Context, employeeID string, areaID string) error
+	// GetFormData returns dropdown options for the employee form.
+	GetFormData(ctx context.Context) (*dto.EmployeeFormDataResponse, error)
 }
 
 type employeeUsecase struct {
 	employeeRepo     repositories.EmployeeRepository
 	employeeAreaRepo repositories.EmployeeAreaRepository
+	divisionRepo     repositories.DivisionRepository
+	jobPositionRepo  repositories.JobPositionRepository
+	companyRepo      repositories.CompanyRepository
+	areaRepo         repositories.AreaRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
 func NewEmployeeUsecase(
 	employeeRepo repositories.EmployeeRepository,
 	employeeAreaRepo repositories.EmployeeAreaRepository,
+	divisionRepo repositories.DivisionRepository,
+	jobPositionRepo repositories.JobPositionRepository,
+	companyRepo repositories.CompanyRepository,
+	areaRepo repositories.AreaRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
 		employeeRepo:     employeeRepo,
 		employeeAreaRepo: employeeAreaRepo,
+		divisionRepo:     divisionRepo,
+		jobPositionRepo:  jobPositionRepo,
+		companyRepo:      companyRepo,
+		areaRepo:         areaRepo,
 	}
 }
 
@@ -118,9 +138,16 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		return dto.EmployeeResponse{}, err
 	}
 
-	// Assign areas if provided
+	// Assign member areas if provided
 	if len(req.AreaIDs) > 0 {
 		if err := u.employeeAreaRepo.AssignAreas(ctx, employee.ID, req.AreaIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+	}
+
+	// Assign supervisor areas if provided
+	if len(req.SupervisedAreaIDs) > 0 {
+		if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, employee.ID, req.SupervisedAreaIDs); err != nil {
 			return dto.EmployeeResponse{}, err
 		}
 	}
@@ -142,7 +169,7 @@ func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeR
 	return mapper.ToEmployeeResponse(employee), nil
 }
 
-func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeResponse, int64, error) {
+func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error) {
 	// Set defaults
 	if params.Page <= 0 {
 		params.Page = 1
@@ -170,7 +197,7 @@ func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParam
 		return nil, 0, err
 	}
 
-	return mapper.ToEmployeeListResponse(employees), total, nil
+	return mapper.ToEmployeeListItemResponseList(employees), total, nil
 }
 
 func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error) {
@@ -274,13 +301,22 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 		return dto.EmployeeResponse{}, err
 	}
 
-	// Update area assignments if provided
+	// Update area assignments if provided (full replacement for member areas)
 	if req.AreaIDs != nil {
 		if err := u.employeeAreaRepo.RemoveAllAreas(ctx, id); err != nil {
 			return dto.EmployeeResponse{}, err
 		}
 		if len(req.AreaIDs) > 0 {
 			if err := u.employeeAreaRepo.AssignAreas(ctx, id, req.AreaIDs); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	// Update supervised areas if provided (upsert with is_supervisor=true)
+	if req.SupervisedAreaIDs != nil {
+		if len(req.SupervisedAreaIDs) > 0 {
+			if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, id, req.SupervisedAreaIDs); err != nil {
 				return dto.EmployeeResponse{}, err
 			}
 		}
@@ -364,7 +400,7 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		return dto.EmployeeResponse{}, ErrEmployeeNotFound
 	}
 
-	// Replace all area assignments
+	// Replace all area assignments (member role only)
 	if err := u.employeeAreaRepo.RemoveAllAreas(ctx, id); err != nil {
 		return dto.EmployeeResponse{}, err
 	}
@@ -382,4 +418,107 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 	}
 
 	return mapper.ToEmployeeResponse(employee), nil
+}
+
+func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error) {
+	employee, err := u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	// Upsert areas with is_supervisor = true
+	if err := u.employeeAreaRepo.AssignSupervisorAreas(ctx, id, req.AreaIDs); err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	// Reload with preloaded data
+	employee, err = u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	return mapper.ToEmployeeResponse(employee), nil
+}
+
+func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeAreasRequest) (dto.EmployeeResponse, error) {
+	// Verify employee exists
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	// Remove all existing assignments then re-create with the provided roles
+	if err := u.employeeAreaRepo.RemoveAllAreas(ctx, employeeID); err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	for _, a := range req.Assignments {
+		if err := u.employeeAreaRepo.AssignAreaWithRole(ctx, employeeID, a.AreaID, a.IsSupervisor); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+	}
+
+	// Reload with preloaded data
+	employee, err := u.employeeRepo.FindByID(ctx, employeeID)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+	return mapper.ToEmployeeResponse(employee), nil
+}
+
+func (u *employeeUsecase) RemoveAreaAssignment(ctx context.Context, employeeID string, areaID string) error {
+	// Verify employee exists
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	return u.employeeAreaRepo.RemoveFromArea(ctx, employeeID, areaID)
+}
+
+func (u *employeeUsecase) GetFormData(ctx context.Context) (*dto.EmployeeFormDataResponse, error) {
+	// Use a generous PerPage to retrieve all options for each dropdown
+	const maxOptions = 100
+
+	divisions, _, err := u.divisionRepo.List(ctx, &dto.ListDivisionsRequest{Page: 1, PerPage: maxOptions})
+	if err != nil {
+		return nil, err
+	}
+	jobPositions, _, err := u.jobPositionRepo.List(ctx, &dto.ListJobPositionsRequest{Page: 1, PerPage: maxOptions})
+	if err != nil {
+		return nil, err
+	}
+	companies, _, err := u.companyRepo.List(ctx, &dto.ListCompaniesRequest{Page: 1, PerPage: maxOptions})
+	if err != nil {
+		return nil, err
+	}
+	areas, _, err := u.areaRepo.List(ctx, &dto.ListAreasRequest{Page: 1, PerPage: maxOptions})
+	if err != nil {
+		return nil, err
+	}
+
+	divOpts := make([]dto.FormOption, len(divisions))
+	for i, d := range divisions {
+		divOpts[i] = dto.FormOption{ID: d.ID, Name: d.Name}
+	}
+
+	jpOpts := make([]dto.FormOption, len(jobPositions))
+	for i, j := range jobPositions {
+		jpOpts[i] = dto.FormOption{ID: j.ID, Name: j.Name}
+	}
+
+	compOpts := make([]dto.FormOption, len(companies))
+	for i, c := range companies {
+		compOpts[i] = dto.FormOption{ID: c.ID, Name: c.Name}
+	}
+
+	areaOpts := make([]dto.FormOption, len(areas))
+	for i, a := range areas {
+		areaOpts[i] = dto.FormOption{ID: a.ID, Name: a.Name}
+	}
+
+	return &dto.EmployeeFormDataResponse{
+		Divisions:    divOpts,
+		JobPositions: jpOpts,
+		Companies:    compOpts,
+		Areas:        areaOpts,
+	}, nil
 }

@@ -34,6 +34,8 @@ import type { SalesVisit } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 interface VisitDetailModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -52,6 +54,10 @@ export function VisitDetailModal({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
+  // Pagination state for products
+  const [productsPage, setProductsPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  
   // Use static t function temporarily until visit namespace is fully ready
   const t = useTranslations("visit");
 
@@ -63,7 +69,7 @@ export function VisitDetailModal({
   // Fetch product details
   const { data: detailsData, isLoading: detailsLoading } = useVisitDetails(
     visit?.id ?? "",
-    { per_page: 100 },
+    { page: productsPage, per_page: pageSize },
     { enabled: open && !!visit?.id }
   );
 
@@ -151,9 +157,9 @@ export function VisitDetailModal({
       case "planned":
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> Planned</Badge>;
       case "in_progress":
-        return <Badge className="bg-blue-600"><MapPin className="h-3 w-3 mr-1" /> In Progress</Badge>;
+        return <Badge variant="info"><MapPin className="h-3 w-3 mr-1" /> In Progress</Badge>;
       case "completed":
-        return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
+        return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
       case "cancelled":
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Cancelled</Badge>;
       default:
@@ -299,17 +305,18 @@ export function VisitDetailModal({
                  {detailsLoading ? (
                     <Skeleton className="h-40 w-full" />
                  ) : (
-                    <div className="rounded-md border">
-                       <Table>
-                          <TableHeader>
-                             <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Interest</TableHead>
-                                <TableHead>Qty</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Notes</TableHead>
-                             </TableRow>
-                          </TableHeader>
+                    <>
+                     <div className="rounded-md border">
+                        <Table>
+                           <TableHeader>
+                              <TableRow>
+                                 <TableHead>Product</TableHead>
+                                 <TableHead>Interest</TableHead>
+                                 <TableHead>Qty</TableHead>
+                                 <TableHead>Price</TableHead>
+                                 <TableHead>Notes</TableHead>
+                              </TableRow>
+                           </TableHeader>
                            <TableBody>
                              {productDetails.length === 0 ? (
                                 <TableRow>
@@ -348,10 +355,24 @@ export function VisitDetailModal({
                                 ))
                              )}
                           </TableBody>
-                       </Table>
-                    </div>
-                 )}
-              </TabsContent>
+                        </Table>
+                     </div>
+                     
+                     <div className="mt-4">
+                       <DataTablePagination
+                         pageIndex={productsPage}
+                         pageSize={pageSize}
+                         rowCount={detailsData?.meta?.pagination?.total ?? 0}
+                         onPageChange={setProductsPage}
+                         onPageSizeChange={(newSize) => {
+                           setPageSize(newSize);
+                           setProductsPage(1);
+                         }}
+                       />
+                     </div>
+                    </>
+                  )}
+               </TabsContent>
 
               <TabsContent value="history" className="mt-4">
                  {historyLoading ? (

@@ -12,7 +12,7 @@
 | 3-4 | Master Data | Employee, Supplier, Product |
 | 5-6 | Sales | Quotation, Order, Delivery |
 | 7 | Sales | Invoice, Visit, Target |
-| 8 | Purchase | Requisition → PO → Receipt → Invoice |
+| 8 | Purchase | Requisition → PO → Receipt → Invoice | 
 | 9 | Stock | Inventory, Movement, Opname |
 | 10-11 | Finance | COA, Journal, Payment, Budget |
 | 12 | Finance | Asset, Tax, Closing |
@@ -381,12 +381,12 @@ erDiagram
 
 ### Frontend Tasks
 
-- [ ] Sales Order list with filters
-- [ ] Create Order from Quotation flow
-- [ ] Order form with item management
-- [ ] Delivery Order creation from Sales Order
-- [ ] Delivery status tracking UI
-- [ ] Batch selection modal (FIFO/FEFO) - UI ready, backend logic pending Sprint 9
+- [x] Sales Order list with filters
+- [x] Create Order from Quotation flow
+- [x] Order form with item management
+- [x] Delivery Order creation from Sales Order
+- [x] Delivery status tracking UI
+- [x] Batch selection modal (FIFO/FEFO) - UI ready, backend logic pending Sprint 9
 - [ ] Signature capture for receiver
 
 ### Success Criteria
@@ -395,7 +395,7 @@ erDiagram
 - [x] Stock reserved when order confirmed (placeholder - full implementation in Sprint 9)
 - [x] Delivery Order reduces reserved stock (placeholder - full implementation in Sprint 9)
 - [x] Partial delivery creates multiple DOs
-- [ ] DO updates InventoryBatch quantities (pending Sprint 9 - InventoryBatch module)
+- [x] DO updates InventoryBatch quantities (pending Sprint 9 - InventoryBatch module)
 - [x] Tracking number links to courier
 
 ### Integration Requirements
@@ -607,49 +607,57 @@ erDiagram
 
 ---
 
+
 ## Sprint 9: Stock Module
 
 ### Deliverables
 
-- [ ] **API:** Inventory and stock management
-- [ ] **Frontend:** Stock management UI
+- [x] **API:** Inventory and stock management
+- [x] **Frontend:** Stock management UI
 
 ### API Tasks
 
-- [ ] `InventoryBatch` - List + Detail + History
-- [ ] `StockMovement` - Auto-create on GR/DO
-- [ ] `StockOpname` - CRUD + Approve + Adjust
-- [ ] `StockOpnameItem` - Count entry + Variance
-- [ ] Stock adjustment journal creation
-- [ ] Low stock alert calculation
+- [x] `InventoryBatch` - List + Detail + History
+- [x] `StockMovement` - Auto-create on GR/DO
+- [x] `StockOpname` - CRUD + Approve + Adjust
+- [x] `StockOpnameItem` - Count entry + Variance
+- [x] Stock adjustment journal creation
+- [x] Low stock alert calculation
+
+### Audit & Opname
+- [x] Stock Opname creation wizard
+- [x] Count entry form with variance display
+- [x] Opname approval workflow
+- [x] Low stock alerts list
+- [x] Expiry alerts list
 
 #### Integration with Sprint 6 (Sales Order & Delivery Order) - CRITICAL
-- [ ] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()` - currently placeholder in Sprint 6
-- [ ] **CRITICAL:** Create `StockMovement` records when delivery order is shipped
-- [ ] **CRITICAL:** Update `SalesOrderItem.DeliveredQuantity` when delivery order is delivered
-- [ ] **CRITICAL:** Link `DeliveryOrderItem.InventoryBatchID` to actual batch records
+- [x] **CRITICAL:** Implement stock reservation logic in `SalesOrderUsecase.Create()` and `SalesOrderUsecase.UpdateStatus()`
+- [x] **CRITICAL:** Implement batch selection logic (FIFO/FEFO) in `DeliveryOrderUsecase.SelectBatches()`
+- [x] **CRITICAL:** Implement stock reduction logic in `DeliveryOrderUsecase.Ship()`
+- [x] **CRITICAL:** Create `StockMovement` (OUT) records when delivery order is shipped
+- [x] **CRITICAL:** Update `SalesOrderItem.DeliveredQuantity` when delivery order is delivered
+- [x] **CRITICAL:** Link `DeliveryOrderItem.InventoryBatchID` to actual batch records
 
 ### Frontend Tasks
 
-- [ ] Inventory dashboard with warehouse filter
-- [ ] Batch detail with movement history
-- [ ] Stock Movement timeline view
-- [ ] Stock Opname creation wizard
-- [ ] Count entry form with variance display
-- [ ] Opname approval workflow
-- [ ] Low stock alerts list
-- [ ] Expiry alerts list
+- [x] Inventory dashboard with warehouse filter
+- [x] Batch detail with movement history
+- [x] Stock Movement timeline view
+- [x] Stock Opname wizard
+- [x] Count entry form with variance display
+- [x] Opname approval workflow
+- [x] Low stock alerts list
+- [x] Expiry alerts list
 
 ### Success Criteria
 
-- [ ] Stock movements auto-created on GR (IN) and DO (OUT)
-- [ ] Movement tracks unit cost and running balance
-- [ ] Opname variance calculated (Counted - System)
-- [ ] Opname adjustment creates correcting movement
-- [ ] Low stock alert when Qty < Product.MinStock
-- [ ] Expiry alert for batches expiring within 30 days
+- [x] Stock movements auto-created on GR (IN) and DO (OUT)
+- [x] Movement tracks unit cost and running balance
+- [x] Opname variance calculated (Counted - System)
+- [x] Opname adjustment creates correcting movement
+- [x] Low stock alert when Qty < Product.MinStock
+- [x] Expiry alert for batches expiring within 30 days
 
 ### Integration Requirements
 
@@ -884,53 +892,108 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Attendance management
-- [ ] **Frontend:** Attendance tracking UI
+- [x] **API:** Attendance management ✅
+- [x] **Frontend:** Attendance tracking UI ✅
 
 ### API Tasks
 
-- [ ] `AttendanceRecord` - Clock In/Out
-- [ ] `WorkSchedule` - Weekly schedule definition
-- [ ] `Holiday` - CRUD + Import
-- [ ] Attendance calculation (late, early leave, overtime)
-- [ ] Attendance summary report
+- [x] `AttendanceRecord` - Clock In/Out with GPS validation
+- [x] `WorkSchedule` - Weekly schedule definition with flexible hours
+- [x] `Holiday` - CRUD + Batch import + Calendar view
+- [x] `OvertimeRequest` - CRUD + Approval workflow + Auto-detection
+- [x] Attendance calculation (late, early leave, overtime)
+- [x] Attendance summary report (monthly stats)
+- [x] GPS validation using Haversine formula
+- [x] Migration SQL for HRD tables
+- [x] Seeder for work schedules and holidays
 
 ### Frontend Tasks
 
-- [ ] Clock In/Out interface
-- [ ] Attendance calendar view
-- [ ] Work schedule configuration
-- [ ] Holiday management
-- [ ] Attendance report by employee/department
-- [ ] Late/Absent summary
+- [x] Types, schemas, services, and hooks created
+- [x] i18n translations (en, id)
+- [x] Clock In/Out interface with GPS
+- [x] Attendance calendar view
+- [x] Work schedule configuration
+- [x] Holiday management
+- [x] Overtime request/approval UI
+- [x] Attendance report by employee/department
+- [x] Late/Absent summary dashboard (HRD Dashboard)
 
 ### Success Criteria
 
-- [ ] Clock In/Out records timestamp and type
-- [ ] Late calculated from WorkSchedule.StartTime
-- [ ] Early leave calculated from WorkSchedule.EndTime
-- [ ] Holidays marked as non-working days
-- [ ] Attendance summary shows present/absent/late counts
+- [x] Clock In/Out records timestamp, GPS coordinates, and type
+- [x] Late calculated from WorkSchedule.StartTime with tolerance
+- [x] Early leave calculated from WorkSchedule.EndTime with tolerance
+- [x] Holidays marked as non-working days
+- [x] Attendance summary shows present/absent/late counts
+- [x] Overtime auto-detected on clock out
+- [x] GPS radius validation for office attendance
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
 
 ### Table Relations
 
 ```mermaid
 erDiagram
     Employee ||--o{ AttendanceRecord : "records"
+    WorkSchedule ||--o{ AttendanceRecord : "schedule"
+    AttendanceRecord ||--o| OvertimeRequest : "triggers"
+    Holiday }o--o{ AttendanceRecord : "affects"
+    Division ||--o{ WorkSchedule : "has"
 ```
 
 ### Business Logic
 
 - CheckInType: NORMAL, WFH, FIELD_WORK
-- Status: PRESENT, ABSENT, LATE, HALF_DAY
-- Late = CheckInTime > WorkSchedule.StartTime
-- Overtime = CheckOutTime > WorkSchedule.EndTime (if approved)
+- Status: PRESENT, ABSENT, LATE, HALF_DAY, LEAVE, WFH, OFF_DAY, HOLIDAY
+- Late = CheckInTime > (WorkSchedule.StartTime + LateToleranceMinutes)
+- Overtime = CheckOutTime > WorkSchedule.EndTime (auto-detected or manual claim)
 - Holiday check before marking absent
+- GPS validation: Haversine formula with configurable radius per schedule
+- Working days: Bitmask (1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat, 64=Sun)
+- Overtime rates: 1.5x weekday, 2.0x weekend/holiday
+
+### API Endpoints
+
+| Method | Endpoint | Permission | Description |
+|--------|----------|------------|-------------|
+| GET | `/hrd/attendance/today` | Auth | Get today's attendance |
+| POST | `/hrd/attendance/clock-in` | Auth | Clock in with GPS |
+| POST | `/hrd/attendance/clock-out` | Auth | Clock out with GPS |
+| GET | `/hrd/attendance/my-stats` | Auth | Get monthly stats |
+| GET | `/hrd/attendance` | attendance.read | List all records |
+| GET | `/hrd/attendance/:id` | attendance.read | Get by ID |
+| POST | `/hrd/attendance/manual` | attendance.create | Manual entry |
+| PUT | `/hrd/attendance/:id` | attendance.update | Update record |
+| DELETE | `/hrd/attendance/:id` | attendance.delete | Delete record |
+| GET | `/hrd/work-schedules` | work_schedule.read | List schedules |
+| GET | `/hrd/work-schedules/default` | work_schedule.read | Get default |
+| POST | `/hrd/work-schedules` | work_schedule.create | Create schedule |
+| PUT | `/hrd/work-schedules/:id` | work_schedule.update | Update schedule |
+| DELETE | `/hrd/work-schedules/:id` | work_schedule.delete | Delete schedule |
+| POST | `/hrd/work-schedules/:id/set-default` | work_schedule.update | Set default |
+| GET | `/hrd/holidays` | holiday.read | List holidays |
+| GET | `/hrd/holidays/check` | holiday.read | Check if date is holiday |
+| GET | `/hrd/holidays/year/:year` | holiday.read | Get by year |
+| GET | `/hrd/holidays/calendar/:year` | holiday.read | Calendar view |
+| POST | `/hrd/holidays` | holiday.create | Create holiday |
+| POST | `/hrd/holidays/batch` | holiday.create | Batch create |
+| PUT | `/hrd/holidays/:id` | holiday.update | Update holiday |
+| DELETE | `/hrd/holidays/:id` | holiday.delete | Delete holiday |
+| POST | `/hrd/overtime` | Auth | Submit request |
+| GET | `/hrd/overtime/my-summary` | Auth | Get own summary |
+| POST | `/hrd/overtime/:id/cancel` | Auth | Cancel request |
+| GET | `/hrd/overtime/pending` | overtime.approve | Get pending |
+| POST | `/hrd/overtime/:id/approve` | overtime.approve | Approve |
+| POST | `/hrd/overtime/:id/reject` | overtime.approve | Reject |
+| GET | `/hrd/overtime` | overtime.read | List all |
+| GET | `/hrd/overtime/:id` | overtime.read | Get by ID |
+| PUT | `/hrd/overtime/:id` | overtime.update | Update |
+| DELETE | `/hrd/overtime/:id` | overtime.delete | Delete |
+| GET | `/hrd/overtime/notifications` | overtime.approve | Polling |
 
 ---
 
@@ -943,25 +1006,25 @@ erDiagram
 
 ### API Tasks
 
-- [ ] `LeaveRequest` - CRUD + Approve workflow
-- [ ] Leave balance calculation
-- [ ] `EmployeeContract` - CRUD
-- [ ] `EmployeeEducationHistory` - CRUD
-- [ ] `EmployeeCertification` - CRUD
-- [ ] `EmployeeAsset` - CRUD (company assets borrowed)
+- [x] `LeaveRequest` - CRUD + Approve workflow
+- [x] Leave balance calculation
+- [x] `EmployeeContract` - CRUD
+- [x] `EmployeeEducationHistory` - CRUD
+- [x] `EmployeeCertification` - CRUD
+- [x] `EmployeeAsset` - CRUD (company assets borrowed)
 - [ ] `SalaryStructure` - CRUD
 - [ ] `UpCountryCost` - Travel expense
 
 ### Frontend Tasks
 
-- [ ] Leave request form with date range
-- [ ] Leave approval workflow
-- [ ] Leave balance display
+- [x] Leave request form with date range
+- [x] Leave approval workflow
+- [x] Leave balance display
 - [ ] Employee documents upload
-- [ ] Contract management
-- [ ] Education history
-- [ ] Certification tracking
-- [ ] Company asset assignment
+- [x] Contract management
+- [x] Education history
+- [x] Certification tracking
+- [x] Company asset assignment
 - [ ] Salary structure management
 - [ ] Travel expense form (Up Country)
 
@@ -1009,39 +1072,52 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Performance and Recruitment management
-- [ ] **Frontend:** Evaluation and Recruitment UI
+- [x] **API:** Evaluation management (Group, Criteria, Employee Evaluation)
+- [x] **Frontend:** Evaluation UI (template management, scoring, workflow)
+- [x] **API:** Recruitment management
+- [x] **Frontend:** Recruitment UI
 
 ### API Tasks
 
-- [ ] `EvaluationGroup` - CRUD
-- [ ] `EvaluationCriteria` - CRUD with weights
-- [ ] `EmployeeEvaluation` - CRUD + Score
-- [ ] `EmployeeEvaluationCriteria` - Scoring per criteria
-- [ ] `RecruitmentRequest` - CRUD + Approve
+- [x] `EvaluationGroup` - CRUD
+- [x] `EvaluationCriteria` - CRUD with weights
+- [x] `EmployeeEvaluation` - CRUD + Score
+- [x] `EmployeeEvaluationCriteria` - Scoring per criteria
+- [x] `EmployeeEvaluation` Form Data endpoint
+- [x] Evaluation seeder data
+- [x] `RecruitmentRequest` - CRUD + Approve
 
 ### Frontend Tasks
 
-- [ ] Evaluation template management
-- [ ] Employee evaluation form
-- [ ] Score entry with weighted calculation
-- [ ] Evaluation history
-- [ ] Recruitment request form
-- [ ] Recruitment approval workflow
-- [ ] Position opening list
+- [x] Evaluation template management (EvaluationGroupList + Form)
+- [x] Evaluation criteria management (within group detail modal)
+- [x] Employee evaluation form with criteria score entry
+- [x] Score entry with weighted calculation & overall score display
+- [x] Evaluation listing with status filters & search
+- [x] Evaluation detail modal with score breakdown
+- [x] Status workflow actions (submit/review/finalize)
+- [x] Tabbed page (Evaluations + Evaluation Groups)
+- [x] i18n translations (en/id)
+- [x] Recruitment request form
+- [x] Recruitment approval workflow
+- [x] Position opening list
 
 ### Success Criteria
 
-- [ ] Criteria weights sum to 100%
-- [ ] OverallScore = Σ(Score × Weight)
-- [ ] Evaluation period validation
-- [ ] Recruitment approval workflow complete
-- [ ] Position filling status tracked
+- [x] Criteria weights sum to 100%
+- [x] OverallScore = Σ(Score × Weight)
+- [x] Evaluation period validation
+- [x] Evaluation CRUD with status workflow
+- [x] Form data endpoint for dropdowns
+- [x] Recruitment approval workflow complete
+- [x] Position filling status tracked
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
+- [x] Permission integration check (RBAC) - evaluation.read/create/update/delete
+- [x] i18n integration check (request.ts) - evaluationEn/evaluationId registered
+- [x] Recruitment permission integration
+- [x] Recruitment i18n integration
 
 ### Table Relations
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Table,
@@ -49,6 +50,7 @@ import { sortOptions } from "@/lib/utils";
 import type { Employee, EmployeeStatus } from "../types";
 import {
   useEmployees,
+  useEmployee,
   useDeleteEmployee,
   useUpdateEmployee,
   useSubmitEmployeeForApproval,
@@ -57,14 +59,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions } from "@/features/master-data/organization/hooks/use-job-positions";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 const STATUS_OPTIONS: EmployeeStatus[] = [
   "draft",
@@ -75,9 +70,15 @@ const STATUS_OPTIONS: EmployeeStatus[] = [
 
 export function EmployeeList() {
   const t = useTranslations("employee");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const openIdFromUrl = searchParams.get("openId");
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [divisionFilter, setDivisionFilter] = useState<string>("");
   const [positionFilter, setPositionFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "">("");
@@ -87,9 +88,18 @@ export function EmployeeList() {
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  const { data: openEmployeeData } = useEmployee(openIdFromUrl ?? undefined);
+
+  useEffect(() => {
+    if (!openIdFromUrl || !openEmployeeData?.data) return;
+    setDetailEmployee(openEmployeeData.data);
+    setIsDetailOpen(true);
+    router.replace(pathname, { scroll: false });
+  }, [openIdFromUrl, openEmployeeData?.data, pathname, router]);
+
   const { data, isLoading, isError } = useEmployees({
     page,
-    per_page: 10,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     division_id: divisionFilter || undefined,
     job_position_id: positionFilter || undefined,
@@ -115,8 +125,20 @@ export function EmployeeList() {
   const positions = positionsData?.data ?? [];
 
   const handleEdit = (employee: Employee) => {
+    console.log("=== EMPLOYEE LIST: handleEdit called ===");
+    console.log("Employee data being passed to form:", employee);
+    console.log("Employee ID:", employee.id);
+    console.log("Employee name:", employee.name);
+    console.log("Employee user_id:", employee.user_id);
+    console.log("Employee division_id:", employee.division_id);
+    console.log("Employee job_position_id:", employee.job_position_id);
+    console.log("Employee company_id:", employee.company_id);
+    console.log("Employee gender:", employee.gender);
+    console.log("Employee contract_status:", employee.contract_status);
     setEditingEmployee(employee);
     setIsFormOpen(true);
+    console.log("Form should now be opening with employee data");
+    console.log("==========================================");
   };
 
   const handleViewDetail = (employee: Employee) => {
@@ -430,43 +452,17 @@ export function EmployeeList() {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              {Array.from({ length: Math.min(5, pagination.total_pages) }).map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => setPage(pageNum)}
-                      isActive={page === pageNum}
-                      className="cursor-pointer"
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => setPage((p) => Math.min(pagination.total_pages, p + 1))}
-                  className={
-                    page >= pagination.total_pages
-                      ? "pointer-events-none opacity-50"
-                      : "cursor-pointer"
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {/* Form Dialog */}

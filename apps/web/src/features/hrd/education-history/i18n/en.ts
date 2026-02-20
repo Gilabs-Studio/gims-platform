@@ -1,0 +1,121 @@
+export const educationHistoryEn = {
+  educationHistory: {
+    // Common
+    common: {
+      educationHistory: "Education History",
+      educationHistories: "Education Histories",
+      actions: "Actions",
+      search: "Search...",
+      filterBy: "Filter by",
+      noResults: "No results found",
+      error: "Failed to load data",
+      loading: "Loading...",
+      save: "Save",
+      cancel: "Cancel",
+      delete: "Delete",
+      update: "Update",
+      create: "Create",
+      saving: "Saving...",
+      edit: "Edit",
+      view: "View",
+      confirmDelete: "Are you sure you want to delete this education history?",
+      deleteWarning: "This action cannot be undone.",
+      page: "Page",
+      of: "of",
+      total: "total",
+      previous: "Previous",
+      next: "Next",
+      back: "Back",
+      validationError: "Please correct the highlighted fields",
+      basicInfo: "Basic Information",
+      select: "Select",
+      selectDate: "Select date",
+      validating: "Validating...",
+      completed: "Completed",
+      ongoing: "Ongoing",
+    },
+
+    // Education History
+    title: "Education History",
+    subtitle: "Manage employee education history from elementary to doctorate level",
+    employee: "Employee",
+    institution: "Institution",
+    degree: "Degree Level",
+    fieldOfStudy: "Field of Study",
+    startDate: "Start Date",
+    endDate: "End Date",
+    gpa: "GPA",
+    description: "Description",
+    documentPath: "Document Path",
+    isCompleted: "Status",
+    durationYears: "Duration (Years)",
+    search: "Search education histories...",
+    add: "Add Education History",
+    edit: "Edit Education History",
+    delete: "Delete Education History",
+    notFound: "No education histories found",
+    created: "Education history created successfully",
+    updated: "Education history updated successfully",
+    deleted: "Education history deleted successfully",
+    deleteDesc:
+      "Are you sure you want to delete this education history record? This action cannot be undone.",
+
+    // Degree Levels
+    degrees: {
+      ELEMENTARY: "Elementary School",
+      JUNIOR_HIGH: "Junior High School",
+      SENIOR_HIGH: "Senior High School",
+      DIPLOMA: "Diploma (D1/D2/D3)",
+      BACHELOR: "Bachelor's Degree (S1)",
+      MASTER: "Master's Degree (S2)",
+      DOCTORATE: "Doctorate Degree (S3)",
+    },
+
+    // Filters
+    filters: {
+      allDegrees: "All Degrees",
+      selectDegree: "Select degree level",
+      selectEmployee: "Select employee",
+      allEmployees: "All Employees",
+    },
+
+    // Validation
+    validation: {
+      required: "This field is required",
+      invalidId: "Invalid ID format",
+      maxLength: "Maximum length exceeded",
+      gpaMin: "GPA cannot be negative",
+      gpaMax: "GPA cannot exceed 4.0",
+      endDateAfterStart: "End date must be after start date",
+    },
+
+    // Details
+    details: {
+      title: "Education History Details",
+      employeeInfo: "Employee Information",
+      educationInfo: "Education Information",
+      documentInfo: "Document Information",
+      timeline: "Timeline",
+      noDocument: "No document uploaded",
+      viewProfile: "View Profile",
+      employeeCode: "Employee Code",
+      email: "Email",
+      phone: "Phone",
+      position: "Position",
+      department: "Department",
+      downloadDocument: "Download Document",
+    },
+
+    // Form
+    form: {
+      selectEmployee: "Select an employee",
+      selectDegree: "Select degree level",
+      institutionPlaceholder: "Enter institution name",
+      fieldOfStudyPlaceholder: "Enter field of study (optional)",
+      gpaPlaceholder: "Enter GPA (0-4.0)",
+      descriptionPlaceholder: "Enter description (optional)",
+      documentPathPlaceholder: "Enter document path (optional)",
+      ongoing: "This education is still ongoing",
+    },
+  },
+};

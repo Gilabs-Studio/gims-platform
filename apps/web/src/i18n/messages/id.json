@@ -4,14 +4,17 @@
     "loading": "Memuat...",
     "error": "Terjadi kesalahan",
     "retry": "Coba Lagi",
+    "empty": "Tidak ada data",
     "noData": "Data tidak ditemukan",
     "search": "Cari...",
     "searchPlaceholder": "Cari... (Tekan / atau ⌘K)",
     "actions": "Aksi",
+    "all": "Semua",
     "active": "Aktif",
     "inactive": "Tidak Aktif",
     "edit": "Ubah",
     "delete": "Hapus",
+    "deleteConfirm": "Apakah Anda yakin ingin menghapus item ini?",
     "create": "Buat",
     "save": "Simpan",
     "saving": "Menyimpan...",
@@ -20,7 +23,16 @@
     "confirm": "Konfirmasi",
     "close": "Tutup",
     "yes": "Ya",
-    "no": "Tidak"
+    "no": "Tidak",
+    "page": "Halaman",
+    "of": "dari",
+    "previous": "Sebelumnya",
+    "next": "Selanjutnya",
+    "deleted": "Berhasil dihapus",
+    "saved": "Berhasil disimpan",
+    "showing": "Menampilkan",
+    "entries": "kumpulan data",
+    "rowsPerPage": "Baris per halaman"
   },
   "notFound": {
     "label": "404",
@@ -48,6 +60,7 @@
       "rememberMe": "Ingat saya",
       "submit": "Masuk",
       "submitting": "Masuk...",
+      "verifyingSession": "Memverifikasi sesi...",
       "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}."
     },
     "block": {

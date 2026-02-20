@@ -62,13 +62,8 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 		CreatedAt:      time.Now(),
 	}
 
-	// Fire and forget (async) or synchronous?
-	// Sync is safer for audit.
-	// But to avoid latency, maybe async?
-	// Requirement says "high performance". Async is better.
-	go func() {
-		// Create a new context for DB operation to avoid cancellation
-		dbCtx := context.Background()
-		s.db.WithContext(dbCtx).Create(log)
-	}()
+	// Synchronous write to ensure audit trail consistency.
+	// Use a background context to avoid request cancellation dropping audit entries.
+	dbCtx := context.Background()
+	s.db.WithContext(dbCtx).Create(log)
 }

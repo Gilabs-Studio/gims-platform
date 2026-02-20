@@ -140,10 +140,10 @@ func (h *AreaHandler) Delete(c *gin.Context) {
 			}, nil)
 			return
 		}
-		if err == usecase.ErrAreaHasSupervisors {
+		if err == usecase.ErrAreaHasAssignedEmployees {
 			errors.ErrorResponse(c, "RESOURCE_IN_USE", map[string]interface{}{
 				"resource": "area",
-				"reason":   "has supervisors assigned",
+				"reason":   "has employees assigned",
 			}, nil)
 			return
 		}
@@ -152,4 +152,101 @@ func (h *AreaHandler) Delete(c *gin.Context) {
 	}
 
 	response.SuccessResponseDeleted(c, "area", id, nil)
+}
+
+// GetDetail handles GET /areas/:id/detail and returns full area info with supervisor/member lists.
+func (h *AreaHandler) GetDetail(c *gin.Context) {
+	id := c.Param("id")
+
+	area, err := h.areaUC.GetByIDWithDetails(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrAreaNotFound {
+			errors.ErrorResponse(c, "AREA_NOT_FOUND", map[string]interface{}{
+				"area_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, area, nil)
+}
+
+// AssignSupervisors handles POST /areas/:id/supervisors
+func (h *AreaHandler) AssignSupervisors(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.AssignAreaSupervisorsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	area, err := h.areaUC.AssignSupervisors(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrAreaNotFound {
+			errors.ErrorResponse(c, "AREA_NOT_FOUND", map[string]interface{}{
+				"area_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, area, nil)
+}
+
+// AssignMembers handles POST /areas/:id/members
+func (h *AreaHandler) AssignMembers(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.AssignAreaMembersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	area, err := h.areaUC.AssignMembers(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrAreaNotFound {
+			errors.ErrorResponse(c, "AREA_NOT_FOUND", map[string]interface{}{
+				"area_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, area, nil)
+}
+
+// RemoveEmployee handles DELETE /areas/:id/employees/:emp_id
+func (h *AreaHandler) RemoveEmployee(c *gin.Context) {
+	areaID := c.Param("id")
+	employeeID := c.Param("emp_id")
+
+	area, err := h.areaUC.RemoveEmployee(c.Request.Context(), areaID, employeeID)
+	if err != nil {
+		if err == usecase.ErrAreaNotFound {
+			errors.ErrorResponse(c, "AREA_NOT_FOUND", map[string]interface{}{
+				"area_id": areaID,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, area, nil)
 }

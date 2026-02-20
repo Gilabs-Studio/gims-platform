@@ -85,11 +85,11 @@ func SeedPermissions() error {
 		{"/master-data/areas", "area.create", "Create Areas", "CREATE", "area"},
 		{"/master-data/areas", "area.update", "Edit Areas", "EDIT", "area"},
 		{"/master-data/areas", "area.delete", "Delete Areas", "DELETE", "area"},
-
-		{"/master-data/area-supervisors", "area_supervisor.read", "View Area Supervisors", "VIEW", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.create", "Create Area Supervisors", "CREATE", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.update", "Edit Area Supervisors", "EDIT", "area_supervisor"},
-		{"/master-data/area-supervisors", "area_supervisor.delete", "Delete Area Supervisors", "DELETE", "area_supervisor"},
+		// Sprint 17: supervisor/member assignment now lives on employee_areas
+		{"/master-data/areas", "area.assign_supervisor", "Assign Area Supervisors", "EDIT", "area"},
+		{"/master-data/areas", "area.assign_member", "Assign Area Members", "EDIT", "area"},
+		// Employees can be marked as supervisor of an area from the employee side
+		{"/master-data/employees", "employee.assign_area", "Assign Employee to Area", "EDIT", "employee"},
 
 		// Master Data - Employee
 		{"/master-data/employees", "employee.read", "View Employees", "VIEW", "employee"},
@@ -214,6 +214,8 @@ func SeedPermissions() error {
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.update", "Edit Delivery Orders", "EDIT", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.delete", "Delete Delivery Orders", "DELETE", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.ship", "Ship Delivery Orders", "SHIP", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.deliver", "Deliver Delivery Orders", "DELIVER", "delivery_order"},
 
 		{"/sales/invoices", "customer_invoice.read", "View Customer Invoices", "VIEW", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.create", "Create Customer Invoices", "CREATE", "customer_invoice"},
@@ -237,27 +239,55 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
 
 		// Purchase
-		{"/purchase/requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
-		{"/purchase/requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 
-		{"/purchase/orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
-		{"/purchase/orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
-		{"/purchase/orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
-		{"/purchase/orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
-		{"/purchase/orders", "purchase_order.approve", "Approve Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.confirm", "Confirm Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.create", "Create Goods Receipts", "CREATE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.update", "Edit Goods Receipts", "EDIT", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.delete", "Delete Goods Receipts", "DELETE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.confirm", "Confirm Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
 
-		{"/purchase/invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
-		{"/purchase/invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.pending", "Pending Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
+
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.create", "Create Supplier Invoice Down Payments", "CREATE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.update", "Edit Supplier Invoice Down Payments", "EDIT", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.delete", "Delete Supplier Invoice Down Payments", "DELETE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.pending", "Pending Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
+		// Purchase Payments
+		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
 
 		// Stock
 		{"/stock/inventory", "inventory.read", "View Inventory", "VIEW", "inventory"},
@@ -272,7 +302,10 @@ func SeedPermissions() error {
 		{"/stock/opname", "stock_opname.read", "View Stock Opname", "VIEW", "stock_opname"},
 		{"/stock/opname", "stock_opname.create", "Create Stock Opname", "CREATE", "stock_opname"},
 		{"/stock/opname", "stock_opname.update", "Edit Stock Opname", "EDIT", "stock_opname"},
+		{"/stock/opname", "stock_opname.delete", "Delete Stock Opname", "DELETE", "stock_opname"},
 		{"/stock/opname", "stock_opname.approve", "Approve Stock Opname", "APPROVE", "stock_opname"},
+		{"/stock/opname", "stock_opname.reject", "Reject Stock Opname", "REJECT", "stock_opname"},
+		{"/stock/opname", "stock_opname.post", "Post Stock Opname", "POST", "stock_opname"},
 
 		// Finance
 		{"/finance/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},
@@ -393,6 +426,13 @@ func SeedPermissions() error {
 		{"/hrd/holidays", "holiday.update", "Edit Holidays", "EDIT", "holiday"},
 		{"/hrd/holidays", "holiday.delete", "Delete Holidays", "DELETE", "holiday"},
 
+		{"/hrd/overtime", "overtime.read", "View Overtime Requests", "VIEW", "overtime"},
+		{"/hrd/overtime", "overtime.create", "Create Overtime Requests", "CREATE", "overtime"},
+		{"/hrd/overtime", "overtime.update", "Edit Overtime Requests", "EDIT", "overtime"},
+		{"/hrd/overtime", "overtime.delete", "Delete Overtime Requests", "DELETE", "overtime"},
+		{"/hrd/overtime", "overtime.approve", "Approve Overtime Requests", "APPROVE", "overtime"},
+		{"/hrd/overtime", "overtime.reject", "Reject Overtime Requests", "REJECT", "overtime"},
+
 		// Reports
 		{"/reports", "report.view", "View Reports", "VIEW", "report"},
 		{"/reports", "report.generate", "Generate Reports", "CREATE", "report"},
@@ -426,7 +466,18 @@ func SeedPermissions() error {
 		// Check if permission already exists
 		var existingPerm permission.Permission
 		if err := database.DB.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
-			// Permission exists, add ID to list and continue
+			// Permission exists: ensure it matches the latest definition.
+			updates := map[string]interface{}{
+				"name":     p.name,
+				"action":   p.action,
+				"resource": p.resource,
+				"menu_id":  &menuID,
+			}
+			if err := database.DB.Model(&existingPerm).Updates(updates).Error; err != nil {
+				log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+			}
+
+			// Add ID to list and continue
 			permissionIDs = append(permissionIDs, existingPerm.ID)
 			continue
 		}
@@ -447,20 +498,20 @@ func SeedPermissions() error {
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
 
-	// Assign all permissions to admin role
+	// Assign all permissions to admin role with ALL scope
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
 		log.Printf("Warning: Admin role not found: %v", err)
 	} else {
 		for _, permID := range permissionIDs {
 			if err := database.DB.Exec(
-				"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
 				adminRole.ID, permID,
 			).Error; err != nil {
 				log.Printf("Warning: Failed to assign permission to admin: %v", err)
 			}
 		}
-		log.Printf("Assigned %d permissions to admin role", len(permissionIDs))
+		log.Printf("Assigned %d permissions to admin role (scope=ALL)", len(permissionIDs))
 	}
 
 	// Sync all permissions to admin role
@@ -468,7 +519,7 @@ func SeedPermissions() error {
 		log.Printf("Warning: Failed to sync admin permissions: %v", err)
 	}
 
-	// Assign VIEW permissions to viewer role
+	// Assign VIEW permissions to viewer role with OWN scope
 	var viewerRole role.Role
 	if err := database.DB.Where("code = ?", "viewer").First(&viewerRole).Error; err == nil {
 		var viewPermissions []permission.Permission
@@ -476,7 +527,7 @@ func SeedPermissions() error {
 			viewerCount := 0
 			for _, perm := range viewPermissions {
 				if err := database.DB.Exec(
-					"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
 					viewerRole.ID, perm.ID,
 				).Error; err != nil {
 					log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
@@ -484,15 +535,108 @@ func SeedPermissions() error {
 					viewerCount++
 				}
 			}
-			log.Printf("Assigned %d VIEW permissions to viewer role", viewerCount)
+			log.Printf("Assigned %d VIEW permissions to viewer role (scope=OWN)", viewerCount)
 		}
 	}
+
+	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
+	assignScopedPermissionsToRole("manager", map[string]string{
+		"sales":    "DIVISION",
+		"purchase": "DIVISION",
+		"hrd":      "DIVISION",
+		"finance":  "DIVISION",
+		"stock":    "ALL",
+	}, "ALL")
+
+	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
+	assignScopedPermissionsToRole("staff", map[string]string{
+		"sales":    "OWN",
+		"purchase": "OWN",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "OWN",
+	}, "ALL")
+
+	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
+	assignScopedPermissionsToRole("area_supervisor", map[string]string{
+		"sales":    "AREA",
+		"purchase": "DIVISION",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "AREA",
+	}, "ALL")
+
+	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
+	assignScopedPermissionsToRole("sales_director", map[string]string{
+		"sales":    "ALL",
+		"purchase": "DIVISION",
+		"hrd":      "OWN",
+		"finance":  "OWN",
+		"stock":    "ALL",
+	}, "ALL")
+
+	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
+	assignScopedPermissionsToRole("finance_manager", map[string]string{
+		"finance":  "DIVISION",
+		"sales":    "OWN",
+		"purchase": "OWN",
+		"hrd":      "OWN",
+		"stock":    "OWN",
+	}, "ALL")
 
 	log.Println("ERP permissions seeded successfully")
 	return nil
 }
 
-// SyncAdminPermissions syncs all existing permissions to admin role
+// assignScopedPermissionsToRole assigns all permissions to a role with module-aware scopes.
+// moduleScopes maps a module prefix (from permission resource) to a scope value.
+// defaultScope is used for permissions that don't match any module prefix (e.g., master data).
+func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]string, defaultScope string) {
+	var r role.Role
+	if err := database.DB.Where("code = ?", roleCode).First(&r).Error; err != nil {
+		log.Printf("Warning: Role %s not found, skipping scoped assignment: %v", roleCode, err)
+		return
+	}
+
+	var allPerms []permission.Permission
+	if err := database.DB.Find(&allPerms).Error; err != nil {
+		log.Printf("Warning: Failed to load permissions for %s: %v", roleCode, err)
+		return
+	}
+
+	count := 0
+	for _, perm := range allPerms {
+		scope := defaultScope
+		for module, moduleScope := range moduleScopes {
+			if matchesModule(perm.Resource, module) {
+				scope = moduleScope
+				break
+			}
+		}
+
+		if err := database.DB.Exec(
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+			r.ID, perm.ID, scope,
+		).Error; err != nil {
+			log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+		} else {
+			count++
+		}
+	}
+	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
+}
+
+// matchesModule checks if a permission resource belongs to a given module.
+// Uses prefix matching on common resource naming patterns.
+func matchesModule(resource, module string) bool {
+	// Common resource patterns: sales_order, sales_quotation, purchase_order, hrd_leave, finance_journal, etc.
+	if len(resource) >= len(module) && resource[:len(module)] == module {
+		return true
+	}
+	return false
+}
+
+// SyncAdminPermissions syncs all existing permissions to admin role with ALL scope
 func SyncAdminPermissions() error {
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
@@ -507,7 +651,7 @@ func SyncAdminPermissions() error {
 	assignedCount := 0
 	for _, perm := range allPermissions {
 		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
 			adminRole.ID, perm.ID,
 		).Error; err != nil {
 			log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
@@ -516,6 +660,6 @@ func SyncAdminPermissions() error {
 		}
 	}
 
-	log.Printf("Synced %d permissions to admin role (total: %d)", assignedCount, len(allPermissions))
+	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
 	return nil
 }

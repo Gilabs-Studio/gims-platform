@@ -20,11 +20,14 @@ import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import type { SalesEstimation, SalesEstimationStatus } from "../types";
 import { formatCurrency } from "@/lib/utils";
 
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 export function EstimationList() {
   const t = useTranslations("estimation");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<SalesEstimationStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEstimation, setEditingEstimation] = useState<SalesEstimation | null>(null);
@@ -34,7 +37,7 @@ export function EstimationList() {
 
   const { data, isLoading, isError } = useEstimations({
     page,
-    per_page: 20,
+    per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
@@ -94,7 +97,7 @@ export function EstimationList() {
 
   const getProbabilityBadge = (probability: number) => {
     if (probability >= 75) {
-      return <Badge variant="default" className="bg-green-600">{probability}%</Badge>;
+      return <Badge variant="success">{probability}%</Badge>;
     } else if (probability >= 50) {
       return <Badge variant="default">{probability}%</Badge>;
     } else if (probability >= 25) {
@@ -115,14 +118,14 @@ export function EstimationList() {
         );
       case "submitted":
         return (
-          <Badge variant="default">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="success">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
@@ -316,32 +319,17 @@ export function EstimationList() {
         </Table>
       </div>
 
-      {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t("common.page")} {pagination.page} {t("common.of")} {pagination.total_pages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_prev}
-              onClick={() => setPage(page - 1)}
-              className="cursor-pointer"
-            >
-              {t("common.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.has_next}
-              onClick={() => setPage(page + 1)}
-              className="cursor-pointer"
-            >
-              {t("common.next")}
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {canCreate && (

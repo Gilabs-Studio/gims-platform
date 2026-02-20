@@ -136,17 +136,22 @@ func ToEmployeeResponse(e *models.Employee) dto.EmployeeResponse {
 		}
 	}
 
-	// Areas
+	// Areas with supervisor flag
 	if len(e.Areas) > 0 {
-		areas := make([]dto.AreaResponse, 0, len(e.Areas))
+		areas := make([]dto.EmployeeAreaSummary, 0, len(e.Areas))
 		for _, ea := range e.Areas {
 			if ea.Area != nil {
-				areas = append(areas, dto.AreaResponse{
-					ID:          ea.Area.ID,
-					Name:        ea.Area.Name,
-					Description: ea.Area.Description,
-					IsActive:    ea.Area.IsActive,
+				areas = append(areas, dto.EmployeeAreaSummary{
+					AreaID:       ea.Area.ID,
+					AreaName:     ea.Area.Name,
+					Description:  ea.Area.Description,
+					IsActive:     ea.Area.IsActive,
+					IsSupervisor: ea.IsSupervisor,
 				})
+				// Compute IsAreaSupervisor: true if the employee supervises at least one area.
+				if ea.IsSupervisor {
+					resp.IsAreaSupervisor = true
+				}
 			}
 		}
 		resp.Areas = areas
@@ -163,3 +168,56 @@ func ToEmployeeListResponse(employees []models.Employee) []dto.EmployeeResponse 
 	}
 	return result
 }
+
+// ToEmployeeListItemResponse converts Employee model to EmployeeListItemResponse DTO (No PII)
+func ToEmployeeListItemResponse(e *models.Employee) dto.EmployeeListItemResponse {
+	resp := dto.EmployeeListItemResponse{
+		ID:           e.ID,
+		EmployeeCode: e.EmployeeCode,
+		Name:         e.Name,
+		Email:        e.Email,
+		Phone:        e.Phone,
+		Status:       string(e.Status),
+		IsActive:     e.IsActive,
+	}
+
+	// Division
+	if e.Division != nil {
+		resp.Division = &dto.DivisionResponse{
+			ID:          e.Division.ID,
+			Name:        e.Division.Name,
+			Description: e.Division.Description,
+			IsActive:    e.Division.IsActive,
+		}
+	}
+
+	// JobPosition
+	if e.JobPosition != nil {
+		resp.JobPosition = &dto.JobPositionResponse{
+			ID:          e.JobPosition.ID,
+			Name:        e.JobPosition.Name,
+			Description: e.JobPosition.Description,
+			IsActive:    e.JobPosition.IsActive,
+		}
+	}
+
+	// Company
+	if e.Company != nil {
+		resp.Company = &dto.CompanyBriefResponse{
+			ID:   e.Company.ID,
+			Name: e.Company.Name,
+		}
+	}
+
+	return resp
+}
+
+// ToEmployeeListItemResponseList converts a slice of Employee models to safe list response DTOs
+func ToEmployeeListItemResponseList(employees []models.Employee) []dto.EmployeeListItemResponse {
+	result := make([]dto.EmployeeListItemResponse, 0, len(employees))
+	for i := range employees {
+		result = append(result, ToEmployeeListItemResponse(&employees[i]))
+	}
+	return result
+}
+

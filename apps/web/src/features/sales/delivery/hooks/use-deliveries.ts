@@ -50,6 +50,7 @@ export function useCreateDeliveryOrder() {
       deliveryService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
     },
   });
 }
@@ -144,6 +145,7 @@ export function useShipDeliveryOrder() {
         queryKey: deliveryKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
     },
   });
 }
@@ -165,6 +167,7 @@ export function useDeliverDeliveryOrder() {
         queryKey: deliveryKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
     },
   });
 }

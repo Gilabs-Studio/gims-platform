@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	inventoryDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
-	salesOrderRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
+	salesOrderRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
@@ -40,23 +44,27 @@ type DeliveryOrderUsecase interface {
 }
 
 type deliveryOrderUsecase struct {
+	db                *gorm.DB
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository
 	salesOrderRepo   salesOrderRepos.SalesOrderRepository
 	productRepo      productRepos.ProductRepository
-	// TODO: Add InventoryBatchRepository when stock module is implemented
-	// batchRepo       stockRepos.InventoryBatchRepository
+	inventoryUC       inventoryUsecase.InventoryUsecase
 }
 
 // NewDeliveryOrderUsecase creates a new DeliveryOrderUsecase
 func NewDeliveryOrderUsecase(
+	db *gorm.DB,
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository,
 	salesOrderRepo salesOrderRepos.SalesOrderRepository,
 	productRepo productRepos.ProductRepository,
+	inventoryUC inventoryUsecase.InventoryUsecase,
 ) DeliveryOrderUsecase {
 	return &deliveryOrderUsecase{
+		db:                db,
 		deliveryOrderRepo: deliveryOrderRepo,
 		salesOrderRepo:    salesOrderRepo,
 		productRepo:       productRepo,
+		inventoryUC:       inventoryUC,
 	}
 }
 
@@ -148,6 +156,11 @@ func (u *deliveryOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Del
 		return nil, err
 	}
 
+	// Scope-based access control: consistent with List filtering
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrDeliveryOrderNotFound
+	}
+
 	response := mapper.ToDeliveryOrderResponse(deliveryOrder)
 	return &response, nil
 }
@@ -160,6 +173,14 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			return nil, ErrDeliverySalesOrderNotFound
 		}
 		return nil, err
+	}
+
+	// Auto-fill receiver info from sales order customer if not provided
+	if req.ReceiverName == "" && salesOrder.CustomerName != "" {
+		req.ReceiverName = salesOrder.CustomerName
+	}
+	if req.ReceiverPhone == "" && salesOrder.CustomerPhone != "" {
+		req.ReceiverPhone = salesOrder.CustomerPhone
 	}
 
 	// Validate products and batches
@@ -177,10 +198,31 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			item.Price = product.SellingPrice
 		}
 
-		// TODO: Validate batch exists and has sufficient stock
-		// This will be implemented when InventoryBatchRepository is available
+		// Check for over-delivery
+		if item.SalesOrderItemID != nil {
+			var soItem *models.SalesOrderItem
+			for _, soi := range salesOrder.Items {
+				if soi.ID == *item.SalesOrderItemID {
+					soItem = &soi
+					break
+				}
+			}
+
+			if soItem != nil {
+				remaining := soItem.Quantity - soItem.DeliveredQuantity
+				if item.Quantity > remaining {
+					// Use a formatted string or specific error
+					return nil, errors.New("cannot deliver more than remaining quantity (over-delivery)")
+				}
+			}
+		}
+
+		// Validate batch exists and has sufficient stock
 		if item.InventoryBatchID == nil {
 			return nil, errors.New("inventory_batch_id is required")
+		}
+		if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+			return nil, err
 		}
 	}
 
@@ -199,14 +241,36 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 	// Check if this is a partial delivery
 	deliveryOrder.IsPartialDelivery = u.isPartialDelivery(salesOrder, deliveryOrder)
 
-	// Create delivery order
-	if err := u.deliveryOrderRepo.Create(ctx, deliveryOrder); err != nil {
+	// Create delivery order and reserve batch stock (wrapped in transaction)
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		// Create delivery order
+		if err := u.deliveryOrderRepo.Create(txCtx, deliveryOrder); err != nil {
+			return err
+		}
+
+		// Reserve stock at batch level for each item
+		for _, item := range deliveryOrder.Items {
+			if item.InventoryBatchID != nil {
+				if err := u.inventoryUC.ReserveBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return err
+				}
+			}
+		}
+
+		// Update sales order status to Processing if it's Confirmed
+		if salesOrder.Status == models.SalesOrderStatusConfirmed {
+			if err := u.salesOrderRepo.UpdateStatus(txCtx, salesOrder.ID, models.SalesOrderStatusProcessing, createdBy, nil); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Update delivered quantities in sales order items
-	// TODO: Reduce batch quantities
-	// TODO: Create stock movement records
 
 	// Fetch created delivery order with relations
 	created, err := u.deliveryOrderRepo.FindByID(ctx, deliveryOrder.ID)
@@ -248,20 +312,51 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 				item.Price = product.SellingPrice
 			}
 
-			// TODO: Validate batch exists and has sufficient stock
+			// Validate batch exists and has sufficient stock
 			if item.InventoryBatchID == nil {
 				return nil, errors.New("inventory_batch_id is required")
+			}
+			if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+				return nil, err
 			}
 		}
 	}
 
-	// Update model
-	if err := mapper.UpdateDeliveryOrderModel(deliveryOrder, req); err != nil {
-		return nil, err
-	}
+	// Release old batch reservations before applying new ones
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	// Update delivery order
-	if err := u.deliveryOrderRepo.Update(ctx, deliveryOrder); err != nil {
+		// Release existing batch reservations
+		for _, oldItem := range deliveryOrder.Items {
+			if oldItem.InventoryBatchID != nil {
+				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *oldItem.InventoryBatchID, oldItem.Quantity); err != nil {
+					return err
+				}
+			}
+		}
+
+		// Update model
+		if err := mapper.UpdateDeliveryOrderModel(deliveryOrder, req); err != nil {
+			return err
+		}
+
+		// Update delivery order
+		if err := u.deliveryOrderRepo.Update(txCtx, deliveryOrder); err != nil {
+			return err
+		}
+
+		// Reserve new batch stock
+		for _, item := range deliveryOrder.Items {
+			if item.InventoryBatchID != nil {
+				if err := u.inventoryUC.ReserveBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -289,9 +384,24 @@ func (u *deliveryOrderUsecase) Delete(ctx context.Context, id string) error {
 		return ErrInvalidDeliveryOrderStatus
 	}
 
-	// TODO: Release stock and update sales order delivered quantities
+	// Release batch stock reservations and delete (wrapped in transaction)
+	return u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	return u.deliveryOrderRepo.Delete(ctx, id)
+		for _, item := range deliveryOrder.Items {
+			if item.InventoryBatchID != nil {
+				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return err
+				}
+			}
+			// Release product-level reservation as well
+			if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+				return err
+			}
+		}
+
+		return u.deliveryOrderRepo.Delete(txCtx, id)
+	})
 }
 
 func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dto.UpdateDeliveryOrderStatusRequest, userID *string) (*dto.DeliveryOrderResponse, error) {
@@ -349,7 +459,43 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 		return nil, err
 	}
 
-	// TODO: Reduce batch quantities and create stock movement
+	// Reduce batch quantities, release reservations, and create stock movement
+	for _, item := range deliveryOrder.Items {
+		if item.InventoryBatchID != nil {
+			// Release batch reservation (stock is leaving warehouse, no longer reserved)
+			if err := u.inventoryUC.ReleaseBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+				return nil, err
+			}
+
+			// Release product-level reservation
+			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return nil, err
+			}
+
+			// Deduct from batch
+			if err := u.inventoryUC.DeductStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+				return nil, err 
+			}
+			
+			// Create stock movement record (Outbound)
+			movementReq := &inventoryDto.StockMovementRequest{
+				InventoryBatchID: *item.InventoryBatchID,
+				ProductID:        item.ProductID,
+				WarehouseID:      *deliveryOrder.WarehouseID,
+				Type:             "OUT",
+				Quantity:         item.Quantity,
+				ReferenceType:    "DO",
+				ReferenceID:      deliveryOrder.ID,
+				ReferenceNumber:  deliveryOrder.Code,
+				Description:      "Delivery Order Shipment",
+				CreatedBy:        userID,
+			}
+
+			if err := u.inventoryUC.CreateStockMovement(ctx, movementReq); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
@@ -376,11 +522,23 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 	}
 
 	// Mark as delivered
-	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature); err != nil {
+	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
 		return nil, err
 	}
 
-	// TODO: Update sales order delivered quantities
+	// Update delivered quantities in sales order items
+	for _, item := range deliveryOrder.Items {
+		if item.SalesOrderItemID != nil {
+			if err := u.salesOrderRepo.UpdateItemDeliveredQty(ctx, *item.SalesOrderItemID, item.Quantity); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Check if sales order is fully delivered
+	if err := u.updateSalesOrderStatusIfCompleted(ctx, deliveryOrder.SalesOrderID, userID); err != nil {
+		return nil, err
+	}
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
@@ -393,7 +551,6 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 }
 
 // SelectBatches selects available batches using FIFO or FEFO method
-// TODO: Implement when InventoryBatchRepository is available
 func (u *deliveryOrderUsecase) SelectBatches(ctx context.Context, req *dto.BatchSelectionRequest) (*dto.BatchSelectionResponse, error) {
 	// Validate product exists
 	_, err := u.productRepo.FindByID(ctx, req.ProductID)
@@ -404,25 +561,30 @@ func (u *deliveryOrderUsecase) SelectBatches(ctx context.Context, req *dto.Batch
 		return nil, err
 	}
 
-	// TODO: Fetch available batches from InventoryBatchRepository
-	// For now, return empty response
-	// This will be implemented when stock module is available
+	// Fetch available batches from Inventory Module
+	batches, err := u.inventoryUC.SelectBatches(ctx, req.ProductID, req.Quantity, req.Method)
+	if err != nil {
+		return nil, err
+	}
 	
-	// Placeholder implementation
-	batches := []dto.BatchInfo{}
-	totalAvailable := 0.0
-
-	// Sort batches based on method
-	if req.Method == "FIFO" {
-		// Sort by ReceivedAt (oldest first)
-		// TODO: Implement when batch data is available
-	} else if req.Method == "FEFO" {
-		// Sort by ExpiredDate (earliest expiry first)
-		// TODO: Implement when batch data is available
+	// Map to response DTO
+	var responseBatches []dto.BatchInfo
+	var totalAvailable float64
+	
+	for _, b := range batches {
+		responseBatches = append(responseBatches, dto.BatchInfo{
+			ID:          b.ID,
+			BatchNumber: b.BatchNumber,
+			Quantity:    b.Quantity, // Current Quantity
+			ExpiryDate:  b.ExpiredAt,
+			ReceivedDate: b.ReceivedAt,
+			Available:   float64(b.Quantity), // Simplified available
+		})
+		totalAvailable += float64(b.Quantity)
 	}
 
 	return &dto.BatchSelectionResponse{
-		Batches:        batches,
+		Batches:        responseBatches,
 		TotalAvailable: totalAvailable,
 	}, nil
 }
@@ -480,4 +642,43 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 	}
 
 	return false
+}
+
+// updateSalesOrderStatusIfCompleted checks if all items in sales order are delivered and updates status
+func (u *deliveryOrderUsecase) updateSalesOrderStatusIfCompleted(ctx context.Context, salesOrderID string, userID *string) error {
+	salesOrder, err := u.salesOrderRepo.FindByID(ctx, salesOrderID)
+	if err != nil {
+		return err
+	}
+
+	allDelivered := true
+	anyDelivered := false
+
+	for _, item := range salesOrder.Items {
+		if item.DeliveredQuantity < item.Quantity {
+			allDelivered = false
+		}
+		if item.DeliveredQuantity > 0 {
+			anyDelivered = true
+		}
+	}
+
+	// Update status based on delivery progress
+	var newStatus models.SalesOrderStatus
+
+	if allDelivered {
+		newStatus = models.SalesOrderStatusDelivered
+	} else if anyDelivered {
+		newStatus = models.SalesOrderStatusPartial
+	} else {
+		// Should generally be processing if we are calling this after a delivery
+		newStatus = models.SalesOrderStatusProcessing
+	}
+
+	// Only update if status is different
+	if salesOrder.Status != newStatus {
+		return u.salesOrderRepo.UpdateStatus(ctx, salesOrderID, newStatus, userID, nil)
+	}
+
+	return nil
 }

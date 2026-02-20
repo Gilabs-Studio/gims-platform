@@ -2,10 +2,11 @@ package repositories
 
 import (
 	"context"
-
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
@@ -24,6 +25,7 @@ type SalesOrderRepository interface {
 	UpdateStatus(ctx context.Context, id string, status models.SalesOrderStatus, userID *string, reason *string) error
 	ReserveStock(ctx context.Context, orderID string) error
 	ReleaseStock(ctx context.Context, orderID string) error
+	UpdateItemDeliveredQty(ctx context.Context, itemID string, qty float64) error
 }
 
 type salesOrderRepository struct {
@@ -81,6 +83,9 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	query := r.getDB(ctx).Model(&models.SalesOrder{})
 
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())
+
 	// Apply search filter
 	if req.Search != "" {
 		search := "%" + req.Search + "%"
@@ -89,7 +94,11 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		if strings.Contains(req.Status, ",") {
+			query = query.Where("status IN ?", strings.Split(req.Status, ","))
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
 	}
 
 	// Apply date range filter
@@ -305,19 +314,17 @@ func (r *salesOrderRepository) UpdateStatus(ctx context.Context, id string, stat
 		Updates(updates).Error
 }
 
-// ReserveStock reserves stock for order items (placeholder - will be implemented with InventoryBatch)
+// ReserveStock marks a sales order as having reserved stock.
+// Product-level stock reservation is handled by InventoryUsecase.ReserveStock.
 func (r *salesOrderRepository) ReserveStock(ctx context.Context, orderID string) error {
-	// TODO: Implement stock reservation logic with InventoryBatch
-	// For now, just mark as reserved
 	return r.getDB(ctx).Model(&models.SalesOrder{}).
 		Where("id = ?", orderID).
 		Update("reserved_stock", true).Error
 }
 
-// ReleaseStock releases reserved stock for order items
+// ReleaseStock marks a sales order as no longer having reserved stock.
+// Product-level stock release is handled by InventoryUsecase.ReleaseStock.
 func (r *salesOrderRepository) ReleaseStock(ctx context.Context, orderID string) error {
-	// TODO: Implement stock release logic
-	// For now, just mark as not reserved
 	return r.getDB(ctx).Model(&models.SalesOrder{}).
 		Where("id = ?", orderID).
 		Update("reserved_stock", false).Error
@@ -366,3 +373,11 @@ func (r *salesOrderRepository) ListItems(ctx context.Context, orderID string, re
 
 	return items, total, nil
 }
+
+// UpdateItemDeliveredQty updates the delivered quantity of a sales order item
+func (r *salesOrderRepository) UpdateItemDeliveredQty(ctx context.Context, itemID string, qty float64) error {
+	return r.getDB(ctx).Model(&models.SalesOrderItem{}).
+		Where("id = ?", itemID).
+		Update("delivered_quantity", gorm.Expr("COALESCE(delivered_quantity, 0) + ?", qty)).Error
+}
+

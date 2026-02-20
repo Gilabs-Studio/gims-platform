@@ -1,6 +1,8 @@
 package handler
 
 import (
+	stderrors "errors"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -74,7 +76,7 @@ func (h *SalesOrderHandler) GetByID(c *gin.Context) {
 
 	order, err := h.orderUC.GetByID(c.Request.Context(), id)
 	if err != nil {
-		if err == usecase.ErrSalesOrderNotFound {
+		if stderrors.Is(err, usecase.ErrSalesOrderNotFound) {
 			errors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
 				"order_id": id,
 			}, nil)

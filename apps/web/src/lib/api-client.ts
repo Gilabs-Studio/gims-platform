@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatError } from "./i18n/error-messages";
 import { useRateLimitStore } from "./stores/useRateLimitStore";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
 // Flag to track if we've validated rate limit state after app load
 let rateLimitValidated = false;
@@ -106,8 +106,23 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError<ApiErrorResponse>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
+    const requestUrl = originalRequest?.url || "";
+
+    // Skip toast for auth endpoints - these handle their own errors silently
+    // 401/403 is expected when checking session or after logout
+    const isAuthEndpoint =
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/logout");
+
     // Network error
     if (!error.response) {
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
       if (error.code === "ECONNABORTED") {
         const msg = formatError("network", "timeout");
         toast.error(msg.title, { description: msg.description });
@@ -126,6 +141,12 @@ apiClient.interceptors.response.use(
 
     const status = error.response.status;
     const errorData = error.response.data;
+
+    // Skip toast for auth endpoints on 401/403 - these are expected when checking session
+    // But DO NOT skip 429 (rate limit) - we need to show countdown
+    if (isAuthEndpoint && (status === 401 || status === 403)) {
+      return Promise.reject(error);
+    }
 
     if (!errorData || !errorData.error) {
       const msg = formatError("backend", "invalidFormat");
@@ -208,6 +229,7 @@ apiClient.interceptors.response.use(
     if (status === 401) {
       const originalRequest = error.config as InternalAxiosRequestConfig & {
         _retry?: boolean;
+        skipAuthRedirectOn401?: boolean;
       };
       const requestUrl = originalRequest?.url || "";
 
@@ -219,15 +241,30 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // When requested (e.g. mutations), only show toast and reject — no refresh, no logout
+      if (originalRequest?.skipAuthRedirectOn401) {
+        if (typeof window !== "undefined") {
+          const msg = formatError("backend", "unauthorized");
+          toast.error(msg.title, { description: msg.description });
+        }
+        return Promise.reject(error);
+      }
+
       // Skip refresh if this is already a retry
       if (originalRequest?._retry) {
         // Refresh failed, logout user
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
           toast.error(msg.title, { description: msg.description });
+
+          // Clear all auth state and cookies
           import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-            useAuthStore.getState().setUser(null);
+            useAuthStore.getState().logout();
           });
+          import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+            fullAuthCleanup();
+          });
+
           setTimeout(() => {
             window.location.href = "/";
           }, 1000);
@@ -264,7 +301,7 @@ apiClient.interceptors.response.use(
                 name: string;
                 avatar_url: string;
                 role: { code: string; name: string };
-                permissions: string[];
+                permissions: Record<string, string>;
               };
             };
           }>("/auth/refresh-token", {}, { headers })
@@ -294,9 +331,15 @@ apiClient.interceptors.response.use(
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
               toast.error(msg.title, { description: msg.description });
+
+              // Clear all auth state and cookies
               import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
-                useAuthStore.getState().setUser(null);
+                useAuthStore.getState().logout();
               });
+              import("@/features/auth/utils/clear-auth-cookies").then(({ fullAuthCleanup }) => {
+                fullAuthCleanup();
+              });
+
               setTimeout(() => {
                 window.location.href = "/";
               }, 1000);

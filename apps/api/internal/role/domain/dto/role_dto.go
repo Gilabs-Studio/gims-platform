@@ -38,5 +38,13 @@ type UpdateRoleRequest struct {
 
 // AssignPermissionsRequest represents assign permissions to role request DTO
 type AssignPermissionsRequest struct {
-	PermissionIDs []string `json:"permission_ids" binding:"required,min=1,dive,uuid"`
+	PermissionIDs []string `json:"permission_ids" binding:"omitempty,dive,uuid"`
+	// Assignments allows scope-aware permission assignment (Sprint 20)
+	Assignments []PermissionAssignment `json:"assignments" binding:"omitempty,dive"`
+}
+
+// PermissionAssignment represents a single permission-scope pair for assignment
+type PermissionAssignment struct {
+	PermissionID string `json:"permission_id" binding:"required,uuid"`
+	Scope        string `json:"scope" binding:"required,oneof=OWN DIVISION AREA ALL"`
 }

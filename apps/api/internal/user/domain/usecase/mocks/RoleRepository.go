@@ -269,6 +269,24 @@ func (_m *RoleRepository) Update(ctx context.Context, ro *models.Role) error {
 	return r0
 }
 
+// AssignPermissionsWithScope provides a mock function with given fields: ctx, roleID, assignments
+func (_m *RoleRepository) AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []models.RolePermission) error {
+	ret := _m.Called(ctx, roleID, assignments)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AssignPermissionsWithScope")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []models.RolePermission) error); ok {
+		r0 = rf(ctx, roleID, assignments)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewRoleRepository creates a new instance of RoleRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewRoleRepository(t interface {

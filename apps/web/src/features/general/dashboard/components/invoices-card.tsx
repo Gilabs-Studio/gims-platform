@@ -17,17 +17,8 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationFirst,
-  PaginationLast,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
 import { useTranslations } from "next-intl";
 import { useInvoices } from "../hooks/use-invoices";
 import type { InvoiceSummary } from "../types";
@@ -43,11 +34,11 @@ export function InvoicesCard({ summary: initialSummary }: InvoicesCardProps) {
   const t = useTranslations("dashboard.invoices");
   const [status, setStatus] = useState<InvoiceStatus>("all");
   const [page, setPage] = useState(1);
-  const perPage = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const { data, isLoading, isError } = useInvoices({
     page,
-    per_page: perPage,
+    per_page: pageSize,
     status: status === "all" ? undefined : status,
   });
 
@@ -70,99 +61,9 @@ export function InvoicesCard({ summary: initialSummary }: InvoicesCardProps) {
     setPage(1); // Reset to first page when changing status
   };
 
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
-  const renderPagination = () => {
-    if (!pagination || pagination.total_pages <= 1) return null;
 
-    const pages: (number | "ellipsis")[] = [];
-    const totalPages = pagination.total_pages;
-    const currentPage = pagination.page;
 
-    // Always show first page
-    if (totalPages > 0) {
-      pages.push(1);
-    }
-
-    // Show ellipsis if needed
-    if (currentPage > 3) {
-      pages.push("ellipsis");
-    }
-
-    // Show pages around current page
-    for (
-      let i = Math.max(2, currentPage - 1);
-      i <= Math.min(totalPages - 1, currentPage + 1);
-      i++
-    ) {
-      if (i !== 1 && i !== totalPages) {
-        pages.push(i);
-      }
-    }
-
-    // Show ellipsis if needed
-    if (currentPage < totalPages - 2) {
-      pages.push("ellipsis");
-    }
-
-    // Always show last page
-    if (totalPages > 1) {
-      pages.push(totalPages);
-    }
-
-    return (
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationFirst
-              onClick={() => handlePageChange(1)}
-              disabled={!pagination.has_prev}
-            />
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationPrevious
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!pagination.has_prev}
-            />
-          </PaginationItem>
-          {pages.map((pageNum, index) => {
-            if (pageNum === "ellipsis") {
-              return (
-                <PaginationItem key={`ellipsis-${index}`}>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              );
-            }
-            return (
-              <PaginationItem key={pageNum}>
-                <PaginationLink
-                  onClick={() => handlePageChange(pageNum)}
-                  isActive={pageNum === currentPage}
-                >
-                  {pageNum}
-                </PaginationLink>
-              </PaginationItem>
-            );
-          })}
-          <PaginationItem>
-            <PaginationNext
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!pagination.has_next}
-            />
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLast
-              onClick={() => handlePageChange(totalPages)}
-              disabled={!pagination.has_next}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-    );
-  };
 
   return (
     <Card>
@@ -292,7 +193,18 @@ export function InvoicesCard({ summary: initialSummary }: InvoicesCardProps) {
                     ))}
                   </TableBody>
                 </Table>
-                {renderPagination()}
+                {pagination && (
+                  <DataTablePagination
+                    pageIndex={pagination.page}
+                    pageSize={pagination.per_page}
+                    rowCount={pagination.total}
+                    onPageChange={setPage}
+                    onPageSizeChange={(newSize: number) => {
+                      setPageSize(newSize);
+                      setPage(1);
+                    }}
+                  />
+                )}
               </>
             )}
           </TabsContent>

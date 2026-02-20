@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -48,13 +49,18 @@ func SeedEmployees() error {
 		villageID = &village.ID
 	}
 
+	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
+	if defaultEmail == "" {
+		defaultEmail = "admin@example.com"
+	}
+
 	// 2. Define Employees linked to fixed Users and Org Units
 	employees := []models.Employee{
 		{
 			ID:           AdminEmployeeID,
 			EmployeeCode: "EMP-001",
 			Name:         "Admin User",
-			Email:        "admin@example.com",
+			Email:        defaultEmail,
 			Phone:        "081234567890",
 			UserID:       strPtr(AdminUserID),
 			
@@ -131,6 +137,102 @@ func SeedEmployees() error {
 			IsApproved:        true,
 			IsActive:          true,
 		},
+		{
+			ID:           SalesRep1EmployeeID,
+			EmployeeCode: "EMP-004",
+			Name:         "Budi Santoso",
+			Email:        "budi.santoso@example.com",
+			Phone:        "081234567893",
+
+			CompanyID:     strPtr(GiLabsCompanyID),
+			DivisionID:    strPtr(SalesDivisionID),
+			JobPositionID: strPtr(SalesRepPositionID),
+
+			PlaceOfBirth: "Semarang",
+			DateOfBirth:  timePtr(date(1992, 7, 20)),
+			Gender:       models.GenderMale,
+			Religion:     "Islam",
+			Address:      "Jl. Semarang No. 5",
+			VillageID:    villageID,
+
+			ContractStatus:    models.ContractStatusPermanent,
+			ContractStartDate: timePtr(date(2023, 8, 1)),
+			Status:            models.EmployeeStatusApproved,
+			IsApproved:        true,
+			IsActive:          true,
+		},
+		{
+			ID:           SalesRep2EmployeeID,
+			EmployeeCode: "EMP-005",
+			Name:         "Dewi Lestari",
+			Email:        "dewi.lestari@example.com",
+			Phone:        "081234567894",
+
+			CompanyID:     strPtr(GiLabsCompanyID),
+			DivisionID:    strPtr(SalesDivisionID),
+			JobPositionID: strPtr(SalesRepPositionID),
+
+			PlaceOfBirth: "Yogyakarta",
+			DateOfBirth:  timePtr(date(1993, 11, 10)),
+			Gender:       models.GenderFemale,
+			Religion:     "Kristen",
+			Address:      "Jl. Yogya No. 12",
+			VillageID:    villageID,
+
+			ContractStatus:    models.ContractStatusContract,
+			ContractStartDate: timePtr(date(2024, 1, 1)),
+			Status:            models.EmployeeStatusApproved,
+			IsApproved:        true,
+			IsActive:          true,
+		},
+		{
+			ID:           FinanceStaffEmployeeID,
+			EmployeeCode: "EMP-006",
+			Name:         "Rina Wulandari",
+			Email:        "rina.wulandari@example.com",
+			Phone:        "081234567895",
+
+			CompanyID:     strPtr(GiLabsCompanyID),
+			DivisionID:    strPtr(FinanceDivisionID),
+			JobPositionID: strPtr(StaffPositionID),
+
+			PlaceOfBirth: "Malang",
+			DateOfBirth:  timePtr(date(1994, 4, 25)),
+			Gender:       models.GenderFemale,
+			Religion:     "Islam",
+			Address:      "Jl. Malang No. 8",
+			VillageID:    villageID,
+
+			ContractStatus:    models.ContractStatusPermanent,
+			ContractStartDate: timePtr(date(2023, 9, 1)),
+			Status:            models.EmployeeStatusApproved,
+			IsApproved:        true,
+			IsActive:          true,
+		},
+		{
+			ID:           HRStaffEmployeeID,
+			EmployeeCode: "EMP-007",
+			Name:         "Ahmad Fauzi",
+			Email:        "ahmad.fauzi@example.com",
+			Phone:        "081234567896",
+
+			CompanyID:     strPtr(GiLabsCompanyID),
+			DivisionID:    strPtr(HRDivisionID),
+			JobPositionID: strPtr(StaffPositionID),
+
+			PlaceOfBirth: "Denpasar",
+			DateOfBirth:  timePtr(date(1991, 9, 15)),
+			Gender:       models.GenderMale,
+			Religion:     "Hindu",
+			Address:      "Jl. Denpasar No. 3",
+			VillageID:    villageID,
+
+			ContractStatus:    models.ContractStatusPermanent,
+			ContractStartDate: timePtr(date(2023, 4, 1)),
+			Status:            models.EmployeeStatusApproved,
+			IsApproved:        true,
+			IsActive:          true,
+		},
 	}
 	
 	for _, e := range employees {
@@ -155,5 +257,46 @@ func SeedEmployees() error {
 	}
 
 	log.Println("Employees seeded successfully")
+
+	// 3. Assign areas to employees via EmployeeArea (Sprint 17)
+	// Every area gets at least 1 supervisor and 1-2 members
+	log.Println("Assigning employee areas...")
+	employeeAreas := []models.EmployeeArea{
+		// Jabodetabek: Admin (supervisor), Staff + SalesRep1 (members)
+		{EmployeeID: AdminEmployeeID, AreaID: AreaJabodetabekID, IsSupervisor: true},
+		{EmployeeID: StaffEmployeeID, AreaID: AreaJabodetabekID, IsSupervisor: false},
+		{EmployeeID: SalesRep1EmployeeID, AreaID: AreaJabodetabekID, IsSupervisor: false},
+
+		// Jawa Barat: Admin (supervisor), SalesRep2 + FinanceStaff (members)
+		{EmployeeID: AdminEmployeeID, AreaID: AreaJawaBaratID, IsSupervisor: true},
+		{EmployeeID: SalesRep2EmployeeID, AreaID: AreaJawaBaratID, IsSupervisor: false},
+		{EmployeeID: FinanceStaffEmployeeID, AreaID: AreaJawaBaratID, IsSupervisor: false},
+
+		// Jawa Tengah: Manager (supervisor), SalesRep1 + HRStaff (members)
+		{EmployeeID: ManagerEmployeeID, AreaID: AreaJawaTengahID, IsSupervisor: true},
+		{EmployeeID: SalesRep1EmployeeID, AreaID: AreaJawaTengahID, IsSupervisor: false},
+		{EmployeeID: HRStaffEmployeeID, AreaID: AreaJawaTengahID, IsSupervisor: false},
+
+		// Jawa Timur: SalesRep2 (supervisor), Manager + FinanceStaff (members)
+		{EmployeeID: SalesRep2EmployeeID, AreaID: AreaJawaTimurID, IsSupervisor: true},
+		{EmployeeID: ManagerEmployeeID, AreaID: AreaJawaTimurID, IsSupervisor: false},
+		{EmployeeID: FinanceStaffEmployeeID, AreaID: AreaJawaTimurID, IsSupervisor: false},
+
+		// Bali: HRStaff (supervisor), StaffUser + SalesRep2 (members)
+		{EmployeeID: HRStaffEmployeeID, AreaID: AreaBaliID, IsSupervisor: true},
+		{EmployeeID: StaffEmployeeID, AreaID: AreaBaliID, IsSupervisor: false},
+		{EmployeeID: SalesRep2EmployeeID, AreaID: AreaBaliID, IsSupervisor: false},
+	}
+
+	for _, ea := range employeeAreas {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
+		}).Create(&ea).Error; err != nil {
+			log.Printf("Warning: Failed to assign area %s to employee %s: %v", ea.AreaID, ea.EmployeeID, err)
+		}
+	}
+	log.Println("Employee areas assigned successfully")
+
 	return nil
 }

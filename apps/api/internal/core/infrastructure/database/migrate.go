@@ -8,13 +8,18 @@ import (
 
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
+	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
+	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
+	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
+	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
@@ -46,8 +51,14 @@ func AutoMigrate() error {
 	}
 
 	// Use a custom migration approach that handles constraint errors gracefully
+	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
+	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
+	// If Role migrates first, the scope column from RolePermission gets lost.
+	// By migrating RolePermission first, the table is created with scope, and Role's
+	// many2many reuses the existing table without dropping scope.
 	err := migrateWithErrorHandling(
 		&user.User{},
+		&role.RolePermission{},
 		&role.Role{},
 		&permission.Permission{},
 		&permission.Menu{},
@@ -65,8 +76,8 @@ func AutoMigrate() error {
 		&organization.BusinessUnit{},
 		&organization.BusinessType{},
 		&organization.Area{},
-		&organization.AreaSupervisor{},
-		&organization.AreaSupervisorArea{},
+		// NOTE: AreaSupervisor and AreaSupervisorArea removed in Sprint 17.
+		// Supervisor role is now captured via EmployeeArea.IsSupervisor flag.
 		&organization.Company{},
 		// Employee entities (Sprint 3)
 		&organization.Employee{},
@@ -93,6 +104,27 @@ func AutoMigrate() error {
 		&core.CourierAgency{},
 		&core.SOSource{},
 		&core.LeaveType{},
+		&core.BankAccount{},
+		// Finance entities (Sprint 10)
+		&finance.ChartOfAccount{},
+		&finance.JournalEntry{},
+		&finance.JournalLine{},
+		// Finance entities (Sprint 11)
+		&finance.Payment{},
+		&finance.PaymentAllocation{},
+		&finance.Budget{},
+		&finance.BudgetItem{},
+		&finance.CashBankJournal{},
+		&finance.CashBankJournalLine{},
+		// Finance entities (Sprint 12)
+		&finance.AssetCategory{},
+		&finance.AssetLocation{},
+		&finance.Asset{},
+		&finance.AssetDepreciation{},
+		&finance.AssetTransaction{},
+		&finance.FinancialClosing{},
+		&finance.TaxInvoice{},
+		&finance.NonTradePayable{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
@@ -118,6 +150,44 @@ func AutoMigrate() error {
 		&sales.SalesVisitInterestQuestion{},
 		&sales.SalesVisitInterestOption{},
 		&sales.SalesVisitInterestAnswer{},
+		// HRD Attendance entities (Sprint 13)
+		&hrd.WorkSchedule{},
+		&hrd.Holiday{},
+		&hrd.AttendanceRecord{},
+		&hrd.OvertimeRequest{},
+		// HRD Leave Management entities (Sprint 14)
+		&hrd.LeaveRequest{},
+		// HRD Employee Contracts entities (Sprint 14)
+		&hrd.EmployeeContract{},
+		// HRD Employee Education History entities (Sprint 14)
+		&hrd.EmployeeEducationHistory{},
+		// HRD Employee Certifications entities (Sprint 14)
+		&hrd.EmployeeCertification{},
+		// HRD Employee Assets entities (Sprint 14)
+		&hrd.EmployeeAsset{},
+		// HRD Evaluation entities (Sprint 15)
+		&hrd.EvaluationGroup{},
+		&hrd.EvaluationCriteria{},
+		&hrd.EmployeeEvaluation{},
+		&hrd.EmployeeEvaluationCriteria{},
+		// HRD Recruitment entities (Sprint 15)
+		&hrd.RecruitmentRequest{},
+		// Inventory entities (Sprint 9)
+		&inventory.InventoryBatch{},
+		&inventory.StockMovement{},
+		// Stock Opname entities (Sprint 9)
+		&stockOpname.StockOpname{},
+		&stockOpname.StockOpnameItem{},
+		// Purchase entities (Sprint 8)
+		&purchase.PurchaseRequisition{},
+		&purchase.PurchaseRequisitionItem{},
+		&purchase.PurchaseOrder{},
+		&purchase.PurchaseOrderItem{},
+		&purchase.GoodsReceipt{},
+		&purchase.GoodsReceiptItem{},
+		&purchase.SupplierInvoice{},
+		&purchase.SupplierInvoiceItem{},
+		&purchase.PurchasePayment{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -125,9 +195,76 @@ func AutoMigrate() error {
 
 	log.Println("Database migrations completed")
 
+	// Safety net: ensure role_permissions.scope column exists even when GORM's
+	// AutoMigrate did not add it (e.g. the many2many relationship on Role
+	// created the table first without the scope column).
+	if err := DB.Exec(`
+		ALTER TABLE role_permissions
+		ADD COLUMN IF NOT EXISTS scope VARCHAR(20) NOT NULL DEFAULT 'ALL'
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
+	}
+
+	// Sprint 17: Migrate area_supervisors data to employee_areas
+	if err := migrateAreaSupervisorsToEmployeeAreas(); err != nil {
+		log.Printf("Warning: Area supervisor migration skipped or failed: %v", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
+	}
+
+	return nil
+}
+
+// migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
+// employee_areas with is_supervisor=true. This is idempotent — if the source
+// tables no longer exist the function silently returns nil.
+func migrateAreaSupervisorsToEmployeeAreas() error {
+	// Check if the legacy tables still exist
+	var exists bool
+	DB.Raw(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.tables
+		WHERE table_schema = 'public' AND table_name = 'area_supervisor_areas'
+	)`).Scan(&exists)
+	if !exists {
+		log.Println("Sprint 17 migration: area_supervisor_areas table not found, skipping.")
+		return nil
+	}
+
+	// Only migrate if there is data to migrate and the source references employees.
+	// The legacy area_supervisors table has name/email/phone but no employee_id.
+	// We try to match by email first, then by name as a fallback.
+	migrationSQL := `
+		INSERT INTO employee_areas (id, employee_id, area_id, is_supervisor, created_at)
+		SELECT
+			gen_random_uuid()::text,
+			e.id,
+			asa.area_id,
+			true,
+			NOW()
+		FROM area_supervisor_areas asa
+		JOIN area_supervisors asup ON asup.id = asa.area_supervisor_id
+		JOIN employees e ON (
+			(asup.email <> '' AND lower(e.email) = lower(asup.email))
+			OR (asup.email = '' AND lower(e.name) = lower(asup.name))
+		)
+		WHERE NOT EXISTS (
+			SELECT 1 FROM employee_areas ea
+			WHERE ea.employee_id = e.id AND ea.area_id = asa.area_id
+		)
+		ON CONFLICT DO NOTHING;
+	`
+	result := DB.Exec(migrationSQL)
+	if result.Error != nil {
+		return fmt.Errorf("area supervisor migration failed: %w", result.Error)
+	}
+
+	if result.RowsAffected > 0 {
+		log.Printf("Sprint 17 migration: Migrated %d area supervisor records to employee_areas", result.RowsAffected)
+	} else {
+		log.Println("Sprint 17 migration: No new records to migrate (already migrated or no matches).")
 	}
 
 	return nil
@@ -141,8 +278,30 @@ func createSearchIndexes() error {
 	}
 
 	indexes := []string{
+		// User module indexes
 		"CREATE INDEX IF NOT EXISTS idx_users_name_gin ON users USING gin (name gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_users_email_gin ON users USING gin (email gin_trgm_ops)",
+
+		// HRD leave request search indexes (added for leave request search feature)
+		"CREATE INDEX IF NOT EXISTS idx_employees_name_gin ON employees USING gin (name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_leave_types_name_gin ON leave_types USING gin (name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING gin (reason gin_trgm_ops)",
+
+		// HRD employee certification search indexes (Sprint 14)
+		"CREATE INDEX IF NOT EXISTS idx_employee_certifications_name_gin ON employee_certifications USING gin (certificate_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_employee_certifications_issued_by_gin ON employee_certifications USING gin (issued_by gin_trgm_ops)",
+
+		// HRD employee asset search indexes (Sprint 14)
+		"CREATE INDEX IF NOT EXISTS idx_employee_assets_name_gin ON employee_assets USING gin (asset_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_employee_assets_code_gin ON employee_assets USING gin (asset_code gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_employee_assets_category_gin ON employee_assets USING gin (asset_category gin_trgm_ops)",
+
+		// HRD evaluation search indexes (Sprint 15)
+		"CREATE INDEX IF NOT EXISTS idx_evaluation_groups_name_gin ON evaluation_groups USING gin (name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_evaluation_criteria_name_gin ON evaluation_criteria USING gin (name gin_trgm_ops)",
+		// HRD recruitment search indexes (Sprint 15)
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_code_gin ON recruitment_requests USING gin (request_code gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_desc_gin ON recruitment_requests USING gin (job_description gin_trgm_ops)",
 	}
 
 	for _, idx := range indexes {
@@ -175,8 +334,12 @@ func shouldDropTables() bool {
 	}
 
 	// Only allow dropping tables in development mode
-	// Check environment variable DROP_TABLES
+	// Check environment variable DROP_TABLES or DROP_ALL_TABLES (from package.json scripts)
 	dropTables := os.Getenv("DROP_TABLES")
+	if dropTables == "" {
+		dropTables = os.Getenv("DROP_ALL_TABLES")
+	}
+
 	if dropTables == "true" || dropTables == "1" {
 		// Double check: ensure we're not in production
 		if env == "" || env == "development" || env == "dev" {

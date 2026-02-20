@@ -1,7 +1,16 @@
 package seeders
 
+import "os"
+
 // SeedAll runs all seeders
 func SeedAll() error {
+	// Check for cleanup flag
+	if os.Getenv("SEED_CLEANUP_DATABASE") == "true" {
+		if err := CleanupDatabase(); err != nil {
+			return err
+		}
+	}
+
 	// Seed in order: roles -> menus -> permissions -> users -> geographic
 	if err := SeedRoles(); err != nil {
 		return err
@@ -54,6 +63,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Inventory seeder (Sprint 4)
+	if err := SeedInventory(); err != nil {
+		return err
+	}
+
 	// Master Data seeders (Sprint 4)
 	if err := SeedPaymentTerms(); err != nil {
 		return err
@@ -65,6 +79,14 @@ func SeedAll() error {
 		return err
 	}
 	if err := SeedLeaveType(); err != nil {
+		return err
+	}
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
+
+	// Purchase Requisition seeder (Sprint 8)
+	if err := SeedPurchaseRequisition(); err != nil {
 		return err
 	}
 
@@ -93,6 +115,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// Finance - Asset & Closing seeder (Sprint 12)
+	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
+	// Integration Flow seeder (Purchase → Stock → Sales → Finance)
+	if err := SeedIntegrationFlow(); err != nil {
+		return err
+	}
+
 	// Sales Visit Interest Questions seeder (Sprint 7)
 	if err := SeedSalesVisitInterestQuestions(); err != nil {
 		return err
@@ -108,6 +140,80 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Work Schedules seeder (Sprint 13)
+	if err := SeedWorkSchedules(); err != nil {
+		return err
+	}
+
+	// HRD - Holidays seeder (Sprint 13)
+	if err := SeedHolidays(); err != nil {
+		return err
+	}
+
+	// HRD - Leave Requests seeder (Sprint 13)
+	if err := SeedLeaveRequests(); err != nil {
+		return err
+	}
+
+	// HRD - Attendance Records seeder (Sprint 13)
+	if err := SeedAttendanceRecords(); err != nil {
+		return err
+	}
+
+	// HRD - Overtime Requests seeder (Sprint 13)
+	if err := SeedOvertimeRequests(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Contracts seeder (Sprint 14)
+	if err := SeedEmployeeContracts(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Education History seeder (Sprint 14)
+	if err := SeedEmployeeEducationHistory(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Certifications seeder (Sprint 14)
+	if err := SeedEmployeeCertifications(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Assets seeder (Sprint 14)
+	if err := SeedEmployeeAssets(); err != nil {
+		return err
+	}
+
+	// HRD - Evaluation Groups seeder (Sprint 15)
+	if err := SeedEvaluationGroups(); err != nil {
+		return err
+	}
+
+	// HRD - Evaluation Criteria seeder (Sprint 15)
+	if err := SeedEvaluationCriteria(); err != nil {
+		return err
+	}
+
+	// HRD - Employee Evaluations seeder (Sprint 15)
+	if err := SeedEmployeeEvaluations(); err != nil {
+		return err
+	}
+
+	// HRD - Recruitment Requests seeder (Sprint 15)
+	if err := SeedRecruitmentRequests(); err != nil {
+		return err
+	}
+
+	// Stock Movement seeder (Sprint 9)
+	if err := SeedStockMovement(); err != nil {
+		return err
+	}
+
+	// Stock Opname seeder
+	if err := SeedStockOpname(); err != nil {
+		return err
+	}
+
 	return nil
 }
-

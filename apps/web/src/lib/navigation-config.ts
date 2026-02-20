@@ -42,7 +42,6 @@ export const navigationConfig: NavItem[] = [
           { name: "Business Units", url: "/master-data/business-units", icon: "layout-list", permission: "business_unit.read" },
           { name: "Business Types", url: "/master-data/business-types", icon: "tag", permission: "business_type.read" },
           { name: "Areas", url: "/master-data/areas", icon: "map", permission: "area.read" },
-          { name: "Area Supervisors", url: "/master-data/area-supervisors", icon: "user-check", permission: "area_supervisor.read" },
         ],
       },
       { name: "Employees", url: "/master-data/employees", icon: "users", permission: "employee.read" },
@@ -105,10 +104,11 @@ export const navigationConfig: NavItem[] = [
     icon: "truck",
     url: "/purchase",
     children: [
-      { name: "Requisitions", url: "/purchase/requisitions", icon: "clipboard-list", permission: "purchase_requisition.read" },
-      { name: "Purchase Orders", url: "/purchase/orders", icon: "shopping-cart", permission: "purchase_order.read" },
+      { name: "Requisitions", url: "/purchase/purchase-requisitions", icon: "clipboard-list", permission: "purchase_requisition.read" },
+      { name: "Purchase Orders", url: "/purchase/purchase-orders", icon: "shopping-cart", permission: "purchase_order.read" },
       { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
-      { name: "Supplier Invoices", url: "/purchase/invoices", icon: "receipt", permission: "supplier_invoice.read" },
+	  { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
+	  { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
     ],
   },
   {

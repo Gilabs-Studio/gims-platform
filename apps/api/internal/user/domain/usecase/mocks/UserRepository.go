@@ -167,6 +167,36 @@ func (_m *UserRepository) Update(ctx context.Context, u *models.User) error {
 	return r0
 }
 
+// FindAvailable provides a mock function with given fields: ctx, search, excludeEmployeeID
+func (_m *UserRepository) FindAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]models.User, error) {
+	ret := _m.Called(ctx, search, excludeEmployeeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindAvailable")
+	}
+
+	var r0 []models.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]models.User, error)); ok {
+		return rf(ctx, search, excludeEmployeeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []models.User); ok {
+		r0 = rf(ctx, search, excludeEmployeeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.User)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, search, excludeEmployeeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewUserRepository creates a new instance of UserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewUserRepository(t interface {

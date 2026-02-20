@@ -16,7 +16,7 @@ export interface SalesOrderSummary {
   order_date?: string;
 }
 
-export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
+export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
 
 export interface SalesOrderItem {
   id: string;
@@ -72,6 +72,10 @@ export interface SalesOrder {
   };
   delivery_area_id?: string;
   delivery_area?: Area;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   subtotal: number;
   discount_amount: number;
   tax_rate: number;
@@ -98,7 +102,7 @@ export interface ListSalesOrdersParams {
   page?: number;
   per_page?: number;
   search?: string;
-  status?: SalesOrderStatus;
+  status?: SalesOrderStatus | string;
   date_from?: string;
   date_to?: string;
   sales_rep_id?: string;
@@ -151,6 +155,10 @@ export interface CreateSalesOrderData {
   delivery_cost?: number;
   other_cost?: number;
   discount_amount?: number;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   notes?: string;
   items: CreateSalesOrderItemData[];
 }
@@ -173,6 +181,10 @@ export interface UpdateSalesOrderData {
   delivery_cost?: number;
   other_cost?: number;
   discount_amount?: number;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   notes?: string;
   items?: CreateSalesOrderItemData[];
 }
@@ -185,5 +197,9 @@ export interface UpdateSalesOrderStatusData {
 export interface ConvertQuotationToOrderData {
   sales_quotation_id: string;
   order_date: string;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_phone?: string;
+  customer_email?: string;
   notes?: string;
 }

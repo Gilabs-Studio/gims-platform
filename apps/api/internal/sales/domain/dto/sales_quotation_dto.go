@@ -8,6 +8,10 @@ type CreateSalesQuotationRequest struct {
 	SalesRepID      string   `json:"sales_rep_id" binding:"required,uuid"`
 	BusinessUnitID  string   `json:"business_unit_id" binding:"required,uuid"`
 	BusinessTypeID  *string  `json:"business_type_id"`
+	CustomerName    string   `json:"customer_name"`
+	CustomerContact string   `json:"customer_contact"`
+	CustomerPhone   string   `json:"customer_phone"`
+	CustomerEmail   string   `json:"customer_email"`
 	TaxRate         float64  `json:"tax_rate" binding:"gte=0,lte=100"`
 	DeliveryCost    float64  `json:"delivery_cost" binding:"gte=0"`
 	OtherCost       float64  `json:"other_cost" binding:"gte=0"`
@@ -32,6 +36,10 @@ type UpdateSalesQuotationRequest struct {
 	SalesRepID      *string  `json:"sales_rep_id"`
 	BusinessUnitID  *string  `json:"business_unit_id"`
 	BusinessTypeID  *string  `json:"business_type_id"`
+	CustomerName    *string  `json:"customer_name"`
+	CustomerContact *string  `json:"customer_contact"`
+	CustomerPhone   *string  `json:"customer_phone"`
+	CustomerEmail   *string  `json:"customer_email"`
 	TaxRate         *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
 	DeliveryCost    *float64 `json:"delivery_cost" binding:"omitempty,gte=0"`
 	OtherCost       *float64 `json:"other_cost" binding:"omitempty,gte=0"`
@@ -80,6 +88,10 @@ type SalesQuotationResponse struct {
 	BusinessUnit        *BusinessUnitResponse         `json:"business_unit,omitempty"`
 	BusinessTypeID      *string                       `json:"business_type_id"`
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
+	CustomerName        string                        `json:"customer_name"`
+	CustomerContact     string                        `json:"customer_contact"`
+	CustomerPhone       string                        `json:"customer_phone"`
+	CustomerEmail       string                        `json:"customer_email"`
 	Subtotal            float64                       `json:"subtotal"`
 	DiscountAmount      float64                       `json:"discount_amount"`
 	TaxRate             float64                       `json:"tax_rate"`

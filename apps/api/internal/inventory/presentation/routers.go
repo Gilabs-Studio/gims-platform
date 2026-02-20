@@ -1,0 +1,53 @@
+package presentation
+
+import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/inventory/data/models"
+	"github.com/gilabs/gims/api/internal/inventory/data/repositories"
+	"github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	"github.com/gilabs/gims/api/internal/inventory/presentation/handler"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+func RegisterRoutes(
+	r *gin.Engine,
+	v1 *gin.RouterGroup,
+	db *gorm.DB,
+	jwtManager *jwt.JWTManager,
+	permissionService security.PermissionService,
+	inventoryUsecase usecase.InventoryUsecase,
+) {
+	// Auto Migrate
+	db.AutoMigrate(&models.InventoryBatch{}, &models.StockMovement{})
+
+	// Repositories
+	// inventoryRepo := repositories.NewInventoryRepository(db) // Injected via usecase
+	stockMovementRepo := repositories.NewStockMovementRepository(db)
+
+	// Usecases
+	// inventoryUsecase := usecase.NewInventoryUsecase(inventoryRepo) // Injected from main
+	stockMovementUsecase := usecase.NewStockMovementService(stockMovementRepo)
+
+	// Handlers
+	inventoryHandler := handler.NewInventoryHandler(inventoryUsecase)
+	stockMovementHandler := NewStockMovementHandler(stockMovementUsecase)
+
+	// Routes
+	stock := v1.Group("/stock")
+	stock.Use(middleware.AuthMiddleware(jwtManager, permissionService))
+	stock.Use(middleware.ScopeMiddleware(db))
+	{
+		stock.GET("/inventory", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+
+		// Tree View Routes
+		stock.GET("/tree/warehouses", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeWarehouses)
+		stock.GET("/tree/products", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeProducts)
+		stock.GET("/tree/batches", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeBatches)
+
+		// Movement Routes
+		stock.GET("/movements", middleware.PermissionMiddleware("inventory.read"), stockMovementHandler.GetMovements)
+	}
+}
