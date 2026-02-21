@@ -48,6 +48,7 @@ export function QuotationList() {
   const canDelete = useUserPermission("sales_quotation.delete");
   const canView = useUserPermission("sales_quotation.read");
   const canViewEmployee = useUserPermission("employee.read");
+  const canApprove = useUserPermission("sales_quotation.approve");
 
   const [selectedSalesRep, setSelectedSalesRep] = useState<SalesQuotation["sales_rep"] | null>(null);
   const [isSalesRepDialogOpen, setIsSalesRepDialogOpen] = useState(false);
@@ -274,22 +275,26 @@ export function QuotationList() {
                               {t("actions.send")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && quotation.status === "sent" && (
+                          {quotation.status === "sent" && (
                             <>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(quotation.id, "approved")}
-                                className="cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.approve")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(quotation.id, "rejected")}
-                                className="cursor-pointer text-destructive"
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {t("actions.reject")}
-                              </DropdownMenuItem>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(quotation.id, "approved")}
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(quotation.id, "rejected")}
+                                  className="cursor-pointer text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
                             </>
                           )}
                           {canDelete && quotation.status === "draft" && (
