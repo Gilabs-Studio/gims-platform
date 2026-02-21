@@ -30,8 +30,8 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
   const { data, isLoading } = useQuery({
     queryKey: invoiceKeys.list({ sales_order_id: salesOrderId, per_page: 100 }),
     queryFn: () => invoiceService.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    // Only fetch when the dialog is open
-    enabled: open && !!salesOrderId,
+    // Only fetch when the dialog is open and the user has permission
+    enabled: open && !!salesOrderId && canViewInvoice,
   });
 
   const invoices = data?.data ?? [];
@@ -45,7 +45,13 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
           </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-md border">
+        {/* If user doesn't have permission, show inline warning instead of fetching and toasts */}
+        {!canViewInvoice ? (
+          <div className="p-6 text-center">
+            <p className="text-warning font-medium">{t("forbidden") || "You don't have permission to view invoices."}</p>
+          </div>
+        ) : (
+          <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -118,6 +124,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
             </TableBody>
           </Table>
         </div>
+        )}
       </DialogContent>
       <InvoiceDetailModal
         open={detailOpen}

@@ -110,6 +110,7 @@ export const invoiceId = {
     edit: "Ubah Faktur",
     delete: "Hapus Faktur",
     notFound: "Tidak ada faktur ditemukan",
+    forbidden: "Anda tidak memiliki izin untuk melihat faktur",
     noItems: "Tidak ada item",
     unknownProduct: "Tidak ada produk dipilih",
     created: "Faktur berhasil dibuat",

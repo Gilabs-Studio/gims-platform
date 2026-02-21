@@ -95,6 +95,7 @@ export const deliveryId = {
     edit: "Ubah Surat Jalan",
     delete: "Hapus Surat Jalan",
     notFound: "Tidak ada surat jalan ditemukan",
+    forbidden: "Anda tidak memiliki izin untuk melihat surat jalan",
     noItems: "Tidak ada item",
     unknownProduct: "Tidak ada produk dipilih",
     created: "Surat jalan berhasil dibuat",

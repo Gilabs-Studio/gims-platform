@@ -95,6 +95,7 @@ export const deliveryEn = {
     edit: "Edit Delivery Order",
     delete: "Delete Delivery Order",
     notFound: "No delivery orders found",
+    forbidden: "You don't have permission to view delivery orders",
     noItems: "No items found",
     unknownProduct: "No product selected",
     created: "Delivery order created successfully",
