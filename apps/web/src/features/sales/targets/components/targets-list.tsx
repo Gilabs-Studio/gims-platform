@@ -78,10 +78,10 @@ export function TargetsList() {
     year: yearFilter !== "all" ? parseInt(yearFilter) : undefined,
   });
 
-  const canCreate = useUserPermission("yearly_target.create");
-  const canUpdate = useUserPermission("yearly_target.update");
-  const canDelete = useUserPermission("yearly_target.delete");
-  const canView = useUserPermission("yearly_target.read");
+  const canCreate = useUserPermission("sales_target.create");
+  const canUpdate = useUserPermission("sales_target.update");
+  const canDelete = useUserPermission("sales_target.delete");
+  const canView = useUserPermission("sales_target.read");
 
   const deleteTarget = useDeleteYearlyTarget();
   const updateStatus = useUpdateTargetStatus();

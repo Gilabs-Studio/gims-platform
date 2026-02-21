@@ -48,10 +48,10 @@ export function TargetDetailModal({
   // Fetch full detail when modal opens
   const { data: detailData, isLoading } = useYearlyTarget(target?.id ?? "");
 
-  const canEdit = useUserPermission("yearly_target.update");
-  const canDelete = useUserPermission("yearly_target.delete");
-  const canApprove = useUserPermission("yearly_target.approve");
-  const canReject = useUserPermission("yearly_target.reject");
+  const canEdit = useUserPermission("sales_target.update");
+  const canDelete = useUserPermission("sales_target.delete");
+  const canApprove = useUserPermission("sales_target.approve");
+  const canReject = useUserPermission("sales_target.reject");
 
   if (!target) return null;
 
