@@ -33,7 +33,8 @@ export function InvoiceList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<CustomerInvoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(null);
-  const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
+  const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -47,6 +48,7 @@ export function InvoiceList() {
   const canUpdate = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canView = useUserPermission("customer_invoice.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
@@ -239,15 +241,18 @@ export function InvoiceList() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {invoice.sales_order ? (
+                    {invoice.sales_order && canViewSalesOrder ? (
                       <button
-                        onClick={() => setViewingSalesOrder(invoice.sales_order!)}
+                        onClick={() => {
+                          setSelectedSalesOrderId(invoice.sales_order!.id);
+                          setIsSalesOrderOpen(true);
+                        }}
                         className="font-medium text-primary hover:underline cursor-pointer"
                       >
                         {invoice.sales_order.code}
                       </button>
                     ) : (
-                      "-"
+                      <span>{invoice.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
@@ -340,11 +345,11 @@ export function InvoiceList() {
         />
       )}
 
-      {viewingSalesOrder && (
+      {selectedSalesOrderId && (
         <OrderDetailModal
-          open={!!viewingSalesOrder}
-          onClose={() => setViewingSalesOrder(null)}
-          order={viewingSalesOrder}
+          open={isSalesOrderOpen}
+          onClose={() => setIsSalesOrderOpen(false)}
+          order={{ id: selectedSalesOrderId } as unknown as SalesOrder}
         />
       )}
 

@@ -22,7 +22,7 @@ import { ShipDialog } from "./ship-dialog";
 import { DeliverDialog } from "./deliver-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
-import type { SalesOrder, SalesOrderSummary } from "../../order/types";
+import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -37,7 +37,8 @@ export function DeliveryList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
   const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(null);
-  const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | SalesOrderSummary | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
+  const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export function DeliveryList() {
   const canUpdate = useUserPermission("delivery_order.update");
   const canDelete = useUserPermission("delivery_order.delete");
   const canView = useUserPermission("delivery_order.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const deleteDelivery = useDeleteDeliveryOrder();
   const updateStatus = useUpdateDeliveryOrderStatus();
@@ -301,15 +303,18 @@ export function DeliveryList() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {delivery.sales_order ? (
+                    {delivery.sales_order && canViewSalesOrder ? (
                       <button
-                        onClick={() => setViewingSalesOrder(delivery.sales_order!)}
+                        onClick={() => {
+                          setSelectedSalesOrderId(delivery.sales_order!.id);
+                          setIsSalesOrderOpen(true);
+                        }}
                         className="font-medium text-primary hover:underline cursor-pointer"
                       >
                         {delivery.sales_order.code}
                       </button>
                     ) : (
-                      "-"
+                      <span>{delivery.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(delivery.status)}</TableCell>
@@ -402,11 +407,11 @@ export function DeliveryList() {
         />
       )}
 
-      {viewingSalesOrder && 'subtotal' in viewingSalesOrder && (
+      {selectedSalesOrderId && (
         <OrderDetailModal
-          open={true}
-          onClose={() => setViewingSalesOrder(null)}
-          order={viewingSalesOrder as SalesOrder}
+          open={isSalesOrderOpen}
+          onClose={() => setIsSalesOrderOpen(false)}
+          order={{ id: selectedSalesOrderId } as unknown as SalesOrder}
         />
       )}
 

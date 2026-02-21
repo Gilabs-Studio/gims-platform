@@ -33,8 +33,11 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import type { SalesVisit } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
-
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useVisitDetail } from "../hooks/use-visit-detail";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
+import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 
 interface VisitDetailModalProps {
   readonly open: boolean;
@@ -60,6 +63,14 @@ export function VisitDetailModal({
   
   // Use static t function temporarily until visit namespace is fully ready
   const t = useTranslations("visit");
+
+  const {
+    canViewEmployee,
+    canViewProduct,
+    isEmployeeOpen, setIsEmployeeOpen, selectedEmployeeId,
+    isProductOpen, setIsProductOpen, selectedProductId,
+    openEmployee, openProduct,
+  } = useVisitDetail();
 
   // Fetch full detail
   const { data: detailData, isLoading } = useVisit(visit?.id ?? "", {
@@ -236,7 +247,16 @@ export function VisitDetailModal({
                     <div className="space-y-2 text-sm">
                        <div className="grid grid-cols-3 gap-2">
                          <span className="text-muted-foreground">Sales Rep:</span>
-                         <span className="col-span-2 font-medium">{displayVisit.employee?.name}</span>
+                         {canViewEmployee && displayVisit.employee ? (
+                           <button
+                             onClick={() => openEmployee(displayVisit.employee?.id)}
+                             className="col-span-2 font-medium text-primary hover:underline cursor-pointer text-left"
+                           >
+                             {displayVisit.employee.name}
+                           </button>
+                         ) : (
+                           <span className="col-span-2 font-medium">{displayVisit.employee?.name}</span>
+                         )}
                        </div>
                        <div className="grid grid-cols-3 gap-2">
                          <span className="text-muted-foreground">Company:</span>
@@ -326,8 +346,20 @@ export function VisitDetailModal({
                                 productDetails.map((detail) => (
                                    <TableRow key={detail.id}>
                                       <TableCell>
-                                         <div className="font-medium">{detail.product?.name}</div>
-                                         <div className="text-xs text-muted-foreground">{detail.product?.code}</div>
+                                         {canViewProduct && detail.product ? (
+                                           <button
+                                             onClick={() => openProduct(detail.product?.id)}
+                                             className="text-primary hover:underline cursor-pointer text-left"
+                                           >
+                                             <div className="font-medium">{detail.product.name}</div>
+                                             <div className="text-xs text-muted-foreground">{detail.product.code}</div>
+                                           </button>
+                                         ) : (
+                                           <>
+                                             <div className="font-medium">{detail.product?.name}</div>
+                                             <div className="text-xs text-muted-foreground">{detail.product?.code}</div>
+                                           </>
+                                         )}
                                          
                                          {/* Survey Answers */}
                                          {detail.answers && detail.answers.length > 0 && (
@@ -421,6 +453,18 @@ export function VisitDetailModal({
             isLoading={deleteVisit.isPending}
             title="Delete Visit"
             description="Are you sure you want to delete this visit?"
+          />
+
+          <EmployeeDetailModal
+            open={isEmployeeOpen}
+            onOpenChange={setIsEmployeeOpen}
+            employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
+          />
+
+          <QuotationProductDetailModal
+            open={isProductOpen}
+            onOpenChange={setIsProductOpen}
+            productId={selectedProductId}
           />
         </DialogContent>
       </Dialog>
