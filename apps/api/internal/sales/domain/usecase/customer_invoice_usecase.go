@@ -161,7 +161,7 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		DeliveryCost:   req.DeliveryCost,
 		OtherCost:      req.OtherCost,
 		Notes:          req.Notes,
-		Status:         models.CustomerInvoiceStatusUnpaid,
+		Status:         models.CustomerInvoiceStatusDraft,
 		CreatedBy:      createdBy,
 	}
 
@@ -226,8 +226,8 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, ErrCustomerInvoiceNotFound
 	}
 
-	// Only allow updates on unpaid invoices
-	if invoice.Status != models.CustomerInvoiceStatusUnpaid {
+	// Only allow updates on draft invoices
+	if invoice.Status != models.CustomerInvoiceStatusDraft {
 		return nil, ErrInvalidInvoiceStatus
 	}
 
@@ -329,8 +329,8 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 		return ErrCustomerInvoiceNotFound
 	}
 
-	// Only allow deletion of unpaid invoices
-	if invoice.Status != models.CustomerInvoiceStatusUnpaid {
+	// Allow deletion of draft or unpaid invoices only
+	if invoice.Status != models.CustomerInvoiceStatusDraft && invoice.Status != models.CustomerInvoiceStatusUnpaid {
 		return ErrInvalidInvoiceStatus
 	}
 
@@ -409,8 +409,12 @@ func (uc *customerInvoiceUsecase) RecordPayment(ctx context.Context, id string, 
 // isValidStatusTransition checks if the status transition is valid
 func isValidStatusTransition(from, to models.CustomerInvoiceStatus) bool {
 	validTransitions := map[models.CustomerInvoiceStatus][]models.CustomerInvoiceStatus{
-		models.CustomerInvoiceStatusUnpaid:  {models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusPartial: {models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusDraft:    {models.CustomerInvoiceStatusSent, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusSent:     {models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusRejected},
+		models.CustomerInvoiceStatusApproved: {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusRejected: {models.CustomerInvoiceStatusDraft},
+		models.CustomerInvoiceStatusUnpaid:   {models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusPartial:  {models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
 	}
 
 	allowed, ok := validTransitions[from]

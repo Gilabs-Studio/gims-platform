@@ -128,6 +128,19 @@ export function useUpdateDeliveryOrderStatus() {
   });
 }
 
+// Approve delivery order mutation (requires delivery_order.approve permission)
+export function useApproveDeliveryOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deliveryService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: deliveryKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+    },
+  });
+}
+
 // Ship delivery order mutation
 export function useShipDeliveryOrder() {
   const queryClient = useQueryClient();

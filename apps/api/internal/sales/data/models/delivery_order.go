@@ -18,6 +18,9 @@ type DeliveryOrderStatus string
 
 const (
 	DeliveryOrderStatusDraft     DeliveryOrderStatus = "draft"
+	DeliveryOrderStatusSent      DeliveryOrderStatus = "sent"
+	DeliveryOrderStatusApproved  DeliveryOrderStatus = "approved"
+	DeliveryOrderStatusRejected  DeliveryOrderStatus = "rejected"
 	DeliveryOrderStatusPrepared  DeliveryOrderStatus = "prepared"
 	DeliveryOrderStatusShipped   DeliveryOrderStatus = "shipped"
 	DeliveryOrderStatusDelivered DeliveryOrderStatus = "delivered"

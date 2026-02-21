@@ -214,6 +214,7 @@ func SeedPermissions() error {
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.update", "Edit Delivery Orders", "EDIT", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.delete", "Delete Delivery Orders", "DELETE", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.approve", "Approve Delivery Orders", "APPROVE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.ship", "Ship Delivery Orders", "SHIP", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.deliver", "Deliver Delivery Orders", "DELIVER", "delivery_order"},
 
@@ -221,6 +222,7 @@ func SeedPermissions() error {
 		{"/sales/invoices", "customer_invoice.create", "Create Customer Invoices", "CREATE", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.update", "Edit Customer Invoices", "EDIT", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.approve", "Approve Customer Invoices", "APPROVE", "customer_invoice"},
 
 		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
 		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
@@ -237,6 +239,14 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+
+		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
+		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
+		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
+		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
+		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
+		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
+		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},

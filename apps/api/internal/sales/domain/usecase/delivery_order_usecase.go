@@ -292,7 +292,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Check if delivery order can be modified
-	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
+	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusApproved && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryOrderStatus
 	}
 
@@ -593,8 +593,19 @@ func (u *deliveryOrderUsecase) SelectBatches(ctx context.Context, req *dto.Batch
 func (u *deliveryOrderUsecase) isValidStatusTransition(current, new models.DeliveryOrderStatus) bool {
 	validTransitions := map[models.DeliveryOrderStatus][]models.DeliveryOrderStatus{
 		models.DeliveryOrderStatusDraft: {
+			models.DeliveryOrderStatusSent,
+			models.DeliveryOrderStatusCancelled,
+		},
+		models.DeliveryOrderStatusSent: {
+			models.DeliveryOrderStatusApproved,
+			models.DeliveryOrderStatusRejected,
+		},
+		models.DeliveryOrderStatusApproved: {
 			models.DeliveryOrderStatusPrepared,
 			models.DeliveryOrderStatusCancelled,
+		},
+		models.DeliveryOrderStatusRejected: {
+			models.DeliveryOrderStatusDraft,
 		},
 		models.DeliveryOrderStatusPrepared: {
 			models.DeliveryOrderStatusShipped,

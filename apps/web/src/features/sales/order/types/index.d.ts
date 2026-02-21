@@ -16,7 +16,7 @@ export interface SalesOrderSummary {
   order_date?: string;
 }
 
-export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
+export type SalesOrderStatus = "draft" | "sent" | "approved" | "rejected" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
 
 export interface SalesOrderItem {
   id: string;

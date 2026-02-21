@@ -53,6 +53,9 @@ export const deliveryId = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Menunggu Persetujuan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       prepared: "Disiapkan",
       shipped: "Dikirim",
       delivered: "Terkirim",
@@ -117,6 +120,9 @@ export const deliveryId = {
 
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       prepare: "Siapkan",
       ship: "Kirim",
       deliver: "Tandai sebagai Terkirim",

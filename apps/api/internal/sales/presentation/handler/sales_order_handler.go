@@ -253,6 +253,44 @@ func (h *SalesOrderHandler) UpdateStatus(c *gin.Context) {
 	response.SuccessResponse(c, order, meta)
 }
 
+// Approve handles approve sales order request (sent → approved)
+func (h *SalesOrderHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+
+	var userID *string
+	if uid, exists := c.Get("user_id"); exists {
+		if u, ok := uid.(string); ok {
+			userID = &u
+		}
+	}
+
+	req := dto.UpdateSalesOrderStatusRequest{Status: "approved"}
+	order, err := h.orderUC.UpdateStatus(c.Request.Context(), id, &req, userID)
+	if err != nil {
+		if err == usecase.ErrSalesOrderNotFound {
+			errors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
+				"order_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidOrderStatusTransition {
+			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+				"message": "Order must be in sent status to approve",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{}
+	if userID != nil {
+		meta.UpdatedBy = *userID
+	}
+
+	response.SuccessResponse(c, order, meta)
+}
+
 // ConvertFromQuotation handles convert quotation to order request
 func (h *SalesOrderHandler) ConvertFromQuotation(c *gin.Context) {
 	var req dto.ConvertFromQuotationRequest

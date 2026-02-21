@@ -53,6 +53,9 @@ export const deliveryEn = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Sent for Approval",
+      approved: "Approved",
+      rejected: "Rejected",
       prepared: "Prepared",
       shipped: "Shipped",
       delivered: "Delivered",
@@ -117,6 +120,9 @@ export const deliveryEn = {
 
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       prepare: "Prepare",
       ship: "Ship",
       deliver: "Mark as Delivered",

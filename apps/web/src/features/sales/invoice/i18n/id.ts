@@ -57,6 +57,10 @@ export const invoiceId = {
 
     // Status
     status: {
+      draft: "Draft",
+      sent: "Menunggu Persetujuan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       unpaid: "Belum Dibayar",
       partial: "Sebagian",
       paid: "Lunas",
@@ -133,6 +137,9 @@ export const invoiceId = {
 
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       pay: "Catat Pembayaran",
       cancel: "Batalkan Faktur",
       markPaid: "Tandai Lunas",

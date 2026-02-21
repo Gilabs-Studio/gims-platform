@@ -144,6 +144,19 @@ export function useUpdateInvoiceStatus() {
   });
 }
 
+// Approve invoice mutation (requires customer_invoice.approve permission)
+export function useApproveInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => invoiceService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+  });
+}
+
 // Record payment mutation
 export function useRecordPayment() {
   const queryClient = useQueryClient();

@@ -57,6 +57,10 @@ export const invoiceEn = {
 
     // Status
     status: {
+      draft: "Draft",
+      sent: "Sent for Approval",
+      approved: "Approved",
+      rejected: "Rejected",
       unpaid: "Unpaid",
       partial: "Partial",
       paid: "Paid",
@@ -133,6 +137,9 @@ export const invoiceEn = {
 
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       pay: "Record Payment",
       cancel: "Cancel Invoice",
       markPaid: "Mark as Paid",

@@ -51,6 +51,9 @@ export const orderEn = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Sent for Approval",
+      approved: "Approved",
+      rejected: "Rejected",
       confirmed: "Confirmed",
       processing: "Processing",
       shipped: "Shipped",
@@ -136,6 +139,9 @@ export const orderEn = {
 
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       confirm: "Confirm",
       cancel: "Cancel Order",
       convert: "Convert from Quotation",

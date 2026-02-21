@@ -14,13 +14,16 @@ import (
 type SalesOrderStatus string
 
 const (
-	SalesOrderStatusDraft     SalesOrderStatus = "draft"
-	SalesOrderStatusConfirmed SalesOrderStatus = "confirmed"
+	SalesOrderStatusDraft      SalesOrderStatus = "draft"
+	SalesOrderStatusSent       SalesOrderStatus = "sent"
+	SalesOrderStatusApproved   SalesOrderStatus = "approved"
+	SalesOrderStatusRejected   SalesOrderStatus = "rejected"
+	SalesOrderStatusConfirmed  SalesOrderStatus = "confirmed"
 	SalesOrderStatusProcessing SalesOrderStatus = "processing"
-	SalesOrderStatusPartial   SalesOrderStatus = "partial"
-	SalesOrderStatusShipped   SalesOrderStatus = "shipped"
-	SalesOrderStatusDelivered SalesOrderStatus = "delivered"
-	SalesOrderStatusCancelled SalesOrderStatus = "cancelled"
+	SalesOrderStatusPartial    SalesOrderStatus = "partial"
+	SalesOrderStatusShipped    SalesOrderStatus = "shipped"
+	SalesOrderStatusDelivered  SalesOrderStatus = "delivered"
+	SalesOrderStatusCancelled  SalesOrderStatus = "cancelled"
 )
 
 // SalesOrder represents a sales order document
