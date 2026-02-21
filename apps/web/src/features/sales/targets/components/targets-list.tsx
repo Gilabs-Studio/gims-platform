@@ -138,10 +138,10 @@ export function TargetsList() {
   };
   
   const getProgressColor = (percent: number) => {
-    if (percent >= 100) return "bg-purple-500"; 
-    if (percent >= 80) return "bg-green-500";   
-    if (percent >= 50) return "bg-yellow-500";  
-    return "bg-destructive";                    
+    if (percent >= 100) return "bg-purple-500";
+    if (percent >= 80) return "bg-green-500";
+    if (percent >= 50) return "bg-warning";
+    return "bg-destructive";
   };
 
   const getStatusBadge = (status: YearlyTargetStatus) => {

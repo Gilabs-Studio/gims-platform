@@ -296,7 +296,7 @@ export function TargetDetailModal({
                                    <p className={cn(
                                        "text-xl font-bold",
                                        displayTarget.achievement_percent >= 100 ? "text-green-600" :
-                                       displayTarget.achievement_percent >= 80 ? "text-yellow-600" : "text-red-600"
+                                           displayTarget.achievement_percent >= 80 ? "text-warning" : "text-red-600"
                                    )}>
                                        {displayTarget.achievement_percent.toFixed(2)}%
                                    </p>
@@ -310,7 +310,7 @@ export function TargetDetailModal({
                                className={cn(
                                    "h-full rounded-full transition-all duration-500",
                                     displayTarget.achievement_percent >= 100 ? "bg-green-500" :
-                                    displayTarget.achievement_percent >= 80 ? "bg-yellow-500" : "bg-red-500"
+                                    displayTarget.achievement_percent >= 80 ? "bg-warning" : "bg-red-500"
                                )}
                                style={{ width: `${Math.min(100, displayTarget.achievement_percent)}%` }}
                            />
