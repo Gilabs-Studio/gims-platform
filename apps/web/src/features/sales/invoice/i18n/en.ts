@@ -81,6 +81,7 @@ export const invoiceEn = {
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
+    amount: "Amount",
     paymentTerms: "Payment Terms",
     salesOrder: "Sales Order",
     invoiceType: "Invoice Type",

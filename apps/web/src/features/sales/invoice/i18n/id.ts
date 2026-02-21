@@ -81,6 +81,7 @@ export const invoiceId = {
     invoiceNumber: "Nomor Faktur",
     invoiceDate: "Tanggal Faktur",
     dueDate: "Tanggal Jatuh Tempo",
+    amount: "Jumlah",
     paymentTerms: "Syarat Pembayaran",
     salesOrder: "Pesanan Penjualan",
     invoiceType: "Jenis Faktur",

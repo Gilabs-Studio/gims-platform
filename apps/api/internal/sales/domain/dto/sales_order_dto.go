@@ -125,8 +125,30 @@ type SalesOrderResponse struct {
 	CancelledAt         *string                       `json:"cancelled_at"`
 	CancellationReason  *string                       `json:"cancellation_reason"`
 	Items               []SalesOrderItemResponse       `json:"items,omitempty"`
+	DeliveryOrders      []DeliveryOrderSummary         `json:"delivery_orders,omitempty"`
+	CustomerInvoices    []CustomerInvoiceSummary       `json:"customer_invoices,omitempty"`
 	CreatedAt           string                        `json:"created_at"`
 	UpdatedAt           string                        `json:"updated_at"`
+}
+
+// DeliveryOrderSummary represents a minimal delivery order for SO status display
+type DeliveryOrderSummary struct {
+	ID                string  `json:"id"`
+	Code              string  `json:"code"`
+	Status            string  `json:"status"`
+	DeliveryDate      string  `json:"delivery_date"`
+	IsPartialDelivery bool    `json:"is_partial_delivery"`
+}
+
+// CustomerInvoiceSummary represents a minimal customer invoice for SO status display
+type CustomerInvoiceSummary struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Status       string  `json:"status"`
+	InvoiceDate  string  `json:"invoice_date"`
+	DueDate      string  `json:"due_date"`
+	Amount       float64 `json:"amount"`
+	PaidAmount   float64 `json:"paid_amount"`
 }
 
 // SalesOrderItemResponse represents an item in the order response

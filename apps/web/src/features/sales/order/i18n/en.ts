@@ -95,6 +95,7 @@ export const orderEn = {
     totalAmount: "Total Amount",
     reservedStock: "Stock Reserved",
     salesQuotations: "Sales Quotations",
+    invoice: "Invoice",
     quotationSummary: "Quotation Summary",
     noQuotation: "No sales quotation linked",
     customer: "Customer",

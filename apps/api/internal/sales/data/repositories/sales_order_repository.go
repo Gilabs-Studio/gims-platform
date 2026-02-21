@@ -51,6 +51,12 @@ func (r *salesOrderRepository) FindByID(ctx context.Context, id string) (*models
 		Preload("BusinessType").
 		Preload("DeliveryArea").
 		Preload("Items.Product").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Where("id = ?", id).
 		First(&order).Error
 	if err != nil {
@@ -69,6 +75,12 @@ func (r *salesOrderRepository) FindByCode(ctx context.Context, code string) (*mo
 		Preload("BusinessType").
 		Preload("DeliveryArea").
 		Preload("Items.Product").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Where("code = ?", code).
 		First(&order).Error
 	if err != nil {
@@ -162,6 +174,12 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		Preload("BusinessUnit").
 		Preload("BusinessType").
 		Preload("DeliveryArea").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Limit(perPage).
 		Offset(offset).
 		Find(&orders).Error
