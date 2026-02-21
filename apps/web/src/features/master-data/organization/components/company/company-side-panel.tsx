@@ -213,7 +213,7 @@ export function CompanySidePanel({
         side="right"
         defaultWidth={500}
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20 p-4">
             {/* Basic Info */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium border-b pb-2">

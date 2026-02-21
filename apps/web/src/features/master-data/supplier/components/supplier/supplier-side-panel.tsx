@@ -296,7 +296,7 @@ export function SupplierSidePanel({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="general" className="mt-4 space-y-6">
+            <TabsContent value="general" className="mt-4 space-y-6 p-4">
               {/* Basic Information Section */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium border-b pb-2">
@@ -572,7 +572,7 @@ export function SupplierSidePanel({
               </div>
             </TabsContent>
 
-            <TabsContent value="financial" className="mt-4 space-y-6">
+            <TabsContent value="financial" className="mt-4 space-y-6 p-4">
               {/* Phone Numbers Section */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium border-b pb-2">
