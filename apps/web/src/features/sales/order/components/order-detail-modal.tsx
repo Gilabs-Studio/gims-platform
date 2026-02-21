@@ -271,10 +271,10 @@ export function OrderDetailModal({
                               onClick={() => openQuotation(displayOrder.sales_quotation_id)}
                               className="text-primary hover:underline cursor-pointer text-left"
                             >
-                              {displayOrder.sales_quotation_id}
+                              {displayOrder.sales_quotation?.code ?? displayOrder.sales_quotation_id}
                             </button>
                           ) : (
-                            <span>{displayOrder.sales_quotation_id ?? "-"}</span>
+                            <span>{displayOrder.sales_quotation?.code ?? displayOrder.sales_quotation_id ?? "-"}</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -333,9 +333,26 @@ export function OrderDetailModal({
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayOrder.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayOrder.customer_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayOrder.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayOrder.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayOrder.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayOrder.customer_email ? (
+                                  <a href={`mailto:${displayOrder.customer_email}`} className="text-primary hover:underline">
+                                    {displayOrder.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>

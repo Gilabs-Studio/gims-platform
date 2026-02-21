@@ -235,10 +235,10 @@ export function DeliveryDetailModal({
                               onClick={() => openSalesOrder(displayDelivery.sales_order_id)}
                               className="text-primary hover:underline cursor-pointer text-left"
                             >
-                              {displayDelivery.sales_order_id}
+                              {displayDelivery.sales_order?.code ?? displayDelivery.sales_order_id}
                             </button>
                           ) : (
-                            <span>{displayDelivery.sales_order_id ?? "-"}</span>
+                            <span>{displayDelivery.sales_order?.code ?? displayDelivery.sales_order_id ?? "-"}</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -274,7 +274,18 @@ export function DeliveryDetailModal({
                               <TableCell className="font-medium bg-muted/50 w-48">{t("receiverName")}</TableCell>
                               <TableCell>{displayDelivery.receiver_name ?? "-"}</TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("receiverPhone")}</TableCell>
-                              <TableCell>{displayDelivery.receiver_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayDelivery.receiver_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayDelivery.receiver_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayDelivery.receiver_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("receiverAddress")}</TableCell>

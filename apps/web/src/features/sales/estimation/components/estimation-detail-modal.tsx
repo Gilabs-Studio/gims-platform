@@ -311,9 +311,26 @@ export function EstimationDetailModal({
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayEstimation.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayEstimation.customer_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayEstimation.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayEstimation.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayEstimation.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayEstimation.customer_email ? (
+                                  <a href={`mailto:${displayEstimation.customer_email}`} className="text-primary hover:underline">
+                                    {displayEstimation.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
