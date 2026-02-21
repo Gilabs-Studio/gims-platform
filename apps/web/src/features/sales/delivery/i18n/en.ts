@@ -54,6 +54,7 @@ export const deliveryEn = {
     status: {
       draft: "Draft",
       sent: "Sent for Approval",
+      pending: "Pending",
       approved: "Approved",
       rejected: "Rejected",
       prepared: "Prepared",

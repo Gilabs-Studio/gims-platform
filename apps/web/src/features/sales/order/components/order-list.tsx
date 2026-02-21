@@ -149,7 +149,7 @@ export function OrderList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="sent">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="confirmed">{t("status.confirmed")}</SelectItem>

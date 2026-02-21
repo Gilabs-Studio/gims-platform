@@ -176,9 +176,9 @@ export function DeliveryList() {
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="warning">
             <Send className="h-3 w-3 mr-1" />
-            {t("status.sent")}
+            {t("status.pending")}
           </Badge>
         );
       case "approved":
@@ -266,10 +266,10 @@ export function DeliveryList() {
           <SelectTrigger className="w-48">
             <SelectValue placeholder={t("common.filterBy")} />
           </SelectTrigger>
-          <SelectContent>
+            <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="sent">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="prepared">{t("status.prepared")}</SelectItem>

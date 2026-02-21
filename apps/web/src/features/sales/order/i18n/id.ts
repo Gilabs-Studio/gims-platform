@@ -51,6 +51,7 @@ export const orderId = {
     status: {
       draft: "Draft",
       sent: "Menunggu Persetujuan",
+      pending: "Menunggu Persetujuan",
       approved: "Disetujui",
       rejected: "Ditolak",
       confirmed: "Dikonfirmasi",

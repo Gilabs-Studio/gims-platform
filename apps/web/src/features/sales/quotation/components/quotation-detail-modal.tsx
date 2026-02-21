@@ -100,12 +100,12 @@ export function QuotationDetailModal({
           </Badge>
         );
       case "sent":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.sent")}
-          </Badge>
-        );
+          return (
+            <Badge variant="warning" className="text-xs font-medium">
+              <Send className="h-3 w-3 mr-1.5" />
+              {t("status.pending")}
+            </Badge>
+          );
       case "approved":
         return (
           <Badge variant="success" className="text-xs font-medium">

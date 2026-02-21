@@ -93,9 +93,9 @@ export function QuotationDetailModal({
         );
       case "sent":
         return (
-          <Badge variant="info" className="text-xs font-medium">
+          <Badge variant="warning" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1.5" />
-            {t("status.sent")}
+            {t("status.pending")}
           </Badge>
         );
       case "approved":
