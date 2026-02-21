@@ -110,6 +110,7 @@ export const invoiceEn = {
     edit: "Edit Invoice",
     delete: "Delete Invoice",
     notFound: "No invoices found",
+    forbidden: "You don't have permission to view invoices",
     noItems: "No items found",
     unknownProduct: "No product selected",
     created: "Invoice created successfully",

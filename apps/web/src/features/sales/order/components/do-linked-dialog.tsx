@@ -29,8 +29,8 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
   const { data, isLoading } = useQuery({
     queryKey: deliveryKeys.list({ sales_order_id: salesOrderId, per_page: 100 }),
     queryFn: () => deliveryService.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    // Only fetch when the dialog is open
-    enabled: open && !!salesOrderId,
+    // Only fetch when the dialog is open and the user has permission
+    enabled: open && !!salesOrderId && canViewDelivery,
   });
 
   const deliveryOrders = data?.data ?? [];
@@ -44,7 +44,13 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
           </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-md border">
+        {/* If user doesn't have permission, show inline warning instead of fetching and toasts */}
+        {!canViewDelivery ? (
+          <div className="p-6 text-center">
+            <p className="text-warning font-medium">{t("forbidden") || "You don't have permission to view delivery orders."}</p>
+          </div>
+        ) : (
+          <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -114,6 +120,7 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
             </TableBody>
           </Table>
         </div>
+        )}
       </DialogContent>
       <DeliveryDetailModal
         open={detailOpen}
