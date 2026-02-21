@@ -19,6 +19,8 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency } from "@/lib/utils";
@@ -49,6 +51,11 @@ export function OrderList() {
   const canUpdate = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
   const canView = useUserPermission("sales_order.read");
+  const canViewEmployee = useUserPermission("employee.read");
+  const canViewSalesQuotation = useUserPermission("sales_quotation.read");
+
+  const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
+  const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -200,7 +207,7 @@ export function OrderList() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {order.sales_quotation ? (
+                    {order.sales_quotation && canViewSalesQuotation ? (
                       <button
                         onClick={() => setViewingQuotation(order.sales_quotation!)}
                         className="font-medium text-primary hover:underline cursor-pointer"
@@ -208,10 +215,24 @@ export function OrderList() {
                         {order.sales_quotation.code}
                       </button>
                     ) : (
-                      "-"
+                      <span>{order.sales_quotation?.code ?? "-"}</span>
                     )}
                   </TableCell>
-                  <TableCell>{order.sales_rep?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {order.sales_rep && canViewEmployee ? (
+                      <button
+                        onClick={() => {
+                          setSelectedSalesRepId(order.sales_rep!.id);
+                          setIsSalesRepOpen(true);
+                        }}
+                        className="text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {order.sales_rep.name}
+                      </button>
+                    ) : (
+                      <span>{order.sales_rep?.name ?? "-"}</span>
+                    )}
+                  </TableCell>
                   <TableCell><OrderStatusBadge status={order.status} className="text-xs font-medium" /></TableCell>
                   <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
                   <TableCell>
@@ -321,6 +342,12 @@ export function OrderList() {
           quotation={viewingQuotation}
         />
       )}
+
+      <EmployeeDetailModal
+        open={isSalesRepOpen}
+        onOpenChange={setIsSalesRepOpen}
+        employee={selectedSalesRepId ? { id: selectedSalesRepId } as unknown as MdEmployee : null}
+      />
     </div>
   );
 }

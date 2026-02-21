@@ -62,8 +62,8 @@ export function VisitForm({ open, onClose, visit }: VisitFormProps) {
   );
 
   // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100 });
-  const { data: employeesData } = useEmployees({ per_page: 100 });
+  const { data: productsData } = useProducts({ per_page: 100 }, { enabled: open });
+  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
   const { data: companiesData } = useCompanies({ per_page: 100 });
 
   const products = useMemo(() => {

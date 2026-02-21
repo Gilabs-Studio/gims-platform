@@ -32,6 +32,8 @@ import { VisitCalendarView } from "./visit-calendar-view";
 import { VisitForm } from "./visit-form";
 import { VisitDetailModal } from "./visit-detail-modal";
 import { DayVisitListDrawer } from "./day-visit-list-drawer";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -84,6 +86,10 @@ export function VisitList() {
 
   const t = useTranslations("visit");
   const canView = useUserPermission("sales_visit.read");
+  const canViewEmployee = useUserPermission("employee.read");
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [isEmployeeOpen, setIsEmployeeOpen] = useState(false);
 
   const deleteVisit = useDeleteVisit();
   const updateStatus = useUpdateVisitStatus();
@@ -309,7 +315,21 @@ export function VisitList() {
                         {visit.code}
                       </TableCell>
                       <TableCell>{formatDate(visit.visit_date)} <span className="text-xs text-muted-foreground ml-1">{visit.scheduled_time}</span></TableCell>
-                      <TableCell>{visit.employee?.name ?? t("unknownEmployee")}</TableCell>
+                      <TableCell>
+                        {visit.employee && canViewEmployee ? (
+                          <button
+                            onClick={() => {
+                              setSelectedEmployeeId(visit.employee!.id);
+                              setIsEmployeeOpen(true);
+                            }}
+                            className="text-primary hover:underline cursor-pointer text-left"
+                          >
+                            {visit.employee.name}
+                          </button>
+                        ) : (
+                          <span>{visit.employee?.name ?? t("unknownEmployee")}</span>
+                        )}
+                      </TableCell>
                       <TableCell>{visit.company?.name ?? t("unknownCompany")}</TableCell>
                       <TableCell className="max-w-[200px] truncate">
                         {visit.purpose || "-"}
@@ -443,6 +463,12 @@ export function VisitList() {
         isLoading={deleteVisit.isPending}
         title={t("deleteTitle")}
         description={t("deleteConfirm")}
+      />
+
+      <EmployeeDetailModal
+        open={isEmployeeOpen}
+        onOpenChange={setIsEmployeeOpen}
+        employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
       />
     </div>
   );

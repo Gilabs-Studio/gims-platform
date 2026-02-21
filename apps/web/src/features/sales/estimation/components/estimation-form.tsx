@@ -65,10 +65,10 @@ export function EstimationForm({ open, onClose, estimation }: EstimationFormProp
   );
 
   // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
-  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 });
-  const { data: employeesData } = useEmployees({ per_page: 100 });
+  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
+  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
+  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
+  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
   const { data: areasData } = useAreas({ per_page: 100 });
 
   const products = useMemo(() => {
