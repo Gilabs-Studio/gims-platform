@@ -145,6 +145,11 @@ export const quotationEn = {
     rejectedAt: "Rejected At",
     convertedAt: "Converted At",
     rejectionReason: "Rejection Reason",
+
+    // WhatsApp
+    whatsapp: {
+      greeting: "Hello, regarding quotation",
+    },
   },
 };
 

@@ -145,5 +145,10 @@ export const quotationId = {
     rejectedAt: "Ditolak Pada",
     convertedAt: "Dikonversi Pada",
     rejectionReason: "Alasan Penolakan",
+
+    // WhatsApp
+    whatsapp: {
+      greeting: "Halo, terkait penawaran",
+    },
   },
 };
