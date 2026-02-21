@@ -20,6 +20,8 @@ import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
 import { formatCurrency } from "@/lib/utils";
 
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 export function QuotationList() {
@@ -45,6 +47,10 @@ export function QuotationList() {
   const canUpdate = useUserPermission("sales_quotation.update");
   const canDelete = useUserPermission("sales_quotation.delete");
   const canView = useUserPermission("sales_quotation.read");
+  const canViewEmployee = useUserPermission("employee.read");
+
+  const [selectedSalesRep, setSelectedSalesRep] = useState<SalesQuotation["sales_rep"] | null>(null);
+  const [isSalesRepDialogOpen, setIsSalesRepDialogOpen] = useState(false);
 
   const deleteQuotation = useDeleteQuotation();
   const updateStatus = useUpdateQuotationStatus();
@@ -221,7 +227,21 @@ export function QuotationList() {
                       ? new Date(quotation.quotation_date).toLocaleDateString()
                       : "-"}
                   </TableCell>
-                  <TableCell>{quotation.sales_rep?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {quotation.sales_rep && canViewEmployee ? (
+                      <button
+                        onClick={() => {
+                          setSelectedSalesRep(quotation.sales_rep);
+                          setIsSalesRepDialogOpen(true);
+                        }}
+                        className="text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {quotation.sales_rep.name}
+                      </button>
+                    ) : (
+                      <span>{quotation.sales_rep?.name ?? "-"}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(quotation.status)}</TableCell>
                   <TableCell>{formatCurrency(quotation.total_amount ?? 0)}</TableCell>
                   <TableCell>
@@ -332,6 +352,12 @@ export function QuotationList() {
           isLoading={deleteQuotation.isPending}
         />
       )}
+
+      <EmployeeDetailModal
+        open={isSalesRepDialogOpen}
+        onOpenChange={setIsSalesRepDialogOpen}
+        employee={selectedSalesRep as unknown as MdEmployee}
+      />
     </div>
   );
 }

@@ -65,12 +65,12 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     }
   );
 
-  // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
-  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 });
-  const { data: employeesData } = useEmployees({ per_page: 100 });
+  // Fetch lookup data — only when the form is actually open to avoid eager API calls
+  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
+  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
+  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
+  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
+  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];

@@ -28,10 +28,11 @@ export const employeeKeys = {
   formData: () => ["employees", "form-data"] as const,
 };
 
-export function useEmployees(params?: ListEmployeesParams) {
+export function useEmployees(params?: ListEmployeesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.list(params ?? {}),
     queryFn: () => employeeService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

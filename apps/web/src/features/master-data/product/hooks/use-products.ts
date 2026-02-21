@@ -17,11 +17,12 @@ export const productKeys = {
   detail: (id: string) => [...productKeys.details(), id] as const,
 };
 
-export function useProducts(params?: ProductListParams) {
+export function useProducts(params?: ProductListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
