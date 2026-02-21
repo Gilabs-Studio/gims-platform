@@ -25,11 +25,11 @@ export function useProducts(params?: ProductListParams) {
   });
 }
 
-export function useProduct(id: string) {
+export function useProduct(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productKeys.detail(id),
     queryFn: () => productService.getById(id),
-    enabled: !!id,
+    enabled: (options?.enabled ?? true) && !!id,
   });
 }
 

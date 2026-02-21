@@ -13,7 +13,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useQuotationDetail } from "../hooks/use-quotation-detail";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
+import { QuotationProductDetailModal } from "./quotation-product-detail-modal";
 import { QuotationForm } from "./quotation-form";
 import {
   useDeleteQuotation,
@@ -64,12 +68,26 @@ export function QuotationDetailModal({
   const canReject = useUserPermission("sales_quotation.reject");
   const canConvert = useUserPermission("sales_quotation.convert");
 
+  const {
+    canViewEmployee,
+    canViewProduct,
+    isEmployeeOpen,
+    setIsEmployeeOpen,
+    selectedEmployee,
+    isProductOpen,
+    setIsProductOpen,
+    selectedProductId,
+    openEmployee,
+    openProduct,
+    formatWhatsAppLink,
+  } = useQuotationDetail();
+
   if (!quotation) return null;
 
   const displayQuotation = detailData?.data ?? quotation;
   const items = itemsData?.data ?? [];
   const itemsPagination = itemsData?.meta?.pagination;
-  
+
   const totalItems = itemsPagination?.total ?? 0;
 
   const getStatusBadge = (status?: string) => {
@@ -258,78 +276,98 @@ export function QuotationDetailModal({
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="general" className="space-y-6 py-4">
+              <TabsContent value="general" className="space-y-6">
                 
-                {/* Main Information Table */}
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
-                        <TableCell>{displayQuotation.code}</TableCell>
-                        <TableCell className="font-medium bg-muted/50 w-48">{t("quotationDate")}</TableCell>
-                        <TableCell>{new Date(displayQuotation.quotation_date).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
-                        <TableCell>{getStatusBadge(displayQuotation.status)}</TableCell>
-                        <TableCell className="font-medium bg-muted/50">{t("validUntil")}</TableCell>
-                        <TableCell>
-                          {displayQuotation.valid_until 
-                            ? new Date(displayQuotation.valid_until).toLocaleDateString() 
-                            : "-"}
-                        </TableCell>
-                      </TableRow>
-                      {displayQuotation.payment_terms && (
-                        <TableRow>
-                          <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>
-                          <TableCell>{displayQuotation.payment_terms.name}</TableCell>
-                          <TableCell className="font-medium bg-muted/50">{t("salesRep")}</TableCell>
-                          <TableCell>{displayQuotation.sales_rep?.name ?? "-"}</TableCell>
-                        </TableRow>
-                      )}
-                      {displayQuotation.business_unit && (
-                        <TableRow>
-                          <TableCell className="font-medium bg-muted/50">{t("businessUnit")}</TableCell>
-                          <TableCell>{displayQuotation.business_unit.name}</TableCell>
-                          <TableCell className="font-medium bg-muted/50">{t("businessType")}</TableCell>
-                          <TableCell>{displayQuotation.business_type?.name ?? "-"}</TableCell>
-                        </TableRow>
-                      )}
-                      {displayQuotation.notes && (
-                        <TableRow>
-                          <TableCell className="font-medium bg-muted/50">{t("notes")}</TableCell>
-                          <TableCell colSpan={3}>{displayQuotation.notes}</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                {/* Main Information (grid-based) */}
+                <div className="rounded-lg">
+                  <div className="grid grid-cols-4 gap-x-6 gap-y-3 pt-4">
+                    <div className="text-sm text-muted-foreground">{t("code")}</div>
+                    <div className="text-sm font-semibold text-foreground">{displayQuotation.code}</div>
+                    <div className="text-sm text-muted-foreground">{t("quotationDate")}</div>
+                    <div className="text-sm font-semibold text-foreground">{new Date(displayQuotation.quotation_date).toLocaleDateString()}</div>
+
+                    <div className="text-sm text-muted-foreground">{t("common.status")}</div>
+                    <div className="text-sm">{getStatusBadge(displayQuotation.status)}</div>
+                    <div className="text-sm text-muted-foreground">{t("validUntil")}</div>
+                    <div className="text-sm font-semibold text-foreground">{displayQuotation.valid_until ? new Date(displayQuotation.valid_until).toLocaleDateString() : "-"}</div>
+
+                    {displayQuotation.payment_terms && (
+                      <>
+                        <div className="text-sm text-muted-foreground">{t("paymentTerms")}</div>
+                        <div className="text-sm font-semibold text-foreground">{displayQuotation.payment_terms.name}</div>
+                        <div className="text-sm text-muted-foreground">{t("salesRep")}</div>
+                        <div className="text-sm">
+                          {displayQuotation.sales_rep ? (
+                            canViewEmployee ? (
+                              <button
+                                onClick={() => openEmployee(displayQuotation.sales_rep)}
+                                className="text-primary font-semibold hover:underline cursor-pointer"
+                              >
+                                {displayQuotation.sales_rep.name}
+                              </button>
+                            ) : (
+                              <span className="font-semibold text-foreground">{displayQuotation.sales_rep.name}</span>
+                            )
+                          ) : (
+                            <span className="font-semibold text-foreground">-</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {displayQuotation.business_unit && (
+                      <>
+                        <div className="text-sm text-muted-foreground">{t("businessUnit")}</div>
+                        <div className="text-sm font-semibold text-foreground">{displayQuotation.business_unit.name}</div>
+                        <div className="text-sm text-muted-foreground">{t("businessType")}</div>
+                        <div className="text-sm font-semibold text-foreground">{displayQuotation.business_type?.name ?? "-"}</div>
+                      </>
+                    )}
+
+                    {displayQuotation.notes && (
+                      <>
+                        <div className="text-sm text-muted-foreground pt-4">{t("notes")}</div>
+                        <div className="text-sm font-semibold text-foreground col-span-3 pt-4">{displayQuotation.notes}</div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Customer Information Table */}
-                {(displayQuotation.customer_name || displayQuotation.customer_contact || 
+                {(displayQuotation.customer_name || displayQuotation.customer_contact ||
                   displayQuotation.customer_phone || displayQuotation.customer_email) && (
                   <>
                     <Separator />
                     <div>
                       <h3 className="text-sm font-semibold mb-3">{t("customerInfo")}</h3>
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayQuotation.customer_name ?? "-"}</TableCell>
-                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
-                              <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayQuotation.customer_phone ?? "-"}</TableCell>
-                              <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayQuotation.customer_email ?? "-"}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
+                      <div className="rounded-lg">
+                        <div className="grid grid-cols-4 gap-x-6 gap-y-3">
+                            <div className="text-sm text-muted-foreground">{t("customerName")}</div>
+                            <div className="text-sm font-semibold text-foreground">{displayQuotation.customer_name ?? "-"}</div>
+                            <div className="text-sm text-muted-foreground">{t("customerContact")}</div>
+                            <div className="text-sm font-semibold text-foreground">{displayQuotation.customer_contact ?? "-"}</div>
+
+                            <div className="text-sm text-muted-foreground">{t("customerPhone")}</div>
+                            <div className="text-sm">
+                              {displayQuotation.customer_phone ? (
+                                <a href={formatWhatsAppLink(displayQuotation.customer_phone)} target="_blank" rel="noreferrer" className="text-primary">
+                                  {displayQuotation.customer_phone}
+                                </a>
+                              ) : (
+                                <span className="font-semibold text-foreground">-</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{t("customerEmail")}</div>
+                            <div className="text-sm">
+                              {displayQuotation.customer_email ? (
+                                <a href={`mailto:${displayQuotation.customer_email}`} className="text-primary">
+                                  {displayQuotation.customer_email}
+                                </a>
+                              ) : (
+                                <span className="font-semibold text-foreground">-</span>
+                              )}
+                            </div>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -339,47 +377,44 @@ export function QuotationDetailModal({
                 <Separator />
                 <div>
                   <h3 className="text-sm font-semibold mb-3">{t("common.financial")}</h3>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="font-medium bg-muted/50 w-48">{t("subtotal")}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(displayQuotation.subtotal)}</TableCell>
-                        </TableRow>
-                        {displayQuotation.discount_amount > 0 && (
-                          <TableRow>
-                            <TableCell className="font-medium bg-muted/50">{t("discountAmount")}</TableCell>
-                            <TableCell className="text-right text-destructive">
-                              -{formatCurrency(displayQuotation.discount_amount)}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        <TableRow>
-                          <TableCell className="font-medium bg-muted/50">
-                            {t("taxAmount")} ({displayQuotation.tax_rate}%)
-                          </TableCell>
-                          <TableCell className="text-right">{formatCurrency(displayQuotation.tax_amount)}</TableCell>
-                        </TableRow>
-                        {displayQuotation.delivery_cost > 0 && (
-                          <TableRow>
-                            <TableCell className="font-medium bg-muted/50">{t("deliveryCost")}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(displayQuotation.delivery_cost)}</TableCell>
-                          </TableRow>
-                        )}
-                        {displayQuotation.other_cost > 0 && (
-                          <TableRow>
-                            <TableCell className="font-medium bg-muted/50">{t("otherCost")}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(displayQuotation.other_cost)}</TableCell>
-                          </TableRow>
-                        )}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-bold bg-muted">{t("totalAmount")}</TableCell>
-                          <TableCell className="text-right font-bold text-lg">
-                            {formatCurrency(displayQuotation.total_amount)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                  <div className="rounded-lg">
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <div className="text-sm text-muted-foreground">{t("subtotal")}</div>
+                        <div className="text-sm font-semibold text-foreground">{formatCurrency(displayQuotation.subtotal)}</div>
+                      </div>
+
+                      {displayQuotation.discount_amount > 0 && (
+                        <div className="flex justify-between text-sm text-destructive">
+                          <div className="text-sm text-muted-foreground">{t("discountAmount")}</div>
+                          <div className="text-sm font-semibold text-foreground">-{formatCurrency(displayQuotation.discount_amount)}</div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between text-sm">
+                        <div className="text-sm text-muted-foreground">{t("taxAmount")} ({displayQuotation.tax_rate}%)</div>
+                        <div className="text-sm font-semibold text-foreground">{formatCurrency(displayQuotation.tax_amount)}</div>
+                      </div>
+
+                      {displayQuotation.delivery_cost > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <div className="text-sm text-muted-foreground">{t("deliveryCost")}</div>
+                          <div className="text-sm font-semibold text-foreground">{formatCurrency(displayQuotation.delivery_cost)}</div>
+                        </div>
+                      )}
+
+                      {displayQuotation.other_cost > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <div className="text-sm text-muted-foreground">{t("otherCost")}</div>
+                          <div className="text-sm font-semibold text-foreground">{formatCurrency(displayQuotation.other_cost)}</div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between pt-2 border-t">
+                        <div className="font-bold">{t("totalAmount")}</div>
+                        <div className="text-right font-bold text-lg">{formatCurrency(displayQuotation.total_amount)}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -389,44 +424,44 @@ export function QuotationDetailModal({
                     <Separator />
                     <div>
                       <h3 className="text-sm font-semibold mb-3">{t("common.workflow")}</h3>
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableBody>
-                            {displayQuotation.approved_at && (
-                              <TableRow>
-                                <TableCell className="font-medium bg-muted/50 w-48">{t("status.approved")}</TableCell>
-                                <TableCell>{new Date(displayQuotation.approved_at).toLocaleString()}</TableCell>
-                              </TableRow>
-                            )}
-                            {displayQuotation.rejected_at && (
-                              <>
-                                <TableRow>
-                                  <TableCell className="font-medium bg-muted/50">{t("status.rejected")}</TableCell>
-                                  <TableCell>{new Date(displayQuotation.rejected_at).toLocaleString()}</TableCell>
-                                </TableRow>
-                                {displayQuotation.rejection_reason && (
-                                  <TableRow>
-                                    <TableCell className="font-medium bg-muted/50">{t("rejectionReason")}</TableCell>
-                                    <TableCell>{displayQuotation.rejection_reason}</TableCell>
-                                  </TableRow>
-                                )}
-                              </>
-                            )}
-                            {displayQuotation.converted_at && (
-                              <TableRow>
-                                <TableCell className="font-medium bg-muted/50">{t("status.converted")}</TableCell>
-                                <TableCell>{new Date(displayQuotation.converted_at).toLocaleString()}</TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
+                      <div className="rounded-lg">
+                        <div className="space-y-3">
+                          {displayQuotation.approved_at && (
+                            <div className="flex justify-between text-sm">
+                              <div className="text-sm text-muted-foreground">{t("status.approved")}</div>
+                              <div className="text-sm font-semibold text-foreground">{new Date(displayQuotation.approved_at).toLocaleString()}</div>
+                            </div>
+                          )}
+
+                          {displayQuotation.rejected_at && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <div className="text-sm text-muted-foreground">{t("status.rejected")}</div>
+                                <div className="text-sm font-semibold text-foreground">{new Date(displayQuotation.rejected_at).toLocaleString()}</div>
+                              </div>
+                              {displayQuotation.rejection_reason && (
+                                <div className="flex justify-between text-sm">
+                                  <div className="text-sm text-muted-foreground">{t("rejectionReason")}</div>
+                                  <div className="text-sm font-semibold text-foreground">{displayQuotation.rejection_reason}</div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {displayQuotation.converted_at && (
+                            <div className="flex justify-between text-sm">
+                              <div className="text-sm text-muted-foreground">{t("status.converted")}</div>
+                              <div className="text-sm font-semibold text-foreground">{new Date(displayQuotation.converted_at).toLocaleString()}</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </>
                 )}
               </TabsContent>
 
-              <TabsContent value="items" className="space-y-4 py-4">
+              <TabsContent value="items" className="space-y-4">
                 {itemsLoading ? (
                   <div className="space-y-2">
                     <Skeleton className="h-12 w-full" />
@@ -434,7 +469,7 @@ export function QuotationDetailModal({
                   </div>
                 ) : (
                   <>
-                    <div className="rounded-lg border">
+                    <div className="rounded-lg">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -448,7 +483,7 @@ export function QuotationDetailModal({
                         <TableBody>
                           {items.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                              <TableCell colSpan={5} className="text-center text-muted-foreground">
                                 {t("noItems")}
                               </TableCell>
                             </TableRow>
@@ -456,19 +491,29 @@ export function QuotationDetailModal({
                             items.map((item) => (
                               <TableRow key={item.id}>
                                 <TableCell>
-                                  <div>
-                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                    {item.product?.code && (
-                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                    )}
-                                  </div>
+                                  {item.product && canViewProduct ? (
+                                    <button
+                                      onClick={() => openProduct(item.product?.id)}
+                                      className="text-left hover:underline cursor-pointer"
+                                    >
+                                      <p className="font-medium text-primary">{item.product.name}</p>
+                                      {item.product.code && (
+                                        <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <div>
+                                      <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                      {item.product?.code && (
+                                        <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                      )}
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.discount ?? 0)}</TableCell>
-                                <TableCell className="text-right font-medium">
-                                  {formatCurrency(item.subtotal)}
-                                </TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
                               </TableRow>
                             ))
                           )}
@@ -495,6 +540,18 @@ export function QuotationDetailModal({
           )}
         </DialogContent>
       </Dialog>
+
+      <EmployeeDetailModal
+        open={isEmployeeOpen}
+        onOpenChange={setIsEmployeeOpen}
+        employee={selectedEmployee as unknown as MdEmployee}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
+      />
 
       {quotation && (
         <QuotationForm
