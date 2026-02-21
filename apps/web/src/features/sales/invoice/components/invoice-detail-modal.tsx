@@ -229,10 +229,10 @@ export function InvoiceDetailModal({
                                 onClick={() => openSalesOrder(displayInvoice.sales_order_id)}
                                 className="text-primary hover:underline cursor-pointer text-left"
                               >
-                                {displayInvoice.sales_order_id}
-                              </button>
-                            ) : (
-                              <span>{displayInvoice.sales_order_id}</span>
+                                  {displayInvoice.sales_order?.code ?? displayInvoice.sales_order_id}
+                                </button>
+                              ) : (
+                                <span>{displayInvoice.sales_order?.code ?? displayInvoice.sales_order_id}</span>
                             )}
                           </TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>

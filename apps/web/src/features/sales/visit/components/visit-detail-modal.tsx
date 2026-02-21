@@ -268,7 +268,18 @@ export function VisitDetailModal({
                        </div>
                        <div className="grid grid-cols-3 gap-2">
                          <span className="text-muted-foreground">Phone:</span>
-                         <span className="col-span-2 font-medium">{displayVisit.contact_phone}</span>
+                         <span className="col-span-2 font-medium">
+                           {displayVisit.contact_phone ? (
+                             <a
+                               href={`https://wa.me/${displayVisit.contact_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                               target="_blank"
+                               rel="noreferrer"
+                               className="text-primary hover:underline"
+                             >
+                               {displayVisit.contact_phone}
+                             </a>
+                           ) : "-"}
+                         </span>
                        </div>
                     </div>
                   </div>
