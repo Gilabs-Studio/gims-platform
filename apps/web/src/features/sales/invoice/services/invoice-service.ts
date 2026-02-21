@@ -82,6 +82,13 @@ export const invoiceService = {
     return response.data;
   },
 
+  async approve(id: string): Promise<CustomerInvoiceSingleResponse> {
+    const response = await apiClient.post<CustomerInvoiceSingleResponse>(
+      `${BASE_PATH}/${id}/approve`
+    );
+    return response.data;
+  },
+
   async recordPayment(
     id: string,
     data: RecordPaymentData

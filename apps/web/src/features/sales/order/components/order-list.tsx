@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { OrderStatusBadge } from "./order-status-badge";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart } from "lucide-react";
-import { useOrders, useDeleteOrder, useUpdateOrderStatus } from "../hooks/use-orders";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send } from "lucide-react";
+import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
@@ -51,6 +51,7 @@ export function OrderList() {
   const canUpdate = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
   const canView = useUserPermission("sales_order.read");
+  const canApprove = useUserPermission("sales_order.approve");
   const canViewEmployee = useUserPermission("employee.read");
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
 
@@ -59,6 +60,7 @@ export function OrderList() {
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
+  const approveOrder = useApproveOrder();
   const orders = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -147,6 +149,9 @@ export function OrderList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
+            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="confirmed">{t("status.confirmed")}</SelectItem>
             <SelectItem value="processing">{t("status.processing")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
@@ -258,12 +263,34 @@ export function OrderList() {
                           )}
                           {canUpdate && order.status === "draft" && (
                             <DropdownMenuItem
-                              onClick={() => handleStatusChange(order.id, "confirmed")}
+                              onClick={() => handleStatusChange(order.id, "sent")}
                               className="cursor-pointer"
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.confirm")}
+                              <Send className="h-4 w-4 mr-2" />
+                              {t("actions.send")}
                             </DropdownMenuItem>
+                          )}
+                          {order.status === "sent" && (
+                            <>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(order.id, "rejected")}
+                                  className="cursor-pointer text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
+                            </>
                           )}
                           {canUpdate && order.status !== "cancelled" && order.status !== "delivered" && (
                             <DropdownMenuItem

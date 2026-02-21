@@ -119,6 +119,19 @@ export function useUpdateOrderStatus() {
   });
 }
 
+// Approve order mutation (requires sales_order.approve permission)
+export function useApproveOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => orderService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+  });
+}
+
 // Convert quotation to order mutation
 export function useConvertQuotationToOrder() {
   const queryClient = useQueryClient();

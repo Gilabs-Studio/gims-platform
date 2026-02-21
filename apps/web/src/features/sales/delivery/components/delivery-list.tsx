@@ -11,8 +11,8 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText } from "lucide-react";
-import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send } from "lucide-react";
+import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useApproveDeliveryOrder, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
@@ -75,10 +75,12 @@ export function DeliveryList() {
   const canUpdate = useUserPermission("delivery_order.update");
   const canDelete = useUserPermission("delivery_order.delete");
   const canView = useUserPermission("delivery_order.read");
+  const canApprove = useUserPermission("delivery_order.approve");
   const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const deleteDelivery = useDeleteDeliveryOrder();
   const updateStatus = useUpdateDeliveryOrderStatus();
+  const approveDelivery = useApproveDeliveryOrder();
   const shipDelivery = useShipDeliveryOrder();
   const deliverDelivery = useDeliverDeliveryOrder();
   const deliveries = data?.data ?? [];
@@ -172,6 +174,27 @@ export function DeliveryList() {
             {t("status.draft")}
           </Badge>
         );
+      case "sent":
+        return (
+          <Badge variant="info">
+            <Send className="h-3 w-3 mr-1" />
+            {t("status.sent")}
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="success">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            {t("status.approved")}
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            {t("status.rejected")}
+          </Badge>
+        );
       case "prepared":
         return (
           <Badge variant="warning">
@@ -246,6 +269,9 @@ export function DeliveryList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
+            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="prepared">{t("status.prepared")}</SelectItem>
             <SelectItem value="shipped">{t("status.shipped")}</SelectItem>
             <SelectItem value="delivered">{t("status.delivered")}</SelectItem>
@@ -341,6 +367,37 @@ export function DeliveryList() {
                             </DropdownMenuItem>
                           )}
                           {canUpdate && delivery.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(delivery.id, "sent")}
+                              className="cursor-pointer"
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              {t("actions.send")}
+                            </DropdownMenuItem>
+                          )}
+                          {delivery.status === "sent" && (
+                            <>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => approveDelivery.mutateAsync(delivery.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(delivery.id, "rejected")}
+                                  className="cursor-pointer text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          )}
+                          {canUpdate && delivery.status === "approved" && (
                             <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer">
                               <Package className="h-4 w-4 mr-2" />
                               {t("actions.prepare")}

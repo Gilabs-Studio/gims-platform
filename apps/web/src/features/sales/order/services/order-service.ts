@@ -70,6 +70,13 @@ export const orderService = {
     return response.data;
   },
 
+  async approve(id: string): Promise<SalesOrderSingleResponse> {
+    const response = await apiClient.post<SalesOrderSingleResponse>(
+      `${BASE_PATH}/${id}/approve`
+    );
+    return response.data;
+  },
+
   async convertQuotationToOrder(
     data: ConvertQuotationToOrderData
   ): Promise<SalesOrderSingleResponse> {
