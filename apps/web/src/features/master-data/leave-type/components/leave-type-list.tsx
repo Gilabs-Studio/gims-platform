@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,59 +9,179 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useLeaveTypes, useDeleteLeaveType, useUpdateLeaveType } from "../hooks/use-leave-type";
 import { Switch } from "@/components/ui/switch";
-import type { LeaveType } from "../types";
 import { LeaveTypeDialog } from "./leave-type-dialog";
+import { useLeaveTypeList } from "../hooks/use-leave-type-list";
 
 export function LeaveTypeList() {
-  const t = useTranslations("leaveType");
-  const tCommon = useTranslations("common");
-  const [search, setSearch] = useState(""); const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(10); const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<LeaveType | null>(null); const [deleteId, setDeleteId] = useState<string | null>(null);
-  const { data, isLoading, isError, refetch } = useLeaveTypes({ page, per_page: pageSize, search: debouncedSearch || undefined });
-  const deleteMutation = useDeleteLeaveType(); const updateMutation = useUpdateLeaveType();
-  const items = data?.data ?? []; const pagination = data?.meta?.pagination;
+  const { state, actions, data, permissions, translations } = useLeaveTypeList();
+  const { t, tCommon } = translations;
 
-  const handleCreate = () => { setEditingItem(null); setDialogOpen(true); };
-  const handleEdit = (item: LeaveType) => { setEditingItem(item); setDialogOpen(true); };
-  const handleDelete = async () => { if (!deleteId) return; try { await deleteMutation.mutateAsync(deleteId); toast.success(t("deleted")); setDeleteId(null); } catch { toast.error(tCommon("error")); } };
-  const handleStatusChange = async (id: string, currentStatus: boolean, name: string) => { try { await updateMutation.mutateAsync({ id, data: { is_active: !currentStatus } }); toast.success(name + " status updated"); } catch { toast.error(tCommon("error")); } };
-  const handleDialogClose = () => { setDialogOpen(false); setEditingItem(null); };
-
-  if (isError) return <div className="p-4 text-center text-destructive">{tCommon("noData")}<Button variant="outline" onClick={() => refetch()} className="mt-4 ml-2 cursor-pointer">{tCommon("retry")}</Button></div>;
+  if (data.isError) {
+    return (
+      <div className="p-4 text-center text-destructive">
+        {tCommon("noData")}
+        <Button variant="outline" onClick={() => data.refetch()} className="mt-4 ml-2 cursor-pointer">
+          {tCommon("retry")}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2><p className="text-sm text-muted-foreground">{t("description")}</p></div><Button onClick={handleCreate} className="cursor-pointer"><Plus className="mr-2 h-4 w-4" />{t("create")}</Button></div>
-      <div className="flex flex-wrap items-center gap-4"><div className="relative flex-1 min-w-[200px] max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder={tCommon("search")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-8" /></div></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
+        </div>
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
+            <Plus className="mr-2 h-4 w-4" />
+            {t("create")}
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={tCommon("search")}
+            value={state.search}
+            onChange={(e) => {
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
+            }}
+            className="pl-8"
+          />
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
-          <TableHeader><TableRow><TableHead>{t("form.code")}</TableHead><TableHead>{t("form.name")}</TableHead><TableHead>{t("form.maxDays")}</TableHead><TableHead>{t("form.isPaid")}</TableHead><TableHead>{t("form.isActive")}</TableHead><TableHead className="w-[100px]">{tCommon("actions")}</TableHead></TableRow></TableHeader>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("form.code")}</TableHead>
+              <TableHead>{t("form.name")}</TableHead>
+              <TableHead>{t("form.maxDays")}</TableHead>
+              <TableHead>{t("form.isPaid")}</TableHead>
+              <TableHead>{t("form.isActive")}</TableHead>
+              {(permissions.canUpdate || permissions.canDelete) && (
+                <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
           <TableBody>
-            {isLoading ? Array.from({ length: 5 }).map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-4 w-20" /></TableCell><TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell><Skeleton className="h-4 w-12" /></TableCell><TableCell><Skeleton className="h-5 w-16" /></TableCell><TableCell><Skeleton className="h-5 w-16" /></TableCell><TableCell><Skeleton className="h-8 w-8" /></TableCell></TableRow>))
-            : items.length === 0 ? <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell></TableRow>
-            : items.map((item) => (<TableRow key={item.id}><TableCell className="font-mono text-sm">{item.code}</TableCell><TableCell className="font-medium">{item.name}</TableCell><TableCell>{item.max_days}</TableCell><TableCell><Badge variant={item.is_paid ? "default" : "secondary"}>{item.is_paid ? "Paid" : "Unpaid"}</Badge></TableCell><TableCell><div className="flex items-center gap-2"><Switch checked={item.is_active} onCheckedChange={() => handleStatusChange(item.id, item.is_active, item.name)} disabled={updateMutation.isPending} className="cursor-pointer" /><span className="text-sm text-muted-foreground">{item.is_active ? tCommon("active") : tCommon("inactive")}</span></div></TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="cursor-pointer"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => handleEdit(item)} className="cursor-pointer"><Pencil className="mr-2 h-4 w-4" />{tCommon("edit")}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteId(item.id)} className="cursor-pointer text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" />{tCommon("delete")}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}
+            {data.isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && (
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  )}
+                </TableRow>
+              ))
+            ) : data.items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5} className="h-24 text-center text-muted-foreground">
+                  {t("empty")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-mono text-sm">{item.code}</TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.max_days}</TableCell>
+                  <TableCell>
+                    <Badge variant={item.is_paid ? "default" : "secondary"}>
+                      {item.is_paid ? "Paid" : "Unpaid"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={item.is_active}
+                        onCheckedChange={() => actions.handleStatusChange(item.id, item.is_active, item.name)}
+                        disabled={data.isUpdating || !permissions.canUpdate}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {item.is_active ? tCommon("active") : tCommon("inactive")}
+                      </span>
+                    </div>
+                  </TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {permissions.canUpdate && (
+                            <DropdownMenuItem onClick={() => actions.handleEdit(item)} className="cursor-pointer">
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {tCommon("edit")}
+                            </DropdownMenuItem>
+                          )}
+                          {permissions.canUpdate && permissions.canDelete && <DropdownMenuSeparator />}
+                          {permissions.canDelete && (
+                            <DropdownMenuItem
+                              onClick={() => actions.setDeleteId(item.id)}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {tCommon("delete")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
-      {pagination && (
+
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
-      <LeaveTypeDialog open={dialogOpen} onOpenChange={handleDialogClose} editingItem={editingItem} />
-      <DeleteDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)} onConfirm={handleDelete} itemName="leave type" isLoading={deleteMutation.isPending} />
+
+      {permissions.canCreate || permissions.canUpdate ? (
+        <LeaveTypeDialog
+          open={state.dialogOpen}
+          onOpenChange={actions.handleDialogClose}
+          editingItem={state.editingItem}
+        />
+      ) : null}
+
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!state.deleteId}
+          onOpenChange={(open) => !open && actions.setDeleteId(null)}
+          onConfirm={actions.handleDelete}
+          itemName="leave type"
+          isLoading={data.isDeleting}
+        />
+      )}
     </div>
   );
 }

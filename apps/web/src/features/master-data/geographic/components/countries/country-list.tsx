@@ -1,95 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useCountries, useDeleteCountry, useUpdateCountry } from "../../hooks/use-countries";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useUserPermission } from "@/hooks/use-user-permission";
 import { CountryForm } from "./country-form";
-import type { Country } from "../../types";
-
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useCountryList } from "../../hooks/use-country-list";
 
 export function CountryList() {
-  const t = useTranslations("geographic");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCountry, setEditingCountry] = useState<Country | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { state, actions, data, permissions, translations } = useCountryList();
+  const { t } = translations;
 
-  const { data, isLoading, isError } = useCountries({
-    page,
-    per_page: pageSize,
-    search: debouncedSearch || undefined,
-  });
-
-  const canCreate = useUserPermission("country.create");
-  const canUpdate = useUserPermission("country.update");
-  const canDelete = useUserPermission("country.delete");
-
-  const deleteCountry = useDeleteCountry();
-  const updateCountry = useUpdateCountry();
-
-  const countries = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleEdit = (country: Country) => {
-    setEditingCountry(country);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (deletingId) {
-      await deleteCountry.mutateAsync(deletingId);
-      setDeletingId(null);
-    }
-  };
-
-  const handleStatusChange = async (
-    id: string,
-    currentStatus: boolean,
-  ) => {
-    try {
-      await updateCountry.mutateAsync({
-        id,
-        data: { is_active: !currentStatus },
-      });
-      toast.success(t("common.statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
-    }
-  };
-
-  const handleFormClose = () => {
-    setIsFormOpen(false);
-    setEditingCountry(null);
-  };
-
-  if (isLoading) {
+  if (data.isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -107,7 +34,7 @@ export function CountryList() {
     );
   }
 
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="text-center py-8 text-destructive">
         {t("common.error")}
@@ -127,16 +54,16 @@ export function CountryList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("country.search") || t("common.search")}
-            value={search}
+            value={state.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
             }}
             className="pl-9"
           />
         </div>
-        {canCreate && (
-          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             {t("country.add")}
           </Button>
@@ -151,18 +78,18 @@ export function CountryList() {
               <TableHead>{t("common.code")}</TableHead>
               <TableHead>{t("country.phoneCode")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead className="w-[70px]" />
+              {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[70px]" />}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {countries.length === 0 ? (
+            {data.countries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4} className="text-center py-8 text-muted-foreground">
                   {t("country.notFound")}
                 </TableCell>
               </TableRow>
             ) : (
-              countries.map((country) => (
+              data.countries.map((country) => (
                 <TableRow key={country.id}>
                   <TableCell className="font-medium">{country.name}</TableCell>
                   <TableCell>{country.code}</TableCell>
@@ -171,24 +98,17 @@ export function CountryList() {
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={country.is_active}
-                        onCheckedChange={() =>
-                          handleStatusChange(
-                            country.id,
-                            country.is_active,
-                          )
-                        }
-                        disabled={updateCountry.isPending || !canUpdate}
+                        onCheckedChange={() => actions.handleStatusChange(country.id, country.is_active)}
+                        disabled={data.isUpdating || !permissions.canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {country.is_active
-                          ? t("common.active")
-                          : t("common.inactive")}
+                        {country.is_active ? t("common.active") : t("common.inactive")}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {(canUpdate || canDelete) && (
+                  {(permissions.canUpdate || permissions.canDelete) && (
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -196,25 +116,22 @@ export function CountryList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {canUpdate && (
-                            <DropdownMenuItem onClick={() => handleEdit(country)} className="cursor-pointer">
+                          {permissions.canUpdate && (
+                            <DropdownMenuItem onClick={() => actions.handleEdit(country)} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
-                          {canDelete && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(country.id)}
-                              className="text-destructive cursor-pointer"
-                            >
+                          {permissions.canDelete && (
+                            <DropdownMenuItem onClick={() => actions.setDeletingId(country.id)} className="text-destructive cursor-pointer">
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("common.delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -222,36 +139,36 @@ export function CountryList() {
         </Table>
       </div>
 
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
-      {canCreate && (
+      {(permissions.canCreate || permissions.canUpdate) && (
         <CountryForm
-          open={isFormOpen}
-          onClose={handleFormClose}
-          country={editingCountry}
+          open={state.isFormOpen}
+          onClose={actions.handleFormClose}
+          country={state.editingCountry}
         />
       )}
 
-      {canDelete && (
+      {permissions.canDelete && (
         <DeleteDialog 
-          open={!!deletingId} 
-          onOpenChange={(open) => !open && setDeletingId(null)}
-          onConfirm={handleDelete}
+          open={!!state.deletingId} 
+          onOpenChange={(open) => !open && actions.setDeletingId(null)}
+          onConfirm={actions.handleDelete}
           title={t("country.delete")}
           description={t("country.deleteDesc")}
           itemName={t("country.itemName")}
-          isLoading={deleteCountry.isPending}
+          isLoading={data.isDeleting}
         />
       )}
     </div>

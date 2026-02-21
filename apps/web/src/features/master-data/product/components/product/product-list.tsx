@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import {
   MoreHorizontal,
   Plus,
@@ -33,118 +31,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { toast } from "sonner";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useUserPermission } from "@/hooks/use-user-permission";
-import {
-  useProducts,
-  useDeleteProduct,
-  useUpdateProduct,
-  useSubmitProduct,
-} from "../../hooks/use-products";
 import { Switch } from "@/components/ui/switch";
-import type { Product } from "../../types";
 import { ProductDialog } from "./product-dialog";
 import { ProductDetailDialog } from "./product-detail-dialog";
+import { useProductList } from "../../hooks/use-product-list";
 
 export function ProductList() {
-  const t = useTranslations("product.transaction");
-  const tCommon = useTranslations("product.common");
+  const { state, actions, data, permissions, translations } = useProductList();
+  const { t, tCommon } = translations;
 
-  // Permission checks
-  const canCreate = useUserPermission("product.create");
-  const canEdit = useUserPermission("product.update");
-  const canDelete = useUserPermission("product.delete");
-
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Product | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  
-  // View detail dialog state
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [viewingItem, setViewingItem] = useState<Product | null>(null);
-
-  const { data, isLoading, isError, refetch } = useProducts({
-    page,
-    per_page: pageSize,
-    search: debouncedSearch || undefined,
-  });
-
-  const deleteMutation = useDeleteProduct();
-  const updateMutation = useUpdateProduct();
-  const submitMutation = useSubmitProduct();
-
-  const items = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleCreate = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
-  };
-
-  const handleEdit = (item: Product) => {
-    setEditingItem(item);
-    setDialogOpen(true);
-  };
-
-  const handleView = (item: Product) => {
-    setViewingItem(item);
-    setDetailDialogOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-
-    try {
-      await deleteMutation.mutateAsync(deleteId);
-      toast.success(t("deleted"));
-      setDeleteId(null);
-    } catch {
-      toast.error("Failed to delete product");
-    }
-  };
-
-  const handleStatusChange = async (
-    id: string,
-    currentStatus: boolean,
-    name: string,
-  ) => {
-    try {
-      await updateMutation.mutateAsync({
-        id,
-        data: { is_active: !currentStatus },
-      });
-      toast.success(name + " status updated");
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleSubmit = async (id: string) => {
-    try {
-      await submitMutation.mutateAsync(id);
-      toast.success(t("submitted"));
-    } catch {
-      toast.error("Failed to submit product");
-    }
-  };
-
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditingItem(null);
-  };
-
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
         {tCommon("noData")}
         <Button
           variant="outline"
-          onClick={() => refetch()}
+          onClick={() => data.refetch()}
           className="mt-4 ml-2 cursor-pointer"
         >
           Retry
@@ -161,8 +63,8 @@ export function ProductList() {
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        {canCreate && (
-          <Button onClick={handleCreate} className="cursor-pointer">
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
             <Plus className="mr-2 h-4 w-4" />
             {t("create")}
           </Button>
@@ -175,10 +77,10 @@ export function ProductList() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search products..."
-            value={search}
+            value={state.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
             }}
             className="pl-8"
           />
@@ -200,7 +102,7 @@ export function ProductList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {data.isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -212,7 +114,7 @@ export function ProductList() {
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
-            ) : items.length === 0 ? (
+            ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={7}
@@ -222,13 +124,13 @@ export function ProductList() {
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((item) => (
+              data.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.code}</TableCell>
                   <TableCell>
                     <div 
                       className="font-medium cursor-pointer hover:underline"
-                      onClick={() => handleView(item)}
+                      onClick={() => actions.handleView(item)}
                     >
                       {item.name}
                     </div>
@@ -250,9 +152,9 @@ export function ProductList() {
                       <Switch
                         checked={item.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(item.id, item.is_active, item.name)
+                          actions.handleStatusChange(item.id, item.is_active, item.name)
                         }
-                        disabled={updateMutation.isPending || !canEdit}
+                        disabled={data.isUpdating || !permissions.canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
@@ -270,7 +172,7 @@ export function ProductList() {
                       <DropdownMenuContent align="end">
                         {/* View Details - always available */}
                         <DropdownMenuItem
-                          onClick={() => handleView(item)}
+                          onClick={() => actions.handleView(item)}
                           className="cursor-pointer"
                         >
                           <Eye className="mr-2 h-4 w-4" />
@@ -278,9 +180,9 @@ export function ProductList() {
                         </DropdownMenuItem>
 
                         {/* Edit - permission required */}
-                        {canEdit && (
+                        {permissions.canUpdate && (
                           <DropdownMenuItem
-                            onClick={() => handleEdit(item)}
+                            onClick={() => actions.handleEdit(item)}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
@@ -289,11 +191,11 @@ export function ProductList() {
                         )}
 
 
-                        {canDelete && (
+                        {permissions.canDelete && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => setDeleteId(item.id)}
+                              onClick={() => actions.setDeleteId(item.id)}
                               className="cursor-pointer text-destructive focus:text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -312,41 +214,45 @@ export function ProductList() {
       </div>
 
       {/* Pagination */}
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
       {/* Edit Dialog */}
-      <ProductDialog
-        open={dialogOpen}
-        onOpenChange={handleDialogClose}
-        editingItem={editingItem}
-      />
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <ProductDialog
+          open={state.dialogOpen}
+          onOpenChange={actions.handleDialogClose}
+          editingItem={state.editingItem}
+        />
+      )}
 
       {/* View Detail Dialog */}
       <ProductDetailDialog
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
-        product={viewingItem}
+        open={state.detailDialogOpen}
+        onOpenChange={actions.setDetailDialogOpen}
+        product={state.viewingItem}
       />
 
       {/* Delete Dialog */}
-      <DeleteDialog
-        open={!!deleteId}
-        onOpenChange={(open) => !open && setDeleteId(null)}
-        onConfirm={handleDelete}
-        itemName="product"
-        isLoading={deleteMutation.isPending}
-      />
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!state.deleteId}
+          onOpenChange={(open) => !open && actions.setDeleteId(null)}
+          onConfirm={actions.handleDelete}
+          itemName="product"
+          isLoading={data.isDeleting}
+        />
+      )}
     </div>
   );
 }

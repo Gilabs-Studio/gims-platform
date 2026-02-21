@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import {
   MoreHorizontal,
   Plus,
@@ -39,90 +37,13 @@ import {
 } from "@/components/ui/select";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { toast } from "sonner";
-import { useDebounce } from "@/hooks/use-debounce";
-import {
-  useSuppliers,
-  useDeleteSupplier,
-  useSubmitSupplier,
-} from "../../hooks/use-suppliers";
-import { useSupplierTypes } from "../../hooks/use-supplier-types";
-import type { Supplier } from "../../types";
 import { SupplierDialog } from "./supplier-dialog";
 import { SupplierDetailModal } from "./supplier-detail-modal";
+import { useSupplierList } from "../../hooks/use-supplier-list";
 
 export function SupplierList() {
-  const t = useTranslations("supplier.supplier");
-  const tCommon = useTranslations("supplier.common");
-  
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Supplier | null>(null);
-  const [detailItem, setDetailItem] = useState<Supplier | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const { data, isLoading, isError, refetch } = useSuppliers({
-    page,
-    per_page: pageSize,
-    search: debouncedSearch || undefined,
-    supplier_type_id: typeFilter === "all" ? undefined : typeFilter,
-  });
-
-  const { data: typesData } = useSupplierTypes({ per_page: 100 });
-  const supplierTypes = typesData?.data ?? [];
-
-  const deleteMutation = useDeleteSupplier();
-  const submitMutation = useSubmitSupplier();
-
-  const items = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleCreate = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
-  };
-
-  const handleEdit = (item: Supplier) => {
-    setEditingItem(item);
-    setDialogOpen(true);
-  };
-
-  const handleViewDetail = (item: Supplier) => {
-    setDetailItem(item);
-    setDetailOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-
-    try {
-      await deleteMutation.mutateAsync(deleteId);
-      toast.success(t("deleteSuccess"));
-      setDeleteId(null);
-    } catch {
-      toast.error("Failed to delete supplier");
-    }
-  };
-
-  const handleSubmit = async (id: string) => {
-    try {
-      await submitMutation.mutateAsync(id);
-      toast.success(t("submitSuccess"));
-    } catch {
-      toast.error("Failed to submit supplier");
-    }
-  };
-
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditingItem(null);
-  };
+  const { state, actions, data, permissions, translations } = useSupplierList();
+  const { t, tCommon } = translations;
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "secondary" | "warning" | "success" | "destructive"> = {
@@ -139,13 +60,13 @@ export function SupplierList() {
     );
   };
 
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
         {tCommon("noData")}
         <Button
           variant="outline"
-          onClick={() => refetch()}
+          onClick={() => data.refetch()}
           className="mt-4 ml-2 cursor-pointer"
         >
           Retry
@@ -162,13 +83,12 @@ export function SupplierList() {
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        <Button onClick={handleCreate} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" />
-          {t("actions.addPhone").replace("Phone Number", "Supplier") /* Hacky reuse or fix i18n later, assuming 'Create Supplier' key exists */} 
-          {/* Wait, 'create' key in common is just 'Create'. Let's use createTitle but that has 'Create ' prefix. */}
-          {/* Better to just use 'Create' */}
-          {tCommon("create")}
-        </Button>
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
+            <Plus className="mr-2 h-4 w-4" />
+            {tCommon("create")}
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -177,19 +97,19 @@ export function SupplierList() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={tCommon("search")}
-            value={search}
+            value={state.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
             }}
             className="pl-8"
           />
         </div>
         <Select
-          value={typeFilter}
+          value={state.typeFilter}
           onValueChange={(v) => {
-            setTypeFilter(v);
-            setPage(1);
+            actions.setTypeFilter(v);
+            actions.setPage(1);
           }}
         >
           <SelectTrigger className="w-[180px]">
@@ -197,7 +117,7 @@ export function SupplierList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            {supplierTypes.map((type) => (
+            {data.supplierTypes.map((type) => (
               <SelectItem key={type.id} value={type.id}>
                 {type.name}
               </SelectItem>
@@ -216,11 +136,11 @@ export function SupplierList() {
               <TableHead>{t("form.supplierType")}</TableHead>
               <TableHead>{t("sections.contact")}</TableHead>
               <TableHead>{tCommon("status")}</TableHead>
-              <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
+              {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {data.isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -228,20 +148,20 @@ export function SupplierList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
-            ) : items.length === 0 ? (
+            ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={permissions.canUpdate || permissions.canDelete || permissions.canSubmit ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((item) => (
+              data.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell className="font-medium">
@@ -260,52 +180,58 @@ export function SupplierList() {
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(item.status)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="cursor-pointer">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <DropdownMenuItem
-                          onClick={() => handleViewDetail(item)}
-                          className="cursor-pointer"
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </DropdownMenuItem>
-                        
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(item)}
-                          className="cursor-pointer"
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          {tCommon("edit")}
-                        </DropdownMenuItem>
-                        
-                        {item.status === "draft" && (
-                          <DropdownMenuItem
-                            onClick={() => handleSubmit(item.id)}
+                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                           <DropdownMenuItem
+                            onClick={() => actions.handleViewDetail(item)}
                             className="cursor-pointer"
                           >
-                            <Send className="mr-2 h-4 w-4" />
-                            {t("actions.submit")}
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
                           </DropdownMenuItem>
-                        )}
-                        
-                        <DropdownMenuSeparator />
-                        
-                        <DropdownMenuItem
-                          onClick={() => setDeleteId(item.id)}
-                          className="cursor-pointer text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {tCommon("delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                          
+                          {permissions.canUpdate && (
+                            <DropdownMenuItem
+                              onClick={() => actions.handleEdit(item)}
+                              className="cursor-pointer"
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {tCommon("edit")}
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {item.status === "draft" && permissions.canSubmit && (
+                            <DropdownMenuItem
+                              onClick={() => actions.handleSubmit(item.id)}
+                              className="cursor-pointer"
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              {t("actions.submit")}
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {permissions.canDelete && <DropdownMenuSeparator />}
+                          
+                          {permissions.canDelete && (
+                            <DropdownMenuItem
+                              onClick={() => actions.setDeleteId(item.id)}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {tCommon("delete")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -314,39 +240,43 @@ export function SupplierList() {
       </div>
 
       {/* Pagination */}
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
       {/* Dialogs */}
-      <SupplierDialog
-        open={dialogOpen}
-        onOpenChange={handleDialogClose}
-        editingItem={editingItem}
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <SupplierDialog
+          open={state.dialogOpen}
+          onOpenChange={actions.handleDialogClose}
+          editingItem={state.editingItem}
+        />
+      )}
+
+      <SupplierDetailModal
+        open={state.detailOpen}
+        onOpenChange={actions.setDetailOpen}
+        supplier={state.detailItem}
       />
 
-       <SupplierDetailModal
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        supplier={detailItem}
-      />
-
-      <DeleteDialog
-        open={!!deleteId}
-        onOpenChange={(open) => !open && setDeleteId(null)}
-        onConfirm={handleDelete}
-        itemName="supplier"
-        isLoading={deleteMutation.isPending}
-      />
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!state.deleteId}
+          onOpenChange={(open) => !open && actions.setDeleteId(null)}
+          onConfirm={actions.handleDelete}
+          itemName="supplier"
+          isLoading={data.isDeleting}
+        />
+      )}
     </div>
   );
 }
