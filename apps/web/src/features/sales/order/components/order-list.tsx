@@ -5,13 +5,16 @@ import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { OrderStatusBadge } from "./order-status-badge";
+import { DOStatusBadge } from "./do-status-badge";
+import { InvoiceStatusBadge } from "./invoice-status-badge";
+import { DOLinkedDialog } from "./do-linked-dialog";
+import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -57,6 +60,8 @@ export function OrderList() {
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
   const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
+  const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
+  const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -178,6 +183,8 @@ export function OrderList() {
               <TableHead>{t("salesQuotations") || "Sales Quotation"}</TableHead>
               <TableHead>{t("salesRep")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
+              <TableHead>DO</TableHead>
+              <TableHead>{t("invoice") || "Invoice"}</TableHead>
               <TableHead>{t("totalAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
@@ -190,13 +197,16 @@ export function OrderList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell />
                 </TableRow>
               ))
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -238,7 +248,53 @@ export function OrderList() {
                       <span>{order.sales_rep?.name ?? "-"}</span>
                     )}
                   </TableCell>
-                  <TableCell><OrderStatusBadge status={order.status} className="text-xs font-medium" /></TableCell>
+                  {/* SO Status */}
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} className="text-xs font-medium" />
+                  </TableCell>
+
+                  {/* DO Status — shows actual status from embedded summary, click to open dialog */}
+                  <TableCell>
+                    {order.delivery_orders && order.delivery_orders.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setDoDialogOrder(order)}
+                        className="cursor-pointer"
+                        title={`${order.delivery_orders.length} Delivery Order(s)`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          {order.delivery_orders.length > 1 && (
+                            <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
+                          )}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+
+                  {/* Invoice Status — shows actual status from embedded summary, click to open dialog */}
+                  <TableCell>
+                    {order.customer_invoices && order.customer_invoices.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceDialogOrder(order)}
+                        className="cursor-pointer"
+                        title={`${order.customer_invoices.length} Invoice(s)`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          {order.customer_invoices.length > 1 && (
+                            <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
+                          )}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+
                   <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
@@ -375,6 +431,26 @@ export function OrderList() {
         onOpenChange={setIsSalesRepOpen}
         employee={selectedSalesRepId ? { id: selectedSalesRepId } as unknown as MdEmployee : null}
       />
+
+      {/* DO dialog — lazy-fetches DOs for the selected SO */}
+      {doDialogOrder && (
+        <DOLinkedDialog
+          salesOrderId={doDialogOrder.id}
+          salesOrderCode={doDialogOrder.code}
+          open={!!doDialogOrder}
+          onOpenChange={(open) => { if (!open) setDoDialogOrder(null); }}
+        />
+      )}
+
+      {/* Invoice dialog — lazy-fetches Invoices for the selected SO */}
+      {invoiceDialogOrder && (
+        <InvoiceLinkedDialog
+          salesOrderId={invoiceDialogOrder.id}
+          salesOrderCode={invoiceDialogOrder.code}
+          open={!!invoiceDialogOrder}
+          onOpenChange={(open) => { if (!open) setInvoiceDialogOrder(null); }}
+        />
+      )}
     </div>
   );
 }

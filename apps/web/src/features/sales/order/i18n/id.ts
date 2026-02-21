@@ -77,6 +77,8 @@ export const orderId = {
     code: "Kode Pesanan",
     orderDate: "Tanggal Pesanan",
     salesQuotation: "Penawaran Penjualan",
+    salesQuotations: "Penawaran Penjualan",
+    invoice: "Faktur",
     quotation: "Penawaran",
     paymentTerms: "Syarat Pembayaran",
     salesRep: "Sales Representative",
