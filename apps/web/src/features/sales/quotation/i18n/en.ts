@@ -53,6 +53,7 @@ export const quotationEn = {
     status: {
       draft: "Draft",
       sent: "Sent",
+      pending: "Pending",
       approved: "Approved",
       rejected: "Rejected",
       converted: "Converted",

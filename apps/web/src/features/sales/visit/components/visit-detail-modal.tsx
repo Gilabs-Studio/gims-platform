@@ -425,9 +425,9 @@ export function VisitDetailModal({
                        {historyList.length === 0 ? (
                           <div className="text-muted-foreground py-4">No history available</div>
                        ) : (
-                          historyList.map((history) => (
+                           historyList.map((history) => (
                              <div key={history.id} className="relative pb-6 last:pb-0">
-                                <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
+                                <div className="absolute left-0 -translate-x-1/2 top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
                                 <div className="text-sm font-medium">
                                    Status changed from <Badge variant="outline">{history.from_status}</Badge> to <Badge>{history.to_status}</Badge>
                                 </div>

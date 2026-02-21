@@ -20,9 +20,9 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
       );
     case "sent":
       return (
-        <Badge variant="info" className={className}>
+        <Badge variant="warning" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
-          {t("sent")}
+          {t("pending")}
         </Badge>
       );
     case "approved":
