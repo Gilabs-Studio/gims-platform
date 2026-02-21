@@ -9,11 +9,6 @@ export function useUserPermission(permission: string): boolean {
     return false;
   }
 
-  // Admin bypass
-  if (user.role?.code === "admin") {
-    return true;
-  }
-
   const permissions = user.permissions ?? {};
   return permission in permissions;
 }
@@ -23,11 +18,6 @@ export function useUserPermissions(permissions: string[]): boolean {
 
   if (!user) {
     return false;
-  }
-
-  // Admin bypass
-  if (user.role?.code === "admin") {
-    return true;
   }
 
   const userPerms = user.permissions ?? {};

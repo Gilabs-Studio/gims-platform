@@ -22,10 +22,6 @@ export function useHasPermission(permissionCode: string): boolean {
       return false;
     }
 
-    // Admin bypass - admin and superadmin have all permissions
-    if (user.role?.code === "admin" || user.role?.code === "superadmin") {
-      return true;
-    }
 
     // Check the permissions map (code -> scope)
     const permissions = user.permissions ?? {};
@@ -45,10 +41,6 @@ export function usePermissionScope(permissionCode: string): string | null {
   return useMemo(() => {
     if (!user) return null;
 
-    // Admin always has ALL scope
-    if (user.role?.code === "admin" || user.role?.code === "superadmin") {
-      return "ALL";
-    }
 
     const permissions = user.permissions ?? {};
     return permissions[permissionCode] ?? null;
