@@ -2,23 +2,10 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { usePermissions } from "../hooks/use-permissions";
-import type { Permission } from "../types";
+import { usePermissionList } from "../hooks/use-permission-list";
 
 export function PermissionList() {
-  const { data, isLoading } = usePermissions();
-
-  const permissions = data?.data || [];
-
-  // Group permissions by menu
-  const groupedPermissions = permissions.reduce((acc, perm) => {
-    const key = perm.menu?.name || "Other";
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(perm);
-    return acc;
-  }, {} as Record<string, Permission[]>);
+  const { groupedPermissions, isLoading } = usePermissionList();
 
   return (
     <div className="space-y-6">
