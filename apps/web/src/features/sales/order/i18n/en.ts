@@ -139,6 +139,12 @@ export const orderEn = {
       noProductSelected: "No product selected",
     },
 
+    // Fulfillment labels
+    fulfillment: {
+      pending: "pending",
+      remaining: "remaining",
+    },
+
     // Actions
     actions: {
       send: "Send",

@@ -135,6 +135,12 @@ export const orderId = {
       noProductSelected: "Tidak ada produk dipilih",
     },
 
+    // Fulfillment labels
+    fulfillment: {
+      pending: "menunggu",
+      remaining: "tersisa",
+    },
+
     // Actions
     actions: {
       send: "Kirim",
