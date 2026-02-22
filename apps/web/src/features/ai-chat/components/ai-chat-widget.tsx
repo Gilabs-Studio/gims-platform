@@ -79,7 +79,7 @@ export function AIChatWidget() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="fixed bottom-6 right-6 z-50"
+            className="fixed bottom-6 right-6 z-40"
           >
             <Tooltip>
               <TooltipTrigger asChild>
@@ -106,7 +106,7 @@ export function AIChatWidget() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={cn(
-              "fixed bottom-6 right-6 z-50 flex overflow-hidden rounded-2xl border border-border bg-background shadow-2xl",
+              "fixed bottom-6 right-6 z-40 flex overflow-hidden rounded-2xl border border-border bg-background shadow-2xl",
               showSidebar ? "h-[600px] w-[700px]" : "h-[600px] w-[420px]"
             )}
           >
