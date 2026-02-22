@@ -19,16 +19,6 @@ const (
 	EmployeeStatusRejected EmployeeStatus = "rejected"
 )
 
-// ContractStatus represents the employment contract status
-type ContractStatus string
-
-const (
-	ContractStatusPermanent ContractStatus = "permanent"
-	ContractStatusContract  ContractStatus = "contract"
-	ContractStatusProbation ContractStatus = "probation"
-	ContractStatusIntern    ContractStatus = "intern"
-)
-
 // Gender represents employee gender
 type Gender string
 
@@ -41,14 +31,14 @@ const (
 type PTKPStatus string
 
 const (
-	PTKPTK0 PTKPStatus = "TK/0" // Tidak Kawin, 0 tanggungan
-	PTKPTK1 PTKPStatus = "TK/1" // Tidak Kawin, 1 tanggungan
-	PTKPTK2 PTKPStatus = "TK/2" // Tidak Kawin, 2 tanggungan
-	PTKPTK3 PTKPStatus = "TK/3" // Tidak Kawin, 3 tanggungan
-	PTKPK0  PTKPStatus = "K/0"  // Kawin, 0 tanggungan
-	PTKPK1  PTKPStatus = "K/1"  // Kawin, 1 tanggungan
-	PTKPK2  PTKPStatus = "K/2"  // Kawin, 2 tanggungan
-	PTKPK3  PTKPStatus = "K/3"  // Kawin, 3 tanggungan
+	PTKPTK0 PTKPStatus = "TK/0"  // Tidak Kawin, 0 tanggungan
+	PTKPTK1 PTKPStatus = "TK/1"  // Tidak Kawin, 1 tanggungan
+	PTKPTK2 PTKPStatus = "TK/2"  // Tidak Kawin, 2 tanggungan
+	PTKPTK3 PTKPStatus = "TK/3"  // Tidak Kawin, 3 tanggungan
+	PTKPK0  PTKPStatus = "K/0"   // Kawin, 0 tanggungan
+	PTKPK1  PTKPStatus = "K/1"   // Kawin, 1 tanggungan
+	PTKPK2  PTKPStatus = "K/2"   // Kawin, 2 tanggungan
+	PTKPK3  PTKPStatus = "K/3"   // Kawin, 3 tanggungan
 	PTKPKI0 PTKPStatus = "K/I/0" // Kawin, Penghasilan Istri Digabung, 0 tanggungan
 	PTKPKI1 PTKPStatus = "K/I/1" // Kawin, Penghasilan Istri Digabung, 1 tanggungan
 	PTKPKI2 PTKPStatus = "K/I/2" // Kawin, Penghasilan Istri Digabung, 2 tanggungan
@@ -64,8 +54,8 @@ type Employee struct {
 	Phone        string `gorm:"type:varchar(20)" json:"phone"`
 
 	// User account reference
-	UserID *string             `gorm:"type:uuid;index" json:"user_id"`
-	User   *userModels.User    `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	UserID *string          `gorm:"type:uuid;index" json:"user_id"`
+	User   *userModels.User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 
 	// Organization references
 	DivisionID    *string      `gorm:"type:uuid;index" json:"division_id"`
@@ -82,19 +72,14 @@ type Employee struct {
 	Religion     string     `gorm:"type:varchar(50)" json:"religion"`
 
 	// Address (residence)
-	Address   string              `gorm:"type:text" json:"address"`
-	VillageID *string             `gorm:"type:uuid;index" json:"village_id"`
-	Village   *geoModels.Village  `gorm:"foreignKey:VillageID" json:"village,omitempty"`
+	Address   string             `gorm:"type:text" json:"address"`
+	VillageID *string            `gorm:"type:uuid;index" json:"village_id"`
+	Village   *geoModels.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 
 	// Identity documents
 	NIK  string `gorm:"type:varchar(20)" json:"nik"`  // Nomor Induk Kependudukan
 	NPWP string `gorm:"type:varchar(30)" json:"npwp"` // Nomor Pokok Wajib Pajak
 	BPJS string `gorm:"type:varchar(30)" json:"bpjs"` // BPJS number
-
-	// Contract information
-	ContractStatus    ContractStatus `gorm:"type:varchar(20);default:'permanent'" json:"contract_status"`
-	ContractStartDate *time.Time     `gorm:"type:date" json:"contract_start_date"`
-	ContractEndDate   *time.Time     `gorm:"type:date" json:"contract_end_date"`
 
 	// Leave and benefits
 	TotalLeaveQuota int        `gorm:"default:12" json:"total_leave_quota"`

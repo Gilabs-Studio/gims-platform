@@ -9,6 +9,8 @@ export const employeeEn = {
   deleteConfirm: "Are you sure you want to delete this employee?",
   empty: "No employees found",
   createSuccess: "Employee created successfully",
+  createSuccessButContractFailed:
+    "Employee created successfully, but contract creation failed. Please create contract manually.",
   updateSuccess: "Employee updated successfully",
   deleteSuccess: "Employee deleted successfully",
   submitSuccess: "Employee submitted for approval",
@@ -24,6 +26,7 @@ export const employeeEn = {
     overview: "Overview",
     employment: "Employment",
     contract: "Contract",
+    contractHistory: "Contract History",
     areas: "Areas",
   },
   sections: {
@@ -98,8 +101,20 @@ export const employeeEn = {
     bpjsPlaceholder: "Enter BPJS number",
     contractStatus: "Contract Status",
     contractStatusPlaceholder: "Select contract status",
+    contractType: "Contract Type",
+    contractTypePlaceholder: "Select contract type",
+    includeContract: "Include Initial Contract",
+    includeContractHint:
+      "Enable to create a contract along with this employee.",
+    contractNumber: "Contract Number",
+    contractNumberPlaceholder: "e.g. CTR-EMP001-001",
+    contractOptionalHint:
+      "You can add a contract later from the employee detail view.",
+    contractHelpText:
+      "Select contract type to enable contract creation. PKWTT is permanent, PKWT and Intern require end date.",
     contractStartDate: "Contract Start Date",
     contractEndDate: "Contract End Date",
+    document: "Document",
     totalLeaveQuota: "Leave Quota (days)",
     ptkpStatus: "PTKP Status",
     ptkpStatusPlaceholder: "Select PTKP status",
@@ -108,7 +123,8 @@ export const employeeEn = {
     replacementForPlaceholder: "Select employee being replaced",
     assignAreas: "Assign Areas",
     selectArea: "Select area to add",
-    areasDescription: "Assign this employee to areas and designate supervisor roles.",
+    areasDescription:
+      "Assign this employee to areas and designate supervisor roles.",
     noAreasAssigned: "No areas assigned yet.",
     supervisor: "Supervisor",
     member: "Member",
@@ -118,6 +134,7 @@ export const employeeEn = {
     rejectReason: "Rejection Reason",
     rejectReasonPlaceholder: "Enter reason for rejection (optional)",
     selectDate: "Pick a date",
+    selectReason: "Select a reason",
   },
   actions: {
     create: "Add Employee",
@@ -130,6 +147,7 @@ export const employeeEn = {
     assignAreas: "Manage Areas",
     save: "Save",
     saving: "Saving...",
+    processing: "Processing...",
     cancel: "Cancel",
     confirm: "Confirm",
   },
@@ -144,6 +162,98 @@ export const employeeEn = {
     contractStatus: "Contract",
     isActive: "Active",
     actions: "Actions",
+  },
+  contract: {
+    types: {
+      PKWTT: "Permanent",
+      PKWT: "Contract",
+      Intern: "Intern",
+    },
+    statuses: {
+      ACTIVE: "Active",
+      EXPIRED: "Expired",
+      TERMINATED: "Terminated",
+    },
+    sections: {
+      activeContract: "Active Contract",
+    },
+    empty: {
+      noActive: "No active contract for this employee.",
+      noHistory: "No contract history available.",
+    },
+    fields: {
+      contractType: "Contract Type",
+      contractNumber: "Contract Number",
+      startDate: "Start Date",
+      endDate: "End Date",
+      document: "Document",
+      correctionReason: "Correction Reason",
+      terminationReason: "Termination Reason",
+      terminationNotes: "Notes",
+    },
+    terminationReasons: {
+      RESIGNED: "Resigned",
+      DISMISSED: "Dismissed",
+      END_CONTRACT: "End of Contract",
+      OTHER: "Other",
+    },
+    actions: {
+      create: "Create Contract",
+      edit: "Edit",
+      renew: "Renew",
+      terminate: "Terminate",
+      correct: "Correct",
+      download: "Download",
+    },
+    validation: {
+      startDateRequired: "Start date is required",
+      endDateRequiredForNonPermanent:
+        "End date is required for contract and intern types",
+      correctionReasonRequired: "Correction reason is required",
+      contractNumberRequired: "Contract number is required",
+      endDateRequired: "End date is required for non-permanent contracts",
+      invalidDateRange: "End date must be after start date",
+      reasonRequired: "Termination reason is required",
+    },
+    messages: {
+      createSuccess: "Contract created successfully",
+      createError: "Failed to create contract",
+      correctSuccess: "Contract corrected successfully",
+      correctError: "Failed to correct contract",
+      renewSuccess: "Contract renewed successfully",
+      renewError: "Failed to renew contract",
+      terminateSuccess: "Contract terminated successfully",
+      terminateError: "Failed to terminate contract",
+    },
+    permanentContract: "Permanent (No end date)",
+    noEndDate: "No end date (Permanent)",
+    documentUploaded: "Contract document",
+    expiringSoon: "Expiring in {days} days",
+    expiringInDays: "Expires in {days} days",
+    createDescription:
+      "Create a new contract for this employee.",
+    renewDescription:
+      "Create a new contract to replace the current one. The existing contract will be marked as expired.",
+    renewInfo: "Contract Renewal",
+    renewInfoDetail:
+      "This will create a new contract and expire the previous one. The contract history will be preserved.",
+    editDescription:
+      "Make corrections to the active contract. This will update the contract details.",
+    correctDescription: "Edit contract details",
+    correctWarning: "Warning",
+    correctWarningDetail:
+      "You are about to edit this contract. This action will update the contract information.",
+    terminateDescription:
+      "Terminate the current active contract. This action cannot be undone.",
+    terminateWarning: "Warning",
+    terminateWarningDetail:
+      "This will permanently terminate the contract. The employee will no longer have an active contract.",
+    placeholders: {
+      document: "Upload contract document",
+      correctionReason: "Enter reason for correction",
+      contractNumber: "Enter contract number",
+      terminationNotes: "Enter additional notes (optional)",
+    },
   },
   validation: {
     employeeCodeRequired: "Employee code is required",

@@ -2,9 +2,8 @@ package repositories
 
 import (
 	"context"
-	"time"
 
-	"github.com/gilabs/gims/api/internal/hrd/data/models"
+	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -14,11 +13,12 @@ type EmployeeContractRepository interface {
 	Update(ctx context.Context, contract *models.EmployeeContract) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeContract, error)
-	FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, search string) ([]*models.EmployeeContract, int64, error)
 	FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeContract, error)
-	FindExpiring(ctx context.Context, days int, page, perPage int) ([]*models.EmployeeContract, int64, error)
+	FindActiveByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeContract, error)
 	FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error)
+	FindAll(ctx context.Context, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, page, perPage int) ([]*models.EmployeeContract, int64, error)
 	CountByEmployee(ctx context.Context, employeeID uuid.UUID) (int64, error)
+	HasActiveContract(ctx context.Context, employeeID uuid.UUID) (bool, error)
 }
 
 type employeeContractRepository struct {
@@ -43,51 +43,11 @@ func (r *employeeContractRepository) Delete(ctx context.Context, id uuid.UUID) e
 
 func (r *employeeContractRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeContract, error) {
 	var contract models.EmployeeContract
-	err := r.db.WithContext(ctx).
-		Where("id = ?", id).
-		First(&contract).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&contract).Error
 	if err != nil {
 		return nil, err
 	}
 	return &contract, nil
-}
-
-func (r *employeeContractRepository) FindAll(ctx context.Context, page, perPage int, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, search string) ([]*models.EmployeeContract, int64, error) {
-	var contracts []*models.EmployeeContract
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&models.EmployeeContract{})
-
-	// Search by contract number
-	if search != "" {
-		query = query.Where("contract_number ILIKE ?", "%"+search+"%")
-	}
-
-	// Filters
-	if employeeID != nil {
-		query = query.Where("employee_id = ?", *employeeID)
-	}
-	if status != nil {
-		query = query.Where("status = ?", *status)
-	}
-	if contractType != nil {
-		query = query.Where("contract_type = ?", *contractType)
-	}
-
-	// Count total
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// Pagination
-	offset := (page - 1) * perPage
-	err := query.
-		Order("start_date DESC, created_at DESC").
-		Offset(offset).
-		Limit(perPage).
-		Find(&contracts).Error
-
-	return contracts, total, err
 }
 
 func (r *employeeContractRepository) FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeContract, error) {
@@ -99,32 +59,18 @@ func (r *employeeContractRepository) FindByEmployeeID(ctx context.Context, emplo
 	return contracts, err
 }
 
-func (r *employeeContractRepository) FindExpiring(ctx context.Context, days int, page, perPage int) ([]*models.EmployeeContract, int64, error) {
-	var contracts []*models.EmployeeContract
-	var total int64
-
-	threshold := time.Now().AddDate(0, 0, days)
-	now := time.Now()
-
-	query := r.db.WithContext(ctx).Model(&models.EmployeeContract{}).
+func (r *employeeContractRepository) FindActiveByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeContract, error) {
+	var contract models.EmployeeContract
+	err := r.db.WithContext(ctx).
+		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.ContractStatusActive).
-		Where("end_date IS NOT NULL").
-		Where("end_date BETWEEN ? AND ?", now, threshold)
-
-	// Count total
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		Order("start_date DESC").
+		Limit(1).
+		First(&contract).Error
+	if err != nil {
+		return nil, err
 	}
-
-	// Pagination
-	offset := (page - 1) * perPage
-	err := query.
-		Order("end_date ASC").
-		Offset(offset).
-		Limit(perPage).
-		Find(&contracts).Error
-
-	return contracts, total, err
+	return &contract, nil
 }
 
 func (r *employeeContractRepository) FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error) {
@@ -138,6 +84,36 @@ func (r *employeeContractRepository) FindByContractNumber(ctx context.Context, c
 	return &contract, nil
 }
 
+func (r *employeeContractRepository) FindAll(ctx context.Context, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, page, perPage int) ([]*models.EmployeeContract, int64, error) {
+	var contracts []*models.EmployeeContract
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.EmployeeContract{})
+
+	if employeeID != nil {
+		query = query.Where("employee_id = ?", *employeeID)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	if contractType != nil {
+		query = query.Where("contract_type = ?", *contractType)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * perPage
+	err := query.
+		Order("start_date DESC, created_at DESC").
+		Offset(offset).
+		Limit(perPage).
+		Find(&contracts).Error
+
+	return contracts, total, err
+}
+
 func (r *employeeContractRepository) CountByEmployee(ctx context.Context, employeeID uuid.UUID) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -145,4 +121,17 @@ func (r *employeeContractRepository) CountByEmployee(ctx context.Context, employ
 		Where("employee_id = ?", employeeID).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *employeeContractRepository) HasActiveContract(ctx context.Context, employeeID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&models.EmployeeContract{}).
+		Where("employee_id = ?", employeeID).
+		Where("status = ?", models.ContractStatusActive).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

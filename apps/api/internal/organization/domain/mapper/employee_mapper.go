@@ -8,7 +8,7 @@ import (
 )
 
 // ToEmployeeResponse converts Employee model to EmployeeResponse DTO
-func ToEmployeeResponse(e *models.Employee) dto.EmployeeResponse {
+func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeContract) dto.EmployeeResponse {
 	resp := dto.EmployeeResponse{
 		ID:               e.ID,
 		EmployeeCode:     e.EmployeeCode,
@@ -27,7 +27,6 @@ func ToEmployeeResponse(e *models.Employee) dto.EmployeeResponse {
 		NIK:              e.NIK,
 		NPWP:             e.NPWP,
 		BPJS:             e.BPJS,
-		ContractStatus:   string(e.ContractStatus),
 		TotalLeaveQuota:  e.TotalLeaveQuota,
 		PTKPStatus:       string(e.PTKPStatus),
 		IsDisability:     e.IsDisability,
@@ -47,14 +46,9 @@ func ToEmployeeResponse(e *models.Employee) dto.EmployeeResponse {
 		resp.DateOfBirth = &dob
 	}
 
-	// Contract dates
-	if e.ContractStartDate != nil {
-		start := e.ContractStartDate.Format("2006-01-02")
-		resp.ContractStartDate = &start
-	}
-	if e.ContractEndDate != nil {
-		end := e.ContractEndDate.Format("2006-01-02")
-		resp.ContractEndDate = &end
+	// Current contract
+	if currentContract != nil {
+		resp.CurrentContract = contractToBriefResponse(currentContract)
 	}
 
 	// Approved at
@@ -164,9 +158,26 @@ func ToEmployeeResponse(e *models.Employee) dto.EmployeeResponse {
 func ToEmployeeListResponse(employees []models.Employee) []dto.EmployeeResponse {
 	result := make([]dto.EmployeeResponse, 0, len(employees))
 	for i := range employees {
-		result = append(result, ToEmployeeResponse(&employees[i]))
+		result = append(result, ToEmployeeResponse(&employees[i], nil))
 	}
 	return result
+}
+
+// contractToBriefResponse converts EmployeeContract model to EmployeeContractBriefResponse
+func contractToBriefResponse(c *models.EmployeeContract) *dto.EmployeeContractBriefResponse {
+	resp := &dto.EmployeeContractBriefResponse{
+		ID:             c.ID.String(),
+		ContractNumber: c.ContractNumber,
+		ContractType:   string(c.ContractType),
+		StartDate:      c.StartDate.Format("2006-01-02"),
+		DocumentPath:   c.DocumentPath,
+		Status:         string(c.Status),
+	}
+	if c.EndDate != nil {
+		endDate := c.EndDate.Format("2006-01-02")
+		resp.EndDate = endDate
+	}
+	return resp
 }
 
 // ToEmployeeListItemResponse converts Employee model to EmployeeListItemResponse DTO (No PII)
@@ -220,4 +231,3 @@ func ToEmployeeListItemResponseList(employees []models.Employee) []dto.EmployeeL
 	}
 	return result
 }
-

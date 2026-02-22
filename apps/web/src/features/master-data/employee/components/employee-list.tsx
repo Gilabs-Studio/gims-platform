@@ -125,20 +125,8 @@ export function EmployeeList() {
   const positions = positionsData?.data ?? [];
 
   const handleEdit = (employee: Employee) => {
-    console.log("=== EMPLOYEE LIST: handleEdit called ===");
-    console.log("Employee data being passed to form:", employee);
-    console.log("Employee ID:", employee.id);
-    console.log("Employee name:", employee.name);
-    console.log("Employee user_id:", employee.user_id);
-    console.log("Employee division_id:", employee.division_id);
-    console.log("Employee job_position_id:", employee.job_position_id);
-    console.log("Employee company_id:", employee.company_id);
-    console.log("Employee gender:", employee.gender);
-    console.log("Employee contract_status:", employee.contract_status);
     setEditingEmployee(employee);
     setIsFormOpen(true);
-    console.log("Form should now be opening with employee data");
-    console.log("==========================================");
   };
 
   const handleViewDetail = (employee: Employee) => {
@@ -161,7 +149,7 @@ export function EmployeeList() {
   const handleStatusChange = async (
     id: string,
     currentStatus: boolean,
-    name: string
+    name: string,
   ) => {
     try {
       await updateEmployee.mutateAsync({
@@ -186,7 +174,9 @@ export function EmployeeList() {
   const handleApprove = async (id: string, action: "approve" | "reject") => {
     try {
       await approveEmployee.mutateAsync({ id, data: { action } });
-      toast.success(action === "approve" ? t("approveSuccess") : t("rejectSuccess"));
+      toast.success(
+        action === "approve" ? t("approveSuccess") : t("rejectSuccess"),
+      );
     } catch {
       toast.error(`Failed to ${action} employee`);
     }
@@ -198,17 +188,16 @@ export function EmployeeList() {
   };
 
   const getStatusBadge = (status: EmployeeStatus) => {
-    const variants: Record<EmployeeStatus, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      EmployeeStatus,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       draft: "secondary",
       pending: "outline",
       approved: "default",
       rejected: "destructive",
     };
-    return (
-      <Badge variant={variants[status]}>
-        {t(`status.${status}`)}
-      </Badge>
-    );
+    return <Badge variant={variants[status]}>{t(`status.${status}`)}</Badge>;
   };
 
   if (isError) {
@@ -228,7 +217,10 @@ export function EmployeeList() {
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
         {canCreate && (
-          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button
+            onClick={() => setIsFormOpen(true)}
+            className="cursor-pointer"
+          >
             <Plus className="mr-2 h-4 w-4" />
             {t("actions.create")}
           </Button>
@@ -319,25 +311,44 @@ export function EmployeeList() {
               <TableHead>{t("columns.position")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead>{t("columns.isActive")}</TableHead>
-              <TableHead className="w-[100px]">{t("columns.actions")}</TableHead>
+              <TableHead className="w-[100px]">
+                {t("columns.actions")}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-12" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-8" />
+                  </TableCell>
                 </TableRow>
               ))
             ) : employees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   {t("empty")}
                 </TableCell>
               </TableRow>
@@ -365,22 +376,32 @@ export function EmployeeList() {
                       <Switch
                         checked={employee.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(employee.id, employee.is_active, employee.name)
+                          handleStatusChange(
+                            employee.id,
+                            employee.is_active,
+                            employee.name,
+                          )
                         }
                         disabled={!canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {employee.is_active
-                          ? t("columns.isActive") // Reusing 'Active' label or similar if available, or just hardcode/use common
-                          : "Inactive" /* Ideally use tCommon or t corresponding keys. Division uses t("common.active") */}
+                        {
+                          employee.is_active
+                            ? t("columns.isActive") // Reusing 'Active' label or similar if available, or just hardcode/use common
+                            : "Inactive" /* Ideally use tCommon or t corresponding keys. Division uses t("common.active") */
+                        }
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="cursor-pointer">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="cursor-pointer"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -414,14 +435,18 @@ export function EmployeeList() {
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => handleApprove(employee.id, "approve")}
+                              onClick={() =>
+                                handleApprove(employee.id, "approve")
+                              }
                               className="cursor-pointer text-green-600"
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               {t("actions.approve")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleApprove(employee.id, "reject")}
+                              onClick={() =>
+                                handleApprove(employee.id, "reject")
+                              }
                               className="cursor-pointer text-destructive"
                             >
                               <XCircle className="mr-2 h-4 w-4" />

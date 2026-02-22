@@ -94,6 +94,13 @@ func SeedIntegrationFlow() error {
 			tag := fmt.Sprintf("%s-%03d", now.Format("20060102"), i)
 			prod := products[i%len(products)]
 
+			poCode := fmt.Sprintf("PO-INT-%s", tag)
+			var existingPO purchaseModels.PurchaseOrder
+			if err := tx.Where("code = ?", poCode).First(&existingPO).Error; err == nil {
+				log.Printf("Integration flow set %s already exists (PO: %s), skipping", tag, poCode)
+				continue
+			}
+
 			// A) Purchase Order
 			poQty := 10.0 + float64(i*5)
 			poPrice := prod.CostPrice
@@ -106,7 +113,7 @@ func SeedIntegrationFlow() error {
 			total := subtotal + tax
 
 			po := purchaseModels.PurchaseOrder{
-				Code:           fmt.Sprintf("PO-INT-%s", tag),
+				Code:           poCode,
 				SupplierID:     &supplier.ID,
 				PaymentTermsID: &pt.ID,
 				BusinessUnitID: &bu.ID,

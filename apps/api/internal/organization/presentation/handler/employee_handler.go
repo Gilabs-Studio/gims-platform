@@ -394,3 +394,241 @@ func (h *EmployeeHandler) GetFormData(c *gin.Context) {
 
 	response.SuccessResponse(c, formData, nil)
 }
+
+// GetEmployeeContracts handles GET /employees/:id/contracts
+func (h *EmployeeHandler) GetEmployeeContracts(c *gin.Context) {
+	id := c.Param("id")
+	
+	contracts, err := h.employeeUC.GetEmployeeContracts(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, contracts, nil)
+}
+
+// CreateEmployeeContract handles POST /employees/:id/contracts
+func (h *EmployeeHandler) CreateEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	
+	var req dto.CreateEmployeeContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+	
+	resp, err := h.employeeUC.CreateEmployeeContract(c.Request.Context(), id, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponseCreated(c, resp, nil)
+}
+
+// GetActiveContract handles GET /employees/:id/contracts/active
+func (h *EmployeeHandler) GetActiveContract(c *gin.Context) {
+	id := c.Param("id")
+	
+	contract, err := h.employeeUC.GetActiveContract(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	if contract == nil {
+		response.SuccessResponse(c, nil, nil)
+		return
+	}
+	
+	response.SuccessResponse(c, contract, nil)
+}
+
+// UpdateEmployeeContract handles PUT /employees/:id/contracts/:contract_id
+func (h *EmployeeHandler) UpdateEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	contractID := c.Param("contract_id")
+	
+	var req dto.UpdateEmployeeContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	
+	resp, err := h.employeeUC.UpdateEmployeeContract(c.Request.Context(), id, contractID, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, resp, nil)
+}
+
+// DeleteEmployeeContract handles DELETE /employees/:id/contracts/:contract_id
+func (h *EmployeeHandler) DeleteEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	contractID := c.Param("contract_id")
+	
+	if err := h.employeeUC.DeleteEmployeeContract(c.Request.Context(), id, contractID); err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, nil, nil)
+}
+
+// TerminateEmployeeContract handles POST /employees/:id/contracts/:contract_id/terminate
+func (h *EmployeeHandler) TerminateEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	contractID := c.Param("contract_id")
+	
+	var req dto.TerminateEmployeeContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+	
+	resp, err := h.employeeUC.TerminateEmployeeContract(c.Request.Context(), id, contractID, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, resp, nil)
+}
+
+// RenewEmployeeContract handles POST /employees/:id/contracts/:contract_id/renew
+func (h *EmployeeHandler) RenewEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	contractID := c.Param("contract_id")
+	
+	var req dto.RenewEmployeeContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+	
+	resp, err := h.employeeUC.RenewEmployeeContract(c.Request.Context(), id, contractID, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, resp, nil)
+}
+
+// CorrectActiveEmployeeContract handles PATCH /employees/:id/contracts/active
+func (h *EmployeeHandler) CorrectActiveEmployeeContract(c *gin.Context) {
+	id := c.Param("id")
+	
+	var req dto.CorrectEmployeeContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+	
+	resp, err := h.employeeUC.CorrectActiveEmployeeContract(c.Request.Context(), id, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	
+	response.SuccessResponse(c, resp, nil)
+}

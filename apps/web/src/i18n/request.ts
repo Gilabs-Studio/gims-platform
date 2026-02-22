@@ -34,8 +34,6 @@ import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
 import { leaveRequestEn } from "@/features/hrd/leave-request/i18n/en";
 import { leaveRequestId } from "@/features/hrd/leave-request/i18n/id";
-import { employeeContractEn } from "@/features/hrd/employee-contract/i18n/en";
-import { employeeContractId } from "@/features/hrd/employee-contract/i18n/id";
 import { educationHistoryEn } from "@/features/hrd/education-history/i18n/en";
 import { educationHistoryId } from "@/features/hrd/education-history/i18n/id";
 import { certificationEn } from "@/features/hrd/certifications/i18n/en";
@@ -138,7 +136,6 @@ const messages = {
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
     ...leaveRequestEn,
-    ...employeeContractEn,
     ...educationHistoryEn,
     ...certificationEn,
     ...employeeAssetsEn,
@@ -195,7 +192,6 @@ const messages = {
     courierAgency: courierAgencyId,
     soSource: soSourceId,
     leaveType: leaveTypeId,
-    ...employeeContractId,
     ...educationHistoryId,
     ...certificationId,
     ...employeeAssetsId,

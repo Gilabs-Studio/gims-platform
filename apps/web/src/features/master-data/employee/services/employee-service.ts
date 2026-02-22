@@ -11,6 +11,12 @@ import type {
   BulkUpdateEmployeeAreasData,
   AvailableUsersResponse,
   EmployeeFormDataResponse,
+  EmployeeContract,
+  CreateEmployeeContractData,
+  UpdateEmployeeContractData,
+  TerminateEmployeeContractData,
+  RenewEmployeeContractData,
+  CorrectEmployeeContractData,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -19,14 +25,14 @@ export const employeeService = {
   async list(params?: ListEmployeesParams): Promise<EmployeeListResponse> {
     const response = await apiClient.get<EmployeeListResponse>(
       `${BASE_PATH}/employees`,
-      { params }
+      { params },
     );
     return response.data;
   },
 
   async getById(id: string): Promise<EmployeeSingleResponse> {
     const response = await apiClient.get<EmployeeSingleResponse>(
-      `${BASE_PATH}/employees/${id}`
+      `${BASE_PATH}/employees/${id}`,
     );
     return response.data;
   },
@@ -34,75 +40,75 @@ export const employeeService = {
   async create(data: CreateEmployeeData): Promise<EmployeeSingleResponse> {
     const response = await apiClient.post<EmployeeSingleResponse>(
       `${BASE_PATH}/employees`,
-      data
+      data,
     );
     return response.data;
   },
 
   async update(
     id: string,
-    data: UpdateEmployeeData
+    data: UpdateEmployeeData,
   ): Promise<EmployeeSingleResponse> {
     const response = await apiClient.put<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}`,
-      data
+      data,
     );
     return response.data;
   },
 
   async delete(id: string): Promise<{ message: string }> {
     const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/employees/${id}`
+      `${BASE_PATH}/employees/${id}`,
     );
     return response.data;
   },
 
   async submitForApproval(id: string): Promise<EmployeeSingleResponse> {
     const response = await apiClient.post<EmployeeSingleResponse>(
-      `${BASE_PATH}/employees/${id}/submit`
+      `${BASE_PATH}/employees/${id}/submit`,
     );
     return response.data;
   },
 
   async approve(
     id: string,
-    data: ApproveEmployeeData
+    data: ApproveEmployeeData,
   ): Promise<EmployeeSingleResponse> {
     const response = await apiClient.post<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}/approve`,
-      data
+      data,
     );
     return response.data;
   },
 
   async assignAreas(
     id: string,
-    data: AssignEmployeeAreasData
+    data: AssignEmployeeAreasData,
   ): Promise<EmployeeSingleResponse> {
     const response = await apiClient.post<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}/areas`,
-      data
+      data,
     );
     return response.data;
   },
 
   async bulkUpdateAreas(
     id: string,
-    data: BulkUpdateEmployeeAreasData
+    data: BulkUpdateEmployeeAreasData,
   ): Promise<EmployeeSingleResponse> {
     const response = await apiClient.put<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}/areas`,
-      data
+      data,
     );
     return response.data;
   },
 
   async removeAreaAssignment(
     employeeId: string,
-    areaId: string
+    areaId: string,
   ): Promise<{ success: boolean }> {
     const response = await apiClient.delete<{ success: boolean }>(
-      `${BASE_PATH}/employees/${employeeId}/areas/${areaId}`
+      `${BASE_PATH}/employees/${employeeId}/areas/${areaId}`,
     );
     return response.data;
   },
@@ -113,15 +119,99 @@ export const employeeService = {
   }): Promise<AvailableUsersResponse> {
     const response = await apiClient.get<AvailableUsersResponse>(
       "/users/available",
-      { params }
+      { params },
     );
     return response.data;
   },
 
   async getFormData(): Promise<EmployeeFormDataResponse> {
     const response = await apiClient.get<EmployeeFormDataResponse>(
-      `${BASE_PATH}/employees/form-data`
+      `${BASE_PATH}/employees/form-data`,
     );
     return response.data;
+  },
+
+  // Contract management
+  async getEmployeeContracts(employeeId: string): Promise<EmployeeContract[]> {
+    const response = await apiClient.get<{ data: EmployeeContract[] }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts`,
+    );
+    return response.data.data;
+  },
+
+  async getActiveContract(
+    employeeId: string,
+  ): Promise<EmployeeContract | null> {
+    const response = await apiClient.get<{ data: EmployeeContract | null }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts/active`,
+    );
+    return response.data.data;
+  },
+
+  async createEmployeeContract(
+    employeeId: string,
+    data: CreateEmployeeContractData,
+  ): Promise<EmployeeContract> {
+    const response = await apiClient.post<{ data: EmployeeContract }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async updateEmployeeContract(
+    employeeId: string,
+    contractId: string,
+    data: UpdateEmployeeContractData,
+  ): Promise<EmployeeContract> {
+    const response = await apiClient.put<{ data: EmployeeContract }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts/${contractId}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async deleteEmployeeContract(
+    employeeId: string,
+    contractId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      `${BASE_PATH}/employees/${employeeId}/contracts/${contractId}`,
+    );
+  },
+
+  async terminateEmployeeContract(
+    employeeId: string,
+    contractId: string,
+    data: TerminateEmployeeContractData,
+  ): Promise<EmployeeContract> {
+    const response = await apiClient.post<{ data: EmployeeContract }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts/${contractId}/terminate`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async renewEmployeeContract(
+    employeeId: string,
+    contractId: string,
+    data: RenewEmployeeContractData,
+  ): Promise<EmployeeContract> {
+    const response = await apiClient.post<{ data: EmployeeContract }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts/${contractId}/renew`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async correctActiveEmployeeContract(
+    employeeId: string,
+    data: CorrectEmployeeContractData,
+  ): Promise<EmployeeContract> {
+    const response = await apiClient.patch<{ data: EmployeeContract }>(
+      `${BASE_PATH}/employees/${employeeId}/contracts/active`,
+      data,
+    );
+    return response.data.data;
   },
 };

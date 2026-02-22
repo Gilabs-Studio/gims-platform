@@ -25,6 +25,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	companyRepo := repositories.NewCompanyRepository(db)
 	employeeRepo := repositories.NewEmployeeRepository(db)
 	employeeAreaRepo := repositories.NewEmployeeAreaRepository(db)
+	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
 
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
@@ -34,7 +35,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)

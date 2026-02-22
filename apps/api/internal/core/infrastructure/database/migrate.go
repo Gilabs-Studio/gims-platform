@@ -157,8 +157,8 @@ func AutoMigrate() error {
 		&hrd.OvertimeRequest{},
 		// HRD Leave Management entities (Sprint 14)
 		&hrd.LeaveRequest{},
-		// HRD Employee Contracts entities (Sprint 14)
-		&hrd.EmployeeContract{},
+		// Organization Employee Contracts entities (moved from HRD)
+		&organization.EmployeeContract{},
 		// HRD Employee Education History entities (Sprint 14)
 		&hrd.EmployeeEducationHistory{},
 		// HRD Employee Certifications entities (Sprint 14)
@@ -194,6 +194,11 @@ func AutoMigrate() error {
 	}
 
 	log.Println("Database migrations completed")
+
+	// Migrate contract data from employees table to employee_contracts table
+	if err := migrateEmployeeContractData(); err != nil {
+		log.Printf("Warning: Could not migrate employee contract data: %v", err)
+	}
 
 	// Safety net: ensure role_permissions.scope column exists even when GORM's
 	// AutoMigrate did not add it (e.g. the many2many relationship on Role
@@ -445,6 +450,98 @@ func migrateWithErrorHandling(models ...interface{}) error {
 		}
 	}
 
+	return nil
+}
+
+// migrateEmployeeContractData migrates contract data from employees table to employee_contracts table
+// and removes contract fields from employees table
+func migrateEmployeeContractData() error {
+	// Check if employees table has contract columns
+	var hasContractStatus bool
+	err := DB.Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'employees' AND column_name = 'contract_status'
+		)
+	`).Scan(&hasContractStatus).Error
+	if err != nil {
+		return fmt.Errorf("check contract_status column: %w", err)
+	}
+
+	if !hasContractStatus {
+		log.Println("Employee contract data migration: contract fields already removed from employees table")
+		return nil
+	}
+
+	log.Println("Migrating contract data from employees table to employee_contracts table...")
+
+	// Migrate existing contract data to employee_contracts table
+	// Only migrate employees that have contract_status set
+	result := DB.Exec(`
+		INSERT INTO employee_contracts (
+			id, employee_id, contract_number, contract_type, start_date, end_date, 
+			document_path, status, created_at, updated_at
+		)
+		SELECT 
+			gen_random_uuid(),
+			id,
+			'EMP-' || employee_code || '-INITIAL',
+			CASE 
+				WHEN contract_status = 'permanent' THEN 'PKWTT'
+				WHEN contract_status = 'contract' THEN 'PKWT'
+				WHEN contract_status = 'intern' THEN 'Intern'
+				ELSE 'PKWTT'
+			END,
+			contract_start_date,
+			contract_end_date,
+			NULL,
+			'ACTIVE',
+			NOW(),
+			NOW()
+		FROM employees
+		WHERE contract_status IS NOT NULL 
+			AND contract_status != ''
+			AND NOT EXISTS (
+				SELECT 1 FROM employee_contracts ec 
+				WHERE ec.employee_id = employees.id
+			)
+	`)
+
+	if result.Error != nil {
+		return fmt.Errorf("migrate contract data: %w", result.Error)
+	}
+
+	log.Printf("Migrated %d employee contracts", result.RowsAffected)
+
+	// Drop contract columns from employees table
+	columnsToDrop := []string{
+		"contract_status",
+		"contract_start_date",
+		"contract_end_date",
+	}
+
+	for _, col := range columnsToDrop {
+		var hasCol bool
+		err := DB.Raw(`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'employees' AND column_name = ?
+			)
+		`, col).Scan(&hasCol).Error
+		if err != nil {
+			return fmt.Errorf("check column %s: %w", col, err)
+		}
+
+		if hasCol {
+			dropSQL := fmt.Sprintf("ALTER TABLE employees DROP COLUMN IF EXISTS %s", col)
+			if err := DB.Exec(dropSQL).Error; err != nil {
+				return fmt.Errorf("drop column %s: %w", col, err)
+			}
+			log.Printf("Dropped column employees.%s", col)
+		}
+	}
+
+	log.Println("Employee contract data migration completed successfully")
 	return nil
 }
 

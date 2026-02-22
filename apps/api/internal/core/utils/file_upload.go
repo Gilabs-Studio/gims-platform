@@ -265,8 +265,13 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 		return nil, ErrInvalidFileType
 	}
 
-	// 3. Generate secure filename using UUID with proper extension
-	filename := fmt.Sprintf("%s.%s", uuid.New().String(), kind.Extension)
+	// 3. Generate secure filename: UUID + sanitized original name for better UX
+	base := strings.TrimSuffix(filepath.Base(header.Filename), filepath.Ext(header.Filename))
+	base = sanitizeFilenameBase(base)
+	if base == "" {
+		base = "document"
+	}
+	filename := fmt.Sprintf("%s_%s.%s", uuid.New().String(), base, kind.Extension)
 
 	// 4. Ensure upload directory exists
 	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
@@ -311,4 +316,29 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 		Size:         header.Size,
 		MimeType:     kind.MIME.Value,
 	}, nil
+}
+
+func sanitizeFilenameBase(input string) string {
+	s := strings.TrimSpace(input)
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range s {
+		isAllowed := (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_'
+		if isAllowed {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteRune('_')
+			lastUnderscore = true
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }
