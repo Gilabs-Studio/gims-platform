@@ -41,6 +41,7 @@ func (r *salesEstimationRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *salesEstimationRepository) FindByID(ctx context.Context, id string) (*models.SalesEstimation, error) {
 	var estimation models.SalesEstimation
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
 		Preload("BusinessType").
@@ -57,6 +58,7 @@ func (r *salesEstimationRepository) FindByID(ctx context.Context, id string) (*m
 func (r *salesEstimationRepository) FindByCode(ctx context.Context, code string) (*models.SalesEstimation, error) {
 	var estimation models.SalesEstimation
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
 		Preload("BusinessType").
@@ -145,6 +147,7 @@ func (r *salesEstimationRepository) List(ctx context.Context, req *dto.ListSales
 
 	// Execute query with preloads
 	err := query.
+		Preload("Customer").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
 		Preload("BusinessType").

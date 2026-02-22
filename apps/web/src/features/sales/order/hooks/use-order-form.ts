@@ -17,6 +17,7 @@ import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-
 import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
+import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import { productService } from "@/features/master-data/product/services/product-service";
 import { employeeService } from "@/features/master-data/employee/services/employee-service";
 
@@ -56,6 +57,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
   const { data: areasData } = useAreas({ per_page: 100 }, { enabled: open });
   const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" }, { enabled: open });
+  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
   
   // Async Fetchers
   const fetchProducts = useCallback(async (query: string) => {
@@ -107,6 +109,11 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     return sortOptions(data, (a) => a.code);
   }, [quotationsData?.data]);
 
+  const customers = useMemo(() => {
+    const data = customersData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [customersData?.data]);
+
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
 
@@ -120,6 +127,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           business_unit_id: order.business_unit_id ?? "",
           business_type_id: order.business_type_id ?? undefined,
           delivery_area_id: order.delivery_area_id ?? undefined,
+          customer_id: order.customer_id ?? "",
           customer_name: order.customer_name ?? "",
           customer_contact: order.customer_contact ?? "",
           customer_phone: order.customer_phone ?? "",
@@ -479,6 +487,18 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     }
   };
 
+  // Auto-fill customer snapshot fields when selecting from master data dropdown
+  const handleCustomerChange = (customerId: string) => {
+    setValue("customer_id", customerId, { shouldValidate: true });
+    const customer = customers.find((c) => c.id === customerId);
+    if (customer) {
+      setValue("customer_name", customer.name, { shouldValidate: true });
+      setValue("customer_contact", customer.contact_person ?? "");
+      setValue("customer_email", customer.email ?? "");
+      setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
+    }
+  };
+
   const isLoading = createOrder.isPending || updateOrder.isPending;
   const isFormLoading = isEdit && (isLoadingOrder || isFetchingOrder) && !fullOrderData?.data;
 
@@ -518,6 +538,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     businessTypes,
     areas,
     quotations,
+    customers,
     selectedRep,
     setSelectedRep,
     fetchEmployees,
@@ -527,6 +548,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
+    handleCustomerChange,
     handleDialogChange,
     onInvalid,
     selectedProducts,

@@ -81,7 +81,7 @@ func SeedSalesOrder() error {
 		// Set order status to Approved for all converted quotations
 		status := salesModels.SalesOrderStatusApproved
 
-		// Create order by copying quotation data (snapshot pattern)
+		// Create order by copying quotation data (snapshot + FK pattern)
 		order := salesModels.SalesOrder{
 			Code:              code,
 			OrderDate:         orderDate,
@@ -91,6 +91,7 @@ func SeedSalesOrder() error {
 			BusinessUnitID:    quotation.BusinessUnitID,
 			BusinessTypeID:    quotation.BusinessTypeID,
 			DeliveryAreaID:    &areas[i%len(areas)].ID,
+			CustomerID:        quotation.CustomerID,
 			CustomerName:      quotation.CustomerName,
 			CustomerContact:   quotation.CustomerContact,
 			CustomerPhone:     quotation.CustomerPhone,

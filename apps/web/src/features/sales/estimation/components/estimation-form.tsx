@@ -48,6 +48,7 @@ export function EstimationForm({ open, onClose, estimation }: EstimationFormProp
     businessTypes,
     employees,
     areas,
+    customers,
     calculations,
     watchedItems,
     taxRate,
@@ -58,6 +59,7 @@ export function EstimationForm({ open, onClose, estimation }: EstimationFormProp
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
+    handleCustomerChange,
     handleDialogChange,
     onInvalid,
   } = useEstimationForm({ estimation, open, onClose });
@@ -97,6 +99,28 @@ export function EstimationForm({ open, onClose, estimation }: EstimationFormProp
                   <h3 className="text-sm font-medium">{t("customerInfo")}</h3>
                 </div>
                 <div className="grid gap-4 grid-cols-2">
+                  <Field orientation="vertical" className="col-span-2">
+                    <FieldLabel>{t("common.customer")}</FieldLabel>
+                    <Controller
+                      name="customer_id"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value || undefined} onValueChange={handleCustomerChange}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder={t("common.selectCustomer") || "Select customer"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id} className="cursor-pointer">
+                                {customer.code} - {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </Field>
+
                   <Field orientation="vertical" className="col-span-2">
                     <FieldLabel>{t("customerName")} *</FieldLabel>
                     <Input {...register("customer_name")} />

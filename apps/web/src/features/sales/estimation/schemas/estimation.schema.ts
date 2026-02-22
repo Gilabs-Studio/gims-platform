@@ -26,6 +26,7 @@ export const getEstimationItemSchema = (t?: TranslationFn) => z.object({
 export const getEstimationSchema = (t?: TranslationFn) => z.object({
   estimation_date: z.string()
     .min(1, getMsg(t, "validation.required", "Estimation date is required")),
+  customer_id: z.string().uuid().optional().or(z.literal("")),
   customer_name: z.string()
     .min(1, getMsg(t, "validation.required", "Customer name is required"))
     .max(255, getMsg(t, "validation.customerNameMax", "Customer name is too long")),

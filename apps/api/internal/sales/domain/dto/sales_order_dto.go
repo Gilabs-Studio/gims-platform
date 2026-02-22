@@ -9,6 +9,7 @@ type CreateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id" binding:"required"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerID        *string  `json:"customer_id"`
 	CustomerName      string   `json:"customer_name"`
 	CustomerContact   string   `json:"customer_contact"`
 	CustomerPhone     string   `json:"customer_phone"`
@@ -37,6 +38,7 @@ type UpdateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerID        *string  `json:"customer_id"`
 	CustomerName      *string  `json:"customer_name"`
 	CustomerContact   *string  `json:"customer_contact"`
 	CustomerPhone     *string  `json:"customer_phone"`
@@ -81,6 +83,7 @@ type UpdateSalesOrderStatusRequest struct {
 type ConvertFromQuotationRequest struct {
 	QuotationID       string  `json:"quotation_id" binding:"required,uuid"`
 	DeliveryAreaID    *string `json:"delivery_area_id"`
+	CustomerID        *string `json:"customer_id"`
 	CustomerName      string  `json:"customer_name"`
 	CustomerContact   string  `json:"customer_contact"`
 	CustomerPhone     string  `json:"customer_phone"`
@@ -113,6 +116,8 @@ type SalesOrderResponse struct {
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
 	DeliveryAreaID      *string                       `json:"delivery_area_id"`
 	DeliveryArea        *AreaResponse                 `json:"delivery_area,omitempty"`
+	CustomerID          *string                       `json:"customer_id"`
+	Customer            *CustomerResponse             `json:"customer,omitempty"`
 	CustomerName        string                        `json:"customer_name"`
 	CustomerContact     string                        `json:"customer_contact"`
 	CustomerPhone       string                        `json:"customer_phone"`

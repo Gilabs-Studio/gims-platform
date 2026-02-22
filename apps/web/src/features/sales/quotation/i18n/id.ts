@@ -37,6 +37,8 @@ export const quotationId = {
       validationError: "Silakan perbaiki kolom yang disorot",
       basicInfo: "Informasi Dasar",
       select: "Pilih",
+      customer: "Pelanggan",
+      selectCustomer: "Pilih pelanggan",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
     },

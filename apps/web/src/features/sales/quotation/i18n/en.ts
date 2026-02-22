@@ -37,6 +37,8 @@ export const quotationEn = {
       validationError: "Please correct the highlighted fields",
       basicInfo: "Basic Information",
       select: "Select",
+      customer: "Customer",
+      selectCustomer: "Select customer",
       selectDate: "Select date",
       validating: "Validating...",
     },

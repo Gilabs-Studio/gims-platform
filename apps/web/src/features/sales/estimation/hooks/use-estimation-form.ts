@@ -17,6 +17,7 @@ import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-
 import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
+import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import type { SalesEstimation } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
   const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
   const { data: areasData } = useAreas({ per_page: 100 });
+  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];
@@ -75,6 +77,11 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
     return sortOptions(data, (a) => a.name);
   }, [areasData?.data]);
 
+  const customers = useMemo(() => {
+    const data = customersData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [customersData?.data]);
+
   const schema = isEdit ? getUpdateEstimationSchema(t) : getEstimationSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateEstimationFormData | UpdateEstimationFormData>;
 
@@ -83,6 +90,7 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
     defaultValues: estimation
       ? {
           estimation_date: estimation.estimation_date,
+          customer_id: estimation.customer_id ?? "",
           customer_name: estimation.customer_name,
           customer_contact: estimation.customer_contact ?? "",
           customer_email: estimation.customer_email ?? "",
@@ -336,6 +344,18 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
     }
   };
 
+  // Auto-fill customer snapshot fields when selecting from master data dropdown
+  const handleCustomerChange = (customerId: string) => {
+    setValue("customer_id", customerId, { shouldValidate: true });
+    const customer = customers.find((c) => c.id === customerId);
+    if (customer) {
+      setValue("customer_name", customer.name, { shouldValidate: true });
+      setValue("customer_contact", customer.contact_person ?? "");
+      setValue("customer_email", customer.email ?? "");
+      setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
+    }
+  };
+
   const isLoading = createEstimation.isPending || updateEstimation.isPending;
   const isFormLoading = isEdit && (isLoadingEstimation || isFetchingEstimation) && !fullEstimationData?.data;
 
@@ -385,6 +405,7 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
     businessTypes,
     employees,
     areas,
+    customers,
     calculations,
     watchedItems,
     taxRate,
@@ -395,6 +416,7 @@ export function useEstimationForm({ estimation, open, onClose }: UseEstimationFo
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
+    handleCustomerChange,
     handleDialogChange,
     onInvalid,
   };

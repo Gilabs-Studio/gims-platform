@@ -38,6 +38,17 @@ func ToSalesEstimationResponse(m *salesModels.SalesEstimation) dto.SalesEstimati
 
 	if m.CustomerID != nil {
 		response.CustomerID = m.CustomerID
+		if m.Customer != nil {
+			response.Customer = &dto.CustomerResponse{
+				ID:             m.Customer.ID,
+				Code:           m.Customer.Code,
+				Name:           m.Customer.Name,
+				CustomerTypeID: m.Customer.CustomerTypeID,
+				Address:        m.Customer.Address,
+				Email:          m.Customer.Email,
+				ContactPerson:  m.Customer.ContactPerson,
+			}
+		}
 	}
 
 	if m.SalesRepID != nil {

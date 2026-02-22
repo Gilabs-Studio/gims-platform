@@ -21,6 +21,7 @@ func ToSalesQuotationResponse(m *salesModels.SalesQuotation) dto.SalesQuotationR
 		OtherCost:           m.OtherCost,
 		TotalAmount:         m.TotalAmount,
 		Status:              string(m.Status),
+		CustomerID:          m.CustomerID,
 		CustomerName:        m.CustomerName,
 		CustomerContact:     m.CustomerContact,
 		CustomerPhone:       m.CustomerPhone,
@@ -28,6 +29,18 @@ func ToSalesQuotationResponse(m *salesModels.SalesQuotation) dto.SalesQuotationR
 		Notes:               m.Notes,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if m.Customer != nil {
+		response.Customer = &dto.CustomerResponse{
+			ID:             m.Customer.ID,
+			Code:           m.Customer.Code,
+			Name:           m.Customer.Name,
+			CustomerTypeID: m.Customer.CustomerTypeID,
+			Address:        m.Customer.Address,
+			Email:          m.Customer.Email,
+			ContactPerson:  m.Customer.ContactPerson,
+		}
 	}
 
 	if m.ValidUntil != nil {
@@ -168,6 +181,7 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 		SalesRepID:      &salesRepID,
 		BusinessUnitID:  &businessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
+		CustomerID:      req.CustomerID,
 		CustomerName:    req.CustomerName,
 		CustomerContact: req.CustomerContact,
 		CustomerPhone:   req.CustomerPhone,
@@ -245,6 +259,10 @@ func UpdateSalesQuotationModel(m *salesModels.SalesQuotation, req *dto.UpdateSal
 
 	if req.BusinessTypeID != nil {
 		m.BusinessTypeID = req.BusinessTypeID
+	}
+
+	if req.CustomerID != nil {
+		m.CustomerID = req.CustomerID
 	}
 
 	if req.CustomerName != nil {

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/google/uuid"
@@ -28,8 +29,9 @@ type SalesEstimation struct {
 	ExpectedCloseDate *time.Time `gorm:"type:date" json:"expected_close_date"`
 
 	// Customer Info
-	CustomerID      *string `gorm:"type:uuid;index" json:"customer_id"` // Optional link to exiting customer
-	CustomerName    string  `gorm:"type:varchar(255);not null" json:"customer_name"`
+	CustomerID      *string                    `gorm:"type:uuid;index" json:"customer_id"` // FK to master data customer
+	Customer        *customerModels.Customer   `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	CustomerName    string                     `gorm:"type:varchar(255);not null" json:"customer_name"`
 	CustomerEmail   string  `gorm:"type:varchar(255)" json:"customer_email"`
 	CustomerPhone   string  `gorm:"type:varchar(50)" json:"customer_phone"`
 	CustomerContact string  `gorm:"type:varchar(255)" json:"customer_contact"`

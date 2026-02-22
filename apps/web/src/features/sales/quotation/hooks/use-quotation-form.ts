@@ -17,6 +17,7 @@ import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/pay
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import type { SalesQuotation } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
   const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
   const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
+  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];
@@ -75,6 +77,11 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
   }, [employeesData?.data]);
 
+  const customers = useMemo(() => {
+    const data = customersData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [customersData?.data]);
+
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
 
@@ -88,6 +95,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           sales_rep_id: quotation.sales_rep_id ?? "",
           business_unit_id: quotation.business_unit_id ?? "",
           business_type_id: quotation.business_type_id ?? undefined,
+          customer_id: quotation.customer_id ?? "",
           customer_name: quotation.customer_name ?? "",
           customer_contact: quotation.customer_contact ?? "",
           customer_phone: quotation.customer_phone ?? "",
@@ -359,6 +367,18 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     }
   };
 
+  // Auto-fill customer snapshot fields when selecting from master data dropdown
+  const handleCustomerChange = (customerId: string) => {
+    setValue("customer_id", customerId, { shouldValidate: true });
+    const customer = customers.find((c) => c.id === customerId);
+    if (customer) {
+      setValue("customer_name", customer.name, { shouldValidate: true });
+      setValue("customer_contact", customer.contact_person ?? "");
+      setValue("customer_email", customer.email ?? "");
+      setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
+    }
+  };
+
   const isLoading = createQuotation.isPending || updateQuotation.isPending;
   const isFormLoading = isEdit && (isLoadingQuotation || isFetchingQuotation) && !fullQuotationData?.data;
 
@@ -417,6 +437,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     businessUnits,
     businessTypes,
     employees,
+    customers,
     calculations,
     watchedItems,
     taxRate,
@@ -427,6 +448,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
+    handleCustomerChange,
     handleDialogChange,
     onInvalid,
   };
