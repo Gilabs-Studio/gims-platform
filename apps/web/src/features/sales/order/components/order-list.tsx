@@ -261,13 +261,13 @@ export function OrderList() {
                           <span className="text-muted-foreground">delivered</span>
                         </div>
                         {order.fulfillment.total_pending > 0 && (
-                          <span className="text-xs text-amber-600 dark:text-amber-400">
-                            {order.fulfillment.total_pending} pending
+                          <span className="text-xs text-warning">
+                            {order.fulfillment.total_pending} {t("fulfillment.pending")}
                           </span>
                         )}
                         {order.fulfillment.total_remaining > 0 && (
                           <span className="text-xs text-muted-foreground">
-                            {order.fulfillment.total_remaining} remaining
+                            {order.fulfillment.total_remaining} {t("fulfillment.remaining")}
                           </span>
                         )}
                       </div>
