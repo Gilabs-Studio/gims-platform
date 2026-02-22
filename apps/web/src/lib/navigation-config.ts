@@ -56,6 +56,15 @@ export const navigationConfig: NavItem[] = [
         ],
       },
       {
+        name: "Customer",
+        url: "/master-data/customer",
+        icon: "user",
+        children: [
+          { name: "Customers", url: "/master-data/customers", icon: "user-check", permission: "customer.read" },
+          { name: "Customer Types", url: "/master-data/customer-types", icon: "tag", permission: "customer_type.read" },
+        ],
+      },
+      {
         name: "Product",
         url: "/master-data/product",
         icon: "package",
