@@ -183,6 +183,26 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 		req.ReceiverPhone = salesOrder.CustomerPhone
 	}
 
+	// Query pending delivery quantities from existing non-cancelled DOs
+	pendingQtyMap, err := u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, req.SalesOrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if sales order is already fully allocated (delivered + pending DO qty >= ordered qty)
+	isFullyAllocated := true
+	for _, item := range salesOrder.Items {
+		pendingQty := pendingQtyMap[item.ID]
+		allocatedQty := item.DeliveredQuantity + pendingQty
+		if item.Quantity > allocatedQty {
+			isFullyAllocated = false
+			break
+		}
+	}
+	if len(salesOrder.Items) > 0 && isFullyAllocated {
+		return nil, errors.New("sales order is already fully fulfilled — all items have been delivered or allocated to existing delivery orders")
+	}
+
 	// Validate products and batches
 	for _, item := range req.Items {
 		product, err := u.productRepo.FindByID(ctx, item.ProductID)
@@ -198,7 +218,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			item.Price = product.SellingPrice
 		}
 
-		// Check for over-delivery
+		// Check for over-delivery (including pending DO quantities)
 		if item.SalesOrderItemID != nil {
 			var soItem *models.SalesOrderItem
 			for _, soi := range salesOrder.Items {
@@ -209,9 +229,9 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			}
 
 			if soItem != nil {
-				remaining := soItem.Quantity - soItem.DeliveredQuantity
+				pendingQty := pendingQtyMap[soItem.ID]
+				remaining := soItem.Quantity - soItem.DeliveredQuantity - pendingQty
 				if item.Quantity > remaining {
-					// Use a formatted string or specific error
 					return nil, errors.New("cannot deliver more than remaining quantity (over-delivery)")
 				}
 			}

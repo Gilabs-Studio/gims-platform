@@ -136,6 +136,22 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		query = query.Where("sales_quotation_id = ?", req.SalesQuotationID)
 	}
 
+	// Apply unfulfilled_only filter
+	// Exclude SOs where ALL items have qty fully covered by delivered_quantity + pending DO allocations
+	if req.UnfulfilledOnly {
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM sales_order_items soi
+			WHERE soi.sales_order_id = sales_orders.id
+			AND soi.quantity > soi.delivered_quantity + COALESCE((
+				SELECT SUM(doi.quantity) FROM delivery_order_items doi
+				JOIN delivery_orders dord ON dord.id = doi.delivery_order_id
+				WHERE doi.sales_order_item_id = soi.id
+				AND dord.status != 'cancelled'
+				AND dord.deleted_at IS NULL
+				AND doi.deleted_at IS NULL
+			), 0)
+		)`)}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -174,6 +190,7 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		Preload("BusinessUnit").
 		Preload("BusinessType").
 		Preload("DeliveryArea").
+		Preload("Items").
 		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
 		}).

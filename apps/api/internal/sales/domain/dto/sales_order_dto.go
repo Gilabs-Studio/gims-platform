@@ -60,6 +60,7 @@ type ListSalesOrdersRequest struct {
 	SalesRepID        string `form:"sales_rep_id"`
 	BusinessUnitID    string `form:"business_unit_id"`
 	SalesQuotationID  string `form:"sales_quotation_id"`
+	UnfulfilledOnly   bool   `form:"unfulfilled_only"`
 	SortBy            string `form:"sort_by"`
 	SortDir           string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
 }
@@ -85,6 +86,14 @@ type ConvertFromQuotationRequest struct {
 	CustomerPhone     string  `json:"customer_phone"`
 	CustomerEmail     string  `json:"customer_email"`
 	Notes             string  `json:"notes"`
+}
+
+// FulfillmentSummary represents the delivery fulfillment progress of a sales order
+type FulfillmentSummary struct {
+	TotalOrdered   float64 `json:"total_ordered"`
+	TotalDelivered float64 `json:"total_delivered"`
+	TotalPending   float64 `json:"total_pending"`
+	TotalRemaining float64 `json:"total_remaining"`
 }
 
 // SalesOrderResponse represents the response for a sales order
@@ -118,6 +127,7 @@ type SalesOrderResponse struct {
 	ReservedStock       bool                          `json:"reserved_stock"`
 	Status              string                        `json:"status"`
 	Notes               string                        `json:"notes"`
+	Fulfillment         *FulfillmentSummary           `json:"fulfillment,omitempty"`
 	CreatedBy           *string                       `json:"created_by"`
 	ConfirmedBy         *string                       `json:"confirmed_by"`
 	ConfirmedAt         *string                       `json:"confirmed_at"`
@@ -153,18 +163,19 @@ type CustomerInvoiceSummary struct {
 
 // SalesOrderItemResponse represents an item in the order response
 type SalesOrderItemResponse struct {
-	ID               string            `json:"id"`
-	SalesOrderID     string            `json:"sales_order_id"`
-	ProductID        string            `json:"product_id"`
-	Product          *ProductResponse  `json:"product,omitempty"`
-	Quantity         float64           `json:"quantity"`
-	Price            float64           `json:"price"`
-	Discount         float64           `json:"discount"`
-	Subtotal         float64           `json:"subtotal"`
-	ReservedQuantity float64           `json:"reserved_quantity"`
-	DeliveredQuantity float64          `json:"delivered_quantity"`
-	CreatedAt        string            `json:"created_at"`
-	UpdatedAt        string            `json:"updated_at"`
+	ID                      string            `json:"id"`
+	SalesOrderID            string            `json:"sales_order_id"`
+	ProductID               string            `json:"product_id"`
+	Product                 *ProductResponse  `json:"product,omitempty"`
+	Quantity                float64           `json:"quantity"`
+	Price                   float64           `json:"price"`
+	Discount                float64           `json:"discount"`
+	Subtotal                float64           `json:"subtotal"`
+	ReservedQuantity        float64           `json:"reserved_quantity"`
+	DeliveredQuantity       float64           `json:"delivered_quantity"`
+	PendingDeliveryQuantity float64           `json:"pending_delivery_quantity"`
+	CreatedAt               string            `json:"created_at"`
+	UpdatedAt               string            `json:"updated_at"`
 }
 
 // AreaResponse represents area in response
