@@ -1,0 +1,230 @@
+// ============================================
+// Customer Module Types
+// ============================================
+
+// === Customer Type ===
+export interface CustomerType {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCustomerTypeData {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateCustomerTypeData {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+// === Bank (reused from Supplier module) ===
+export interface Bank {
+  id: string;
+  name: string;
+  code: string;
+  swift_code?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// === Customer Phone Number ===
+export interface CustomerPhoneNumber {
+  id: string;
+  customer_id: string;
+  phone_number: string;
+  label?: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePhoneNumberData {
+  phone_number: string;
+  label?: string;
+  is_primary?: boolean;
+}
+
+export interface UpdatePhoneNumberData {
+  phone_number?: string;
+  label?: string;
+  is_primary?: boolean;
+}
+
+// === Customer Bank Account ===
+export interface CustomerBank {
+  id: string;
+  customer_id: string;
+  bank_id: string;
+  bank?: Bank;
+  account_number: string;
+  account_name: string;
+  branch?: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCustomerBankData {
+  bank_id: string;
+  account_number: string;
+  account_name: string;
+  branch?: string;
+  is_primary?: boolean;
+}
+
+export interface UpdateCustomerBankData {
+  bank_id?: string;
+  account_number?: string;
+  account_name?: string;
+  branch?: string;
+  is_primary?: boolean;
+}
+
+// === Customer Status ===
+export type CustomerStatus = "draft" | "pending" | "approved" | "rejected";
+
+// === Village (Nested from Geographic) ===
+export interface Village {
+  id: string;
+  name: string;
+  district?: {
+    id: string;
+    name: string;
+    city?: {
+      id: string;
+      name: string;
+      province?: {
+        id: string;
+        name: string;
+      };
+    };
+  };
+}
+
+// === Customer ===
+export interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  customer_type_id?: string;
+  customer_type?: CustomerType;
+  address?: string;
+  village_id?: string;
+  village?: Village;
+  email?: string;
+  website?: string;
+  npwp?: string;
+  contact_person?: string;
+  notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  status: CustomerStatus;
+  is_approved: boolean;
+  created_by?: string;
+  approved_by?: string;
+  approved_at?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  phone_numbers?: CustomerPhoneNumber[];
+  bank_accounts?: CustomerBank[];
+}
+
+export interface CreateCustomerData {
+  code: string;
+  name: string;
+  customer_type_id?: string;
+  address?: string;
+  village_id?: string;
+  email?: string;
+  website?: string;
+  npwp?: string;
+  contact_person?: string;
+  notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_active?: boolean;
+  phone_numbers?: CreatePhoneNumberData[];
+  bank_accounts?: CreateCustomerBankData[];
+}
+
+export interface UpdateCustomerData {
+  code?: string;
+  name?: string;
+  customer_type_id?: string;
+  address?: string;
+  village_id?: string;
+  email?: string;
+  website?: string;
+  npwp?: string;
+  contact_person?: string;
+  notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_active?: boolean;
+}
+
+export interface ApproveCustomerData {
+  action: "approve" | "reject";
+  reason?: string;
+}
+
+// === Form Data Response ===
+export interface CustomerFormDataResponse {
+  customer_types: CustomerType[];
+}
+
+// === API Response Types ===
+export interface CustomerListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+  customer_type_id?: string;
+  status?: CustomerStatus;
+  is_approved?: boolean;
+}
+
+export interface PaginationMeta {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface CustomerListResponse<T> {
+  success: boolean;
+  data: T[];
+  meta?: {
+    pagination?: PaginationMeta;
+    filters?: Record<string, unknown>;
+  };
+  error?: string;
+}
+
+export interface CustomerSingleResponse<T> {
+  success: boolean;
+  data: T;
+  meta?: Record<string, unknown>;
+  error?: string;
+}
+
+// === Common List Params ===
+export interface ListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}

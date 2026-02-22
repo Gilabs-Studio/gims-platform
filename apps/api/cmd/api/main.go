@@ -48,6 +48,7 @@ import (
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
+	customerPresentation "github.com/gilabs/gims/api/internal/customer/presentation"
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
@@ -273,6 +274,9 @@ func main() {
 
 		// Supplier module (Sprint 4)
 		supplierPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Customer module (Master Data)
+		customerPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Product module (Sprint 4)
 		productPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)

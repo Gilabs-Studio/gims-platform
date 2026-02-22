@@ -1,0 +1,345 @@
+"use client";
+
+import { useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { ButtonLoading } from "@/components/loading";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import {
+  useCreateCustomer,
+  useUpdateCustomer,
+  useCustomerFormData,
+} from "../../hooks/use-customers";
+import type { Customer } from "../../types";
+
+const formSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(200, "Name cannot exceed 200 characters"),
+  customer_type_id: z.string().optional(),
+  address: z.string().max(500, "Address cannot exceed 500 characters").optional(),
+  village_id: z.string().optional(),
+  email: z.string().email("Invalid email").max(100).optional().or(z.literal("")),
+  website: z.string().max(200).optional(),
+  npwp: z.string().max(30).optional(),
+  contact_person: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  is_active: z.boolean(),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface CustomerDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingItem: Customer | null;
+}
+
+export function CustomerDialog({
+  open,
+  onOpenChange,
+  editingItem,
+}: CustomerDialogProps) {
+  const t = useTranslations("customer.customer");
+  const tCommon = useTranslations("customer.common");
+  const tValidation = useTranslations("customer.validation");
+
+  const createMutation = useCreateCustomer();
+  const updateMutation = useUpdateCustomer();
+  const { data: formData } = useCustomerFormData();
+
+  const customerTypes = formData?.data?.customer_types ?? [];
+
+  const isEditing = !!editingItem;
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      customer_type_id: "",
+      address: "",
+      village_id: "",
+      email: "",
+      website: "",
+      npwp: "",
+      contact_person: "",
+      notes: "",
+      latitude: "",
+      longitude: "",
+      is_active: true,
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      if (editingItem) {
+        reset({
+          name: editingItem.name,
+          customer_type_id: editingItem.customer_type_id ?? "",
+          address: editingItem.address ?? "",
+          village_id: editingItem.village_id ?? "",
+          email: editingItem.email ?? "",
+          website: editingItem.website ?? "",
+          npwp: editingItem.npwp ?? "",
+          contact_person: editingItem.contact_person ?? "",
+          notes: editingItem.notes ?? "",
+          latitude: editingItem.latitude?.toString() ?? "",
+          longitude: editingItem.longitude?.toString() ?? "",
+          is_active: editingItem.is_active,
+        });
+      } else {
+        reset({
+          name: "",
+          customer_type_id: "",
+          address: "",
+          village_id: "",
+          email: "",
+          website: "",
+          npwp: "",
+          contact_person: "",
+          notes: "",
+          latitude: "",
+          longitude: "",
+          is_active: true,
+        });
+      }
+    }
+  }, [open, editingItem, reset]);
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      // Clean empty strings to undefined and convert lat/lng to numbers
+      const payload = {
+        ...data,
+        customer_type_id: data.customer_type_id || undefined,
+        village_id: data.village_id || undefined,
+        email: data.email || undefined,
+        website: data.website || undefined,
+        npwp: data.npwp || undefined,
+        contact_person: data.contact_person || undefined,
+        notes: data.notes || undefined,
+        address: data.address || undefined,
+        latitude: data.latitude ? Number(data.latitude) : null,
+        longitude: data.longitude ? Number(data.longitude) : null,
+      };
+
+      if (isEditing) {
+        await updateMutation.mutateAsync({
+          id: editingItem.id,
+          data: payload,
+        });
+        toast.success(t("updateSuccess"));
+      } else {
+        await createMutation.mutateAsync({
+          ...payload,
+          code: "", // Auto-generated by backend
+        });
+        toast.success(t("createSuccess"));
+      }
+      onOpenChange(false);
+    } catch {
+      toast.error(isEditing ? tCommon("error_update") : "Failed to create customer");
+    }
+  };
+
+  const isActive = watch("is_active");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {isEditing ? t("editTitle") : t("createTitle")}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Tabs defaultValue="general" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="general" className="cursor-pointer">
+                {t("sections.general")}
+              </TabsTrigger>
+              <TabsTrigger value="financial" className="cursor-pointer">
+                {t("sections.financial")}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* General Tab */}
+            <TabsContent value="general" className="space-y-4 pt-4">
+              <Field>
+                <FieldLabel>{t("form.name")}</FieldLabel>
+                <Input
+                  placeholder={t("form.namePlaceholder")}
+                  {...register("name")}
+                />
+                {errors.name && <FieldError>{tValidation("nameRequired")}</FieldError>}
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("form.customerType")}</FieldLabel>
+                <Select
+                  value={watch("customer_type_id") ?? ""}
+                  onValueChange={(val) => setValue("customer_type_id", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("form.customerTypePlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customerTypes.map((ct) => (
+                      <SelectItem key={ct.id} value={ct.id}>
+                        {ct.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("form.address")}</FieldLabel>
+                <Textarea
+                  placeholder={t("form.addressPlaceholder")}
+                  className="resize-none"
+                  {...register("address")}
+                />
+                {errors.address && <FieldError>{tValidation("addressMaxLength")}</FieldError>}
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel>{t("form.latitude")}</FieldLabel>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="-6.2088"
+                    {...register("latitude")}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>{t("form.longitude")}</FieldLabel>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="106.8456"
+                    {...register("longitude")}
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel>{t("form.notes")}</FieldLabel>
+                <Textarea
+                  placeholder={t("form.notesPlaceholder")}
+                  className="resize-none"
+                  {...register("notes")}
+                />
+              </Field>
+            </TabsContent>
+
+            {/* Financial & Contact Tab */}
+            <TabsContent value="financial" className="space-y-4 pt-4">
+              <Field>
+                <FieldLabel>{t("form.contactPerson")}</FieldLabel>
+                <Input
+                  placeholder={t("form.contactPersonPlaceholder")}
+                  {...register("contact_person")}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("form.email")}</FieldLabel>
+                <Input
+                  type="email"
+                  placeholder={t("form.emailPlaceholder")}
+                  {...register("email")}
+                />
+                {errors.email && <FieldError>{tValidation("emailInvalid")}</FieldError>}
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("form.website")}</FieldLabel>
+                <Input
+                  placeholder={t("form.websitePlaceholder")}
+                  {...register("website")}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("form.npwp")}</FieldLabel>
+                <Input
+                  placeholder={t("form.npwpPlaceholder")}
+                  {...register("npwp")}
+                />
+              </Field>
+            </TabsContent>
+          </Tabs>
+
+          <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <FieldLabel>{t("form.isActive")}</FieldLabel>
+              <p className="text-sm text-muted-foreground">
+                {tCommon("active")} / {tCommon("inactive")} status
+              </p>
+            </div>
+            <Switch
+              checked={isActive}
+              onCheckedChange={(val) => setValue("is_active", val)}
+              className="cursor-pointer"
+            />
+          </Field>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+              className="cursor-pointer"
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="cursor-pointer"
+            >
+              <ButtonLoading loading={isSubmitting} loadingText="Saving...">
+                {isEditing ? tCommon("save") : tCommon("create")}
+              </ButtonLoading>
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

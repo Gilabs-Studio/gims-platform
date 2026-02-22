@@ -9,6 +9,7 @@ import (
 	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -89,6 +90,11 @@ func AutoMigrate() error {
 		&supplier.Supplier{},
 		&supplier.SupplierPhoneNumber{},
 		&supplier.SupplierBank{},
+		// Customer entities (Master Data)
+		&customer.CustomerType{},
+		&customer.Customer{},
+		&customer.CustomerPhoneNumber{},
+		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},
 		&product.ProductBrand{},

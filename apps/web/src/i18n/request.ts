@@ -20,6 +20,8 @@ import { employeeEn } from "@/features/master-data/employee/i18n/en";
 import { employeeId } from "@/features/master-data/employee/i18n/id";
 import { supplierEn } from "@/features/master-data/supplier/i18n/en";
 import { supplierId } from "@/features/master-data/supplier/i18n/id";
+import { customerEn } from "@/features/master-data/customer/i18n/en";
+import { customerId } from "@/features/master-data/customer/i18n/id";
 import { productEn } from "@/features/master-data/product/i18n/en";
 import { productId } from "@/features/master-data/product/i18n/id";
 import { warehouseEn } from "@/features/master-data/warehouse/i18n/en";
@@ -131,6 +133,7 @@ const messages = {
     organization: organizationEn,
     employee: employeeEn,
     supplier: supplierEn,
+    customer: customerEn,
     product: productEn,
     warehouse: warehouseEn,
     paymentTerm: paymentTermEn,
@@ -189,6 +192,7 @@ const messages = {
     organization: organizationId,
     employee: employeeId,
     supplier: supplierId,
+    customer: customerId,
     product: productId,
     warehouse: warehouseId,
     paymentTerm: paymentTermId,
