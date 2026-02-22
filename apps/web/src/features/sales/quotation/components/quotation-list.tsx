@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
@@ -26,6 +27,7 @@ import { EmployeeDetailModal } from "@/features/master-data/employee/components/
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import { useConvertQuotationToOrder } from "@/features/sales/order/hooks/use-orders";
 import type { SalesOrder } from "@/features/sales/order/types";
 
 export function QuotationList() {
@@ -65,8 +67,10 @@ export function QuotationList() {
 
   const deleteQuotation = useDeleteQuotation();
   const updateStatus = useUpdateQuotationStatus();
+  const convertToOrder = useConvertQuotationToOrder();
   const quotations = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const canCreateOrder = useUserPermission("sales_order.create");
 
   const handleEdit = (quotation: SalesQuotation) => {
     setEditingQuotation(quotation);
@@ -338,6 +342,40 @@ export function QuotationList() {
                                 </DropdownMenuItem>
                               )}
                             </>
+                          )}
+                          {quotation.status === "approved" && canCreateOrder && (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                try {
+                                  const res = await convertToOrder.mutateAsync({
+                                    quotation_id: quotation.id,
+                                  });
+                                  toast.success(t("status.converted"));
+                                  // open the created Sales Order detail modal
+                                  setSelectedOrderId(res.data.id);
+                                } catch (err: unknown) {
+                                  console.error("Failed to convert quotation:", err);
+                                  if (isAxiosError(err)) {
+                                    const status = err.response?.status;
+                                    if (status === 404) {
+                                      toast.error(
+                                        t("common.error") + " - Convert endpoint not found (404)."
+                                      );
+                                    } else if (status === 403) {
+                                      toast.error(t("common.forbidden") ?? t("common.error"));
+                                    } else {
+                                      toast.error(t("common.error"));
+                                    }
+                                  } else {
+                                    toast.error(t("common.error"));
+                                  }
+                                }
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("convertToOrder")}
+                            </DropdownMenuItem>
                           )}
                           {canDelete && quotation.status === "draft" && (
                             <DropdownMenuItem
