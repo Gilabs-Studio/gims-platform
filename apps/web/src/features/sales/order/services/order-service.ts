@@ -81,7 +81,7 @@ export const orderService = {
     data: ConvertQuotationToOrderData
   ): Promise<SalesOrderSingleResponse> {
     const response = await apiClient.post<SalesOrderSingleResponse>(
-      `${BASE_PATH}/convert-quotation`,
+      `${BASE_PATH}/convert-from-quotation`,
       data
     );
     return response.data;

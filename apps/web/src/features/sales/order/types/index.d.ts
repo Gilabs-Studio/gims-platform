@@ -217,8 +217,7 @@ export interface UpdateSalesOrderStatusData {
 }
 
 export interface ConvertQuotationToOrderData {
-  sales_quotation_id: string;
-  order_date: string;
+  quotation_id: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;
