@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Package, Truck, PieChart, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Package, Truck, PieChart, Clock, XCircle, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface OrderStatusBadgeProps {
@@ -16,6 +16,27 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
         <Badge variant="secondary" className={className}>
           <Clock className="h-3 w-3 mr-1.5" />
           {t("draft")}
+        </Badge>
+      );
+    case "sent":
+      return (
+        <Badge variant="warning" className={className}>
+          <Send className="h-3 w-3 mr-1.5" />
+          {t("pending")}
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge variant="success" className={className}>
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
+          {t("approved")}
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("rejected")}
         </Badge>
       );
     case "confirmed":

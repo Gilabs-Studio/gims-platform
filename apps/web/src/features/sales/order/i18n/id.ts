@@ -50,6 +50,10 @@ export const orderId = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Menunggu Persetujuan",
+      pending: "Menunggu Persetujuan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       confirmed: "Dikonfirmasi",
       processing: "Diproses",
       shipped: "Dikirim",
@@ -73,6 +77,8 @@ export const orderId = {
     code: "Kode Pesanan",
     orderDate: "Tanggal Pesanan",
     salesQuotation: "Penawaran Penjualan",
+    salesQuotations: "Penawaran Penjualan",
+    invoice: "Faktur",
     quotation: "Penawaran",
     paymentTerms: "Syarat Pembayaran",
     salesRep: "Sales Representative",
@@ -131,6 +137,9 @@ export const orderId = {
 
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       confirm: "Konfirmasi",
       cancel: "Batalkan Pesanan",
       convert: "Konversi dari Penawaran",

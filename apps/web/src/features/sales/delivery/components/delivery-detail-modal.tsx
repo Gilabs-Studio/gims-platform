@@ -29,6 +29,10 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useDeliveryDetail } from "../hooks/use-delivery-detail";
+import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import type { SalesOrder } from "../../order/types";
+import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -60,6 +64,14 @@ export function DeliveryDetailModal({
   const canDelete = useUserPermission("delivery_order.delete");
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
+
+  const {
+    canViewProduct,
+    canViewSalesOrder,
+    isProductOpen, setIsProductOpen, selectedProductId,
+    isSalesOrderOpen, setIsSalesOrderOpen, selectedSalesOrderId,
+    openProduct, openSalesOrder,
+  } = useDeliveryDetail();
 
   if (!delivery) return null;
 
@@ -218,7 +230,16 @@ export function DeliveryDetailModal({
                         <TableCell>{getStatusBadge(displayDelivery.status)}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("salesOrder")}</TableCell>
                         <TableCell>
-                          {displayDelivery.sales_order_id ?? "-"}
+                          {canViewSalesOrder && displayDelivery.sales_order_id ? (
+                            <button
+                              onClick={() => openSalesOrder(displayDelivery.sales_order_id)}
+                              className="text-primary hover:underline cursor-pointer text-left"
+                            >
+                              {displayDelivery.sales_order?.code ?? displayDelivery.sales_order_id}
+                            </button>
+                          ) : (
+                            <span>{displayDelivery.sales_order?.code ?? displayDelivery.sales_order_id ?? "-"}</span>
+                          )}
                         </TableCell>
                       </TableRow>
                       {displayDelivery.tracking_number && (
@@ -253,7 +274,18 @@ export function DeliveryDetailModal({
                               <TableCell className="font-medium bg-muted/50 w-48">{t("receiverName")}</TableCell>
                               <TableCell>{displayDelivery.receiver_name ?? "-"}</TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("receiverPhone")}</TableCell>
-                              <TableCell>{displayDelivery.receiver_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayDelivery.receiver_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayDelivery.receiver_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayDelivery.receiver_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("receiverAddress")}</TableCell>
@@ -317,12 +349,24 @@ export function DeliveryDetailModal({
                           paginatedItems.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                  {item.product?.code && (
-                                    <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                  )}
-                                </div>
+                                {canViewProduct && item.product ? (
+                                  <button
+                                    onClick={() => openProduct(item.product?.id)}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    <p className="font-medium">{item.product.name}</p>
+                                    {item.product.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                    {item.product?.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
                               <TableCell className="text-right font-medium">{item.quantity}</TableCell>
@@ -406,6 +450,18 @@ export function DeliveryDetailModal({
           />
         </>
       )}
+
+      <OrderDetailModal
+        open={isSalesOrderOpen}
+        onClose={() => setIsSalesOrderOpen(false)}
+        order={selectedSalesOrderId ? { id: selectedSalesOrderId } as unknown as SalesOrder : null}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
+      />
     </>
   );
 }

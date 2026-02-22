@@ -53,6 +53,7 @@ export const quotationId = {
     status: {
       draft: "Draft",
       sent: "Terkirim",
+      pending: "Menunggu Persetujuan",
       approved: "Disetujui",
       rejected: "Ditolak",
       converted: "Dikonversi",
@@ -145,5 +146,10 @@ export const quotationId = {
     rejectedAt: "Ditolak Pada",
     convertedAt: "Dikonversi Pada",
     rejectionReason: "Alasan Penolakan",
+
+    // WhatsApp
+    whatsapp: {
+      greeting: "Halo, terkait penawaran",
+    },
   },
 };

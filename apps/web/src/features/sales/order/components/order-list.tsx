@@ -5,20 +5,25 @@ import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { OrderStatusBadge } from "./order-status-badge";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart } from "lucide-react";
-import { useOrders, useDeleteOrder, useUpdateOrderStatus } from "../hooks/use-orders";
+import { DOStatusBadge } from "./do-status-badge";
+import { InvoiceStatusBadge } from "./invoice-status-badge";
+import { DOLinkedDialog } from "./do-linked-dialog";
+import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send } from "lucide-react";
+import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency } from "@/lib/utils";
@@ -49,9 +54,18 @@ export function OrderList() {
   const canUpdate = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
   const canView = useUserPermission("sales_order.read");
+  const canApprove = useUserPermission("sales_order.approve");
+  const canViewEmployee = useUserPermission("employee.read");
+  const canViewSalesQuotation = useUserPermission("sales_quotation.read");
+
+  const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
+  const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
+  const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
+  const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
+  const approveOrder = useApproveOrder();
   const orders = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -140,6 +154,9 @@ export function OrderList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
+            <SelectItem value="sent">{t("status.pending")}</SelectItem>
+            <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="confirmed">{t("status.confirmed")}</SelectItem>
             <SelectItem value="processing">{t("status.processing")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
@@ -166,6 +183,8 @@ export function OrderList() {
               <TableHead>{t("salesQuotations") || "Sales Quotation"}</TableHead>
               <TableHead>{t("salesRep")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
+              <TableHead>DO</TableHead>
+              <TableHead>{t("invoice") || "Invoice"}</TableHead>
               <TableHead>{t("totalAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
@@ -178,13 +197,16 @@ export function OrderList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell />
                 </TableRow>
               ))
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -200,7 +222,7 @@ export function OrderList() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {order.sales_quotation ? (
+                    {order.sales_quotation && canViewSalesQuotation ? (
                       <button
                         onClick={() => setViewingQuotation(order.sales_quotation!)}
                         className="font-medium text-primary hover:underline cursor-pointer"
@@ -208,11 +230,71 @@ export function OrderList() {
                         {order.sales_quotation.code}
                       </button>
                     ) : (
-                      "-"
+                      <span>{order.sales_quotation?.code ?? "-"}</span>
                     )}
                   </TableCell>
-                  <TableCell>{order.sales_rep?.name ?? "-"}</TableCell>
-                  <TableCell><OrderStatusBadge status={order.status} className="text-xs font-medium" /></TableCell>
+                  <TableCell>
+                    {order.sales_rep && canViewEmployee ? (
+                      <button
+                        onClick={() => {
+                          setSelectedSalesRepId(order.sales_rep!.id);
+                          setIsSalesRepOpen(true);
+                        }}
+                        className="text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {order.sales_rep.name}
+                      </button>
+                    ) : (
+                      <span>{order.sales_rep?.name ?? "-"}</span>
+                    )}
+                  </TableCell>
+                  {/* SO Status */}
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} className="text-xs font-medium" />
+                  </TableCell>
+
+                  {/* DO Status — shows actual status from embedded summary, click to open dialog */}
+                  <TableCell>
+                    {order.delivery_orders && order.delivery_orders.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setDoDialogOrder(order)}
+                        className="cursor-pointer"
+                        title={`${order.delivery_orders.length} Delivery Order(s)`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          {order.delivery_orders.length > 1 && (
+                            <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
+                          )}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+
+                  {/* Invoice Status — shows actual status from embedded summary, click to open dialog */}
+                  <TableCell>
+                    {order.customer_invoices && order.customer_invoices.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceDialogOrder(order)}
+                        className="cursor-pointer"
+                        title={`${order.customer_invoices.length} Invoice(s)`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          {order.customer_invoices.length > 1 && (
+                            <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
+                          )}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+
                   <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
@@ -237,12 +319,34 @@ export function OrderList() {
                           )}
                           {canUpdate && order.status === "draft" && (
                             <DropdownMenuItem
-                              onClick={() => handleStatusChange(order.id, "confirmed")}
+                              onClick={() => handleStatusChange(order.id, "sent")}
                               className="cursor-pointer"
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.confirm")}
+                              <Send className="h-4 w-4 mr-2" />
+                              {t("actions.send")}
                             </DropdownMenuItem>
+                          )}
+                          {order.status === "sent" && (
+                            <>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(order.id, "rejected")}
+                                  className="cursor-pointer text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
+                            </>
                           )}
                           {canUpdate && order.status !== "cancelled" && order.status !== "delivered" && (
                             <DropdownMenuItem
@@ -319,6 +423,32 @@ export function OrderList() {
           open={!!viewingQuotation}
           onClose={() => setViewingQuotation(null)}
           quotation={viewingQuotation}
+        />
+      )}
+
+      <EmployeeDetailModal
+        open={isSalesRepOpen}
+        onOpenChange={setIsSalesRepOpen}
+        employee={selectedSalesRepId ? { id: selectedSalesRepId } as unknown as MdEmployee : null}
+      />
+
+      {/* DO dialog — lazy-fetches DOs for the selected SO */}
+      {doDialogOrder && (
+        <DOLinkedDialog
+          salesOrderId={doDialogOrder.id}
+          salesOrderCode={doDialogOrder.code}
+          open={!!doDialogOrder}
+          onOpenChange={(open) => { if (!open) setDoDialogOrder(null); }}
+        />
+      )}
+
+      {/* Invoice dialog — lazy-fetches Invoices for the selected SO */}
+      {invoiceDialogOrder && (
+        <InvoiceLinkedDialog
+          salesOrderId={invoiceDialogOrder.id}
+          salesOrderCode={invoiceDialogOrder.code}
+          open={!!invoiceDialogOrder}
+          onOpenChange={(open) => { if (!open) setInvoiceDialogOrder(null); }}
         />
       )}
     </div>

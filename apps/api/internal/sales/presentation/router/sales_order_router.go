@@ -1,9 +1,9 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/sales/presentation/handler"
+	"github.com/gin-gonic/gin"
 )
 
 // RegisterSalesOrderRoutes registers sales order routes
@@ -17,4 +17,5 @@ func RegisterSalesOrderRoutes(rg *gin.RouterGroup, h *handler.SalesOrderHandler)
 	g.PUT("/:id", middleware.RequirePermission("sales_order.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("sales_order.delete"), h.Delete)
 	g.PATCH("/:id/status", middleware.RequirePermission("sales_order.update"), h.UpdateStatus)
+	g.POST("/:id/approve", middleware.RequirePermission("sales_order.approve"), h.Approve)
 }

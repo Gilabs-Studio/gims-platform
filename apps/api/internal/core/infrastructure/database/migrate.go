@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -188,6 +189,11 @@ func AutoMigrate() error {
 		&purchase.SupplierInvoice{},
 		&purchase.SupplierInvoiceItem{},
 		&purchase.PurchasePayment{},
+		// AI Assistant entities
+		&ai.AIChatSession{},
+		&ai.AIChatMessage{},
+		&ai.AIActionLog{},
+		&ai.AIIntentRegistry{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

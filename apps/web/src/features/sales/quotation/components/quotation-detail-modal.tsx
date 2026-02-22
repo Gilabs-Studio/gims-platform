@@ -13,7 +13,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useQuotationDetail } from "../hooks/use-quotation-detail";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
+import { QuotationProductDetailModal } from "./quotation-product-detail-modal";
 import { QuotationForm } from "./quotation-form";
 import {
   useDeleteQuotation,
@@ -64,12 +68,26 @@ export function QuotationDetailModal({
   const canReject = useUserPermission("sales_quotation.reject");
   const canConvert = useUserPermission("sales_quotation.convert");
 
+  const {
+    canViewEmployee,
+    canViewProduct,
+    isEmployeeOpen,
+    setIsEmployeeOpen,
+    selectedEmployee,
+    isProductOpen,
+    setIsProductOpen,
+    selectedProductId,
+    openEmployee,
+    openProduct,
+    formatWhatsAppLink,
+  } = useQuotationDetail();
+
   if (!quotation) return null;
 
   const displayQuotation = detailData?.data ?? quotation;
   const items = itemsData?.data ?? [];
   const itemsPagination = itemsData?.meta?.pagination;
-  
+
   const totalItems = itemsPagination?.total ?? 0;
 
   const getStatusBadge = (status?: string) => {
@@ -82,12 +100,12 @@ export function QuotationDetailModal({
           </Badge>
         );
       case "sent":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.sent")}
-          </Badge>
-        );
+          return (
+            <Badge variant="warning" className="text-xs font-medium">
+              <Send className="h-3 w-3 mr-1.5" />
+              {t("status.pending")}
+            </Badge>
+          );
       case "approved":
         return (
           <Badge variant="success" className="text-xs font-medium">
@@ -259,7 +277,7 @@ export function QuotationDetailModal({
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
-                
+
                 {/* Main Information Table */}
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
@@ -268,24 +286,35 @@ export function QuotationDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayQuotation.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("quotationDate")}</TableCell>
-                        <TableCell>{new Date(displayQuotation.quotation_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{displayQuotation.quotation_date ? new Date(displayQuotation.quotation_date).toLocaleDateString() : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
                         <TableCell>{getStatusBadge(displayQuotation.status)}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("validUntil")}</TableCell>
-                        <TableCell>
-                          {displayQuotation.valid_until 
-                            ? new Date(displayQuotation.valid_until).toLocaleDateString() 
-                            : "-"}
-                        </TableCell>
+                        <TableCell>{displayQuotation.valid_until ? new Date(displayQuotation.valid_until).toLocaleDateString() : "-"}</TableCell>
                       </TableRow>
                       {displayQuotation.payment_terms && (
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>
                           <TableCell>{displayQuotation.payment_terms.name}</TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("salesRep")}</TableCell>
-                          <TableCell>{displayQuotation.sales_rep?.name ?? "-"}</TableCell>
+                          <TableCell>
+                            {displayQuotation.sales_rep ? (
+                              canViewEmployee ? (
+                                <button
+                                  onClick={() => openEmployee(displayQuotation.sales_rep)}
+                                  className="text-primary hover:underline cursor-pointer text-left"
+                                >
+                                  {displayQuotation.sales_rep.name}
+                                </button>
+                              ) : (
+                                <span>{displayQuotation.sales_rep.name}</span>
+                              )
+                            ) : (
+                              <span>-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       )}
                       {displayQuotation.business_unit && (
@@ -307,7 +336,7 @@ export function QuotationDetailModal({
                 </div>
 
                 {/* Customer Information Table */}
-                {(displayQuotation.customer_name || displayQuotation.customer_contact || 
+                {(displayQuotation.customer_name || displayQuotation.customer_contact ||
                   displayQuotation.customer_phone || displayQuotation.customer_email) && (
                   <>
                     <Separator />
@@ -324,9 +353,21 @@ export function QuotationDetailModal({
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayQuotation.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayQuotation.customer_phone ? (
+                                  <a href={formatWhatsAppLink(displayQuotation.customer_phone)} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                    {displayQuotation.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayQuotation.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayQuotation.customer_email ? (
+                                  <a href={`mailto:${displayQuotation.customer_email}`} className="text-primary hover:underline">
+                                    {displayQuotation.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -349,15 +390,11 @@ export function QuotationDetailModal({
                         {displayQuotation.discount_amount > 0 && (
                           <TableRow>
                             <TableCell className="font-medium bg-muted/50">{t("discountAmount")}</TableCell>
-                            <TableCell className="text-right text-destructive">
-                              -{formatCurrency(displayQuotation.discount_amount)}
-                            </TableCell>
+                            <TableCell className="text-right text-destructive">-{formatCurrency(displayQuotation.discount_amount)}</TableCell>
                           </TableRow>
                         )}
                         <TableRow>
-                          <TableCell className="font-medium bg-muted/50">
-                            {t("taxAmount")} ({displayQuotation.tax_rate}%)
-                          </TableCell>
+                          <TableCell className="font-medium bg-muted/50">{t("taxAmount")} ({displayQuotation.tax_rate}%)</TableCell>
                           <TableCell className="text-right">{formatCurrency(displayQuotation.tax_amount)}</TableCell>
                         </TableRow>
                         {displayQuotation.delivery_cost > 0 && (
@@ -374,9 +411,7 @@ export function QuotationDetailModal({
                         )}
                         <TableRow className="border-t-2">
                           <TableCell className="font-bold bg-muted">{t("totalAmount")}</TableCell>
-                          <TableCell className="text-right font-bold text-lg">
-                            {formatCurrency(displayQuotation.total_amount)}
-                          </TableCell>
+                          <TableCell className="text-right font-bold text-lg">{formatCurrency(displayQuotation.total_amount)}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -456,19 +491,29 @@ export function QuotationDetailModal({
                             items.map((item) => (
                               <TableRow key={item.id}>
                                 <TableCell>
-                                  <div>
-                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                    {item.product?.code && (
-                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                    )}
-                                  </div>
+                                  {item.product && canViewProduct ? (
+                                    <button
+                                      onClick={() => openProduct(item.product?.id)}
+                                      className="text-primary hover:underline cursor-pointer text-left"
+                                    >
+                                      <p className="font-medium">{item.product.name}</p>
+                                      {item.product.code && (
+                                        <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <div>
+                                      <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                      {item.product?.code && (
+                                        <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                      )}
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.discount ?? 0)}</TableCell>
-                                <TableCell className="text-right font-medium">
-                                  {formatCurrency(item.subtotal)}
-                                </TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
                               </TableRow>
                             ))
                           )}
@@ -495,6 +540,18 @@ export function QuotationDetailModal({
           )}
         </DialogContent>
       </Dialog>
+
+      <EmployeeDetailModal
+        open={isEmployeeOpen}
+        onOpenChange={setIsEmployeeOpen}
+        employee={selectedEmployee as unknown as MdEmployee}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
+      />
 
       {quotation && (
         <QuotationForm

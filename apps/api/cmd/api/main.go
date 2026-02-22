@@ -61,6 +61,9 @@ import (
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
+
+	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 )
 
 func initInfrastructure() {
@@ -288,10 +291,10 @@ func main() {
 		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
 
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// HRD module (Sprint 13 - Attendance)
-		hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
@@ -300,6 +303,21 @@ func main() {
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
+
+		// AI Assistant module
+		cerebrasClient := cerebras.NewClient(
+			config.AppConfig.Cerebras.BaseURL,
+			config.AppConfig.Cerebras.APIKey,
+			config.AppConfig.Cerebras.Model,
+		)
+		aiPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, cerebrasClient, &aiPresentation.AIDeps{
+			HolidayUC:        hrdDeps.HolidayUC,
+			LeaveRequestUC:   hrdDeps.LeaveRequestUC,
+			AttendanceUC:     hrdDeps.AttendanceUC,
+			SalesQuotationUC: salesDeps.QuotationUC,
+			SalesOrderUC:     salesDeps.OrderUC,
+			InventoryUC:      invUC,
+		})
 	}
 
 	// Run server with explicit timeouts and graceful shutdown

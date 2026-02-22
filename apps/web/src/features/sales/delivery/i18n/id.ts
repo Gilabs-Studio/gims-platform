@@ -53,6 +53,10 @@ export const deliveryId = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Menunggu Persetujuan",
+      pending: "Menunggu Persetujuan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       prepared: "Disiapkan",
       shipped: "Dikirim",
       delivered: "Terkirim",
@@ -65,6 +69,7 @@ export const deliveryId = {
     code: "Kode Surat Jalan",
     deliveryDate: "Tanggal Pengiriman",
     salesOrder: "Pesanan Penjualan",
+    type: "Tipe",
     warehouse: "Gudang",
     deliveredBy: "Dikirim Oleh",
     courier: "Kurir",
@@ -77,6 +82,8 @@ export const deliveryId = {
     deliveryAddress: "Alamat Pengiriman",
     receiverSignature: "Tanda Tangan Penerima",
     isPartialDelivery: "Pengiriman Sebagian",
+    full: "Penuh",
+    partial: "Sebagian",
     summary: "Ringkasan",
     notes: "Catatan",
     items: "Item",
@@ -88,6 +95,7 @@ export const deliveryId = {
     edit: "Ubah Surat Jalan",
     delete: "Hapus Surat Jalan",
     notFound: "Tidak ada surat jalan ditemukan",
+    forbidden: "Anda tidak memiliki izin untuk melihat surat jalan",
     noItems: "Tidak ada item",
     unknownProduct: "Tidak ada produk dipilih",
     created: "Surat jalan berhasil dibuat",
@@ -117,6 +125,9 @@ export const deliveryId = {
 
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       prepare: "Siapkan",
       ship: "Kirim",
       deliver: "Tandai sebagai Terkirim",

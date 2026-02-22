@@ -27,6 +27,10 @@ import { formatCurrency } from "@/lib/utils";
 import type { SalesEstimation } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useEstimationDetail } from "../hooks/use-estimation-detail";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
+import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 
 interface EstimationDetailModalProps {
   readonly open: boolean;
@@ -55,6 +59,14 @@ export function EstimationDetailModal({
   const canDelete = useUserPermission("sales_estimation.delete");
   const canApprove = useUserPermission("sales_estimation.approve");
   const canReject = useUserPermission("sales_estimation.reject");
+
+  const {
+    canViewEmployee,
+    canViewProduct,
+    isEmployeeOpen, setIsEmployeeOpen, selectedEmployeeId,
+    isProductOpen, setIsProductOpen, selectedProductId,
+    openEmployee, openProduct,
+  } = useEstimationDetail();
 
   if (!estimation) return null;
 
@@ -248,7 +260,18 @@ export function EstimationDetailModal({
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("salesRep")}</TableCell>
-                        <TableCell>{displayEstimation.sales_rep?.name ?? "-"}</TableCell>
+                        <TableCell>
+                          {canViewEmployee && displayEstimation.sales_rep ? (
+                            <button
+                              onClick={() => openEmployee(displayEstimation.sales_rep?.id)}
+                              className="text-primary hover:underline cursor-pointer text-left"
+                            >
+                              {displayEstimation.sales_rep.name}
+                            </button>
+                          ) : (
+                            <span>{displayEstimation.sales_rep?.name ?? "-"}</span>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48"></TableCell>
                         <TableCell></TableCell>
                       </TableRow>
@@ -288,9 +311,26 @@ export function EstimationDetailModal({
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayEstimation.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayEstimation.customer_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayEstimation.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayEstimation.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayEstimation.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayEstimation.customer_email ? (
+                                  <a href={`mailto:${displayEstimation.customer_email}`} className="text-primary hover:underline">
+                                    {displayEstimation.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -414,12 +454,24 @@ export function EstimationDetailModal({
                           paginatedItems.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                  {item.product?.code && (
-                                    <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                  )}
-                                </div>
+                                {canViewProduct && item.product ? (
+                                  <button
+                                    onClick={() => openProduct(item.product?.id)}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    <p className="font-medium">{item.product.name}</p>
+                                    {item.product.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                    {item.product?.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
                               <TableCell className="text-right">{formatCurrency(item.estimated_price)}</TableCell>
@@ -470,6 +522,18 @@ export function EstimationDetailModal({
         title={t("delete")}
         description={t("deleteDesc")}
         isLoading={deleteEstimation.isPending}
+      />
+
+      <EmployeeDetailModal
+        open={isEmployeeOpen}
+        onOpenChange={setIsEmployeeOpen}
+        employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
       />
     </>
   );

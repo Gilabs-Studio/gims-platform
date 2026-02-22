@@ -221,7 +221,7 @@ export function WarehouseSidePanel({
         side="right"
         defaultWidth={550}
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20 p-4">
           {/* Basic Information Section */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium border-b pb-2">

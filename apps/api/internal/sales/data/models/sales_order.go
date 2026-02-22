@@ -14,13 +14,16 @@ import (
 type SalesOrderStatus string
 
 const (
-	SalesOrderStatusDraft     SalesOrderStatus = "draft"
-	SalesOrderStatusConfirmed SalesOrderStatus = "confirmed"
+	SalesOrderStatusDraft      SalesOrderStatus = "draft"
+	SalesOrderStatusSent       SalesOrderStatus = "sent"
+	SalesOrderStatusApproved   SalesOrderStatus = "approved"
+	SalesOrderStatusRejected   SalesOrderStatus = "rejected"
+	SalesOrderStatusConfirmed  SalesOrderStatus = "confirmed"
 	SalesOrderStatusProcessing SalesOrderStatus = "processing"
-	SalesOrderStatusPartial   SalesOrderStatus = "partial"
-	SalesOrderStatusShipped   SalesOrderStatus = "shipped"
-	SalesOrderStatusDelivered SalesOrderStatus = "delivered"
-	SalesOrderStatusCancelled SalesOrderStatus = "cancelled"
+	SalesOrderStatusPartial    SalesOrderStatus = "partial"
+	SalesOrderStatusShipped    SalesOrderStatus = "shipped"
+	SalesOrderStatusDelivered  SalesOrderStatus = "delivered"
+	SalesOrderStatusCancelled  SalesOrderStatus = "cancelled"
 )
 
 // SalesOrder represents a sales order document
@@ -84,7 +87,9 @@ type SalesOrder struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 	
 	// Relations
-	Items          []SalesOrderItem `gorm:"foreignKey:SalesOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	Items           []SalesOrderItem   `gorm:"foreignKey:SalesOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	DeliveryOrders  []DeliveryOrder    `gorm:"foreignKey:SalesOrderID" json:"delivery_orders,omitempty"`
+	CustomerInvoices []CustomerInvoice `gorm:"foreignKey:SalesOrderID" json:"customer_invoices,omitempty"`
 }
 
 // TableName specifies the table name for SalesOrder

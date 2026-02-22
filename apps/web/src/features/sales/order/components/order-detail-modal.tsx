@@ -27,6 +27,12 @@ import { formatCurrency } from "@/lib/utils";
 import type { SalesOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useOrderDetail } from "../hooks/use-order-detail";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
+import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
+import type { SalesQuotation } from "../../quotation/types";
+import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -55,6 +61,16 @@ export function OrderDetailModal({
   const canDelete = useUserPermission("sales_order.delete");
   const canConfirm = useUserPermission("sales_order.confirm");
   const canCancel = useUserPermission("sales_order.cancel");
+
+  const {
+    canViewEmployee,
+    canViewProduct,
+    canViewSalesQuotation,
+    isEmployeeOpen, setIsEmployeeOpen, selectedEmployeeId,
+    isProductOpen, setIsProductOpen, selectedProductId,
+    isQuotationOpen, setIsQuotationOpen, selectedQuotationId,
+    openEmployee, openProduct, openQuotation,
+  } = useOrderDetail();
 
   if (!order) return null;
 
@@ -250,7 +266,16 @@ export function OrderDetailModal({
                         <TableCell>{getStatusBadge(displayOrder.status)}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("salesQuotation")}</TableCell>
                         <TableCell>
-                          {displayOrder.sales_quotation_id ?? "-"}
+                          {canViewSalesQuotation && displayOrder.sales_quotation_id ? (
+                            <button
+                              onClick={() => openQuotation(displayOrder.sales_quotation_id)}
+                              className="text-primary hover:underline cursor-pointer text-left"
+                            >
+                              {displayOrder.sales_quotation?.code ?? displayOrder.sales_quotation_id}
+                            </button>
+                          ) : (
+                            <span>{displayOrder.sales_quotation?.code ?? displayOrder.sales_quotation_id ?? "-"}</span>
+                          )}
                         </TableCell>
                       </TableRow>
                       {displayOrder.payment_terms && (
@@ -258,7 +283,18 @@ export function OrderDetailModal({
                           <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>
                           <TableCell>{displayOrder.payment_terms.name}</TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("salesRep")}</TableCell>
-                          <TableCell>{displayOrder.sales_rep?.name ?? "-"}</TableCell>
+                          <TableCell>
+                            {canViewEmployee && displayOrder.sales_rep ? (
+                              <button
+                                onClick={() => openEmployee(displayOrder.sales_rep?.id)}
+                                className="text-primary hover:underline cursor-pointer text-left"
+                              >
+                                {displayOrder.sales_rep.name}
+                              </button>
+                            ) : (
+                              <span>{displayOrder.sales_rep?.name ?? "-"}</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       )}
                       {displayOrder.business_unit && (
@@ -297,9 +333,26 @@ export function OrderDetailModal({
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayOrder.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayOrder.customer_phone ? (
+                                  <a
+                                    href={`https://wa.me/${displayOrder.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayOrder.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayOrder.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayOrder.customer_email ? (
+                                  <a href={`mailto:${displayOrder.customer_email}`} className="text-primary hover:underline">
+                                    {displayOrder.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -417,12 +470,24 @@ export function OrderDetailModal({
                           paginatedItems.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                  {item.product?.code && (
-                                    <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                  )}
-                                </div>
+                                {canViewProduct && item.product ? (
+                                  <button
+                                    onClick={() => openProduct(item.product?.id)}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    <p className="font-medium">{item.product.name}</p>
+                                    {item.product.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                    {item.product?.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
                               <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
@@ -473,6 +538,24 @@ export function OrderDetailModal({
         title={t("delete")}
         description={t("deleteDesc")}
         isLoading={deleteOrder.isPending}
+      />
+
+      <EmployeeDetailModal
+        open={isEmployeeOpen}
+        onOpenChange={setIsEmployeeOpen}
+        employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
+      />
+
+      <QuotationDetailModal
+        open={isQuotationOpen}
+        onClose={() => setIsQuotationOpen(false)}
+        quotation={selectedQuotationId ? { id: selectedQuotationId } as unknown as SalesQuotation : null}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
       />
     </>
   );

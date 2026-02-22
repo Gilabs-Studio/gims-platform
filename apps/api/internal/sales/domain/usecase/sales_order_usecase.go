@@ -577,8 +577,19 @@ func (u *salesOrderUsecase) calculateTotals(order *models.SalesOrder) {
 func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrderStatus) bool {
 	validTransitions := map[models.SalesOrderStatus][]models.SalesOrderStatus{
 		models.SalesOrderStatusDraft: {
+			models.SalesOrderStatusSent,
+			models.SalesOrderStatusCancelled,
+		},
+		models.SalesOrderStatusSent: {
+			models.SalesOrderStatusApproved,
+			models.SalesOrderStatusRejected,
+		},
+		models.SalesOrderStatusApproved: {
 			models.SalesOrderStatusConfirmed,
 			models.SalesOrderStatusCancelled,
+		},
+		models.SalesOrderStatusRejected: {
+			models.SalesOrderStatusDraft,
 		},
 		models.SalesOrderStatusConfirmed: {
 			models.SalesOrderStatusProcessing,

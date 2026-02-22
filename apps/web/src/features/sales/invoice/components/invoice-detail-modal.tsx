@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, Send, DollarSign } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ import { InvoiceForm } from "./invoice-form";
 import {
   useDeleteInvoice,
   useUpdateInvoiceStatus,
+  useInvoice,
 } from "../hooks/use-invoices";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -25,6 +26,11 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useInvoiceDetail } from "../hooks/use-invoice-detail";
+import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import type { SalesOrder } from "../../order/types";
+import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -45,13 +51,25 @@ export function InvoiceDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("invoice");
 
+  const { data: detailData, isLoading } = useInvoice(invoice?.id ?? "", {
+    enabled: open && !!invoice?.id,
+  });
+
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
 
+  const {
+    canViewProduct,
+    canViewSalesOrder,
+    isProductOpen, setIsProductOpen, selectedProductId,
+    isSalesOrderOpen, setIsSalesOrderOpen, selectedSalesOrderId,
+    openProduct, openSalesOrder,
+  } = useInvoiceDetail();
+
   if (!invoice) return null;
 
-  const displayInvoice = invoice;
+  const displayInvoice = detailData?.data ?? invoice;
   const allItems = displayInvoice.items ?? [];
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
@@ -65,13 +83,6 @@ export function InvoiceDetailModal({
         return (
           <Badge variant="secondary" className="text-xs font-medium">
             <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.unpaid")}
-          </Badge>
-        );
-      case "unpaid":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
             {t("status.unpaid")}
           </Badge>
         );
@@ -212,7 +223,18 @@ export function InvoiceDetailModal({
                       {displayInvoice.sales_order_id && (
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("salesOrder")}</TableCell>
-                          <TableCell>{displayInvoice.sales_order_id}</TableCell>
+                          <TableCell>
+                            {canViewSalesOrder && displayInvoice.sales_order_id ? (
+                              <button
+                                onClick={() => openSalesOrder(displayInvoice.sales_order_id)}
+                                className="text-primary hover:underline cursor-pointer text-left"
+                              >
+                                  {displayInvoice.sales_order?.code ?? displayInvoice.sales_order_id}
+                                </button>
+                              ) : (
+                                <span>{displayInvoice.sales_order?.code ?? displayInvoice.sales_order_id}</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("paymentTerms")}</TableCell>
                           <TableCell>{displayInvoice.payment_terms?.name ?? "-"}</TableCell>
                         </TableRow>
@@ -342,12 +364,24 @@ export function InvoiceDetailModal({
                           paginatedItems.map((item: import("../types").CustomerInvoiceItem) => (
                             <TableRow key={item.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
-                                  {item.product?.code && (
-                                    <p className="text-sm text-muted-foreground">{item.product.code}</p>
-                                  )}
-                                </div>
+                                {canViewProduct && item.product ? (
+                                  <button
+                                    onClick={() => openProduct(item.product?.id)}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    <p className="font-medium">{item.product.name}</p>
+                                    {item.product.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium">{item.product?.name ?? t("unknownProduct")}</p>
+                                    {item.product?.code && (
+                                      <p className="text-sm text-muted-foreground">{item.product.code}</p>
+                                    )}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
                               <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
@@ -397,6 +431,18 @@ export function InvoiceDetailModal({
         title={t("delete")}
         description={t("deleteDesc")}
         isLoading={deleteInvoice.isPending}
+      />
+
+      <OrderDetailModal
+        open={isSalesOrderOpen}
+        onClose={() => setIsSalesOrderOpen(false)}
+        order={selectedSalesOrderId ? { id: selectedSalesOrderId } as unknown as SalesOrder : null}
+      />
+
+      <QuotationProductDetailModal
+        open={isProductOpen}
+        onOpenChange={setIsProductOpen}
+        productId={selectedProductId}
       />
     </>
   );

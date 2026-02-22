@@ -127,6 +127,48 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 		}
 	}
 
+	// Map delivery orders summary
+	if len(m.DeliveryOrders) > 0 {
+		response.DeliveryOrders = make([]dto.DeliveryOrderSummary, len(m.DeliveryOrders))
+		for i, do := range m.DeliveryOrders {
+			deliveryDate := ""
+			if !do.DeliveryDate.IsZero() {
+				deliveryDate = do.DeliveryDate.Format("2006-01-02")
+			}
+			response.DeliveryOrders[i] = dto.DeliveryOrderSummary{
+				ID:                do.ID,
+				Code:              do.Code,
+				Status:            string(do.Status),
+				DeliveryDate:      deliveryDate,
+				IsPartialDelivery: do.IsPartialDelivery,
+			}
+		}
+	}
+
+	// Map customer invoices summary
+	if len(m.CustomerInvoices) > 0 {
+		response.CustomerInvoices = make([]dto.CustomerInvoiceSummary, len(m.CustomerInvoices))
+		for i, inv := range m.CustomerInvoices {
+			invoiceDate := ""
+			if !inv.InvoiceDate.IsZero() {
+				invoiceDate = inv.InvoiceDate.Format("2006-01-02")
+			}
+			dueDate := ""
+			if inv.DueDate != nil && !inv.DueDate.IsZero() {
+				dueDate = inv.DueDate.Format("2006-01-02")
+			}
+			response.CustomerInvoices[i] = dto.CustomerInvoiceSummary{
+				ID:          inv.ID,
+				Code:        inv.Code,
+				Status:      string(inv.Status),
+				InvoiceDate: invoiceDate,
+				DueDate:     dueDate,
+				Amount:      inv.Amount,
+				PaidAmount:  inv.PaidAmount,
+			}
+		}
+	}
+
 	return response
 }
 

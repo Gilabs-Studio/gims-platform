@@ -53,6 +53,7 @@ export const quotationEn = {
     status: {
       draft: "Draft",
       sent: "Sent",
+      pending: "Pending",
       approved: "Approved",
       rejected: "Rejected",
       converted: "Converted",
@@ -145,6 +146,11 @@ export const quotationEn = {
     rejectedAt: "Rejected At",
     convertedAt: "Converted At",
     rejectionReason: "Rejection Reason",
+
+    // WhatsApp
+    whatsapp: {
+      greeting: "Hello, regarding quotation",
+    },
   },
 };
 

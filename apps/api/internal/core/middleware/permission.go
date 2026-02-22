@@ -19,21 +19,10 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
-		// Get user role from context
-		roleCode, exists := c.Get("user_role")
-		if !exists {
+		// Ensure user role exists in context (set by AuthMiddleware)
+		if _, exists := c.Get("user_role"); !exists {
 			errors.UnauthorizedResponse(c, "authentication required")
 			c.Abort()
-			return
-		}
-
-		// Admin bypass
-		if roleCode == "admin" {
-			c.Set("permission_scope", "ALL")
-			reqCtx := c.Request.Context()
-			reqCtx = context.WithValue(reqCtx, "permission_scope", "ALL")
-			c.Request = c.Request.WithContext(reqCtx)
-			c.Next()
 			return
 		}
 

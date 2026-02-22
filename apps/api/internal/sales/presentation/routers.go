@@ -14,11 +14,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterRoutes registers all sales routes
+// SalesDeps holds exported Sales usecases for cross-module consumption
+type SalesDeps struct {
+	QuotationUC usecase.SalesQuotationUsecase
+	OrderUC     usecase.SalesOrderUsecase
+}
+
+// RegisterRoutes registers all sales routes and returns shared dependencies
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC inventoryUsecase.InventoryUsecase) {
+}, invUC inventoryUsecase.InventoryUsecase) *SalesDeps {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
 	estimationRepo := salesRepos.NewSalesEstimationRepository(db)
@@ -61,5 +67,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
 	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
+
+	return &SalesDeps{
+		QuotationUC: quotationUC,
+		OrderUC:     orderUC,
+	}
 }
 

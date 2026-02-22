@@ -19,10 +19,11 @@ export const businessUnitKeys = {
   detail: (id: string) => [...businessUnitKeys.details(), id] as const,
 };
 
-export function useBusinessUnits(params?: ListOrganizationParams) {
+export function useBusinessUnits(params?: ListOrganizationParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: businessUnitKeys.list(params),
     queryFn: () => businessUnitService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -1,11 +1,8 @@
 "use client";
 
 import { Drawer } from "@/components/ui/drawer";
-import { useEffect, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { Controller } from "react-hook-form";
+import { MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -21,199 +18,23 @@ import {
 import { ButtonLoading } from "@/components/loading";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 
-import { useCreateCompany, useUpdateCompany } from "../../hooks/use-companies";
-import { useProvinces } from "../../../geographic/hooks/use-provinces";
 import { sortOptions } from "@/lib/utils";
-import { useCities } from "../../../geographic/hooks/use-cities";
-import { useDistricts } from "../../../geographic/hooks/use-districts";
-import { useVillages } from "../../../geographic/hooks/use-villages";
-import { getCompanySchema, type CompanyFormData } from "../../schemas/organization.schema";
-import type { Company } from "../../types";
+import { useCompanySidePanel, type CompanySidePanelProps } from "../../hooks/use-company-side-panel";
 
-type PanelMode = "create" | "edit" | "view";
-
-interface CompanySidePanelProps {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-  readonly mode: PanelMode;
-  readonly company?: Company | null;
-  readonly onSuccess?: () => void;
-}
-
-export function CompanySidePanel({
-  isOpen,
-  onClose,
-  mode,
-  company,
-  onSuccess,
-}: CompanySidePanelProps) {
-  const t = useTranslations("organization");
-  const isEditing = mode === "edit";
-  const isViewing = mode === "view";
-  const createCompany = useCreateCompany();
-  const updateCompany = useUpdateCompany();
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    control,
-    formState: { errors },
-  } = useForm<CompanyFormData>({
-    resolver: zodResolver(getCompanySchema(t)),
-    defaultValues: {
-      name: "",
-      address: "",
-      email: "",
-      phone: "",
-      npwp: "",
-      nib: "",
-      village_id: "",
-      province_id: undefined,
-      city_id: undefined,
-      district_id: undefined,
-      director_id: "",
-      latitude: -6.2088,
-      longitude: 106.8456,
-      is_active: true,
-    },
-  });
-
-  const provinceId = watch("province_id");
-  const cityId = watch("city_id");
-  const districtId = watch("district_id");
-  const latitude = watch("latitude");
-  const longitude = watch("longitude");
-
-  const { data: provincesData } = useProvinces({ per_page: 100 });
-  const { data: citiesData } = useCities(
-    provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined
-  );
-  const { data: districtsData } = useDistricts(
-    cityId ? { city_id: String(cityId), per_page: 100 } : undefined
-  );
-  const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined
-  );
-
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
-
-  useEffect(() => {
-    if (company && (mode === "edit" || mode === "view")) {
-      const v = company.village;
-      const d = v?.district;
-      const c = d?.city;
-      const p = c?.province;
-
-      reset({
-        name: company.name,
-        address: company.address ?? "",
-        email: company.email ?? "",
-        phone: company.phone ?? "",
-        npwp: company.npwp ?? "",
-        nib: company.nib ?? "",
-        village_id: company.village_id ?? "",
-        province_id: p?.id,
-        city_id: c?.id,
-        district_id: d?.id,
-        director_id: company.director_id ?? "",
-        latitude: company.latitude ?? -6.2088,
-        longitude: company.longitude ?? 106.8456,
-        is_active: company.is_active,
-      });
-    } else if (mode === "create") {
-      reset({
-        name: "",
-        address: "",
-        email: "",
-        phone: "",
-        npwp: "",
-        nib: "",
-        village_id: "",
-        director_id: "",
-        latitude: -6.2088,
-        longitude: 106.8456,
-        is_active: true,
-      });
-    }
-  }, [company, mode, reset, isOpen]);
-
-  const onSubmit = async (data: CompanyFormData) => {
-    try {
-      const payload = {
-        name: data.name,
-        address: data.address || undefined,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
-        npwp: data.npwp || undefined,
-        nib: data.nib || undefined,
-        village_id: data.village_id || undefined,
-        director_id: data.director_id || undefined,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        is_active: data.is_active,
-      };
-
-      if (isEditing && company) {
-        await updateCompany.mutateAsync({ id: company.id, data: payload });
-      } else {
-        await createCompany.mutateAsync(payload);
-      }
-      onSuccess?.();
-      onClose();
-    } catch (error) {
-      console.error("Failed to save company:", error);
-    }
-  };
-
-  const handleCoordinateSelect = (lat: number, lng: number) => {
-    setValue("latitude", lat, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    setValue("longitude", lng, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-  };
-
-  const handleProvinceChange = (val: string) => {
-    setValue("province_id", val);
-    setValue("city_id", undefined);
-    setValue("district_id", undefined);
-    setValue("village_id", undefined);
-  };
-
-  const handleCityChange = (val: string) => {
-    setValue("city_id", val);
-    setValue("district_id", undefined);
-    setValue("village_id", undefined);
-  };
-
-  const handleDistrictChange = (val: string) => {
-    setValue("district_id", val);
-    setValue("village_id", undefined);
-  };
-
-  const isLoading = createCompany.isPending || updateCompany.isPending;
-  const isActive = watch("is_active");
-
-  const panelTitle = isViewing
-    ? company?.name ?? t("company.title")
-    : isEditing
-      ? t("company.editTitle")
-      : t("company.createTitle");
+export function CompanySidePanel(props: CompanySidePanelProps) {
+  const { state, actions, form, data, translations } = useCompanySidePanel(props);
+  const { t } = translations;
 
   return (
     <>
       <Drawer
-        open={isOpen}
-        onOpenChange={(open) => !open && onClose()}
-        title={panelTitle}
+        open={props.isOpen}
+        onOpenChange={(open) => !open && props.onClose()}
+        title={state.panelTitle}
         side="right"
         defaultWidth={500}
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
+        <form onSubmit={form.handleSubmit(actions.onSubmit)} className="space-y-6 pb-20 p-4">
             {/* Basic Info */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium border-b pb-2">
@@ -224,10 +45,10 @@ export function CompanySidePanel({
                 <FieldLabel>{t("company.form.name")}</FieldLabel>
                 <Input
                   placeholder={t("company.form.namePlaceholder")}
-                  {...register("name")}
-                  disabled={isViewing}
+                  {...form.register("name")}
+                  disabled={state.isViewing}
                 />
-                {errors.name && <FieldError>{errors.name.message}</FieldError>}
+                {form.errors.name && <FieldError>{form.errors.name.message}</FieldError>}
               </Field>
 
               <Field orientation="vertical">
@@ -235,31 +56,31 @@ export function CompanySidePanel({
                 <Input
                   type="email"
                   placeholder={t("company.form.emailPlaceholder")}
-                  {...register("email")}
-                  disabled={isViewing}
+                  {...form.register("email")}
+                  disabled={state.isViewing}
                 />
-                {errors.email && <FieldError>{errors.email.message}</FieldError>}
+                {form.errors.email && <FieldError>{form.errors.email.message}</FieldError>}
               </Field>
 
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.phone")}</FieldLabel>
                 <Input
                   placeholder={t("company.form.phonePlaceholder")}
-                  {...register("phone")}
-                  disabled={isViewing}
+                  {...form.register("phone")}
+                  disabled={state.isViewing}
                 />
-                {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
+                {form.errors.phone && <FieldError>{form.errors.phone.message}</FieldError>}
               </Field>
 
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.address")}</FieldLabel>
                 <Textarea
                   placeholder={t("company.form.addressPlaceholder")}
-                  {...register("address")}
+                  {...form.register("address")}
                   rows={2}
-                  disabled={isViewing}
+                  disabled={state.isViewing}
                 />
-                {errors.address && <FieldError>{errors.address.message}</FieldError>}
+                {form.errors.address && <FieldError>{form.errors.address.message}</FieldError>}
               </Field>
 
               <div className="grid grid-cols-2 gap-4">
@@ -267,16 +88,16 @@ export function CompanySidePanel({
                   <FieldLabel>{t("company.form.npwp")}</FieldLabel>
                   <Input
                     placeholder={t("company.form.npwpPlaceholder")}
-                    {...register("npwp")}
-                    disabled={isViewing}
+                    {...form.register("npwp")}
+                    disabled={state.isViewing}
                   />
                 </Field>
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.nib")}</FieldLabel>
                   <Input
                     placeholder={t("company.form.nibPlaceholder")}
-                    {...register("nib")}
-                    disabled={isViewing}
+                    {...form.register("nib")}
+                    disabled={state.isViewing}
                   />
                 </Field>
               </div>
@@ -291,15 +112,15 @@ export function CompanySidePanel({
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.province")}</FieldLabel>
                 <Select
-                  value={String(provinceId || "")}
-                  onValueChange={handleProvinceChange}
-                  disabled={isViewing}
+                  value={String(state.provinceId || "")}
+                  onValueChange={actions.handleProvinceChange}
+                  disabled={state.isViewing}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Province" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortOptions(provinces, (p) => p.name).map((p) => (
+                    {sortOptions(data.provinces, (p) => p.name).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
                       </SelectItem>
@@ -311,15 +132,15 @@ export function CompanySidePanel({
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.city")}</FieldLabel>
                 <Select
-                  value={String(cityId || "")}
-                  onValueChange={handleCityChange}
-                  disabled={!provinceId || isViewing}
+                  value={String(state.cityId || "")}
+                  onValueChange={actions.handleCityChange}
+                  disabled={!state.provinceId || state.isViewing}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select City" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortOptions(cities, (c) => c.name).map((c) => (
+                    {sortOptions(data.cities, (c) => c.name).map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>
@@ -331,15 +152,15 @@ export function CompanySidePanel({
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.district")}</FieldLabel>
                 <Select
-                  value={String(districtId || "")}
-                  onValueChange={handleDistrictChange}
-                  disabled={!cityId || isViewing}
+                  value={String(state.districtId || "")}
+                  onValueChange={actions.handleDistrictChange}
+                  disabled={!state.cityId || state.isViewing}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select District" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortOptions(districts, (d) => d.name).map((d) => (
+                    {sortOptions(data.districts, (d) => d.name).map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
                       </SelectItem>
@@ -351,15 +172,15 @@ export function CompanySidePanel({
               <Field orientation="vertical">
                 <FieldLabel>{t("company.form.village")}</FieldLabel>
                 <Select
-                  value={String(watch("village_id") || "")}
-                  onValueChange={(val) => setValue("village_id", val)}
-                  disabled={!districtId || isViewing}
+                  value={String(form.watch("village_id") || "")}
+                  onValueChange={(val) => actions.setValue("village_id", val)}
+                  disabled={!state.districtId || state.isViewing}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Village" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortOptions(villages, (v) => v.name).map((v) => (
+                    {sortOptions(data.villages, (v) => v.name).map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.name}
                       </SelectItem>
@@ -378,12 +199,12 @@ export function CompanySidePanel({
                     {t("company.sections.coordinates")}
                   </h3>
                 </div>
-                {!isViewing && (
+                {!state.isViewing && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setIsMapPickerOpen(true)}
+                    onClick={() => actions.setIsMapPickerOpen(true)}
                     className="cursor-pointer"
                   >
                     <MapPin className="h-3 w-3 mr-1" />
@@ -396,14 +217,14 @@ export function CompanySidePanel({
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.latitude")}</FieldLabel>
                   <Controller
-                    control={control}
+                    control={form.control}
                     name="latitude"
                     render={({ field }) => (
                       <Input
                         type="number"
                         step="any"
                         placeholder="-6.2088"
-                        disabled={isViewing}
+                        disabled={state.isViewing}
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) => field.onChange(e.target.valueAsNumber)}
@@ -414,14 +235,14 @@ export function CompanySidePanel({
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.longitude")}</FieldLabel>
                   <Controller
-                    control={control}
+                    control={form.control}
                     name="longitude"
                     render={({ field }) => (
                       <Input
                         type="number"
                         step="any"
                         placeholder="106.8456"
-                        disabled={isViewing}
+                        disabled={state.isViewing}
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) => field.onChange(e.target.valueAsNumber)}
@@ -433,34 +254,34 @@ export function CompanySidePanel({
             </div>
 
             {/* Active Status */}
-            {!isViewing && (
+            {!state.isViewing && (
               <Field
                 orientation="horizontal"
                 className="flex items-center justify-between rounded-lg border p-3"
               >
                 <FieldLabel>{t("company.form.isActive")}</FieldLabel>
                 <Switch
-                  checked={isActive}
-                  onCheckedChange={(val) => setValue("is_active", val)}
+                  checked={state.isActive}
+                  onCheckedChange={(val) => actions.setValue("is_active", val)}
                 />
               </Field>
             )}
 
             {/* Actions */}
-            {!isViewing && (
+            {!state.isViewing && (
               <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-background pb-2 z-10">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={props.onClose}
                   className="cursor-pointer"
-                  disabled={isLoading}
+                  disabled={state.isLoading}
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                  <ButtonLoading loading={isLoading} loadingText="Saving...">
-                    {isEditing ? t("common.save") : t("common.create")}
+                <Button type="submit" disabled={state.isLoading} className="cursor-pointer">
+                  <ButtonLoading loading={state.isLoading} loadingText="Saving...">
+                    {state.isEditing ? t("common.save") : t("common.create")}
                   </ButtonLoading>
                 </Button>
               </div>
@@ -469,11 +290,11 @@ export function CompanySidePanel({
       </Drawer>
 
       <MapPickerModal
-        open={isMapPickerOpen}
-        onOpenChange={setIsMapPickerOpen}
-        latitude={latitude ?? -6.2088}
-        longitude={longitude ?? 106.8456}
-        onCoordinateSelect={handleCoordinateSelect}
+        open={state.isMapPickerOpen}
+        onOpenChange={actions.setIsMapPickerOpen}
+        latitude={state.latitude ?? -6.2088}
+        longitude={state.longitude ?? 106.8456}
+        onCoordinateSelect={actions.handleCoordinateSelect}
         title={t("company.mapPicker.title")}
         description={t("company.mapPicker.description")}
       />

@@ -16,7 +16,27 @@ export interface SalesOrderSummary {
   order_date?: string;
 }
 
-export type SalesOrderStatus = "draft" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
+export type SalesOrderStatus = "draft" | "sent" | "approved" | "rejected" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
+
+// Summary of a linked Delivery Order embedded in Sales Order list response
+export interface DeliveryOrderSummary {
+  id: string;
+  code: string;
+  status: string;
+  delivery_date: string;
+  is_partial_delivery: boolean;
+}
+
+// Summary of a linked Customer Invoice embedded in Sales Order list response
+export interface CustomerInvoiceSummary {
+  id: string;
+  code: string;
+  status: string;
+  invoice_date: string;
+  due_date: string;
+  amount: number;
+  paid_amount: number;
+}
 
 export interface SalesOrderItem {
   id: string;
@@ -93,6 +113,8 @@ export interface SalesOrder {
   cancelled_at?: string;
   cancellation_reason?: string;
   items?: SalesOrderItem[];
+  delivery_orders?: DeliveryOrderSummary[];
+  customer_invoices?: CustomerInvoiceSummary[];
   created_at: string;
   updated_at: string;
 }

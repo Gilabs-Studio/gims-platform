@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useUsers, useDeleteUser, useUser, useCreateUser, useUpdateUser } from "./use-users";
 import { useRoles } from "./use-users";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useHasPermission } from "./use-has-permission";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 
 export function useUserList() {
@@ -17,6 +18,11 @@ export function useUserList() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  // Permission checks
+  const canCreate = useHasPermission("user.create");
+  const canUpdate = useHasPermission("user.update");
+  const canDelete = useHasPermission("user.delete");
 
   const { data, isLoading } = useUsers({ page, per_page: perPage, search: debouncedSearch, status, role_id: roleId });
   const { data: rolesData } = useRoles();
@@ -110,5 +116,10 @@ export function useUserList() {
     deleteUser,
     createUser,
     updateUser,
+    permissions: {
+      canCreate,
+      canUpdate,
+      canDelete,
+    },
   };
 }

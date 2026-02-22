@@ -47,9 +47,15 @@ export function StockWarningInline({ productId, requiredQuantity = 0 }: StockWar
 
   const whLabel = (count: number) => `${count} warehouse${count !== 1 ? "s" : ""}`;
 
+  const styleFor = (cssVar: string, bgAlpha = "0.1", borderAlpha = "0.2") => ({
+    backgroundColor: `hsl(var(${cssVar}) / ${bgAlpha})`,
+    borderColor: `hsl(var(${cssVar}) / ${borderAlpha})`,
+    color: `hsl(var(${cssVar}))`,
+  });
+
   if (isOutOfStock) {
     return (
-      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs" style={styleFor("--destructive", "0.12", "0.22")}>
         <XCircle className="h-3.5 w-3.5 shrink-0" />
         <span className="font-medium">Out of Stock</span>
         <span className="opacity-75">— no available inventory in any warehouse</span>
@@ -59,7 +65,7 @@ export function StockWarningInline({ productId, requiredQuantity = 0 }: StockWar
 
   if (isInsufficient) {
     return (
-      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs" style={styleFor("--destructive", "0.12", "0.22")}>
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         <span className="font-medium">Insufficient Stock</span>
         <span className="opacity-75">
@@ -71,7 +77,7 @@ export function StockWarningInline({ productId, requiredQuantity = 0 }: StockWar
 
   if (isLowStock) {
     return (
-      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-yellow-50 border border-yellow-200 text-yellow-700 text-xs dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-400">
+      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs" style={styleFor("--chart-3", "0.10", "0.18")}>
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         <span className="font-medium">Low Stock</span>
         <span className="opacity-75">— available: {fmt(totalAvailable)} across {whLabel(warehouseCount)}</span>
@@ -81,7 +87,7 @@ export function StockWarningInline({ productId, requiredQuantity = 0 }: StockWar
 
   // In Stock
   return (
-    <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-green-700 text-xs dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
+    <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs" style={styleFor("--chart-2", "0.08", "0.14")}>
       <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
       <span className="font-medium">In Stock</span>
       <span className="opacity-75">— available: {fmt(totalAvailable)} across {whLabel(warehouseCount)}</span>

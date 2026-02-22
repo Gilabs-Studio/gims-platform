@@ -17,19 +17,20 @@ export const productKeys = {
   detail: (id: string) => [...productKeys.details(), id] as const,
 };
 
-export function useProducts(params?: ProductListParams) {
+export function useProducts(params?: ProductListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useProduct(id: string) {
+export function useProduct(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productKeys.detail(id),
     queryFn: () => productService.getById(id),
-    enabled: !!id,
+    enabled: (options?.enabled ?? true) && !!id,
   });
 }
 
