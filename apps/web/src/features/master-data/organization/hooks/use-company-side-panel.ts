@@ -67,15 +67,18 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
   const longitude = watch("longitude");
   const isActive = watch("is_active");
 
-  const { data: provincesData } = useProvinces({ per_page: 100 });
+  const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: isOpen });
   const { data: citiesData } = useCities(
-    provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined
+    cityId || provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined,
+    { enabled: isOpen && !!provinceId }
   );
   const { data: districtsData } = useDistricts(
-    cityId ? { city_id: String(cityId), per_page: 100 } : undefined
+    districtId || cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
+    { enabled: isOpen && !!cityId }
   );
   const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined
+    districtId ? { district_id: String(districtId), per_page: 100 } : undefined,
+    { enabled: isOpen && !!districtId }
   );
 
   const provinces = provincesData?.data ?? [];

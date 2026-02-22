@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useCreateCountry, useUpdateCountry } from "../../hooks/use-countries";
 import { ButtonLoading } from "@/components/loading";
-import { getCountrySchema, type CreateCountryFormData } from "../../schemas/geographic.schema";
+import { useCountryForm } from "../../hooks/use-country-form";
 import type { Country } from "../../types";
 
 interface CountryFormProps {
@@ -21,60 +16,15 @@ interface CountryFormProps {
 }
 
 export function CountryForm({ open, onClose, country }: CountryFormProps) {
-  const t = useTranslations("geographic");
-  const isEditing = !!country;
-  const createCountry = useCreateCountry();
-  const updateCountry = useUpdateCountry();
+  const { form, t, isEditing, isLoading, onSubmit } = useCountryForm({ open, onClose, country });
 
   const {
     register,
-    handleSubmit,
-    reset,
     watch,
     setValue,
     formState: { errors },
-  } = useForm<CreateCountryFormData>({
-    resolver: zodResolver(getCountrySchema(t)),
-    defaultValues: {
-      name: "",
-      code: "",
-      phone_code: "",
-      is_active: true,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (country) {
-      reset({
-        name: country.name,
-        code: country.code,
-        phone_code: country.phone_code ?? "",
-        is_active: country.is_active,
-      });
-    } else {
-      reset({
-        name: "",
-        code: "",
-        phone_code: "",
-        is_active: true,
-      });
-    }
-  }, [country, reset]);
-
-  const onSubmit = async (data: CreateCountryFormData) => {
-    try {
-      if (isEditing && country) {
-        await updateCountry.mutateAsync({ id: country.id, data });
-      } else {
-        await createCountry.mutateAsync(data);
-      }
-      onClose();
-    } catch (error) {
-      console.error("Failed to save country:", error);
-    }
-  };
-
-  const isLoading = createCountry.isPending || updateCountry.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -83,7 +33,7 @@ export function CountryForm({ open, onClose, country }: CountryFormProps) {
         <DialogHeader>
           <DialogTitle>{isEditing ? t("country.edit") : t("country.add")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field orientation="vertical">
             <FieldLabel>{t("country.name")}</FieldLabel>
             <Input placeholder="e.g. Indonesia" {...register("name")} />

@@ -12,11 +12,12 @@ export const productTypeKeys = {
   detail: (id: string) => [...productTypeKeys.details(), id] as const,
 };
 
-export function useProductTypes(params?: LookupListParams) {
+export function useProductTypes(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productTypeKeys.list(params),
     queryFn: () => productTypeService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

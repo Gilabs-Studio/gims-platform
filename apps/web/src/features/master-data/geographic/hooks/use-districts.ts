@@ -21,10 +21,11 @@ export const districtKeys = {
 };
 
 // List districts hook with city filter
-export function useDistricts(params?: ListDistrictsParams) {
+export function useDistricts(params?: ListDistrictsParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: districtKeys.list(params),
     queryFn: () => districtService.list(params),
+    ...options,
   });
 }
 

@@ -45,11 +45,12 @@ export function useCustomer(id: string) {
 }
 
 // === Form Data Hook ===
-export function useCustomerFormData() {
+export function useCustomerFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customerKeys.formData(),
     queryFn: () => customerService.getFormData(),
     staleTime: 10 * 60 * 1000,
+    ...options,
   });
 }
 
