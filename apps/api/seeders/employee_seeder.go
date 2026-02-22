@@ -17,7 +17,7 @@ func SeedEmployees() error {
 
 	// Refactored to Upsert/Ensure existence of Fixed Employees
 	// We want to ensure Admin/Manager/Staff employees exist.
-	
+
 	log.Println("Seeding employees...")
 
 	// Helpers
@@ -63,12 +63,12 @@ func SeedEmployees() error {
 			Email:        defaultEmail,
 			Phone:        "081234567890",
 			UserID:       strPtr(AdminUserID),
-			
+
 			// Org Links
 			CompanyID:     strPtr(GiLabsCompanyID),
 			DivisionID:    strPtr(ITDivisionID),
 			JobPositionID: strPtr(ManagerPositionID),
-			
+
 			// Personal
 			PlaceOfBirth: "Jakarta",
 			DateOfBirth:  timePtr(date(1990, 1, 1)),
@@ -76,13 +76,11 @@ func SeedEmployees() error {
 			Religion:     "Islam",
 			Address:      "Jl. Admin No. 1",
 			VillageID:    villageID,
-			
+
 			// Employment
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 1, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           ManagerEmployeeID,
@@ -91,12 +89,12 @@ func SeedEmployees() error {
 			Email:        "manager@example.com",
 			Phone:        "081234567891",
 			UserID:       strPtr(ManagerUserID),
-			
+
 			// Org Links
 			CompanyID:     strPtr(GiLabsCompanyID),
 			DivisionID:    strPtr(OpsDivisionID),
 			JobPositionID: strPtr(ManagerPositionID),
-			
+
 			// Personal
 			PlaceOfBirth: "Surabaya",
 			DateOfBirth:  timePtr(date(1985, 3, 15)),
@@ -104,13 +102,11 @@ func SeedEmployees() error {
 			Religion:     "Kristen",
 			Address:      "Jl. Manager No. 1",
 			VillageID:    villageID,
-			
+
 			// Employment
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 3, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           StaffEmployeeID,
@@ -119,23 +115,21 @@ func SeedEmployees() error {
 			Email:        "staff@example.com",
 			Phone:        "081234567892",
 			UserID:       strPtr(StaffUserID),
-			
+
 			CompanyID:     strPtr(GiLabsCompanyID),
 			DivisionID:    strPtr(OpsDivisionID),
 			JobPositionID: strPtr(StaffPositionID),
-			
+
 			PlaceOfBirth: "Bandung",
 			DateOfBirth:  timePtr(date(1995, 5, 5)),
 			Gender:       models.GenderFemale,
 			Religion:     "Islam",
 			Address:      "Jl. Staff No. 1",
 			VillageID:    villageID,
-			
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 6, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           SalesRep1EmployeeID,
@@ -155,11 +149,9 @@ func SeedEmployees() error {
 			Address:      "Jl. Semarang No. 5",
 			VillageID:    villageID,
 
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 8, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           SalesRep2EmployeeID,
@@ -179,11 +171,9 @@ func SeedEmployees() error {
 			Address:      "Jl. Yogya No. 12",
 			VillageID:    villageID,
 
-			ContractStatus:    models.ContractStatusContract,
-			ContractStartDate: timePtr(date(2024, 1, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           FinanceStaffEmployeeID,
@@ -203,11 +193,9 @@ func SeedEmployees() error {
 			Address:      "Jl. Malang No. 8",
 			VillageID:    villageID,
 
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 9, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 		{
 			ID:           HRStaffEmployeeID,
@@ -227,14 +215,12 @@ func SeedEmployees() error {
 			Address:      "Jl. Denpasar No. 3",
 			VillageID:    villageID,
 
-			ContractStatus:    models.ContractStatusPermanent,
-			ContractStartDate: timePtr(date(2023, 4, 1)),
-			Status:            models.EmployeeStatusApproved,
-			IsApproved:        true,
-			IsActive:          true,
+			Status:     models.EmployeeStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
 		},
 	}
-	
+
 	for _, e := range employees {
 		// 1. Check if record with same EmployeeCode exists but different ID
 		var existing models.Employee

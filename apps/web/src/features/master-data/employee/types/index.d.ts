@@ -1,8 +1,26 @@
 // Employee entity types for Sprint 3
 
 export type EmployeeStatus = "draft" | "pending" | "approved" | "rejected";
-export type ContractStatus = "permanent" | "contract" | "probation" | "intern";
 export type Gender = "male" | "female";
+
+// Contract types (new simplified structure)
+export type ContractType = "PKWTT" | "PKWT" | "Intern";
+export type ContractStatus = "ACTIVE" | "EXPIRED" | "TERMINATED";
+export type TerminationReason =
+  | "RESIGNED"
+  | "DISMISSED"
+  | "END_CONTRACT"
+  | "OTHER";
+
+// Permission types for contracts
+export type EmployeeContractPermission =
+  | "employee.contract.read"
+  | "employee.contract.create"
+  | "employee.contract.update"
+  | "employee.contract.delete"
+  | "employee.contract.terminate"
+  | "employee.contract.renew"
+  | "employee.contract.correct";
 export type PTKPStatus =
   | "TK/0"
   | "TK/1"
@@ -16,6 +34,64 @@ export type PTKPStatus =
   | "K/I/1"
   | "K/I/2"
   | "K/I/3";
+
+// Employee Contract interfaces
+export interface EmployeeContract {
+  id: string;
+  employee_id: string;
+  contract_number: string;
+  contract_type: ContractType;
+  start_date: string;
+  end_date?: string;
+  document_path?: string;
+  document_name?: string;
+  status: ContractStatus;
+  is_expiring_soon?: boolean;
+  days_until_expiry?: number;
+  terminated_at?: string;
+  termination_reason?: TerminationReason;
+  termination_notes?: string;
+  expired_at?: string;
+  corrected_from_contract_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateEmployeeContractData {
+  contract_number: string;
+  contract_type: ContractType;
+  start_date: string;
+  end_date?: string;
+  document_path?: string;
+}
+
+export interface UpdateEmployeeContractData {
+  contract_number?: string;
+  contract_type?: ContractType;
+  start_date?: string;
+  end_date?: string;
+  document_path?: string;
+}
+
+export interface TerminateEmployeeContractData {
+  reason: TerminationReason;
+  notes?: string;
+}
+
+export interface RenewEmployeeContractData {
+  contract_number: string;
+  contract_type: ContractType;
+  start_date: string;
+  end_date?: string;
+  document_path?: string;
+}
+
+export interface CorrectEmployeeContractData {
+  contract_type?: ContractType;
+  start_date?: string;
+  end_date?: string;
+  document_path?: string;
+}
 
 export interface Division {
   id: string;
@@ -93,10 +169,9 @@ export interface Employee {
   nik?: string;
   npwp?: string;
   bpjs?: string;
-  contract_status?: ContractStatus;
-  contract_start_date?: string;
-  contract_end_date?: string;
   total_leave_quota?: number;
+  // New contract structure
+  current_contract?: EmployeeContract;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
   replacement_for_id?: string;
@@ -135,9 +210,6 @@ export interface CreateEmployeeData {
   nik?: string;
   npwp?: string;
   bpjs?: string;
-  contract_status?: ContractStatus;
-  contract_start_date?: string;
-  contract_end_date?: string;
   total_leave_quota?: number;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
@@ -145,6 +217,8 @@ export interface CreateEmployeeData {
   area_ids?: string[];
   supervised_area_ids?: string[];
   is_active?: boolean;
+  // Optional initial contract when creating employee
+  initial_contract?: CreateEmployeeContractData;
 }
 
 export interface UpdateEmployeeData {
@@ -165,9 +239,6 @@ export interface UpdateEmployeeData {
   nik?: string;
   npwp?: string;
   bpjs?: string;
-  contract_status?: ContractStatus;
-  contract_start_date?: string;
-  contract_end_date?: string;
   total_leave_quota?: number;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
@@ -225,44 +296,6 @@ export interface EmployeeFormDataResponse {
   data: EmployeeFormData;
   timestamp: string;
   request_id: string;
-}
-
-// Represents an individual area assignment with role (used by bulk update)
-export interface AreaAssignment {
-  area_id: string;
-  is_supervisor: boolean;
-}
-
-export interface BulkUpdateEmployeeAreasData {
-  assignments: AreaAssignment[];
-}
-
-// Lightweight user returned by GET /users/available
-export interface AvailableUser {
-  id: string;
-  email: string;
-  name: string;
-}
-
-export interface AvailableUsersResponse {
-  success: boolean;
-  data: AvailableUser[];
-}
-
-// Generic form option returned by GET /employees/form-data
-export interface FormOption {
-  id: string;
-  name: string;
-}
-
-export interface EmployeeFormDataResponse {
-  success: boolean;
-  data: {
-    divisions: FormOption[];
-    job_positions: FormOption[];
-    companies: FormOption[];
-    areas: FormOption[];
-  };
 }
 
 export interface ListEmployeesParams {
