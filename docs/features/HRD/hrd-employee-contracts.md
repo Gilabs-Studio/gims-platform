@@ -14,12 +14,14 @@ Employee Contract Management mengelola siklus hidup kontrak kerja karyawan. Cont
 
 - Create employee dengan optional initial contract (atomic)
 - Create contract terpisah untuk existing employee
-- Update contract (nomor kontrak, tipe, tanggal, dokumen)
+- Update/Edit contract (nomor kontrak, tipe, tanggal, dokumen — form auto-prefill)
 - Terminate contract (resign, PHK, dll)
 - Renew contract (buat kontrak baru, expire yang lama)
 - Correct active contract (koreksi data tanpa mengubah histori)
-- Contract history timeline
-- Document upload untuk kontrak
+- Contract history timeline dengan download dokumen
+- Document upload untuk kontrak (nama file asli ditampilkan & bisa di-download)
+- End date validation (tidak bisa sebelum/sama dengan start date)
+- i18n support penuh (EN & ID), termasuk tipe kontrak: PKWTT, PKWT, Magang
 
 ---
 
@@ -43,11 +45,13 @@ Employee Contract Management mengelola siklus hidup kontrak kerja karyawan. Cont
 
 ### Validasi Penting
 
-1. **PKWTT** tidak boleh punya `end_date`
-2. **PKWT/Intern** wajib punya `end_date`
-3. Satu employee hanya boleh punya **satu kontrak ACTIVE** pada satu waktu
-4. Contract yang sudah **TERMINATED** tidak bisa dimodifikasi
-5. `contract_number` harus unik secara global
+1. **`contract_number` wajib diisi** — tidak ada auto-generate berdasarkan employee code
+2. **PKWTT** tidak boleh punya `end_date`
+3. **PKWT/Intern** wajib punya `end_date`
+4. **`end_date`** tidak boleh pada atau sebelum `start_date`
+5. Satu employee hanya boleh punya **satu kontrak ACTIVE** pada satu waktu
+6. Contract yang sudah **TERMINATED** tidak bisa dimodifikasi
+7. `contract_number` harus unik secara global
 
 ---
 
@@ -56,9 +60,12 @@ Employee Contract Management mengelola siklus hidup kontrak kerja karyawan. Cont
 1. **Atomic Employee + Contract Creation**: Frontend mengirim `initial_contract` nested di dalam request create employee. Backend membuat keduanya dalam satu operasi.
 2. **No Salary/JobTitle/Department**: Field ini dihapus dari contract karena sudah ada di data employee (`job_position_id`, `division_id`). Privacy concern untuk salary.
 3. **Contract Type Simplification**: Dari 4 tipe (PERMANENT, CONTRACT, INTERNSHIP, PROBATION) menjadi 3 (PKWTT, PKWT, Intern). Probation dianggap status dalam PKWT.
-4. **Correct = Create New + Expire Old**: Action correct membuat kontrak baru (dengan suffix `-C` pada nomor) dan meng-expire kontrak lama. Field `corrected_from_contract_id` menyimpan relasi.
-5. **Renew = Create New + Expire Old**: Action renew membuat kontrak baru dan meng-expire kontrak lama.
-6. **Filename UX**: Backend menyimpan `{uuid}_{sanitized_original_name}.{ext}` agar frontend bisa menampilkan nama file asli.
+4. **Contract Number Wajib Diisi**: `contract_number` harus diisi manual oleh user, baik saat create employee (initial contract) maupun saat create/renew contract. Tidak ada auto-generate berdasarkan employee code.
+5. **Correct = Create New + Expire Old**: Action correct membuat kontrak baru (dengan suffix `-C` pada nomor) dan meng-expire kontrak lama. Field `corrected_from_contract_id` menyimpan relasi.
+6. **Renew = Create New + Expire Old**: Action renew membuat kontrak baru dan meng-expire kontrak lama.
+7. **End Date Validation**: Datepicker `end_date` tidak mengizinkan pemilihan tanggal pada atau sebelum `start_date` yang dipilih (berlaku di form create employee, create contract, dan edit contract).
+8. **Edit Contract Pre-fill**: Dialog edit contract otomatis terisi data kontrak yang sedang diedit saat dibuka.
+9. **Filename UX**: Backend menyimpan `{uuid}_{sanitized_original_name}.{ext}` agar frontend bisa menampilkan nama file asli yang bisa di-download.
 
 ---
 
@@ -132,6 +139,7 @@ Base URL: `/api/v1/organization/employees`
 ```
 
 > `initial_contract` bersifat opsional. Jika tidak disertakan, employee dibuat tanpa kontrak.
+> `contract_number` wajib diisi (tidak ada auto-generate).
 
 ### POST /employees/:id/contracts — Create Contract
 
@@ -363,8 +371,14 @@ apps/api/internal/organization/
 apps/web/src/features/master-data/employee/
 ├── components/
 │   ├── contracts/
-│   │   ├── contract-info-card.tsx
-│   │   └── contract-timeline.tsx (planned)
+│   │   ├── contract-info-card.tsx      # Card info kontrak aktif
+│   │   ├── contract-timeline.tsx       # Timeline riwayat kontrak
+│   │   ├── create-contract-dialog.tsx  # Dialog buat kontrak baru
+│   │   ├── correct-contract-dialog.tsx # Dialog koreksi kontrak aktif
+│   │   ├── edit-contract-dialog.tsx    # Dialog edit kontrak (auto-prefill)
+│   │   ├── renew-contract-dialog.tsx   # Dialog perpanjang kontrak
+│   │   ├── terminate-contract-dialog.tsx # Dialog terminasi kontrak
+│   │   └── index.ts                   # Barrel exports
 │   ├── employee-detail-modal.tsx
 │   ├── employee-form.tsx
 │   └── employee-list.tsx
@@ -443,5 +457,6 @@ employee.approve   - Approve/reject employee
 
 ## Document Version
 
-- **Version**: 3.0.0
+- **Version**: 3.1.0
 - **Last Updated**: 2026-02-22
+- **Changelog v3.1.0**: Contract number wajib diisi (hapus auto-generate), end date validation, edit contract auto-prefill, document download di timeline, i18n lengkap
