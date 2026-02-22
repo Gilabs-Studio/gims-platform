@@ -374,8 +374,8 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, ErrInvalidOrderStatusTransition
 	}
 
-	// Handle stock reservation on confirmation (wrapped in transaction for atomicity)
-	if newStatus == models.SalesOrderStatusConfirmed && !order.ReservedStock {
+	// Handle stock reservation on approval (wrapped in transaction for atomicity)
+	if newStatus == models.SalesOrderStatusApproved && !order.ReservedStock {
 		err := u.db.Transaction(func(tx *gorm.DB) error {
 			txCtx := database.WithTx(ctx, tx)
 
@@ -577,41 +577,18 @@ func (u *salesOrderUsecase) calculateTotals(order *models.SalesOrder) {
 func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrderStatus) bool {
 	validTransitions := map[models.SalesOrderStatus][]models.SalesOrderStatus{
 		models.SalesOrderStatusDraft: {
-			models.SalesOrderStatusSent,
+			models.SalesOrderStatusSubmitted,
 			models.SalesOrderStatusCancelled,
 		},
-		models.SalesOrderStatusSent: {
+		models.SalesOrderStatusSubmitted: {
 			models.SalesOrderStatusApproved,
 			models.SalesOrderStatusRejected,
 		},
 		models.SalesOrderStatusApproved: {
-			models.SalesOrderStatusConfirmed,
 			models.SalesOrderStatusCancelled,
 		},
 		models.SalesOrderStatusRejected: {
 			models.SalesOrderStatusDraft,
-		},
-		models.SalesOrderStatusConfirmed: {
-			models.SalesOrderStatusProcessing,
-			models.SalesOrderStatusCancelled,
-		},
-		models.SalesOrderStatusProcessing: {
-			models.SalesOrderStatusShipped,
-			models.SalesOrderStatusPartial,
-			models.SalesOrderStatusDelivered,
-			models.SalesOrderStatusCancelled,
-		},
-		models.SalesOrderStatusPartial: {
-			models.SalesOrderStatusProcessing, // Can go back to processing if new DO is created/shipped?
-			models.SalesOrderStatusDelivered,
-			models.SalesOrderStatusCancelled,
-		},
-		models.SalesOrderStatusShipped: {
-			models.SalesOrderStatusPartial,
-			models.SalesOrderStatusDelivered,
-		},
-		models.SalesOrderStatusDelivered: {
-			// Cannot transition from delivered
 		},
 		models.SalesOrderStatusCancelled: {
 			// Cannot transition from cancelled

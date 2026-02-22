@@ -259,12 +259,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			}
 		}
 
-		// Update sales order status to Processing if it's Confirmed
-		if salesOrder.Status == models.SalesOrderStatusConfirmed {
-			if err := u.salesOrderRepo.UpdateStatus(txCtx, salesOrder.ID, models.SalesOrderStatusProcessing, createdBy, nil); err != nil {
-				return err
-			}
-		}
+		// Sales order status no longer changes based on Delivery Order creation
 
 		return nil
 	})
@@ -535,10 +530,7 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 		}
 	}
 
-	// Check if sales order is fully delivered
-	if err := u.updateSalesOrderStatusIfCompleted(ctx, deliveryOrder.SalesOrderID, userID); err != nil {
-		return nil, err
-	}
+	// Sales order status is no longer tied strictly to Delivery completion
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
@@ -655,41 +647,3 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 	return false
 }
 
-// updateSalesOrderStatusIfCompleted checks if all items in sales order are delivered and updates status
-func (u *deliveryOrderUsecase) updateSalesOrderStatusIfCompleted(ctx context.Context, salesOrderID string, userID *string) error {
-	salesOrder, err := u.salesOrderRepo.FindByID(ctx, salesOrderID)
-	if err != nil {
-		return err
-	}
-
-	allDelivered := true
-	anyDelivered := false
-
-	for _, item := range salesOrder.Items {
-		if item.DeliveredQuantity < item.Quantity {
-			allDelivered = false
-		}
-		if item.DeliveredQuantity > 0 {
-			anyDelivered = true
-		}
-	}
-
-	// Update status based on delivery progress
-	var newStatus models.SalesOrderStatus
-
-	if allDelivered {
-		newStatus = models.SalesOrderStatusDelivered
-	} else if anyDelivered {
-		newStatus = models.SalesOrderStatusPartial
-	} else {
-		// Should generally be processing if we are calling this after a delivery
-		newStatus = models.SalesOrderStatusProcessing
-	}
-
-	// Only update if status is different
-	if salesOrder.Status != newStatus {
-		return u.salesOrderRepo.UpdateStatus(ctx, salesOrderID, newStatus, userID, nil)
-	}
-
-	return nil
-}

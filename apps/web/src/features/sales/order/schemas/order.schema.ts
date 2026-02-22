@@ -66,7 +66,7 @@ export const getUpdateOrderSchema = (t?: TranslationFn) => getOrderSchema(t).par
 });
 
 export const getUpdateOrderStatusSchema = (t?: TranslationFn) => z.object({
-  status: z.enum(["draft", "confirmed", "processing", "shipped", "delivered", "cancelled"] as const, {
+  status: z.enum(["draft", "submitted", "approved", "rejected", "cancelled"] as const, {
     message: getMsg(t, "validation.invalidStatus", "Invalid status"),
   }),
   cancellation_reason: z.string().optional(),

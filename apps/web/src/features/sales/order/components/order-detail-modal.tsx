@@ -59,7 +59,7 @@ export function OrderDetailModal({
 
   const canEdit = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
-  const canConfirm = useUserPermission("sales_order.confirm");
+  const canApprove = useUserPermission("sales_order.approve");
   const canCancel = useUserPermission("sales_order.cancel");
 
   const {
@@ -91,34 +91,7 @@ export function OrderDetailModal({
             {t("status.draft")}
           </Badge>
         );
-      case "confirmed":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.confirmed")}
-          </Badge>
-        );
-      case "processing":
-        return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <Package className="h-3 w-3 mr-1.5" />
-            {t("status.processing")}
-          </Badge>
-        );
-      case "shipped":
-        return (
-          <Badge variant="default" className="text-xs font-medium">
-            <Truck className="h-3 w-3 mr-1.5" />
-            {t("status.shipped")}
-          </Badge>
-        );
-      case "delivered":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.delivered")}
-          </Badge>
-        );
+
       case "cancelled":
         return (
           <Badge variant="destructive" className="text-xs font-medium">
@@ -143,16 +116,16 @@ export function OrderDetailModal({
     }
   };
 
-  const handleConfirm = async () => {
+  const handleApprove = async () => {
     if (!order?.id) return;
     try {
       await updateStatus.mutateAsync({
         id: order.id,
-        data: { status: "confirmed" },
+        data: { status: "approved" },
       });
       toast.success(t("statusUpdated"));
     } catch (error) {
-      console.error("Failed to confirm order:", error);
+      console.error("Failed to approve order:", error);
       toast.error(t("common.error"));
     }
   };
@@ -209,19 +182,19 @@ export function OrderDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-                {displayOrder?.status === "draft" && canConfirm && (
+                {displayOrder?.status === "submitted" && canApprove && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={handleConfirm}
+                    onClick={handleApprove}
                     disabled={updateStatus.isPending}
                     className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title={t("actions.confirm")}
+                    title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
-                {displayOrder?.status !== "cancelled" && displayOrder?.status !== "delivered" && canCancel && (
+                {displayOrder?.status !== "cancelled" && canCancel && (
                   <Button
                     variant="ghost"
                     size="icon"

@@ -316,7 +316,7 @@ func (r *salesOrderRepository) UpdateStatus(ctx context.Context, id string, stat
 	}
 
 	switch status {
-	case models.SalesOrderStatusConfirmed:
+	case models.SalesOrderStatusApproved:
 		updates["confirmed_by"] = userID
 		updates["confirmed_at"] = database.GetDB(ctx, r.db).NowFunc()
 	case models.SalesOrderStatusCancelled:

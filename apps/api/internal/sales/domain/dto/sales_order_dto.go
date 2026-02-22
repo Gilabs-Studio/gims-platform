@@ -72,7 +72,7 @@ type ListSalesOrderItemsRequest struct {
 
 // UpdateSalesOrderStatusRequest represents the request to update order status
 type UpdateSalesOrderStatusRequest struct {
-	Status            string  `json:"status" binding:"required,oneof=sent approved rejected confirmed cancelled"`
+	Status            string  `json:"status" binding:"required,oneof=draft submitted approved rejected cancelled"`
 	CancellationReason *string `json:"cancellation_reason"`
 }
 

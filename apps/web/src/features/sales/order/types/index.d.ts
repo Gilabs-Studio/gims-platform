@@ -16,7 +16,7 @@ export interface SalesOrderSummary {
   order_date?: string;
 }
 
-export type SalesOrderStatus = "draft" | "sent" | "approved" | "rejected" | "confirmed" | "processing" | "partial" | "shipped" | "delivered" | "cancelled";
+export type SalesOrderStatus = "draft" | "submitted" | "approved" | "rejected" | "cancelled";
 
 // Summary of a linked Delivery Order embedded in Sales Order list response
 export interface DeliveryOrderSummary {
