@@ -8,7 +8,8 @@ import (
 )
 
 // ToSalesOrderResponse converts a SalesOrder model to response DTO
-func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
+// pendingQtyMap maps sales_order_item_id -> total pending delivery quantity from active DOs
+func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]float64) dto.SalesOrderResponse {
 	response := dto.SalesOrderResponse{
 		ID:                  m.ID,
 		Code:                m.Code,
@@ -120,10 +121,32 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 	}
 
 	// Map items
+	var totalOrdered, totalDelivered, totalPending float64
 	if len(m.Items) > 0 {
 		response.Items = make([]dto.SalesOrderItemResponse, len(m.Items))
 		for i, item := range m.Items {
-			response.Items[i] = ToSalesOrderItemResponse(&item)
+			pendingQty := float64(0)
+			if pendingQtyMap != nil {
+				pendingQty = pendingQtyMap[item.ID]
+			}
+			response.Items[i] = ToSalesOrderItemResponse(&item, pendingQty)
+			totalOrdered += item.Quantity
+			totalDelivered += item.DeliveredQuantity
+			totalPending += pendingQty
+		}
+	}
+
+	// Add fulfillment summary for approved orders
+	if m.Status == salesModels.SalesOrderStatusApproved && len(m.Items) > 0 {
+		totalRemaining := totalOrdered - totalDelivered - totalPending
+		if totalRemaining < 0 {
+			totalRemaining = 0
+		}
+		response.Fulfillment = &dto.FulfillmentSummary{
+			TotalOrdered:   totalOrdered,
+			TotalDelivered: totalDelivered,
+			TotalPending:   totalPending,
+			TotalRemaining: totalRemaining,
 		}
 	}
 
@@ -173,19 +196,20 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 }
 
 // ToSalesOrderItemResponse converts a SalesOrderItem model to response DTO
-func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem) dto.SalesOrderItemResponse {
+func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem, pendingQty float64) dto.SalesOrderItemResponse {
 	response := dto.SalesOrderItemResponse{
-		ID:               m.ID,
-		SalesOrderID:     m.SalesOrderID,
-		ProductID:        m.ProductID,
-		Quantity:         m.Quantity,
-		Price:            m.Price,
-		Discount:         m.Discount,
-		Subtotal:         m.Subtotal,
-		ReservedQuantity: m.ReservedQuantity,
-		DeliveredQuantity: m.DeliveredQuantity,
-		CreatedAt:        m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        m.UpdatedAt.Format(time.RFC3339),
+		ID:                      m.ID,
+		SalesOrderID:            m.SalesOrderID,
+		ProductID:               m.ProductID,
+		Quantity:                m.Quantity,
+		Price:                   m.Price,
+		Discount:                m.Discount,
+		Subtotal:                m.Subtotal,
+		ReservedQuantity:        m.ReservedQuantity,
+		DeliveredQuantity:       m.DeliveredQuantity,
+		PendingDeliveryQuantity: pendingQty,
+		CreatedAt:               m.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:               m.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if m.Product != nil {

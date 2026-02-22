@@ -178,6 +178,7 @@ export function OrderList() {
               <TableHead>{t("salesQuotations") || "Sales Quotation"}</TableHead>
               <TableHead>{t("salesRep")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
+              <TableHead>Fulfillment</TableHead>
               <TableHead>DO</TableHead>
               <TableHead>{t("invoice") || "Invoice"}</TableHead>
               <TableHead>{t("totalAmount")}</TableHead>
@@ -190,9 +191,9 @@ export function OrderList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -201,7 +202,7 @@ export function OrderList() {
               ))
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -246,6 +247,33 @@ export function OrderList() {
                   {/* SO Status */}
                   <TableCell>
                     <OrderStatusBadge status={order.status} className="text-xs font-medium" />
+                  </TableCell>
+
+                  {/* Fulfillment Progress */}
+                  <TableCell>
+                    {order.fulfillment ? (
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1 text-xs">
+                          <Package className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-medium">
+                            {order.fulfillment.total_delivered}/{order.fulfillment.total_ordered}
+                          </span>
+                          <span className="text-muted-foreground">delivered</span>
+                        </div>
+                        {order.fulfillment.total_pending > 0 && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            {order.fulfillment.total_pending} pending
+                          </span>
+                        )}
+                        {order.fulfillment.total_remaining > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {order.fulfillment.total_remaining} remaining
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
 
                   {/* DO Status — shows actual status from embedded summary, click to open dialog */}

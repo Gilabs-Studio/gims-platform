@@ -55,10 +55,18 @@ export interface SalesOrderItem {
   subtotal: number;
   reserved_quantity: number;
   delivered_quantity: number;
+  pending_delivery_quantity?: number;
   installation_status?: string;
   function_test_status?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FulfillmentSummary {
+  total_ordered: number;
+  total_delivered: number;
+  total_pending: number;
+  total_remaining: number;
 }
 
 export interface SalesOrder {
@@ -106,6 +114,7 @@ export interface SalesOrder {
   reserved_stock: boolean;
   status: SalesOrderStatus;
   notes?: string;
+  fulfillment?: FulfillmentSummary;
   created_by?: string;
   confirmed_by?: string;
   confirmed_at?: string;
@@ -130,6 +139,7 @@ export interface ListSalesOrdersParams {
   sales_rep_id?: string;
   business_unit_id?: string;
   sales_quotation_id?: string;
+  unfulfilled_only?: boolean;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
 }

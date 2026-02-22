@@ -67,7 +67,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
   );
 
   // Fetch lookup data
-  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "approved" });
+  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "approved", unfulfilled_only: true });
   const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
   const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 });
   const { data: warehousesData } = useWarehouses({ per_page: 100 });
@@ -167,7 +167,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
       type LocalDeliveryItem = DeliveryOrderItemFormData & { product_name?: string };
 
       const newItems = salesOrder.items.map((item: SalesOrderItem) => {
-        const remainingQty = item.quantity - (item.delivered_quantity ?? 0);
+        const remainingQty = item.quantity - (item.delivered_quantity ?? 0) - (item.pending_delivery_quantity ?? 0);
         
         // Skip fully delivered items? Maybe user wants to deliver 0 of them? 
         // Better to include them but maybe with 0 qty or disabled?
