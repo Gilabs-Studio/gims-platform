@@ -197,8 +197,8 @@ export function VisitDetailModal({
               <div className="flex gap-2">
                 {canEdit && displayVisit.status === "planned" && (
                   <>
-                    <Button variant="outline" size="sm" onClick={handleCheckIn} className="cursor-pointer">
-                      <LogIn className="h-4 w-4 mr-2" /> Check In
+                    <Button variant="outline" size="sm" onClick={handleCheckIn} className="cursor-pointer text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                      <LogIn className="h-4 w-4 mr-2 text-blue-600" /> Check In
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => setIsEditDialogOpen(true)} className="cursor-pointer">
                       <Edit className="h-4 w-4" />
@@ -206,8 +206,8 @@ export function VisitDetailModal({
                   </>
                 )}
                 {canEdit && displayVisit.status === "in_progress" && (
-                  <Button variant="outline" size="sm" onClick={handleCheckOut} className="cursor-pointer">
-                    <LogOut className="h-4 w-4 mr-2" /> Check Out
+                  <Button variant="outline" size="sm" onClick={handleCheckOut} className="cursor-pointer text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700">
+                    <LogOut className="h-4 w-4 mr-2 text-green-600" /> Check Out
                   </Button>
                 )}
                 {canEdit && (displayVisit.status === "planned" || displayVisit.status === "in_progress") && (

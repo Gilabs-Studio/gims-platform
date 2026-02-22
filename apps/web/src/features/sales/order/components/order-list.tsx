@@ -320,7 +320,7 @@ export function OrderList() {
                           {canUpdate && order.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(order.id, "sent")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
@@ -331,7 +331,7 @@ export function OrderList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -340,7 +340,7 @@ export function OrderList() {
                               {canUpdate && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(order.id, "rejected")}
-                                  className="cursor-pointer text-destructive"
+                                  className="cursor-pointer text-destructive focus:text-destructive"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {t("actions.reject")}
@@ -351,7 +351,7 @@ export function OrderList() {
                           {canUpdate && order.status !== "cancelled" && order.status !== "delivered" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(order.id, "cancelled")}
-                              className="text-destructive cursor-pointer"
+                              className="text-destructive cursor-pointer focus:text-destructive"
                             >
                               <XCircle className="h-4 w-4 mr-2" />
                               {t("actions.cancel")}

@@ -20,7 +20,7 @@ export function DOStatusBadge({ status, className }: DOStatusBadgeProps) {
       );
     case "sent":
       return (
-        <Badge variant="warning" className={className}>
+        <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
           {t("sent")}
         </Badge>
@@ -41,14 +41,14 @@ export function DOStatusBadge({ status, className }: DOStatusBadgeProps) {
       );
     case "prepared":
       return (
-        <Badge variant="info" className={className}>
+        <Badge variant="warning" className={className}>
           <Box className="h-3 w-3 mr-1.5" />
           {t("prepared")}
         </Badge>
       );
     case "shipped":
       return (
-        <Badge variant="info" className={className}>
+        <Badge variant="default" className={className}>
           <Truck className="h-3 w-3 mr-1.5" />
           {t("shipped")}
         </Badge>

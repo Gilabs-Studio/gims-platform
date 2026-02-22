@@ -286,7 +286,7 @@ export function EstimationList() {
                           {canUpdate && estimation.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(estimation.id, "submitted")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
@@ -296,14 +296,14 @@ export function EstimationList() {
                             <>
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(estimation.id, "approved")}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.approve")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(estimation.id, "rejected")}
-                                className="cursor-pointer text-destructive"
+                                className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <XCircle className="h-4 w-4 mr-2" />
                                 {t("actions.reject")}
@@ -313,7 +313,7 @@ export function EstimationList() {
                           {canUpdate && estimation.status === "approved" && (
                             <DropdownMenuItem
                               onClick={() => setConvertingEstimation(estimation)}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <BarChart3 className="h-4 w-4 mr-2" />
                               {t("actions.convert")}

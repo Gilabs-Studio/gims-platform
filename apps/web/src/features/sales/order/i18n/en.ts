@@ -51,8 +51,8 @@ export const orderEn = {
     // Status
     status: {
       draft: "Draft",
-      sent: "Sent for Approval",
-      pending: "Pending",
+      sent: "Submitted",
+      pending: "Submitted",
       approved: "Approved",
       rejected: "Rejected",
       confirmed: "Confirmed",

@@ -101,7 +101,7 @@ export function QuotationDetailModal({
         );
       case "sent":
           return (
-            <Badge variant="warning" className="text-xs font-medium">
+            <Badge variant="info" className="text-xs font-medium">
               <Send className="h-3 w-3 mr-1.5" />
               {t("status.pending")}
             </Badge>

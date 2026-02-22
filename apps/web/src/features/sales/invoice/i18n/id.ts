@@ -58,8 +58,8 @@ export const invoiceId = {
     // Status
     status: {
       draft: "Draft",
-      sent: "Menunggu Persetujuan",
-      pending: "Menunggu Persetujuan",
+      sent: "Diajukan",
+      pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
       unpaid: "Belum Dibayar",

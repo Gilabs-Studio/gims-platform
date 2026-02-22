@@ -53,8 +53,8 @@ export const deliveryId = {
     // Status
     status: {
       draft: "Draft",
-      sent: "Menunggu Persetujuan",
-      pending: "Menunggu Persetujuan",
+      sent: "Diajukan",
+      pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
       prepared: "Disiapkan",

@@ -127,7 +127,7 @@ export function InvoiceList() {
         );
       case "sent":
         return (
-          <Badge variant="warning">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
@@ -315,7 +315,7 @@ export function InvoiceList() {
                           {canUpdate && invoice.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(invoice.id, "sent")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
@@ -326,7 +326,7 @@ export function InvoiceList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => approveInvoice.mutateAsync(invoice.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -335,7 +335,7 @@ export function InvoiceList() {
                               {canUpdate && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(invoice.id, "rejected")}
-                                  className="cursor-pointer text-destructive"
+                                  className="cursor-pointer text-destructive focus:text-destructive"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {t("actions.reject")}
@@ -346,7 +346,7 @@ export function InvoiceList() {
                           {canUpdate && (invoice.status === "unpaid" || invoice.status === "partial") && (
                             <DropdownMenuItem
                               onClick={() => handleView(invoice)}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-green-600 focus:text-green-600"
                             >
                               <DollarSign className="h-4 w-4 mr-2" />
                               {t("actions.pay")}

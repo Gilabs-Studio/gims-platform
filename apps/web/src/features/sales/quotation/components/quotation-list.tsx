@@ -143,7 +143,7 @@ export function QuotationList() {
         );
       case "sent":
         return (
-          <Badge variant="warning">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
@@ -315,7 +315,7 @@ export function QuotationList() {
                           {canUpdate && quotation.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(quotation.id, "sent")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
@@ -326,7 +326,7 @@ export function QuotationList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(quotation.id, "approved")}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -335,7 +335,7 @@ export function QuotationList() {
                               {canUpdate && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(quotation.id, "rejected")}
-                                  className="cursor-pointer text-destructive"
+                                  className="cursor-pointer text-destructive focus:text-destructive"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {t("actions.reject")}
@@ -371,7 +371,7 @@ export function QuotationList() {
                                   }
                                 }
                               }}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("convertToOrder")}

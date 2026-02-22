@@ -89,8 +89,8 @@ export function EstimationDetailModal({
         );
       case "pending":
         return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1.5" />
+          <Badge variant="info" className="text-xs font-medium">
+            <Send className="h-3 w-3 mr-1.5" />
             {t("status.pending")}
           </Badge>
         );

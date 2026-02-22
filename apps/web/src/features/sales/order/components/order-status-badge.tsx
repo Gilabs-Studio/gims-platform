@@ -20,7 +20,7 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
       );
     case "sent":
       return (
-        <Badge variant="warning" className={className}>
+        <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
           {t("pending")}
         </Badge>
@@ -62,7 +62,7 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
       );
     case "shipped":
       return (
-        <Badge variant="info" className={className}>
+        <Badge variant="default" className={className}>
           <Truck className="h-3 w-3 mr-1.5" />
           {t("shipped")}
         </Badge>
