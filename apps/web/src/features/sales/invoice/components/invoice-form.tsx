@@ -64,7 +64,7 @@ export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
   // Fetch lookup data
   const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
   const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
-  const { data: ordersData } = useOrders({ per_page: 100, status: "confirmed" });
+  const { data: ordersData } = useOrders({ per_page: 100, status: "approved" });
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];

@@ -154,14 +154,9 @@ export function OrderList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.pending")}</SelectItem>
+            <SelectItem value="submitted">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
-            <SelectItem value="confirmed">{t("status.confirmed")}</SelectItem>
-            <SelectItem value="processing">{t("status.processing")}</SelectItem>
-            <SelectItem value="partial">{t("status.partial")}</SelectItem>
-            <SelectItem value="shipped">{t("status.shipped")}</SelectItem>
-            <SelectItem value="delivered">{t("status.delivered")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
           </SelectContent>
         </Select>
@@ -319,14 +314,14 @@ export function OrderList() {
                           )}
                           {canUpdate && order.status === "draft" && (
                             <DropdownMenuItem
-                              onClick={() => handleStatusChange(order.id, "sent")}
+                              onClick={() => handleStatusChange(order.id, "submitted")}
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
                             </DropdownMenuItem>
                           )}
-                          {order.status === "sent" && (
+                          {order.status === "submitted" && (
                             <>
                               {canApprove && (
                                 <DropdownMenuItem
@@ -348,7 +343,7 @@ export function OrderList() {
                               )}
                             </>
                           )}
-                          {canUpdate && order.status !== "cancelled" && order.status !== "delivered" && (
+                          {canUpdate && order.status !== "cancelled" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(order.id, "cancelled")}
                               className="text-destructive cursor-pointer focus:text-destructive"

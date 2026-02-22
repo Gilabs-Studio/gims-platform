@@ -15,14 +15,9 @@ type SalesOrderStatus string
 
 const (
 	SalesOrderStatusDraft      SalesOrderStatus = "draft"
-	SalesOrderStatusSent       SalesOrderStatus = "sent"
+	SalesOrderStatusSubmitted  SalesOrderStatus = "submitted"
 	SalesOrderStatusApproved   SalesOrderStatus = "approved"
 	SalesOrderStatusRejected   SalesOrderStatus = "rejected"
-	SalesOrderStatusConfirmed  SalesOrderStatus = "confirmed"
-	SalesOrderStatusProcessing SalesOrderStatus = "processing"
-	SalesOrderStatusPartial    SalesOrderStatus = "partial"
-	SalesOrderStatusShipped    SalesOrderStatus = "shipped"
-	SalesOrderStatusDelivered  SalesOrderStatus = "delivered"
 	SalesOrderStatusCancelled  SalesOrderStatus = "cancelled"
 )
 
