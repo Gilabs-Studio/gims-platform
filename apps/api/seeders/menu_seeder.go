@@ -255,6 +255,27 @@ func SeedMenus() error {
 		}
 	}
 
+	// Customer Group
+	customerMenu, err := createChildMenu("Customer", "users-round", "/master-data/customer", &masterDataMenu.ID, 6)
+	if err != nil {
+		return err
+	}
+
+	customerChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Customers", "user-check", "/master-data/customers", 1},
+		{"Customer Types", "tag", "/master-data/customer-types", 2},
+	}
+	for _, child := range customerChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &customerMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
 	// Product Group
 	productMenu, err := createChildMenu("Product", "package", "/master-data/product", &masterDataMenu.ID, 5)
 	if err != nil {

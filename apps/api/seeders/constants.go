@@ -63,3 +63,22 @@ const (
 	FinanceStaffEmployeeID = "66666666-6666-6666-6666-666666666666"
 	HRStaffEmployeeID    = "77777777-7777-7777-7777-777777777777"
 )
+
+// Customer Type IDs (Fixed - hex only: 0-9, a-f)
+const (
+	CustomerTypeHospitalID  = "c0000001-0000-0000-0000-000000000001"
+	CustomerTypeClinicID    = "c0000001-0000-0000-0000-000000000002"
+	CustomerTypePharmacyID  = "c0000001-0000-0000-0000-000000000003"
+	CustomerTypePuskesmasID = "c0000001-0000-0000-0000-000000000004"
+	CustomerTypeDistribID   = "c0000001-0000-0000-0000-000000000005"
+)
+
+// Customer IDs (Fixed - hex only: 0-9, a-f)
+const (
+	Customer1ID = "c0000002-0000-0000-0000-000000000001" // PT Apotek Sehat Sentosa
+	Customer2ID = "c0000002-0000-0000-0000-000000000002" // RS Harapan Kita Jakarta
+	Customer3ID = "c0000002-0000-0000-0000-000000000003" // Klinik Pratama Medika
+	Customer4ID = "c0000002-0000-0000-0000-000000000004" // RS Siloam Hospitals Surabaya
+	Customer5ID = "c0000002-0000-0000-0000-000000000005" // Apotek Kimia Farma Cabang Bekasi
+	Customer6ID = "c0000002-0000-0000-0000-000000000006" // Puskesmas Cempaka Putih
+)

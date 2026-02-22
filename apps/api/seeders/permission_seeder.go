@@ -115,6 +115,19 @@ func SeedPermissions() error {
 		{"/master-data/banks", "bank.update", "Edit Banks", "EDIT", "bank"},
 		{"/master-data/banks", "bank.delete", "Delete Banks", "DELETE", "bank"},
 
+		// Master Data - Customer
+		{"/master-data/customers", "customer.read", "View Customers", "VIEW", "customer"},
+		{"/master-data/customers", "customer.create", "Create Customers", "CREATE", "customer"},
+		{"/master-data/customers", "customer.update", "Edit Customers", "EDIT", "customer"},
+		{"/master-data/customers", "customer.delete", "Delete Customers", "DELETE", "customer"},
+		{"/master-data/customers", "customer.submit", "Submit Customers", "SUBMIT", "customer"},
+		{"/master-data/customers", "customer.approve", "Approve Customers", "APPROVE", "customer"},
+
+		{"/master-data/customer-types", "customer_type.read", "View Customer Types", "VIEW", "customer_type"},
+		{"/master-data/customer-types", "customer_type.create", "Create Customer Types", "CREATE", "customer_type"},
+		{"/master-data/customer-types", "customer_type.update", "Edit Customer Types", "EDIT", "customer_type"},
+		{"/master-data/customer-types", "customer_type.delete", "Delete Customer Types", "DELETE", "customer_type"},
+
 		// Master Data - Product
 		{"/master-data/products", "product.read", "View Products", "VIEW", "product"},
 		{"/master-data/products", "product.create", "Create Products", "CREATE", "product"},
