@@ -27,41 +27,10 @@ import { Loader2 } from "lucide-react";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import {
-  useCreateSupplier,
-  useUpdateSupplier,
-  useSupplier,
-} from "../../hooks/use-suppliers";
-import { useSupplierTypes } from "../../hooks/use-supplier-types";
-import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
-import { sortOptions } from "@/lib/utils";
 import { SupplierPhoneList } from "./supplier-phone-list";
 import { SupplierBankList } from "./supplier-bank-list";
-
-const formSchema = z.object({
-  code: z
-    .string()
-    .min(2, "Code must be at least 2 characters")
-    .max(50, "Code cannot exceed 50 characters"),
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name cannot exceed 100 characters"),
-  supplier_type_id: z.string().optional(),
-  address: z.string().max(500, "Address cannot exceed 500 characters").optional(),
-  village_id: z.string().optional(),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  npwp: z.string().max(30, "NPWP cannot exceed 30 characters").optional(),
-  contact_person: z.string().max(100, "Contact person cannot exceed 100 characters").optional(),
-  notes: z.string().max(500, "Notes cannot exceed 500 characters").optional(),
-  is_active: z.boolean(),
-  // Arrays for creation mode
-  phone_numbers: z.array(z.any()).optional(), 
-  bank_accounts: z.array(z.any()).optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
+import { useSupplierForm } from "../../hooks/use-supplier-form";
+import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
 
 interface SupplierDialogProps {
   open: boolean;
@@ -74,124 +43,25 @@ export function SupplierDialog({
   onOpenChange,
   editingItem,
 }: SupplierDialogProps) {
-  const t = useTranslations("supplier.supplier");
-  const tCommon = useTranslations("supplier.common");
-  
-  const createMutation = useCreateSupplier();
-  const updateMutation = useUpdateSupplier();
-  
-  // Fetch supplier types for dropdown
-  const { data: supplierTypesData } = useSupplierTypes({
-    page: 1,
-    per_page: 100,
-  });
-  const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
+  const {
+    form,
+    t,
+    tCommon,
+    isEditing,
+    isSubmitting,
+    isLoadingDetail,
+    activeItem,
+    supplierTypes,
+    onSubmit,
+  } = useSupplierForm({ open, onOpenChange, editingItem });
 
-  // Fetch fresh detail if editing to ensure we have latest nested data
-  const { data: detailData, isLoading: isLoadingDetail } = useSupplier(editingItem?.id ?? "");
-  const activeItem = detailData?.data ?? editingItem;
-
-  const isEditing = !!editingItem;
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const {
     register,
-    handleSubmit,
-    reset,
-    watch,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      code: "",
-      name: "",
-      supplier_type_id: "",
-      address: "",
-      village_id: "",
-      email: "",
-      website: "",
-      npwp: "",
-      contact_person: "",
-      notes: "",
-      is_active: true,
-      phone_numbers: [],
-      bank_accounts: [],
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (open) {
-      if (activeItem) {
-        reset({
-          code: activeItem.code,
-          name: activeItem.name,
-          supplier_type_id: activeItem.supplier_type_id ?? "",
-          address: activeItem.address ?? "",
-          village_id: activeItem.village_id ?? "",
-          email: activeItem.email ?? "",
-          website: activeItem.website ?? "",
-          npwp: activeItem.npwp ?? "",
-          contact_person: activeItem.contact_person ?? "",
-          notes: activeItem.notes ?? "",
-          is_active: activeItem.is_active,
-          phone_numbers: [], 
-          bank_accounts: [],
-        });
-      } else {
-        reset({
-          code: "",
-          name: "",
-          supplier_type_id: "",
-          address: "",
-          village_id: "",
-          email: "",
-          website: "",
-          npwp: "",
-          contact_person: "",
-          notes: "",
-          is_active: true,
-          phone_numbers: [],
-          bank_accounts: [],
-        });
-      }
-    }
-  }, [open, activeItem, reset]);
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      const payload = {
-        code: data.code,
-        name: data.name,
-        supplier_type_id: data.supplier_type_id || undefined,
-        address: data.address || undefined,
-        village_id: data.village_id || undefined,
-        email: data.email || undefined,
-        website: data.website || undefined,
-        npwp: data.npwp || undefined,
-        contact_person: data.contact_person || undefined,
-        notes: data.notes || undefined,
-        is_active: data.is_active,
-        phone_numbers: !isEditing ? data.phone_numbers : undefined,
-        bank_accounts: !isEditing ? data.bank_accounts : undefined,
-      };
-
-      if (isEditing && editingItem) {
-        await updateMutation.mutateAsync({
-          id: editingItem.id,
-          data: payload,
-        });
-        toast.success(t("updateSuccess"));
-      } else {
-        await createMutation.mutateAsync(payload as any);
-        toast.success(t("createSuccess"));
-      }
-      onOpenChange(false);
-    } catch {
-      toast.error(isEditing ? t("error_update") : "Failed to create supplier");
-    }
-  };
 
   const supplierTypeId = watch("supplier_type_id");
   const isActive = watch("is_active");
@@ -235,7 +105,7 @@ export function SupplierDialog({
              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
            </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-6">
             <Tabs defaultValue="general" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="general" className="cursor-pointer">{t("sections.basicInfo")}</TabsTrigger>

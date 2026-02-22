@@ -36,11 +36,11 @@ export function useEmployees(params?: ListEmployeesParams, options?: { enabled?:
   });
 }
 
-export function useEmployee(id: string | undefined) {
+export function useEmployee(id: string | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.detail(id ?? ""),
     queryFn: () => employeeService.getById(id!),
-    enabled: !!id,
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
 
@@ -155,7 +155,7 @@ export function useRemoveEmployeeArea() {
   });
 }
 
-export function useAvailableUsers(search?: string, excludeEmployeeId?: string) {
+export function useAvailableUsers(search?: string, excludeEmployeeId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.availableUsers(search, excludeEmployeeId),
     queryFn: () =>
@@ -163,14 +163,16 @@ export function useAvailableUsers(search?: string, excludeEmployeeId?: string) {
         search,
         exclude_employee_id: excludeEmployeeId,
       }),
+    ...options,
   });
 }
 
-export function useEmployeeFormData() {
+export function useEmployeeFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.formData(),
     queryFn: () => employeeService.getFormData(),
     staleTime: 5 * 60 * 1000, // Form data rarely changes, cache for 5 minutes
+    ...options,
   });
 }
 

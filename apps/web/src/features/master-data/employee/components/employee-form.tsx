@@ -19,7 +19,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -413,7 +412,7 @@ export function EmployeeForm({
             {isEditing ? t("editTitle") : t("createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-6">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
               className={cn(

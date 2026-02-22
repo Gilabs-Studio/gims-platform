@@ -12,11 +12,12 @@ export const procurementTypeKeys = {
   detail: (id: string) => [...procurementTypeKeys.details(), id] as const,
 };
 
-export function useProcurementTypes(params?: LookupListParams) {
+export function useProcurementTypes(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: procurementTypeKeys.list(params),
     queryFn: () => procurementTypeService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
