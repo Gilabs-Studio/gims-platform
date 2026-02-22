@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -92,6 +92,13 @@ export function DeliveryDetailModal({
             {t("status.draft")}
           </Badge>
         );
+      case "sent":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("status.pending")}
+          </Badge>
+        );
       case "prepared":
         return (
           <Badge variant="warning" className="text-xs font-medium">
@@ -101,7 +108,7 @@ export function DeliveryDetailModal({
         );
       case "shipped":
         return (
-          <Badge variant="info" className="text-xs font-medium">
+          <Badge variant="default" className="text-xs font-medium">
             <Truck className="h-3 w-3 mr-1.5" />
             {t("status.shipped")}
           </Badge>

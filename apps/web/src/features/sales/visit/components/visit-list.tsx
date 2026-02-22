@@ -357,7 +357,7 @@ export function VisitList() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   onClick={(e) => handleCheckIn(visit.id, e)}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-blue-600 focus:text-blue-600"
                                 >
                                   <LogIn className="h-4 w-4 mr-2" />
                                   {t("checkIn")}
@@ -367,7 +367,7 @@ export function VisitList() {
                             {canUpdate && visit.status === "in_progress" && (
                               <DropdownMenuItem 
                                 onClick={(e) => handleCheckOut(visit.id, e)}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <LogOut className="h-4 w-4 mr-2" />
                                 {t("checkOut")}
@@ -378,7 +378,7 @@ export function VisitList() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={(e) => handleCancel(visit.id, e)}
-                                  className="cursor-pointer text-destructive"
+                                  className="cursor-pointer text-destructive focus:text-destructive"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {t("cancel")}

@@ -176,7 +176,7 @@ export function DeliveryList() {
         );
       case "sent":
         return (
-          <Badge variant="warning">
+          <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
@@ -197,15 +197,15 @@ export function DeliveryList() {
         );
       case "prepared":
         return (
-          <Badge variant="warning">
-            <Package className="h-3 w-3 mr-1" />
+          <Badge variant="warning" className="text-xs font-medium">
+            <Package className="h-3 w-3 mr-1.5" />
             {t("status.prepared")}
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="info">
-            <Truck className="h-3 w-3 mr-1" />
+          <Badge variant="default" className="text-xs font-medium">
+            <Truck className="h-3 w-3 mr-1.5" />
             {t("status.shipped")}
           </Badge>
         );
@@ -369,7 +369,7 @@ export function DeliveryList() {
                           {canUpdate && delivery.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(delivery.id, "sent")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
@@ -380,7 +380,7 @@ export function DeliveryList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => approveDelivery.mutateAsync(delivery.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -389,7 +389,7 @@ export function DeliveryList() {
                               {canUpdate && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(delivery.id, "rejected")}
-                                  className="cursor-pointer text-destructive"
+                                  className="cursor-pointer text-destructive focus:text-destructive"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {t("actions.reject")}
@@ -398,19 +398,19 @@ export function DeliveryList() {
                             </>
                           )}
                           {canUpdate && delivery.status === "approved" && (
-                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer text-blue-600 focus:text-blue-600">
                               <Package className="h-4 w-4 mr-2" />
                               {t("actions.prepare")}
                             </DropdownMenuItem>
                           )}
                           {canShip && delivery.status === "prepared" && (
-                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer text-blue-600 focus:text-blue-600">
                               <Truck className="h-4 w-4 mr-2" />
                               {t("actions.ship")}
                             </DropdownMenuItem>
                           )}
                           {canDeliver && delivery.status === "shipped" && (
-                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer text-green-600 focus:text-green-600">
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("actions.deliver")}
                             </DropdownMenuItem>

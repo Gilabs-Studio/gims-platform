@@ -156,7 +156,7 @@ export function TargetsList() {
       case "submitted":
         return (
           <Badge variant="info" className="font-medium">
-            <Clock className="h-3 w-3 mr-1" />
+            <Send className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );

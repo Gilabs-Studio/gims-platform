@@ -20,7 +20,7 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
       );
     case "sent":
       return (
-        <Badge variant="warning" className={className}>
+        <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
           {t("sent")}
         </Badge>

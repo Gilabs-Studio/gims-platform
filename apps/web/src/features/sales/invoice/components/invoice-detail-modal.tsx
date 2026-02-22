@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,6 +84,13 @@ export function InvoiceDetailModal({
           <Badge variant="secondary" className="text-xs font-medium">
             <Clock className="h-3 w-3 mr-1.5" />
             {t("status.unpaid")}
+          </Badge>
+        );
+      case "sent":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("status.pending")}
           </Badge>
         );
       case "partial":

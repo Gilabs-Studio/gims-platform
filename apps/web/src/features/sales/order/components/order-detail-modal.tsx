@@ -107,7 +107,7 @@ export function OrderDetailModal({
         );
       case "shipped":
         return (
-          <Badge variant="info" className="text-xs font-medium">
+          <Badge variant="default" className="text-xs font-medium">
             <Truck className="h-3 w-3 mr-1.5" />
             {t("status.shipped")}
           </Badge>
@@ -227,7 +227,7 @@ export function OrderDetailModal({
                     size="icon"
                     onClick={handleCancel}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500"
                     title={t("actions.cancel")}
                   >
                     <XCircle className="h-4 w-4" />

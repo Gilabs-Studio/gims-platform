@@ -53,7 +53,7 @@ export const quotationId = {
     status: {
       draft: "Draft",
       sent: "Terkirim",
-      pending: "Menunggu Persetujuan",
+      pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
       converted: "Dikonversi",
