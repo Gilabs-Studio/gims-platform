@@ -8,6 +8,17 @@ export interface Area {
   description?: string;
 }
 
+// Brief customer from master data (embedded in sales responses)
+export interface CustomerBrief {
+  id: string;
+  code: string;
+  name: string;
+  customer_type_id?: string;
+  address?: string;
+  email?: string;
+  contact_person?: string;
+}
+
 export interface SalesOrderSummary {
   id: string;
   code: string;
@@ -75,6 +86,8 @@ export interface SalesOrder {
   order_date: string;
   sales_quotation_id?: string;
   sales_quotation?: SalesQuotation;
+  customer_id?: string;
+  customer?: CustomerBrief;
   payment_terms_id?: string;
   payment_terms?: {
     id: string;
@@ -178,6 +191,7 @@ export interface SalesOrderSingleResponse {
 export interface CreateSalesOrderData {
   order_date: string;
   sales_quotation_id?: string;
+  customer_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
@@ -204,6 +218,7 @@ export interface CreateSalesOrderItemData {
 
 export interface UpdateSalesOrderData {
   order_date?: string;
+  customer_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
@@ -228,6 +243,7 @@ export interface UpdateSalesOrderStatusData {
 
 export interface ConvertQuotationToOrderData {
   quotation_id: string;
+  customer_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;

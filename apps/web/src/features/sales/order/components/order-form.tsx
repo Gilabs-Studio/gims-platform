@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
-import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, User } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -54,6 +54,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     businessTypes,
     areas,
     quotations,
+    customers,
     selectedRep,
     setSelectedRep,
     fetchEmployees,
@@ -63,6 +64,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
+    handleCustomerChange,
     handleDialogChange,
     onInvalid,
     selectedProducts,
@@ -306,6 +308,28 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 {errors.delivery_area_id && (
                   <FieldError>{errors.delivery_area_id.message}</FieldError>
                 )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
+                <Controller
+                  name="customer_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value || undefined} onValueChange={handleCustomerChange}>
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder={t("common.selectCustomer") || "Select customer"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id} className="cursor-pointer">
+                            {customer.code} - {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </Field>
 
               <Field orientation="vertical" className="col-span-2">

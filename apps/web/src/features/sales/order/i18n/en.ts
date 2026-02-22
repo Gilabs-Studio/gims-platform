@@ -35,6 +35,7 @@ export const orderEn = {
       next: "Next",
       select: "Select",
       selectDate: "Select date",
+      selectCustomer: "Select customer",
       customer: "Customer",
       validating: "Validating...",
       back: "Back",

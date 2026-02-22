@@ -22,6 +22,7 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]fl
 		OtherCost:           m.OtherCost,
 		TotalAmount:         m.TotalAmount,
 		ReservedStock:       m.ReservedStock,
+		CustomerID:          m.CustomerID,
 		CustomerName:        m.CustomerName,
 		CustomerContact:     m.CustomerContact,
 		CustomerPhone:       m.CustomerPhone,
@@ -30,6 +31,18 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]fl
 		Notes:               m.Notes,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if m.Customer != nil {
+		response.Customer = &dto.CustomerResponse{
+			ID:             m.Customer.ID,
+			Code:           m.Customer.Code,
+			Name:           m.Customer.Name,
+			CustomerTypeID: m.Customer.CustomerTypeID,
+			Address:        m.Customer.Address,
+			Email:          m.Customer.Email,
+			ContactPerson:  m.Customer.ContactPerson,
+		}
 	}
 
 	if m.SalesQuotationID != nil {
@@ -258,6 +271,7 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 		BusinessUnitID:  req.BusinessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
 		DeliveryAreaID:  req.DeliveryAreaID,
+		CustomerID:      req.CustomerID,
 		CustomerName:    req.CustomerName,
 		CustomerContact: req.CustomerContact,
 		CustomerPhone:   req.CustomerPhone,
@@ -328,6 +342,10 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 		m.DeliveryAreaID = req.DeliveryAreaID
 	}
 
+	if req.CustomerID != nil {
+		m.CustomerID = req.CustomerID
+	}
+
 	if req.TaxRate != nil {
 		m.TaxRate = *req.TaxRate
 	}
@@ -394,6 +412,7 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 		BusinessUnitID:  quotation.BusinessUnitID,
 		BusinessTypeID:  quotation.BusinessTypeID,
 		DeliveryAreaID:  deliveryAreaID,
+		CustomerID:      quotation.CustomerID,
 		CustomerName:    customerName,
 		CustomerContact: customerContact,
 		CustomerPhone:   customerPhone,
