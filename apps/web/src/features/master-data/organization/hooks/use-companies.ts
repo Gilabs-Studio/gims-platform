@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { companyService } from "../services/organization-service";
 import type {
   ListCompaniesParams,
@@ -20,10 +20,14 @@ export const companyKeys = {
   detail: (id: string) => [...companyKeys.details(), id] as const,
 };
 
-export function useCompanies(params?: ListCompaniesParams) {
-  return useQuery({
+export function useCompanies(
+  params?: ListCompaniesParams,
+  options?: Omit<UseQueryOptions<OrganizationListResponse<Company>, Error, OrganizationListResponse<Company>>, "queryKey" | "queryFn">
+) {
+  return useQuery<OrganizationListResponse<Company>, Error>({
     queryKey: companyKeys.list(params),
     queryFn: () => companyService.list(params),
+    ...options,
   });
 }
 

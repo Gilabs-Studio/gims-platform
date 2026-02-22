@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { warehouseService } from "../services/warehouse-service";
 import type {
   CreateWarehouseData,
@@ -24,11 +24,15 @@ export const warehouseKeys = {
 // Main Warehouse Hooks
 // ============================================
 
-export function useWarehouses(params?: WarehouseListParams) {
-  return useQuery({
+export function useWarehouses(
+  params?: WarehouseListParams,
+  options?: Omit<UseQueryOptions<WarehouseListResponse<Warehouse>, Error, WarehouseListResponse<Warehouse>>, "queryKey" | "queryFn">
+) {
+  return useQuery<WarehouseListResponse<Warehouse>, Error>({
     queryKey: warehouseKeys.list(params),
     queryFn: () => warehouseService.list(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
   });
 }
 

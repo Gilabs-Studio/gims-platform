@@ -86,7 +86,7 @@ export function CourierAgencyList() {
                 </TableCell>
               </TableRow>
             ) : (
-              data.items.map((item) => (
+              data.items.map((item: any) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
