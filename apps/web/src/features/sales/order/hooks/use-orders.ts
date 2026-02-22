@@ -23,10 +23,11 @@ export const orderKeys = {
 };
 
 // List orders hook with filters
-export function useOrders(params?: ListSalesOrdersParams) {
+export function useOrders(params?: ListSalesOrdersParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => orderService.list(params),
+    enabled: options?.enabled,
   });
 }
 
