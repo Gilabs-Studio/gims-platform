@@ -47,6 +47,10 @@ func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.C
 		Preload("Village.District.City.Province").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
+		Preload("DefaultBusinessType").
+		Preload("DefaultArea").
+		Preload("DefaultSalesRep").
+		Preload("DefaultPaymentTerms").
 		First(&customer, "id = ?", id).Error
 	if err != nil {
 		return nil, err

@@ -21,6 +21,8 @@ interface CustomerDetailModalProps {
   onEdit?: (customer: Customer) => void;
 }
 
+import { useCustomer } from "../../hooks/use-customers";
+
 export function CustomerDetailModal({
   open,
   onOpenChange,
@@ -31,7 +33,11 @@ export function CustomerDetailModal({
   const tPhone = useTranslations("customer.phoneNumber");
   const tBank = useTranslations("customer.bankAccount");
 
-  if (!customer) return null;
+  // Fetch full detail when modal is open to get deep relationships (village, sales defaults)
+  const { data: detailRes, isLoading } = useCustomer(open && customer ? customer.id : "");
+  const fullCustomer = detailRes?.data ?? customer;
+
+  if (!fullCustomer) return null;
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "secondary" | "warning" | "success" | "destructive"> = {
@@ -51,40 +57,46 @@ export function CustomerDetailModal({
   // Build full address from village chain
   const getFullAddress = () => {
     const parts: string[] = [];
-    if (customer.address) parts.push(customer.address);
-    if (customer.village?.name) parts.push(customer.village.name);
-    if (customer.village?.district?.name) parts.push(customer.village.district.name);
-    if (customer.village?.district?.city?.name) parts.push(customer.village.district.city.name);
-    if (customer.village?.district?.city?.province?.name)
-      parts.push(customer.village.district.city.province.name);
+    if (fullCustomer.address) parts.push(fullCustomer.address);
+    if (fullCustomer.village?.name) parts.push(fullCustomer.village.name);
+    if (fullCustomer.village?.district?.name) parts.push(fullCustomer.village.district.name);
+    if (fullCustomer.village?.district?.city?.name) parts.push(fullCustomer.village.district.city.name);
+    if (fullCustomer.village?.district?.city?.province?.name)
+      parts.push(fullCustomer.village.district.city.province.name);
     return parts.join(", ") || "-";
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {customer.name}
-            {getStatusBadge(customer.status)}
-          </DialogTitle>
-        </DialogHeader>
+        {isLoading && !detailRes ? (
+          <div className="flex h-40 items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {fullCustomer.name}
+                {getStatusBadge(fullCustomer.status)}
+              </DialogTitle>
+            </DialogHeader>
 
+        {/* Basic Info */}
         <div className="space-y-6">
-          {/* Basic Info */}
           <section>
             <h3 className="text-sm font-semibold text-muted-foreground mb-3">
               {t("sections.basicInfo")}
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">{t("form.code")}</dt>
-              <dd className="font-mono">{customer.code}</dd>
+              <dd className="font-mono">{fullCustomer.code}</dd>
               <dt className="text-muted-foreground">{t("form.customerType")}</dt>
-              <dd>{customer.customer_type?.name ?? "-"}</dd>
+              <dd>{fullCustomer.customer_type?.name ?? "-"}</dd>
               <dt className="text-muted-foreground">{t("form.isActive")}</dt>
               <dd>
-                <Badge variant={customer.is_active ? "success" : "secondary"}>
-                  {customer.is_active ? "Active" : "Inactive"}
+                <Badge variant={fullCustomer.is_active ? "success" : "secondary"}>
+                  {fullCustomer.is_active ? "Active" : "Inactive"}
                 </Badge>
               </dd>
             </dl>
@@ -98,9 +110,9 @@ export function CustomerDetailModal({
               {t("sections.address")}
             </h3>
             <p className="text-sm">{getFullAddress()}</p>
-            {(customer.latitude != null || customer.longitude != null) && (
+            {(fullCustomer.latitude != null || fullCustomer.longitude != null) && (
               <p className="text-xs text-muted-foreground mt-1">
-                {t("sections.coordinates")}: {customer.latitude}, {customer.longitude}
+                {t("sections.coordinates")}: {fullCustomer.latitude}, {fullCustomer.longitude}
               </p>
             )}
           </section>
@@ -114,18 +126,18 @@ export function CustomerDetailModal({
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">{t("form.contactPerson")}</dt>
-              <dd>{customer.contact_person ?? "-"}</dd>
+              <dd>{fullCustomer.contact_person ?? "-"}</dd>
               <dt className="text-muted-foreground">{t("form.email")}</dt>
-              <dd>{customer.email ?? "-"}</dd>
+              <dd>{fullCustomer.email ?? "-"}</dd>
               <dt className="text-muted-foreground">{t("form.website")}</dt>
-              <dd>{customer.website ?? "-"}</dd>
+              <dd>{fullCustomer.website ?? "-"}</dd>
               <dt className="text-muted-foreground">{t("form.npwp")}</dt>
-              <dd>{customer.npwp ?? "-"}</dd>
+              <dd>{fullCustomer.npwp ?? "-"}</dd>
             </dl>
           </section>
 
           {/* Phone Numbers */}
-          {customer.phone_numbers && customer.phone_numbers.length > 0 && (
+          {fullCustomer.phone_numbers && fullCustomer.phone_numbers.length > 0 && (
             <>
               <Separator />
               <section>
@@ -133,7 +145,7 @@ export function CustomerDetailModal({
                   {tPhone("title")}
                 </h3>
                 <div className="space-y-2">
-                  {customer.phone_numbers.map((phone) => (
+                  {fullCustomer.phone_numbers.map((phone) => (
                     <div
                       key={phone.id}
                       className="flex items-center justify-between text-sm border rounded-md px-3 py-2"
@@ -155,7 +167,7 @@ export function CustomerDetailModal({
           )}
 
           {/* Bank Accounts */}
-          {customer.bank_accounts && customer.bank_accounts.length > 0 && (
+          {fullCustomer.bank_accounts && fullCustomer.bank_accounts.length > 0 && (
             <>
               <Separator />
               <section>
@@ -163,7 +175,7 @@ export function CustomerDetailModal({
                   {tBank("title")}
                 </h3>
                 <div className="space-y-2">
-                  {customer.bank_accounts.map((bank) => (
+                  {fullCustomer.bank_accounts.map((bank) => (
                     <div
                       key={bank.id}
                       className="flex items-center justify-between text-sm border rounded-md px-3 py-2"
@@ -188,14 +200,58 @@ export function CustomerDetailModal({
           )}
 
           {/* Notes */}
-          {customer.notes && (
+          {fullCustomer.notes && (
             <>
               <Separator />
               <section>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-3">
                   {t("form.notes")}
                 </h3>
-                <p className="text-sm whitespace-pre-wrap">{customer.notes}</p>
+                <p className="text-sm whitespace-pre-wrap">{fullCustomer.notes}</p>
+              </section>
+            </>
+          )}
+
+          {/* Sales Defaults */}
+          {(fullCustomer.default_business_type_id || fullCustomer.default_area_id || fullCustomer.default_sales_rep_id || fullCustomer.default_payment_terms_id || fullCustomer.default_tax_rate != null) && (
+            <>
+              <Separator />
+              <section>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                  {t("sections.salesDefaults")}
+                </h3>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {fullCustomer.default_business_type && (
+                    <>
+                      <dt className="text-muted-foreground">{t("form.defaultBusinessType")}</dt>
+                      <dd>{fullCustomer.default_business_type.name}</dd>
+                    </>
+                  )}
+                  {fullCustomer.default_area && (
+                    <>
+                      <dt className="text-muted-foreground">{t("form.defaultArea")}</dt>
+                      <dd>{fullCustomer.default_area.name}</dd>
+                    </>
+                  )}
+                  {fullCustomer.default_sales_rep && (
+                    <>
+                      <dt className="text-muted-foreground">{t("form.defaultSalesRep")}</dt>
+                      <dd>{fullCustomer.default_sales_rep.name}</dd>
+                    </>
+                  )}
+                  {fullCustomer.default_payment_terms && (
+                    <>
+                      <dt className="text-muted-foreground">{t("form.defaultPaymentTerms")}</dt>
+                      <dd>{fullCustomer.default_payment_terms.name}</dd>
+                    </>
+                  )}
+                  {fullCustomer.default_tax_rate != null && (
+                    <>
+                      <dt className="text-muted-foreground">{t("form.defaultTaxRate")}</dt>
+                      <dd>{fullCustomer.default_tax_rate}%</dd>
+                    </>
+                  )}
+                </dl>
               </section>
             </>
           )}
@@ -204,13 +260,15 @@ export function CustomerDetailModal({
           <DialogFooter className="mt-4">
             <Button
               variant="outline"
-              onClick={() => onEdit(customer)}
+              onClick={() => onEdit(fullCustomer)}
               className="cursor-pointer"
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
           </DialogFooter>
+        )}
+          </>
         )}
       </DialogContent>
     </Dialog>

@@ -22,7 +22,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize usecases
 	customerTypeUC := usecase.NewCustomerTypeUsecase(customerTypeRepo)
-	customerUC := usecase.NewCustomerUsecase(customerRepo, customerTypeRepo)
+	customerUC := usecase.NewCustomerUsecase(customerRepo, customerTypeRepo, db)
 
 	// Initialize handlers
 	customerTypeH := handler.NewCustomerTypeHandler(customerTypeUC)

@@ -10,7 +10,7 @@ import (
 
 // CreateCustomerRequest for creating a new customer
 type CreateCustomerRequest struct {
-	Code           string                      `json:"code" binding:"required,min=2,max=50"`
+	Code           string                      `json:"code" binding:"omitempty,max=50"`
 	Name           string                      `json:"name" binding:"required,min=2,max=200"`
 	CustomerTypeID string                      `json:"customer_type_id" binding:"omitempty,uuid"`
 	Address        string                      `json:"address" binding:"max=500"`
@@ -25,6 +25,12 @@ type CreateCustomerRequest struct {
 	IsActive       *bool                       `json:"is_active"`
 	PhoneNumbers   []CreatePhoneNumberRequest  `json:"phone_numbers"`
 	BankAccounts   []CreateCustomerBankRequest `json:"bank_accounts"`
+	// Sales defaults
+	DefaultBusinessTypeID *string  `json:"default_business_type_id" binding:"omitempty,uuid"`
+	DefaultAreaID         *string  `json:"default_area_id" binding:"omitempty,uuid"`
+	DefaultSalesRepID     *string  `json:"default_sales_rep_id" binding:"omitempty,uuid"`
+	DefaultPaymentTermsID *string  `json:"default_payment_terms_id" binding:"omitempty,uuid"`
+	DefaultTaxRate        *float64 `json:"default_tax_rate" binding:"omitempty,min=0,max=100"`
 }
 
 // UpdateCustomerRequest for updating an existing customer
@@ -42,6 +48,12 @@ type UpdateCustomerRequest struct {
 	Latitude       *float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	Longitude      *float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool    `json:"is_active"`
+	// Sales defaults
+	DefaultBusinessTypeID *string  `json:"default_business_type_id" binding:"omitempty,uuid"`
+	DefaultAreaID         *string  `json:"default_area_id" binding:"omitempty,uuid"`
+	DefaultSalesRepID     *string  `json:"default_sales_rep_id" binding:"omitempty,uuid"`
+	DefaultPaymentTermsID *string  `json:"default_payment_terms_id" binding:"omitempty,uuid"`
+	DefaultTaxRate        *float64 `json:"default_tax_rate" binding:"omitempty,min=0,max=100"`
 }
 
 // ApproveCustomerRequest for approve/reject action
@@ -77,11 +89,46 @@ type CustomerResponse struct {
 	UpdatedAt      time.Time                  `json:"updated_at"`
 	PhoneNumbers   []PhoneNumberResponse      `json:"phone_numbers,omitempty"`
 	BankAccounts   []CustomerBankResponse     `json:"bank_accounts,omitempty"`
+	// Sales defaults
+	DefaultBusinessTypeID  *string                   `json:"default_business_type_id"`
+	DefaultBusinessType    *SalesDefaultOptionBrief  `json:"default_business_type,omitempty"`
+	DefaultAreaID          *string                   `json:"default_area_id"`
+	DefaultArea            *SalesDefaultOptionBrief  `json:"default_area,omitempty"`
+	DefaultSalesRepID      *string                   `json:"default_sales_rep_id"`
+	DefaultSalesRep        *SalesRepBrief            `json:"default_sales_rep,omitempty"`
+	DefaultPaymentTermsID  *string                   `json:"default_payment_terms_id"`
+	DefaultPaymentTerms    *SalesDefaultOptionBrief  `json:"default_payment_terms,omitempty"`
+	DefaultTaxRate         *float64                  `json:"default_tax_rate"`
+}
+
+// SalesDefaultOptionBrief is a lightweight reference for business type / area / payment terms
+type SalesDefaultOptionBrief struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// SalesRepBrief is a lightweight sales rep reference
+type SalesRepBrief struct {
+	ID           string `json:"id"`
+	EmployeeCode string `json:"employee_code"`
+	Name         string `json:"name"`
 }
 
 // CustomerFormDataResponse for form dropdown options
 type CustomerFormDataResponse struct {
-	CustomerTypes []CustomerTypeResponse `json:"customer_types"`
+	CustomerTypes []CustomerTypeResponse         `json:"customer_types"`
+	BusinessTypes []SalesDefaultOptionBrief      `json:"business_types"`
+	Areas         []SalesDefaultOptionBrief      `json:"areas"`
+	SalesReps     []SalesRepBrief               `json:"sales_reps"`
+	PaymentTerms  []PaymentTermsFormOption       `json:"payment_terms"`
+}
+
+// PaymentTermsFormOption is used in form dropdowns for payment terms
+type PaymentTermsFormOption struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+	Days int    `json:"days"`
 }
 
 // === Phone Number DTOs ===

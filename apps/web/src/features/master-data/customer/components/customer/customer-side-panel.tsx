@@ -27,6 +27,7 @@ import {
 export function CustomerSidePanel(props: CustomerSidePanelProps) {
   const { state, actions, form, data, translations } = useCustomerSidePanel(props);
   const { t } = translations;
+  const { customerTypes, businessTypes, areas, salesReps, paymentTermsList } = data;
 
   return (
     <>
@@ -38,7 +39,9 @@ export function CustomerSidePanel(props: CustomerSidePanelProps) {
         defaultWidth={500}
       >
         <form
-          onSubmit={form.handleSubmit(actions.onSubmit)}
+          onSubmit={form.handleSubmit(actions.onSubmit as any, (errors) => {
+            console.error("Form validation failed. Errors:", errors);
+          })}
           className="space-y-6 pb-20 p-4"
         >
           {/* Basic Information */}
@@ -240,6 +243,119 @@ export function CustomerSidePanel(props: CustomerSidePanelProps) {
             </Field>
           </div>
 
+          {/* Notes */}
+          <div className="space-y-4">
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.notes")}</FieldLabel>
+              <Textarea
+                placeholder={t("customer.form.notesPlaceholder")}
+                {...form.register("notes")}
+                rows={3}
+                disabled={state.isViewing}
+              />
+            </Field>
+          </div>
+
+          {/* Sales Defaults */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium border-b pb-2">
+              {t("customer.sections.salesDefaults")}
+            </h3>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.defaultBusinessType")}</FieldLabel>
+              <Select
+                value={String(form.watch("default_business_type_id") || "")}
+                onValueChange={(val) => actions.setValue("default_business_type_id", val)}
+                disabled={state.isViewing}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("customer.form.defaultBusinessTypePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessTypes.map((bt) => (
+                    <SelectItem key={bt.id} value={bt.id}>
+                      {bt.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.defaultArea")}</FieldLabel>
+              <Select
+                value={String(form.watch("default_area_id") || "")}
+                onValueChange={(val) => actions.setValue("default_area_id", val)}
+                disabled={state.isViewing}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("customer.form.defaultAreaPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.defaultSalesRep")}</FieldLabel>
+              <Select
+                value={String(form.watch("default_sales_rep_id") || "")}
+                onValueChange={(val) => actions.setValue("default_sales_rep_id", val)}
+                disabled={state.isViewing}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("customer.form.defaultSalesRepPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesReps.map((rep) => (
+                    <SelectItem key={rep.id} value={rep.id}>
+                      {rep.name} ({rep.employee_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.defaultPaymentTerms")}</FieldLabel>
+              <Select
+                value={String(form.watch("default_payment_terms_id") || "")}
+                onValueChange={(val) => actions.setValue("default_payment_terms_id", val)}
+                disabled={state.isViewing}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("customer.form.defaultPaymentTermsPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentTermsList.map((pt) => (
+                    <SelectItem key={pt.id} value={pt.id}>
+                      {pt.name} ({pt.days} days)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("customer.form.defaultTaxRate")}</FieldLabel>
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                placeholder={t("customer.form.defaultTaxRatePlaceholder")}
+                disabled={state.isViewing}
+                {...form.register("default_tax_rate", { valueAsNumber: true })}
+              />
+            </Field>
+          </div>
+
           {/* Coordinates */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
@@ -301,19 +417,6 @@ export function CustomerSidePanel(props: CustomerSidePanelProps) {
                 />
               </Field>
             </div>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-4">
-            <Field orientation="vertical">
-              <FieldLabel>{t("customer.form.notes")}</FieldLabel>
-              <Textarea
-                placeholder={t("customer.form.notesPlaceholder")}
-                {...form.register("notes")}
-                rows={3}
-                disabled={state.isViewing}
-              />
-            </Field>
           </div>
 
           {/* Active Status */}

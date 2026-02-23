@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
 	"github.com/gilabs/gims/api/internal/customer/domain/mapper"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // CustomerUsecase defines the interface for customer business logic
@@ -36,14 +37,24 @@ type CustomerUsecase interface {
 type customerUsecase struct {
 	repo         repositories.CustomerRepository
 	typeRepo     repositories.CustomerTypeRepository
+	db           *gorm.DB
 }
 
 // NewCustomerUsecase creates a new CustomerUsecase
-func NewCustomerUsecase(repo repositories.CustomerRepository, typeRepo repositories.CustomerTypeRepository) CustomerUsecase {
-	return &customerUsecase{repo: repo, typeRepo: typeRepo}
+func NewCustomerUsecase(repo repositories.CustomerRepository, typeRepo repositories.CustomerTypeRepository, db *gorm.DB) CustomerUsecase {
+	return &customerUsecase{repo: repo, typeRepo: typeRepo, db: db}
 }
 
 func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.CreateCustomerRequest) (dto.CustomerResponse, error) {
+	// Auto-generate code if not provided
+	if req.Code == "" {
+		genCode, err := u.repo.GetNextCode(ctx)
+		if err != nil {
+			return dto.CustomerResponse{}, err
+		}
+		req.Code = genCode
+	}
+
 	// Check if code already exists
 	existing, _ := u.repo.FindByCode(ctx, req.Code)
 	if existing != nil {
@@ -80,6 +91,12 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	if req.VillageID != "" {
 		customer.VillageID = &req.VillageID
 	}
+	// Set sales defaults
+	customer.DefaultBusinessTypeID = req.DefaultBusinessTypeID
+	customer.DefaultAreaID = req.DefaultAreaID
+	customer.DefaultSalesRepID = req.DefaultSalesRepID
+	customer.DefaultPaymentTermsID = req.DefaultPaymentTermsID
+	customer.DefaultTaxRate = req.DefaultTaxRate
 
 	if err := u.repo.Create(ctx, customer); err != nil {
 		return dto.CustomerResponse{}, err
@@ -193,6 +210,22 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 	}
 	if req.IsActive != nil {
 		customer.IsActive = *req.IsActive
+	}
+	// Update sales defaults (nil pointer means "clear the value")
+	if req.DefaultBusinessTypeID != nil {
+		customer.DefaultBusinessTypeID = req.DefaultBusinessTypeID
+	}
+	if req.DefaultAreaID != nil {
+		customer.DefaultAreaID = req.DefaultAreaID
+	}
+	if req.DefaultSalesRepID != nil {
+		customer.DefaultSalesRepID = req.DefaultSalesRepID
+	}
+	if req.DefaultPaymentTermsID != nil {
+		customer.DefaultPaymentTermsID = req.DefaultPaymentTermsID
+	}
+	if req.DefaultTaxRate != nil {
+		customer.DefaultTaxRate = req.DefaultTaxRate
 	}
 
 	if err := u.repo.Update(ctx, customer); err != nil {
@@ -394,7 +427,79 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		return nil, err
 	}
 
+	// Load business types
+	type btRow struct {
+		ID   string
+		Name string
+	}
+	var btRows []btRow
+	u.db.WithContext(ctx).Table("business_types").
+		Select("id, name").Where("deleted_at IS NULL").
+		Order("name").Scan(&btRows)
+	btOptions := make([]dto.SalesDefaultOptionBrief, 0, len(btRows))
+	for _, r := range btRows {
+		btOptions = append(btOptions, dto.SalesDefaultOptionBrief{ID: r.ID, Name: r.Name})
+	}
+
+	// Load areas
+	type areaRow struct {
+		ID   string
+		Name string
+	}
+	var areaRows []areaRow
+	u.db.WithContext(ctx).Table("areas").
+		Select("id, name").Where("deleted_at IS NULL").
+		Order("name").Scan(&areaRows)
+	areaOptions := make([]dto.SalesDefaultOptionBrief, 0, len(areaRows))
+	for _, r := range areaRows {
+		areaOptions = append(areaOptions, dto.SalesDefaultOptionBrief{ID: r.ID, Name: r.Name})
+	}
+
+	// Load employees (sales reps)
+	type empRow struct {
+		ID           string
+		EmployeeCode string
+		Name         string
+	}
+	var empRows []empRow
+	u.db.WithContext(ctx).Table("employees").
+		Select("id, employee_code, name").Where("deleted_at IS NULL").
+		Order("name").Scan(&empRows)
+	salesRepOptions := make([]dto.SalesRepBrief, 0, len(empRows))
+	for _, r := range empRows {
+		salesRepOptions = append(salesRepOptions, dto.SalesRepBrief{
+			ID:           r.ID,
+			EmployeeCode: r.EmployeeCode,
+			Name:         r.Name,
+		})
+	}
+
+	// Load payment terms
+	type ptRow struct {
+		ID   string
+		Code string
+		Name string
+		Days int
+	}
+	var ptRows []ptRow
+	u.db.WithContext(ctx).Table("payment_terms").
+		Select("id, code, name, days").Where("deleted_at IS NULL AND is_active = true").
+		Order("days").Scan(&ptRows)
+	ptOptions := make([]dto.PaymentTermsFormOption, 0, len(ptRows))
+	for _, r := range ptRows {
+		ptOptions = append(ptOptions, dto.PaymentTermsFormOption{
+			ID:   r.ID,
+			Code: r.Code,
+			Name: r.Name,
+			Days: r.Days,
+		})
+	}
+
 	return &dto.CustomerFormDataResponse{
 		CustomerTypes: mapper.ToCustomerTypeResponseList(customerTypes),
+		BusinessTypes: btOptions,
+		Areas:         areaOptions,
+		SalesReps:     salesRepOptions,
+		PaymentTerms:  ptOptions,
 	}, nil
 }
