@@ -41,9 +41,16 @@ func (r *productRepository) Create(ctx context.Context, product *models.Product)
 	return r.db.WithContext(ctx).Create(product).Error
 }
 
+// stockSubquery is the SQL fragment that replaces the stale products.current_stock
+// and products.reserved_stock columns with live aggregates from inventory_batches.
+const stockSubquery = `products.*,
+	COALESCE((SELECT SUM(ib.current_quantity)  FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL), 0) AS current_stock,
+	COALESCE((SELECT SUM(ib.reserved_quantity) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL), 0) AS reserved_stock`
+
 func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Product, error) {
 	var product models.Product
 	err := r.db.WithContext(ctx).
+		Select(stockSubquery).
 		Preload("Category").
 		Preload("Brand").
 		Preload("Segment").
@@ -65,7 +72,7 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	var products []models.Product
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Product{})
+	query := r.db.WithContext(ctx).Model(&models.Product{}).Select(stockSubquery)
 
 	// Apply search filter
 	if params.Search != "" {
@@ -102,16 +109,25 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	}
 
 	// Apply sorting
-	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
+	// For computed stock columns we must use the full subquery expression in ORDER BY
+	// to avoid PostgreSQL "ambiguous" error (products.* already contains current_stock column).
+	const currentStockExpr = "(SELECT COALESCE(SUM(ib.current_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL)"
+	const reservedStockExpr = "(SELECT COALESCE(SUM(ib.reserved_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL)"
+
+	sortDir := "ASC"
+	if params.SortDir == "desc" {
+		sortDir = "DESC"
+	}
+
+	switch params.SortBy {
+	case "current_stock":
+		query = query.Order(currentStockExpr + " " + sortDir)
+	case "reserved_stock":
+		query = query.Order(reservedStockExpr + " " + sortDir)
+	case "":
 		query = query.Order("name ASC")
+	default:
+		query = query.Order(params.SortBy + " " + sortDir)
 	}
 
 	// Apply pagination
