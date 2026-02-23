@@ -1,9 +1,11 @@
 package seeders
 
 import (
+	"context"
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 )
@@ -216,6 +218,7 @@ func SeedPermissions() error {
 		{"/sales/quotations", "sales_quotation.update", "Edit Sales Quotations", "EDIT", "sales_quotation"},
 		{"/sales/quotations", "sales_quotation.delete", "Delete Sales Quotations", "DELETE", "sales_quotation"},
 		{"/sales/quotations", "sales_quotation.approve", "Approve Sales Quotations", "APPROVE", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.print", "Print Sales Quotations", "PRINT", "sales_quotation"},
 
 		{"/sales/orders", "sales_order.read", "View Sales Orders", "VIEW", "sales_order"},
 		{"/sales/orders", "sales_order.create", "Create Sales Orders", "CREATE", "sales_order"},
@@ -607,8 +610,38 @@ func SeedPermissions() error {
 		"stock":    "OWN",
 	}, "ALL")
 
+	// Invalidate Redis permission cache to ensure fresh permissions are loaded
+	invalidatePermissionCache()
+
 	log.Println("ERP permissions seeded successfully")
 	return nil
+}
+
+// invalidatePermissionCache clears all cached permission entries from Redis
+// to prevent stale permission data after seeding
+func invalidatePermissionCache() {
+	redisClient := redis.GetClient()
+	if redisClient == nil {
+		return
+	}
+
+	ctx := context.Background()
+	patterns := []string{"permissions:*", "permissions_scope:*"}
+
+	for _, pattern := range patterns {
+		keys, err := redisClient.Keys(ctx, pattern).Result()
+		if err != nil {
+			log.Printf("Warning: Failed to scan Redis keys for pattern '%s': %v", pattern, err)
+			continue
+		}
+		if len(keys) > 0 {
+			if err := redisClient.Del(ctx, keys...).Err(); err != nil {
+				log.Printf("Warning: Failed to delete Redis keys for pattern '%s': %v", pattern, err)
+			} else {
+				log.Printf("Invalidated %d cached permission entries (pattern: %s)", len(keys), pattern)
+			}
+		}
+	}
 }
 
 // assignScopedPermissionsToRole assigns all permissions to a role with module-aware scopes.

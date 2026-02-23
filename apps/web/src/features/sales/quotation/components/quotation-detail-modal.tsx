@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 import type { SalesQuotation } from "../types";
+import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -48,6 +49,7 @@ export function QuotationDetailModal({
   const updateStatus = useUpdateQuotationStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("quotation");
@@ -67,6 +69,7 @@ export function QuotationDetailModal({
   const canApprove = useUserPermission("sales_quotation.approve");
   const canReject = useUserPermission("sales_quotation.reject");
   const canConvert = useUserPermission("sales_quotation.convert");
+  const canPrint = useUserPermission("sales_quotation.print");
 
   const {
     canViewEmployee,
@@ -202,6 +205,17 @@ export function QuotationDetailModal({
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                {canPrint && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsPrintDialogOpen(true)}
+                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    title={t("print")}
+                  >
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                )}
                 {canEdit && quotation?.status === "draft" && (
                   <Button
                     variant="ghost"
@@ -571,6 +585,14 @@ export function QuotationDetailModal({
         description={t("deleteDesc")}
         isLoading={deleteQuotation.isPending}
       />
+
+      {quotation?.id && (
+        <QuotationPrintDialog
+          open={isPrintDialogOpen}
+          onClose={() => setIsPrintDialogOpen(false)}
+          quotationId={quotation.id}
+        />
+      )}
     </>
   );
 }
