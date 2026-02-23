@@ -1,13 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+
 import {
   MoreHorizontal,
   Plus,
   Search,
   Pencil,
   Trash2,
-  CheckCircle2,
-  XCircle,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,18 @@ export function ProductList() {
   const { state, actions, data, permissions, translations } = useProductList();
   const { t, tCommon } = translations;
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#create-product") return;
+    const id = window.setTimeout(() => {
+      actions.handleCreate();
+      try {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {}
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [actions.handleCreate]);
+
   if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
@@ -56,23 +68,12 @@ export function ProductList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
-        {permissions.canCreate && (
-          <Button onClick={actions.handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("create")}
-          </Button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
+    <div id="products" className="space-y-6">
+      {/* Filters (search moved into content) */}
+      <div
+        id="create-product"
+        className="sticky top-0 z-20 py-3 flex items-center gap-4"
+      >
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -84,6 +85,16 @@ export function ProductList() {
             }}
             className="pl-8"
           />
+        </div>
+
+        {/* Create Button moved to the filter bar */}
+        <div className="ml-auto">
+          {permissions.canCreate && (
+            <Button onClick={actions.handleCreate} className="cursor-pointer">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("create")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -226,6 +237,8 @@ export function ProductList() {
           }}
         />
       )}
+
+      {/* anchor moved to toolbar above */}
 
       {/* Edit Dialog */}
       {(permissions.canCreate || permissions.canUpdate) && (
