@@ -6,20 +6,19 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "./use-suppliers";
 import { useSupplierTypes } from "./use-supplier-types";
-import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../types";
+import type { Supplier } from "../types";
 import { sortOptions } from "@/lib/utils";
 
 export const supplierFormSchema = z.object({
-  code: z
-    .string()
-    .min(2, "Code must be at least 2 characters")
-    .max(50, "Code cannot exceed 50 characters"),
   name: z
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name cannot exceed 100 characters"),
   supplier_type_id: z.string().optional(),
   address: z.string().max(500, "Address cannot exceed 500 characters").optional(),
+  province_id: z.string().optional(),
+  city_id: z.string().optional(),
+  district_id: z.string().optional(),
   village_id: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -64,10 +63,12 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
   const form = useForm<SupplierFormData>({
     resolver: zodResolver(supplierFormSchema),
     defaultValues: {
-      code: "",
       name: "",
       supplier_type_id: "",
       address: "",
+      province_id: "",
+      city_id: "",
+      district_id: "",
       village_id: "",
       email: "",
       website: "",
@@ -84,10 +85,12 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
     if (open) {
       if (activeItem) {
         form.reset({
-          code: activeItem.code,
           name: activeItem.name,
           supplier_type_id: activeItem.supplier_type_id ?? "",
           address: activeItem.address ?? "",
+          province_id: activeItem.province_id ?? "",
+          city_id: activeItem.city_id ?? "",
+          district_id: activeItem.district_id ?? "",
           village_id: activeItem.village_id ?? "",
           email: activeItem.email ?? "",
           website: activeItem.website ?? "",
@@ -100,10 +103,12 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
         });
       } else {
         form.reset({
-          code: "",
           name: "",
           supplier_type_id: "",
           address: "",
+          province_id: "",
+          city_id: "",
+          district_id: "",
           village_id: "",
           email: "",
           website: "",
@@ -121,10 +126,12 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
   const onSubmit: SubmitHandler<SupplierFormData> = async (data) => {
     try {
       const payload = {
-        code: data.code,
         name: data.name,
         supplier_type_id: data.supplier_type_id || undefined,
         address: data.address || undefined,
+        province_id: data.province_id || undefined,
+        city_id: data.city_id || undefined,
+        district_id: data.district_id || undefined,
         village_id: data.village_id || undefined,
         email: data.email || undefined,
         website: data.website || undefined,

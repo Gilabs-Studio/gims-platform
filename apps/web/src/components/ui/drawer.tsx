@@ -12,6 +12,7 @@ interface DrawerProps {
   readonly children: React.ReactNode;
   readonly title?: string;
   readonly description?: string;
+  readonly headerExtra?: React.ReactNode;
   readonly side?: "left" | "right" | "top" | "bottom";
   readonly className?: string;
   readonly defaultWidth?: number;
@@ -26,6 +27,7 @@ export function Drawer({
   children,
   title,
   description,
+  headerExtra,
   side = "right",
   className,
   defaultWidth = 672, // max-w-2xl = 672px
@@ -191,27 +193,32 @@ export function Drawer({
 
             <div className="flex flex-col h-full">
               {/* Header */}
-              {(title || description) && (
-                <div className="flex items-center justify-between border-b px-6 py-4">
-                  <div className="flex-1">
-                    {title && (
-                      <h2 className="text-lg font-semibold">{title}</h2>
-                    )}
-                    {description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {description}
-                      </p>
-                    )}
+              {(title || description || headerExtra) && (
+                <div className="border-b shrink-0">
+                  <div className="flex items-center justify-between px-6 py-4">
+                    <div className="flex-1">
+                      {title && (
+                        <h2 className="text-lg font-semibold">{title}</h2>
+                      )}
+                      {description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {description}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onOpenChange(false)}
+                      className="h-8 w-8"
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Close</span>
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onOpenChange(false)}
-                    className="h-8 w-8"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </Button>
+                  {headerExtra && (
+                    <div className="px-4 pb-3">{headerExtra}</div>
+                  )}
                 </div>
               )}
 

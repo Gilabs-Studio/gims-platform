@@ -15,6 +15,8 @@ type SupplierRepository interface {
 	List(ctx context.Context, params SupplierListParams) ([]models.Supplier, int64, error)
 	Update(ctx context.Context, supplier *models.Supplier) error
 	Delete(ctx context.Context, id string) error
+	// Code generation
+	GetNextCode(ctx context.Context) (string, error)
 	// Nested operations
 	CreatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error
 	UpdatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error
@@ -41,6 +43,9 @@ func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.S
 	var supplier models.Supplier
 	err := r.db.WithContext(ctx).
 		Preload("SupplierType").
+		Preload("Province").
+		Preload("City").
+		Preload("District").
 		Preload("Village.District.City.Province").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
@@ -116,7 +121,12 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 	}
 
 	// Preload relations
-	query = query.Preload("SupplierType").Preload("PhoneNumbers").Preload("BankAccounts.Bank")
+	query = query.Preload("Province").
+		Preload("City").
+		Preload("District").
+		Preload("SupplierType").
+		Preload("PhoneNumbers").
+		Preload("BankAccounts.Bank")
 
 	if err := query.Find(&suppliers).Error; err != nil {
 		return nil, 0, err
@@ -131,6 +141,28 @@ func (r *supplierRepository) Update(ctx context.Context, supplier *models.Suppli
 
 func (r *supplierRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.Supplier{}, "id = ?", id).Error
+}
+
+// GetNextCode generates the next supplier code in the format SUP-XXXXX
+func (r *supplierRepository) GetNextCode(ctx context.Context) (string, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.Supplier{}).Count(&count).Error; err != nil {
+		return "", err
+	}
+	return generateSupplierCode(int(count) + 1), nil
+}
+
+func generateSupplierCode(seq int) string {
+	return "SUP-" + padSupplierNumber(seq, 5)
+}
+
+func padSupplierNumber(n, width int) string {
+	s := ""
+	for i := 0; i < width; i++ {
+		s = string(rune('0'+n%10)) + s
+		n /= 10
+	}
+	return s
 }
 
 // Nested Phone Number operations

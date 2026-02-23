@@ -8,7 +8,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import {
   useSuppliers,
   useDeleteSupplier,
-  useSubmitSupplier,
 } from "./use-suppliers";
 import { useSupplierTypes } from "./use-supplier-types";
 import type { Supplier } from "../types";
@@ -21,7 +20,6 @@ export function useSupplierList() {
   const canCreate = useUserPermission("supplier.create");
   const canUpdate = useUserPermission("supplier.update");
   const canDelete = useUserPermission("supplier.delete");
-  const canSubmit = useUserPermission("supplier.submit");
 
   // State
   const [search, setSearch] = useState("");
@@ -48,7 +46,6 @@ export function useSupplierList() {
   const supplierTypes = typesData?.data ?? [];
 
   const deleteMutation = useDeleteSupplier();
-  const submitMutation = useSubmitSupplier();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -81,15 +78,6 @@ export function useSupplierList() {
     }
   };
 
-  const handleSubmit = async (id: string) => {
-    try {
-      await submitMutation.mutateAsync(id);
-      toast.success(t("submitSuccess"));
-    } catch {
-      toast.error("Failed to submit supplier");
-    }
-  };
-
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingItem(null);
@@ -118,7 +106,6 @@ export function useSupplierList() {
       handleEdit,
       handleViewDetail,
       handleDelete,
-      handleSubmit,
       handleDialogClose,
     },
     data: {
@@ -134,7 +121,6 @@ export function useSupplierList() {
       canCreate,
       canUpdate,
       canDelete,
-      canSubmit,
     },
     translations: {
       t,
