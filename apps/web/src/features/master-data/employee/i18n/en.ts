@@ -28,6 +28,7 @@ export const employeeEn = {
     contract: "Contract",
     contractHistory: "Contract History",
     educationHistory: "Education History",
+    certifications: "Certifications",
     areas: "Areas",
   },
   sections: {
@@ -321,6 +322,62 @@ export const employeeEn = {
       onlyOneOngoing: "Only one ongoing education is allowed per employee",
       ongoingExists: "another education is already ongoing",
     },
+  },
+  certification: {
+    sections: {
+      latestCertification: "Certification Information",
+    },
+    fields: {
+      certificateName: "Certificate Name",
+      issuedBy: "Issued By",
+      issueDate: "Issue Date",
+      expiryDate: "Expiry Date",
+      certificateNumber: "Certificate Number",
+      certificateFile: "Certificate File",
+      description: "Description",
+      status: "Status",
+    },
+    status: {
+      valid: "Valid",
+      expiringSoon: "Expiring Soon",
+      expired: "Expired",
+      noExpiry: "No Expiry",
+    },
+    actions: {
+      create: "Add Certification",
+      edit: "Edit Certification",
+      delete: "Delete Certification",
+      processing: "Processing...",
+    },
+    empty: {
+      noCertification: "No certification information available.",
+      noHistory: "No certifications available.",
+    },
+    form: {
+      createTitle: "Add Certification",
+      editTitle: "Edit Certification",
+      deleteTitle: "Delete Certification",
+      deleteConfirm:
+        "Are you sure you want to delete this certification? This action cannot be undone.",
+      certificateNamePlaceholder: "Enter certificate name",
+      issuedByPlaceholder: "Enter issuing organization",
+      certificateNumberPlaceholder: "Enter certificate number",
+      descriptionPlaceholder: "Enter description (optional)",
+      selectDate: "Pick a date",
+      noExpiryLabel: "No expiry date (permanent certification)",
+    },
+    success: {
+      created: "Certification created successfully",
+      updated: "Certification updated successfully",
+      deleted: "Certification deleted successfully",
+    },
+    error: {
+      createFailed: "Failed to create certification",
+      updateFailed: "Failed to update certification",
+      deleteFailed: "Failed to delete certification",
+    },
+    daysRemaining: "{days} days remaining",
+    expiredDaysAgo: "Expired {days} days ago",
   },
   validation: {
     employeeCodeRequired: "Employee code is required",

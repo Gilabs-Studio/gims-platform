@@ -68,7 +68,6 @@ const VALID_DASHBOARD_ROUTES = [
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",
-  "/hrd/certifications",
   "/hrd/employee-assets",
   "/hrd/evaluation",
   "/hrd/recruitment",

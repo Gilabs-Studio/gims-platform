@@ -152,7 +152,6 @@ export const navigationConfig: NavItem[] = [
         url: "/hrd/documents",
         icon: "folder",
         children: [
-          { name: "Certifications", url: "/hrd/certifications", icon: "file-check", permission: "certification.read" },
           { name: "Employee Assets", url: "/hrd/employee-assets", icon: "box", permission: "employee_asset.read" },
         ],
       },

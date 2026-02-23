@@ -161,8 +161,8 @@ func AutoMigrate() error {
 		&organization.EmployeeContract{},
 		// Organization Employee Education History entities (moved from HRD)
 		&organization.EmployeeEducationHistory{},
-		// HRD Employee Certifications entities (Sprint 14)
-		&hrd.EmployeeCertification{},
+		// Organization Employee Certifications entities (moved from HRD)
+		&organization.EmployeeCertification{},
 		// HRD Employee Assets entities (Sprint 14)
 		&hrd.EmployeeAsset{},
 		// HRD Evaluation entities (Sprint 15)

@@ -18,6 +18,7 @@ import {
   Employee,
   EmployeeContract,
   EmployeeEducationHistory,
+  EmployeeCertification,
 } from "../types";
 import {
   Shield,
@@ -33,6 +34,7 @@ import {
   useEmployee,
   useEmployeeContracts,
   useEmployeeEducationHistories,
+  useEmployeeCertifications,
 } from "../hooks/use-employees";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { ContractTimeline } from "./contracts";
@@ -44,6 +46,12 @@ import { EducationInfoCard, EducationTimeline } from "./education";
 import { CreateEducationDialog } from "./education/create-education-dialog";
 import { EditEducationDialog } from "./education/edit-education-dialog";
 import { DeleteEducationDialog } from "./education/delete-education-dialog";
+import {
+  CertificationTimeline,
+  CreateCertificationDialog,
+  EditCertificationDialog,
+  DeleteCertificationDialog,
+} from "./certifications";
 
 interface EmployeePermission {
   permissions?: string[];
@@ -87,11 +95,21 @@ export function EmployeeDetailModal({
   const [deleteEducation, setDeleteEducation] =
     useState<EmployeeEducationHistory | null>(null);
 
+  // Certification dialog states
+  const [createCertDialogOpen, setCreateCertDialogOpen] = useState(false);
+  const [editCertification, setEditCertification] =
+    useState<EmployeeCertification | null>(null);
+  const [deleteCertification, setDeleteCertification] =
+    useState<EmployeeCertification | null>(null);
+
   // Fetch contracts for the timeline
   const { data: contractsData } = useEmployeeContracts(employee?.id);
 
   // Fetch education histories
   const { data: educationsData } = useEmployeeEducationHistories(employee?.id);
+
+  // Fetch certifications
+  const { data: certificationsData } = useEmployeeCertifications(employee?.id);
 
   if (!employee) return null;
 
@@ -147,6 +165,9 @@ export function EmployeeDetailModal({
               </TabsTrigger>
               <TabsTrigger value="education-history">
                 {t("tabs.educationHistory")}
+              </TabsTrigger>
+              <TabsTrigger value="certifications">
+                {t("tabs.certifications")}
               </TabsTrigger>
             </TabsList>
 
@@ -433,14 +454,22 @@ export function EmployeeDetailModal({
                         <TableCell>
                           {displayEmployee.current_contract?.document_path ? (
                             <a
-                              href={resolveImageUrl(displayEmployee.current_contract.document_path) ?? "#"}
+                              href={
+                                resolveImageUrl(
+                                  displayEmployee.current_contract
+                                    .document_path,
+                                ) ?? "#"
+                              }
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate max-w-[200px]">
-                                {getDisplayFilename(displayEmployee.current_contract.document_path) || t("contract.actions.download")}
+                                {getDisplayFilename(
+                                  displayEmployee.current_contract
+                                    .document_path,
+                                ) || t("contract.actions.download")}
                               </span>
                             </a>
                           ) : (
@@ -582,6 +611,17 @@ export function EmployeeDetailModal({
                 canDelete
               />
             </TabsContent>
+
+            <TabsContent value="certifications" className="space-y-6 py-4">
+              <CertificationTimeline
+                certifications={certificationsData || []}
+                onAdd={() => setCreateCertDialogOpen(true)}
+                onEdit={(cert) => setEditCertification(cert)}
+                onDelete={(cert) => setDeleteCertification(cert)}
+                canEdit
+                canDelete
+              />
+            </TabsContent>
           </Tabs>
         )}
 
@@ -654,6 +694,36 @@ export function EmployeeDetailModal({
           education={deleteEducation}
           onSuccess={() => {
             setDeleteEducation(null);
+          }}
+        />
+
+        {/* Certification Dialogs */}
+        <CreateCertificationDialog
+          open={createCertDialogOpen}
+          onOpenChange={setCreateCertDialogOpen}
+          employeeId={displayEmployee.id}
+          onSuccess={() => {
+            setCreateCertDialogOpen(false);
+          }}
+        />
+
+        <EditCertificationDialog
+          open={!!editCertification}
+          onOpenChange={(open) => !open && setEditCertification(null)}
+          employeeId={displayEmployee.id}
+          certification={editCertification}
+          onSuccess={() => {
+            setEditCertification(null);
+          }}
+        />
+
+        <DeleteCertificationDialog
+          open={!!deleteCertification}
+          onOpenChange={(open) => !open && setDeleteCertification(null)}
+          employeeId={displayEmployee.id}
+          certification={deleteCertification}
+          onSuccess={() => {
+            setDeleteCertification(null);
           }}
         />
       </DialogContent>

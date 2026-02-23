@@ -385,11 +385,6 @@ func SeedPermissions() error {
 		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
 
-		{"/hrd/certifications", "certification.read", "View Certifications", "VIEW", "certification"},
-		{"/hrd/certifications", "certification.create", "Create Certifications", "CREATE", "certification"},
-		{"/hrd/certifications", "certification.update", "Edit Certifications", "EDIT", "certification"},
-		{"/hrd/certifications", "certification.delete", "Delete Certifications", "DELETE", "certification"},
-
 		{"/hrd/employee-assets", "employee_asset.read", "View Employee Assets", "VIEW", "employee_asset"},
 		{"/hrd/employee-assets", "employee_asset.create", "Create Employee Assets", "CREATE", "employee_asset"},
 		{"/hrd/employee-assets", "employee_asset.update", "Edit Employee Assets", "EDIT", "employee_asset"},

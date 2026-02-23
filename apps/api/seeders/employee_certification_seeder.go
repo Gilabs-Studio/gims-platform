@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 )
 
@@ -17,7 +16,7 @@ func SeedEmployeeCertifications() error {
 
 	// Check if certifications already exist
 	var count int64
-	db.Model(&models.EmployeeCertification{}).Count(&count)
+	db.Model(&orgModels.EmployeeCertification{}).Count(&count)
 	if count > 0 {
 		fmt.Println("⏭️  Employee certifications already exist, skipping...")
 		return nil
@@ -36,7 +35,7 @@ func SeedEmployeeCertifications() error {
 
 	// Create certifications
 	now := time.Now()
-	certifications := []models.EmployeeCertification{
+	certifications := []orgModels.EmployeeCertification{
 		{
 			EmployeeID:        employees[0].ID,
 			CertificateName:   "AWS Certified Solutions Architect - Associate",

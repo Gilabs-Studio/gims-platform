@@ -30,6 +30,7 @@ export const employeeId: EmployeeTranslations = {
     contract: "Kontrak",
     contractHistory: "Riwayat Kontrak",
     educationHistory: "Riwayat Pendidikan",
+    certifications: "Sertifikasi",
     areas: "Area",
   },
   sections: {
@@ -324,6 +325,62 @@ export const employeeId: EmployeeTranslations = {
       onlyOneOngoing: "Hanya boleh ada satu pendidikan yang sedang berlangsung",
       ongoingExists: "sudah ada pendidikan yang sedang berlangsung",
     },
+  },
+  certification: {
+    sections: {
+      latestCertification: "Informasi Sertifikasi",
+    },
+    fields: {
+      certificateName: "Nama Sertifikat",
+      issuedBy: "Diterbitkan Oleh",
+      issueDate: "Tanggal Terbit",
+      expiryDate: "Tanggal Kedaluwarsa",
+      certificateNumber: "Nomor Sertifikat",
+      certificateFile: "Berkas Sertifikat",
+      description: "Deskripsi",
+      status: "Status",
+    },
+    status: {
+      valid: "Berlaku",
+      expiringSoon: "Segera Kedaluwarsa",
+      expired: "Kedaluwarsa",
+      noExpiry: "Tidak Ada Masa Berlaku",
+    },
+    actions: {
+      create: "Tambah Sertifikasi",
+      edit: "Edit Sertifikasi",
+      delete: "Hapus Sertifikasi",
+      processing: "Memproses...",
+    },
+    empty: {
+      noCertification: "Belum ada informasi sertifikasi.",
+      noHistory: "Belum ada sertifikasi.",
+    },
+    form: {
+      createTitle: "Tambah Sertifikasi",
+      editTitle: "Edit Sertifikasi",
+      deleteTitle: "Hapus Sertifikasi",
+      deleteConfirm:
+        "Apakah Anda yakin ingin menghapus sertifikasi ini? Tindakan ini tidak dapat dibatalkan.",
+      certificateNamePlaceholder: "Masukkan nama sertifikat",
+      issuedByPlaceholder: "Masukkan organisasi penerbit",
+      certificateNumberPlaceholder: "Masukkan nomor sertifikat",
+      descriptionPlaceholder: "Masukkan deskripsi (opsional)",
+      selectDate: "Pilih tanggal",
+      noExpiryLabel: "Tidak ada masa berlaku (sertifikasi permanen)",
+    },
+    success: {
+      created: "Sertifikasi berhasil ditambahkan",
+      updated: "Sertifikasi berhasil diperbarui",
+      deleted: "Sertifikasi berhasil dihapus",
+    },
+    error: {
+      createFailed: "Gagal menambahkan sertifikasi",
+      updateFailed: "Gagal memperbarui sertifikasi",
+      deleteFailed: "Gagal menghapus sertifikasi",
+    },
+    daysRemaining: "{days} hari tersisa",
+    expiredDaysAgo: "Kedaluwarsa {days} hari lalu",
   },
   validation: {
     employeeCodeRequired: "Kode karyawan wajib diisi",

@@ -33,6 +33,8 @@ var (
 	ErrNoActiveContract              = errors.New("employee has no active contract")
 	ErrOngoingEducationExists        = errors.New("employee already has an ongoing education")
 	ErrInvalidGPA                    = errors.New("GPA must be between 1.00 and 4.00")
+	ErrCertificationNotFound         = errors.New("certification not found")
+	ErrInvalidCertificationDates     = errors.New("expiry date must be after issue date")
 )
 
 // EmployeeUsecase defines the interface for employee business logic
@@ -68,6 +70,12 @@ type EmployeeUsecase interface {
 	UpdateEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string, req dto.UpdateEmployeeEducationHistoryRequest) (dto.EmployeeEducationHistoryResponse, error)
 	DeleteEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string) error
 	GetLatestEducation(ctx context.Context, employeeID string) (*models.EmployeeEducationHistory, error)
+	// Certification management methods
+	GetEmployeeCertifications(ctx context.Context, employeeID string) ([]dto.EmployeeCertificationResponse, error)
+	CreateEmployeeCertification(ctx context.Context, employeeID string, req dto.CreateEmployeeCertificationRequest, createdBy string) (dto.EmployeeCertificationResponse, error)
+	UpdateEmployeeCertification(ctx context.Context, employeeID string, certID string, req dto.UpdateEmployeeCertificationRequest) (dto.EmployeeCertificationResponse, error)
+	DeleteEmployeeCertification(ctx context.Context, employeeID string, certID string) error
+	GetLatestCertification(ctx context.Context, employeeID string) (*models.EmployeeCertification, error)
 }
 
 type employeeUsecase struct {
@@ -79,6 +87,7 @@ type employeeUsecase struct {
 	areaRepo             repositories.AreaRepository
 	contractRepo         repositories.EmployeeContractRepository
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository
+	certificationRepo    repositories.EmployeeCertificationRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
@@ -91,6 +100,7 @@ func NewEmployeeUsecase(
 	areaRepo repositories.AreaRepository,
 	contractRepo repositories.EmployeeContractRepository,
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository,
+	certificationRepo repositories.EmployeeCertificationRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
 		employeeRepo:         employeeRepo,
@@ -101,6 +111,7 @@ func NewEmployeeUsecase(
 		areaRepo:             areaRepo,
 		contractRepo:         contractRepo,
 		educationHistoryRepo: educationHistoryRepo,
+		certificationRepo:    certificationRepo,
 	}
 }
 
@@ -246,10 +257,11 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		return dto.EmployeeResponse{}, err
 	}
 
-	// Fetch latest education
+	// Fetch latest education and certification
 	latestEdu, _ := u.GetLatestEducation(ctx, employee.ID)
+	latestCert, _ := u.GetLatestCertification(ctx, employee.ID)
 
-	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error) {
@@ -268,10 +280,11 @@ func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeR
 		}
 	}
 
-	// Fetch latest education
+	// Fetch latest education and certification
 	latestEdu, _ := u.GetLatestEducation(ctx, id)
+	latestCert, _ := u.GetLatestCertification(ctx, id)
 
-	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error) {
@@ -433,7 +446,8 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 	}
 
 	latestEdu, _ := u.GetLatestEducation(ctx, id)
-	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu), nil
+	latestCert, _ := u.GetLatestCertification(ctx, id)
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) Delete(ctx context.Context, id string) error {
@@ -462,7 +476,7 @@ func (u *employeeUsecase) SubmitForApproval(ctx context.Context, id string) (dto
 		return dto.EmployeeResponse{}, err
 	}
 
-	return mapper.ToEmployeeResponse(employee, nil, nil), nil
+	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
 }
 
 func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error) {
@@ -496,7 +510,7 @@ func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.Approv
 		return dto.EmployeeResponse{}, err
 	}
 
-	return mapper.ToEmployeeResponse(employee, nil, nil), nil
+	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
 }
 
 func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error) {
@@ -530,7 +544,7 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract, nil), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error) {
@@ -558,7 +572,7 @@ func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, 
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract, nil), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeAreasRequest) (dto.EmployeeResponse, error) {
@@ -592,7 +606,7 @@ func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract, nil), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) RemoveAreaAssignment(ctx context.Context, employeeID string, areaID string) error {
@@ -1337,4 +1351,144 @@ func (u *employeeUsecase) DeleteEmployeeEducationHistory(ctx context.Context, em
 	}
 
 	return u.educationHistoryRepo.Delete(ctx, educationUUID)
+}
+
+// Certification management methods
+
+func (u *employeeUsecase) GetLatestCertification(ctx context.Context, employeeID string) (*models.EmployeeCertification, error) {
+	cert, err := u.certificationRepo.FindLatestByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	return cert, nil
+}
+
+func (u *employeeUsecase) GetEmployeeCertifications(ctx context.Context, employeeID string) ([]dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	certs, err := u.certificationRepo.FindByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch certifications: %w", err)
+	}
+
+	return mapper.ToCertificationResponseList(certs), nil
+}
+
+func (u *employeeUsecase) CreateEmployeeCertification(ctx context.Context, employeeID string, req dto.CreateEmployeeCertificationRequest, createdBy string) (dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrEmployeeNotFound
+	}
+
+	issueDate, err := time.Parse("2006-01-02", req.IssueDate)
+	if err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid issue_date format: %w", err)
+	}
+
+	var expiryDate *time.Time
+	if req.ExpiryDate != nil && *req.ExpiryDate != "" {
+		parsed, err := time.Parse("2006-01-02", *req.ExpiryDate)
+		if err != nil {
+			return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid expiry_date format: %w", err)
+		}
+		if !parsed.After(issueDate) {
+			return dto.EmployeeCertificationResponse{}, ErrInvalidCertificationDates
+		}
+		expiryDate = &parsed
+	}
+
+	cert := &models.EmployeeCertification{
+		EmployeeID:        employeeID,
+		CertificateName:   req.CertificateName,
+		IssuedBy:          req.IssuedBy,
+		IssueDate:         issueDate,
+		ExpiryDate:        expiryDate,
+		CertificateFile:   req.CertificateFile,
+		CertificateNumber: req.CertificateNumber,
+		Description:       req.Description,
+		CreatedBy:         createdBy,
+		UpdatedBy:         createdBy,
+	}
+
+	if err := u.certificationRepo.Create(ctx, cert); err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("failed to create certification: %w", err)
+	}
+
+	return mapper.ToCertificationResponse(cert), nil
+}
+
+func (u *employeeUsecase) UpdateEmployeeCertification(ctx context.Context, employeeID string, certID string, req dto.UpdateEmployeeCertificationRequest) (dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrEmployeeNotFound
+	}
+
+	cert, err := u.certificationRepo.FindByID(ctx, certID)
+	if err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrCertificationNotFound
+	}
+
+	if cert.EmployeeID != employeeID {
+		return dto.EmployeeCertificationResponse{}, errors.New("certification does not belong to employee")
+	}
+
+	if req.CertificateName != "" {
+		cert.CertificateName = req.CertificateName
+	}
+	if req.IssuedBy != "" {
+		cert.IssuedBy = req.IssuedBy
+	}
+	if req.IssueDate != "" {
+		issueDate, err := time.Parse("2006-01-02", req.IssueDate)
+		if err != nil {
+			return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid issue_date format: %w", err)
+		}
+		cert.IssueDate = issueDate
+	}
+	if req.ExpiryDate != nil {
+		if *req.ExpiryDate == "" {
+			cert.ExpiryDate = nil
+		} else {
+			expiryDate, err := time.Parse("2006-01-02", *req.ExpiryDate)
+			if err != nil {
+				return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid expiry_date format: %w", err)
+			}
+			if !expiryDate.After(cert.IssueDate) {
+				return dto.EmployeeCertificationResponse{}, ErrInvalidCertificationDates
+			}
+			cert.ExpiryDate = &expiryDate
+		}
+	}
+	if req.CertificateFile != "" {
+		cert.CertificateFile = req.CertificateFile
+	}
+	if req.CertificateNumber != "" {
+		cert.CertificateNumber = req.CertificateNumber
+	}
+	if req.Description != "" {
+		cert.Description = req.Description
+	}
+
+	if err := u.certificationRepo.Update(ctx, cert); err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("failed to update certification: %w", err)
+	}
+
+	return mapper.ToCertificationResponse(cert), nil
+}
+
+func (u *employeeUsecase) DeleteEmployeeCertification(ctx context.Context, employeeID string, certID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	cert, err := u.certificationRepo.FindByID(ctx, certID)
+	if err != nil {
+		return ErrCertificationNotFound
+	}
+
+	if cert.EmployeeID != employeeID {
+		return errors.New("certification does not belong to employee")
+	}
+
+	return u.certificationRepo.Delete(ctx, certID)
 }

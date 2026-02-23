@@ -20,6 +20,9 @@ import type {
   EmployeeEducationHistory,
   CreateEmployeeEducationHistoryData,
   UpdateEmployeeEducationHistoryData,
+  EmployeeCertification,
+  CreateEmployeeCertificationData,
+  UpdateEmployeeCertificationData,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -258,6 +261,49 @@ export const employeeService = {
   ): Promise<void> {
     await apiClient.delete(
       `${BASE_PATH}/employees/${employeeId}/education-histories/${educationId}`,
+    );
+  },
+
+  // Certification management
+  async getEmployeeCertifications(
+    employeeId: string,
+  ): Promise<EmployeeCertification[]> {
+    const response = await apiClient.get<{
+      data: EmployeeCertification[];
+    }>(`${BASE_PATH}/employees/${employeeId}/certifications`);
+    return response.data.data;
+  },
+
+  async createEmployeeCertification(
+    employeeId: string,
+    data: CreateEmployeeCertificationData,
+  ): Promise<EmployeeCertification> {
+    const response = await apiClient.post<{
+      data: EmployeeCertification;
+    }>(`${BASE_PATH}/employees/${employeeId}/certifications`, data);
+    return response.data.data;
+  },
+
+  async updateEmployeeCertification(
+    employeeId: string,
+    certId: string,
+    data: UpdateEmployeeCertificationData,
+  ): Promise<EmployeeCertification> {
+    const response = await apiClient.put<{
+      data: EmployeeCertification;
+    }>(
+      `${BASE_PATH}/employees/${employeeId}/certifications/${certId}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async deleteEmployeeCertification(
+    employeeId: string,
+    certId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      `${BASE_PATH}/employees/${employeeId}/certifications/${certId}`,
     );
   },
 };

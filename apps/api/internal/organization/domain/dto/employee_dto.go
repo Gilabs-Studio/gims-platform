@@ -169,8 +169,10 @@ type EmployeeResponse struct {
 	// CurrentContract is the employee's active contract (if any)
 	CurrentContract *EmployeeContractBriefResponse `json:"current_contract,omitempty"`
 	// LatestEducation is the employee's ongoing or most recent education (if any)
-	LatestEducation  *EmployeeEducationBriefResponse `json:"latest_education,omitempty"`
-	ReplacementForID *string                         `json:"replacement_for_id"`
+	LatestEducation *EmployeeEducationBriefResponse `json:"latest_education,omitempty"`
+	// LatestCertification is the employee's most recent valid certification (if any)
+	LatestCertification *EmployeeCertificationBriefResponse `json:"latest_certification,omitempty"`
+	ReplacementForID    *string                             `json:"replacement_for_id"`
 	ReplacementFor   *EmployeeBriefResponse         `json:"replacement_for,omitempty"`
 	// Areas contains all assigned areas with their role (supervisor or member).
 	Areas []EmployeeAreaSummary `json:"areas,omitempty"`

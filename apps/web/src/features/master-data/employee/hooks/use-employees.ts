@@ -455,3 +455,95 @@ export function useDeleteEmployeeEducationHistory() {
     },
   });
 }
+
+// Certification query keys
+export const certificationKeys = {
+  all: ["employee-certification"] as const,
+  lists: (employeeId: string) =>
+    [...certificationKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeCertifications(
+  employeeId: string | undefined,
+) {
+  return useQuery({
+    queryKey: certificationKeys.lists(employeeId ?? ""),
+    queryFn: () =>
+      employeeService.getEmployeeCertifications(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: import("../types").CreateEmployeeCertificationData;
+    }) => employeeService.createEmployeeCertification(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      certId,
+      data,
+    }: {
+      employeeId: string;
+      certId: string;
+      data: import("../types").UpdateEmployeeCertificationData;
+    }) =>
+      employeeService.updateEmployeeCertification(
+        employeeId,
+        certId,
+        data,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      certId,
+    }: {
+      employeeId: string;
+      certId: string;
+    }) =>
+      employeeService.deleteEmployeeCertification(employeeId, certId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}

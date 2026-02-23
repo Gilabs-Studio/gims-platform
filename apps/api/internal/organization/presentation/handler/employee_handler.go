@@ -749,3 +749,128 @@ func (h *EmployeeHandler) DeleteEmployeeEducationHistory(c *gin.Context) {
 
 	response.SuccessResponse(c, map[string]string{"message": "Education history deleted successfully"}, nil)
 }
+
+// GetEmployeeCertifications handles GET /employees/:id/certifications
+func (h *EmployeeHandler) GetEmployeeCertifications(c *gin.Context) {
+	id := c.Param("id")
+
+	certs, err := h.employeeUC.GetEmployeeCertifications(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, certs, nil)
+}
+
+// CreateEmployeeCertification handles POST /employees/:id/certifications
+func (h *EmployeeHandler) CreateEmployeeCertification(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.CreateEmployeeCertificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			userID = uidStr
+		}
+	}
+
+	resp, err := h.employeeUC.CreateEmployeeCertification(c.Request.Context(), id, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidCertificationDates {
+			errors.ErrorResponse(c, "INVALID_CERTIFICATION_DATES", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseCreated(c, resp, nil)
+}
+
+// UpdateEmployeeCertification handles PUT /employees/:id/certifications/:certification_id
+func (h *EmployeeHandler) UpdateEmployeeCertification(c *gin.Context) {
+	id := c.Param("id")
+	certID := c.Param("certification_id")
+
+	var req dto.UpdateEmployeeCertificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.UpdateEmployeeCertification(c.Request.Context(), id, certID, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrCertificationNotFound {
+			errors.ErrorResponse(c, "CERTIFICATION_NOT_FOUND", map[string]interface{}{
+				"certification_id": certID,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidCertificationDates {
+			errors.ErrorResponse(c, "INVALID_CERTIFICATION_DATES", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// DeleteEmployeeCertification handles DELETE /employees/:id/certifications/:certification_id
+func (h *EmployeeHandler) DeleteEmployeeCertification(c *gin.Context) {
+	id := c.Param("id")
+	certID := c.Param("certification_id")
+
+	err := h.employeeUC.DeleteEmployeeCertification(c.Request.Context(), id, certID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrCertificationNotFound {
+			errors.ErrorResponse(c, "CERTIFICATION_NOT_FOUND", map[string]interface{}{
+				"certification_id": certID,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"message": "Certification deleted successfully"}, nil)
+}

@@ -1,520 +1,466 @@
-# Employee Certification Management
+# Employee Certification Management (Migrated to Organization Module)
 
-## Feature Summary
+## Overview
 
-Employee Certification Management system untuk tracking sertifikasi profesional karyawan dengan fitur expiry tracking dan alert system. Memungkinkan HRD untuk manage certification records, monitor status kedaluwarsa, dan ensure compliance requirements terpenuhi.
+Employee certification tracking feature for managing professional certifications with expiry tracking. Fully integrated into the Employee Management module under Organization. Originally part of HRD Sprint 14, this feature has been **migrated** into the employee detail modal as a sub-resource, following the same pattern as Employee Contracts and Education History.
 
-**Business Value**: Memastikan karyawan memiliki certifications yang valid, menghindari expired certifications untuk compliance, dan memfasilitasi career development tracking.
+All CRUD operations are performed within the employee detail modal — no standalone page exists.
 
-## Fitur Utama
+## Migration Summary
 
-- **CRUD Certifications**: Create, read, update, delete certification records untuk karyawan
-- **Expiry Tracking**: Monitor certification expiry dates dengan computed fields (is_expired, days_until_expiry)
-- **Search & Filter**: Cari berdasarkan certificate name atau issued by, filter by employee, filter by status (valid, expiring_soon, expired, no_expiry)
-- **Expiring Certifications Alert**: Query certifications yang akan expire dalam X hari (default 30)
-- **Optional Expiry**: Support untuk certifications tanpa expiry date (lifetime certifications)
-- **Document Management**: Store certificate file paths untuk uploaded documents (dengan `getDisplayFilename` utility untuk menampilkan nama file asli)
-- **Form Data Endpoint**: Single endpoint untuk fetch employees dropdown (efficient)
-- **Edit Form Auto-Prefill**: Form edit otomatis terisi data sertifikasi yang ada (via GET by ID)
-- **i18n Support Penuh**: English dan Indonesian translations lengkap untuk semua UI strings
+| Aspect            | Before (HRD)                                     | After (Organization)                                                                      |
+| ----------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Backend path      | `/hrd/employee-certifications`                   | `/organization/employees/:id/certifications`                                              |
+| Backend module    | `internal/hrd/`                                  | `internal/organization/`                                                                  |
+| Frontend location | `features/hrd/certifications/` (standalone page) | `features/master-data/employee/components/certifications/` (inside employee detail modal) |
+| Permissions       | `certification.*`                                | `employee.read`, `employee.update`, `employee.delete`                                     |
+| Routing           | `/hrd/certifications`                            | Inside employee detail modal (no standalone page)                                         |
+| i18n namespace    | `certification`                                  | `employee.certification`                                                                  |
+
+## Features
+
+- Track employee professional certifications (AWS, PMP, CISSP, etc.)
+- Expiry tracking with computed fields (`is_expired`, `days_until_expiry`)
+- Optional expiry date for lifetime/permanent certifications
+- Certificate document upload via FileUpload component
+- Certifications tab with timeline design and CRUD actions (all operations performed here)
+- Status badges: Valid (green), Expiring Soon (yellow), Expired (red), No Expiry (gray)
+- Chronological ordering by issue date (most recent first)
+- Soft delete for audit trail
 
 ## Business Rules
 
 ### Certification Management
-- **Employee Validation**: Employee harus exist sebelum bisa create certification
-- **Date Validation**: 
-  - issue_date format: YYYY-MM-DD (required)
-  - expiry_date format: YYYY-MM-DD (optional, nullable)
-  - Jika expiry_date provided, harus **after** issue_date
-- **Expiry Status**: `is_expired = true` jika expiry_date < now (computed on-the-fly)
-- **Days Until Expiry**: 
+
+- Multiple certification records per employee allowed
+- Employee must exist before adding certification
+- Certification belongs to a specific employee (ownership validated)
+- Soft delete preserves audit trail
+- Created/updated tracking for compliance
+
+### Date Validation
+
+- `issue_date` format: YYYY-MM-DD (required)
+- `expiry_date` format: YYYY-MM-DD (optional, nullable)
+- If `expiry_date` provided, it must be **after** `issue_date`
+
+### Expiry Status (computed on-the-fly, not stored)
+
+- `is_expired = true` if `expiry_date < now`; `false` if `expiry_date` is nil
+- `days_until_expiry`:
   - Positive number = days remaining
   - Negative number = days passed since expired
-  - 999999 = no expiry date (never expires)
+  - `999999` = no expiry date (never expires)
 
-### Search & Pagination
-- **Search Fields**: certificate_name OR issued_by (ILIKE prefix matching)
-- **Max per_page**: 100 (enforced untuk prevent memory issues)
-- **Default per_page**: 20
-- **Ordering**: issue_date DESC (newest first)
-- **Status Filter** (query param `status`): Optional. Allowed values:
-  - `no_expiry`: expiry_date IS NULL
-  - `valid`: expiry_date > (today + 30 days)
-  - `expiring_soon`: expiry_date between today and (today + 30 days)
-  - `expired`: expiry_date < today
+### Data Integrity
 
-### Expiring Certifications Query
-- **Default Days**: 30 (jika parameter tidak provided)
-- **Query Logic**: 
-  ```sql
-  WHERE expiry_date IS NOT NULL 
-    AND expiry_date <= (NOW() + days)
-    AND expiry_date >= NOW()
-  ORDER BY expiry_date ASC
-  ```
-- **Use Case**: Dashboard alert system untuk show certifications expiring soon
-
-## Keputusan Teknis & Trade-offs
-
-### 1. Optional Expiry Date (Nullable Field)
-**Why**: Beberapa certifications tidak pernah expire (e.g., university degrees, lifetime certifications)
-
-**Implementation**: 
-- Field expiry_date as `*time.Time` (nullable)
-- Computed field `is_expired = false` jika expiry_date IS NULL
-- Computed field `days_until_expiry = 999999` untuk flag no expiry
-
-**Trade-off**: Slightly more complex query logic (need to handle NULL values), but provides flexibility
-
-### 2. Computed Fields (is_expired, days_until_expiry)
-**Why**: Avoid stale data in database, always return accurate status
-
-**Implementation**: 
-- Calculated in model methods: `IsExpired()`, `DaysUntilExpiry()`
-- NOT stored in database (computed on-the-fly)
-- Included in DTO response untuk frontend convenience
-
-**Trade-off**: Slight performance overhead vs data accuracy
-
-### 3. Search with Prefix Matching (ILIKE certificate_name%)
-**Why**: Leverage GIN indexes untuk performance
-
-**Implementation**:
-- GIN index: `CREATE INDEX idx_employee_certifications_name_gin ON employee_certifications USING gin (certificate_name gin_trgm_ops)`
-- Search pattern: `WHERE certificate_name ILIKE 'search%' OR issued_by ILIKE 'search%'`
-
-**Trade-off**: Prefix-only search (not full wildcard), but much faster with indexes
-
-### 4. GetFormData Endpoint Pattern
-**Why**: Single API call untuk fetch all form options (employees), reduces round-trips
-
-**Implementation**: GET /form-data returns employees array
-
-**Trade-off**: Frontend must fetch all employees at once (could be large dataset), but acceptable for most organizations
-
-### 5. Expiring Certifications Alert System
-**Why**: Proactive notification system untuk renew certifications sebelum expired
-
-**Implementation**: 
-- Dedicated endpoint: GET /expiring?days=30
-- Query only certs dengan expiry_date within range
-- Order by expiry_date ASC (urgent first)
-
-**Use Case**: Dashboard widget, email notifications, report generation
-
-### 6. Certificate Number Field (Not in Original Schema)
-**Why**: Track official certification numbers untuk verification purposes
-
-**Added**: certificate_number field (max 100 chars, optional)
-
-**Rationale**: Frequent business requirement untuk prove certification validity
-
-### 7. Dialog-Based Forms vs Separate Pages (Frontend)
-**Why**: Better UX dengan modal dialogs, maintain context without navigation
-
-**Implementation**: 
-- Single page `/hrd/certifications` dengan dialog modals untuk create/edit
-- Modal state management di list component (`isFormOpen`, `editingCertificationId`); form receives `certificationId` (not full object) and fetches detail by ID in edit mode (same pattern as employee contract form)
-- Dynamic import dengan PermissionGuard untuk code splitting
-- Form component reused untuk create dan edit modes (conditional based on `certificationId`); in edit mode all fields (including Employee, Expiry Date, Certificate Number, Description) are pre-filled from GET-by-ID; Employee field is read-only in edit
-
-**Trade-off**: 
-- ✅ Better UX: No navigation flicker, context preserved
-- ✅ Cleaner state: Local component state instead of URL state
-- ✅ Performance: Lazy loaded components
-- ❌ Slightly more complex state management (vs simple routing)
-
-**Pattern followed**: Matches quotation pattern across all GIMS features
-
-### 8. Shared DTO Types (common_dto.go)
-**Why**: `EmployeeFormOption` dan `EmployeeSimpleResponse` digunakan di banyak HRD modules (certifications, education, assets, evaluation, recruitment)
-
-**Implementation**: 
-- Shared types dipindahkan ke `internal/hrd/domain/dto/common_dto.go`
-- Semua module reference types dari file yang sama (same package, no import needed)
-- Menghilangkan duplikasi type definitions
-
-**Context**: Sebelumnya `EmployeeFormOption` didefinisikan di `employee_contract_dto.go` yang sudah dihapus karena contract management dipindahkan ke organization module. Types yang dipakai bersama sekarang ada di `common_dto.go`.
-
-### 9. skipAuthRedirectOn401 Pattern (Frontend Service)
-**Why**: Mencegah global logout redirect saat mutation gagal (401), sehingga hanya toast error yang ditampilkan
-
-**Implementation**: 
-- Service methods `create()`, `update()`, `delete()` menggunakan `skipAuthRedirectOn401: true`
-- User tetap di halaman yang sama saat terjadi error, hanya menerima toast notification
+- Employee must exist before adding certification
+- Certification history belongs to a specific employee (ownership validated via URL param)
+- Soft delete preserves audit trail
+- Created/updated tracking for compliance
 
 ## API Endpoints
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/hrd/employee-certifications` | certification.read | List all certifications (paginated, searchable, filter by `status`: no_expiry \| valid \| expiring_soon \| expired) |
-| GET | `/hrd/employee-certifications/:id` | certification.read | Get certification detail by ID |
-| GET | `/hrd/employee-certifications/employee/:employee_id` | certification.read | Get all certifications for specific employee |
-| GET | `/hrd/employee-certifications/expiring?days=30` | certification.read | Get certifications expiring within X days |
-| GET | `/hrd/employee-certifications/form-data` | auth | Get form dropdown data (employees) |
-| POST | `/hrd/employee-certifications` | certification.create | Create new certification |
-| PUT | `/hrd/employee-certifications/:id` | certification.update | Update existing certification |
-| DELETE | `/hrd/employee-certifications/:id` | certification.delete | Delete certification (soft delete) |
+| Method | Endpoint                                                       | Permission        | Description                             |
+| ------ | -------------------------------------------------------------- | ----------------- | --------------------------------------- |
+| GET    | `/organization/employees/:id/certifications`                   | `employee.read`   | List all certifications for an employee |
+| POST   | `/organization/employees/:id/certifications`                   | `employee.update` | Create new certification                |
+| PUT    | `/organization/employees/:id/certifications/:certification_id` | `employee.update` | Update existing certification           |
+| DELETE | `/organization/employees/:id/certifications/:certification_id` | `employee.delete` | Soft delete certification               |
 
-## Testing Manual
+### Employee Response Integration
 
-### Scenario 1: Create Certification dengan Expiry Date
-1. Login sebagai HRD staff
-2. Navigate ke `/hrd/certifications` (single page)
-3. Click "Add Certification" button → **Dialog modal opens**
-4. Fill form in dialog:
-   - Employee: Select dari dropdown (create mode only)
-   - Certificate Name: "AWS Certified Solutions Architect"
-   - Issued By: "Amazon Web Services"
-   - Issue Date: "2024-01-15" (calendar picker)
-   - Expiry Date: "2027-01-15" (3 years from issue, calendar picker)
-   - Certificate Number: "AWS-CSA-12345"
-   - Description: "Cloud architecture certification"
-5. Submit → **Dialog closes**, success toast appears
-6. Verify in list: Status badge shows "Valid" (green), days_remaining shown
-7. **Note**: No page navigation occurred, context preserved
+The main `GET /organization/employees/:id` response includes a `latest_certification` brief object populated automatically:
 
-### Scenario 2: Create Certification tanpa Expiry Date (Lifetime)
-1. On `/hrd/certifications`, click "Add Certification"
-2. Fill required fields, **leave Expiry Date empty** (no date selected)
-3. Submit → Dialog closes, success toast
-4. Verify in list: Status badge shows "No Expiry" (gray outline)
+- Returns the most recent **valid** (non-expired) certification by `issue_date`
+- Falls back to `nil` if no valid certifications exist
 
-### Scenario 3: Expiring Certification Alert
-1. Create certification dengan expiry_date = NOW() + 15 days
-2. Navigate to dashboard (jika ada widget) atau call GET /expiring?days=30
-3. Verify certification appears in expiring list
-4. Verify ordered by expiry_date ASC (urgent first)
+## Data Structure
 
-### Scenario 4: Expired Certification
-1. Create certification dengan expiry_date = NOW() - 10 days (manual di database atau adjust dates)
-2. Verify in list: 
-   - Status badge shows "Expired" (red)
-   - days_until_expiry shows negative number (e.g., -10)
-   - is_expired = true
-
-### Scenario 5: Date Validation Error
-1. Fill form dengan:
-   - Issue Date: "2025-01-15"
-   - Expiry Date: "2024-01-15" (BEFORE issue date)
-2. Submit → Should show validation error: "Expiry date must be after issue date"
-
-### Scenario 6: Search & Filter
-1. Search by certificate name: "AWS"
-2. Should show all certs with "AWS" in name
-3. Filter by employee: Select specific employee
-4. Should show only that employee's certs
-5. Filter by status: Select "Expiring Soon", "Valid", "Expired", or "No Expiry" from status dropdown
-6. Combine search + status filter (and optionally employee) → Should work together
-
-### Scenario 7: List Employee Column & Detail Modal
-1. List table shows **Employee** column with employee name and code (from API `employee_name`, `employee_code` when enriched)
-2. Clicking the employee cell opens the certification detail modal (same as clicking certificate name)
-3. Detail modal **Employee section**: Shows full employee block (avatar, name, code, email, position, View profile link) when employee detail is loaded via `useEmployee(employee_id)`; fallback to list `employee_name` / `employee_code` with View profile link
-4. Detail modal **Certification details**: If `certificate_file` is set, a "Download Certificate" button uses API base URL for relative paths and opens in new tab with download attribute
-5. Detail modal **Status/days**: Theme-aware styling (no hard-coded light yellow/green/red); uses semantic Badge variants and text-muted-foreground / text-destructive so dark theme is consistent
-
-## Automated Testing
-
-**Unit Tests**: `apps/api/internal/hrd/domain/usecase/employee_certification_usecase_test.go`
-- TestCreateCertification_Success
-- TestCreateCertification_EmployeeNotFound
-- TestCreateCertification_ExpiryBeforeIssue
-- TestIsExpired_WithExpiredDate
-- TestIsExpired_WithValidDate
-- TestIsExpired_WithNullExpiry
-- TestDaysUntilExpiry_ValidCert
-- TestDaysUntilExpiry_ExpiredCert
-- TestDaysUntilExpiry_NoExpiry
-
-**Integration Tests**: `apps/api/test/hrd/certification_integration_test.go`
-- TestGetAllCertifications_Pagination
-- TestGetExpiringCertifications_WithinDays
-- TestGetByEmployeeID_Success
-
-**E2E Tests**: `apps/web/tests/e2e/hrd/certification.spec.ts`
-- should create certification with expiry
-- should create certification without expiry
-- should update certification
-- should delete certification
-- should search certifications
-- should filter by employee
-
-**Run Tests**:
-```bash
-# Backend unit tests
-cd apps/api && go test ./internal/hrd/domain/usecase/...
-
-# Frontend unit tests
-cd apps/web && npx pnpm test certification
-
-# E2E tests
-cd apps/web && npx pnpm test:e2e hrd/certification
-```
-
-## Dependencies
-
-**Backend**:
-- **GORM**: Model persistence dengan soft delete
-- **Organization Module**: Employee repository untuk validation
-- **Core Errors**: Error handling framework
-- **Core Response**: Standardized API responses
-
-**Frontend**:
-- **TanStack Query**: Data fetching, caching, optimistic updates, query invalidation
-- **Zod**: Form validation dengan date refinement (expiry_after_issue rule)
-- **date-fns**: Date formatting dan calculations
-- **next-intl**: Internationalization dengan parameter interpolation (`{days}`)
-- **React Hook Form**: Form state management dengan Controller untuk complex inputs
-- **shadcn/ui**: UI components (Dialog, Badge, Table, Form, Popover, Calendar)
-- **Dynamic Imports**: Code splitting dengan next/dynamic dan PermissionGuard
-
-**Integration**:
-- **Employee Module**: Required untuk fetch employee data (GetFormData)
-- **Auth Module**: PermissionGuard untuk authorization checks
-
-## Database Schema
+### EmployeeCertification Model
 
 ```go
 type EmployeeCertification struct {
-    ID                string         `gorm:"type:uuid;primary_key"`
-    EmployeeID        string         `gorm:"type:uuid;not null;index:idx_employee_certification_employee"`
-    CertificateName   string         `gorm:"type:varchar(200);not null"`
-    IssuedBy          string         `gorm:"type:varchar(200);not null"`
-    IssueDate         time.Time      `gorm:"type:date;not null"`
-    ExpiryDate        *time.Time     `gorm:"type:date"`           // Nullable - nil means no expiry
-    CertificateFile   string         `gorm:"type:varchar(255)"`   // Path to uploaded file
-    CertificateNumber string         `gorm:"type:varchar(100)"`
-    Description       string         `gorm:"type:text"`
-    CreatedBy         string         `gorm:"type:varchar(255)"`   // User ID who created
-    UpdatedBy         string         `gorm:"type:varchar(255)"`   // User ID who last updated
+    ID                string         // uuid, primary key
+    EmployeeID        string         // uuid, indexed
+    CertificateName   string         // varchar(200), required
+    IssuedBy          string         // varchar(200), required
+    IssueDate         time.Time      // date, required
+    ExpiryDate        *time.Time     // date, nullable (nil = no expiry)
+    CertificateFile   string         // varchar(255), path to uploaded file
+    CertificateNumber string         // varchar(100), optional
+    Description       string         // text, optional
+    CreatedBy         string         // varchar(255)
+    UpdatedBy         string         // varchar(255)
     CreatedAt         time.Time
     UpdatedAt         time.Time
-    DeletedAt         gorm.DeletedAt `gorm:"index"`
+    DeletedAt         gorm.DeletedAt // soft delete
 }
 ```
 
-**Model Methods**:
+### Model Methods
+
 - `BeforeCreate(tx)`: Auto-generates UUID if ID is empty
 - `TableName()`: Returns `"employee_certifications"`
 - `IsExpired()`: Returns `true` if `ExpiryDate < now`; `false` if `ExpiryDate` is nil
 - `DaysUntilExpiry()`: Returns days remaining (negative if expired, `999999` if no expiry)
 
-**Indexes**:
-- `idx_employee_certification_employee`: B-tree index on employee_id for filtering
+## Request/Response Examples
 
-**Relationships**:
-- **EmployeeCertification** belongs to **Employee** (via employee_id)
+### Create Request
 
-## Struktur Folder
+```json
+POST /organization/employees/:employee_id/certifications
 
-### Backend
-```
-internal/hrd/
-├── data/
-│   ├── models/employee_certification.go                     # Model dengan BeforeCreate(), IsExpired(), DaysUntilExpiry()
-│   └── repositories/
-│       ├── employee_certification_repository.go             # Interface (7 methods)
-│       └── employee_certification_repository_impl.go        # GORM implementation
-├── domain/
-│   ├── dto/
-│   │   ├── common_dto.go                                    # Shared types (EmployeeFormOption, EmployeeSimpleResponse)
-│   │   └── employee_certification_dto.go                    # Create, Update, Response DTOs
-│   ├── mapper/employee_certification_mapper.go              # Model ↔ DTO conversions (4 functions)
-│   └── usecase/
-│       ├── employee_certification_usecase.go                # Interface (8 methods)
-│       └── employee_certification_usecase_impl.go           # Business logic implementation
-└── presentation/
-    ├── handler/employee_certification_handler.go            # 8 HTTP handlers + error handler
-    └── router/employee_certification_router.go              # Route definitions
+{
+  "certificate_name": "AWS Certified Solutions Architect",
+  "issued_by": "Amazon Web Services",
+  "issue_date": "2024-01-15",
+  "expiry_date": "2027-01-15",
+  "certificate_number": "AWS-CSA-12345",
+  "certificate_file": "/uploads/abc123_aws_cert.pdf",
+  "description": "Cloud architecture certification"
+}
 ```
 
-### Frontend
+### Create Permanent Certification (no expiry)
+
+```json
+POST /organization/employees/:employee_id/certifications
+
+{
+  "certificate_name": "Professional Scrum Master I (PSM I)",
+  "issued_by": "Scrum.org",
+  "issue_date": "2023-06-01",
+  "certificate_number": "PSM-98765",
+  "description": "Scrum framework and agile practices"
+}
 ```
-features/hrd/certifications/
-├── types/index.d.ts                  # TypeScript interfaces
-│                                     # - EmployeeCertification, Employee
-│                                     # - CreateCertificationData (with employee_id)
-│                                     # - UpdateCertificationData (without employee_id)
-│                                     # - CertificationListResponse (pagination: total, total_pages, has_next, has_prev)
-│                                     # - ListCertificationsParams, CertificationFormData
-├── schemas/certification.schema.ts   # Zod schemas
-│                                     # - certification (create): employee_id required
-│                                     # - certificationUpdate: employee_id excluded
-│                                     # - Date refinement: expiry_date must be after issue_date
-├── services/certification-service.ts # API client methods
-│                                     # - list() (renamed from getAll())
-│                                     # - getById(), create(), update(), delete()
-│                                     # - getFormData(), getExpiring()
-├── hooks/use-certification.ts        # TanStack Query hooks
-│                                     # - Query keys pattern: certificationKeys.lists(), certificationKeys.detail(id)
-│                                     # - useCertifications, useCertificationById, useCertificationFormData
-│                                     # - useCreateCertification, useUpdateCertification, useDeleteCertification
-│                                     # - Mutations return void (no side effects - toast/routing in components)
-├── i18n/
-│   ├── en.ts                        # English translations
-│   │                                # - meta (title, description for page metadata)
-│   │                                # - field, common, form labels
-│   │                                # - days_remaining: "{days} days remaining" (next-intl syntax)
-│   │                                # - status badges, validation messages, toast messages
-│   └── id.ts                        # Indonesian translations (mirrors en.ts)
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "c1111111-1111-1111-1111-111111111111",
+    "employee_id": "11111111-1111-1111-1111-111111111111",
+    "certificate_name": "AWS Certified Solutions Architect",
+    "issued_by": "Amazon Web Services",
+    "issue_date": "2024-01-15",
+    "expiry_date": "2027-01-15",
+    "certificate_file": "/uploads/abc123_aws_cert.pdf",
+    "certificate_number": "AWS-CSA-12345",
+    "description": "Cloud architecture certification",
+    "is_expired": false,
+    "days_until_expiry": 330,
+    "created_at": "2026-02-17T10:00:00+07:00",
+    "updated_at": "2026-02-17T10:00:00+07:00"
+  },
+  "timestamp": "2026-02-17T10:00:00+07:00",
+  "request_id": "req_create_cert_123"
+}
+```
+
+### Update Request
+
+```json
+PUT /organization/employees/:employee_id/certifications/:certification_id
+
+{
+  "certificate_name": "AWS Certified Solutions Architect - Professional",
+  "expiry_date": "2028-01-15",
+  "description": "Upgraded to Professional level"
+}
+```
+
+### List Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "c1111111-1111-1111-1111-111111111111",
+      "employee_id": "11111111-1111-1111-1111-111111111111",
+      "certificate_name": "AWS Certified Solutions Architect",
+      "issued_by": "Amazon Web Services",
+      "issue_date": "2024-01-15",
+      "expiry_date": "2027-01-15",
+      "certificate_file": "/uploads/abc123_aws_cert.pdf",
+      "certificate_number": "AWS-CSA-12345",
+      "description": "Cloud architecture certification",
+      "is_expired": false,
+      "days_until_expiry": 330,
+      "created_at": "2026-02-17T10:00:00+07:00",
+      "updated_at": "2026-02-17T10:00:00+07:00"
+    }
+  ],
+  "timestamp": "2026-02-17T10:00:00+07:00",
+  "request_id": "req_list_cert_456"
+}
+```
+
+## Validation Rules
+
+### Create Request
+
+- `certificate_name`: required, max 200 characters
+- `issued_by`: required, max 200 characters
+- `issue_date`: required, format YYYY-MM-DD
+- `expiry_date`: optional, format YYYY-MM-DD, must be after `issue_date`
+- `certificate_file`: optional, max 255 characters
+- `certificate_number`: optional, max 100 characters
+- `description`: optional, text
+
+### Update Request
+
+- All fields optional (omitempty)
+- Same validation rules as create for provided fields
+- Cannot change `employee_id` (immutable, derived from URL)
+
+## Error Handling
+
+### Error Codes
+
+| Code                          | HTTP Status | Description                               |
+| ----------------------------- | ----------- | ----------------------------------------- |
+| `EMPLOYEE_NOT_FOUND`          | 404         | Employee doesn't exist in database        |
+| `CERTIFICATION_NOT_FOUND`     | 404         | Certification record not found or deleted |
+| `VALIDATION_ERROR`            | 400         | Invalid input data (dates, etc.)          |
+| `INVALID_CERTIFICATION_DATES` | 400         | Expiry date must be after issue date      |
+| `FORBIDDEN`                   | 403         | Missing required permission               |
+| `INTERNAL_ERROR`              | 500         | Unexpected server error                   |
+
+### Common Validation Errors
+
+- "employee not found" - Employee ID doesn't exist
+- "certification not found" - Record doesn't exist
+- "expiry date must be after issue date" - Invalid date range
+- "certification does not belong to employee" - Ownership mismatch
+
+## Frontend Implementation
+
+### Architecture
+
+Certification components are integrated into the employee detail modal under `apps/web/src/features/master-data/employee/components/certifications/`:
+
+```
+employee/
+├── types/index.d.ts              # EmployeeCertification, EmployeeCertificationBrief, etc.
+├── services/employee-service.ts  # API methods for certification CRUD
+├── hooks/use-employees.ts        # TanStack Query hooks (certificationKeys)
+├── i18n/en.ts, id.ts             # Translation keys under "employee.certification"
 └── components/
-    ├── certification-list.tsx        # Main list component
-    │                                 # - Modal state management (isFormOpen, editingCertificationId, viewingCertification)
-    │                                 # - Passes certificationId (not full object) to form for edit
-    │                                 # - Debounced search (500ms)
-    │                                 # - Permission-based actions (canCreate, canUpdate, canDelete, canView)
-│                                 # - Status filter dropdown: All Status, Valid, Expiring Soon, Expired, No Expiry (query param status)
-│                                 # - Employee column: employee_name + employee_code (from list response); cell clickable to open detail modal
-│                                 # - Status badges: Expired (red), Expiring Soon (yellow), Valid (green), No Expiry (gray)
-│                                 # - Actions dropdown per row (View, Edit, Delete)
-    │                                 # - DataTablePagination with rowCount fix (total not total_items)
-    ├── certification-form.tsx        # Dialog-based form (NOT separate page)
-    │                                 # - Props: certificationId (string | null); edit mode when certificationId is set
-    │                                 # - Edit: useCertification(certificationId) fetches full detail; form pre-fills all fields; Employee field shown but disabled
-    │                                 # - Create: Employee dropdown required; reset to empty when dialog opens
-    │                                 # - Conditional schema: create (with employee_id) vs edit (without employee_id in payload)
-    │                                 # - React Hook Form with Controller for Select, Calendar; hasFormBeenInitialized + isFormReady to avoid flash of empty data
-    │                                 # - Optional expiry date with "Clear" button
-    │                                 # - i18n: success.created, success.updated, common.saving, error.create, error.update
-    └── certification-detail-modal.tsx # Detail view dialog
-                                      # - useEmployee(employee_id) for full employee block (avatar, name, code, email, position, View profile); fallback to list employee_name/employee_code
-                                      # - Theme-aware status/days styling (Badge variants, text-muted-foreground, text-destructive, no hard-coded light colors)
-                                      # - Download certificate: URL = certificate_file (or NEXT_PUBLIC_API_URL + path if relative), download attribute, target _blank
-                                      # - useLocale() for date formatting
-                                      # - Metadata display (created_at, updated_at)
+    └── certifications/
+        ├── index.ts                          # Barrel export
+        ├── certification-info-card.tsx        # (Deprecated - removed from Overview tab)
+        ├── certification-timeline.tsx         # Timeline tab (list + actions)
+        ├── create-certification-dialog.tsx    # Create dialog with no-expiry checkbox
+        ├── edit-certification-dialog.tsx      # Edit dialog with no-expiry checkbox
+        └── delete-certification-dialog.tsx    # Delete confirmation dialog
 ```
 
-**Page Structure**:
+### Employee Detail Modal Integration
+
+#### Certifications Tab (Primary CRUD Location)
+
+- **All CRUD operations are performed in this tab** — no read-only section in Overview
+- Timeline design showing all certification records chronologically by issue date
+- Status icons and colors per entry:
+  - Valid: green check
+  - Expiring Soon (within 30 days): yellow alert
+  - Expired: red X
+  - No Expiry: blue infinity
+- Action buttons: Add Certification, Edit, Delete (permission-gated)
+- Document download link when `certificate_file` exists
+- Empty state message when no records exist
+
+### Components
+
+#### CreateCertificationDialog
+
+- Props: `open`, `onOpenChange`, `employeeId`, `onSuccess`
+- No-expiry checkbox: disables expiry date field when checked
+- Client-side validation: expiry date must be after issue date
+- Submit calls API, shows success/error toast
+
+#### EditCertificationDialog
+
+- Same form fields as Create, pre-populated with existing data
+- No-expiry checkbox based on existing expiry date
+- Client-side validation: expiry date must be after issue date
+
+#### DeleteCertificationDialog
+
+- Simple confirmation dialog with cancel/delete buttons
+
+### State Management
+
+#### TanStack Query Hooks
+
+Located in `hooks/use-employees.ts`:
+
+**Query Key Factory**:
+
+```typescript
+certificationKeys = {
+  all: ["employee-certifications"],
+  lists: (employeeId) => [...all, "list", employeeId],
+};
 ```
-app/[locale]/(dashboard)/hrd/certifications/
-├── page.tsx                          # ⚠️ MISSING - needs to be created
-│                                     # Expected: PermissionGuard wrapper (employee_certification.read)
-│                                     #           Dynamic import of certification-list
-│                                     #           NO separate /new or /[id]/edit pages
-└── loading.tsx                       # ⚠️ MISSING - route-level loading skeleton
+
+**Hooks**:
+
+- `useEmployeeCertifications(employeeId)`: List certifications for employee
+- `useCreateEmployeeCertification()`: Create with cache invalidation
+- `useUpdateEmployeeCertification()`: Update with cache invalidation
+- `useDeleteEmployeeCertification()`: Delete with cache invalidation
+
+All mutations invalidate `certificationKeys.lists(employeeId)` to refresh the certifications list in the Certifications tab.
+
+#### API Service
+
+Located in `services/employee-service.ts`:
+
+```typescript
+getEmployeeCertifications(employeeId); // GET /:id/certifications
+createEmployeeCertification(employeeId, data); // POST /:id/certifications
+updateEmployeeCertification(employeeId, certificationId, data); // PUT /:id/certifications/:certification_id
+deleteEmployeeCertification(employeeId, certificationId); // DELETE /:id/certifications/:certification_id
 ```
 
-> **⚠️ KNOWN ISSUE**: The page file `page.tsx` has not been created yet. The sidebar navigation and route validator reference `/hrd/certifications`, but navigating to it will show a 404. The feature components (list, form, detail modal) exist in `features/hrd/certifications/` and are ready to be wired up.
+### Internationalization (i18n)
 
-## Notes & Future Improvements
+**Locales**: English (`en`) + Indonesian (`id`)
 
-**Known Limitations**:
-- **Missing Page File**: `page.tsx` belum dibuat di `app/[locale]/(dashboard)/hrd/certifications/` - navigasi ke halaman ini akan 404
-- **No Automatic Notifications**: Saat ini belum ada automated email/push notification untuk expiring certs
-- **No Certificate Verification**: Belum ada integration dengan external verification systems
-- **No Bulk Import**: Create one-by-one only (no CSV/Excel import)
+**Namespace**: `employee.certification`
 
-**Future Improvements**:
-1. **Email Notifications**: 
-   - Auto-send email 30 days before expiry
-   - Escalation email jika tidak renewed
-   - Digest email untuk manager
-2. **Certificate Upload**: 
-   - Integrate dengan file upload system
-   - OCR untuk auto-extract data from uploaded cert
-3. **Certification Templates**: 
-   - Pre-defined cert types (AWS, Google Cloud, PMP, etc.)
-   - Auto-fill issued_by field
-4. **Approval Workflow**: 
-   - Manager approval sebelum certification recorded
-   - Verification step
-5. **Reporting**: 
-   - Certification compliance report by department
-   - Expiring certs report (scheduled)
-   - Employee certification history report
-6. **Integration**: 
-   - Sync dengan external cert verification APIs (Credly, Accredible)
-   - Integration dengan LMS (Learning Management System)
+**Key Sections**:
 
-**Performance Considerations**:
-- **GetFormData**: Returns all employees (could be hundreds). Consider pagination jika organization besar (1000+ employees)
-- **Search**: GIN indexes provide fast search, but initial index build bisa slow untuk large datasets
-- **Expiring Query**: Efficient dengan date range query, tapi perlu monitor jika data growth signifikan
-- **Frontend Pagination**: Fixed to correctly use `pagination.total` (not `total_items`) to prevent NaN display
-- **Modal State**: Local component state prevents unnecessary re-renders from URL changes
-- **Dynamic Imports**: Code splitting reduces initial bundle size, components loaded on-demand
+1. `sections` - Section titles (latestCertification)
+2. `fields` - Field labels (certificateName, issuedBy, issueDate, expiryDate, certificateNumber, certificateFile, description, status)
+3. `status` - Status badges (valid, expiringSoon, expired, noExpiry)
+4. `actions` - Action buttons (create, edit, delete, processing)
+5. `empty` - Empty state messages (noCertification, noHistory)
+6. `form` - Form-specific labels (createTitle, editTitle, deleteTitle, deleteConfirm, placeholders, noExpiryLabel)
+7. `success` - Success toast messages (created, updated, deleted)
+8. `error` - Error toast messages (createFailed, updateFailed, deleteFailed)
+9. `daysRemaining` - "{days} days remaining"
+10. `expiredDaysAgo` - "Expired {days} days ago"
 
-## Related Documentation
-- Sprint Planning: `docs/erp-sprint-planning.md` (Sprint 14 - EmployeeCertification)
+### Permissions
+
+**Required Permissions** (reuses employee permissions):
+
+- `employee.read`: View certification list and details
+- `employee.update`: Create and edit certification records
+- `employee.delete`: Delete certification records
+
+**UI Behavior**:
+
+- Add button hidden if no `employee.update` permission
+- Edit action hidden if no `employee.update` permission
+- Delete action hidden if no `employee.delete` permission
+
+## Database Schema
+
+### Table: employee_certifications
+
+- Primary key: `id` (UUID, auto-generated)
+- Foreign key: `employee_id` → `employees.id`
+- Index: `idx_employee_certification_employee` on `employee_id`
+- Soft delete: `deleted_at` timestamp
+- Registered in `migrate.go` as `&organization.EmployeeCertification{}`
+
+## Backend Folder Structure
+
+```
+internal/organization/
+├── data/
+│   ├── models/employee_certification.go              # Model with BeforeCreate(), IsExpired(), DaysUntilExpiry()
+│   └── repositories/employee_certification_repository.go  # Interface + impl (CRUD, FindByEmployeeID, FindLatestByEmployeeID)
+├── domain/
+│   ├── dto/employee_certification_dto.go             # Create, Update, Response, BriefResponse DTOs
+│   ├── mapper/employee_certification_mapper.go       # ToCertificationResponse, ToCertificationResponseList, ToCertificationBriefResponse
+│   └── usecase/employee_usecase.go                   # Certification methods embedded in EmployeeUsecase
+└── presentation/
+    ├── handler/employee_handler.go                   # Certification HTTP handlers
+    └── router/employee_routers.go                    # Routes under /employees/:id/certifications
+```
+
+## Testing
+
+### Manual Testing Steps
+
+1. Login as HR admin with `employee.read` and `employee.update` permissions
+2. Navigate to Master Data → Employees
+3. Click on an employee to open the detail modal
+4. Go to the **Certifications** tab — verify timeline displays all records with status badges
+5. Click "Add Certification" — fill form with valid data:
+   - Certificate name, issued by, issue date
+   - Test **no-expiry checkbox**: check it → expiry date field should be disabled
+   - Test **date validation**: try setting expiry date before issue date → should show error
+   - Upload a certificate document
+   - Submit → verify success toast and record appears in timeline
+6. Create a certification with expiry date within 30 days → verify "Expiring Soon" badge
+7. Edit a record → verify form pre-populates all fields
+8. Delete a record → verify confirmation dialog and soft delete
+
+### Backend Test Commands
+
+```bash
+cd apps/api
+go test ./internal/organization/... -v -run TestCertification
+```
+
+## Technical Decisions
+
+### Why Migrate to Organization Module?
+
+- Certification is a sub-resource of employee, not a standalone HRD entity
+- Aligns with the Employee Contract and Education History migration patterns
+- Simplifies frontend by consolidating into the employee detail modal
+- Reduces permission complexity (reuse `employee.*` permissions)
+
+### Why Sub-Resource URL Pattern?
+
+- `/employees/:id/certifications` clearly expresses ownership
+- Automatic employee validation (employee must exist)
+- Consistent with contract and education sub-resource patterns
+- Prevents IDOR by always scoping to the employee context
+
+### Why Optional Expiry Date?
+
+- Some certifications never expire (e.g., PSM I, university-issued certifications)
+- `nil` expiry_date indicates permanent/lifetime certification
+- Computed fields handle the null case gracefully
+
+### Why Computed Status Fields?
+
+- `is_expired` and `days_until_expiry` are calculated on-the-fly
+- Avoids stale data in the database
+- Frontend uses these for status badge rendering
+
+## Related Features
+
+- **Employee Contracts**: Same sub-resource migration pattern
+- **Employee Education History**: Same sub-resource migration pattern
+- **Employee Detail Modal**: Central UI for all employee sub-resources
+
+## References
+
+- Education History Migration Docs: `docs/features/HRD/hrd-education-history.md`
+- Contract Migration Docs: `docs/features/HRD/hrd-employee-contracts.md`
 - API Standards: `docs/api-standart/README.md`
-- Database Relations: `docs/erp-database-relations.mmd` (EmployeeCertification -> Employee)
-- Migration Guidelines: `docs/MIGRATION_GUIDELINES.md`
-- Security Plan: `docs/TEMPLATE_SECURITY_PERFORMANCE_PLAN.md`
-- Employee Contracts (consolidated): `docs/features/HRD/hrd-employee-contracts.md`
-
-## Frontend Implementation Notes
-
-### Recent Changes (2026-02-17)
-1. **List API & Frontend**:
-   - List response includes `employee_name` and `employee_code` per item (enriched in backend usecase via `employeeRepo.FindByID`)
-   - New query parameter `status` for list: `no_expiry` | `valid` | `expiring_soon` | `expired`
-   - Frontend: status filter dropdown; Employee column shows name + code and is clickable to open detail modal
-
-2. **Detail Modal**:
-   - Employee section aligned with education detail: full employee block via `useEmployee(employee_id)` (avatar, name, code, email, position, View profile); fallback to list `employee_name`/`employee_code`
-   - Theme-aware status/days styling (semantic Badge variants and text colors for dark/light theme)
-   - Download certificate: link uses `NEXT_PUBLIC_API_URL` + path for relative `certificate_file`, with `download` attribute and `target="_blank"`
-
-3. **Form**:
-   - Employee field validation aligned with leave request (permissive UUID, normalize label→id)
-   - Certificate file upload via FileUpload component (same pattern as HRD contracts)
-   - Service mutations use `skipAuthRedirectOn401: true` to prevent global logout on 401 errors
-
-4. **Edit form (2026-02-17)**:
-   - List passes `certificationId` to form (not full certification object); form fetches detail via `useCertification(id)` in edit mode (same pattern as employee contract form)
-   - All fields pre-filled in edit: employee_id, certificate_name, issued_by, issue_date, expiry_date, certificate_number, certificate_file, description; Employee field shown but disabled in edit
-   - i18n: added `certification.success.created`, `certification.success.updated`, `certification.common.saving`, `certification.error.create`, `certification.error.update` in en.ts and id.ts to fix MISSING_MESSAGE console errors
-
-5. **Backend DTO Refactor (2026-02-17)**:
-   - `EmployeeFormOption` dan `EmployeeSimpleResponse` dipindahkan ke `common_dto.go` (shared across HRD modules)
-   - `employee_contract_dto.go` dihapus karena contract management dipindahkan ke organization module
-   - Stale comments referencing `employee_contract_dto.go` dihapus dari `employee_certification_dto.go` dan `employee_education_history_dto.go`
-
-### Previous Changes (2026-02-07)
-1. **Complete refactor to Dialog-based pattern**:
-   - Removed separate `/new` and `/[id]/edit` pages
-   - Implemented modal state management in list component
-   - Added dynamic imports with PermissionGuard
-
-2. **Type Safety Improvements**:
-   - Separated `CreateCertificationData` (with employee_id) and `UpdateCertificationData` (without employee_id)
-   - Added type assertions for union type edge cases with ESLint suppressions
-   - Fixed pagination response type: `total` instead of `total_items`
-
-3. **i18n Structure**:
-   - Organized translations into logical sections: meta, field, common, form, detail, status, empty, validation, toast, alert
-   - Fixed parameter syntax for next-intl: `{days}` not `{{days}}`
-   - Added missing keys: select_employee, pick_date, employee_code, employee_name, created_at, updated_at
-
-4. **Query Keys Pattern**:
-   - Implemented nested query key structure: `certificationKeys.lists()`, `certificationKeys.detail(id)`, `certificationKeys.formData()`
-   - Enables fine-grained cache invalidation on mutations
-
-5. **Bug Fixes**:
-   - Fixed pagination NaN issue (API returns `total`, not `total_items`)
-   - Fixed page count calculation (showed many pages for 6 items)
-   - Added proper pagination metadata fields: `has_next`, `has_prev`
-
-## Backlog / Action Items
-
-- [ ] **Create page file**: `app/[locale]/(dashboard)/hrd/certifications/page.tsx` (dengan PermissionGuard + dynamic import)
-- [ ] **Create loading file**: `app/[locale]/(dashboard)/hrd/certifications/loading.tsx` (route-level skeleton dengan PageMotion)
-- [ ] **Certificate file upload**: Integrate proper file upload endpoint (currently stores path string only)
-
-## Contributors
-- Implemented: Sprint 14 (2026-02-07)
-- Frontend Refactored: 2026-02-07
-- List status filter, employee column, detail modal (employee section, theme, download): 2026-02-17
-- Edit form prefill + Employee field + i18n keys: 2026-02-17
-- Backend DTO refactor (common_dto.go), documentation update: 2026-02-17
-- Last Updated: 2026-02-17
+- Postman Collection: `docs/postman/postman.json` (Organization → Employee Certifications)
 
 ## Document Version
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-02-07 | Initial documentation |
-| 1.1.0 | 2026-02-07 | Dialog-based pattern refactor, type safety, i18n |
-| 2.0.0 | 2026-02-17 | List status filter, detail modal, edit form prefill |
-| 2.1.0 | 2026-02-17 | Backend DTO refactor, database schema correction, missing page noted, backlog added |
+| Version | Date       | Changes                                                                                                                                 |
+| ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2026-02-07 | Initial documentation (standalone HRD module)                                                                                           |
+| 1.1.0   | 2026-02-07 | Dialog-based pattern refactor, type safety, i18n                                                                                        |
+| 2.0.0   | 2026-02-17 | List status filter, detail modal, edit form prefill                                                                                     |
+| 2.1.0   | 2026-02-17 | Backend DTO refactor, database schema correction                                                                                        |
+| 3.0.0   | 2026-02-17 | **Migration to Organization module** — sub-resource pattern, employee detail modal integration, timeline design, old HRD module removed |

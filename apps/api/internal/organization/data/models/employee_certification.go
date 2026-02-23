@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmployeeCertification represents employee professional certifications
 type EmployeeCertification struct {
 	ID                string         `gorm:"type:uuid;primary_key" json:"id"`
 	EmployeeID        string         `gorm:"type:uuid;not null;index:idx_employee_certification_employee" json:"employee_id"`
@@ -25,7 +24,6 @@ type EmployeeCertification struct {
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// BeforeCreate hook to generate UUID before creating record
 func (e *EmployeeCertification) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
@@ -33,24 +31,20 @@ func (e *EmployeeCertification) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// TableName specifies the table name for EmployeeCertification
 func (EmployeeCertification) TableName() string {
 	return "employee_certifications"
 }
 
-// IsExpired checks if the certification has expired
 func (e *EmployeeCertification) IsExpired() bool {
 	if e.ExpiryDate == nil {
-		return false // No expiry means it's valid forever
+		return false
 	}
 	return e.ExpiryDate.Before(time.Now())
 }
 
-// DaysUntilExpiry calculates days remaining until expiry
-// Returns negative if expired, 0 if expires today, positive if still valid
 func (e *EmployeeCertification) DaysUntilExpiry() int {
 	if e.ExpiryDate == nil {
-		return 999999 // No expiry
+		return 999999
 	}
 	duration := time.Until(*e.ExpiryDate)
 	return int(duration.Hours() / 24)

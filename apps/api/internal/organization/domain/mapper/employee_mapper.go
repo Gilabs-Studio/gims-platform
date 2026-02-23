@@ -8,7 +8,7 @@ import (
 )
 
 // ToEmployeeResponse converts Employee model to EmployeeResponse DTO
-func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeContract, latestEducation *models.EmployeeEducationHistory) dto.EmployeeResponse {
+func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeContract, latestEducation *models.EmployeeEducationHistory, latestCertification *models.EmployeeCertification) dto.EmployeeResponse {
 	resp := dto.EmployeeResponse{
 		ID:               e.ID,
 		EmployeeCode:     e.EmployeeCode,
@@ -54,6 +54,11 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 	// Latest education
 	if latestEducation != nil {
 		resp.LatestEducation = ToEducationBriefResponse(latestEducation)
+	}
+
+	// Latest certification
+	if latestCertification != nil {
+		resp.LatestCertification = ToCertificationBriefResponse(latestCertification)
 	}
 
 	// Approved at
@@ -163,7 +168,7 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 func ToEmployeeListResponse(employees []models.Employee) []dto.EmployeeResponse {
 	result := make([]dto.EmployeeResponse, 0, len(employees))
 	for i := range employees {
-		result = append(result, ToEmployeeResponse(&employees[i], nil, nil))
+		result = append(result, ToEmployeeResponse(&employees[i], nil, nil, nil))
 	}
 	return result
 }

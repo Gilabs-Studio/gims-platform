@@ -154,6 +154,55 @@ export interface UpdateEmployeeEducationHistoryData {
   document_path?: string;
 }
 
+// Certification types
+export interface EmployeeCertification {
+  id: string;
+  employee_id: string;
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+  is_expired: boolean;
+  days_until_expiry: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeCertificationBrief {
+  id: string;
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_number?: string;
+  certificate_file?: string;
+  is_expired: boolean;
+  days_until_expiry: number;
+}
+
+export interface CreateEmployeeCertificationData {
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+}
+
+export interface UpdateEmployeeCertificationData {
+  certificate_name?: string;
+  issued_by?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+}
+
 export interface Division {
   id: string;
   name: string;
@@ -233,6 +282,7 @@ export interface Employee {
   total_leave_quota?: number;
   current_contract?: EmployeeContract;
   latest_education?: EmployeeEducationBrief;
+  latest_certification?: EmployeeCertificationBrief;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
   replacement_for_id?: string;
