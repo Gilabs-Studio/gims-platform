@@ -77,11 +77,28 @@ export function ProductDetailDialog({
 
   const statusBadge = () => {
     const map: Record<string, React.ReactNode> = {
-      draft: <Badge variant="secondary" className="gap-1"><FileEdit className="h-3 w-3" />Draft</Badge>,
-      pending: <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="h-3 w-3" />Pending</Badge>,
-      approved: <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle2 className="h-3 w-3" />Approved</Badge>,
-      rejected: <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Rejected</Badge>,
+      draft: (
+        <Badge variant="secondary" className="gap-1">
+          <FileEdit className="h-3 w-3" />Draft
+        </Badge>
+      ),
+      pending: (
+        <Badge variant="warning" className="gap-1">
+          <Clock className="h-3 w-3" />Pending
+        </Badge>
+      ),
+      approved: (
+        <Badge variant="success" className="gap-1">
+          <CheckCircle2 className="h-3 w-3" />Approved
+        </Badge>
+      ),
+      rejected: (
+        <Badge variant="destructive" className="gap-1">
+          <XCircle className="h-3 w-3" />Rejected
+        </Badge>
+      ),
     };
+
     return map[product.status] ?? <Badge variant="outline">{product.status}</Badge>;
   };
 
@@ -104,7 +121,10 @@ export function ProductDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl" className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent
+        size="xl"
+        className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+      >
         {/* Minimal header */}
         <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
           <div className="flex items-start gap-4">
@@ -129,10 +149,15 @@ export function ProductDetailDialog({
               </DialogTitle>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.code}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {product.is_active
-                  ? <Badge className="bg-emerald-500 hover:bg-emerald-600 h-5 text-[10px]">{tCommon("active")}</Badge>
-                  : <Badge variant="secondary" className="h-5 text-[10px]">{tCommon("inactive")}</Badge>
-                }
+                {product.is_active ? (
+                  <Badge variant="active" className="h-5 text-[10px]">
+                    {tCommon("active")}
+                  </Badge>
+                ) : (
+                  <Badge variant="inactive" className="h-5 text-[10px]">
+                    {tCommon("inactive")}
+                  </Badge>
+                )}
                 {statusBadge()}
                 {product.category && (
                   <Badge variant="outline" className="h-5 text-[10px]">{product.category.name}</Badge>

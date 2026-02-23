@@ -250,6 +250,10 @@ export const productId = {
       approved: "Disetujui",
       rejected: "Ditolak",
     },
+    allShort: "SEMUA",
+    previous: "Sebelumnya",
+    next: "Selanjutnya",
+    productsRes: "produk",
     stock: {
       current: "Stok Saat Ini",
       hpp: "HPP Saat Ini",

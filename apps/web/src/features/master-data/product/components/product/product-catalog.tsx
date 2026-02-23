@@ -76,6 +76,8 @@ interface CollapsedCategoryViewProps {
 }
 
 function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: CollapsedCategoryViewProps) {
+  const t = useTranslations("product.transaction");
+  const tCommon = useTranslations("product.common");
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-2 p-2 pt-4">
@@ -116,11 +118,11 @@ function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: Collap
               )}
               onClick={() => onSelect(null)}
             >
-              <span className="text-xs font-bold">ALL</span>
+              <span className="text-xs font-bold">{t("allShort")}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right" className="flex items-center gap-2">
-            <span className="font-medium">All Products</span>
+            <span className="font-medium">{t("allProducts")}</span>
           </TooltipContent>
         </Tooltip>
 
@@ -153,7 +155,7 @@ function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: Collap
                 <p className="font-medium">{node.name}</p>
                 {node.product_count > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {node.product_count.toLocaleString()} products
+                    {node.product_count.toLocaleString()} {t("productsRes")}
                   </p>
                 )}
               </TooltipContent>
@@ -581,12 +583,12 @@ export function ProductCatalog() {
                         className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20 translate-y-2 group-hover:translate-y-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex bg-white/95 shadow-lg border rounded-full p-1 backdrop-blur-sm items-center gap-1">
+                        <div className="flex bg-card/95 dark:bg-card/80 shadow-lg border rounded-full p-1 backdrop-blur-sm items-center gap-1">
                           {canEdit && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full hover:bg-blue-50 text-muted-foreground hover:text-blue-600 cursor-pointer transition-colors"
+                              className="h-7 w-7 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
                               onClick={(e) => handleEdit(product, e)}
                               title={t("edit")}
                             >
@@ -601,14 +603,14 @@ export function ProductCatalog() {
                               size="icon"
                               className={cn(
                                 "h-7 w-7 rounded-full cursor-pointer transition-colors",
-                                product.is_active 
-                                  ? "text-muted-foreground hover:text-orange-600 hover:bg-orange-50" 
-                                  : "text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                                product.is_active
+                                  ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                               )}
                               onClick={(e) => handleToggleActive(product, e)}
                               title={product.is_active ? t("deactivate") : t("activate")}
                             >
-                              <Power className={cn("h-3.5 w-3.5", !product.is_active && "text-green-600")} />
+                              <Power className={cn("h-3.5 w-3.5", !product.is_active && "text-primary")} />
                             </Button>
                           )}
                         </div>
@@ -630,7 +632,7 @@ export function ProductCatalog() {
                 disabled={page <= 1}
                 className="cursor-pointer"
               >
-                Previous
+                {t("previous")}
               </Button>
               <span className="text-sm text-muted-foreground">
                 Page {page} of {pagination.total_pages}
@@ -642,7 +644,7 @@ export function ProductCatalog() {
                 disabled={page >= pagination.total_pages}
                 className="cursor-pointer"
               >
-                Next
+                {t("next")}
               </Button>
             </div>
           )}
