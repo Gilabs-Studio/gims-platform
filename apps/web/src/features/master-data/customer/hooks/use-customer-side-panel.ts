@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreateCustomer, useUpdateCustomer, useCustomerFormData } from "./use-customers";
+import type { Resolver } from "react-hook-form";
+import { useCreateCustomer, useUpdateCustomer, useCustomerFormData, useCustomer } from "./use-customers";
 import { useProvinces } from "../../geographic/hooks/use-provinces";
 import { useCities } from "../../geographic/hooks/use-cities";
 import { useDistricts } from "../../geographic/hooks/use-districts";
@@ -30,8 +31,16 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
+  
+  const { data: detailRes, isLoading: isLoadingDetail } = useCustomer(customer?.id ?? "");
+  const fullCustomer = detailRes?.data ?? customer;
+
   const { data: formDataRes } = useCustomerFormData();
   const customerTypes = formDataRes?.data?.customer_types ?? [];
+  const businessTypes = formDataRes?.data?.business_types ?? [];
+  const areas = formDataRes?.data?.areas ?? [];
+  const salesReps = formDataRes?.data?.sales_reps ?? [];
+  const paymentTermsList = formDataRes?.data?.payment_terms ?? [];
 
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 
@@ -44,7 +53,7 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
     control,
     formState: { errors },
   } = useForm<CustomerFormData>({
-    resolver: zodResolver(getCustomerSchema(t)),
+    resolver: zodResolver(getCustomerSchema(t)) as unknown as Resolver<CustomerFormData>,
     defaultValues: {
       code: "",
       name: "",
@@ -62,6 +71,11 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
       latitude: -6.2088,
       longitude: 106.8456,
       is_active: true,
+      default_business_type_id: "",
+      default_area_id: "",
+      default_sales_rep_id: "",
+      default_payment_terms_id: "",
+      default_tax_rate: null,
     },
   });
 
@@ -89,29 +103,34 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
   const villages = villagesData?.data ?? [];
 
   useEffect(() => {
-    if (customer && (mode === "edit" || mode === "view")) {
-      const v = customer.village;
+    if (fullCustomer && (mode === "edit" || mode === "view")) {
+      const v = fullCustomer.village;
       const d = v?.district;
       const c = d?.city;
       const p = c?.province;
 
       reset({
-        code: customer.code,
-        name: customer.name,
-        customer_type_id: customer.customer_type_id ?? "",
-        address: customer.address ?? "",
-        email: customer.email ?? "",
-        website: customer.website ?? "",
-        npwp: customer.npwp ?? "",
-        contact_person: customer.contact_person ?? "",
-        notes: customer.notes ?? "",
-        village_id: customer.village_id ?? "",
+        code: fullCustomer.code,
+        name: fullCustomer.name,
+        customer_type_id: fullCustomer.customer_type_id ?? "",
+        address: fullCustomer.address ?? "",
+        email: fullCustomer.email ?? "",
+        website: fullCustomer.website ?? "",
+        npwp: fullCustomer.npwp ?? "",
+        contact_person: fullCustomer.contact_person ?? "",
+        notes: fullCustomer.notes ?? "",
+        village_id: fullCustomer.village_id ?? "",
         province_id: p?.id,
         city_id: c?.id,
         district_id: d?.id,
-        latitude: customer.latitude ?? -6.2088,
-        longitude: customer.longitude ?? 106.8456,
-        is_active: customer.is_active,
+        latitude: fullCustomer.latitude ?? -6.2088,
+        longitude: fullCustomer.longitude ?? 106.8456,
+        is_active: fullCustomer.is_active,
+        default_business_type_id: fullCustomer.default_business_type_id ?? "",
+        default_area_id: fullCustomer.default_area_id ?? "",
+        default_sales_rep_id: fullCustomer.default_sales_rep_id ?? "",
+        default_payment_terms_id: fullCustomer.default_payment_terms_id ?? "",
+        default_tax_rate: fullCustomer.default_tax_rate ?? null,
       });
     } else if (mode === "create") {
       reset({
@@ -128,6 +147,11 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
         latitude: -6.2088,
         longitude: 106.8456,
         is_active: true,
+        default_business_type_id: "",
+        default_area_id: "",
+        default_sales_rep_id: "",
+        default_payment_terms_id: "",
+        default_tax_rate: null,
       });
     }
   }, [customer, mode, reset, isOpen]);
@@ -135,7 +159,7 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
   const onSubmit = async (data: CustomerFormData) => {
     try {
       const payload = {
-        code: data.code,
+        code: data.code || undefined,
         name: data.name,
         customer_type_id: data.customer_type_id || undefined,
         address: data.address || undefined,
@@ -148,10 +172,15 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
         latitude: data.latitude,
         longitude: data.longitude,
         is_active: data.is_active,
+        default_business_type_id: data.default_business_type_id || undefined,
+        default_area_id: data.default_area_id || undefined,
+        default_sales_rep_id: data.default_sales_rep_id || undefined,
+        default_payment_terms_id: data.default_payment_terms_id || undefined,
+        default_tax_rate: data.default_tax_rate ?? undefined,
       };
 
-      if (isEditing && customer) {
-        await updateCustomer.mutateAsync({ id: customer.id, data: payload });
+      if (isEditing && fullCustomer) {
+        await updateCustomer.mutateAsync({ id: fullCustomer.id, data: payload });
       } else {
         await createCustomer.mutateAsync(payload);
       }
@@ -185,10 +214,10 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
     setValue("village_id", undefined);
   };
 
-  const isLoading = createCustomer.isPending || updateCustomer.isPending;
+  const isLoading = createCustomer.isPending || updateCustomer.isPending || isLoadingDetail;
 
   const panelTitle = isViewing
-    ? customer?.name ?? t("customer.title")
+    ? fullCustomer?.name ?? t("customer.title")
     : isEditing
       ? t("customer.editTitle")
       : t("customer.createTitle");
@@ -225,6 +254,10 @@ export function useCustomerSidePanel(props: CustomerSidePanelProps) {
     },
     data: {
       customerTypes,
+      businessTypes,
+      areas,
+      salesReps,
+      paymentTermsList,
       provinces,
       cities,
       districts,

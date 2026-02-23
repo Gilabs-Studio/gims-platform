@@ -30,6 +30,12 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		IsActive:       m.IsActive,
 		CreatedAt:      m.CreatedAt,
 		UpdatedAt:      m.UpdatedAt,
+		// Sales defaults — FK IDs
+		DefaultBusinessTypeID: m.DefaultBusinessTypeID,
+		DefaultAreaID:         m.DefaultAreaID,
+		DefaultSalesRepID:     m.DefaultSalesRepID,
+		DefaultPaymentTermsID: m.DefaultPaymentTermsID,
+		DefaultTaxRate:        m.DefaultTaxRate,
 	}
 
 	// Map CustomerType if loaded
@@ -51,6 +57,33 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 	// Map bank accounts if loaded
 	if len(m.BankAccounts) > 0 {
 		resp.BankAccounts = toCustomerBankResponseList(m.BankAccounts)
+	}
+
+	// Map sales default relations if loaded
+	if m.DefaultBusinessType != nil {
+		resp.DefaultBusinessType = &dto.SalesDefaultOptionBrief{
+			ID:   m.DefaultBusinessType.ID,
+			Name: m.DefaultBusinessType.Name,
+		}
+	}
+	if m.DefaultArea != nil {
+		resp.DefaultArea = &dto.SalesDefaultOptionBrief{
+			ID:   m.DefaultArea.ID,
+			Name: m.DefaultArea.Name,
+		}
+	}
+	if m.DefaultSalesRep != nil {
+		resp.DefaultSalesRep = &dto.SalesRepBrief{
+			ID:           m.DefaultSalesRep.ID,
+			EmployeeCode: m.DefaultSalesRep.EmployeeCode,
+			Name:         m.DefaultSalesRep.Name,
+		}
+	}
+	if m.DefaultPaymentTerms != nil {
+		resp.DefaultPaymentTerms = &dto.SalesDefaultOptionBrief{
+			ID:   m.DefaultPaymentTerms.ID,
+			Name: m.DefaultPaymentTerms.Name,
+		}
 	}
 
 	return resp

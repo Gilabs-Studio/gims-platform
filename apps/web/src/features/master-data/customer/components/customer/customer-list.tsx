@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { CustomerDialog } from "./customer-dialog";
+import { CustomerSidePanel } from "./customer-side-panel";
 import { CustomerDetailModal } from "./customer-detail-modal";
 import { useCustomerList } from "../../hooks/use-customer-list";
 
@@ -257,12 +257,13 @@ export function CustomerList() {
         />
       )}
 
-      {/* Dialogs */}
+      {/* Side Panel (Create / Edit) */}
       {(permissions.canCreate || permissions.canUpdate) && (
-        <CustomerDialog
-          open={state.dialogOpen}
-          onOpenChange={actions.handleDialogClose}
-          editingItem={state.editingItem}
+        <CustomerSidePanel
+          isOpen={state.dialogOpen}
+          onClose={actions.handleDialogClose}
+          mode={state.editingItem ? "edit" : "create"}
+          customer={state.editingItem}
         />
       )}
 

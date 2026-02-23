@@ -3,7 +3,9 @@ package models
 import (
 	"time"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -36,6 +38,17 @@ type Customer struct {
 	// Location coordinates for map display
 	Latitude  *float64 `gorm:"type:decimal(10,8)" json:"latitude"`
 	Longitude *float64 `gorm:"type:decimal(11,8)" json:"longitude"`
+	// Sales defaults — auto-filled to sales documents when this customer is selected
+	DefaultBusinessTypeID  *string                    `gorm:"type:uuid;index" json:"default_business_type_id"`
+	DefaultBusinessType    *orgModels.BusinessType    `gorm:"foreignKey:DefaultBusinessTypeID" json:"default_business_type,omitempty"`
+	DefaultAreaID          *string                    `gorm:"type:uuid;index" json:"default_area_id"`
+	DefaultArea            *orgModels.Area            `gorm:"foreignKey:DefaultAreaID" json:"default_area,omitempty"`
+	DefaultSalesRepID      *string                    `gorm:"type:uuid;index" json:"default_sales_rep_id"`
+	DefaultSalesRep        *orgModels.Employee        `gorm:"foreignKey:DefaultSalesRepID" json:"default_sales_rep,omitempty"`
+	DefaultPaymentTermsID  *string                    `gorm:"type:uuid;index" json:"default_payment_terms_id"`
+	DefaultPaymentTerms    *coreModels.PaymentTerms   `gorm:"foreignKey:DefaultPaymentTermsID" json:"default_payment_terms,omitempty"`
+	DefaultTaxRate         *float64                   `gorm:"type:decimal(5,2)" json:"default_tax_rate"`
+
 	// Approval workflow
 	Status     CustomerStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	IsApproved bool           `gorm:"default:false;index" json:"is_approved"`

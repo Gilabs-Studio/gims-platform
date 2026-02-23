@@ -10,15 +10,15 @@ export const getCustomerSchema = (t?: TranslationFn) =>
   z.object({
     code: z
       .string()
-      .min(2, getMsg(t, "validation.codeMinLength"))
-      .max(50, getMsg(t, "validation.codeMaxLength")),
+      .max(50, getMsg(t, "validation.codeMaxLength"))
+      .optional()
+      .or(z.literal("")),
     name: z
       .string()
       .min(2, getMsg(t, "validation.nameMinLength"))
       .max(200, getMsg(t, "validation.nameMaxLength")),
     customer_type_id: z
       .string()
-      .uuid()
       .optional()
       .or(z.literal(""))
       .nullable(),
@@ -47,7 +47,6 @@ export const getCustomerSchema = (t?: TranslationFn) =>
     notes: z.string().max(1000).optional().or(z.literal("")),
     village_id: z
       .string()
-      .uuid()
       .optional()
       .or(z.literal(""))
       .nullable(),
@@ -56,9 +55,29 @@ export const getCustomerSchema = (t?: TranslationFn) =>
     city_id: z.string().or(z.number()).optional(),
     district_id: z.string().or(z.number()).optional(),
     // Coordinates
-    latitude: z.number().optional().nullable(),
-    longitude: z.number().optional().nullable(),
-    is_active: z.boolean(),
+    latitude: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+      z.number().nullable().optional()
+    ),
+    longitude: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+      z.number().nullable().optional()
+    ),
+    is_active: z.boolean().optional(), // make optional if API drops it
+    // Sales defaults
+    default_business_type_id: z.string().optional().or(z.literal("")).nullable(),
+    default_area_id: z.string().optional().or(z.literal("")).nullable(),
+    default_sales_rep_id: z.string().optional().or(z.literal("")).nullable(),
+    default_payment_terms_id: z.string().optional().or(z.literal("")).nullable(),
+    default_tax_rate: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+      z.number().min(0).max(100).nullable().optional()
+    ),
   });
 
-export type CustomerFormData = z.infer<ReturnType<typeof getCustomerSchema>>;
+export type CustomerFormDataBase = z.infer<ReturnType<typeof getCustomerSchema>>;
+export type CustomerFormData = Omit<CustomerFormDataBase, "latitude" | "longitude" | "default_tax_rate"> & {
+  latitude?: number | null;
+  longitude?: number | null;
+  default_tax_rate?: number | null;
+};

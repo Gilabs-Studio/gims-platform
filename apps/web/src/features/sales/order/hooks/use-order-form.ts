@@ -496,6 +496,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       setValue("customer_contact", customer.contact_person ?? "");
       setValue("customer_email", customer.email ?? "");
       setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
+      // Auto-fill sales defaults from customer master data
+      if (customer.default_business_type_id) setValue("business_type_id", customer.default_business_type_id);
+      if (customer.default_area_id) setValue("delivery_area_id", customer.default_area_id);
+      if (customer.default_payment_terms_id) setValue("payment_terms_id", customer.default_payment_terms_id);
+      if (customer.default_sales_rep_id) setValue("sales_rep_id", customer.default_sales_rep_id);
+      if (customer.default_tax_rate != null) setValue("tax_rate", customer.default_tax_rate);
     }
   };
 

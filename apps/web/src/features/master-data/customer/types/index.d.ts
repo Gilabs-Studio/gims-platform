@@ -136,10 +136,32 @@ export interface Customer {
   updated_at: string;
   phone_numbers?: CustomerPhoneNumber[];
   bank_accounts?: CustomerBank[];
+  // Sales defaults
+  default_business_type_id?: string | null;
+  default_business_type?: SalesDefaultOptionBrief | null;
+  default_area_id?: string | null;
+  default_area?: SalesDefaultOptionBrief | null;
+  default_sales_rep_id?: string | null;
+  default_sales_rep?: SalesRepBrief | null;
+  default_payment_terms_id?: string | null;
+  default_payment_terms?: SalesDefaultOptionBrief | null;
+  default_tax_rate?: number | null;
+}
+
+// Lightweight brief types used for sales defaults
+export interface SalesDefaultOptionBrief {
+  id: string;
+  name: string;
+}
+
+export interface SalesRepBrief {
+  id: string;
+  employee_code: string;
+  name: string;
 }
 
 export interface CreateCustomerData {
-  code: string;
+  code?: string;
   name: string;
   customer_type_id?: string;
   address?: string;
@@ -154,6 +176,12 @@ export interface CreateCustomerData {
   is_active?: boolean;
   phone_numbers?: CreatePhoneNumberData[];
   bank_accounts?: CreateCustomerBankData[];
+  // Sales defaults
+  default_business_type_id?: string | null;
+  default_area_id?: string | null;
+  default_sales_rep_id?: string | null;
+  default_payment_terms_id?: string | null;
+  default_tax_rate?: number | null;
 }
 
 export interface UpdateCustomerData {
@@ -170,6 +198,12 @@ export interface UpdateCustomerData {
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
+  // Sales defaults
+  default_business_type_id?: string | null;
+  default_area_id?: string | null;
+  default_sales_rep_id?: string | null;
+  default_payment_terms_id?: string | null;
+  default_tax_rate?: number | null;
 }
 
 export interface ApproveCustomerData {
@@ -180,6 +214,17 @@ export interface ApproveCustomerData {
 // === Form Data Response ===
 export interface CustomerFormDataResponse {
   customer_types: CustomerType[];
+  business_types: SalesDefaultOptionBrief[];
+  areas: SalesDefaultOptionBrief[];
+  sales_reps: SalesRepBrief[];
+  payment_terms: PaymentTermsFormOption[];
+}
+
+export interface PaymentTermsFormOption {
+  id: string;
+  code: string;
+  name: string;
+  days: number;
 }
 
 // === API Response Types ===
