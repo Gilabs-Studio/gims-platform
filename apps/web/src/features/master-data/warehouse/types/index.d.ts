@@ -28,6 +28,12 @@ export interface Warehouse {
   description?: string;
   capacity?: number;
   address?: string;
+  province_id?: string;
+  province?: { id: string; name: string };
+  city_id?: string;
+  city?: { id: string; name: string };
+  district_id?: string;
+  district?: { id: string; name: string };
   village_id?: string;
   village?: Village;
   latitude?: number | null;
@@ -38,11 +44,13 @@ export interface Warehouse {
 }
 
 export interface CreateWarehouseData {
-  code: string;
   name: string;
   description?: string;
   capacity?: number;
   address?: string;
+  province_id?: string;
+  city_id?: string;
+  district_id?: string;
   village_id?: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -55,7 +63,11 @@ export interface UpdateWarehouseData {
   description?: string;
   capacity?: number;
   address?: string;
-  village_id?: string;
+  // null = explicit clear (set DB column to NULL), string = set to UUID, undefined = always send null (caller must handle)
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;

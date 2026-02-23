@@ -36,11 +36,18 @@ export function useWarehouses(
   });
 }
 
-export function useWarehouse(id: string) {
+type WarehouseDetailResult = Awaited<ReturnType<typeof warehouseService.getById>>;
+
+export function useWarehouse(
+  id: string,
+  options?: Omit<UseQueryOptions<WarehouseDetailResult, Error>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: warehouseKeys.detail(id),
     queryFn: () => warehouseService.getById(id),
     enabled: !!id,
+    staleTime: 0,
+    ...options,
   });
 }
 
@@ -61,17 +68,11 @@ export function useUpdateWarehouse() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateWarehouseData }) =>
       warehouseService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: warehouseKeys.lists() });
-      queryClient.setQueriesData({ queryKey: warehouseKeys.lists() }, (old: WarehouseListResponse<Warehouse> | undefined) => {
-        if (!old?.data) return old;
-        return { ...old, data: old.data.map((item: Warehouse) => item.id === id ? { ...item, ...data } : item) };
-      });
-    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: warehouseKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: warehouseKeys.lists() });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: warehouseKeys.lists() });
