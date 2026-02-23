@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +9,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, XCircle, Clock, FileEdit } from "lucide-react";
-import { resolveImageUrl } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileEdit,
+  Warehouse,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  ImageOff,
+} from "lucide-react";
+import { cn, resolveImageUrl } from "@/lib/utils";
+import { useInventory } from "@/features/stock/inventory/hooks/use-inventory";
 import type { Product } from "../../types";
 
 interface ProductDetailDialogProps {
@@ -19,25 +31,30 @@ interface ProductDetailDialogProps {
   product: Product | null;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+    <div className="flex items-start justify-between gap-4 py-1.5 border-b border-border/40 last:border-0">
+      <span className="text-xs text-muted-foreground shrink-0 w-32">{label}</span>
+      <span className="text-xs font-medium text-right">{value ?? "-"}</span>
+    </div>
+  );
+}
+
+function GroupBox({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border bg-muted/20 p-3 space-y-0.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
         {title}
-      </h4>
+      </p>
       {children}
     </div>
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value || "-"}</p>
-    </div>
-  );
-}
+const formatIDR = (value?: number) =>
+  value
+    ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value)
+    : "-";
 
 export function ProductDetailDialog({
   open,
@@ -47,175 +64,201 @@ export function ProductDetailDialog({
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
 
+  // Fetch stock per warehouse when dialog is open
+  const { data: inventoryData, isLoading: inventoryLoading } = useInventory({
+    product_id: product?.id,
+    per_page: 50,
+    enabled: open && !!product?.id,
+  });
+
+  const warehouseStocks = inventoryData?.data?.data ?? [];
+
   if (!product) return null;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary">
-            <FileEdit className="mr-1 h-3 w-3" />
-            Draft
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge className="bg-orange-500 hover:bg-orange-600">
-            <Clock className="mr-1 h-3 w-3" />
-            Pending
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge className="bg-green-500 hover:bg-green-600">
-            <CheckCircle2 className="mr-1 h-3 w-3" />
-            Approved
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive">
-            <XCircle className="mr-1 h-3 w-3" />
-            Rejected
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const statusBadge = () => {
+    const map: Record<string, React.ReactNode> = {
+      draft: <Badge variant="secondary" className="gap-1"><FileEdit className="h-3 w-3" />Draft</Badge>,
+      pending: <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="h-3 w-3" />Pending</Badge>,
+      approved: <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle2 className="h-3 w-3" />Approved</Badge>,
+      rejected: <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Rejected</Badge>,
+    };
+    return map[product.status] ?? <Badge variant="outline">{product.status}</Badge>;
   };
 
-  const formatCurrency = (value?: number) => {
-    if (!value) return "-";
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(value);
+  const stockStatusIcon = (status: string) => {
+    const map: Record<string, React.ReactNode> = {
+      ok: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
+      low_stock: <TrendingDown className="h-3.5 w-3.5 text-amber-500" />,
+      out_of_stock: <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />,
+      overstock: <TrendingUp className="h-3.5 w-3.5 text-blue-500" />,
+    };
+    return map[status] ?? null;
   };
+
+  const stockStatusColor = (status: string) => ({
+    ok: "text-emerald-600",
+    low_stock: "text-amber-600",
+    out_of_stock: "text-rose-600",
+    overstock: "text-blue-600",
+  }[status] ?? "text-muted-foreground");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto w-full">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            {t("view")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Header Section: Image + Basic Info */}
-          <div className="flex gap-6 items-start">
-            <div className="w-32 h-32 shrink-0 bg-muted rounded-lg border flex items-center justify-center overflow-hidden">
+      <DialogContent size="xl" className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Minimal header */}
+        <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+          <div className="flex items-start gap-4">
+            {/* Thumbnail */}
+            <div className="h-14 w-14 shrink-0 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
               {product.image_url ? (
-                <img
-                  src={resolveImageUrl(product.image_url)}
+                <Image
+                  src={resolveImageUrl(product.image_url) ?? ""}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  width={56}
+                  height={56}
+                  className="object-cover w-full h-full"
                 />
               ) : (
-                <span className="text-muted-foreground text-xs text-center p-2">
-                  {t("noImage")}
-                </span>
+                <ImageOff className="h-5 w-5 text-muted-foreground/40" />
               )}
             </div>
-            <div className="flex-1 min-w-0 space-y-4">
-              <div>
-                <h3 className="text-lg font-bold">{product.name}</h3>
-                <p className="text-sm text-muted-foreground">{product.code}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {product.is_active ? (
-                  <Badge className="bg-green-500">{tCommon("active")}</Badge>
-                ) : (
-                  <Badge variant="secondary">{tCommon("inactive")}</Badge>
+
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-base font-semibold leading-tight truncate">
+                {product.name}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.code}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {product.is_active
+                  ? <Badge className="bg-emerald-500 hover:bg-emerald-600 h-5 text-[10px]">{tCommon("active")}</Badge>
+                  : <Badge variant="secondary" className="h-5 text-[10px]">{tCommon("inactive")}</Badge>
+                }
+                {statusBadge()}
+                {product.category && (
+                  <Badge variant="outline" className="h-5 text-[10px]">{product.category.name}</Badge>
                 )}
-                {getStatusBadge(product.status)}
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {product.description || "-"}
+            </div>
+
+            {/* Price summary */}
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] text-muted-foreground">{t("form.sellingPrice")}</p>
+              <p className="text-base font-bold text-primary">{formatIDR(product.selling_price)}</p>
+              {product.cost_price > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Cost: {formatIDR(product.cost_price)}
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Col 1: Classification */}
+            <GroupBox title={t("section.classification")}>
+              <InfoRow label={t("form.category")} value={product.category?.name} />
+              <InfoRow label={t("form.brand")} value={product.brand?.name} />
+              <InfoRow label={t("form.segment")} value={product.segment?.name} />
+              <InfoRow label={t("form.type")} value={product.type?.name} />
+              {product.manufacturer_part_number && (
+                <InfoRow label={t("mpn")} value={product.manufacturer_part_number} />
+              )}
+            </GroupBox>
+
+            {/* Col 2: Units & Pricing */}
+            <GroupBox title={t("section.unitsPackaging")}>
+              <InfoRow
+                label={t("form.uom")}
+                value={product.uom ? `${product.uom.name} (${product.uom.symbol})` : undefined}
+              />
+              <InfoRow
+                label="Purchase UoM"
+                value={product.purchase_uom ? `${product.purchase_uom.name} (${product.purchase_uom.symbol})` : undefined}
+              />
+              <InfoRow label={t("conversion")} value={product.purchase_uom_conversion || undefined} />
+              <InfoRow label={t("form.packaging")} value={product.packaging?.name} />
+              <InfoRow label={t("form.costPrice")} value={formatIDR(product.cost_price)} />
+              <InfoRow label={t("currentHpp")} value={formatIDR(product.current_hpp)} />
+            </GroupBox>
+
+            {/* Col 3: Supply Chain */}
+            <GroupBox title={t("section.supplyChain")}>
+              <InfoRow label={t("form.supplier")} value={product.supplier?.name} />
+              <InfoRow label={t("form.procurementType")} value={product.procurement_type?.name} />
+              <InfoRow label={t("leadTime")} value={`${product.lead_time_days ?? 0} days`} />
+              <InfoRow label={t("taxType")} value={product.tax_type} />
+              <InfoRow
+                label={t("taxInclusive")}
+                value={product.is_tax_inclusive ? "Yes" : "No"}
+              />
+              <InfoRow label={t("form.businessUnit")} value={product.business_unit?.name} />
+            </GroupBox>
+          </div>
+
+          {/* Stock per Warehouse */}
+          <div className="mt-4 rounded-md border bg-muted/20 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
+              <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Stock by Warehouse
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                Total: <span className="font-semibold text-foreground">
+                  {inventoryLoading
+                    ? "..."
+                    : warehouseStocks.reduce((sum, ws) => sum + (ws.on_hand ?? 0), 0).toLocaleString("id-ID")}
+                </span>
+                {product.uom && ` ${product.uom.symbol ?? product.uom.name}`}
+              </span>
+            </div>
+
+            {inventoryLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
+                ))}
+              </div>
+            ) : warehouseStocks.length === 0 ? (
+              <p className="text-center text-xs text-muted-foreground py-6">
+                No warehouse stock data
               </p>
-            </div>
+            ) : (
+              <div className="divide-y">
+                {warehouseStocks.map((ws) => (
+                  <div key={`${ws.warehouse_id}-${ws.product_id}`} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="flex-1 text-sm font-medium truncate">{ws.warehouse_name ?? ws.warehouse_id}</span>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                      <span className="flex gap-1 items-center">
+                        <span className="text-muted-foreground">On hand:</span>
+                        <span className="font-semibold text-foreground">{ws.on_hand.toLocaleString("id-ID")}</span>
+                      </span>
+                      <span className="flex gap-1 items-center">
+                        <span className="text-muted-foreground">Reserved:</span>
+                        <span className="font-medium">{ws.reserved.toLocaleString("id-ID")}</span>
+                      </span>
+                      <span className={cn("flex gap-1 items-center font-semibold", stockStatusColor(ws.status))}>
+                        {stockStatusIcon(ws.status)}
+                        {ws.available.toLocaleString("id-ID")}
+                        <span className="font-normal text-muted-foreground">{ws.uom_name}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <Separator />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Left Column */}
-            <div className="space-y-6">
-              <Section title={t("section.classification")}>
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoItem label={t("form.category")} value={product.category?.name} />
-                  <InfoItem label={t("form.brand")} value={product.brand?.name} />
-                  <InfoItem label={t("form.segment")} value={product.segment?.name} />
-                  <InfoItem label={t("form.type")} value={product.type?.name} />
-                </div>
-                <div className="mt-4">
-                   <InfoItem label={t("mpn")} value={product.manufacturer_part_number} />
-                </div>
-              </Section>
-
-              <Section title={t("section.unitsPackaging")}>
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoItem
-                    label={t("form.uom")}
-                    value={
-                      product.uom ? `${product.uom.name} (${product.uom.symbol})` : "-"
-                    }
-                  />
-                  <InfoItem
-                    label="Purchase UoM"
-                    value={
-                      product.purchase_uom
-                        ? `${product.purchase_uom.name} (${product.purchase_uom.symbol})`
-                        : "-"
-                    }
-                  />
-                  <InfoItem
-                    label={t("conversion")}
-                    value={product.purchase_uom_conversion}
-                  />
-                  <InfoItem label={t("form.packaging")} value={product.packaging?.name} />
-                </div>
-              </Section>
+          {/* Description */}
+          {product.description && (
+            <div className="mt-4 rounded-md border bg-muted/20 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                {t("form.description") ?? "Description"}
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{product.description}</p>
             </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              <Section title={t("section.pricingStock")}>
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoItem label={t("form.sellingPrice")} value={formatCurrency(product.selling_price)} />
-                  <InfoItem label={t("form.costPrice")} value={formatCurrency(product.cost_price)} />
-                  <InfoItem label={t("currentHpp")} value={formatCurrency(product.current_hpp)} />
-                  <InfoItem label={t("currentStock")} value={product.current_stock} />
-                  <InfoItem label={t("form.minStock")} value={product.min_stock} />
-                  <InfoItem label={t("form.maxStock")} value={product.max_stock} />
-                </div>
-              </Section>
-
-              <Section title={t("section.supplyChain")}>
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoItem label={t("form.supplier")} value={product.supplier?.name} />
-                  <InfoItem
-                    label={t("form.procurementType")}
-                    value={product.procurement_type?.name}
-                  />
-                  <InfoItem
-                    label={t("leadTime")}
-                    value={`${product.lead_time_days ?? 0} ${t("days")}`}
-                  />
-                  <InfoItem label={t("taxType")} value={product.tax_type} />
-                  <InfoItem
-                    label={t("taxInclusive")}
-                    value={product.is_tax_inclusive ? "Yes" : "No"}
-                  />
-                   <InfoItem
-                    label={t("form.businessUnit")}
-                    value={product.business_unit?.name}
-                  />
-                </div>
-              </Section>
-            </div>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

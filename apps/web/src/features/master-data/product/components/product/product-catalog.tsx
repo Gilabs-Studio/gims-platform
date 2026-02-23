@@ -2,10 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { 
+import {
   Plus,
   Search,
-  X,
   PanelLeftClose,
   PanelLeft,
   Pencil,
@@ -13,6 +12,8 @@ import {
   ImageOff,
   Folder,
   FolderOpen,
+  ArrowUpDown,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, resolveImageUrl } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CategoryTree } from "@/components/ui/category-tree";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -59,12 +67,6 @@ import { toast } from "sonner";
  * │  ▶ Fashion      │                                                   │
  * └─────────────────┴───────────────────────────────────────────────────┘
  */
-
-interface ActiveFilter {
-  type: "category";
-  id: string;
-  label: string;
-}
 
 interface CollapsedCategoryViewProps {
   data: CategoryTreeNode[];
@@ -171,10 +173,22 @@ export function ProductCatalog() {
   const canCreate = useUserPermission("product.create");
   const canEdit = useUserPermission("product.update");
 
-  // Search state
+  // Search & sort state
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [sortOption, setSortOption] = useState<string>("name_asc");
+
+  // Derive sort_by / sort_dir from sortOption
+  const SORT_MAP: Record<string, { sort_by: string; sort_dir: string }> = {
+    name_asc:    { sort_by: "name",          sort_dir: "asc" },
+    name_desc:   { sort_by: "name",          sort_dir: "desc" },
+    price_asc:   { sort_by: "selling_price", sort_dir: "asc" },
+    price_desc:  { sort_by: "selling_price", sort_dir: "desc" },
+    stock_asc:   { sort_by: "current_stock", sort_dir: "asc" },
+    stock_desc:  { sort_by: "current_stock", sort_dir: "desc" },
+  };
+  const { sort_by, sort_dir } = SORT_MAP[sortOption] ?? SORT_MAP.name_asc;
 
   // Category tree state
   const { data: treeData, isLoading: treeLoading } = useCategoryTree({ include_count: true });
@@ -200,39 +214,29 @@ export function ProductCatalog() {
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
 
-  // Build active filters
-  const activeFilters: ActiveFilter[] = [];
-  if (selectedCategoryId && treeData?.data) {
-    const path = getCategoryPath(treeData.data, selectedCategoryId);
-    if (path && path.length > 0) {
-      const category = path[path.length - 1];
-      activeFilters.push({
-        type: "category",
-        id: selectedCategoryId,
-        label: category.name,
-      });
-    }
-  }
-
-  // Fetch products with filters
+  // Fetch products with server-side sort + filters
   const { data: productsData, isLoading: productsLoading, isError, refetch } = useProducts({
     page,
     per_page: 20,
     search: debouncedSearch || undefined,
     category_id: selectedCategoryId ?? undefined,
+    sort_by,
+    sort_dir,
   });
 
   const pagination = productsData?.meta?.pagination;
+  const products = productsData?.data ?? [];
 
-  // Sort products: Active first, then by name
-  const sortedProducts = [...productsData?.data ?? []].sort((a, b) => {
-    if (a.is_active === b.is_active) {
-      return a.name.localeCompare(b.name);
-    }
-    return a.is_active ? -1 : 1;
-  });
-  
-  const products = sortedProducts;
+  // Derives a stock status for visual badge on card
+  const getStockStatus = (product: Product): "ok" | "low" | "out" | "over" => {
+    const qty = product.current_stock ?? 0;
+    const min = product.min_stock ?? 0;
+    const max = product.max_stock ?? 0;
+    if (qty <= 0)           return "out";
+    if (min > 0 && qty < min) return "low";
+    if (max > 0 && qty > max) return "over";
+    return "ok";
+  };
 
   // Handlers
   const handleToggleActive = async (product: Product, e?: React.MouseEvent) => {
@@ -292,19 +296,6 @@ export function ProductCatalog() {
     }, 0);
     return () => window.clearTimeout(id);
   }, [handleCreate]);
-
-  const handleClearFilter = useCallback((filter: ActiveFilter) => {
-    if (filter.type === "category") {
-      selectCategory(null);
-    }
-    setPage(1);
-  }, [selectCategory]);
-
-  const handleClearAllFilters = useCallback(() => {
-    selectCategory(null);
-    setSearch("");
-    setPage(1);
-  }, [selectCategory]);
 
   const handleCategorySelect = useCallback((categoryId: string | null) => {
     selectCategory(categoryId);
@@ -402,8 +393,8 @@ export function ProductCatalog() {
                 )}
               </div>
 
-              {/* Toolbar moved into header: search */}
-              <div className="relative flex-1 max-w-md ml-4">
+              {/* Search */}
+              <div className="relative flex-1 max-w-xs ml-4">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("searchPlaceholder")}
@@ -412,16 +403,35 @@ export function ProductCatalog() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="pl-8"
+                  className="pl-8 h-8 text-sm"
                 />
               </div>
+
+              {/* Sort */}
+              <Select
+                value={sortOption}
+                onValueChange={(v) => { setSortOption(v); setPage(1); }}
+              >
+                <SelectTrigger className="h-8 w-44 text-xs gap-1 cursor-pointer">
+                  <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name_asc">Name A → Z</SelectItem>
+                  <SelectItem value="name_desc">Name Z → A</SelectItem>
+                  <SelectItem value="price_asc">Price Low → High</SelectItem>
+                  <SelectItem value="price_desc">Price High → Low</SelectItem>
+                  <SelectItem value="stock_asc">Stock Low → High</SelectItem>
+                  <SelectItem value="stock_desc">Stock High → Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* create button moved into header */}
-            <div className="ml-4 mr-4">
+            {/* Create button */}
+            <div className="ml-2">
               {canCreate && (
-                <Button onClick={handleCreate} className="cursor-pointer">
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button size="sm" onClick={handleCreate} className="cursor-pointer h-8">
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
                   {t("create")}
                 </Button>
               )}
@@ -529,11 +539,34 @@ export function ProductCatalog() {
                         {product.brand?.name && ` • ${product.brand.name}`}
                       </div>
 
-                      {/* Price (if visible) */}
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="text-sm font-semibold text-primary">
-                          {product.cost_price > 0 ? `Rp ${product.cost_price.toLocaleString("id-ID")}` : "-"}
-                        </div>
+                      {/* Price */}
+                      <div className="text-sm font-semibold text-primary mb-2">
+                        {product.selling_price > 0
+                          ? `Rp ${product.selling_price.toLocaleString("id-ID")}`
+                          : product.cost_price > 0
+                            ? `Rp ${product.cost_price.toLocaleString("id-ID")}`
+                            : "-"}
+                      </div>
+
+                      {/* Stock + UoM row */}
+                      <div className="flex items-center justify-between gap-1">
+                        {(() => {
+                          const s = getStockStatus(product);
+                          const qty = product.current_stock ?? 0;
+                          const colors = {
+                            ok:   "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                            low:  "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                            out:  "bg-rose-500/10 text-rose-700 dark:text-rose-400",
+                            over: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                          }[s];
+                          return (
+                            <span className={cn("inline-flex items-center gap-1 rounded text-[10px] font-medium px-1.5 py-0.5", colors)}>
+                              <Package className="h-2.5 w-2.5" />
+                              {qty.toLocaleString("id-ID")}
+                              {product.uom && ` ${product.uom.symbol ?? product.uom.name}`}
+                            </span>
+                          );
+                        })()}
                         {product.uom && (
                           <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground">
                             {product.uom.symbol ?? product.uom.name}
