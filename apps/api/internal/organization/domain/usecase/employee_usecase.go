@@ -35,6 +35,10 @@ var (
 	ErrInvalidGPA                    = errors.New("GPA must be between 1.00 and 4.00")
 	ErrCertificationNotFound         = errors.New("certification not found")
 	ErrInvalidCertificationDates     = errors.New("expiry date must be after issue date")
+	ErrAssetNotFound                 = errors.New("asset not found")
+	ErrAssetAlreadyReturned          = errors.New("asset already returned")
+	ErrInvalidReturnDate             = errors.New("return date must be after borrow date")
+	ErrDuplicateAssetCode            = errors.New("asset code already exists")
 )
 
 // EmployeeUsecase defines the interface for employee business logic
@@ -76,6 +80,12 @@ type EmployeeUsecase interface {
 	UpdateEmployeeCertification(ctx context.Context, employeeID string, certID string, req dto.UpdateEmployeeCertificationRequest) (dto.EmployeeCertificationResponse, error)
 	DeleteEmployeeCertification(ctx context.Context, employeeID string, certID string) error
 	GetLatestCertification(ctx context.Context, employeeID string) (*models.EmployeeCertification, error)
+	// Asset management methods
+	GetEmployeeAssets(ctx context.Context, employeeID string) ([]dto.EmployeeAssetResponse, error)
+	CreateEmployeeAsset(ctx context.Context, employeeID string, req dto.CreateEmployeeAssetRequest, createdBy string) (dto.EmployeeAssetResponse, error)
+	UpdateEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.UpdateEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
+	ReturnEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.ReturnEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
+	DeleteEmployeeAsset(ctx context.Context, employeeID string, assetID string) error
 }
 
 type employeeUsecase struct {
@@ -88,6 +98,7 @@ type employeeUsecase struct {
 	contractRepo         repositories.EmployeeContractRepository
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository
 	certificationRepo    repositories.EmployeeCertificationRepository
+	assetRepo            repositories.EmployeeAssetRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
@@ -101,6 +112,7 @@ func NewEmployeeUsecase(
 	contractRepo repositories.EmployeeContractRepository,
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository,
 	certificationRepo repositories.EmployeeCertificationRepository,
+	assetRepo repositories.EmployeeAssetRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
 		employeeRepo:         employeeRepo,
@@ -112,6 +124,7 @@ func NewEmployeeUsecase(
 		contractRepo:         contractRepo,
 		educationHistoryRepo: educationHistoryRepo,
 		certificationRepo:    certificationRepo,
+		assetRepo:            assetRepo,
 	}
 }
 
@@ -1491,4 +1504,167 @@ func (u *employeeUsecase) DeleteEmployeeCertification(ctx context.Context, emplo
 	}
 
 	return u.certificationRepo.Delete(ctx, certID)
+}
+
+// --- Asset management methods ---
+
+func (u *employeeUsecase) GetEmployeeAssets(ctx context.Context, employeeID string) ([]dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	assets, err := u.assetRepo.FindByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch assets: %w", err)
+	}
+
+	return mapper.ToAssetResponseList(assets), nil
+}
+
+func (u *employeeUsecase) CreateEmployeeAsset(ctx context.Context, employeeID string, req dto.CreateEmployeeAssetRequest, createdBy string) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	existing, _ := u.assetRepo.FindByAssetCode(ctx, req.AssetCode)
+	if existing != nil {
+		return dto.EmployeeAssetResponse{}, ErrDuplicateAssetCode
+	}
+
+	borrowDate, err := time.Parse("2006-01-02", req.BorrowDate)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid borrow_date format: %w", err)
+	}
+
+	asset := &models.EmployeeAsset{
+		EmployeeID:      employeeID,
+		AssetName:       req.AssetName,
+		AssetCode:       req.AssetCode,
+		AssetCategory:   req.AssetCategory,
+		BorrowDate:      borrowDate,
+		BorrowCondition: models.AssetCondition(req.BorrowCondition),
+		AssetImage:      req.AssetImage,
+		Notes:           req.Notes,
+	}
+
+	if err := u.assetRepo.Create(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to create asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.UpdateEmployeeAssetRequest) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return dto.EmployeeAssetResponse{}, errors.New("asset does not belong to employee")
+	}
+
+	if asset.IsReturned() {
+		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
+	}
+
+	if req.AssetName != "" {
+		asset.AssetName = req.AssetName
+	}
+	if req.AssetCode != "" {
+		if req.AssetCode != asset.AssetCode {
+			existing, _ := u.assetRepo.FindByAssetCode(ctx, req.AssetCode)
+			if existing != nil && existing.ID != assetID {
+				return dto.EmployeeAssetResponse{}, ErrDuplicateAssetCode
+			}
+		}
+		asset.AssetCode = req.AssetCode
+	}
+	if req.AssetCategory != "" {
+		asset.AssetCategory = req.AssetCategory
+	}
+	if req.BorrowDate != "" {
+		borrowDate, err := time.Parse("2006-01-02", req.BorrowDate)
+		if err != nil {
+			return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid borrow_date format: %w", err)
+		}
+		asset.BorrowDate = borrowDate
+	}
+	if req.BorrowCondition != "" {
+		asset.BorrowCondition = models.AssetCondition(req.BorrowCondition)
+	}
+	if req.AssetImage != nil {
+		asset.AssetImage = *req.AssetImage
+	}
+	if req.Notes != nil {
+		asset.Notes = req.Notes
+	}
+
+	if err := u.assetRepo.Update(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to update asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) ReturnEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.ReturnEmployeeAssetRequest) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return dto.EmployeeAssetResponse{}, errors.New("asset does not belong to employee")
+	}
+
+	if asset.IsReturned() {
+		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
+	}
+
+	returnDate, err := time.Parse("2006-01-02", req.ReturnDate)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid return_date format: %w", err)
+	}
+
+	if !returnDate.After(asset.BorrowDate) && !returnDate.Equal(asset.BorrowDate) {
+		return dto.EmployeeAssetResponse{}, ErrInvalidReturnDate
+	}
+
+	returnCondition := models.AssetCondition(req.ReturnCondition)
+	asset.ReturnDate = &returnDate
+	asset.ReturnCondition = &returnCondition
+	if req.Notes != nil {
+		asset.Notes = req.Notes
+	}
+
+	if err := u.assetRepo.Update(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to return asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) DeleteEmployeeAsset(ctx context.Context, employeeID string, assetID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return errors.New("asset does not belong to employee")
+	}
+
+	return u.assetRepo.Delete(ctx, assetID)
 }

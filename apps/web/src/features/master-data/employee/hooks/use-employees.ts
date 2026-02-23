@@ -547,3 +547,111 @@ export function useDeleteEmployeeCertification() {
     },
   });
 }
+
+// --- Employee Asset Hooks ---
+
+export const assetKeys = {
+  all: ["employee-asset"] as const,
+  lists: (employeeId: string) =>
+    [...assetKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeAssets(employeeId: string | undefined) {
+  return useQuery({
+    queryKey: assetKeys.lists(employeeId ?? ""),
+    queryFn: () => employeeService.getEmployeeAssets(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: import("../types").CreateEmployeeAssetData;
+    }) => employeeService.createEmployeeAsset(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+      data,
+    }: {
+      employeeId: string;
+      assetId: string;
+      data: import("../types").UpdateEmployeeAssetData;
+    }) => employeeService.updateEmployeeAsset(employeeId, assetId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useReturnEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+      data,
+    }: {
+      employeeId: string;
+      assetId: string;
+      data: import("../types").ReturnEmployeeAssetData;
+    }) => employeeService.returnEmployeeAsset(employeeId, assetId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+    }: {
+      employeeId: string;
+      assetId: string;
+    }) => employeeService.deleteEmployeeAsset(employeeId, assetId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}

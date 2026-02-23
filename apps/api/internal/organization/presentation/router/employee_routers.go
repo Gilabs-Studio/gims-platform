@@ -46,4 +46,11 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("/:id/certifications", middleware.RequirePermission("employee.update"), h.CreateEmployeeCertification)
 	g.PUT("/:id/certifications/:certification_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeCertification)
 	g.DELETE("/:id/certifications/:certification_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeCertification)
+
+	// Employee asset management routes
+	g.GET("/:id/assets", middleware.RequirePermission("employee.read"), h.GetEmployeeAssets)
+	g.POST("/:id/assets", middleware.RequirePermission("employee.update"), h.CreateEmployeeAsset)
+	g.PUT("/:id/assets/:asset_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeAsset)
+	g.POST("/:id/assets/:asset_id/return", middleware.RequirePermission("employee.update"), h.ReturnEmployeeAsset)
+	g.DELETE("/:id/assets/:asset_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeAsset)
 }

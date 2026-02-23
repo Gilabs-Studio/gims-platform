@@ -874,3 +874,178 @@ func (h *EmployeeHandler) DeleteEmployeeCertification(c *gin.Context) {
 
 	response.SuccessResponse(c, map[string]string{"message": "Certification deleted successfully"}, nil)
 }
+
+// GetEmployeeAssets handles GET /employees/:id/assets
+func (h *EmployeeHandler) GetEmployeeAssets(c *gin.Context) {
+	id := c.Param("id")
+
+	assets, err := h.employeeUC.GetEmployeeAssets(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, assets, nil)
+}
+
+// CreateEmployeeAsset handles POST /employees/:id/assets
+func (h *EmployeeHandler) CreateEmployeeAsset(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.CreateEmployeeAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			userID = uidStr
+		}
+	}
+
+	resp, err := h.employeeUC.CreateEmployeeAsset(c.Request.Context(), id, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrDuplicateAssetCode {
+			errors.ErrorResponse(c, "DUPLICATE_ASSET_CODE", map[string]interface{}{
+				"asset_code": req.AssetCode,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseCreated(c, resp, nil)
+}
+
+// UpdateEmployeeAsset handles PUT /employees/:id/assets/:asset_id
+func (h *EmployeeHandler) UpdateEmployeeAsset(c *gin.Context) {
+	id := c.Param("id")
+	assetID := c.Param("asset_id")
+
+	var req dto.UpdateEmployeeAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.UpdateEmployeeAsset(c.Request.Context(), id, assetID, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrAssetNotFound {
+			errors.ErrorResponse(c, "ASSET_NOT_FOUND", map[string]interface{}{
+				"asset_id": assetID,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrAssetAlreadyReturned {
+			errors.ErrorResponse(c, "ASSET_ALREADY_RETURNED", nil, nil)
+			return
+		}
+		if err == usecase.ErrDuplicateAssetCode {
+			errors.ErrorResponse(c, "DUPLICATE_ASSET_CODE", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// ReturnEmployeeAsset handles POST /employees/:id/assets/:asset_id/return
+func (h *EmployeeHandler) ReturnEmployeeAsset(c *gin.Context) {
+	id := c.Param("id")
+	assetID := c.Param("asset_id")
+
+	var req dto.ReturnEmployeeAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.ReturnEmployeeAsset(c.Request.Context(), id, assetID, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrAssetNotFound {
+			errors.ErrorResponse(c, "ASSET_NOT_FOUND", map[string]interface{}{
+				"asset_id": assetID,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrAssetAlreadyReturned {
+			errors.ErrorResponse(c, "ASSET_ALREADY_RETURNED", nil, nil)
+			return
+		}
+		if err == usecase.ErrInvalidReturnDate {
+			errors.ErrorResponse(c, "INVALID_RETURN_DATE", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// DeleteEmployeeAsset handles DELETE /employees/:id/assets/:asset_id
+func (h *EmployeeHandler) DeleteEmployeeAsset(c *gin.Context) {
+	id := c.Param("id")
+	assetID := c.Param("asset_id")
+
+	err := h.employeeUC.DeleteEmployeeAsset(c.Request.Context(), id, assetID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrAssetNotFound {
+			errors.ErrorResponse(c, "ASSET_NOT_FOUND", map[string]interface{}{
+				"asset_id": assetID,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"message": "Asset deleted successfully"}, nil)
+}

@@ -23,6 +23,10 @@ import type {
   EmployeeCertification,
   CreateEmployeeCertificationData,
   UpdateEmployeeCertificationData,
+  EmployeeAsset,
+  CreateEmployeeAssetData,
+  UpdateEmployeeAssetData,
+  ReturnEmployeeAssetData,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -304,6 +308,55 @@ export const employeeService = {
   ): Promise<void> {
     await apiClient.delete(
       `${BASE_PATH}/employees/${employeeId}/certifications/${certId}`,
+    );
+  },
+
+  // Asset management
+  async getEmployeeAssets(employeeId: string): Promise<EmployeeAsset[]> {
+    const response = await apiClient.get<{
+      data: EmployeeAsset[];
+    }>(`${BASE_PATH}/employees/${employeeId}/assets`);
+    return response.data.data;
+  },
+
+  async createEmployeeAsset(
+    employeeId: string,
+    data: CreateEmployeeAssetData,
+  ): Promise<EmployeeAsset> {
+    const response = await apiClient.post<{
+      data: EmployeeAsset;
+    }>(`${BASE_PATH}/employees/${employeeId}/assets`, data);
+    return response.data.data;
+  },
+
+  async updateEmployeeAsset(
+    employeeId: string,
+    assetId: string,
+    data: UpdateEmployeeAssetData,
+  ): Promise<EmployeeAsset> {
+    const response = await apiClient.put<{
+      data: EmployeeAsset;
+    }>(`${BASE_PATH}/employees/${employeeId}/assets/${assetId}`, data);
+    return response.data.data;
+  },
+
+  async returnEmployeeAsset(
+    employeeId: string,
+    assetId: string,
+    data: ReturnEmployeeAssetData,
+  ): Promise<EmployeeAsset> {
+    const response = await apiClient.post<{
+      data: EmployeeAsset;
+    }>(`${BASE_PATH}/employees/${employeeId}/assets/${assetId}/return`, data);
+    return response.data.data;
+  },
+
+  async deleteEmployeeAsset(
+    employeeId: string,
+    assetId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      `${BASE_PATH}/employees/${employeeId}/assets/${assetId}`,
     );
   },
 };

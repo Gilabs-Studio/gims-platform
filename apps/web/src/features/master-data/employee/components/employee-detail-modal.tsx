@@ -19,6 +19,7 @@ import {
   EmployeeContract,
   EmployeeEducationHistory,
   EmployeeCertification,
+  EmployeeAsset,
 } from "../types";
 import {
   Shield,
@@ -35,6 +36,7 @@ import {
   useEmployeeContracts,
   useEmployeeEducationHistories,
   useEmployeeCertifications,
+  useEmployeeAssets,
 } from "../hooks/use-employees";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { ContractTimeline } from "./contracts";
@@ -52,6 +54,13 @@ import {
   EditCertificationDialog,
   DeleteCertificationDialog,
 } from "./certifications";
+import {
+  AssetTimeline,
+  CreateAssetDialog,
+  EditAssetDialog,
+  ReturnAssetDialog,
+  DeleteAssetDialog,
+} from "./assets";
 
 interface EmployeePermission {
   permissions?: string[];
@@ -102,6 +111,12 @@ export function EmployeeDetailModal({
   const [deleteCertification, setDeleteCertification] =
     useState<EmployeeCertification | null>(null);
 
+  // Asset dialog states
+  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
+  const [editAsset, setEditAsset] = useState<EmployeeAsset | null>(null);
+  const [returnAsset, setReturnAsset] = useState<EmployeeAsset | null>(null);
+  const [deleteAsset, setDeleteAsset] = useState<EmployeeAsset | null>(null);
+
   // Fetch contracts for the timeline
   const { data: contractsData } = useEmployeeContracts(employee?.id);
 
@@ -110,6 +125,9 @@ export function EmployeeDetailModal({
 
   // Fetch certifications
   const { data: certificationsData } = useEmployeeCertifications(employee?.id);
+
+  // Fetch assets
+  const { data: assetsData } = useEmployeeAssets(employee?.id);
 
   if (!employee) return null;
 
@@ -168,6 +186,9 @@ export function EmployeeDetailModal({
               </TabsTrigger>
               <TabsTrigger value="certifications">
                 {t("tabs.certifications")}
+              </TabsTrigger>
+              <TabsTrigger value="assets">
+                {t("tabs.assets")}
               </TabsTrigger>
             </TabsList>
 
@@ -622,6 +643,18 @@ export function EmployeeDetailModal({
                 canDelete
               />
             </TabsContent>
+
+            <TabsContent value="assets" className="space-y-6 py-4">
+              <AssetTimeline
+                assets={assetsData || []}
+                onAdd={() => setCreateAssetDialogOpen(true)}
+                onEdit={(asset) => setEditAsset(asset)}
+                onReturn={(asset) => setReturnAsset(asset)}
+                onDelete={(asset) => setDeleteAsset(asset)}
+                canEdit
+                canDelete
+              />
+            </TabsContent>
           </Tabs>
         )}
 
@@ -724,6 +757,46 @@ export function EmployeeDetailModal({
           certification={deleteCertification}
           onSuccess={() => {
             setDeleteCertification(null);
+          }}
+        />
+
+        {/* Asset Dialogs */}
+        <CreateAssetDialog
+          open={createAssetDialogOpen}
+          onOpenChange={setCreateAssetDialogOpen}
+          employeeId={displayEmployee.id}
+          onSuccess={() => {
+            setCreateAssetDialogOpen(false);
+          }}
+        />
+
+        <EditAssetDialog
+          open={!!editAsset}
+          onOpenChange={(open) => !open && setEditAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={editAsset}
+          onSuccess={() => {
+            setEditAsset(null);
+          }}
+        />
+
+        <ReturnAssetDialog
+          open={!!returnAsset}
+          onOpenChange={(open) => !open && setReturnAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={returnAsset}
+          onSuccess={() => {
+            setReturnAsset(null);
+          }}
+        />
+
+        <DeleteAssetDialog
+          open={!!deleteAsset}
+          onOpenChange={(open) => !open && setDeleteAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={deleteAsset}
+          onSuccess={() => {
+            setDeleteAsset(null);
           }}
         />
       </DialogContent>

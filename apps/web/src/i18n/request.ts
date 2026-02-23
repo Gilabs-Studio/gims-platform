@@ -34,8 +34,6 @@ import { leaveTypeEn } from "@/features/master-data/leave-type/i18n/en";
 import { leaveTypeId } from "@/features/master-data/leave-type/i18n/id";
 import { leaveRequestEn } from "@/features/hrd/leave-request/i18n/en";
 import { leaveRequestId } from "@/features/hrd/leave-request/i18n/id";
-import { employeeAssetsEn } from "@/features/hrd/employee-assets/i18n/en";
-import { employeeAssetsId } from "@/features/hrd/employee-assets/i18n/id";
 import { quotationEn } from "@/features/sales/quotation/i18n/en";
 import { quotationId } from "@/features/sales/quotation/i18n/id";
 import { orderEn } from "@/features/sales/order/i18n/en";
@@ -132,7 +130,6 @@ const messages = {
     soSource: soSourceEn,
     leaveType: leaveTypeEn,
     ...leaveRequestEn,
-    ...employeeAssetsEn,
     ...quotationEn,
     ...orderEn,
     ...deliveryEn,
@@ -186,7 +183,6 @@ const messages = {
     courierAgency: courierAgencyId,
     soSource: soSourceId,
     leaveType: leaveTypeId,
-    ...employeeAssetsId,
     ...leaveRequestId,
     ...quotationId,
     ...orderId,

@@ -203,6 +203,66 @@ export interface UpdateEmployeeCertificationData {
   description?: string;
 }
 
+// Asset types
+export type AssetCondition = "NEW" | "GOOD" | "FAIR" | "POOR" | "DAMAGED";
+export type AssetStatus = "BORROWED" | "RETURNED";
+
+export interface EmployeeAsset {
+  id: string;
+  employee_id: string;
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  return_date?: string;
+  borrow_condition: AssetCondition;
+  return_condition?: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+  status: AssetStatus;
+  days_borrowed: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeAssetBrief {
+  id: string;
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  return_date?: string;
+  asset_image?: string;
+  status: AssetStatus;
+  days_borrowed: number;
+}
+
+export interface CreateEmployeeAssetData {
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  borrow_condition: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+}
+
+export interface UpdateEmployeeAssetData {
+  asset_name?: string;
+  asset_code?: string;
+  asset_category?: string;
+  borrow_date?: string;
+  borrow_condition?: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+}
+
+export interface ReturnEmployeeAssetData {
+  return_date: string;
+  return_condition: AssetCondition;
+  notes?: string;
+}
+
 export interface Division {
   id: string;
   name: string;

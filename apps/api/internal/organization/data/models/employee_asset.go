@@ -3,10 +3,10 @@ package models
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// AssetStatus represents the status of a borrowed asset
 type AssetStatus string
 
 const (
@@ -14,7 +14,6 @@ const (
 	AssetStatusReturned AssetStatus = "RETURNED"
 )
 
-// AssetCondition represents the condition of the asset
 type AssetCondition string
 
 const (
@@ -25,34 +24,38 @@ const (
 	AssetConditionDamaged AssetCondition = "DAMAGED"
 )
 
-// EmployeeAsset represents a company asset borrowed by an employee
 type EmployeeAsset struct {
-	ID              string          `gorm:"type:char(36);primaryKey" json:"id"`
-	EmployeeID      string          `gorm:"type:char(36);not null;index" json:"employee_id"`
-	AssetName       string          `gorm:"type:varchar(200);not null;index:idx_asset_name_gin,type:gin" json:"asset_name"`
+	ID              string          `gorm:"type:uuid;primary_key" json:"id"`
+	EmployeeID      string          `gorm:"type:uuid;not null;index:idx_employee_asset_employee" json:"employee_id"`
+	AssetName       string          `gorm:"type:varchar(200);not null" json:"asset_name"`
 	AssetCode       string          `gorm:"type:varchar(100);not null;uniqueIndex" json:"asset_code"`
-	AssetCategory   string          `gorm:"type:varchar(100);not null;index" json:"asset_category"`
-	BorrowDate      time.Time       `gorm:"type:date;not null;index" json:"borrow_date"`
-	ReturnDate      *time.Time      `gorm:"type:date;index" json:"return_date"` // NULL if not yet returned
+	AssetCategory   string          `gorm:"type:varchar(100);not null" json:"asset_category"`
+	BorrowDate      time.Time       `gorm:"type:date;not null" json:"borrow_date"`
+	ReturnDate      *time.Time      `gorm:"type:date" json:"return_date"`
 	BorrowCondition AssetCondition  `gorm:"type:varchar(50);not null" json:"borrow_condition"`
-	ReturnCondition *AssetCondition `gorm:"type:varchar(50)" json:"return_condition"` // NULL if not yet returned
+	ReturnCondition *AssetCondition `gorm:"type:varchar(50)" json:"return_condition"`
+	AssetImage      string          `gorm:"type:varchar(255)" json:"asset_image"`
 	Notes           *string         `gorm:"type:text" json:"notes"`
-	CreatedAt       time.Time       `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt  `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName specifies the table name for EmployeeAsset
+func (e *EmployeeAsset) BeforeCreate(tx *gorm.DB) error {
+	if e.ID == "" {
+		e.ID = uuid.New().String()
+	}
+	return nil
+}
+
 func (EmployeeAsset) TableName() string {
 	return "employee_assets"
 }
 
-// IsReturned checks if the asset has been returned
 func (ea *EmployeeAsset) IsReturned() bool {
 	return ea.ReturnDate != nil
 }
 
-// GetStatus returns the current status of the asset
 func (ea *EmployeeAsset) GetStatus() AssetStatus {
 	if ea.IsReturned() {
 		return AssetStatusReturned
@@ -60,7 +63,6 @@ func (ea *EmployeeAsset) GetStatus() AssetStatus {
 	return AssetStatusBorrowed
 }
 
-// DaysBorrowed calculates the number of days the asset has been borrowed
 func (ea *EmployeeAsset) DaysBorrowed() int {
 	endDate := time.Now()
 	if ea.IsReturned() {
