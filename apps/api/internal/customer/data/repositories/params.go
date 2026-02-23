@@ -13,6 +13,4 @@ type ListParams struct {
 type CustomerListParams struct {
 	ListParams
 	CustomerTypeID string
-	Status         string
-	IsApproved     *bool
 }

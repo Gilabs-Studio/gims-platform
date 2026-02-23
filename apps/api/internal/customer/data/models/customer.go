@@ -10,16 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// CustomerStatus represents the approval status of a customer
-type CustomerStatus string
-
-const (
-	CustomerStatusDraft    CustomerStatus = "draft"
-	CustomerStatusPending  CustomerStatus = "pending"
-	CustomerStatusApproved CustomerStatus = "approved"
-	CustomerStatusRejected CustomerStatus = "rejected"
-)
-
 // Customer represents a customer entity with approval workflow
 type Customer struct {
 	ID             string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -28,6 +18,12 @@ type Customer struct {
 	CustomerTypeID *string             `gorm:"type:uuid;index" json:"customer_type_id"`
 	CustomerType   *CustomerType       `gorm:"foreignKey:CustomerTypeID" json:"customer_type,omitempty"`
 	Address        string              `gorm:"type:text" json:"address"`
+	ProvinceID     *string             `gorm:"type:uuid;index" json:"province_id"`
+	Province       *geographic.Province `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
+	CityID         *string             `gorm:"type:uuid;index" json:"city_id"`
+	City           *geographic.City     `gorm:"foreignKey:CityID" json:"city,omitempty"`
+	DistrictID     *string             `gorm:"type:uuid;index" json:"district_id"`
+	District       *geographic.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	VillageID      *string             `gorm:"type:uuid;index" json:"village_id"`
 	Village        *geographic.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 	Email          string              `gorm:"type:varchar(100)" json:"email"`
@@ -50,11 +46,7 @@ type Customer struct {
 	DefaultTaxRate         *float64                   `gorm:"type:decimal(5,2)" json:"default_tax_rate"`
 
 	// Approval workflow
-	Status     CustomerStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	IsApproved bool           `gorm:"default:false;index" json:"is_approved"`
 	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`
-	ApprovedBy *string        `gorm:"type:uuid" json:"approved_by"`
-	ApprovedAt *time.Time     `json:"approved_at"`
 	IsActive   bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`

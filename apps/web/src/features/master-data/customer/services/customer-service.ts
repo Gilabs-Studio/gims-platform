@@ -6,7 +6,6 @@ import type {
   Customer,
   CreateCustomerData,
   UpdateCustomerData,
-  ApproveCustomerData,
   CreatePhoneNumberData,
   UpdatePhoneNumberData,
   CreateCustomerBankData,
@@ -103,22 +102,6 @@ export const customerService = {
   delete: async (id: string) => {
     const response = await apiClient.delete<CustomerSingleResponse<null>>(
       `${BASE_PATH}/customers/${id}`,
-    );
-    return response.data;
-  },
-
-  // Approval workflow
-  submit: async (id: string) => {
-    const response = await apiClient.post<CustomerSingleResponse<Customer>>(
-      `${BASE_PATH}/customers/${id}/submit`,
-    );
-    return response.data;
-  },
-
-  approve: async (id: string, data: ApproveCustomerData) => {
-    const response = await apiClient.post<CustomerSingleResponse<Customer>>(
-      `${BASE_PATH}/customers/${id}/approve`,
-      data,
     );
     return response.data;
   },

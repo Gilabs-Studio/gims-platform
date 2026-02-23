@@ -96,13 +96,6 @@ func (h *CustomerHandler) List(c *gin.Context) {
 			SortDir: c.DefaultQuery("sort_dir", "asc"),
 		},
 		CustomerTypeID: c.Query("customer_type_id"),
-		Status:         c.Query("status"),
-	}
-
-	// Parse is_approved filter
-	if isApproved := c.Query("is_approved"); isApproved != "" {
-		val := isApproved == "true"
-		params.IsApproved = &val
 	}
 
 	// Parse pagination with max enforcement
@@ -142,9 +135,6 @@ func (h *CustomerHandler) List(c *gin.Context) {
 	}
 	if params.CustomerTypeID != "" {
 		meta.Filters["customer_type_id"] = params.CustomerTypeID
-	}
-	if params.Status != "" {
-		meta.Filters["status"] = params.Status
 	}
 
 	response.SuccessResponse(c, results, meta)
@@ -203,68 +193,6 @@ func (h *CustomerHandler) Delete(c *gin.Context) {
 
 	meta := &response.Meta{DeletedBy: getUserID(c)}
 	response.SuccessResponseDeleted(c, "customer", id, meta)
-}
-
-// Submit handles POST /customers/:id/submit
-func (h *CustomerHandler) Submit(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
-			"message": "ID is required",
-		}, nil)
-		return
-	}
-
-	result, err := h.uc.Submit(c.Request.Context(), id)
-	if err != nil {
-		errors.ErrorResponse(c, "CUSTOMER_SUBMIT_FAILED", map[string]interface{}{
-			"customer_id": id,
-			"message":     err.Error(),
-		}, nil)
-		return
-	}
-
-	response.SuccessResponse(c, result, nil)
-}
-
-// Approve handles POST /customers/:id/approve
-func (h *CustomerHandler) Approve(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
-			"message": "ID is required",
-		}, nil)
-		return
-	}
-
-	userID := getUserID(c)
-	if userID == "" {
-		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{
-			"message": "User not authenticated",
-		}, nil)
-		return
-	}
-
-	var req dto.ApproveCustomerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
-		return
-	}
-
-	result, err := h.uc.Approve(c.Request.Context(), id, userID, req)
-	if err != nil {
-		errors.ErrorResponse(c, "CUSTOMER_APPROVE_FAILED", map[string]interface{}{
-			"customer_id": id,
-			"message":     err.Error(),
-		}, nil)
-		return
-	}
-
-	response.SuccessResponse(c, result, nil)
 }
 
 // GetFormData handles GET /customers/form-data

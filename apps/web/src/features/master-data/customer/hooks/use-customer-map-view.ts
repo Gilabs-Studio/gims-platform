@@ -10,10 +10,9 @@ import type { MapMarker } from "@/components/ui/map/map-view";
 import {
   useCustomers,
   useDeleteCustomer,
-  useApproveCustomer,
-  useSubmitCustomer,
 } from "./use-customers";
-import type { Customer, CustomerStatus } from "../types";
+import { useCustomerTypes } from "./use-customer-types";
+import type { Customer } from "../types";
 
 export type PanelMode = "create" | "edit" | "view" | null;
 
@@ -30,7 +29,8 @@ export function useCustomerMapView() {
   // State
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  const [statusFilter, setStatusFilter] = useState<CustomerStatus | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
@@ -43,12 +43,14 @@ export function useCustomerMapView() {
   const { data, isLoading, refetch } = useCustomers({
     per_page: 100,
     search: debouncedSearch || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
+    customer_type_id: typeFilter === "all" ? undefined : typeFilter,
   });
 
+  // Fetch filter options from server (customer types)
+  const { data: typesData } = useCustomerTypes({ per_page: 100 });
+  const customerTypes = typesData?.data ?? [];
+
   const deleteCustomer = useDeleteCustomer();
-  const submitForApproval = useSubmitCustomer();
-  const approveCustomer = useApproveCustomer();
 
   const customers = data?.data ?? [];
 
@@ -104,37 +106,11 @@ export function useCustomerMapView() {
     }
   };
 
-  const handleSubmitForApproval = async (customer: Customer) => {
-    try {
-      await submitForApproval.mutateAsync(customer.id);
-      toast.success(t("customer.submitSuccess"));
-    } catch {
-      toast.error(t("common.error_update"));
-    }
-  };
-
-  const handleApprove = async (customer: Customer) => {
-    try {
-      await approveCustomer.mutateAsync({ id: customer.id, data: { action: "approve" } });
-      toast.success(t("customer.approveSuccess"));
-    } catch {
-      toast.error(t("common.error_update"));
-    }
-  };
-
-  const handleReject = async (customer: Customer) => {
-    try {
-      await approveCustomer.mutateAsync({ id: customer.id, data: { action: "reject" } });
-      toast.success(t("customer.rejectSuccess"));
-    } catch {
-      toast.error(t("common.error_update"));
-    }
-  };
-
   return {
     state: {
       search,
       statusFilter,
+      typeFilter,
       selectedCustomerId,
       isSidebarOpen,
       panelMode,
@@ -146,6 +122,7 @@ export function useCustomerMapView() {
     actions: {
       setSearch,
       setStatusFilter,
+      setTypeFilter,
       setSelectedCustomerId,
       setIsSidebarOpen,
       setPanelMode,
@@ -159,9 +136,6 @@ export function useCustomerMapView() {
       handleView,
       handleClosePanel,
       handleDelete,
-      handleSubmitForApproval,
-      handleApprove,
-      handleReject,
       refetch,
     },
     data: {
@@ -170,12 +144,12 @@ export function useCustomerMapView() {
       selectedCustomer,
       isLoading,
       isDeleting: deleteCustomer.isPending,
+      customerTypes,
     },
     permissions: {
       canCreate,
       canUpdate,
       canDelete,
-      canApprove,
     },
     layout: {
       isMobile,

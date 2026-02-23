@@ -12,9 +12,12 @@ import (
 type CreateCustomerRequest struct {
 	Code           string                      `json:"code" binding:"omitempty,max=50"`
 	Name           string                      `json:"name" binding:"required,min=2,max=200"`
-	CustomerTypeID string                      `json:"customer_type_id" binding:"omitempty,uuid"`
+	CustomerTypeID *string                     `json:"customer_type_id" binding:"omitempty,uuid"`
 	Address        string                      `json:"address" binding:"max=500"`
-	VillageID      string                      `json:"village_id" binding:"omitempty,uuid"`
+	ProvinceID     *string                     `json:"province_id" binding:"omitempty,uuid"`
+	CityID         *string                     `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     *string                     `json:"district_id" binding:"omitempty,uuid"`
+	VillageID      *string                     `json:"village_id" binding:"omitempty,uuid"`
 	Email          string                      `json:"email" binding:"omitempty,email,max=100"`
 	Website        string                      `json:"website" binding:"max=200"`
 	NPWP           string                      `json:"npwp" binding:"max=30"`
@@ -35,16 +38,19 @@ type CreateCustomerRequest struct {
 
 // UpdateCustomerRequest for updating an existing customer
 type UpdateCustomerRequest struct {
-	Code           string   `json:"code" binding:"omitempty,min=2,max=50"`
-	Name           string   `json:"name" binding:"omitempty,min=2,max=200"`
-	CustomerTypeID string   `json:"customer_type_id" binding:"omitempty,uuid"`
-	Address        string   `json:"address" binding:"max=500"`
-	VillageID      string   `json:"village_id" binding:"omitempty,uuid"`
-	Email          string   `json:"email" binding:"omitempty,email,max=100"`
-	Website        string   `json:"website" binding:"max=200"`
-	NPWP           string   `json:"npwp" binding:"max=30"`
-	ContactPerson  string   `json:"contact_person" binding:"max=100"`
-	Notes          string   `json:"notes" binding:"max=1000"`
+	Code           *string  `json:"code" binding:"omitempty,min=2,max=50"`
+	Name           *string  `json:"name" binding:"omitempty,min=2,max=200"`
+	CustomerTypeID *string  `json:"customer_type_id" binding:"omitempty,uuid"`
+	Address        *string  `json:"address" binding:"omitempty,max=500"`
+	ProvinceID     *string  `json:"province_id" binding:"omitempty,uuid"`
+	CityID         *string  `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     *string  `json:"district_id" binding:"omitempty,uuid"`
+	VillageID      *string  `json:"village_id" binding:"omitempty,uuid"`
+	Email          *string  `json:"email" binding:"omitempty,email,max=100"`
+	Website        *string  `json:"website" binding:"omitempty,max=200"`
+	NPWP           *string  `json:"npwp" binding:"omitempty,max=30"`
+	ContactPerson  *string  `json:"contact_person" binding:"omitempty,max=100"`
+	Notes          *string  `json:"notes" binding:"omitempty,max=1000"`
 	Latitude       *float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	Longitude      *float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool    `json:"is_active"`
@@ -56,12 +62,6 @@ type UpdateCustomerRequest struct {
 	DefaultTaxRate        *float64 `json:"default_tax_rate" binding:"omitempty,min=0,max=100"`
 }
 
-// ApproveCustomerRequest for approve/reject action
-type ApproveCustomerRequest struct {
-	Action string `json:"action" binding:"required,oneof=approve reject"`
-	Reason string `json:"reason" binding:"max=500"`
-}
-
 // CustomerResponse is the response DTO for a customer
 type CustomerResponse struct {
 	ID             string                     `json:"id"`
@@ -70,6 +70,12 @@ type CustomerResponse struct {
 	CustomerTypeID *string                    `json:"customer_type_id"`
 	CustomerType   *CustomerTypeResponse      `json:"customer_type,omitempty"`
 	Address        string                     `json:"address"`
+	ProvinceID     *string                    `json:"province_id"`
+	Province       *ProvinceResponse          `json:"province,omitempty"`
+	CityID         *string                    `json:"city_id"`
+	City           *CityResponse              `json:"city,omitempty"`
+	DistrictID     *string                    `json:"district_id"`
+	District       *DistrictResponse          `json:"district,omitempty"`
 	VillageID      *string                    `json:"village_id"`
 	Village        *VillageResponse           `json:"village,omitempty"`
 	Email          string                     `json:"email"`
@@ -79,11 +85,7 @@ type CustomerResponse struct {
 	Notes          string                     `json:"notes"`
 	Latitude       *float64                   `json:"latitude"`
 	Longitude      *float64                   `json:"longitude"`
-	Status         string                     `json:"status"`
-	IsApproved     bool                       `json:"is_approved"`
 	CreatedBy      *string                    `json:"created_by"`
-	ApprovedBy     *string                    `json:"approved_by"`
-	ApprovedAt     *time.Time                 `json:"approved_at"`
 	IsActive       bool                       `json:"is_active"`
 	CreatedAt      time.Time                  `json:"created_at"`
 	UpdatedAt      time.Time                  `json:"updated_at"`

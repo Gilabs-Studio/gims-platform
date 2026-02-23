@@ -8,11 +8,6 @@ const getMsg = (t: TranslationFn | undefined, key: string): string =>
 // Customer schema
 export const getCustomerSchema = (t?: TranslationFn) =>
   z.object({
-    code: z
-      .string()
-      .max(50, getMsg(t, "validation.codeMaxLength"))
-      .optional()
-      .or(z.literal("")),
     name: z
       .string()
       .min(2, getMsg(t, "validation.nameMinLength"))
@@ -51,9 +46,9 @@ export const getCustomerSchema = (t?: TranslationFn) =>
       .or(z.literal(""))
       .nullable(),
     // Cascade fields for form state (not sent to API)
-    province_id: z.string().or(z.number()).optional(),
-    city_id: z.string().or(z.number()).optional(),
-    district_id: z.string().or(z.number()).optional(),
+    province_id: z.string().optional(),
+    city_id: z.string().optional(),
+    district_id: z.string().optional(),
     // Coordinates
     latitude: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),

@@ -41,7 +41,6 @@ func SeedCustomers() error {
 
 	db := database.DB
 	adminID := AdminEmployeeID
-	approved := models.CustomerStatusApproved
 
 	pharmacyTypeID := CustomerTypePharmacyID
 	hospitalTypeID := CustomerTypeHospitalID
@@ -124,10 +123,7 @@ func SeedCustomers() error {
 			NPWP:                  "01.234.567.8-012.000",
 			Latitude:              floatPtr(-6.2615),
 			Longitude:             floatPtr(106.8106),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJabodetabek,
 			DefaultSalesRepID:     &salesRep1ID,
@@ -146,10 +142,7 @@ func SeedCustomers() error {
 			NPWP:                  "02.345.678.9-012.000",
 			Latitude:              floatPtr(-6.1864),
 			Longitude:             floatPtr(106.7941),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJabodetabek,
 			DefaultSalesRepID:     &salesRep1ID,
@@ -168,10 +161,7 @@ func SeedCustomers() error {
 			NPWP:                  "03.456.789.0-012.000",
 			Latitude:              floatPtr(-6.9175),
 			Longitude:             floatPtr(107.6191),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJawaBarat,
 			DefaultSalesRepID:     &salesRep2ID,
@@ -190,10 +180,7 @@ func SeedCustomers() error {
 			NPWP:                  "04.567.890.1-012.000",
 			Latitude:              floatPtr(-7.2756),
 			Longitude:             floatPtr(112.7508),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJawaTimur,
 			DefaultSalesRepID:     &salesRep2ID,
@@ -212,10 +199,7 @@ func SeedCustomers() error {
 			NPWP:                  "05.678.901.2-012.000",
 			Latitude:              floatPtr(-6.2383),
 			Longitude:             floatPtr(106.9756),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJabodetabek,
 			DefaultSalesRepID:     &salesRep1ID,
@@ -234,10 +218,7 @@ func SeedCustomers() error {
 			NPWP:                  "06.789.012.3-012.000",
 			Latitude:              floatPtr(-6.1751),
 			Longitude:             floatPtr(106.8713),
-			Status:                approved,
-			IsApproved:            true,
 			CreatedBy:             &adminID,
-			ApprovedBy:            &adminID,
 			IsActive:              true,
 			DefaultAreaID:         &areaJabodetabek,
 			DefaultSalesRepID:     &salesRep1ID,

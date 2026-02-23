@@ -72,6 +72,17 @@ func SeedSupplier() error {
 		typeID = &distributorType.ID
 	}
 
+	// Get a village for location reference
+	var village struct {
+		ID string
+	}
+	database.DB.Table("villages").Select("id").First(&village)
+
+	var villageID *string
+	if village.ID != "" {
+		villageID = &village.ID
+	}
+
 	lat1, lng1 := -6.2088, 106.8456
 	lat2, lng2 := -7.2297, 106.8165
 	lat3, lng3 := -6.4025, 111.7942
@@ -87,6 +98,7 @@ func SeedSupplier() error {
 			NPWP:           "01.234.567.8-012.000",
 			ContactPerson:  "Budi Hartono",
 			Notes:          "Main pharmaceutical distributor",
+			VillageID:      villageID,
 			Latitude:       &lat1,
 			Longitude:      &lng1,
 			Status:         models.SupplierStatusApproved,
@@ -102,6 +114,7 @@ func SeedSupplier() error {
 			NPWP:           "02.345.678.9-023.000",
 			ContactPerson:  "Siti Rahayu",
 			Notes:          "Medical equipment and supplies",
+			VillageID:      villageID,
 			Latitude:       &lat2,
 			Longitude:      &lng2,
 			Status:         models.SupplierStatusApproved,
@@ -115,6 +128,7 @@ func SeedSupplier() error {
 			Address:        "Jl. Raya Bogor KM 29, Depok",
 			Email:          "info@healthessentials.id",
 			ContactPerson:  "Ahmad Fauzi",
+			VillageID:      villageID,
 			Latitude:       &lat3,
 			Longitude:      &lng3,
 			Status:         models.SupplierStatusDraft,

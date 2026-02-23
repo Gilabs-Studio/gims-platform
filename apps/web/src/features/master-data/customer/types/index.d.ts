@@ -88,9 +88,6 @@ export interface UpdateCustomerBankData {
   is_primary?: boolean;
 }
 
-// === Customer Status ===
-export type CustomerStatus = "draft" | "pending" | "approved" | "rejected";
-
 // === Village (Nested from Geographic) ===
 export interface Village {
   id: string;
@@ -117,7 +114,13 @@ export interface Customer {
   customer_type_id?: string;
   customer_type?: CustomerType;
   address?: string;
-  village_id?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
+  province?: { id: string; name: string } | null;
+  city?: { id: string; name: string } | null;
+  district?: { id: string; name: string } | null;
   village?: Village;
   email?: string;
   website?: string;
@@ -126,11 +129,7 @@ export interface Customer {
   notes?: string;
   latitude?: number | null;
   longitude?: number | null;
-  status: CustomerStatus;
-  is_approved: boolean;
   created_by?: string;
-  approved_by?: string;
-  approved_at?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -163,9 +162,12 @@ export interface SalesRepBrief {
 export interface CreateCustomerData {
   code?: string;
   name: string;
-  customer_type_id?: string;
+  customer_type_id?: string | null;
   address?: string;
-  village_id?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
   email?: string;
   website?: string;
   npwp?: string;
@@ -185,16 +187,19 @@ export interface CreateCustomerData {
 }
 
 export interface UpdateCustomerData {
-  code?: string;
-  name?: string;
-  customer_type_id?: string;
-  address?: string;
-  village_id?: string;
-  email?: string;
-  website?: string;
-  npwp?: string;
-  contact_person?: string;
-  notes?: string;
+  code?: string | null;
+  name?: string | null;
+  customer_type_id?: string | null;
+  address?: string | null;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
+  email?: string | null;
+  website?: string | null;
+  npwp?: string | null;
+  contact_person?: string | null;
+  notes?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
@@ -204,11 +209,6 @@ export interface UpdateCustomerData {
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;
-}
-
-export interface ApproveCustomerData {
-  action: "approve" | "reject";
-  reason?: string;
 }
 
 // === Form Data Response ===
@@ -235,8 +235,6 @@ export interface CustomerListParams {
   sort_by?: string;
   sort_dir?: "asc" | "desc";
   customer_type_id?: string;
-  status?: CustomerStatus;
-  is_approved?: boolean;
 }
 
 export interface PaginationMeta {

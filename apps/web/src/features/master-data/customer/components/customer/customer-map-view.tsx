@@ -8,14 +8,11 @@ import {
   User,
   Menu,
   X,
-  Filter,
   Loader2,
   ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -23,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MapView, type MapMarker, MarkerClusterGroup } from "@/components/ui/map/map-view";
 import { cn } from "@/lib/utils";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
@@ -33,17 +32,10 @@ import { CustomerCard } from "./customer-card";
 import { CustomerSidePanel } from "./customer-side-panel";
 import { CustomerDetailModal } from "./customer-detail-modal";
 import { useCustomerMapView } from "../../hooks/use-customer-map-view";
-import type { Customer, CustomerStatus } from "../../types";
+import type { Customer } from "../../types";
 
 const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
-
-const statusColors: Record<CustomerStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
 
 export function CustomerMapView() {
   const { state, actions, data, permissions, layout, translations } = useCustomerMapView();
@@ -72,9 +64,6 @@ export function CustomerMapView() {
                       {customer.address}
                     </p>
                   )}
-                  <Badge className={cn("text-xs mb-2", statusColors[customer.status])}>
-                    {t(`customer.status.${customer.status}`)}
-                  </Badge>
                   <div className="flex flex-col gap-1 mt-2">
                     <Button
                       size="sm"
@@ -158,27 +147,27 @@ export function CustomerMapView() {
             </div>
             <div className="flex items-center gap-2">
               <Select
-                value={state.statusFilter}
-                onValueChange={(val) =>
-                  actions.setStatusFilter(val as CustomerStatus | "all")
-                }
+                value={state.typeFilter}
+                onValueChange={(v) => actions.setTypeFilter(v)}
               >
-                <SelectTrigger className="flex-1">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder={t("customer.form.customerType")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">{t("customer.status.draft")}</SelectItem>
-                  <SelectItem value="pending">{t("customer.status.pending")}</SelectItem>
-                  <SelectItem value="approved">{t("customer.status.approved")}</SelectItem>
-                  <SelectItem value="rejected">{t("customer.status.rejected")}</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {data.customerTypes?.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {permissions.canCreate && (
                 <Button
                   onClick={actions.handleCreate}
-                  className="cursor-pointer shrink-0"
+                  className={
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-[160px] cursor-pointer"
+                  }
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   {t("common.create")}
@@ -207,7 +196,9 @@ export function CustomerMapView() {
               {permissions.canCreate && (
                 <Button
                   variant="outline"
-                  className="mt-4 cursor-pointer"
+                  className={
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-[160px] cursor-pointer mt-4"
+                  }
                   onClick={actions.handleCreate}
                 >
                   <Plus className="h-4 w-4 mr-2" />

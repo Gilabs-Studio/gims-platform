@@ -1,16 +1,8 @@
 "use client";
 
-import { User, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { MapPin, Eye, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Customer, CustomerStatus } from "../../types";
-
-const statusVariant: Record<CustomerStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "secondary",
-  pending: "outline",
-  approved: "default",
-  rejected: "destructive",
-};
+import type { Customer } from "../../types";
 
 interface CustomerCardProps {
   readonly customer: Customer;
@@ -40,17 +32,15 @@ export function CustomerCard({
       onClick={onClick}
       className={cn(
         "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
-        isSelected && "bg-accent border-l-4 border-l-primary"
+        isSelected && "bg-accent border-l-4 border-l-primary",
+        !customer.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-primary/10 p-2 shrink-0">
-          <User className="h-4 w-4 text-primary" />
-        </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h4 className="font-medium text-sm truncate">{customer.name}</h4>
-            <span className="text-xs text-muted-foreground shrink-0">{customer.code}</span>
+            <span className="text-xs text-muted-foreground font-mono shrink-0">{customer.code}</span>
           </div>
           {customer.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -59,15 +49,12 @@ export function CustomerCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={statusVariant[customer.status]} className="text-xs">
-              {t(`customer.status.${customer.status}`)}
-            </Badge>
             {customer.customer_type && (
               <span className="text-xs text-muted-foreground">{customer.customer_type.name}</span>
             )}
             {customer.latitude != null && customer.longitude != null && (
               <span className="text-xs text-muted-foreground">
-                📍 {Number(customer.latitude).toFixed(4)}, {Number(customer.longitude).toFixed(4)}
+                {Number(customer.latitude).toFixed(4)}, {Number(customer.longitude).toFixed(4)}
               </span>
             )}
           </div>
@@ -83,7 +70,7 @@ export function CustomerCard({
               onDetail();
             }}
             className="p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="View Details"
+            title={t("common.viewDetails")}
           >
             <Eye className="h-3.5 w-3.5" />
           </button>
@@ -95,7 +82,7 @@ export function CustomerCard({
               onEdit();
             }}
             className="p-1.5 rounded-full hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors"
-            title="Edit"
+            title={t("common.edit")}
           >
             <Edit className="h-3.5 w-3.5" />
           </button>
@@ -107,7 +94,7 @@ export function CustomerCard({
               onDelete();
             }}
             className="p-1.5 rounded-full hover:bg-accent text-red-500 hover:text-red-600 transition-colors"
-            title="Delete"
+            title={t("common.delete")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
