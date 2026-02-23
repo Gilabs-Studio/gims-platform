@@ -213,6 +213,10 @@ export function WarehouseList() {
         open={state.detailOpen}
         onOpenChange={actions.setDetailOpen}
         warehouse={state.detailItem}
+        onEdit={permissions.canUpdate ? (item) => {
+          actions.setDetailOpen(false);
+          actions.handleEdit(item);
+        } : undefined}
       />
 
       {permissions.canDelete && (

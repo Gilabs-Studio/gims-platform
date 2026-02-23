@@ -405,6 +405,7 @@ export function WarehouseMapView() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         warehouse={viewingWarehouse}
+        onEdit={handleEdit}
       />
     </div>
   );

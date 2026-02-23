@@ -16,6 +16,12 @@ type Warehouse struct {
 	Description string              `gorm:"type:text" json:"description"`
 	Capacity    *int                `gorm:"type:integer" json:"capacity"`
 	Address     string              `gorm:"type:text" json:"address"`
+	ProvinceID  *string             `gorm:"type:uuid;index" json:"province_id"`
+	Province    *geographic.Province `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
+	CityID      *string             `gorm:"type:uuid;index" json:"city_id"`
+	City        *geographic.City     `gorm:"foreignKey:CityID" json:"city,omitempty"`
+	DistrictID  *string             `gorm:"type:uuid;index" json:"district_id"`
+	District    *geographic.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	VillageID   *string             `gorm:"type:uuid;index" json:"village_id"`
 	Village     *geographic.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 	// Location coordinates
