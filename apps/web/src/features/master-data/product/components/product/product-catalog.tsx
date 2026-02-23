@@ -1,25 +1,24 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { 
-  Plus, 
-  Search, 
-  X, 
-  PanelLeftClose, 
-  PanelLeft, 
+  Plus,
+  Search,
+  X,
+  PanelLeftClose,
+  PanelLeft,
   Pencil,
-  MoreVertical,
   Power,
   ImageOff,
   Folder,
-  FolderOpen
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea intentionally removed — not used in this component
 import { 
   Tooltip,
   TooltipContent,
@@ -30,7 +29,7 @@ import { cn, resolveImageUrl } from "@/lib/utils";
 import { CategoryTree } from "@/components/ui/category-tree";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
+// CategoryTreePicker not used here
 import { 
   useCategoryTree, 
   useCategoryTreeState, 
@@ -42,12 +41,7 @@ import { ProductDialog } from "./product-dialog";
 import { ProductDetailDialog } from "./product-detail-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// DropdownMenu components not used here
 
 /**
  * ProductCatalog - Enhanced product list with category tree sidebar
@@ -176,7 +170,6 @@ export function ProductCatalog() {
   // Permissions
   const canCreate = useUserPermission("product.create");
   const canEdit = useUserPermission("product.update");
-  const canDelete = useUserPermission("product.delete");
 
   // Search state
   const [search, setSearch] = useState("");
@@ -271,11 +264,6 @@ export function ProductCatalog() {
     setDetailDialogOpen(true);
   };
 
-  const handleDeleteClick = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setDeleteId(id);
-  };
-
   const handleDeleteConfirm = async () => {
     if (!deleteId) return;
     try {
@@ -291,6 +279,19 @@ export function ProductCatalog() {
     setDialogOpen(false);
     setEditingItem(null);
   };
+
+  // Open create dialog when linked with #create-product — schedule to avoid setState inside effect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#create-product") return;
+    const id = window.setTimeout(() => {
+      handleCreate();
+      try {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {}
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [handleCreate]);
 
   const handleClearFilter = useCallback((filter: ActiveFilter) => {
     if (filter.type === "category") {
@@ -317,62 +318,6 @@ export function ProductCatalog() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center gap-4 pb-4 border-b">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("searchPlaceholder")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-8"
-          />
-        </div>
-
-        {/* Active Filters */}
-        {activeFilters.length > 0 && (
-          <div className="flex items-center gap-2">
-            {activeFilters.map((filter) => (
-              <Badge
-                key={`${filter.type}-${filter.id}`}
-                variant="secondary"
-                className="gap-1 py-1 px-2"
-              >
-                {filter.label}
-                <button
-                  onClick={() => handleClearFilter(filter)}
-                  className="ml-1 hover:bg-accent rounded cursor-pointer"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearAllFilters}
-              className="text-xs cursor-pointer"
-            >
-              {t("clearAll")}
-            </Button>
-          </div>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Create Button */}
-        {canCreate && (
-          <Button onClick={handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("create")}
-          </Button>
-        )}
-      </div>
-
       {/* Main Content with Flex Layout */}
       <div className="flex-1 pt-4 min-h-0 flex gap-4">
         {/* Category Tree Sidebar */}
@@ -383,14 +328,19 @@ export function ProductCatalog() {
           )}
         >
           {/* Sidebar Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+          <div
+            className={cn(
+              "flex items-center px-3 py-2 border-b bg-muted/30",
+              sidebarCollapsed ? "justify-center px-1" : "justify-between"
+            )}
+          >
             {!sidebarCollapsed && (
               <span className="text-sm font-medium">{t("categories")}</span>
             )}
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 cursor-pointer"
+              className={cn("h-6 w-6 cursor-pointer", sidebarCollapsed && "transform-none")}
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
               {sidebarCollapsed ? (
@@ -441,13 +391,39 @@ export function ProductCatalog() {
         <div className="flex-1 flex flex-col border rounded-lg overflow-hidden min-w-0">
           {/* Panel Header */}
           <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
-            <div className="flex-1">
-              {categoryBreadcrumb ? (
-                <span className="text-sm text-muted-foreground">
-                <span className="text-sm text-muted-foreground">{t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span></span>
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">{t("allProducts")}</span>
+            <div className="flex-1 flex items-center gap-4">
+              <div>
+                {categoryBreadcrumb ? (
+                  <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">{t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span></span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">{t("allProducts")}</span>
+                )}
+              </div>
+
+              {/* Toolbar moved into header: search */}
+              <div className="relative flex-1 max-w-md ml-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("searchPlaceholder")}
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+
+            {/* create button moved into header */}
+            <div className="ml-4 mr-4">
+              {canCreate && (
+                <Button onClick={handleCreate} className="cursor-pointer">
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("create")}
+                </Button>
               )}
             </div>
             {pagination && (
@@ -458,7 +434,6 @@ export function ProductCatalog() {
             )}
           </div>
 
-          {/* Product Grid */}
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {isError ? (
@@ -640,6 +615,8 @@ export function ProductCatalog() {
           )}
         </div>
       </div>
+
+      <a id="create-product" />
 
       {/* Dialogs */}
       <ProductDialog
