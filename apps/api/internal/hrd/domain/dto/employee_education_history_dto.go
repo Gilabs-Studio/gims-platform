@@ -63,8 +63,6 @@ type EmployeeEducationHistoryFormDataResponse struct {
 	DegreeLevels []DegreeLevelOption  `json:"degree_levels"`
 }
 
-// Note: EmployeeFormOption is defined in employee_contract_dto.go and reused here
-
 type DegreeLevelOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`

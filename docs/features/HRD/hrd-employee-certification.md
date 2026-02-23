@@ -13,8 +13,10 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 - **Search & Filter**: Cari berdasarkan certificate name atau issued by, filter by employee, filter by status (valid, expiring_soon, expired, no_expiry)
 - **Expiring Certifications Alert**: Query certifications yang akan expire dalam X hari (default 30)
 - **Optional Expiry**: Support untuk certifications tanpa expiry date (lifetime certifications)
-- **Document Management**: Store certificate file paths untuk uploaded documents
+- **Document Management**: Store certificate file paths untuk uploaded documents (dengan `getDisplayFilename` utility untuk menampilkan nama file asli)
 - **Form Data Endpoint**: Single endpoint untuk fetch employees dropdown (efficient)
+- **Edit Form Auto-Prefill**: Form edit otomatis terisi data sertifikasi yang ada (via GET by ID)
+- **i18n Support Penuh**: English dan Indonesian translations lengkap untuk semua UI strings
 
 ## Business Rules
 
@@ -123,6 +125,23 @@ Employee Certification Management system untuk tracking sertifikasi profesional 
 - ❌ Slightly more complex state management (vs simple routing)
 
 **Pattern followed**: Matches quotation pattern across all GIMS features
+
+### 8. Shared DTO Types (common_dto.go)
+**Why**: `EmployeeFormOption` dan `EmployeeSimpleResponse` digunakan di banyak HRD modules (certifications, education, assets, evaluation, recruitment)
+
+**Implementation**: 
+- Shared types dipindahkan ke `internal/hrd/domain/dto/common_dto.go`
+- Semua module reference types dari file yang sama (same package, no import needed)
+- Menghilangkan duplikasi type definitions
+
+**Context**: Sebelumnya `EmployeeFormOption` didefinisikan di `employee_contract_dto.go` yang sudah dihapus karena contract management dipindahkan ke organization module. Types yang dipakai bersama sekarang ada di `common_dto.go`.
+
+### 9. skipAuthRedirectOn401 Pattern (Frontend Service)
+**Why**: Mencegah global logout redirect saat mutation gagal (401), sehingga hanya toast error yang ditampilkan
+
+**Implementation**: 
+- Service methods `create()`, `update()`, `delete()` menggunakan `skipAuthRedirectOn401: true`
+- User tetap di halaman yang sama saat terjadi error, hanya menerima toast notification
 
 ## API Endpoints
 
@@ -258,25 +277,31 @@ cd apps/web && npx pnpm test:e2e hrd/certification
 
 ```go
 type EmployeeCertification struct {
-    ID                string         `gorm:"type:char(36);primaryKey"`
-    EmployeeID        string         `gorm:"type:char(36);not null;index"`
-    CertificateName   string         `gorm:"type:varchar(200);not null;index:idx_cert_name_gin,type:gin"`
-    IssuedBy          string         `gorm:"type:varchar(200);not null;index:idx_issued_by_gin,type:gin"`
+    ID                string         `gorm:"type:uuid;primary_key"`
+    EmployeeID        string         `gorm:"type:uuid;not null;index:idx_employee_certification_employee"`
+    CertificateName   string         `gorm:"type:varchar(200);not null"`
+    IssuedBy          string         `gorm:"type:varchar(200);not null"`
     IssueDate         time.Time      `gorm:"type:date;not null"`
-    ExpiryDate        *time.Time     `gorm:"type:date"` // Nullable
-    CertificateNumber *string        `gorm:"type:varchar(100)"`
-    CertificateFile   *string        `gorm:"type:varchar(500)"`
-    Description       *string        `gorm:"type:text"`
-    CreatedAt         time.Time      `gorm:"autoCreateTime"`
-    UpdatedAt         time.Time      `gorm:"autoUpdateTime"`
+    ExpiryDate        *time.Time     `gorm:"type:date"`           // Nullable - nil means no expiry
+    CertificateFile   string         `gorm:"type:varchar(255)"`   // Path to uploaded file
+    CertificateNumber string         `gorm:"type:varchar(100)"`
+    Description       string         `gorm:"type:text"`
+    CreatedBy         string         `gorm:"type:varchar(255)"`   // User ID who created
+    UpdatedBy         string         `gorm:"type:varchar(255)"`   // User ID who last updated
+    CreatedAt         time.Time
+    UpdatedAt         time.Time
     DeletedAt         gorm.DeletedAt `gorm:"index"`
 }
 ```
 
+**Model Methods**:
+- `BeforeCreate(tx)`: Auto-generates UUID if ID is empty
+- `TableName()`: Returns `"employee_certifications"`
+- `IsExpired()`: Returns `true` if `ExpiryDate < now`; `false` if `ExpiryDate` is nil
+- `DaysUntilExpiry()`: Returns days remaining (negative if expired, `999999` if no expiry)
+
 **Indexes**:
-- `idx_employee_certifications_name_gin`: GIN index on certificate_name for fast prefix search
-- `idx_employee_certifications_issued_by_gin`: GIN index on issued_by for fast prefix search
-- `idx_employee_certifications_employee_id`: B-tree index on employee_id for filtering
+- `idx_employee_certification_employee`: B-tree index on employee_id for filtering
 
 **Relationships**:
 - **EmployeeCertification** belongs to **Employee** (via employee_id)
@@ -287,18 +312,20 @@ type EmployeeCertification struct {
 ```
 internal/hrd/
 ├── data/
-│   ├── models/employee_certification.go                     # Model dengan IsExpired(), DaysUntilExpiry()
+│   ├── models/employee_certification.go                     # Model dengan BeforeCreate(), IsExpired(), DaysUntilExpiry()
 │   └── repositories/
 │       ├── employee_certification_repository.go             # Interface (7 methods)
 │       └── employee_certification_repository_impl.go        # GORM implementation
 ├── domain/
-│   ├── dto/employee_certification_dto.go                    # Create, Update, Response DTOs
-│   ├── mapper/employee_certification_mapper.go              # Model ↔ DTO conversions
+│   ├── dto/
+│   │   ├── common_dto.go                                    # Shared types (EmployeeFormOption, EmployeeSimpleResponse)
+│   │   └── employee_certification_dto.go                    # Create, Update, Response DTOs
+│   ├── mapper/employee_certification_mapper.go              # Model ↔ DTO conversions (4 functions)
 │   └── usecase/
-│       ├── employee_certification_usecase.go                # Interface (9 methods)
-│       └── employee_certification_usecase_impl.go           # Business logic
+│       ├── employee_certification_usecase.go                # Interface (8 methods)
+│       └── employee_certification_usecase_impl.go           # Business logic implementation
 └── presentation/
-    ├── handler/employee_certification_handler.go            # 8 HTTP handlers
+    ├── handler/employee_certification_handler.go            # 8 HTTP handlers + error handler
     └── router/employee_certification_router.go              # Route definitions
 ```
 
@@ -361,16 +388,19 @@ features/hrd/certifications/
 **Page Structure**:
 ```
 app/[locale]/(dashboard)/hrd/certifications/
-└── page.tsx                          # Main page with dynamic import
-                                      # - PermissionGuard wrapper (employee_certification.read)
-                                      # - Dynamic import with loading fallback
-                                      # - Named export from certification-list
-                                      # - NO separate /new or /[id]/edit pages
+├── page.tsx                          # ⚠️ MISSING - needs to be created
+│                                     # Expected: PermissionGuard wrapper (employee_certification.read)
+│                                     #           Dynamic import of certification-list
+│                                     #           NO separate /new or /[id]/edit pages
+└── loading.tsx                       # ⚠️ MISSING - route-level loading skeleton
 ```
+
+> **⚠️ KNOWN ISSUE**: The page file `page.tsx` has not been created yet. The sidebar navigation and route validator reference `/hrd/certifications`, but navigating to it will show a 404. The feature components (list, form, detail modal) exist in `features/hrd/certifications/` and are ready to be wired up.
 
 ## Notes & Future Improvements
 
 **Known Limitations**:
+- **Missing Page File**: `page.tsx` belum dibuat di `app/[locale]/(dashboard)/hrd/certifications/` - navigasi ke halaman ini akan 404
 - **No Automatic Notifications**: Saat ini belum ada automated email/push notification untuk expiring certs
 - **No Certificate Verification**: Belum ada integration dengan external verification systems
 - **No Bulk Import**: Create one-by-one only (no CSV/Excel import)
@@ -411,12 +441,13 @@ app/[locale]/(dashboard)/hrd/certifications/
 - Database Relations: `docs/erp-database-relations.mmd` (EmployeeCertification -> Employee)
 - Migration Guidelines: `docs/MIGRATION_GUIDELINES.md`
 - Security Plan: `docs/TEMPLATE_SECURITY_PERFORMANCE_PLAN.md`
+- Employee Contracts (consolidated): `docs/features/HRD/hrd-employee-contracts.md`
 
 ## Frontend Implementation Notes
 
 ### Recent Changes (2026-02-17)
 1. **List API & Frontend**:
-   - List response includes `employee_name` and `employee_code` per item (enriched in backend)
+   - List response includes `employee_name` and `employee_code` per item (enriched in backend usecase via `employeeRepo.FindByID`)
    - New query parameter `status` for list: `no_expiry` | `valid` | `expiring_soon` | `expired`
    - Frontend: status filter dropdown; Employee column shows name + code and is clickable to open detail modal
 
@@ -428,11 +459,17 @@ app/[locale]/(dashboard)/hrd/certifications/
 3. **Form**:
    - Employee field validation aligned with leave request (permissive UUID, normalize label→id)
    - Certificate file upload via FileUpload component (same pattern as HRD contracts)
+   - Service mutations use `skipAuthRedirectOn401: true` to prevent global logout on 401 errors
 
 4. **Edit form (2026-02-17)**:
    - List passes `certificationId` to form (not full certification object); form fetches detail via `useCertification(id)` in edit mode (same pattern as employee contract form)
    - All fields pre-filled in edit: employee_id, certificate_name, issued_by, issue_date, expiry_date, certificate_number, certificate_file, description; Employee field shown but disabled in edit
    - i18n: added `certification.success.created`, `certification.success.updated`, `certification.common.saving`, `certification.error.create`, `certification.error.update` in en.ts and id.ts to fix MISSING_MESSAGE console errors
+
+5. **Backend DTO Refactor (2026-02-17)**:
+   - `EmployeeFormOption` dan `EmployeeSimpleResponse` dipindahkan ke `common_dto.go` (shared across HRD modules)
+   - `employee_contract_dto.go` dihapus karena contract management dipindahkan ke organization module
+   - Stale comments referencing `employee_contract_dto.go` dihapus dari `employee_certification_dto.go` dan `employee_education_history_dto.go`
 
 ### Previous Changes (2026-02-07)
 1. **Complete refactor to Dialog-based pattern**:
@@ -459,9 +496,25 @@ app/[locale]/(dashboard)/hrd/certifications/
    - Fixed page count calculation (showed many pages for 6 items)
    - Added proper pagination metadata fields: `has_next`, `has_prev`
 
+## Backlog / Action Items
+
+- [ ] **Create page file**: `app/[locale]/(dashboard)/hrd/certifications/page.tsx` (dengan PermissionGuard + dynamic import)
+- [ ] **Create loading file**: `app/[locale]/(dashboard)/hrd/certifications/loading.tsx` (route-level skeleton dengan PageMotion)
+- [ ] **Certificate file upload**: Integrate proper file upload endpoint (currently stores path string only)
+
 ## Contributors
 - Implemented: Sprint 14 (2026-02-07)
 - Frontend Refactored: 2026-02-07
 - List status filter, employee column, detail modal (employee section, theme, download): 2026-02-17
 - Edit form prefill + Employee field + i18n keys: 2026-02-17
+- Backend DTO refactor (common_dto.go), documentation update: 2026-02-17
 - Last Updated: 2026-02-17
+
+## Document Version
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0.0 | 2026-02-07 | Initial documentation |
+| 1.1.0 | 2026-02-07 | Dialog-based pattern refactor, type safety, i18n |
+| 2.0.0 | 2026-02-17 | List status filter, detail modal, edit form prefill |
+| 2.1.0 | 2026-02-17 | Backend DTO refactor, database schema correction, missing page noted, backlog added |

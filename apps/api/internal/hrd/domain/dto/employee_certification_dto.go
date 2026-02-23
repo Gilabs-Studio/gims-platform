@@ -46,5 +46,5 @@ type EmployeeCertificationResponse struct {
 
 // EmployeeCertificationFormDataResponse represents form dropdown data
 type EmployeeCertificationFormDataResponse struct {
-	Employees []EmployeeFormOption `json:"employees"` // EmployeeFormOption is defined in employee_contract_dto.go
+	Employees []EmployeeFormOption `json:"employees"`
 }

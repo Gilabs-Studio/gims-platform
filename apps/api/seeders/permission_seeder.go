@@ -385,11 +385,6 @@ func SeedPermissions() error {
 		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
 
-		{"/hrd/contracts", "employee_contract.read", "View Employee Contracts", "VIEW", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.create", "Create Employee Contracts", "CREATE", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.update", "Edit Employee Contracts", "EDIT", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.delete", "Delete Employee Contracts", "DELETE", "employee_contract"},
-
 		{"/hrd/education", "education_history.read", "View Education History", "VIEW", "education_history"},
 		{"/hrd/education", "education_history.create", "Create Education History", "CREATE", "education_history"},
 		{"/hrd/education", "education_history.update", "Edit Education History", "EDIT", "education_history"},
