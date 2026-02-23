@@ -250,6 +250,10 @@ export const productEn = {
       approved: "Approved",
       rejected: "Rejected",
     },
+    allShort: "ALL",
+    previous: "Previous",
+    next: "Next",
+    productsRes: "products",
     stock: {
       current: "Current Stock",
       hpp: "Current HPP",
