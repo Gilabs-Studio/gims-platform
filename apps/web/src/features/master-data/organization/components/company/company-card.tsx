@@ -1,9 +1,8 @@
 "use client";
 
 import { Building, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Company, CompanyStatus } from "../../types";
+import type { Company } from "../../types";
 
 
 
@@ -43,7 +42,10 @@ export function CompanyCard({
           <Building className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <h4 className="font-medium text-sm truncate">{company.name}</h4>
+          <div className="flex items-center gap-1.5">
+            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", company.is_active ? "bg-emerald-500" : "bg-gray-400")} />
+            <h4 className="font-medium text-sm truncate">{company.name}</h4>
+          </div>
           {company.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
@@ -51,14 +53,6 @@ export function CompanyCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge 
-              className="text-xs"
-              variant={
-                company.status === 'rejected' ? 'destructive' : 'secondary'
-              }
-            >
-              {t(`company.status.${company.status}`)}
-            </Badge>
             {company.latitude != null && company.longitude != null && (
               <span className="text-xs text-muted-foreground">
                 📍 {Number(company.latitude).toFixed(4)}, {Number(company.longitude).toFixed(4)}

@@ -8,7 +8,6 @@ import {
   Building,
   Menu,
   X,
-  Filter,
   Loader2,
   ChevronLeft,
 } from "lucide-react";
@@ -16,13 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MapView, type MapMarker, MarkerClusterGroup } from "@/components/ui/map/map-view";
 import { cn } from "@/lib/utils";
 
@@ -33,17 +25,10 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 import { useCompanyMapView } from "../../hooks/use-company-map-view";
-import type { Company, CompanyStatus } from "../../types";
+import type { Company } from "../../types";
 
 const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
-
-const statusColors: Record<CompanyStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
 
 export function CompanyMapView() {
   const { state, actions, data, permissions, layout, translations } = useCompanyMapView();
@@ -72,9 +57,6 @@ export function CompanyMapView() {
                       {company.address}
                     </p>
                   )}
-                  <Badge className={cn("text-xs mb-2", statusColors[company.status])}>
-                    {t(`company.status.${company.status}`)}
-                  </Badge>
                   <div className="flex flex-col gap-1 mt-2">
                     <Button
                       size="sm"
@@ -154,24 +136,8 @@ export function CompanyMapView() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Select
-                value={state.statusFilter}
-                onValueChange={(val) => actions.setStatusFilter(val as CompanyStatus | "all")}
-              >
-                <SelectTrigger className="flex-1">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">{t("company.status.draft")}</SelectItem>
-                  <SelectItem value="pending">{t("company.status.pending")}</SelectItem>
-                  <SelectItem value="approved">{t("company.status.approved")}</SelectItem>
-                  <SelectItem value="rejected">{t("company.status.rejected")}</SelectItem>
-                </SelectContent>
-              </Select>
               {permissions.canCreate && (
-                <Button onClick={actions.handleCreate} className="cursor-pointer shrink-0">
+                <Button onClick={actions.handleCreate} className="cursor-pointer w-full">
                   <Plus className="h-4 w-4 mr-1" />
                   {t("common.create")}
                 </Button>
