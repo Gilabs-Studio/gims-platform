@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"github.com/gilabs/gims/api/internal/supplier/domain/dto"
 )
@@ -13,6 +14,9 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		Name:           m.Name,
 		SupplierTypeID: m.SupplierTypeID,
 		Address:        m.Address,
+		ProvinceID:     m.ProvinceID,
+		CityID:         m.CityID,
+		DistrictID:     m.DistrictID,
 		VillageID:      m.VillageID,
 		Email:          m.Email,
 		Website:        m.Website,
@@ -29,6 +33,17 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		IsActive:       m.IsActive,
 		CreatedAt:      m.CreatedAt,
 		UpdatedAt:      m.UpdatedAt,
+	}
+
+	// Map other geographic relations if loaded directly
+	if m.Province != nil {
+		resp.Province = &dto.ProvinceResponse{ID: m.Province.ID, Name: m.Province.Name}
+	}
+	if m.City != nil {
+		resp.City = &dto.CityResponse{ID: m.City.ID, Name: m.City.Name}
+	}
+	if m.District != nil {
+		resp.District = &dto.DistrictResponse{ID: m.District.ID, Name: m.District.Name}
 	}
 
 	// Map SupplierType if loaded
@@ -114,27 +129,34 @@ func toSupplierBankResponseList(models []models.SupplierBank) []dto.SupplierBank
 	return responses
 }
 
-func toVillageResponse(v interface{}) *dto.VillageResponse {
-	// Type assertion for geographic.Village
-	// Using interface{} to avoid import cycle issues
-	type village struct {
-		ID       string
-		Name     string
-		District *struct {
-			ID   string
-			Name string
-			City *struct {
-				ID       string
-				Name     string
-				Province *struct {
-					ID   string
-					Name string
+func toVillageResponse(v *geographic.Village) *dto.VillageResponse {
+	if v == nil {
+		return nil
+	}
+
+	village := &dto.VillageResponse{
+		ID:   v.ID,
+		Name: v.Name,
+	}
+
+	if v.District != nil {
+		village.District = &dto.DistrictResponse{
+			ID:   v.District.ID,
+			Name: v.District.Name,
+		}
+		if v.District.City != nil {
+			village.District.City = &dto.CityResponse{
+				ID:   v.District.City.ID,
+				Name: v.District.City.Name,
+			}
+			if v.District.City.Province != nil {
+				village.District.City.Province = &dto.ProvinceResponse{
+					ID:   v.District.City.Province.ID,
+					Name: v.District.City.Province.Name,
 				}
 			}
 		}
 	}
 
-	// Use simple field access since we know the structure
-	// from GORM preloading
-	return nil // Will be populated when data is preloaded
+	return village
 }

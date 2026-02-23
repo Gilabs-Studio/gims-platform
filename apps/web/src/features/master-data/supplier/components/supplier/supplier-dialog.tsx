@@ -116,12 +116,6 @@ export function SupplierDialog({
               <TabsContent value="general" className="mt-4 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field>
-                      <FieldLabel>{t("form.code")} *</FieldLabel>
-                      <Input placeholder={t("form.codePlaceholder")} {...register("code")} />
-                      {errors.code && <FieldError>{errors.code.message}</FieldError>}
-                    </Field>
-
-                    <Field>
                       <FieldLabel>{t("form.name")} *</FieldLabel>
                       <Input placeholder={t("form.namePlaceholder")} {...register("name")} />
                       {errors.name && <FieldError>{errors.name.message}</FieldError>}

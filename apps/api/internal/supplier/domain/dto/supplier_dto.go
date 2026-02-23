@@ -5,10 +5,12 @@ import "time"
 // === Supplier DTOs ===
 
 type CreateSupplierRequest struct {
-	Code           string                        `json:"code" binding:"required,min=2,max=50"`
 	Name           string                        `json:"name" binding:"required,min=2,max=200"`
 	SupplierTypeID string                        `json:"supplier_type_id" binding:"omitempty,uuid"`
 	Address        string                        `json:"address" binding:"max=500"`
+	ProvinceID     string                        `json:"province_id" binding:"omitempty,uuid"`
+	CityID         string                        `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     string                        `json:"district_id" binding:"omitempty,uuid"`
 	VillageID      string                        `json:"village_id" binding:"omitempty,uuid"`
 	Email          string                        `json:"email" binding:"omitempty,email,max=100"`
 	Website        string                        `json:"website" binding:"max=200"`
@@ -22,17 +24,25 @@ type CreateSupplierRequest struct {
 	BankAccounts   []CreateSupplierBankRequest   `json:"bank_accounts"`
 }
 
+// UpdateSupplierRequest uses pointer types to distinguish between
+// "field not sent" (nil) and "field sent as empty" (pointer to zero value)
+// NOTE: For *string pointer fields, "omitempty" only skips validation when
+// the pointer is nil. A non-nil pointer to "" does NOT trigger omitempty,
+// so format validators like "email" would reject empty strings and block
+// the entire request. Email format is validated in the usecase instead.
 type UpdateSupplierRequest struct {
-	Code           string `json:"code" binding:"omitempty,min=2,max=50"`
-	Name           string `json:"name" binding:"omitempty,min=2,max=200"`
-	SupplierTypeID string `json:"supplier_type_id" binding:"omitempty,uuid"`
-	Address        string `json:"address" binding:"max=500"`
-	VillageID      string `json:"village_id" binding:"omitempty,uuid"`
-	Email          string `json:"email" binding:"omitempty,email,max=100"`
-	Website        string `json:"website" binding:"max=200"`
-	NPWP           string   `json:"npwp" binding:"max=30"`
-	ContactPerson  string   `json:"contact_person" binding:"max=100"`
-	Notes          string   `json:"notes" binding:"max=1000"`
+	Name           *string  `json:"name" binding:"omitempty,min=2,max=200"`
+	SupplierTypeID *string  `json:"supplier_type_id"`
+	Address        *string  `json:"address" binding:"omitempty,max=500"`
+	ProvinceID     *string  `json:"province_id"`
+	CityID         *string  `json:"city_id"`
+	DistrictID     *string  `json:"district_id"`
+	VillageID      *string  `json:"village_id"`
+	Email          *string  `json:"email" binding:"omitempty,max=100"`
+	Website        *string  `json:"website" binding:"omitempty,max=200"`
+	NPWP           *string  `json:"npwp" binding:"omitempty,max=30"`
+	ContactPerson  *string  `json:"contact_person" binding:"omitempty,max=100"`
+	Notes          *string  `json:"notes" binding:"omitempty,max=1000"`
 	Latitude       *float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	Longitude      *float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool    `json:"is_active"`
@@ -50,6 +60,12 @@ type SupplierResponse struct {
 	SupplierTypeID *string                     `json:"supplier_type_id"`
 	SupplierType   *SupplierTypeResponse       `json:"supplier_type,omitempty"`
 	Address        string                      `json:"address"`
+	ProvinceID     *string                     `json:"province_id"`
+	Province       *ProvinceResponse           `json:"province,omitempty"`
+	CityID         *string                     `json:"city_id"`
+	City           *CityResponse               `json:"city,omitempty"`
+	DistrictID     *string                     `json:"district_id"`
+	District       *DistrictResponse           `json:"district,omitempty"`
 	VillageID      *string                     `json:"village_id"`
 	Village        *VillageResponse            `json:"village,omitempty"`
 	Email          string                      `json:"email"`

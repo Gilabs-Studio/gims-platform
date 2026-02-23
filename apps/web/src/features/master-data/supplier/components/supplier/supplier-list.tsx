@@ -6,7 +6,6 @@ import {
   Search,
   Pencil,
   Trash2,
-  Send,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,20 +44,7 @@ export function SupplierList() {
   const { state, actions, data, permissions, translations } = useSupplierList();
   const { t, tCommon } = translations;
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "secondary" | "warning" | "success" | "destructive"> = {
-      draft: "secondary",
-      pending: "warning",
-      approved: "success",
-      rejected: "destructive",
-    };
-    
-    return (
-      <Badge variant={variants[status] || "secondary"}>
-        {t(`status.${status}`)}
-      </Badge>
-    );
-  };
+
 
   if (data.isError) {
     return (
@@ -136,7 +122,7 @@ export function SupplierList() {
               <TableHead>{t("form.supplierType")}</TableHead>
               <TableHead>{t("sections.contact")}</TableHead>
               <TableHead>{tCommon("status")}</TableHead>
-              {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>}
+              {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -148,13 +134,13 @@ export function SupplierList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
+                  {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
             ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={permissions.canUpdate || permissions.canDelete || permissions.canSubmit ? 6 : 5}
+                  colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
@@ -179,8 +165,12 @@ export function SupplierList() {
                       <span className="text-xs text-muted-foreground">{item.email}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && (
+                  <TableCell>
+                    <Badge variant={item.is_active ? "active" : "inactive"}>
+                      {item.is_active ? tCommon("active") : tCommon("inactive")}
+                    </Badge>
+                  </TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -204,16 +194,6 @@ export function SupplierList() {
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               {tCommon("edit")}
-                            </DropdownMenuItem>
-                          )}
-                          
-                          {item.status === "draft" && permissions.canSubmit && (
-                            <DropdownMenuItem
-                              onClick={() => actions.handleSubmit(item.id)}
-                              className="cursor-pointer"
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           

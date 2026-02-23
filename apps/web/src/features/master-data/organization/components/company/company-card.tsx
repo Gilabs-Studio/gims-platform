@@ -22,7 +22,6 @@ export function CompanyCard({
   company, 
   isSelected, 
   onClick, 
-  t, 
   onDetail,
   onEdit, 
   onDelete,
@@ -33,8 +32,9 @@ export function CompanyCard({
     <div
       onClick={onClick}
       className={cn(
-        "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24", // Increased padding right for buttons
-        isSelected && "bg-accent border-l-4 border-l-primary"
+        "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
+        isSelected && "bg-accent border-l-4 border-l-primary",
+        !company.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
@@ -43,7 +43,6 @@ export function CompanyCard({
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
-            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", company.is_active ? "bg-emerald-500" : "bg-gray-400")} />
             <h4 className="font-medium text-sm truncate">{company.name}</h4>
           </div>
           {company.address && (
