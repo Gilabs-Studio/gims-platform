@@ -34,4 +34,10 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("/:id/contracts/:contract_id/terminate", middleware.RequirePermission("employee.update"), h.TerminateEmployeeContract)
 	g.POST("/:id/contracts/:contract_id/renew", middleware.RequirePermission("employee.update"), h.RenewEmployeeContract)
 	g.PATCH("/:id/contracts/active", middleware.RequirePermission("employee.update"), h.CorrectActiveEmployeeContract)
+
+	// Employee education history management routes
+	g.GET("/:id/education-histories", middleware.RequirePermission("employee.read"), h.GetEmployeeEducationHistories)
+	g.POST("/:id/education-histories", middleware.RequirePermission("employee.update"), h.CreateEmployeeEducationHistory)
+	g.PUT("/:id/education-histories/:education_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeEducationHistory)
+	g.DELETE("/:id/education-histories/:education_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeEducationHistory)
 }

@@ -41,7 +41,6 @@ func (EmployeeEducationHistory) TableName() string {
 	return "employee_education_histories"
 }
 
-// BeforeCreate hook to generate UUID
 func (eeh *EmployeeEducationHistory) BeforeCreate(tx *gorm.DB) error {
 	if eeh.ID == uuid.Nil {
 		eeh.ID = uuid.New()
@@ -49,12 +48,10 @@ func (eeh *EmployeeEducationHistory) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// IsCompleted checks if education is completed (has end date)
 func (eeh *EmployeeEducationHistory) IsCompleted() bool {
 	return eeh.EndDate != nil
 }
 
-// GetDurationYears calculates education duration in years
 func (eeh *EmployeeEducationHistory) GetDurationYears() float64 {
 	endDate := time.Now()
 	if eeh.EndDate != nil {

@@ -14,6 +14,8 @@ import type {
   TerminateEmployeeContractData,
   RenewEmployeeContractData,
   CorrectEmployeeContractData,
+  CreateEmployeeEducationHistoryData,
+  UpdateEmployeeEducationHistoryData,
 } from "../types";
 
 export const employeeKeys = {
@@ -350,6 +352,102 @@ export function useCorrectActiveEmployeeContract() {
       });
       queryClient.invalidateQueries({
         queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+// Education history query keys
+export const educationKeys = {
+  all: ["employee-education"] as const,
+  lists: (employeeId: string) =>
+    [...educationKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeEducationHistories(
+  employeeId: string | undefined,
+) {
+  return useQuery({
+    queryKey: educationKeys.lists(employeeId ?? ""),
+    queryFn: () =>
+      employeeService.getEmployeeEducationHistories(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: CreateEmployeeEducationHistoryData;
+    }) =>
+      employeeService.createEmployeeEducationHistory(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      educationId,
+      data,
+    }: {
+      employeeId: string;
+      educationId: string;
+      data: UpdateEmployeeEducationHistoryData;
+    }) =>
+      employeeService.updateEmployeeEducationHistory(
+        employeeId,
+        educationId,
+        data,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      educationId,
+    }: {
+      employeeId: string;
+      educationId: string;
+    }) =>
+      employeeService.deleteEmployeeEducationHistory(
+        employeeId,
+        educationId,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
       });
       queryClient.invalidateQueries({
         queryKey: employeeKeys.detail(employeeId),

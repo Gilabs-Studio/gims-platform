@@ -17,6 +17,9 @@ import type {
   TerminateEmployeeContractData,
   RenewEmployeeContractData,
   CorrectEmployeeContractData,
+  EmployeeEducationHistory,
+  CreateEmployeeEducationHistoryData,
+  UpdateEmployeeEducationHistoryData,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -213,5 +216,48 @@ export const employeeService = {
       data,
     );
     return response.data.data;
+  },
+
+  // Education history management
+  async getEmployeeEducationHistories(
+    employeeId: string,
+  ): Promise<EmployeeEducationHistory[]> {
+    const response = await apiClient.get<{
+      data: EmployeeEducationHistory[];
+    }>(`${BASE_PATH}/employees/${employeeId}/education-histories`);
+    return response.data.data;
+  },
+
+  async createEmployeeEducationHistory(
+    employeeId: string,
+    data: CreateEmployeeEducationHistoryData,
+  ): Promise<EmployeeEducationHistory> {
+    const response = await apiClient.post<{
+      data: EmployeeEducationHistory;
+    }>(`${BASE_PATH}/employees/${employeeId}/education-histories`, data);
+    return response.data.data;
+  },
+
+  async updateEmployeeEducationHistory(
+    employeeId: string,
+    educationId: string,
+    data: UpdateEmployeeEducationHistoryData,
+  ): Promise<EmployeeEducationHistory> {
+    const response = await apiClient.put<{
+      data: EmployeeEducationHistory;
+    }>(
+      `${BASE_PATH}/employees/${employeeId}/education-histories/${educationId}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  async deleteEmployeeEducationHistory(
+    employeeId: string,
+    educationId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      `${BASE_PATH}/employees/${employeeId}/education-histories/${educationId}`,
+    );
   },
 };

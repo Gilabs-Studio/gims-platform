@@ -632,3 +632,120 @@ func (h *EmployeeHandler) CorrectActiveEmployeeContract(c *gin.Context) {
 	
 	response.SuccessResponse(c, resp, nil)
 }
+
+// GetEmployeeEducationHistories handles GET /employees/:id/education-histories
+func (h *EmployeeHandler) GetEmployeeEducationHistories(c *gin.Context) {
+	id := c.Param("id")
+
+	educations, err := h.employeeUC.GetEmployeeEducationHistories(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, educations, nil)
+}
+
+// CreateEmployeeEducationHistory handles POST /employees/:id/education-histories
+func (h *EmployeeHandler) CreateEmployeeEducationHistory(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.CreateEmployeeEducationHistoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			userID = uidStr
+		}
+	}
+
+	resp, err := h.employeeUC.CreateEmployeeEducationHistory(c.Request.Context(), id, req, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseCreated(c, resp, nil)
+}
+
+// UpdateEmployeeEducationHistory handles PUT /employees/:id/education-histories/:education_id
+func (h *EmployeeHandler) UpdateEmployeeEducationHistory(c *gin.Context) {
+	id := c.Param("id")
+	educationID := c.Param("education_id")
+
+	var req dto.UpdateEmployeeEducationHistoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	resp, err := h.employeeUC.UpdateEmployeeEducationHistory(c.Request.Context(), id, educationID, req)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrEducationNotFound {
+			errors.ErrorResponse(c, "EDUCATION_NOT_FOUND", map[string]interface{}{
+				"education_id": educationID,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// DeleteEmployeeEducationHistory handles DELETE /employees/:id/education-histories/:education_id
+func (h *EmployeeHandler) DeleteEmployeeEducationHistory(c *gin.Context) {
+	id := c.Param("id")
+	educationID := c.Param("education_id")
+
+	err := h.employeeUC.DeleteEmployeeEducationHistory(c.Request.Context(), id, educationID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrEducationNotFound {
+			errors.ErrorResponse(c, "EDUCATION_NOT_FOUND", map[string]interface{}{
+				"education_id": educationID,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"message": "Education history deleted successfully"}, nil)
+}

@@ -93,6 +93,67 @@ export interface CorrectEmployeeContractData {
   document_path?: string;
 }
 
+// Education history types
+export type DegreeLevel =
+  | "ELEMENTARY"
+  | "JUNIOR_HIGH"
+  | "SENIOR_HIGH"
+  | "DIPLOMA"
+  | "BACHELOR"
+  | "MASTER"
+  | "DOCTORATE";
+
+export interface EmployeeEducationHistory {
+  id: string;
+  employee_id: string;
+  institution: string;
+  degree: DegreeLevel;
+  field_of_study?: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+  is_completed: boolean;
+  duration_years: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeEducationBrief {
+  id: string;
+  institution: string;
+  degree: string;
+  field_of_study: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  document_path?: string;
+  is_completed: boolean;
+}
+
+export interface CreateEmployeeEducationHistoryData {
+  institution: string;
+  degree: DegreeLevel;
+  field_of_study?: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+}
+
+export interface UpdateEmployeeEducationHistoryData {
+  institution?: string;
+  degree?: DegreeLevel;
+  field_of_study?: string;
+  start_date?: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+}
+
 export interface Division {
   id: string;
   name: string;
@@ -170,8 +231,8 @@ export interface Employee {
   npwp?: string;
   bpjs?: string;
   total_leave_quota?: number;
-  // New contract structure
   current_contract?: EmployeeContract;
+  latest_education?: EmployeeEducationBrief;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
   replacement_for_id?: string;
