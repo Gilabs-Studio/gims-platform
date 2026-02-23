@@ -12,7 +12,7 @@ import { isAxiosError } from "axios";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Send, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Send, CheckCircle2, XCircle, FileText, Printer } from "lucide-react";
 import { useQuotations, useDeleteQuotation, useUpdateQuotationStatus } from "../hooks/use-quotations";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -21,6 +21,7 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { QuotationForm } from "./quotation-form";
 import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
+import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { formatCurrency } from "@/lib/utils";
 
 import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
@@ -41,6 +42,7 @@ export function QuotationList() {
   const [editingQuotation, setEditingQuotation] = useState<SalesQuotation | null>(null);
   const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [printingQuotationId, setPrintingQuotationId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuotations({
@@ -56,6 +58,7 @@ export function QuotationList() {
   const canView = useUserPermission("sales_quotation.read");
   const canViewEmployee = useUserPermission("employee.read");
   const canApprove = useUserPermission("sales_quotation.approve");
+  const canPrint = useUserPermission("sales_quotation.print");
 
   // Permission + scope for viewing linked Sales Orders from the Converted badge
   const hasSalesOrderRead = useUserPermission("sales_order.read");
@@ -386,6 +389,15 @@ export function QuotationList() {
                               {t("common.delete")}
                             </DropdownMenuItem>
                           )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingQuotationId(quotation.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -450,6 +462,14 @@ export function QuotationList() {
         onClose={() => setSelectedOrderId(null)}
         order={selectedOrderId ? ({ id: selectedOrderId } as SalesOrder) : null}
       />
+
+      {printingQuotationId && (
+        <QuotationPrintDialog
+          open={!!printingQuotationId}
+          onClose={() => setPrintingQuotationId(null)}
+          quotationId={printingQuotationId}
+        />
+      )}
     </div>
   );
 }

@@ -102,6 +102,12 @@ export const quotationEn = {
     deleteDesc: "Are you sure you want to delete this quotation? This action cannot be undone. Only draft quotations can be deleted.",
     convertToOrder: "Convert to Sales Order",
     print: "Print",
+    printQuotation: "Print Quotation",
+    printSelectCompany: "Select the company to display on the quotation document.",
+    printCompanyLabel: "Company",
+    printCompanyPlaceholder: "Select company...",
+    printNoCompanies: "No companies available",
+    printConfirm: "Print",
     export: "Export PDF",
 
     // Item

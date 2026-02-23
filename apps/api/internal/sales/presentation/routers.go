@@ -47,6 +47,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
+	quotationPrintHandler := handler.NewSalesQuotationPrintHandler(quotationUC, db)
 	estimationHandler := handler.NewSalesEstimationHandler(estimationUC)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
@@ -60,7 +61,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salesGroup.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
-	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler)
+	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler, quotationPrintHandler)
 	router.RegisterSalesEstimationRoutes(salesGroup, estimationHandler)
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
