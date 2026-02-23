@@ -18,10 +18,6 @@ func RegisterCustomerRoutes(rg *gin.RouterGroup, h *handler.CustomerHandler) {
 		g.PUT("/:id", h.Update)
 		g.DELETE("/:id", h.Delete)
 
-		// Approval workflow
-		g.POST("/:id/submit", h.Submit)
-		g.POST("/:id/approve", h.Approve)
-
 		// Nested phone numbers
 		g.POST("/:id/phone-numbers", h.AddPhoneNumber)
 		g.PUT("/:id/phone-numbers/:phoneId", h.UpdatePhoneNumber)

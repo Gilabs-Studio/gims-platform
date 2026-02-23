@@ -1,12 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { customerService } from "../services/customer-service";
 import type {
   Customer,
   CreateCustomerData,
   UpdateCustomerData,
-  ApproveCustomerData,
   CreatePhoneNumberData,
   UpdatePhoneNumberData,
   CreateCustomerBankData,
@@ -36,11 +35,18 @@ export function useCustomers(params?: CustomerListParams) {
 }
 
 // === Detail Hook ===
-export function useCustomer(id: string) {
+type CustomerDetailResult = Awaited<ReturnType<typeof customerService.getById>>;
+
+export function useCustomer(
+  id: string,
+  options?: Omit<UseQueryOptions<CustomerDetailResult, Error>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: customerKeys.detail(id),
     queryFn: () => customerService.getById(id),
     enabled: !!id,
+    staleTime: 0,
+    ...options,
   });
 }
 
@@ -73,25 +79,11 @@ export function useUpdateCustomer() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomerData }) =>
       customerService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: customerKeys.lists() });
-      queryClient.setQueriesData(
-        { queryKey: customerKeys.lists() },
-        (old: CustomerListResponse<Customer> | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((item: Customer) =>
-              item.id === id ? { ...item, ...data } : item,
-            ),
-          };
-        },
-      );
-    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: customerKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
@@ -106,35 +98,6 @@ export function useDeleteCustomer() {
   return useMutation({
     mutationFn: (id: string) => customerService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
-    },
-  });
-}
-
-// === Submit for Approval Hook ===
-export function useSubmitCustomer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => customerService.submit(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
-    },
-  });
-}
-
-// === Approve/Reject Hook ===
-export function useApproveCustomer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ApproveCustomerData }) =>
-      customerService.approve(id, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: customerKeys.detail(variables.id),
-      });
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
     },
   });

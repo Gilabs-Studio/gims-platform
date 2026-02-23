@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
@@ -20,9 +19,6 @@ type CustomerUsecase interface {
 	List(ctx context.Context, params repositories.CustomerListParams) ([]dto.CustomerResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateCustomerRequest) (dto.CustomerResponse, error)
 	Delete(ctx context.Context, id string) error
-	// Approval workflow
-	Submit(ctx context.Context, id string) (dto.CustomerResponse, error)
-	Approve(ctx context.Context, id string, userID string, req dto.ApproveCustomerRequest) (dto.CustomerResponse, error)
 	// Nested operations
 	AddPhoneNumber(ctx context.Context, customerID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
 	UpdatePhoneNumber(ctx context.Context, id string, req dto.UpdatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
@@ -35,9 +31,9 @@ type CustomerUsecase interface {
 }
 
 type customerUsecase struct {
-	repo         repositories.CustomerRepository
-	typeRepo     repositories.CustomerTypeRepository
-	db           *gorm.DB
+	repo     repositories.CustomerRepository
+	typeRepo repositories.CustomerTypeRepository
+	db       *gorm.DB
 }
 
 // NewCustomerUsecase creates a new CustomerUsecase
@@ -78,25 +74,21 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		Notes:         req.Notes,
 		Latitude:      req.Latitude,
 		Longitude:     req.Longitude,
-		Status:        models.CustomerStatusDraft,
-		IsApproved:    false,
 		CreatedBy:     &userID,
 		IsActive:      isActive,
+		// Set optional FK relations directly from pointers
+		CustomerTypeID: req.CustomerTypeID,
+		ProvinceID:     req.ProvinceID,
+		CityID:         req.CityID,
+		DistrictID:     req.DistrictID,
+		VillageID:      req.VillageID,
+		// Sales defaults
+		DefaultBusinessTypeID: req.DefaultBusinessTypeID,
+		DefaultAreaID:         req.DefaultAreaID,
+		DefaultSalesRepID:     req.DefaultSalesRepID,
+		DefaultPaymentTermsID: req.DefaultPaymentTermsID,
+		DefaultTaxRate:        req.DefaultTaxRate,
 	}
-
-	// Set optional FK relations
-	if req.CustomerTypeID != "" {
-		customer.CustomerTypeID = &req.CustomerTypeID
-	}
-	if req.VillageID != "" {
-		customer.VillageID = &req.VillageID
-	}
-	// Set sales defaults
-	customer.DefaultBusinessTypeID = req.DefaultBusinessTypeID
-	customer.DefaultAreaID = req.DefaultAreaID
-	customer.DefaultSalesRepID = req.DefaultSalesRepID
-	customer.DefaultPaymentTermsID = req.DefaultPaymentTermsID
-	customer.DefaultTaxRate = req.DefaultTaxRate
 
 	if err := u.repo.Create(ctx, customer); err != nil {
 		return dto.CustomerResponse{}, err
@@ -163,44 +155,56 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 		return dto.CustomerResponse{}, err
 	}
 
-	// Only allow updates on draft, rejected, or approved status
-	if customer.Status != models.CustomerStatusDraft && customer.Status != models.CustomerStatusRejected && customer.Status != models.CustomerStatusApproved {
-		return dto.CustomerResponse{}, errors.New("cannot update customer in current status")
-	}
-
-	if req.Code != "" {
-		existing, _ := u.repo.FindByCode(ctx, req.Code)
+	// Apply partial updates — only overwrite fields that are explicitly provided
+	if req.Code != nil {
+		existing, _ := u.repo.FindByCode(ctx, *req.Code)
 		if existing != nil && existing.ID != id {
 			return dto.CustomerResponse{}, errors.New("customer code already exists")
 		}
-		customer.Code = req.Code
+		customer.Code = *req.Code
 	}
-	if req.Name != "" {
-		customer.Name = req.Name
+	if req.Name != nil {
+		customer.Name = *req.Name
 	}
-	if req.Address != "" {
-		customer.Address = req.Address
+	if req.Address != nil {
+		customer.Address = *req.Address
 	}
-	if req.Email != "" {
-		customer.Email = req.Email
+	if req.Email != nil {
+		customer.Email = *req.Email
 	}
-	if req.Website != "" {
-		customer.Website = req.Website
+	if req.Website != nil {
+		customer.Website = *req.Website
 	}
-	if req.NPWP != "" {
-		customer.NPWP = req.NPWP
+	if req.NPWP != nil {
+		customer.NPWP = *req.NPWP
 	}
-	if req.ContactPerson != "" {
-		customer.ContactPerson = req.ContactPerson
+	if req.ContactPerson != nil {
+		customer.ContactPerson = *req.ContactPerson
 	}
-	if req.Notes != "" {
-		customer.Notes = req.Notes
+	if req.Notes != nil {
+		customer.Notes = *req.Notes
 	}
-	if req.CustomerTypeID != "" {
-		customer.CustomerTypeID = &req.CustomerTypeID
+	if req.CustomerTypeID != nil {
+		customer.CustomerTypeID = req.CustomerTypeID
+		// Clear preloaded association so GORM does not override the FK with the old relation ID.
+		customer.CustomerType = nil
 	}
-	if req.VillageID != "" {
-		customer.VillageID = &req.VillageID
+	// Geographic fields: nil keeps existing, pointer with empty string clears it
+	if req.ProvinceID != nil {
+		customer.ProvinceID = req.ProvinceID
+		customer.Province = nil
+	}
+	if req.CityID != nil {
+		customer.CityID = req.CityID
+		customer.City = nil
+	}
+	if req.DistrictID != nil {
+		customer.DistrictID = req.DistrictID
+		customer.District = nil
+	}
+	if req.VillageID != nil {
+		customer.VillageID = req.VillageID
+		customer.Village = nil
 	}
 	if req.Latitude != nil {
 		customer.Latitude = req.Latitude
@@ -211,18 +215,22 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 	if req.IsActive != nil {
 		customer.IsActive = *req.IsActive
 	}
-	// Update sales defaults (nil pointer means "clear the value")
+	// Sales defaults: nil pointer means "keep existing", non-nil means "set or clear"
 	if req.DefaultBusinessTypeID != nil {
 		customer.DefaultBusinessTypeID = req.DefaultBusinessTypeID
+		customer.DefaultBusinessType = nil
 	}
 	if req.DefaultAreaID != nil {
 		customer.DefaultAreaID = req.DefaultAreaID
+		customer.DefaultArea = nil
 	}
 	if req.DefaultSalesRepID != nil {
 		customer.DefaultSalesRepID = req.DefaultSalesRepID
+		customer.DefaultSalesRep = nil
 	}
 	if req.DefaultPaymentTermsID != nil {
 		customer.DefaultPaymentTermsID = req.DefaultPaymentTermsID
+		customer.DefaultPaymentTerms = nil
 	}
 	if req.DefaultTaxRate != nil {
 		customer.DefaultTaxRate = req.DefaultTaxRate
@@ -238,69 +246,15 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 }
 
 func (u *customerUsecase) Delete(ctx context.Context, id string) error {
-	customer, err := u.repo.FindByID(ctx, id)
+	_, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("customer not found")
 	}
-
-	// Only allow deletion of draft customers
-	if customer.Status != models.CustomerStatusDraft {
-		return errors.New("can only delete draft customers")
-	}
-
 	return u.repo.Delete(ctx, id)
 }
 
-// Submit transitions customer from draft/rejected to pending status
-func (u *customerUsecase) Submit(ctx context.Context, id string) (dto.CustomerResponse, error) {
-	customer, err := u.repo.FindByID(ctx, id)
-	if err != nil {
-		return dto.CustomerResponse{}, err
-	}
-
-	if customer.Status != models.CustomerStatusDraft && customer.Status != models.CustomerStatusRejected {
-		return dto.CustomerResponse{}, errors.New("customer can only be submitted from draft or rejected status")
-	}
-
-	customer.Status = models.CustomerStatusPending
-	if err := u.repo.Update(ctx, customer); err != nil {
-		return dto.CustomerResponse{}, err
-	}
-
-	return mapper.ToCustomerResponse(customer), nil
-}
-
-// Approve handles approval or rejection of a pending customer
-func (u *customerUsecase) Approve(ctx context.Context, id string, userID string, req dto.ApproveCustomerRequest) (dto.CustomerResponse, error) {
-	customer, err := u.repo.FindByID(ctx, id)
-	if err != nil {
-		return dto.CustomerResponse{}, err
-	}
-
-	if customer.Status != models.CustomerStatusPending {
-		return dto.CustomerResponse{}, errors.New("customer must be in pending status to approve/reject")
-	}
-
-	now := time.Now()
-	customer.ApprovedBy = &userID
-	customer.ApprovedAt = &now
-
-	if req.Action == "approve" {
-		customer.Status = models.CustomerStatusApproved
-		customer.IsApproved = true
-	} else {
-		customer.Status = models.CustomerStatusRejected
-		customer.IsApproved = false
-	}
-
-	if err := u.repo.Update(ctx, customer); err != nil {
-		return dto.CustomerResponse{}, err
-	}
-
-	return mapper.ToCustomerResponse(customer), nil
-}
-
 // Nested phone number operations
+
 func (u *customerUsecase) AddPhoneNumber(ctx context.Context, customerID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error) {
 	phone := &models.CustomerPhoneNumber{
 		ID:          uuid.New().String(),
@@ -354,6 +308,7 @@ func (u *customerUsecase) DeletePhoneNumber(ctx context.Context, id string) erro
 }
 
 // Nested bank account operations
+
 func (u *customerUsecase) AddBankAccount(ctx context.Context, customerID string, req dto.CreateCustomerBankRequest) (dto.CustomerBankResponse, error) {
 	bank := &models.CustomerBank{
 		ID:            uuid.New().String(),

@@ -8,7 +8,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import {
   useCustomers,
   useDeleteCustomer,
-  useSubmitCustomer,
 } from "./use-customers";
 import { useCustomerTypes } from "./use-customer-types";
 import type { Customer } from "../types";
@@ -21,7 +20,7 @@ export function useCustomerList() {
   const canCreate = useUserPermission("customer.create");
   const canUpdate = useUserPermission("customer.update");
   const canDelete = useUserPermission("customer.delete");
-  const canSubmit = useUserPermission("customer.submit");
+
 
   // State
   const [search, setSearch] = useState("");
@@ -48,7 +47,6 @@ export function useCustomerList() {
   const customerTypes = typesData?.data ?? [];
 
   const deleteMutation = useDeleteCustomer();
-  const submitMutation = useSubmitCustomer();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -81,15 +79,6 @@ export function useCustomerList() {
     }
   };
 
-  const handleSubmit = async (id: string) => {
-    try {
-      await submitMutation.mutateAsync(id);
-      toast.success(t("submitSuccess"));
-    } catch {
-      toast.error("Failed to submit customer");
-    }
-  };
-
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingItem(null);
@@ -118,7 +107,6 @@ export function useCustomerList() {
       handleEdit,
       handleViewDetail,
       handleDelete,
-      handleSubmit,
       handleDialogClose,
     },
     data: {
@@ -134,7 +122,6 @@ export function useCustomerList() {
       canCreate,
       canUpdate,
       canDelete,
-      canSubmit,
     },
     translations: {
       t,

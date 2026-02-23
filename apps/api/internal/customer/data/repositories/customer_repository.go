@@ -44,6 +44,9 @@ func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.C
 	var customer models.Customer
 	err := r.db.WithContext(ctx).
 		Preload("CustomerType").
+		Preload("Province").
+		Preload("City").
+		Preload("District").
 		Preload("Village.District.City.Province").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
@@ -85,12 +88,6 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 	if params.CustomerTypeID != "" {
 		query = query.Where("customer_type_id = ?", params.CustomerTypeID)
 	}
-	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
-	}
-	if params.IsApproved != nil {
-		query = query.Where("is_approved = ?", *params.IsApproved)
-	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -115,7 +112,10 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 		query = query.Offset(params.Offset)
 	}
 
-	query = query.Preload("CustomerType").
+	query = query.Preload("Province").
+		Preload("City").
+		Preload("District").
+		Preload("CustomerType").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank")
 

@@ -6,7 +6,6 @@ import {
   Search,
   Pencil,
   Trash2,
-  Send,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,21 +44,6 @@ export function CustomerList() {
   const { state, actions, data, permissions, translations } = useCustomerList();
   const { t, tCommon } = translations;
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "secondary" | "warning" | "success" | "destructive"> = {
-      draft: "secondary",
-      pending: "warning",
-      approved: "success",
-      rejected: "destructive",
-    };
-
-    return (
-      <Badge variant={variants[status] || "secondary"}>
-        {t(`status.${status}`)}
-      </Badge>
-    );
-  };
-
   if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
@@ -67,7 +51,9 @@ export function CustomerList() {
         <Button
           variant="outline"
           onClick={() => data.refetch()}
-          className="mt-4 ml-2 cursor-pointer"
+          className={
+            "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full cursor-pointer mt-4 ml-2"
+          }
         >
           Retry
         </Button>
@@ -84,7 +70,12 @@ export function CustomerList() {
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
         {permissions.canCreate && (
-          <Button onClick={actions.handleCreate} className="cursor-pointer">
+          <Button
+            onClick={actions.handleCreate}
+            className={
+              "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full cursor-pointer"
+            }
+          >
             <Plus className="mr-2 h-4 w-4" />
             {tCommon("create")}
           </Button>
@@ -136,7 +127,7 @@ export function CustomerList() {
               <TableHead>{t("form.customerType")}</TableHead>
               <TableHead>{t("sections.contact")}</TableHead>
               <TableHead>{tCommon("status")}</TableHead>
-              {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && (
+              {(permissions.canUpdate || permissions.canDelete) && (
                 <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
               )}
             </TableRow>
@@ -150,7 +141,7 @@ export function CustomerList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && (
+                  {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   )}
                 </TableRow>
@@ -158,7 +149,7 @@ export function CustomerList() {
             ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={permissions.canUpdate || permissions.canDelete || permissions.canSubmit ? 6 : 5}
+                  colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
@@ -183,8 +174,12 @@ export function CustomerList() {
                       <span className="text-xs text-muted-foreground">{item.email}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canSubmit) && (
+                  <TableCell>
+                    <Badge variant={item.is_active ? "default" : "secondary"}>
+                      {item.is_active ? tCommon("active") : tCommon("inactive")}
+                    </Badge>
+                  </TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -208,16 +203,6 @@ export function CustomerList() {
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               {tCommon("edit")}
-                            </DropdownMenuItem>
-                          )}
-
-                          {item.status === "draft" && permissions.canSubmit && (
-                            <DropdownMenuItem
-                              onClick={() => actions.handleSubmit(item.id)}
-                              className="cursor-pointer"
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
 

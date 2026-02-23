@@ -3,6 +3,7 @@ package mapper
 import (
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
+	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	supplierDTO "github.com/gilabs/gims/api/internal/supplier/domain/dto"
 )
 
@@ -14,6 +15,9 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		Name:           m.Name,
 		CustomerTypeID: m.CustomerTypeID,
 		Address:        m.Address,
+		ProvinceID:     m.ProvinceID,
+		CityID:         m.CityID,
+		DistrictID:     m.DistrictID,
 		VillageID:      m.VillageID,
 		Email:          m.Email,
 		Website:        m.Website,
@@ -22,11 +26,7 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		Notes:          m.Notes,
 		Latitude:       m.Latitude,
 		Longitude:      m.Longitude,
-		Status:         string(m.Status),
-		IsApproved:     m.IsApproved,
 		CreatedBy:      m.CreatedBy,
-		ApprovedBy:     m.ApprovedBy,
-		ApprovedAt:     m.ApprovedAt,
 		IsActive:       m.IsActive,
 		CreatedAt:      m.CreatedAt,
 		UpdatedAt:      m.UpdatedAt,
@@ -46,7 +46,18 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 
 	// Map Village with nested district/city/province if loaded
 	if m.Village != nil {
-		resp.Village = toVillageResponse(m)
+		resp.Village = toVillageResponse(m.Village)
+	}
+
+	// Map other geographic relations if loaded directly
+	if m.Province != nil {
+		resp.Province = &dto.ProvinceResponse{ID: m.Province.ID, Name: m.Province.Name}
+	}
+	if m.City != nil {
+		resp.City = &dto.CityResponse{ID: m.City.ID, Name: m.City.Name}
+	}
+	if m.District != nil {
+		resp.District = &dto.DistrictResponse{ID: m.District.ID, Name: m.District.Name}
 	}
 
 	// Map phone numbers if loaded
@@ -157,31 +168,31 @@ func toCustomerBankResponseList(models []models.CustomerBank) []dto.CustomerBank
 	return responses
 }
 
-// toVillageResponse maps nested geographic Village chain from Customer model
-func toVillageResponse(m *models.Customer) *dto.VillageResponse {
-	if m.Village == nil {
+// toVillageResponse maps nested geographic Village chain
+func toVillageResponse(v *geographic.Village) *dto.VillageResponse {
+	if v == nil {
 		return nil
 	}
 
 	village := &dto.VillageResponse{
-		ID:   m.Village.ID,
-		Name: m.Village.Name,
+		ID:   v.ID,
+		Name: v.Name,
 	}
 
-	if m.Village.District != nil {
+	if v.District != nil {
 		village.District = &dto.DistrictResponse{
-			ID:   m.Village.District.ID,
-			Name: m.Village.District.Name,
+			ID:   v.District.ID,
+			Name: v.District.Name,
 		}
-		if m.Village.District.City != nil {
+		if v.District.City != nil {
 			village.District.City = &dto.CityResponse{
-				ID:   m.Village.District.City.ID,
-				Name: m.Village.District.City.Name,
+				ID:   v.District.City.ID,
+				Name: v.District.City.Name,
 			}
-			if m.Village.District.City.Province != nil {
+			if v.District.City.Province != nil {
 				village.District.City.Province = &dto.ProvinceResponse{
-					ID:   m.Village.District.City.Province.ID,
-					Name: m.Village.District.City.Province.Name,
+					ID:   v.District.City.Province.ID,
+					Name: v.District.City.Province.Name,
 				}
 			}
 		}
