@@ -104,90 +104,92 @@ export function CompanySidePanel(props: CompanySidePanelProps) {
             </div>
 
             {/* Location */}
-            <div className="space-y-4">
+            <div className="space-y-4 pt-4">
               <h3 className="text-sm font-medium border-b pb-2">
                 {t("company.sections.location")}
               </h3>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("company.form.province")}</FieldLabel>
-                <Select
-                  value={String(state.provinceId || "")}
-                  onValueChange={actions.handleProvinceChange}
-                  disabled={state.isViewing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.provinces, (p) => p.name).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field orientation="vertical">
+                  <FieldLabel>{t("company.form.province")}</FieldLabel>
+                  <Select
+                    value={String(state.provinceId || "")}
+                    onValueChange={actions.handleProvinceChange}
+                    disabled={state.isViewing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortOptions(data.provinces, (p) => p.name).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("company.form.city")}</FieldLabel>
-                <Select
-                  value={String(state.cityId || "")}
-                  onValueChange={actions.handleCityChange}
-                  disabled={!state.provinceId || state.isViewing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select City" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.cities, (c) => c.name).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <Field orientation="vertical">
+                  <FieldLabel>{t("company.form.city")}</FieldLabel>
+                  <Select
+                    value={String(state.cityId || "")}
+                    onValueChange={actions.handleCityChange}
+                    disabled={state.isViewing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={state.provinceId ? "Select City" : "Select Province first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortOptions(data.cities, (c) => c.name).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("company.form.district")}</FieldLabel>
-                <Select
-                  value={String(state.districtId || "")}
-                  onValueChange={actions.handleDistrictChange}
-                  disabled={!state.cityId || state.isViewing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.districts, (d) => d.name).map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <Field orientation="vertical">
+                  <FieldLabel>{t("company.form.district")}</FieldLabel>
+                  <Select
+                    value={String(state.districtId || "")}
+                    onValueChange={actions.handleDistrictChange}
+                    disabled={state.isViewing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={state.cityId ? "Select District" : "Select City first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortOptions(data.districts, (d) => d.name).map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("company.form.village")}</FieldLabel>
-                <Select
-                  value={String(form.watch("village_id") || "")}
-                  onValueChange={(val) => actions.setValue("village_id", val)}
-                  disabled={!state.districtId || state.isViewing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.villages, (v) => v.name).map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <Field orientation="vertical">
+                  <FieldLabel>{t("company.form.village")}</FieldLabel>
+                  <Select
+                    value={String(form.watch("village_id") || "")}
+                    onValueChange={(val) => actions.setValue("village_id", val)}
+                    disabled={state.isViewing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={state.districtId ? "Select Village" : "Select District first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortOptions(data.villages, (v) => v.name).map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
             </div>
 
             {/* Coordinates */}

@@ -44,6 +44,9 @@ func (r *companyRepository) FindByID(ctx context.Context, id string) (*models.Co
 func (r *companyRepository) FindByIDWithVillage(ctx context.Context, id string) (*models.Company, error) {
 	var company models.Company
 	err := r.getDB(ctx).
+		Preload("Province").
+		Preload("City").
+		Preload("District").
 		Preload("Village").
 		Preload("Village.District").
 		Preload("Village.District.City").
@@ -109,6 +112,9 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 	}
 
 	err := r.getDB(ctx).
+		Preload("Province").
+		Preload("City").
+		Preload("District").
 		Preload("Village").
 		Where(query).
 		Order("is_active DESC, " + sortBy + " " + sortDir).

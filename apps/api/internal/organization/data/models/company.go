@@ -26,6 +26,12 @@ type Company struct {
 	Email      string         `gorm:"type:varchar(100)" json:"email"`
 	Phone      string         `gorm:"type:varchar(20)" json:"phone"`
 	NPWP       string         `gorm:"type:varchar(30)" json:"npwp"`
+	ProvinceID *string        `gorm:"type:uuid;index" json:"province_id"`
+	Province   *models.Province `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
+	CityID     *string        `gorm:"type:uuid;index" json:"city_id"`
+	City       *models.City     `gorm:"foreignKey:CityID" json:"city,omitempty"`
+	DistrictID *string        `gorm:"type:uuid;index" json:"district_id"`
+	District   *models.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	NIB        string         `gorm:"type:varchar(30)" json:"nib"`
 	VillageID  *string        `gorm:"type:uuid;index" json:"village_id"`
 	Latitude   *float64       `gorm:"type:decimal(10,8)" json:"latitude"`

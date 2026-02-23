@@ -31,11 +31,16 @@ export function useCompanies(
   });
 }
 
-export function useCompany(id: string) {
+export function useCompany(
+  id: string,
+  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: companyKeys.detail(id),
     queryFn: () => companyService.getById(id),
     enabled: !!id,
+    staleTime: 0,
+    ...options,
   });
 }
 
@@ -56,25 +61,11 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCompanyData }) =>
       companyService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: companyKeys.lists() });
-      queryClient.setQueriesData(
-        { queryKey: companyKeys.lists() },
-        (old: OrganizationListResponse<Company> | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((item: Company) =>
-              item.id === id ? { ...item, ...data } : item
-            ),
-          };
-        }
-      );
-    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: companyKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: companyKeys.lists() });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.lists() });

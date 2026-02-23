@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreateCompany, useUpdateCompany } from "./use-companies";
+import { useCreateCompany, useUpdateCompany, useCompany } from "./use-companies";
 import { useProvinces } from "../../geographic/hooks/use-provinces";
 import { useCities } from "../../geographic/hooks/use-cities";
 import { useDistricts } from "../../geographic/hooks/use-districts";
@@ -32,6 +32,12 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
   const updateCompany = useUpdateCompany();
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 
+  const { data: detailRes, isLoading: isLoadingDetail, refetch: refetchDetail } = useCompany(
+    company?.id ?? "",
+    { enabled: false, staleTime: 0 }
+  );
+  const fullCompany = detailRes?.data ?? company;
+
   const {
     register,
     handleSubmit,
@@ -54,8 +60,8 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
       city_id: undefined,
       district_id: undefined,
       director_id: "",
-      latitude: -6.2088,
-      longitude: 106.8456,
+      latitude: null,
+      longitude: null,
       is_active: true,
     },
   });
@@ -69,15 +75,15 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
 
   const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: isOpen });
   const { data: citiesData } = useCities(
-    cityId || provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined,
+    { province_id: String(provinceId), per_page: 100 },
     { enabled: isOpen && !!provinceId }
   );
   const { data: districtsData } = useDistricts(
-    districtId || cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
+    { city_id: String(cityId), per_page: 100 },
     { enabled: isOpen && !!cityId }
   );
   const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined,
+    { district_id: String(districtId), per_page: 100 },
     { enabled: isOpen && !!districtId }
   );
 
@@ -86,28 +92,34 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
   const districts = districtsData?.data ?? [];
   const villages = villagesData?.data ?? [];
 
+  // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
-    if (company && (mode === "edit" || mode === "view")) {
-      const v = company.village;
-      const d = v?.district;
-      const c = d?.city;
-      const p = c?.province;
+    if (!isOpen) return;
 
-      reset({
-        name: company.name,
-        address: company.address ?? "",
-        email: company.email ?? "",
-        phone: company.phone ?? "",
-        npwp: company.npwp ?? "",
-        nib: company.nib ?? "",
-        village_id: company.village_id ?? "",
-        province_id: p?.id,
-        city_id: c?.id,
-        district_id: d?.id,
-        director_id: company.director_id ?? "",
-        latitude: company.latitude ?? -6.2088,
-        longitude: company.longitude ?? 106.8456,
-        is_active: company.is_active,
+    if ((mode === "edit" || mode === "view") && company?.id) {
+      void refetchDetail().then((result) => {
+        const entity = result.status === "success" && result.data?.data
+          ? (result.data.data as any) // Cast to any to access new fields
+          : (company as any);
+        if (!entity) return;
+        
+        reset({
+          name: entity.name,
+          address: entity.address ?? "",
+          email: entity.email ?? "",
+          phone: entity.phone ?? "",
+          npwp: entity.npwp ?? "",
+          nib: entity.nib ?? "",
+          village_id: entity.village_id ?? "",
+          // Prefer direct IDs from API, fallback to nested village relation
+          province_id: entity.province_id ?? entity.village?.district?.city?.province?.id,
+          city_id: entity.city_id ?? entity.village?.district?.city?.id,
+          district_id: entity.district_id ?? entity.village?.district?.id,
+          director_id: entity.director_id ?? "",
+          latitude: entity.latitude ?? null,
+          longitude: entity.longitude ?? null,
+          is_active: entity.is_active,
+        });
       });
     } else if (mode === "create") {
       reset({
@@ -118,13 +130,16 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         npwp: "",
         nib: "",
         village_id: "",
+        province_id: undefined,
+        city_id: undefined,
+        district_id: undefined,
         director_id: "",
-        latitude: -6.2088,
-        longitude: 106.8456,
+        latitude: null,
+        longitude: null,
         is_active: true,
       });
     }
-  }, [company, mode, reset, isOpen]);
+  }, [isOpen, mode, company?.id, refetchDetail, reset]);
 
   const onSubmit = async (data: CompanyFormData) => {
     try {
@@ -135,15 +150,19 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         phone: data.phone || undefined,
         npwp: data.npwp || undefined,
         nib: data.nib || undefined,
-        village_id: data.village_id || undefined,
-        director_id: data.director_id || undefined,
-        latitude: data.latitude,
-        longitude: data.longitude,
+        // Send all resolved location IDs so backend persists them directly
+        province_id: (data.province_id as string) || null,
+        city_id: (data.city_id as string) || null,
+        district_id: (data.district_id as string) || null,
+        village_id: (data.village_id as string) || null,
+        director_id: data.director_id || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         is_active: data.is_active,
       };
 
-      if (isEditing && company) {
-        await updateCompany.mutateAsync({ id: company.id, data: payload });
+      if (isEditing && fullCompany) {
+        await updateCompany.mutateAsync({ id: fullCompany.id, data: payload });
       } else {
         await createCompany.mutateAsync(payload);
       }
@@ -177,10 +196,10 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
     setValue("village_id", undefined);
   };
 
-  const isLoading = createCompany.isPending || updateCompany.isPending;
+  const isLoading = createCompany.isPending || updateCompany.isPending || isLoadingDetail;
 
   const panelTitle = isViewing
-    ? company?.name ?? t("company.title")
+    ? fullCompany?.name ?? t("company.title")
     : isEditing
       ? t("company.editTitle")
       : t("company.createTitle");

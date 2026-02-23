@@ -10,7 +10,10 @@ type CreateCompanyRequest struct {
 	Phone      string  `json:"phone" binding:"omitempty,max=20"`
 	NPWP       string  `json:"npwp" binding:"omitempty,max=30"`
 	NIB        string  `json:"nib" binding:"omitempty,max=30"`
-	VillageID  *string  `json:"village_id" binding:"omitempty,uuid"`
+	ProvinceID *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID     *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageID  *string `json:"village_id" binding:"omitempty,uuid"`
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
@@ -25,7 +28,10 @@ type UpdateCompanyRequest struct {
 	Phone      string  `json:"phone" binding:"omitempty,max=20"`
 	NPWP       string  `json:"npwp" binding:"omitempty,max=30"`
 	NIB        string  `json:"nib" binding:"omitempty,max=30"`
-	VillageID  *string  `json:"village_id" binding:"omitempty,uuid"`
+	ProvinceID *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID     *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageID  *string `json:"village_id" binding:"omitempty,uuid"`
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
@@ -63,7 +69,13 @@ type CompanyResponse struct {
 	Phone      string                      `json:"phone"`
 	NPWP       string                      `json:"npwp"`
 	NIB        string                      `json:"nib"`
-	VillageID  *string                        `json:"village_id"`
+	ProvinceID *string                     `json:"province_id"`
+	Province   *geographicDto.ProvinceResponse `json:"province,omitempty"`
+	CityID     *string                     `json:"city_id"`
+	City       *geographicDto.CityResponse     `json:"city,omitempty"`
+	DistrictID *string                     `json:"district_id"`
+	District   *geographicDto.DistrictResponse `json:"district,omitempty"`
+	VillageID  *string                     `json:"village_id"`
 	Latitude   *float64                       `json:"latitude"`
 	Longitude  *float64                       `json:"longitude"`
 	Village    *geographicDto.VillageResponse `json:"village,omitempty"`

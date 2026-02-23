@@ -202,12 +202,15 @@ export const organizationId: OrganizationTranslations = {
       basicInfo: "Informasi Dasar",
       location: "Lokasi",
       coordinates: "Koordinat Peta",
+      legalInfo: "Info Legal",
     },
     status: {
       draft: "Draft",
       pending: "Menunggu Persetujuan",
       approved: "Disetujui",
       rejected: "Ditolak",
+      active: "Aktif",
+      inactive: "Tidak Aktif",
     },
     actions: {
       submit: "Ajukan Persetujuan",

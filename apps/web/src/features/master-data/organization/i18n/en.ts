@@ -200,12 +200,15 @@ export const organizationEn = {
       basicInfo: "Basic Information",
       location: "Location",
       coordinates: "Map Coordinates",
+      legalInfo: "Legal Info",
     },
     status: {
       draft: "Draft",
       pending: "Pending Approval",
       approved: "Approved",
       rejected: "Rejected",
+      active: "Active",
+      inactive: "Inactive",
     },
     actions: {
       submit: "Submit for Approval",
