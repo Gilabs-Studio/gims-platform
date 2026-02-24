@@ -1,96 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useUserPermission } from "@/hooks/use-user-permission";
 import { BusinessTypeForm } from "./business-type-form";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import { useBusinessTypes, useDeleteBusinessType, useUpdateBusinessType } from "../../hooks/use-business-types";
-import { useDebounce } from "@/hooks/use-debounce";
-import { BusinessType } from "../../types";
-
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useBusinessTypeList } from "../../hooks/use-business-type-list";
 
 export function BusinessTypeList() {
-  const t = useTranslations("organization");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingBusinessType, setEditingBusinessType] = useState<BusinessType | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { state, actions, data, permissions, translations } = useBusinessTypeList();
+  const { t } = translations;
 
-  const { data, isLoading, isError } = useBusinessTypes({
-    page,
-    per_page: pageSize,
-    search: debouncedSearch || undefined,
-  });
-
-  const canCreate = useUserPermission("business_type.create");
-  const canUpdate = useUserPermission("business_type.update");
-  const canDelete = useUserPermission("business_type.delete");
-
-  const deleteBusinessType = useDeleteBusinessType();
-  const updateBusinessType = useUpdateBusinessType();
-
-  const businessTypes = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleEdit = (businessType: BusinessType) => {
-    setEditingBusinessType(businessType);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (deletingId) {
-      await deleteBusinessType.mutateAsync(deletingId);
-      setDeletingId(null);
-    }
-  };
-
-  const handleStatusChange = async (
-    id: string,
-    currentStatus: boolean,
-    name: string,
-  ) => {
-    try {
-      await updateBusinessType.mutateAsync({
-        id,
-        data: { is_active: !currentStatus },
-      });
-      toast.success(t("common.success_update", { name: name }));
-    } catch (error) {
-      toast.error(t("common.error_update"));
-    }
-  };
-
-  const handleFormClose = () => {
-    setIsFormOpen(false);
-    setEditingBusinessType(null);
-  };
-
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
         {t("common.loading")}
@@ -110,11 +36,8 @@ export function BusinessTypeList() {
             {t("businessType.description")}
           </p>
         </div>
-        {canCreate && (
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            className="cursor-pointer"
-          >
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
             <Plus className="mr-2 h-4 w-4" />
             {t("common.create")}
           </Button>
@@ -127,10 +50,10 @@ export function BusinessTypeList() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("common.search")}
-            value={search}
+            value={state.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
             }}
             className="pl-8"
           />
@@ -145,35 +68,27 @@ export function BusinessTypeList() {
               <TableHead>{t("common.name")}</TableHead>
               <TableHead>{t("common.description_field")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead className="w-[100px]">{t("common.actions")}</TableHead>
+              {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[100px]">{t("common.actions")}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {data.isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-48" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-5 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
-            ) : businessTypes.length === 0 ? (
+            ) : data.businessTypes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 4 : 3} className="h-24 text-center">
                   {t("businessType.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              businessTypes.map((businessType) => (
+              data.businessTypes.map((businessType) => (
                 <TableRow key={businessType.id}>
                   <TableCell className="font-medium">{businessType.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -183,55 +98,40 @@ export function BusinessTypeList() {
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={businessType.is_active}
-                        onCheckedChange={() =>
-                          handleStatusChange(
-                            businessType.id,
-                            businessType.is_active,
-                            businessType.name,
-                          )
-                        }
-                        disabled={updateBusinessType.isPending || !canUpdate}
+                        onCheckedChange={() => actions.handleStatusChange(businessType.id, businessType.is_active, businessType.name)}
+                        disabled={data.isUpdating || !permissions.canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {businessType.is_active
-                          ? t("common.active")
-                          : t("common.inactive")}
+                        {businessType.is_active ? t("common.active") : t("common.inactive")}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0 cursor-pointer"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {canUpdate && (
-                          <DropdownMenuItem
-                            onClick={() => handleEdit(businessType)}
-                            className="cursor-pointer"
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t("common.edit")}
-                          </DropdownMenuItem>
-                        )}
-                        {canDelete && (
-                          <DropdownMenuItem
-                            onClick={() => setDeletingId(businessType.id)}
-                            className="cursor-pointer text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("common.delete")}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {(permissions.canUpdate || permissions.canDelete) && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {permissions.canUpdate && (
+                            <DropdownMenuItem onClick={() => actions.handleEdit(businessType)} className="cursor-pointer">
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {t("common.edit")}
+                            </DropdownMenuItem>
+                          )}
+                          {permissions.canDelete && (
+                            <DropdownMenuItem onClick={() => actions.setDeletingId(businessType.id)} className="cursor-pointer text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -240,35 +140,39 @@ export function BusinessTypeList() {
       </div>
 
       {/* Pagination */}
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
       {/* Form Dialog */}
-      <BusinessTypeForm
-        open={isFormOpen}
-        onClose={handleFormClose}
-        businessType={editingBusinessType}
-      />
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <BusinessTypeForm
+          open={state.isFormOpen}
+          onClose={actions.handleFormClose}
+          businessType={state.editingBusinessType}
+        />
+      )}
 
       {/* Delete Dialog */}
-      <DeleteDialog
-        open={!!deletingId}
-        onOpenChange={(open) => !open && setDeletingId(null)}
-        onConfirm={handleDelete}
-        isLoading={deleteBusinessType.isPending}
-        title={t("businessType.deleteTitle")}
-        description={t("businessType.deleteConfirm")}
-      />
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!state.deletingId}
+          onOpenChange={(open) => !open && actions.setDeletingId(null)}
+          onConfirm={actions.handleDelete}
+          isLoading={data.isDeleting}
+          title={t("businessType.deleteTitle")}
+          description={t("businessType.deleteConfirm")}
+        />
+      )}
     </div>
   );
 }

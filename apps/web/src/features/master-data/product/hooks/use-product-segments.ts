@@ -12,11 +12,12 @@ export const productSegmentKeys = {
   detail: (id: string) => [...productSegmentKeys.details(), id] as const,
 };
 
-export function useProductSegments(params?: LookupListParams) {
+export function useProductSegments(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productSegmentKeys.list(params),
     queryFn: () => productSegmentService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

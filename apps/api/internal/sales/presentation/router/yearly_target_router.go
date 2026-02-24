@@ -9,10 +9,10 @@ import (
 // RegisterYearlyTargetRoutes registers yearly target routes
 func RegisterYearlyTargetRoutes(rg *gin.RouterGroup, h *handler.YearlyTargetHandler) {
 	g := rg.Group("/yearly-targets")
-	g.GET("", middleware.RequirePermission("yearly_target.read"), h.List)
-	g.GET("/:id", middleware.RequirePermission("yearly_target.read"), h.GetByID)
-	g.POST("", middleware.RequirePermission("yearly_target.create"), h.Create)
-	g.PUT("/:id", middleware.RequirePermission("yearly_target.update"), h.Update)
-	g.DELETE("/:id", middleware.RequirePermission("yearly_target.delete"), h.Delete)
-	g.PATCH("/:id/status", middleware.RequirePermission("yearly_target.update"), h.UpdateStatus)
+	g.GET("", middleware.RequirePermission("sales_target.read"), h.List)
+	g.GET("/:id", middleware.RequirePermission("sales_target.read"), h.GetByID)
+	g.POST("", middleware.RequirePermission("sales_target.create"), h.Create)
+	g.PUT("/:id", middleware.RequirePermission("sales_target.update"), h.Update)
+	g.DELETE("/:id", middleware.RequirePermission("sales_target.delete"), h.Delete)
+	g.PATCH("/:id/status", middleware.RequirePermission("sales_target.update"), h.UpdateStatus)
 }

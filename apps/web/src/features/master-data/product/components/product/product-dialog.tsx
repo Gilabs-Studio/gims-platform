@@ -29,20 +29,8 @@ import {
 } from "@/components/ui/select";
 import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
-import {
-  useCreateProduct,
-  useUpdateProduct,
-} from "../../hooks/use-products";
-import { useProductBrands } from "../../hooks/use-product-brands";
-import { useProductSegments } from "../../hooks/use-product-segments";
-import { useProductTypes } from "../../hooks/use-product-types";
-import { useUnitsOfMeasure } from "../../hooks/use-units-of-measure";
-import { usePackagings } from "../../hooks/use-packagings";
-import { useProcurementTypes } from "../../hooks/use-procurement-types";
-
 import type { Product } from "../../types";
-import { sortOptions } from "@/lib/utils";
-import { productSchema, type ProductFormData } from "./product.schema";
+import { useProductForm } from "../../hooks/use-product-form";
 
 // Section component for grouping form fields
 function Section({
@@ -73,176 +61,29 @@ export function ProductDialog({
   onOpenChange,
   editingItem,
 }: ProductDialogProps) {
-  const t = useTranslations("product.transaction");
-  const tCommon = useTranslations("product.common");
-
-  const createMutation = useCreateProduct();
-  const updateMutation = useUpdateProduct();
-
-  // Fetch Lookup Data (removed categories - now using CategoryTreePicker)
-  const { data: brands } = useProductBrands({ per_page: 100, sort: "name" });
-  const { data: segments } = useProductSegments({ per_page: 100, sort: "name" });
-  const { data: types } = useProductTypes({ per_page: 100, sort: "name" });
-  const { data: uoms } = useUnitsOfMeasure({ per_page: 100, sort: "name" });
-  const { data: packagings } = usePackagings({ per_page: 100, sort: "name" });
-  const { data: procurementTypes } = useProcurementTypes({ per_page: 100, sort: "name" });
-
-  const isEditing = !!editingItem;
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const {
+    form,
+    t,
+    tCommon,
+    isEditing,
+    isSubmitting,
+    brands,
+    segments,
+    types,
+    uoms,
+    packagings,
+    procurementTypes,
+    onSubmit,
+  } = useProductForm({ open, onOpenChange, editingItem });
 
   const {
     register,
-    handleSubmit,
-    reset,
     watch,
     setValue,
-    setError,
     control,
     formState: { errors },
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      name: "",
-      code: "",
-      image_url: null,
-      manufacturer_part_number: "",
-      description: "",
-      category_id: undefined,
-      brand_id: undefined,
-      segment_id: undefined,
-      type_id: undefined,
-      uom_id: undefined,
-      purchase_uom_id: undefined,
-      packaging_id: null,
-      purchase_uom_conversion: 1,
-      procurement_type_id: undefined,
-      supplier_id: undefined,
-      business_unit_id: undefined,
-      tax_type: "",
-      is_tax_inclusive: true,
-      lead_time_days: 0,
-      cost_price: 0,
-      min_stock: 0,
-      max_stock: 0,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (open) {
-      if (editingItem) {
-        reset({
-          name: editingItem.name,
-          code: editingItem.code,
-          image_url: editingItem.image_url,
-          manufacturer_part_number: editingItem.manufacturer_part_number ?? "",
-          description: editingItem.description ?? "",
-          category_id: editingItem.category_id ?? "",
-          brand_id: editingItem.brand_id ?? "",
-          segment_id: editingItem.segment_id ?? "",
-          type_id: editingItem.type_id ?? "",
-          uom_id: editingItem.uom_id ?? "",
-          purchase_uom_id: editingItem.purchase_uom_id ?? "",
-          packaging_id: editingItem.packaging_id ?? null,
-          purchase_uom_conversion: editingItem.purchase_uom_conversion,
-          procurement_type_id: editingItem.procurement_type_id ?? "",
-          supplier_id: editingItem.supplier_id ?? "",
-          business_unit_id: editingItem.business_unit_id ?? "",
-          tax_type: editingItem.tax_type ?? "",
-          is_tax_inclusive: editingItem.is_tax_inclusive,
-          lead_time_days: editingItem.lead_time_days,
-          cost_price: editingItem.cost_price,
-          min_stock: editingItem.min_stock,
-          max_stock: editingItem.max_stock,
-        });
-      } else {
-        reset({
-          name: "",
-          code: "",
-          image_url: null,
-          manufacturer_part_number: "",
-          description: "",
-          category_id: undefined, // Or "" if we prefer controlled empty
-          brand_id: undefined, 
-          segment_id: undefined, 
-          type_id: undefined, 
-          uom_id: undefined, 
-          purchase_uom_id: undefined, 
-          packaging_id: null,
-          purchase_uom_conversion: 1,
-          procurement_type_id: undefined,
-          supplier_id: undefined,
-          business_unit_id: undefined,
-          tax_type: "",
-          is_tax_inclusive: true,
-          lead_time_days: 0,
-          cost_price: 0,
-          min_stock: 0,
-          max_stock: 0,
-        });
-      }
-    }
-  }, [open, editingItem, reset]);
-
-  const onSubmit = async (data: ProductFormData) => {
-    try {
-      const payload = {
-        ...data,
-        code: data.code ?? "",
-        image_url: data.image_url ?? undefined, 
-        category_id: data.category_id || null,
-        brand_id: data.brand_id || null,
-        segment_id: data.segment_id || null,
-        type_id: data.type_id || null,
-        uom_id: data.uom_id || null,
-        purchase_uom_id: data.purchase_uom_id || null,
-        packaging_id: data.packaging_id || null,
-        procurement_type_id: data.procurement_type_id || null,
-        supplier_id: data.supplier_id || null,
-        business_unit_id: data.business_unit_id || null,
-        tax_type: data.tax_type || undefined,
-      };
-
-      if (isEditing) {
-        await updateMutation.mutateAsync({
-          id: editingItem.id,
-          data: payload,
-        });
-        toast.success(t("updated"));
-      } else {
-        await createMutation.mutateAsync(payload);
-        toast.success(t("created"));
-      }
-      onOpenChange(false);
-    } catch (error) {
-      // Extract error message from API response
-      let errorMessage = isEditing ? tCommon("error") : tCommon("error");
-      
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { 
-          response?: { 
-            data?: { 
-              error?: { 
-                message?: string;
-                details?: { error_id?: string };
-              } 
-            } 
-          } 
-        };
-        // Check both message and details.error_id (where backend puts actual error)
-        const apiMessage = axiosError.response?.data?.error?.message;
-        const errorId = axiosError.response?.data?.error?.details?.error_id;
-        if (errorId && errorId !== "") {
-          errorMessage = errorId; // This contains the actual database/validation error
-        } else if (apiMessage) {
-          errorMessage = apiMessage;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
-    }
-  };
 
   const isTaxInclusive = watch("is_tax_inclusive");
 
@@ -264,7 +105,7 @@ export function ProductDialog({
         </DialogHeader>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={onSubmit}
           className="flex-1 flex flex-col overflow-hidden"
         >
           <div className="flex-1 overflow-y-auto px-6 space-y-6">
@@ -347,7 +188,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("selectBrand")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(brands?.data ?? [], (i) => i.name).map((i) => (
+                      {brands.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -365,7 +206,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("selectSegment")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(segments?.data ?? [], (i) => i.name).map((i) => (
+                      {segments.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -383,7 +224,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(types?.data ?? [], (i) => i.name).map((i) => (
+                      {types.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>
@@ -409,7 +250,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Base Unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(uoms?.data ?? [], (i) => i.name).map((i) => (
+                      {uoms.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name} ({i.symbol})
                         </SelectItem>
@@ -427,7 +268,7 @@ export function ProductDialog({
                       <SelectValue placeholder={t("unitsPerPurchase")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(uoms?.data ?? [], (i) => i.name).map((i) => (
+                      {uoms.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name} ({i.symbol})
                         </SelectItem>
@@ -466,7 +307,7 @@ export function ProductDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {sortOptions(packagings?.data ?? [], (i) => i.name).map((i) => (
+                    {packagings.map((i) => (
                       <SelectItem key={i.id} value={i.id}>
                         {i.name}
                       </SelectItem>
@@ -491,7 +332,7 @@ export function ProductDialog({
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortOptions(procurementTypes?.data ?? [], (i) => i.name).map((i) => (
+                      {procurementTypes.map((i) => (
                         <SelectItem key={i.id} value={i.id}>
                           {i.name}
                         </SelectItem>

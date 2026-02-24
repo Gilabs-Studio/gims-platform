@@ -1,25 +1,25 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { 
-  Plus, 
-  Search, 
-  X, 
-  PanelLeftClose, 
-  PanelLeft, 
+import {
+  Plus,
+  Search,
+  PanelLeftClose,
+  PanelLeft,
   Pencil,
-  MoreVertical,
   Power,
   ImageOff,
   Folder,
-  FolderOpen
+  FolderOpen,
+  ArrowUpDown,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea intentionally removed — not used in this component
 import { 
   Tooltip,
   TooltipContent,
@@ -27,10 +27,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, resolveImageUrl } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CategoryTree } from "@/components/ui/category-tree";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
+// CategoryTreePicker not used here
 import { 
   useCategoryTree, 
   useCategoryTreeState, 
@@ -42,12 +49,7 @@ import { ProductDialog } from "./product-dialog";
 import { ProductDetailDialog } from "./product-detail-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// DropdownMenu components not used here
 
 /**
  * ProductCatalog - Enhanced product list with category tree sidebar
@@ -66,12 +68,6 @@ import {
  * └─────────────────┴───────────────────────────────────────────────────┘
  */
 
-interface ActiveFilter {
-  type: "category";
-  id: string;
-  label: string;
-}
-
 interface CollapsedCategoryViewProps {
   data: CategoryTreeNode[];
   selectedId: string | null;
@@ -80,6 +76,8 @@ interface CollapsedCategoryViewProps {
 }
 
 function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: CollapsedCategoryViewProps) {
+  const t = useTranslations("product.transaction");
+  const tCommon = useTranslations("product.common");
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-2 p-2 pt-4">
@@ -120,11 +118,11 @@ function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: Collap
               )}
               onClick={() => onSelect(null)}
             >
-              <span className="text-xs font-bold">ALL</span>
+              <span className="text-xs font-bold">{t("allShort")}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right" className="flex items-center gap-2">
-            <span className="font-medium">All Products</span>
+            <span className="font-medium">{t("allProducts")}</span>
           </TooltipContent>
         </Tooltip>
 
@@ -157,7 +155,7 @@ function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: Collap
                 <p className="font-medium">{node.name}</p>
                 {node.product_count > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {node.product_count.toLocaleString()} products
+                    {node.product_count.toLocaleString()} {t("productsRes")}
                   </p>
                 )}
               </TooltipContent>
@@ -176,12 +174,23 @@ export function ProductCatalog() {
   // Permissions
   const canCreate = useUserPermission("product.create");
   const canEdit = useUserPermission("product.update");
-  const canDelete = useUserPermission("product.delete");
 
-  // Search state
+  // Search & sort state
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
+  const [sortOption, setSortOption] = useState<string>("name_asc");
+
+  // Derive sort_by / sort_dir from sortOption
+  const SORT_MAP: Record<string, { sort_by: string; sort_dir: string }> = {
+    name_asc:    { sort_by: "name",          sort_dir: "asc" },
+    name_desc:   { sort_by: "name",          sort_dir: "desc" },
+    price_asc:   { sort_by: "selling_price", sort_dir: "asc" },
+    price_desc:  { sort_by: "selling_price", sort_dir: "desc" },
+    stock_asc:   { sort_by: "current_stock", sort_dir: "asc" },
+    stock_desc:  { sort_by: "current_stock", sort_dir: "desc" },
+  };
+  const { sort_by, sort_dir } = SORT_MAP[sortOption] ?? SORT_MAP.name_asc;
 
   // Category tree state
   const { data: treeData, isLoading: treeLoading } = useCategoryTree({ include_count: true });
@@ -207,39 +216,29 @@ export function ProductCatalog() {
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
 
-  // Build active filters
-  const activeFilters: ActiveFilter[] = [];
-  if (selectedCategoryId && treeData?.data) {
-    const path = getCategoryPath(treeData.data, selectedCategoryId);
-    if (path && path.length > 0) {
-      const category = path[path.length - 1];
-      activeFilters.push({
-        type: "category",
-        id: selectedCategoryId,
-        label: category.name,
-      });
-    }
-  }
-
-  // Fetch products with filters
+  // Fetch products with server-side sort + filters
   const { data: productsData, isLoading: productsLoading, isError, refetch } = useProducts({
     page,
     per_page: 20,
     search: debouncedSearch || undefined,
     category_id: selectedCategoryId ?? undefined,
+    sort_by,
+    sort_dir,
   });
 
   const pagination = productsData?.meta?.pagination;
+  const products = productsData?.data ?? [];
 
-  // Sort products: Active first, then by name
-  const sortedProducts = [...productsData?.data ?? []].sort((a, b) => {
-    if (a.is_active === b.is_active) {
-      return a.name.localeCompare(b.name);
-    }
-    return a.is_active ? -1 : 1;
-  });
-  
-  const products = sortedProducts;
+  // Derives a stock status for visual badge on card
+  const getStockStatus = (product: Product): "ok" | "low" | "out" | "over" => {
+    const qty = product.current_stock ?? 0;
+    const min = product.min_stock ?? 0;
+    const max = product.max_stock ?? 0;
+    if (qty <= 0)           return "out";
+    if (min > 0 && qty < min) return "low";
+    if (max > 0 && qty > max) return "over";
+    return "ok";
+  };
 
   // Handlers
   const handleToggleActive = async (product: Product, e?: React.MouseEvent) => {
@@ -271,11 +270,6 @@ export function ProductCatalog() {
     setDetailDialogOpen(true);
   };
 
-  const handleDeleteClick = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setDeleteId(id);
-  };
-
   const handleDeleteConfirm = async () => {
     if (!deleteId) return;
     try {
@@ -292,18 +286,18 @@ export function ProductCatalog() {
     setEditingItem(null);
   };
 
-  const handleClearFilter = useCallback((filter: ActiveFilter) => {
-    if (filter.type === "category") {
-      selectCategory(null);
-    }
-    setPage(1);
-  }, [selectCategory]);
-
-  const handleClearAllFilters = useCallback(() => {
-    selectCategory(null);
-    setSearch("");
-    setPage(1);
-  }, [selectCategory]);
+  // Open create dialog when linked with #create-product — schedule to avoid setState inside effect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#create-product") return;
+    const id = window.setTimeout(() => {
+      handleCreate();
+      try {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {}
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [handleCreate]);
 
   const handleCategorySelect = useCallback((categoryId: string | null) => {
     selectCategory(categoryId);
@@ -317,62 +311,6 @@ export function ProductCatalog() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center gap-4 pb-4 border-b">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("searchPlaceholder")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-8"
-          />
-        </div>
-
-        {/* Active Filters */}
-        {activeFilters.length > 0 && (
-          <div className="flex items-center gap-2">
-            {activeFilters.map((filter) => (
-              <Badge
-                key={`${filter.type}-${filter.id}`}
-                variant="secondary"
-                className="gap-1 py-1 px-2"
-              >
-                {filter.label}
-                <button
-                  onClick={() => handleClearFilter(filter)}
-                  className="ml-1 hover:bg-accent rounded cursor-pointer"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearAllFilters}
-              className="text-xs cursor-pointer"
-            >
-              {t("clearAll")}
-            </Button>
-          </div>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Create Button */}
-        {canCreate && (
-          <Button onClick={handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("create")}
-          </Button>
-        )}
-      </div>
-
       {/* Main Content with Flex Layout */}
       <div className="flex-1 pt-4 min-h-0 flex gap-4">
         {/* Category Tree Sidebar */}
@@ -383,14 +321,19 @@ export function ProductCatalog() {
           )}
         >
           {/* Sidebar Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+          <div
+            className={cn(
+              "flex items-center px-3 py-2 border-b bg-muted/30",
+              sidebarCollapsed ? "justify-center px-1" : "justify-between"
+            )}
+          >
             {!sidebarCollapsed && (
               <span className="text-sm font-medium">{t("categories")}</span>
             )}
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 cursor-pointer"
+              className={cn("h-6 w-6 cursor-pointer", sidebarCollapsed && "transform-none")}
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
               {sidebarCollapsed ? (
@@ -441,13 +384,58 @@ export function ProductCatalog() {
         <div className="flex-1 flex flex-col border rounded-lg overflow-hidden min-w-0">
           {/* Panel Header */}
           <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
-            <div className="flex-1">
-              {categoryBreadcrumb ? (
-                <span className="text-sm text-muted-foreground">
-                <span className="text-sm text-muted-foreground">{t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span></span>
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">{t("allProducts")}</span>
+            <div className="flex-1 flex items-center gap-4">
+              <div>
+                {categoryBreadcrumb ? (
+                  <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">{t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span></span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">{t("allProducts")}</span>
+                )}
+              </div>
+
+              {/* Search */}
+              <div className="relative flex-1 max-w-xs ml-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("searchPlaceholder")}
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+
+              {/* Sort */}
+              <Select
+                value={sortOption}
+                onValueChange={(v) => { setSortOption(v); setPage(1); }}
+              >
+                <SelectTrigger className="h-8 w-44 text-xs gap-1 cursor-pointer">
+                  <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name_asc">Name A → Z</SelectItem>
+                  <SelectItem value="name_desc">Name Z → A</SelectItem>
+                  <SelectItem value="price_asc">Price Low → High</SelectItem>
+                  <SelectItem value="price_desc">Price High → Low</SelectItem>
+                  <SelectItem value="stock_asc">Stock Low → High</SelectItem>
+                  <SelectItem value="stock_desc">Stock High → Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Create button */}
+            <div className="ml-2">
+              {canCreate && (
+                <Button size="sm" onClick={handleCreate} className="cursor-pointer h-8">
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  {t("create")}
+                </Button>
               )}
             </div>
             {pagination && (
@@ -458,7 +446,6 @@ export function ProductCatalog() {
             )}
           </div>
 
-          {/* Product Grid */}
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {isError ? (
@@ -554,11 +541,34 @@ export function ProductCatalog() {
                         {product.brand?.name && ` • ${product.brand.name}`}
                       </div>
 
-                      {/* Price (if visible) */}
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="text-sm font-semibold text-primary">
-                          {product.cost_price > 0 ? `Rp ${product.cost_price.toLocaleString("id-ID")}` : "-"}
-                        </div>
+                      {/* Price */}
+                      <div className="text-sm font-semibold text-primary mb-2">
+                        {product.selling_price > 0
+                          ? `Rp ${product.selling_price.toLocaleString("id-ID")}`
+                          : product.cost_price > 0
+                            ? `Rp ${product.cost_price.toLocaleString("id-ID")}`
+                            : "-"}
+                      </div>
+
+                      {/* Stock + UoM row */}
+                      <div className="flex items-center justify-between gap-1">
+                        {(() => {
+                          const s = getStockStatus(product);
+                          const qty = product.current_stock ?? 0;
+                          const colors = {
+                            ok:   "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                            low:  "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                            out:  "bg-rose-500/10 text-rose-700 dark:text-rose-400",
+                            over: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                          }[s];
+                          return (
+                            <span className={cn("inline-flex items-center gap-1 rounded text-[10px] font-medium px-1.5 py-0.5", colors)}>
+                              <Package className="h-2.5 w-2.5" />
+                              {qty.toLocaleString("id-ID")}
+                              {product.uom && ` ${product.uom.symbol ?? product.uom.name}`}
+                            </span>
+                          );
+                        })()}
                         {product.uom && (
                           <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground">
                             {product.uom.symbol ?? product.uom.name}
@@ -573,12 +583,12 @@ export function ProductCatalog() {
                         className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20 translate-y-2 group-hover:translate-y-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex bg-white/95 shadow-lg border rounded-full p-1 backdrop-blur-sm items-center gap-1">
+                        <div className="flex bg-card/95 dark:bg-card/80 shadow-lg border rounded-full p-1 backdrop-blur-sm items-center gap-1">
                           {canEdit && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full hover:bg-blue-50 text-muted-foreground hover:text-blue-600 cursor-pointer transition-colors"
+                              className="h-7 w-7 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
                               onClick={(e) => handleEdit(product, e)}
                               title={t("edit")}
                             >
@@ -593,14 +603,14 @@ export function ProductCatalog() {
                               size="icon"
                               className={cn(
                                 "h-7 w-7 rounded-full cursor-pointer transition-colors",
-                                product.is_active 
-                                  ? "text-muted-foreground hover:text-orange-600 hover:bg-orange-50" 
-                                  : "text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                                product.is_active
+                                  ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                               )}
                               onClick={(e) => handleToggleActive(product, e)}
                               title={product.is_active ? t("deactivate") : t("activate")}
                             >
-                              <Power className={cn("h-3.5 w-3.5", !product.is_active && "text-green-600")} />
+                              <Power className={cn("h-3.5 w-3.5", !product.is_active && "text-primary")} />
                             </Button>
                           )}
                         </div>
@@ -622,7 +632,7 @@ export function ProductCatalog() {
                 disabled={page <= 1}
                 className="cursor-pointer"
               >
-                Previous
+                {t("previous")}
               </Button>
               <span className="text-sm text-muted-foreground">
                 Page {page} of {pagination.total_pages}
@@ -634,12 +644,14 @@ export function ProductCatalog() {
                 disabled={page >= pagination.total_pages}
                 className="cursor-pointer"
               >
-                Next
+                {t("next")}
               </Button>
             </div>
           )}
         </div>
       </div>
+
+      <a id="create-product" />
 
       {/* Dialogs */}
       <ProductDialog

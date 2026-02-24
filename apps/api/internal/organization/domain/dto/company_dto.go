@@ -10,7 +10,10 @@ type CreateCompanyRequest struct {
 	Phone      string  `json:"phone" binding:"omitempty,max=20"`
 	NPWP       string  `json:"npwp" binding:"omitempty,max=30"`
 	NIB        string  `json:"nib" binding:"omitempty,max=30"`
-	VillageID  *string  `json:"village_id" binding:"omitempty,uuid"`
+	ProvinceID *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID     *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageID  *string `json:"village_id" binding:"omitempty,uuid"`
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
@@ -25,7 +28,10 @@ type UpdateCompanyRequest struct {
 	Phone      string  `json:"phone" binding:"omitempty,max=20"`
 	NPWP       string  `json:"npwp" binding:"omitempty,max=30"`
 	NIB        string  `json:"nib" binding:"omitempty,max=30"`
-	VillageID  *string  `json:"village_id" binding:"omitempty,uuid"`
+	ProvinceID *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID     *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageID  *string `json:"village_id" binding:"omitempty,uuid"`
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
@@ -38,6 +44,7 @@ type ListCompaniesRequest struct {
 	PerPage   int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search    string `form:"search" binding:"omitempty,max=100"`
 	Status    string `form:"status" binding:"omitempty,oneof=draft pending approved rejected"`
+	IsActive  *bool  `form:"is_active" binding:"omitempty"`
 	VillageID string `form:"village_id" binding:"omitempty,uuid"`
 	SortBy    string `form:"sort_by" binding:"omitempty,oneof=name status created_at updated_at"`
 	SortDir   string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
@@ -63,7 +70,13 @@ type CompanyResponse struct {
 	Phone      string                      `json:"phone"`
 	NPWP       string                      `json:"npwp"`
 	NIB        string                      `json:"nib"`
-	VillageID  *string                        `json:"village_id"`
+	ProvinceID *string                     `json:"province_id"`
+	Province   *geographicDto.ProvinceResponse `json:"province,omitempty"`
+	CityID     *string                     `json:"city_id"`
+	City       *geographicDto.CityResponse     `json:"city,omitempty"`
+	DistrictID *string                     `json:"district_id"`
+	District   *geographicDto.DistrictResponse `json:"district,omitempty"`
+	VillageID  *string                     `json:"village_id"`
 	Latitude   *float64                       `json:"latitude"`
 	Longitude  *float64                       `json:"longitude"`
 	Village    *geographicDto.VillageResponse `json:"village,omitempty"`

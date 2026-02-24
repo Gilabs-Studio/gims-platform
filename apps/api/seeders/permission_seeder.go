@@ -1,9 +1,11 @@
 package seeders
 
 import (
+	"context"
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 )
@@ -115,6 +117,19 @@ func SeedPermissions() error {
 		{"/master-data/banks", "bank.update", "Edit Banks", "EDIT", "bank"},
 		{"/master-data/banks", "bank.delete", "Delete Banks", "DELETE", "bank"},
 
+		// Master Data - Customer
+		{"/master-data/customers", "customer.read", "View Customers", "VIEW", "customer"},
+		{"/master-data/customers", "customer.create", "Create Customers", "CREATE", "customer"},
+		{"/master-data/customers", "customer.update", "Edit Customers", "EDIT", "customer"},
+		{"/master-data/customers", "customer.delete", "Delete Customers", "DELETE", "customer"},
+		{"/master-data/customers", "customer.submit", "Submit Customers", "SUBMIT", "customer"},
+		{"/master-data/customers", "customer.approve", "Approve Customers", "APPROVE", "customer"},
+
+		{"/master-data/customer-types", "customer_type.read", "View Customer Types", "VIEW", "customer_type"},
+		{"/master-data/customer-types", "customer_type.create", "Create Customer Types", "CREATE", "customer_type"},
+		{"/master-data/customer-types", "customer_type.update", "Edit Customer Types", "EDIT", "customer_type"},
+		{"/master-data/customer-types", "customer_type.delete", "Delete Customer Types", "DELETE", "customer_type"},
+
 		// Master Data - Product
 		{"/master-data/products", "product.read", "View Products", "VIEW", "product"},
 		{"/master-data/products", "product.create", "Create Products", "CREATE", "product"},
@@ -203,6 +218,7 @@ func SeedPermissions() error {
 		{"/sales/quotations", "sales_quotation.update", "Edit Sales Quotations", "EDIT", "sales_quotation"},
 		{"/sales/quotations", "sales_quotation.delete", "Delete Sales Quotations", "DELETE", "sales_quotation"},
 		{"/sales/quotations", "sales_quotation.approve", "Approve Sales Quotations", "APPROVE", "sales_quotation"},
+		{"/sales/quotations", "sales_quotation.print", "Print Sales Quotations", "PRINT", "sales_quotation"},
 
 		{"/sales/orders", "sales_order.read", "View Sales Orders", "VIEW", "sales_order"},
 		{"/sales/orders", "sales_order.create", "Create Sales Orders", "CREATE", "sales_order"},
@@ -214,6 +230,7 @@ func SeedPermissions() error {
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.update", "Edit Delivery Orders", "EDIT", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.delete", "Delete Delivery Orders", "DELETE", "delivery_order"},
+		{"/sales/delivery-orders", "delivery_order.approve", "Approve Delivery Orders", "APPROVE", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.ship", "Ship Delivery Orders", "SHIP", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.deliver", "Deliver Delivery Orders", "DELIVER", "delivery_order"},
 
@@ -221,6 +238,7 @@ func SeedPermissions() error {
 		{"/sales/invoices", "customer_invoice.create", "Create Customer Invoices", "CREATE", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.update", "Edit Customer Invoices", "EDIT", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.approve", "Approve Customer Invoices", "APPROVE", "customer_invoice"},
 
 		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
 		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
@@ -237,6 +255,14 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+
+		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
+		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
+		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
+		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
+		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
+		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
+		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -442,6 +468,36 @@ func SeedPermissions() error {
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+
+		// CRM Settings - Pipeline Stages
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.read", "View Pipeline Stages", "VIEW", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.create", "Create Pipeline Stages", "CREATE", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.update", "Edit Pipeline Stages", "EDIT", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.delete", "Delete Pipeline Stages", "DELETE", "crm_pipeline_stage"},
+
+		// CRM Settings - Lead Sources
+		{"/crm/settings/lead-sources", "crm_lead_source.read", "View Lead Sources", "VIEW", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.create", "Create Lead Sources", "CREATE", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.update", "Edit Lead Sources", "EDIT", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.delete", "Delete Lead Sources", "DELETE", "crm_lead_source"},
+
+		// CRM Settings - Lead Statuses
+		{"/crm/settings/lead-statuses", "crm_lead_status.read", "View Lead Statuses", "VIEW", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.create", "Create Lead Statuses", "CREATE", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.update", "Edit Lead Statuses", "EDIT", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.delete", "Delete Lead Statuses", "DELETE", "crm_lead_status"},
+
+		// CRM Settings - Contact Roles
+		{"/crm/settings/contact-roles", "crm_contact_role.read", "View Contact Roles", "VIEW", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.create", "Create Contact Roles", "CREATE", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.update", "Edit Contact Roles", "EDIT", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.delete", "Delete Contact Roles", "DELETE", "crm_contact_role"},
+
+		// CRM Settings - Activity Types
+		{"/crm/settings/activity-types", "crm_activity_type.read", "View Activity Types", "VIEW", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.create", "Create Activity Types", "CREATE", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.update", "Edit Activity Types", "EDIT", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.delete", "Delete Activity Types", "DELETE", "crm_activity_type"},
 	}
 
 	// Build menu URL to ID map
@@ -584,8 +640,38 @@ func SeedPermissions() error {
 		"stock":    "OWN",
 	}, "ALL")
 
+	// Invalidate Redis permission cache to ensure fresh permissions are loaded
+	invalidatePermissionCache()
+
 	log.Println("ERP permissions seeded successfully")
 	return nil
+}
+
+// invalidatePermissionCache clears all cached permission entries from Redis
+// to prevent stale permission data after seeding
+func invalidatePermissionCache() {
+	redisClient := redis.GetClient()
+	if redisClient == nil {
+		return
+	}
+
+	ctx := context.Background()
+	patterns := []string{"permissions:*", "permissions_scope:*"}
+
+	for _, pattern := range patterns {
+		keys, err := redisClient.Keys(ctx, pattern).Result()
+		if err != nil {
+			log.Printf("Warning: Failed to scan Redis keys for pattern '%s': %v", pattern, err)
+			continue
+		}
+		if len(keys) > 0 {
+			if err := redisClient.Del(ctx, keys...).Err(); err != nil {
+				log.Printf("Warning: Failed to delete Redis keys for pattern '%s': %v", pattern, err)
+			} else {
+				log.Printf("Invalidated %d cached permission entries (pattern: %s)", len(keys), pattern)
+			}
+		}
+	}
 }
 
 // assignScopedPermissionsToRole assigns all permissions to a role with module-aware scopes.

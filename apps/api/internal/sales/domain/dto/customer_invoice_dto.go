@@ -60,7 +60,7 @@ type ListCustomerInvoiceItemsRequest struct {
 
 // UpdateCustomerInvoiceStatusRequest represents the request to update invoice status
 type UpdateCustomerInvoiceStatusRequest struct {
-	Status     string   `json:"status" binding:"required,oneof=partial paid cancelled"`
+	Status     string   `json:"status" binding:"required,oneof=sent approved rejected unpaid partial paid cancelled"`
 	PaidAmount *float64 `json:"paid_amount" binding:"omitempty,gte=0"`
 	PaymentAt  *string  `json:"payment_at"`
 }

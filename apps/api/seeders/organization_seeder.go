@@ -144,7 +144,7 @@ func SeedOrganization() error {
 	companies := []models.Company{
 		{
 			ID:         GiLabsCompanyID,
-			Name:       "PT. GiLabs Healthcare",
+			Name:       "PT. GiLabs",
 			Address:    "Menara BCA, Jl. M.H. Thamrin No.1, Jakarta Pusat",
 			Email:      "contact@gilabs.com",
 			Phone:      "021-2358-1234",

@@ -1,0 +1,69 @@
+/* Custom marker cluster styles to match modern Apple-like UI:
+   - White circular background
+   - Primary color text (uses project's CSS variable)
+   - Subtle border and shadow
+*/
+
+.marker-cluster {
+  background-color: white !important;
+  background-image: none !important;
+  color: hsl(var(--primary)) !important;
+  border: 1.5px solid rgba(16,24,40,0.06) !important;
+  box-shadow: 0 4px 8px rgba(2,6,23,0.06) !important;
+  border-radius: 999px !important;
+}
+
+/* The cluster element sometimes has nested div/span for the number. Make it bold and primary color. */
+.marker-cluster div,
+.marker-cluster span {
+  background: transparent !important;
+  color: hsl(var(--primary)) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  line-height: 1 !important;
+}
+
+/* Different cluster sizes: keep shape consistent */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  width: 36px !important;
+  height: 36px !important;
+  margin-left: -18px !important; /* center the circle */
+  margin-top: -18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Ensure the icon image (if any) is hidden so we only see the plain circle and text */
+.marker-cluster .marker-cluster-icon,
+.marker-cluster img {
+  display: none !important;
+}
+
+/* Override default inner div offset from library so text is perfectly centered */
+.marker-cluster div {
+  /* match outer size so inner block is centered */
+  width: 36px !important;
+  height: 36px !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+  text-align: center !important;
+  border-radius: 999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.marker-cluster span {
+  line-height: 36px !important; /* vertical centering fallback */
+}
+
+/* Slightly different sizing for large clusters */
+.marker-cluster-large {
+  width: 44px !important;
+  height: 44px !important;
+  margin-left: -22px !important;
+  margin-top: -22px !important;
+}

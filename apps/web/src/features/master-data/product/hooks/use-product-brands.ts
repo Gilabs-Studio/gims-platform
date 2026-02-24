@@ -12,11 +12,12 @@ export const productBrandKeys = {
   detail: (id: string) => [...productBrandKeys.details(), id] as const,
 };
 
-export function useProductBrands(params?: LookupListParams) {
+export function useProductBrands(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productBrandKeys.list(params),
     queryFn: () => productBrandService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

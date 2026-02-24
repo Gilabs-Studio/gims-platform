@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Table,
@@ -39,154 +38,18 @@ import {
   Users,
   Eye,
 } from "lucide-react";
-import { useUserPermission } from "@/hooks/use-user-permission";
 import { AreaForm } from "./area-form";
 import { AreaDetailModal } from "./area-detail-modal";
 import { AssignEmployeeDialog } from "./assign-employee-dialog";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import {
-  useAreas,
-  useDeleteArea,
-  useUpdateArea,
-  useAreaDetail,
-  useAssignSupervisors,
-  useAssignMembers,
-} from "../../hooks/use-areas";
-import { useDebounce } from "@/hooks/use-debounce";
-import type { Area, ListAreasParams } from "../../types";
+import { useAreaList } from "../../hooks/use-area-list";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
-type SupervisorFilter = "all" | "has" | "none";
-type MemberFilter = "all" | "has" | "none";
-
 export function AreaList() {
-  const t = useTranslations("organization");
+  const { state, actions, data, permissions, translations } = useAreaList();
+  const { t } = translations;
 
-  // Search & pagination state
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Filter state
-  const [supervisorFilter, setSupervisorFilter] =
-    useState<SupervisorFilter>("all");
-  const [memberFilter, setMemberFilter] = useState<MemberFilter>("all");
-
-  // Dialog/modal state
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState<Area | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [detailArea, setDetailArea] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [assignDialog, setAssignDialog] = useState<{
-    areaId: string;
-    areaName: string;
-    role: "supervisor" | "member";
-  } | null>(null);
-
-  // Build query params with filters
-  const queryParams: ListAreasParams = {
-    page,
-    per_page: pageSize,
-    search: debouncedSearch || undefined,
-    has_supervisor:
-      supervisorFilter === "has"
-        ? true
-        : supervisorFilter === "none"
-          ? false
-          : undefined,
-    has_members:
-      memberFilter === "has"
-        ? true
-        : memberFilter === "none"
-          ? false
-          : undefined,
-  };
-
-  const { data, isLoading, isError } = useAreas(queryParams);
-
-  // Permission checks
-  const canCreate = useUserPermission("area.create");
-  const canView = useUserPermission("area.read");
-  const canUpdate = useUserPermission("area.update");
-  const canDelete = useUserPermission("area.delete");
-  const canAssignSupervisor = useUserPermission("area.assign_supervisor");
-  const canAssignMember = useUserPermission("area.assign_member");
-
-  const deleteArea = useDeleteArea();
-  const updateArea = useUpdateArea();
-  const assignSupervisors = useAssignSupervisors();
-  const assignMembers = useAssignMembers();
-
-  // Fetch detail for assign dialog (to know existing employees)
-  const { data: assignAreaDetail } = useAreaDetail(assignDialog?.areaId ?? "");
-
-  const areas = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleEdit = useCallback((area: Area) => {
-    setEditingArea(area);
-    setIsFormOpen(true);
-  }, []);
-
-  const handleDelete = useCallback(async () => {
-    if (deletingId) {
-      await deleteArea.mutateAsync(deletingId);
-      setDeletingId(null);
-    }
-  }, [deletingId, deleteArea]);
-
-  const handleStatusChange = useCallback(
-    async (id: string, currentStatus: boolean, name: string) => {
-      try {
-        await updateArea.mutateAsync({
-          id,
-          data: { is_active: !currentStatus },
-        });
-        toast.success(t("common.success_update", { name }));
-      } catch {
-        toast.error(t("common.error_update"));
-      }
-    },
-    [updateArea, t]
-  );
-
-  const handleRowClick = useCallback((area: Area) => {
-    if (!canView) return;
-    setDetailArea({ id: area.id, name: area.name });
-  }, [canView]);
-
-  const handleFormClose = useCallback(() => {
-    setIsFormOpen(false);
-    setEditingArea(null);
-  }, []);
-
-  const handleAssign = useCallback(
-    (employeeIds: string[]) => {
-      if (!assignDialog) return;
-
-      const { areaId, role } = assignDialog;
-      const mutation =
-        role === "supervisor" ? assignSupervisors : assignMembers;
-
-      mutation.mutate(
-        { areaId, data: { employee_ids: employeeIds } },
-        {
-          onSuccess: () => {
-            toast.success(t("area.assign.assignSuccess"));
-            setAssignDialog(null);
-          },
-        }
-      );
-    },
-    [assignDialog, assignSupervisors, assignMembers, t]
-  );
-
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="p-4 text-center text-destructive">
         {t("common.loading")}
@@ -206,9 +69,9 @@ export function AreaList() {
             {t("area.description")}
           </p>
         </div>
-        {canCreate && (
+        {permissions.canCreate && (
           <Button
-            onClick={() => setIsFormOpen(true)}
+            onClick={() => actions.setIsFormOpen(true)}
             className="cursor-pointer"
           >
             <Plus className="mr-2 size-4" />
@@ -223,20 +86,20 @@ export function AreaList() {
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder={t("common.search")}
-            value={search}
+            value={state.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              actions.setSearch(e.target.value);
+              actions.setPage(1);
             }}
             className="pl-8"
           />
         </div>
 
         <Select
-          value={supervisorFilter}
-          onValueChange={(v: SupervisorFilter) => {
-            setSupervisorFilter(v);
-            setPage(1);
+          value={state.supervisorFilter}
+          onValueChange={(v: "all"|"has"|"none") => {
+            actions.setSupervisorFilter(v);
+            actions.setPage(1);
           }}
         >
           <SelectTrigger className="w-[180px] cursor-pointer">
@@ -256,10 +119,10 @@ export function AreaList() {
         </Select>
 
         <Select
-          value={memberFilter}
-          onValueChange={(v: MemberFilter) => {
-            setMemberFilter(v);
-            setPage(1);
+          value={state.memberFilter}
+          onValueChange={(v: "all"|"has"|"none") => {
+            actions.setMemberFilter(v);
+            actions.setPage(1);
           }}
         >
           <SelectTrigger className="w-[180px] cursor-pointer">
@@ -295,7 +158,7 @@ export function AreaList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {data.isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell>
@@ -318,18 +181,18 @@ export function AreaList() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : areas.length === 0 ? (
+            ) : data.areas.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
                   {t("area.empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              areas.map((area) => (
+              data.areas.map((area) => (
                 <TableRow
                   key={area.id}
-                  className={canView ? "cursor-pointer hover:bg-muted/50" : ""}
-                  onClick={() => handleRowClick(area)}
+                  className={permissions.canView ? "cursor-pointer hover:bg-muted/50" : ""}
+                  onClick={() => actions.handleRowClick(area)}
                 >
                   <TableCell className="font-medium">{area.name}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
@@ -340,9 +203,9 @@ export function AreaList() {
                       count={area.supervisor_count ?? 0}
                       names={area.supervisor_names ?? []}
                       t={t}
-                      canAssign={canCreate && canAssignSupervisor}
+                      canAssign={permissions.canCreate && permissions.canAssignSupervisor}
                       onAssign={() =>
-                        setAssignDialog({
+                        actions.setAssignDialog({
                           areaId: area.id,
                           areaName: area.name,
                           role: "supervisor",
@@ -354,9 +217,9 @@ export function AreaList() {
                     <MemberCell
                       count={area.member_count ?? 0}
                       t={t}
-                      canAssign={canCreate && canAssignMember}
+                      canAssign={permissions.canCreate && permissions.canAssignMember}
                       onAssign={() =>
-                        setAssignDialog({
+                        actions.setAssignDialog({
                           areaId: area.id,
                           areaName: area.name,
                           role: "member",
@@ -369,13 +232,13 @@ export function AreaList() {
                       <Switch
                         checked={area.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(
+                          actions.handleStatusChange(
                             area.id,
                             area.is_active,
                             area.name
                           )
                         }
-                        disabled={updateArea.isPending || !canUpdate}
+                        disabled={data.isUpdating || !permissions.canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground hidden lg:inline">
@@ -396,27 +259,27 @@ export function AreaList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {canView && (
+                        {permissions.canView && (
                           <DropdownMenuItem
-                            onClick={() => handleRowClick(area)}
+                            onClick={() => actions.handleRowClick(area)}
                             className="cursor-pointer"
                           >
                             <Eye className="mr-2 size-4" />
                             {t("common.view")}
                           </DropdownMenuItem>
                         )}
-                        {canUpdate && (
+                        {permissions.canUpdate && (
                           <DropdownMenuItem
-                            onClick={() => handleEdit(area)}
+                            onClick={() => actions.handleEdit(area)}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 size-4" />
                             {t("common.edit")}
                           </DropdownMenuItem>
                         )}
-                        {canDelete && (
+                        {permissions.canDelete && (
                           <DropdownMenuItem
-                            onClick={() => setDeletingId(area.id)}
+                            onClick={() => actions.setDeletingId(area.id)}
                             className="cursor-pointer text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 size-4" />
@@ -434,54 +297,54 @@ export function AreaList() {
       </div>
 
       {/* Pagination */}
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
       {/* Form Dialog */}
       <AreaForm
-        open={isFormOpen}
-        onClose={handleFormClose}
-        area={editingArea}
+        open={state.isFormOpen}
+        onClose={actions.handleFormClose}
+        area={state.editingArea}
       />
 
       {/* Delete Dialog */}
       <DeleteDialog
-        open={!!deletingId}
-        onOpenChange={(open) => !open && setDeletingId(null)}
-        onConfirm={handleDelete}
-        isLoading={deleteArea.isPending}
+        open={!!state.deletingId}
+        onOpenChange={(open) => !open && actions.setDeletingId(null)}
+        onConfirm={actions.handleDelete}
+        isLoading={data.isDeleting}
         title={t("area.deleteTitle")}
         description={t("area.deleteConfirm")}
       />
 
       {/* Area Detail Modal */}
-      {detailArea && (
+      {state.detailArea && (
         <AreaDetailModal
-          areaId={detailArea.id}
-          areaName={detailArea.name}
-          open={!!detailArea}
-          onOpenChange={(open) => !open && setDetailArea(null)}
+          areaId={state.detailArea.id}
+          areaName={state.detailArea.name}
+          open={!!state.detailArea}
+          onOpenChange={(open) => !open && actions.setDetailArea(null)}
           onAssignSupervisor={() =>
-            setAssignDialog({
-              areaId: detailArea.id,
-              areaName: detailArea.name,
+            actions.setAssignDialog({
+              areaId: state.detailArea!.id,
+              areaName: state.detailArea!.name,
               role: "supervisor",
             })
           }
           onAssignMembers={() =>
-            setAssignDialog({
-              areaId: detailArea.id,
-              areaName: detailArea.name,
+            actions.setAssignDialog({
+              areaId: state.detailArea!.id,
+              areaName: state.detailArea!.name,
               role: "member",
             })
           }
@@ -489,21 +352,19 @@ export function AreaList() {
       )}
 
       {/* Assign Employee Dialog */}
-      {assignDialog && (
+      {state.assignDialog && (
         <AssignEmployeeDialog
-          open={!!assignDialog}
-          onOpenChange={(open) => !open && setAssignDialog(null)}
-          areaName={assignDialog.areaName}
-          role={assignDialog.role}
+          open={!!state.assignDialog}
+          onOpenChange={(open) => !open && actions.setAssignDialog(null)}
+          areaName={state.assignDialog.areaName}
+          role={state.assignDialog.role}
           existingEmployees={
-            assignDialog.role === "supervisor"
-              ? (assignAreaDetail?.data?.supervisors ?? [])
-              : (assignAreaDetail?.data?.members ?? [])
+            state.assignDialog.role === "supervisor"
+              ? (data.assignAreaDetail?.data?.supervisors ?? [])
+              : (data.assignAreaDetail?.data?.members ?? [])
           }
-          onAssign={handleAssign}
-          isAssigning={
-            assignSupervisors.isPending || assignMembers.isPending
-          }
+          onAssign={actions.handleAssign}
+          isAssigning={data.isAssigning}
         />
       )}
     </div>

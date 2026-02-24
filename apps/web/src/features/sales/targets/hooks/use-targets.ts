@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import * as targetsService from "../services/targets-service";
 import type { ListParams } from "../types";
 
@@ -9,11 +9,15 @@ export function useYearlyTargets(params?: ListParams & { year?: number; area_id?
   });
 }
 
-export function useYearlyTarget(id: string) {
+export function useYearlyTarget(
+  id: string,
+  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: ["yearly-target", id],
     queryFn: () => targetsService.getYearlyTarget(id),
-    enabled: !!id,
+    enabled: !!id && (options?.enabled ?? true),
+    ...options,
   });
 }
 

@@ -10,8 +10,8 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
-import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus } from "../hooks/use-invoices";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send } from "lucide-react";
+import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { InvoiceForm } from "./invoice-form";
@@ -33,7 +33,8 @@ export function InvoiceList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<CustomerInvoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(null);
-  const [viewingSalesOrder, setViewingSalesOrder] = useState<SalesOrder | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
+  const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -47,9 +48,12 @@ export function InvoiceList() {
   const canUpdate = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canView = useUserPermission("customer_invoice.read");
+  const canApprove = useUserPermission("customer_invoice.approve");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
+  const approveInvoice = useApproveInvoice();
   const invoices = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -114,6 +118,34 @@ export function InvoiceList() {
     }
 
     switch (status) {
+      case "draft":
+        return (
+          <Badge variant="secondary">
+            <FileText className="h-3 w-3 mr-1" />
+            {t("status.draft")}
+          </Badge>
+        );
+      case "sent":
+        return (
+          <Badge variant="info">
+            <Send className="h-3 w-3 mr-1" />
+            {t("status.pending")}
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="success">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            {t("status.approved")}
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            {t("status.rejected")}
+          </Badge>
+        );
       case "unpaid":
         return (
           <Badge variant="secondary">
@@ -187,6 +219,10 @@ export function InvoiceList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
+            <SelectItem value="draft">{t("status.draft")}</SelectItem>
+            <SelectItem value="sent">{t("status.pending")}</SelectItem>
+            <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>
@@ -239,15 +275,18 @@ export function InvoiceList() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {invoice.sales_order ? (
+                    {invoice.sales_order && canViewSalesOrder ? (
                       <button
-                        onClick={() => setViewingSalesOrder(invoice.sales_order!)}
+                        onClick={() => {
+                          setSelectedSalesOrderId(invoice.sales_order!.id);
+                          setIsSalesOrderOpen(true);
+                        }}
                         className="font-medium text-primary hover:underline cursor-pointer"
                       >
                         {invoice.sales_order.code}
                       </button>
                     ) : (
-                      "-"
+                      <span>{invoice.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
@@ -267,16 +306,47 @@ export function InvoiceList() {
                               {t("common.view")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && invoice.status === "unpaid" && (
+                          {canUpdate && invoice.status === "draft" && (
                             <DropdownMenuItem onClick={() => handleEdit(invoice)} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
+                          {canUpdate && invoice.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(invoice.id, "sent")}
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              {t("actions.send")}
+                            </DropdownMenuItem>
+                          )}
+                          {invoice.status === "sent" && (
+                            <>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => approveInvoice.mutateAsync(invoice.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(invoice.id, "rejected")}
+                                  className="cursor-pointer text-destructive focus:text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          )}
                           {canUpdate && (invoice.status === "unpaid" || invoice.status === "partial") && (
                             <DropdownMenuItem
                               onClick={() => handleView(invoice)}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-green-600 focus:text-green-600"
                             >
                               <DollarSign className="h-4 w-4 mr-2" />
                               {t("actions.pay")}
@@ -291,7 +361,7 @@ export function InvoiceList() {
                               {t("actions.cancel")}
                             </DropdownMenuItem>
                           )}
-                          {canDelete && invoice.status === "unpaid" && (
+                          {canDelete && (invoice.status === "draft" || invoice.status === "unpaid") && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(invoice.id)}
                               className="text-destructive cursor-pointer"
@@ -340,11 +410,11 @@ export function InvoiceList() {
         />
       )}
 
-      {viewingSalesOrder && (
+      {selectedSalesOrderId && (
         <OrderDetailModal
-          open={!!viewingSalesOrder}
-          onClose={() => setViewingSalesOrder(null)}
-          order={viewingSalesOrder}
+          open={isSalesOrderOpen}
+          onClose={() => setIsSalesOrderOpen(false)}
+          order={{ id: selectedSalesOrderId } as unknown as SalesOrder}
         />
       )}
 

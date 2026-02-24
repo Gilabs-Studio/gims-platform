@@ -37,6 +37,8 @@ export const quotationId = {
       validationError: "Silakan perbaiki kolom yang disorot",
       basicInfo: "Informasi Dasar",
       select: "Pilih",
+      customer: "Pelanggan",
+      selectCustomer: "Pilih pelanggan",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
     },
@@ -53,6 +55,7 @@ export const quotationId = {
     status: {
       draft: "Draft",
       sent: "Terkirim",
+      pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
       converted: "Dikonversi",
@@ -99,6 +102,12 @@ export const quotationId = {
     deleteDesc: "Apakah Anda yakin ingin menghapus penawaran ini? Tindakan ini tidak dapat dibatalkan. Hanya penawaran draft yang dapat dihapus.",
     convertToOrder: "Konversi ke Pesanan Penjualan",
     print: "Cetak",
+    printQuotation: "Cetak Penawaran",
+    printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen penawaran.",
+    printCompanyLabel: "Perusahaan",
+    printCompanyPlaceholder: "Pilih perusahaan...",
+    printNoCompanies: "Tidak ada perusahaan tersedia",
+    printConfirm: "Cetak",
     export: "Ekspor PDF",
 
     // Item
@@ -145,5 +154,10 @@ export const quotationId = {
     rejectedAt: "Ditolak Pada",
     convertedAt: "Dikonversi Pada",
     rejectionReason: "Alasan Penolakan",
+
+    // WhatsApp
+    whatsapp: {
+      greeting: "Halo, terkait penawaran",
+    },
   },
 };

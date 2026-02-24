@@ -9,7 +9,6 @@ import {
   Building2,
   Menu,
   X,
-  Filter,
   Loader2,
   ChevronLeft,
 } from "lucide-react";
@@ -34,11 +33,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSuppliers,
   useDeleteSupplier,
-  useSubmitSupplier,
-  useApproveSupplier,
 } from "../../hooks/use-suppliers";
 import { useSupplierTypes } from "../../hooks/use-supplier-types";
-import type { Supplier, SupplierStatus } from "../../types";
+import type { Supplier } from "../../types";
 import { SupplierCard } from "./supplier-card";
 import { SupplierSidePanel } from "./supplier-side-panel";
 import { SupplierDetailModal } from "./supplier-detail-modal";
@@ -57,13 +54,6 @@ const Popup = dynamic(
   { ssr: false }
 );
 
-const statusColors: Record<SupplierStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
-
 type PanelMode = "create" | "edit" | "view" | null;
 
 export function SupplierMapView() {
@@ -74,7 +64,6 @@ export function SupplierMapView() {
   // State
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  const [statusFilter, setStatusFilter] = useState<SupplierStatus | "all">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
@@ -93,7 +82,6 @@ export function SupplierMapView() {
   const { data, isLoading, refetch } = useSuppliers({
     per_page: 100,
     search: debouncedSearch || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
     supplier_type_id: typeFilter !== "all" ? typeFilter : undefined,
   });
 
@@ -101,10 +89,8 @@ export function SupplierMapView() {
   const supplierTypes = supplierTypesData?.data ?? [];
 
   const deleteSupplier = useDeleteSupplier();
-  const submitSupplier = useSubmitSupplier();
-  const approveSupplier = useApproveSupplier();
 
-  const suppliers = data?.data ?? [];
+  const suppliers = useMemo(() => data?.data ?? [], [data?.data]);
 
   // Filter suppliers with valid coordinates for map
   const markers: MapMarker<Supplier>[] = useMemo(
@@ -123,7 +109,8 @@ export function SupplierMapView() {
   const selectedSupplier = useMemo(
     () => suppliers.find((s) => s.id === selectedSupplierId),
     [suppliers, selectedSupplierId]
-  );
+  ); // Used for future feature: scroll-to-card on map marker click
+  void selectedSupplier;
 
   // Handlers
   const handleSupplierClick = (supplier: Supplier) => {
@@ -165,33 +152,6 @@ export function SupplierMapView() {
     }
   };
 
-  const handleSubmitForApproval = async (supplier: Supplier) => {
-    try {
-      await submitSupplier.mutateAsync(supplier.id);
-      toast.success(t("submitSuccess"));
-    } catch {
-      toast.error(tCommon("error_update"));
-    }
-  };
-
-  const handleApprove = async (supplier: Supplier) => {
-    try {
-      await approveSupplier.mutateAsync({ id: supplier.id, data: { action: "approve" } });
-      toast.success(t("approveSuccess"));
-    } catch {
-      toast.error(tCommon("error_update"));
-    }
-  };
-
-  const handleReject = async (supplier: Supplier) => {
-    try {
-      await approveSupplier.mutateAsync({ id: supplier.id, data: { action: "reject" } });
-      toast.success(t("rejectSuccess"));
-    } catch {
-      toast.error(tCommon("error_update"));
-    }
-  };
-
   // Render markers on map
   const renderMarkers = (markerList: MapMarker<Supplier>[]) => (
     <>
@@ -216,8 +176,8 @@ export function SupplierMapView() {
                       {supplier.address}
                     </p>
                   )}
-                  <Badge className={cn("text-xs mb-2", statusColors[supplier.status])}>
-                    {t(`status.${supplier.status}`)}
+                  <Badge variant={supplier.is_active ? "active" : "inactive"} className="text-xs mb-2">
+                    {supplier.is_active ? "Active" : "Inactive"}
                   </Badge>
                   <div className="flex flex-col gap-1 mt-2">
                     <Button
@@ -302,26 +262,10 @@ export function SupplierMapView() {
             </div>
             <div className="flex items-center gap-2">
               <Select
-                value={statusFilter}
-                onValueChange={(val) => setStatusFilter(val as SupplierStatus | "all")}
-              >
-                <SelectTrigger className="flex-1">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                  <SelectItem value="pending">{t("status.pending")}</SelectItem>
-                  <SelectItem value="approved">{t("status.approved")}</SelectItem>
-                  <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
                 value={typeFilter}
                 onValueChange={(val) => setTypeFilter(val)}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -333,13 +277,18 @@ export function SupplierMapView() {
                   ))}
                 </SelectContent>
               </Select>
+              {canCreate && (
+                <Button
+                  onClick={handleCreate}
+                  className={
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-[160px] cursor-pointer"
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {tCommon("create")}
+                </Button>
+              )}
             </div>
-            {canCreate && (
-              <Button onClick={handleCreate} className="w-full cursor-pointer">
-                <Plus className="h-4 w-4 mr-1" />
-                {tCommon("create")}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -463,6 +412,7 @@ export function SupplierMapView() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         supplier={viewingSupplier}
+        onEdit={handleEdit}
       />
     </div>
   );

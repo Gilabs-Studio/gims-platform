@@ -12,11 +12,12 @@ export const productCategoryKeys = {
   detail: (id: string) => [...productCategoryKeys.details(), id] as const,
 };
 
-export function useProductCategories(params?: LookupListParams) {
+export function useProductCategories(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: productCategoryKeys.list(params),
     queryFn: () => productCategoryService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

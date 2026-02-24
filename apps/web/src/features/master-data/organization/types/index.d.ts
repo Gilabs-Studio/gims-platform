@@ -103,7 +103,13 @@ export interface Company {
   phone?: string;
   npwp?: string;
   nib?: string;
-  village_id?: string;
+  province_id?: string | null;
+  province?: { id: string; name: string };
+  city_id?: string | null;
+  city?: { id: string; name: string };
+  district_id?: string | null;
+  district?: { id: string; name: string };
+  village_id?: string | null;
   village?: {
     id: string;
     name: string;
@@ -122,7 +128,7 @@ export interface Company {
   };
   latitude?: number | null;
   longitude?: number | null;
-  director_id?: string;
+  director_id?: string | null;
   director?: { id: string; name: string };
   status: CompanyStatus;
   is_approved: boolean;
@@ -141,8 +147,11 @@ export interface CreateCompanyData {
   phone?: string;
   npwp?: string;
   nib?: string;
-  village_id?: string;
-  director_id?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
+  director_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
@@ -155,8 +164,11 @@ export interface UpdateCompanyData {
   phone?: string;
   npwp?: string;
   nib?: string;
-  village_id?: string;
-  director_id?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
+  director_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
@@ -248,6 +260,8 @@ export interface ListOrganizationParams {
 export interface ListCompaniesParams extends ListOrganizationParams {
   status?: CompanyStatus;
   village_id?: string;
+  company_type_id?: string;
+  is_active?: boolean;
 }
 
 export interface ListAreasParams extends ListOrganizationParams {

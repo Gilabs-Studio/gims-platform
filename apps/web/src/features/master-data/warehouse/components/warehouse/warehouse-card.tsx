@@ -1,7 +1,6 @@
 "use client";
 
 import { Warehouse, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Warehouse as WarehouseType } from "../../types";
 
@@ -33,7 +32,8 @@ export function WarehouseCard({
       onClick={onClick}
       className={cn(
         "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
-        isSelected && "bg-accent border-l-4 border-l-primary"
+        isSelected && "bg-accent border-l-4 border-l-primary",
+        !warehouse.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
@@ -51,12 +51,6 @@ export function WarehouseCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge 
-              className="text-xs" 
-              variant={warehouse.is_active ? "success" : "secondary"}
-            >
-              {warehouse.is_active ? t("common.active") : t("common.inactive")}
-            </Badge>
             {warehouse.capacity && (
               <span className="text-xs text-muted-foreground">
                 Capacity: {warehouse.capacity}

@@ -1,0 +1,20 @@
+export const leadSourceId = {
+  title: "Sumber Prospek",
+  description: "Kelola sumber prospek untuk CRM",
+  create: "Tambah Sumber Prospek",
+  edit: "Edit Sumber Prospek",
+  deleted: "Sumber prospek berhasil dihapus",
+  created: "Sumber prospek berhasil dibuat",
+  updated: "Sumber prospek berhasil diperbarui",
+  empty: "Tidak ada sumber prospek ditemukan",
+  form: {
+    name: "Nama",
+    namePlaceholder: "Masukkan nama sumber",
+    code: "Kode",
+    codePlaceholder: "Masukkan kode sumber",
+    order: "Urutan",
+    description: "Deskripsi",
+    descriptionPlaceholder: "Masukkan deskripsi",
+    isActive: "Aktif",
+  },
+};

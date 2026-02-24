@@ -21,10 +21,11 @@ export const provinceKeys = {
 };
 
 // List provinces hook with country filter
-export function useProvinces(params?: ListProvincesParams) {
+export function useProvinces(params?: ListProvincesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: provinceKeys.list(params),
     queryFn: () => provinceService.list(params),
+    ...options,
   });
 }
 

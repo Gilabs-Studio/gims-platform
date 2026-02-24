@@ -28,12 +28,12 @@ func SeedCustomerInvoice() error {
 
 	// Get required reference data - only confirmed sales orders
 	var salesOrders []salesModels.SalesOrder
-	if err := db.Preload("Items").Where("status = ?", salesModels.SalesOrderStatusConfirmed).Limit(5).Find(&salesOrders).Error; err != nil {
+	if err := db.Preload("Items").Where("status = ?", salesModels.SalesOrderStatusApproved).Limit(5).Find(&salesOrders).Error; err != nil {
 		log.Printf("Warning: Failed to fetch confirmed sales orders: %v", err)
 		return err
 	}
 	if len(salesOrders) == 0 {
-		log.Println("Warning: No confirmed sales orders found. Please seed sales orders first.")
+		log.Println("Warning: No approved sales orders found. Please seed sales orders first.")
 		return nil
 	}
 

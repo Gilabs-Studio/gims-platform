@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -12,8 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sortOptions } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
-import { useCreateCity, useUpdateCity } from "../../hooks/use-cities";
-import { getCitySchema, type CreateCityFormData } from "../../schemas/geographic.schema";
+import { useCityForm } from "../../hooks/use-city-form";
 import type { City, Province } from "../../types";
 
 export interface CityFormProps {
@@ -24,45 +19,15 @@ export interface CityFormProps {
 }
 
 export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
-  const t = useTranslations("geographic");
-  const isEditing = !!city;
-  const createCity = useCreateCity();
-  const updateCity = useUpdateCity();
+  const { form, t, isEditing, isLoading, onSubmit } = useCityForm({ open, onClose, city });
 
   const {
     register,
-    handleSubmit,
     setValue,
     watch,
-    reset,
     formState: { errors },
-  } = useForm<CreateCityFormData>({
-    resolver: zodResolver(getCitySchema(t)),
-    defaultValues: { name: "", code: "", province_id: "", type: "city", is_active: true },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (city) {
-      reset({ name: city.name, code: city.code, province_id: city.province_id, type: city.type, is_active: city.is_active });
-    } else {
-      reset({ name: "", code: "", province_id: "", type: "city", is_active: true });
-    }
-  }, [city, reset]);
-
-  const onSubmit = async (data: CreateCityFormData) => {
-    try {
-      if (isEditing && city) {
-        await updateCity.mutateAsync({ id: city.id, data });
-      } else {
-        await createCity.mutateAsync(data);
-      }
-      onClose();
-    } catch (error) {
-      console.error("Failed to save city:", error);
-    }
-  };
-
-  const isLoading = createCity.isPending || updateCity.isPending;
   const provinceId = watch("province_id");
   const type = watch("type");
   const isActive = watch("is_active");
@@ -73,7 +38,7 @@ export function CityForm({ open, onClose, city, provinces }: CityFormProps) {
         <DialogHeader>
           <DialogTitle>{isEditing ? t("city.edit") : t("city.add")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field orientation="vertical">
             <FieldLabel>{t("province.title")}</FieldLabel>
             <Select onValueChange={(val) => setValue("province_id", val)} value={provinceId}>

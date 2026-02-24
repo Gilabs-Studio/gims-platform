@@ -21,10 +21,11 @@ export const divisionKeys = {
 };
 
 // List divisions hook
-export function useDivisions(params?: ListOrganizationParams) {
+export function useDivisions(params?: ListOrganizationParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: divisionKeys.list(params),
     queryFn: () => divisionService.list(params),
+    ...options,
   });
 }
 

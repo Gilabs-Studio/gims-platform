@@ -67,32 +67,32 @@
 
 @layer base {
   :root {
-    /* Bright Monochrome Palette - Reduced Brightness */
-    --background: 0 0% 98%;        /* Soft White (reduced from 100%) */
-    --foreground: 0 0% 8%;         /* Near Black (slightly darker for better contrast) */
+    /* Calm Light Theme - Much Softer on the Eyes */
+    --background: 220 14% 96%;     /* Soft cool gray background */
+    --foreground: 220 10% 20%;     /* Softer charcoal text (reduced glare) */
     
-    --card: 0 0% 99%;              /* Slightly off-white */
-    --card-foreground: 0 0% 8%;    /* Slightly darker for better contrast */
+    --card: 0 0% 100%;             /* Pure white for cards */
+    --card-foreground: 220 10% 20%;
     
-    --popover: 0 0% 99%;           /* Slightly off-white */
-    --popover-foreground: 0 0% 8%;  /* Slightly darker for better contrast */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 20%;
     
     --primary: 221 83% 53%;        /* Electric Blue #2563EB */
     --primary-foreground: 0 0% 100%; /* White */
     
-    --secondary: 0 0% 94%;         /* Light Gray (reduced from 96%) */
-    --secondary-foreground: 0 0% 8%; /* Slightly darker for better contrast */
+    --secondary: 220 14% 92%;      /* Calmer gray for secondary elements */
+    --secondary-foreground: 220 10% 20%;
     
-    --muted: 0 0% 94%;             /* Light Gray (reduced from 96%) */
-    --muted-foreground: 0 0% 42%;  /* Slightly darker gray for better contrast */
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 45%; /* Softer muted text */
     
-    --accent: 0 0% 94%;            /* Light Gray (reduced from 96%) */
-    --accent-foreground: 0 0% 8%;  /* Slightly darker for better contrast */
+    --accent: 220 14% 92%;
+    --accent-foreground: 220 10% 20%;
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 88%;            /* Light Gray Border (reduced from 90%) */
-    --input: 0 0% 88%;              /* Light Gray (reduced from 90%) */
+    --border: 220 14% 86%;         /* Slightly darker border for visibility */
+    --input: 220 14% 86%;          
     --ring: 221 83% 53%;           /* Electric Blue #2563EB */
     
     --brand: 221 83% 53%;          /* Electric Blue #2563EB */
@@ -311,6 +311,15 @@
   
   .sidebar-item-hover-gradient:hover::after {
     opacity: 1;
+  }
+
+  /* Semantic warning text utility using theme variable --chart-3 */
+  .text-warning {
+    color: hsl(var(--chart-3));
+  }
+
+  .dark .text-warning {
+    color: hsl(var(--chart-3));
   }
 }
 

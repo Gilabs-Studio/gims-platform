@@ -1,10 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -17,25 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ButtonLoading } from "@/components/loading";
-import { toast } from "sonner";
-import {
-  useCreateSupplierType,
-  useUpdateSupplierType,
-} from "../../hooks/use-supplier-types";
+import { useSupplierTypeForm } from "../../hooks/use-supplier-type-form";
 import type { SupplierType } from "../../types";
 
-const formSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name cannot exceed 100 characters"),
-  description: z.string().max(500, "Description cannot exceed 500 characters").optional(),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-interface SupplierTypeDialogProps {
+export interface SupplierTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: SupplierType | null;
@@ -46,76 +26,23 @@ export function SupplierTypeDialog({
   onOpenChange,
   editingItem,
 }: SupplierTypeDialogProps) {
-  const t = useTranslations("supplier.supplierType");
-  const tCommon = useTranslations("supplier.common");
-  const tValidation = useTranslations("supplier.validation");
+  const {
+    form,
+    t,
+    tCommon,
+    tValidation,
+    isEditing,
+    isSubmitting,
+    onSubmit,
+  } = useSupplierTypeForm({ open, onOpenChange, editingItem });
 
-  const createMutation = useCreateSupplierType();
-  const updateMutation = useUpdateSupplierType();
-
-  const isEditing = !!editingItem;
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const {
     register,
-    handleSubmit,
-    reset,
-    watch,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      is_active: true,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (open) {
-      if (editingItem) {
-        reset({
-          name: editingItem.name,
-          description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
-        });
-      } else {
-        reset({
-          name: "",
-          description: "",
-          is_active: true,
-        });
-      }
-    }
-  }, [open, editingItem, reset]);
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      if (isEditing) {
-        await updateMutation.mutateAsync({
-          id: editingItem.id,
-          data: {
-            name: data.name,
-            description: data.description || undefined,
-            is_active: data.is_active,
-          },
-        });
-        toast.success(t("updateSuccess"));
-      } else {
-        await createMutation.mutateAsync({
-          name: data.name,
-          description: data.description || undefined,
-          is_active: data.is_active,
-        });
-        toast.success(t("createSuccess"));
-      }
-      onOpenChange(false);
-    } catch {
-      toast.error(isEditing ? tCommon("error_update") : "Failed to create supplier type");
-    }
-  };
 
   const isActive = watch("is_active");
 
@@ -127,7 +54,7 @@ export function SupplierTypeDialog({
             {isEditing ? t("editTitle") : t("createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input placeholder={t("form.namePlaceholder")} {...register("name")} />

@@ -22,7 +22,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
@@ -77,8 +77,7 @@ export function SupplierPhoneList({
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<PhoneFormData>({
     resolver: zodResolver(phoneSchema) as any,
@@ -155,16 +154,13 @@ export function SupplierPhoneList({
     }
   };
 
-  const isPrimary = watch("is_primary");
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">{t("title")}</h3>
         {!isReadOnly && (
           <Button size="sm" onClick={handleOpenCreate} className="cursor-pointer" type="button">
-            <Plus className="mr-2 h-3 w-3" />
-            {t("addTitle")}
+            <Plus className="h-3 w-3" />
           </Button>
         )}
       </div>
@@ -269,10 +265,16 @@ export function SupplierPhoneList({
                   Set as main contact number
                 </p>
               </div>
-              <Switch
-                checked={isPrimary}
-                onCheckedChange={(val) => setValue("is_primary", val)}
-                 className="cursor-pointer"
+              <Controller
+                control={control}
+                name="is_primary"
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="cursor-pointer"
+                  />
+                )}
               />
             </Field>
 

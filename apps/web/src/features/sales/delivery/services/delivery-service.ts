@@ -73,6 +73,13 @@ export const deliveryService = {
     return response.data;
   },
 
+  async approve(id: string): Promise<DeliveryOrderSingleResponse> {
+    const response = await apiClient.post<DeliveryOrderSingleResponse>(
+      `${BASE_PATH}/${id}/approve`
+    );
+    return response.data;
+  },
+
   async ship(
     id: string,
     data: ShipDeliveryOrderData

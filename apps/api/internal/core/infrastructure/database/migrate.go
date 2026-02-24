@@ -6,8 +6,11 @@ import (
 	"os"
 	"strings"
 
+	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	crm "github.com/gilabs/gims/api/internal/crm/data/models"
+	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -88,6 +91,11 @@ func AutoMigrate() error {
 		&supplier.Supplier{},
 		&supplier.SupplierPhoneNumber{},
 		&supplier.SupplierBank{},
+		// Customer entities (Master Data)
+		&customer.CustomerType{},
+		&customer.Customer{},
+		&customer.CustomerPhoneNumber{},
+		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},
 		&product.ProductBrand{},
@@ -188,6 +196,17 @@ func AutoMigrate() error {
 		&purchase.SupplierInvoice{},
 		&purchase.SupplierInvoiceItem{},
 		&purchase.PurchasePayment{},
+		// AI Assistant entities
+		&ai.AIChatSession{},
+		&ai.AIChatMessage{},
+		&ai.AIActionLog{},
+		&ai.AIIntentRegistry{},
+		// CRM Settings entities (Sprint 17)
+		&crm.PipelineStage{},
+		&crm.LeadSource{},
+		&crm.LeadStatus{},
+		&crm.ContactRole{},
+		&crm.ActivityType{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

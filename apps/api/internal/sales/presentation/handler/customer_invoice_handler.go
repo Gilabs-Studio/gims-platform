@@ -248,6 +248,44 @@ func (h *CustomerInvoiceHandler) UpdateStatus(c *gin.Context) {
 	response.SuccessResponse(c, invoice, meta)
 }
 
+// Approve handles approve customer invoice request (sent → approved)
+func (h *CustomerInvoiceHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+
+	var userID *string
+	if uid, exists := c.Get("user_id"); exists {
+		if u, ok := uid.(string); ok {
+			userID = &u
+		}
+	}
+
+	req := dto.UpdateCustomerInvoiceStatusRequest{Status: "approved"}
+	invoice, err := h.invoiceUC.UpdateStatus(c.Request.Context(), id, &req, userID)
+	if err != nil {
+		if err == usecase.ErrCustomerInvoiceNotFound {
+			errors.ErrorResponse(c, "CUSTOMER_INVOICE_NOT_FOUND", map[string]interface{}{
+				"invoice_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidStatusTransition {
+			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+				"message": "Invoice must be in sent status to approve",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{}
+	if userID != nil {
+		meta.UpdatedBy = *userID
+	}
+
+	response.SuccessResponse(c, invoice, meta)
+}
+
 // RecordPayment handles record payment request
 func (h *CustomerInvoiceHandler) RecordPayment(c *gin.Context) {
 	id := c.Param("id")

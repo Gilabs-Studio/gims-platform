@@ -57,6 +57,11 @@ export const invoiceId = {
 
     // Status
     status: {
+      draft: "Draft",
+      sent: "Diajukan",
+      pending: "Diajukan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       unpaid: "Belum Dibayar",
       partial: "Sebagian",
       paid: "Lunas",
@@ -76,6 +81,7 @@ export const invoiceId = {
     invoiceNumber: "Nomor Faktur",
     invoiceDate: "Tanggal Faktur",
     dueDate: "Tanggal Jatuh Tempo",
+    amount: "Jumlah",
     paymentTerms: "Syarat Pembayaran",
     salesOrder: "Pesanan Penjualan",
     invoiceType: "Jenis Faktur",
@@ -104,6 +110,7 @@ export const invoiceId = {
     edit: "Ubah Faktur",
     delete: "Hapus Faktur",
     notFound: "Tidak ada faktur ditemukan",
+    forbidden: "Anda tidak memiliki izin untuk melihat faktur",
     noItems: "Tidak ada item",
     unknownProduct: "Tidak ada produk dipilih",
     created: "Faktur berhasil dibuat",
@@ -133,6 +140,9 @@ export const invoiceId = {
 
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       pay: "Catat Pembayaran",
       cancel: "Batalkan Faktur",
       markPaid: "Tandai Lunas",

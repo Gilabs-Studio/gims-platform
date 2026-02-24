@@ -35,6 +35,7 @@ export const orderEn = {
       next: "Next",
       select: "Select",
       selectDate: "Select date",
+      selectCustomer: "Select customer",
       customer: "Customer",
       validating: "Validating...",
       back: "Back",
@@ -51,6 +52,10 @@ export const orderEn = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Submitted",
+      pending: "Submitted",
+      approved: "Approved",
+      rejected: "Rejected",
       confirmed: "Confirmed",
       processing: "Processing",
       shipped: "Shipped",
@@ -91,6 +96,7 @@ export const orderEn = {
     totalAmount: "Total Amount",
     reservedStock: "Stock Reserved",
     salesQuotations: "Sales Quotations",
+    invoice: "Invoice",
     quotationSummary: "Quotation Summary",
     noQuotation: "No sales quotation linked",
     customer: "Customer",
@@ -134,8 +140,17 @@ export const orderEn = {
       noProductSelected: "No product selected",
     },
 
+    // Fulfillment labels
+    fulfillment: {
+      pending: "pending",
+      remaining: "remaining",
+    },
+
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       confirm: "Confirm",
       cancel: "Cancel Order",
       convert: "Convert from Quotation",

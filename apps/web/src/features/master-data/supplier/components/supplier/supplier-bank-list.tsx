@@ -191,8 +191,7 @@ export function SupplierBankList({
         <h3 className="text-sm font-medium">{t("title")}</h3>
         {!isReadOnly && (
           <Button size="sm" onClick={handleOpenCreate} className="cursor-pointer" type="button">
-            <Plus className="mr-2 h-3 w-3" />
-            {t("addTitle")}
+            <Plus className="h-3 w-3" />
           </Button>
         )}
       </div>

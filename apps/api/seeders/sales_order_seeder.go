@@ -78,15 +78,10 @@ func SeedSalesOrder() error {
 		// Order date is 3 days after quotation date
 		orderDate := quotation.QuotationDate.AddDate(0, 0, 3)
 
-		// Set order status based on index for variety
-		orderStatuses := []salesModels.SalesOrderStatus{
-			salesModels.SalesOrderStatusConfirmed, // Will be processed for delivery
-			salesModels.SalesOrderStatusProcessing, // Being prepared
-			salesModels.SalesOrderStatusShipped,   // Already shipped (will create delivery)
-		}
-		status := orderStatuses[i%len(orderStatuses)]
+		// Set order status to Approved for all converted quotations
+		status := salesModels.SalesOrderStatusApproved
 
-		// Create order by copying quotation data (snapshot pattern)
+		// Create order by copying quotation data (snapshot + FK pattern)
 		order := salesModels.SalesOrder{
 			Code:              code,
 			OrderDate:         orderDate,
@@ -96,6 +91,7 @@ func SeedSalesOrder() error {
 			BusinessUnitID:    quotation.BusinessUnitID,
 			BusinessTypeID:    quotation.BusinessTypeID,
 			DeliveryAreaID:    &areas[i%len(areas)].ID,
+			CustomerID:        quotation.CustomerID,
 			CustomerName:      quotation.CustomerName,
 			CustomerContact:   quotation.CustomerContact,
 			CustomerPhone:     quotation.CustomerPhone,
@@ -111,11 +107,8 @@ func SeedSalesOrder() error {
 			Notes:             fmt.Sprintf("Converted from quotation %s", quotation.Code),
 		}
 
-		// Set stock reservation for confirmed/processing/shipped orders
-		if status == salesModels.SalesOrderStatusConfirmed ||
-			status == salesModels.SalesOrderStatusProcessing ||
-			status == salesModels.SalesOrderStatusShipped ||
-			status == salesModels.SalesOrderStatusDelivered {
+		// Set stock reservation for approved orders
+		if status == salesModels.SalesOrderStatusApproved {
 			order.ReservedStock = true
 		}
 
@@ -159,20 +152,13 @@ func SeedSalesOrder() error {
 				ProductName:  productName,
 			}
 
-			// Set quantities based on order status
-			if status == salesModels.SalesOrderStatusConfirmed ||
-				status == salesModels.SalesOrderStatusProcessing ||
-				status == salesModels.SalesOrderStatusShipped ||
-				status == salesModels.SalesOrderStatusDelivered {
+			// Set quantities based on order status (always reserved for Approved)
+			if status == salesModels.SalesOrderStatusApproved {
 				orderItem.ReservedQuantity = orderItem.Quantity
 			}
 
-			// For processing status, simulate partial delivery
-			if status == salesModels.SalesOrderStatusProcessing {
-				orderItem.DeliveredQuantity = orderItem.Quantity * 0.5
-			} else if status == salesModels.SalesOrderStatusShipped || status == salesModels.SalesOrderStatusDelivered {
-				orderItem.DeliveredQuantity = orderItem.Quantity
-			}
+			// Delivery quantities are initialized to 0 since DO handles fulfillment now
+			orderItem.DeliveredQuantity = 0
 
 			if err := db.Create(&orderItem).Error; err != nil {
 				log.Printf("Warning: Failed to create order item: %v", err)

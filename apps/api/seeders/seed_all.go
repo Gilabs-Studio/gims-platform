@@ -90,6 +90,14 @@ func SeedAll() error {
 		return err
 	}
 
+	// Customer Master Data seeder (must run before Sales seeders)
+	if err := SeedCustomerTypes(); err != nil {
+		return err
+	}
+	if err := SeedCustomers(); err != nil {
+		return err
+	}
+
 	// Sales Estimation seeder (Sprint 8)
 	if err := SeedSalesEstimation(); err != nil {
 		return err
@@ -212,6 +220,16 @@ func SeedAll() error {
 
 	// Stock Opname seeder
 	if err := SeedStockOpname(); err != nil {
+		return err
+	}
+
+	// AI Intent Registry seeder
+	if err := SeedAIIntentRegistry(); err != nil {
+		return err
+	}
+
+	// CRM Settings seeder (Sprint 17)
+	if err := SeedCRMSettings(); err != nil {
 		return err
 	}
 

@@ -12,7 +12,7 @@ const TargetsList = dynamic(
 
 export default function TargetsPage() {
   return (
-    <PermissionGuard requiredPermission="yearly_target.read">
+    <PermissionGuard requiredPermission="sales_target.read">
       <Suspense fallback={null}>
         <TargetsList />
       </Suspense>

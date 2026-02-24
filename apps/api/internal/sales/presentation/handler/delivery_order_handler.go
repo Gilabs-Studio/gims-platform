@@ -251,6 +251,44 @@ func (h *DeliveryOrderHandler) UpdateStatus(c *gin.Context) {
 	response.SuccessResponse(c, deliveryOrder, meta)
 }
 
+// Approve handles approve delivery order request (sent → approved)
+func (h *DeliveryOrderHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+
+	var userID *string
+	if uid, exists := c.Get("user_id"); exists {
+		if u, ok := uid.(string); ok {
+			userID = &u
+		}
+	}
+
+	req := dto.UpdateDeliveryOrderStatusRequest{Status: "approved"}
+	deliveryOrder, err := h.deliveryOrderUC.UpdateStatus(c.Request.Context(), id, &req, userID)
+	if err != nil {
+		if err == usecase.ErrDeliveryOrderNotFound {
+			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+				"delivery_order_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidDeliveryStatusTransition {
+			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+				"message": "Delivery order must be in sent status to approve",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{}
+	if userID != nil {
+		meta.UpdatedBy = *userID
+	}
+
+	response.SuccessResponse(c, deliveryOrder, meta)
+}
+
 // Ship handles ship delivery order request
 func (h *DeliveryOrderHandler) Ship(c *gin.Context) {
 	id := c.Param("id")

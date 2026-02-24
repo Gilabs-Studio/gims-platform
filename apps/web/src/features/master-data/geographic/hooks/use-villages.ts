@@ -21,10 +21,11 @@ export const villageKeys = {
 };
 
 // List villages hook with district filter
-export function useVillages(params?: ListVillagesParams) {
+export function useVillages(params?: ListVillagesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: villageKeys.list(params),
     queryFn: () => villageService.list(params),
+    ...options,
   });
 }
 

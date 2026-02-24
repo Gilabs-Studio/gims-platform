@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -12,8 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sortOptions } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
-import { useCreateDistrict, useUpdateDistrict } from "../../hooks/use-districts";
-import { getDistrictSchema, type CreateDistrictFormData } from "../../schemas/geographic.schema";
+import { useDistrictForm } from "../../hooks/use-district-form";
 import type { District, City } from "../../types";
 
 export interface DistrictFormProps {
@@ -24,45 +19,15 @@ export interface DistrictFormProps {
 }
 
 export function DistrictForm({ open, onClose, district, cities }: DistrictFormProps) {
-  const t = useTranslations("geographic");
-  const isEditing = !!district;
-  const createDistrict = useCreateDistrict();
-  const updateDistrict = useUpdateDistrict();
+  const { form, t, isEditing, isLoading, onSubmit } = useDistrictForm({ open, onClose, district });
 
   const {
     register,
-    handleSubmit,
     setValue,
     watch,
-    reset,
     formState: { errors },
-  } = useForm<CreateDistrictFormData>({
-    resolver: zodResolver(getDistrictSchema(t)),
-    defaultValues: { name: "", code: "", city_id: "", is_active: true },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (district) {
-      reset({ name: district.name, code: district.code, city_id: district.city_id, is_active: district.is_active });
-    } else {
-      reset({ name: "", code: "", city_id: "", is_active: true });
-    }
-  }, [district, reset]);
-
-  const onSubmit = async (data: CreateDistrictFormData) => {
-    try {
-      if (isEditing && district) {
-        await updateDistrict.mutateAsync({ id: district.id, data });
-      } else {
-        await createDistrict.mutateAsync(data);
-      }
-      onClose();
-    } catch (error) {
-      console.error("Failed to save district:", error);
-    }
-  };
-
-  const isLoading = createDistrict.isPending || updateDistrict.isPending;
   const cityId = watch("city_id");
   const isActive = watch("is_active");
 
@@ -72,7 +37,7 @@ export function DistrictForm({ open, onClose, district, cities }: DistrictFormPr
         <DialogHeader>
           <DialogTitle>{isEditing ? t("district.edit") : t("district.add")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field orientation="vertical">
             <FieldLabel>{t("city.title")}</FieldLabel>
             <Select onValueChange={(val) => setValue("city_id", val)} value={cityId}>

@@ -41,6 +41,7 @@ func (r *salesQuotationRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *salesQuotationRepository) FindByID(ctx context.Context, id string) (*models.SalesQuotation, error) {
 	var quotation models.SalesQuotation
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
@@ -57,6 +58,7 @@ func (r *salesQuotationRepository) FindByID(ctx context.Context, id string) (*mo
 func (r *salesQuotationRepository) FindByCode(ctx context.Context, code string) (*models.SalesQuotation, error) {
 	var quotation models.SalesQuotation
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
@@ -140,6 +142,7 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 
 	// Execute query with preloads
 	err := query.
+		Preload("Customer").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
 		Preload("BusinessUnit").

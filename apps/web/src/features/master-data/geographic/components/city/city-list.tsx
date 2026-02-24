@@ -1,78 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2 } from "lucide-react";
-import { useCities, useDeleteCity, useUpdateCity } from "../../hooks/use-cities";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useUserPermission } from "@/hooks/use-user-permission";
-import { useProvinces } from "../../hooks/use-provinces";
 import { CityForm } from "./city-form";
 import { sortOptions } from "@/lib/utils";
-import type { City } from "../../types";
-
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useCityList } from "../../hooks/use-city-list";
 
 export function CityList() {
-  const t = useTranslations("geographic");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [provinceId, setProvinceId] = useState<string>("");
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCity, setEditingCity] = useState<City | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { state, actions, data, permissions, translations } = useCityList();
+  const { t } = translations;
 
-  const { data: provincesData } = useProvinces({ per_page: 100 });
-  const provinces = provincesData?.data ?? [];
-
-  const { data, isLoading, isError } = useCities({
-    page, per_page: pageSize, search: debouncedSearch || undefined, province_id: provinceId || undefined,
-  });
-
-  const canCreate = useUserPermission("city.create");
-  const canUpdate = useUserPermission("city.update");
-  const canDelete = useUserPermission("city.delete");
-
-  const deleteCity = useDeleteCity();
-  const updateCity = useUpdateCity();
-  const cities = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
-
-  const handleEdit = (city: City) => { setEditingCity(city); setIsFormOpen(true); };
-  const handleDelete = async () => { if (deletingId) { await deleteCity.mutateAsync(deletingId); setDeletingId(null); } };
-  const handleFormClose = () => { setIsFormOpen(false); setEditingCity(null); };
-
-  const handleStatusChange = async (
-    id: string,
-    currentStatus: boolean,
-  ) => {
-    try {
-      await updateCity.mutateAsync({
-        id,
-        data: { is_active: !currentStatus },
-      });
-      toast.success(t("common.statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
-    }
-  };
-
-  if (isLoading) {
-    return null; // Handled by Suspense/Loading
+  if (data.isLoading) {
+    return null; // Handled by Suspense/Loading downstream
   }
 
-  if (isError) {
+  if (data.isError) {
     return (
       <div className="text-center py-8 text-destructive">
         {t("common.error")}
@@ -88,34 +38,82 @@ export function CityList() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder={t("city.search") || t("common.search")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" /></div>
-        <Select value={provinceId} onValueChange={(v) => { setProvinceId(v === "all" ? "" : v); setPage(1); }}><SelectTrigger className="w-48"><SelectValue placeholder={t("city.selectProvince")} /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.filterBy")} {t("province.title")}</SelectItem>{sortOptions(provinces, (p) => p.name).map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent></Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder={t("city.search") || t("common.search")} 
+            value={state.search} 
+            onChange={(e) => { 
+              actions.setSearch(e.target.value); 
+              actions.setPage(1); 
+            }} 
+            className="pl-9" 
+          />
+        </div>
+        <Select 
+          value={state.provinceId} 
+          onValueChange={(v) => { 
+            actions.setProvinceId(v === "all" ? "" : v); 
+            actions.setPage(1); 
+          }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder={t("city.selectProvince")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("common.filterBy")} {t("province.title")}</SelectItem>
+            {sortOptions(data.provinces, (p) => p.name).map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex-1" />
-        {canCreate && (<Button onClick={() => setIsFormOpen(true)} className="cursor-pointer"><Plus className="h-4 w-4 mr-2" />{t("city.add")}</Button>)}
+        {permissions.canCreate && (
+          <Button onClick={actions.handleCreate} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            {t("city.add")}
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader><TableRow><TableHead>{t("common.name")}</TableHead><TableHead>{t("common.code")}</TableHead><TableHead>{t("city.type")}</TableHead><TableHead>{t("province.title")}</TableHead><TableHead>{t("common.status")}</TableHead><TableHead className="w-[70px]" /></TableRow></TableHeader>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("common.name")}</TableHead>
+              <TableHead>{t("common.code")}</TableHead>
+              <TableHead>{t("city.type")}</TableHead>
+              <TableHead>{t("province.title")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[70px]" />}
+            </TableRow>
+          </TableHeader>
           <TableBody>
-            {cities.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("city.notFound")}</TableCell></TableRow>) : (
-              cities.map((city) => (
+            {data.cities.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                  {t("city.notFound")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.cities.map((city) => (
                 <TableRow key={city.id}>
                   <TableCell className="font-medium">{city.name}</TableCell>
                   <TableCell>{city.code}</TableCell>
-                  <TableCell><Badge variant="outline">{city.type === "city" ? t("city.types.city") : t("city.types.regency")}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {city.type === "city" ? t("city.types.city") : t("city.types.regency")}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{city.province?.name || "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={city.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(
-                            city.id,
-                            city.is_active,
-                          )
+                          actions.handleStatusChange(city.id, city.is_active)
                         }
-                        disabled={updateCity.isPending || !canUpdate}
+                        disabled={data.isUpdating || !permissions.canUpdate}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
@@ -125,16 +123,31 @@ export function CityList() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {(canUpdate || canDelete) && (
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="cursor-pointer"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                  {(permissions.canUpdate || permissions.canDelete) && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {canUpdate && (<DropdownMenuItem onClick={() => handleEdit(city)} className="cursor-pointer"><Pencil className="h-4 w-4 mr-2" />{t("common.edit")}</DropdownMenuItem>)}
-                          {canDelete && (<DropdownMenuItem onClick={() => setDeletingId(city.id)} className="text-destructive cursor-pointer"><Trash2 className="h-4 w-4 mr-2" />{t("common.delete")}</DropdownMenuItem>)}
+                          {permissions.canUpdate && (
+                            <DropdownMenuItem onClick={() => actions.handleEdit(city)} className="cursor-pointer">
+                              <Pencil className="h-4 w-4 mr-2" />
+                              {t("common.edit")}
+                            </DropdownMenuItem>
+                          )}
+                          {permissions.canDelete && (
+                            <DropdownMenuItem onClick={() => actions.setDeletingId(city.id)} className="text-destructive cursor-pointer">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -142,29 +155,37 @@ export function CityList() {
         </Table>
       </div>
 
-      {pagination && (
+      {data.pagination && (
         <DataTablePagination
-          pageIndex={pagination.page}
-          pageSize={pagination.per_page}
-          rowCount={pagination.total}
-          onPageChange={setPage}
+          pageIndex={data.pagination.page}
+          pageSize={data.pagination.per_page}
+          rowCount={data.pagination.total}
+          onPageChange={actions.setPage}
           onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(1);
+            actions.setPageSize(newSize);
+            actions.setPage(1);
           }}
         />
       )}
 
-      {canCreate && (<CityForm open={isFormOpen} onClose={handleFormClose} city={editingCity} provinces={provinces} />)}
-      {canDelete && (
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <CityForm 
+          open={state.isFormOpen} 
+          onClose={actions.handleFormClose} 
+          city={state.editingCity} 
+          provinces={data.provinces} 
+        />
+      )}
+      
+      {permissions.canDelete && (
         <DeleteDialog 
-          open={!!deletingId} 
-          onOpenChange={(open) => !open && setDeletingId(null)}
-          onConfirm={handleDelete}
+          open={!!state.deletingId} 
+          onOpenChange={(open) => !open && actions.setDeletingId(null)}
+          onConfirm={actions.handleDelete}
           title={t("city.delete")}
           description={t("city.deleteDesc")}
           itemName={t("city.itemName")}
-          isLoading={deleteCity.isPending}
+          isLoading={data.isDeleting}
         />
       )}
     </div>

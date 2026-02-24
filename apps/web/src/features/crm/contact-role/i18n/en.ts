@@ -1,0 +1,20 @@
+export const contactRoleEn = {
+  title: "Contact Roles",
+  description: "Manage contact roles for CRM relationships",
+  create: "Add Contact Role",
+  edit: "Edit Contact Role",
+  deleted: "Contact role deleted successfully",
+  created: "Contact role created successfully",
+  updated: "Contact role updated successfully",
+  empty: "No contact roles found",
+  form: {
+    name: "Name",
+    namePlaceholder: "Enter role name",
+    code: "Code",
+    codePlaceholder: "Enter role code",
+    description: "Description",
+    descriptionPlaceholder: "Enter description",
+    badgeColor: "Badge Color",
+    isActive: "Active",
+  },
+};

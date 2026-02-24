@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"net/mail"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
@@ -41,10 +42,10 @@ func NewSupplierUsecase(repo repositories.SupplierRepository) SupplierUsecase {
 }
 
 func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.CreateSupplierRequest) (dto.SupplierResponse, error) {
-	// Check if code already exists
-	existing, _ := u.repo.FindByCode(ctx, req.Code)
-	if existing != nil {
-		return dto.SupplierResponse{}, errors.New("supplier code already exists")
+	// Auto-generate supplier code
+	code, err := u.repo.GetNextCode(ctx)
+	if err != nil {
+		return dto.SupplierResponse{}, errors.New("failed to generate supplier code")
 	}
 
 	isActive := true
@@ -54,7 +55,7 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 
 	supplier := &models.Supplier{
 		ID:            uuid.New().String(),
-		Code:          req.Code,
+		Code:          code,
 		Name:          req.Name,
 		Address:       req.Address,
 		Email:         req.Email,
@@ -64,8 +65,8 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		Notes:         req.Notes,
 		Latitude:      req.Latitude,
 		Longitude:     req.Longitude,
-		Status:        models.SupplierStatusDraft,
-		IsApproved:    false,
+		Status:        models.SupplierStatusApproved,
+		IsApproved:    true,
 		CreatedBy:     &userID,
 		IsActive:      isActive,
 	}
@@ -73,6 +74,15 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	// Set optional relations
 	if req.SupplierTypeID != "" {
 		supplier.SupplierTypeID = &req.SupplierTypeID
+	}
+	if req.ProvinceID != "" {
+		supplier.ProvinceID = &req.ProvinceID
+	}
+	if req.CityID != "" {
+		supplier.CityID = &req.CityID
+	}
+	if req.DistrictID != "" {
+		supplier.DistrictID = &req.DistrictID
 	}
 	if req.VillageID != "" {
 		supplier.VillageID = &req.VillageID
@@ -113,12 +123,12 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	}
 
 	// Reload to get all relations
-	supplier, err := u.repo.FindByID(ctx, supplier.ID)
+	reloaded, err := u.repo.FindByID(ctx, supplier.ID)
 	if err != nil {
 		return dto.SupplierResponse{}, err
 	}
 
-	return mapper.ToSupplierResponse(supplier), nil
+	return mapper.ToSupplierResponse(reloaded), nil
 }
 
 func (u *supplierUsecase) GetByID(ctx context.Context, id string) (dto.SupplierResponse, error) {
@@ -143,46 +153,75 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 		return dto.SupplierResponse{}, err
 	}
 
-	// Only allow updates to draft, rejected, or approved suppliers
-	if supplier.Status != models.SupplierStatusDraft && supplier.Status != models.SupplierStatusRejected && supplier.Status != models.SupplierStatusApproved {
-		return dto.SupplierResponse{}, errors.New("cannot update supplier in current status")
+	// Validate email format when a non-empty email is provided.
+	// (Binding tag removed from DTO because omitempty on *string doesn't skip
+	// for non-nil pointer to "", which blocks the entire request.)
+	if req.Email != nil && *req.Email != "" {
+		if _, err := mail.ParseAddress(*req.Email); err != nil {
+			return dto.SupplierResponse{}, errors.New("invalid email format")
+		}
 	}
 
-	if req.Code != "" {
-		// Check if new code conflicts
-		existing, _ := u.repo.FindByCode(ctx, req.Code)
-		if existing != nil && existing.ID != id {
-			return dto.SupplierResponse{}, errors.New("supplier code already exists")
+	// Update fields when explicitly sent (pointer non-nil)
+	if req.Name != nil {
+		supplier.Name = *req.Name
+	}
+	if req.Address != nil {
+		supplier.Address = *req.Address
+	}
+	if req.Email != nil {
+		supplier.Email = *req.Email
+	}
+	if req.Website != nil {
+		supplier.Website = *req.Website
+	}
+	if req.NPWP != nil {
+		supplier.NPWP = *req.NPWP
+	}
+	if req.ContactPerson != nil {
+		supplier.ContactPerson = *req.ContactPerson
+	}
+	if req.Notes != nil {
+		supplier.Notes = *req.Notes
+	}
+
+	// Nullable FK fields: empty string means clear, non-empty means set
+	if req.SupplierTypeID != nil {
+		if *req.SupplierTypeID == "" {
+			supplier.SupplierTypeID = nil
+		} else {
+			supplier.SupplierTypeID = req.SupplierTypeID
 		}
-		supplier.Code = req.Code
 	}
-	if req.Name != "" {
-		supplier.Name = req.Name
+	if req.ProvinceID != nil {
+		if *req.ProvinceID == "" {
+			supplier.ProvinceID = nil
+		} else {
+			supplier.ProvinceID = req.ProvinceID
+		}
 	}
-	if req.Address != "" {
-		supplier.Address = req.Address
+	if req.CityID != nil {
+		if *req.CityID == "" {
+			supplier.CityID = nil
+		} else {
+			supplier.CityID = req.CityID
+		}
 	}
-	if req.Email != "" {
-		supplier.Email = req.Email
+	if req.DistrictID != nil {
+		if *req.DistrictID == "" {
+			supplier.DistrictID = nil
+		} else {
+			supplier.DistrictID = req.DistrictID
+		}
 	}
-	if req.Website != "" {
-		supplier.Website = req.Website
+	if req.VillageID != nil {
+		if *req.VillageID == "" {
+			supplier.VillageID = nil
+		} else {
+			supplier.VillageID = req.VillageID
+		}
 	}
-	if req.NPWP != "" {
-		supplier.NPWP = req.NPWP
-	}
-	if req.ContactPerson != "" {
-		supplier.ContactPerson = req.ContactPerson
-	}
-	if req.Notes != "" {
-		supplier.Notes = req.Notes
-	}
-	if req.SupplierTypeID != "" {
-		supplier.SupplierTypeID = &req.SupplierTypeID
-	}
-	if req.VillageID != "" {
-		supplier.VillageID = &req.VillageID
-	}
+
 	if req.Latitude != nil {
 		supplier.Latitude = req.Latitude
 	}
@@ -192,6 +231,17 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 	if req.IsActive != nil {
 		supplier.IsActive = *req.IsActive
 	}
+
+	// Detach preloaded belongs_to associations so GORM uses FK field values directly.
+	// Without this, GORM syncs FK columns back to the loaded association's PK,
+	// reverting any FK changes made above.
+	supplier.SupplierType = nil
+	supplier.Province = nil
+	supplier.City = nil
+	supplier.District = nil
+	supplier.Village = nil
+	supplier.PhoneNumbers = nil
+	supplier.BankAccounts = nil
 
 	if err := u.repo.Update(ctx, supplier); err != nil {
 		return dto.SupplierResponse{}, err
@@ -203,14 +253,9 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 }
 
 func (u *supplierUsecase) Delete(ctx context.Context, id string) error {
-	supplier, err := u.repo.FindByID(ctx, id)
+	_, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("supplier not found")
-	}
-
-	// Only allow deletion of draft suppliers
-	if supplier.Status != models.SupplierStatusDraft {
-		return errors.New("can only delete draft suppliers")
 	}
 
 	return u.repo.Delete(ctx, id)

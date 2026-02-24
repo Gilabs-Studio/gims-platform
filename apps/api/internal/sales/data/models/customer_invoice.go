@@ -13,6 +13,10 @@ import (
 type CustomerInvoiceStatus string
 
 const (
+	CustomerInvoiceStatusDraft     CustomerInvoiceStatus = "draft"
+	CustomerInvoiceStatusSent      CustomerInvoiceStatus = "sent"
+	CustomerInvoiceStatusApproved  CustomerInvoiceStatus = "approved"
+	CustomerInvoiceStatusRejected  CustomerInvoiceStatus = "rejected"
 	CustomerInvoiceStatusUnpaid    CustomerInvoiceStatus = "unpaid"
 	CustomerInvoiceStatusPartial   CustomerInvoiceStatus = "partial"
 	CustomerInvoiceStatusPaid      CustomerInvoiceStatus = "paid"
@@ -56,7 +60,7 @@ type CustomerInvoice struct {
 	RemainingAmount float64   `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
 	
 	// Status and workflow
-	Status         CustomerInvoiceStatus `gorm:"type:varchar(20);default:'unpaid';index" json:"status"`
+	Status         CustomerInvoiceStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	Notes          string                `gorm:"type:text" json:"notes"`
 	
 	// Payment timestamp
