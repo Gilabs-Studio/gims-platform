@@ -20,6 +20,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useContacts, useDeleteContact } from "../hooks/use-contact";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { ContactFormDialog } from "./contact-form-dialog";
 import { ContactSidePanel } from "./contact-side-panel";
 import type { Contact } from "../types";
 
@@ -39,9 +40,9 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [panelMode, setPanelMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [viewContact, setViewContact] = useState<Contact | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useContacts({
@@ -56,21 +57,17 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
   const contacts = data?.data ?? [];
 
   const handleCreate = () => {
-    setSelectedContact(null);
-    setPanelMode("create");
-    setPanelOpen(true);
+    setEditingContact(null);
+    setFormOpen(true);
   };
 
   const handleView = (contact: Contact) => {
-    setSelectedContact(contact);
-    setPanelMode("view");
-    setPanelOpen(true);
+    setViewContact(contact);
   };
 
   const handleEdit = (contact: Contact) => {
-    setSelectedContact(contact);
-    setPanelMode("edit");
-    setPanelOpen(true);
+    setEditingContact(contact);
+    setFormOpen(true);
   };
 
   const handleDelete = async () => {
@@ -84,9 +81,9 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
     }
   };
 
-  const handlePanelClose = () => {
-    setPanelOpen(false);
-    setSelectedContact(null);
+  const handleFormClose = () => {
+    setFormOpen(false);
+    setEditingContact(null);
   };
 
   return (
@@ -203,14 +200,22 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
         </div>
       )}
 
-      {/* Contact Side Panel */}
-      <ContactSidePanel
-        isOpen={panelOpen}
-        onClose={handlePanelClose}
-        mode={panelMode}
-        contact={selectedContact}
+      {/* Contact Form Dialog (Create / Edit) */}
+      <ContactFormDialog
+        open={formOpen}
+        onClose={handleFormClose}
+        contact={editingContact}
         customerId={customerId}
         onSuccess={() => void refetch()}
+      />
+
+      {/* Contact View Side Panel (View only) */}
+      <ContactSidePanel
+        isOpen={!!viewContact}
+        onClose={() => setViewContact(null)}
+        mode="view"
+        contact={viewContact}
+        customerId={customerId}
       />
 
       {/* Delete Confirmation */}

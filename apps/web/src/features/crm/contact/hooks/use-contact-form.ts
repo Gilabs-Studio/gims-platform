@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,19 +8,6 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateContact, useUpdateContact } from "./use-contact";
 import type { Contact } from "../types";
-
-const schema = z.object({
-  customer_id: z.string().uuid(),
-  contact_role_id: z.string().uuid().optional().or(z.literal("")),
-  name: z.string().min(2).max(200),
-  phone: z.string().max(30).optional().or(z.literal("")),
-  email: z.string().email().max(100).optional().or(z.literal("")),
-  position: z.string().max(100).optional().or(z.literal("")),
-  notes: z.string().max(1000).optional().or(z.literal("")),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof schema>;
 
 export interface UseContactFormProps {
   open: boolean;
@@ -33,10 +20,38 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
   const t = useTranslations("crmContact");
   const tCommon = useTranslations("common");
 
+  // Build schema with translated validation messages
+  const schema = useMemo(
+    () =>
+      z.object({
+        // Not user-editable — skip strict UUID format to avoid silent blocking
+        customer_id: z.string().min(1),
+        // Optional FK — only needs to be a non-empty string when provided
+        contact_role_id: z.string().optional().or(z.literal("")),
+        name: z
+          .string()
+          .min(1, t("validation.nameRequired"))
+          .min(2, t("validation.nameMin"))
+          .max(200, t("validation.nameMax")),
+        phone: z.string().max(30).optional().or(z.literal("")),
+        email: z
+          .string()
+          .email(t("validation.emailInvalid"))
+          .max(100, t("validation.emailMax"))
+          .optional()
+          .or(z.literal("")),
+        position: z.string().max(100).optional().or(z.literal("")),
+        notes: z.string().max(1000).optional().or(z.literal("")),
+        is_active: z.boolean(),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
   const createMutation = useCreateContact();
   const updateMutation = useUpdateContact();
 
-  const form = useForm<FormData>({
+  const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       customer_id: customerId ?? "",
@@ -78,7 +93,7 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
     }
   }, [editingItem, form, open, customerId]);
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
+  const onSubmit: SubmitHandler<z.infer<typeof schema>> = async (data) => {
     try {
       const payload = {
         ...data,
