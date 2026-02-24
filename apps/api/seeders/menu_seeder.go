@@ -518,8 +518,13 @@ func SeedMenus() error {
 	// CRM SUB-MENUS
 	// ============================================================
 
+	// CRM Leads menu (Sprint 19)
+	if _, err := createChildMenu("Leads", "user-plus", "/crm/leads", &crmMenu.ID, 1); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
-	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 1)
+	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {
 		return err
 	}

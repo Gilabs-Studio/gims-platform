@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/presentation/handler"
 	"github.com/gilabs/gims/api/internal/crm/presentation/router"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -24,7 +25,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleRepo := repositories.NewContactRoleRepository(db)
 	activityTypeRepo := repositories.NewActivityTypeRepository(db)
 	contactRepo := repositories.NewContactRepository(db)
+	leadRepo := repositories.NewLeadRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
+	employeeRepo := orgRepos.NewEmployeeRepository(db)
 
 	// Initialize usecases
 	pipelineStageUC := usecase.NewPipelineStageUsecase(pipelineStageRepo)
@@ -33,6 +36,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleUC := usecase.NewContactRoleUsecase(contactRoleRepo)
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
+	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)
@@ -41,6 +45,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleH := handler.NewContactRoleHandler(contactRoleUC)
 	activityTypeH := handler.NewActivityTypeHandler(activityTypeUC)
 	contactH := handler.NewContactHandler(contactUC)
+	leadH := handler.NewLeadHandler(leadUC)
 
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
@@ -53,4 +58,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterContactRoleRoutes(group, contactRoleH)
 	router.RegisterActivityTypeRoutes(group, activityTypeH)
 	router.RegisterContactRoutes(group, contactH)
+	router.RegisterLeadRoutes(group, leadH)
 }

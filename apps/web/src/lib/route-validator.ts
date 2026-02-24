@@ -79,6 +79,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/hrd/recruitment",
   "/hrd/work-schedule",
   "/hrd/holidays",
+  // CRM
+  "/crm/leads",
   // CRM Settings
   "/crm/settings/pipeline-stages",
   "/crm/settings/lead-sources",

@@ -500,6 +500,13 @@ func SeedPermissions() error {
 		{"/crm/settings/activity-types", "crm_activity_type.update", "Edit Activity Types", "EDIT", "crm_activity_type"},
 		{"/crm/settings/activity-types", "crm_activity_type.delete", "Delete Activity Types", "DELETE", "crm_activity_type"},
 
+		// CRM Leads (Sprint 19)
+		{"/crm/leads", "crm_lead.read", "View Leads", "VIEW", "crm_lead"},
+		{"/crm/leads", "crm_lead.create", "Create Leads", "CREATE", "crm_lead"},
+		{"/crm/leads", "crm_lead.update", "Edit Leads", "EDIT", "crm_lead"},
+		{"/crm/leads", "crm_lead.delete", "Delete Leads", "DELETE", "crm_lead"},
+		{"/crm/leads", "crm_lead.convert", "Convert Leads", "CONVERT", "crm_lead"},
+
 	}
 
 	// Build menu URL to ID map

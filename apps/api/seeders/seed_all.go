@@ -238,5 +238,10 @@ func SeedAll() error {
 		return err
 	}
 
+	// CRM Leads seeder (Sprint 19 - depends on lead sources, statuses, employees, customers)
+	if err := SeedCRMLeads(); err != nil {
+		return err
+	}
+
 	return nil
 }
