@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { PageMotion } from "@/components/motion";
 
@@ -7,12 +6,12 @@ export const LeadList = dynamic(
   { loading: () => null }
 );
 
+export { LeadDetail } from "./lead-detail";
+
 export function LeadContainer() {
   return (
     <PageMotion>
-      <Suspense fallback={null}>
-        <LeadList />
-      </Suspense>
+      <LeadList />
     </PageMotion>
   );
 }

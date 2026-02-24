@@ -243,5 +243,10 @@ func SeedAll() error {
 		return err
 	}
 
+	// CRM Deals seeder (Sprint 20 - depends on pipeline stages, customers, contacts, employees, products)
+	if err := SeedCRMDeals(); err != nil {
+		return err
+	}
+
 	return nil
 }

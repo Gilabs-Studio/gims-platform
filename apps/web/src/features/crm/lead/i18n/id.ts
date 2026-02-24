@@ -91,6 +91,8 @@ export const crmLeadId = {
       firstNameMax: "Nama depan maksimal 100 karakter",
       emailInvalid: "Masukkan alamat email yang valid",
     },
+    viewDeal: "Lihat Deal",
+    backToList: "Kembali ke Leads",
     table: {
       code: "Kode",
       name: "Nama",

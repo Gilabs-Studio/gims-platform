@@ -91,6 +91,8 @@ export const crmLeadEn = {
       firstNameMax: "First name must be at most 100 characters",
       emailInvalid: "Please enter a valid email address",
     },
+    viewDeal: "View Deal",
+    backToList: "Back to Leads",
     table: {
       code: "Code",
       name: "Name",

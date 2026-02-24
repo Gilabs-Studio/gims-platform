@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,14 +12,17 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
+import { LeadAnalytics } from "./lead-analytics";
 import { useLeadList } from "../hooks/use-lead-list";
 import { useLeadFormData } from "../hooks/use-leads";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useRouter } from "@/i18n/routing";
 
 export function LeadList() {
   const { state, actions, data, permissions, translations } = useLeadList();
   const { t, tCommon } = translations;
   const { data: formData } = useLeadFormData();
+  const router = useRouter();
 
   const leadSources = formData?.data?.lead_sources ?? [];
   const leadStatuses = formData?.data?.lead_statuses ?? [];
@@ -41,7 +44,6 @@ export function LeadList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("searchPlaceholder")}</p>
         </div>
         {permissions.canCreate && (
           <Button onClick={actions.handleCreate} className="cursor-pointer">
@@ -50,6 +52,9 @@ export function LeadList() {
           </Button>
         )}
       </div>
+
+      {/* Analytics */}
+      <LeadAnalytics />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
@@ -159,7 +164,11 @@ export function LeadList() {
                 const statusColor = item.lead_status?.color ?? undefined;
 
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow
+                    key={item.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => router.push(`/crm/leads/${item.id}`)}
+                  >
                     <TableCell className="font-mono text-sm">{item.code}</TableCell>
                     <TableCell className="font-medium">
                       {item.first_name} {item.last_name}
@@ -183,7 +192,7 @@ export function LeadList() {
                       {formatDate(item.created_at)}
                     </TableCell>
                     {(permissions.canUpdate || permissions.canDelete || permissions.canConvert) && (
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -191,6 +200,13 @@ export function LeadList() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/crm/leads/${item.id}`)}
+                              className="cursor-pointer"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              {t("detailTitle")}
+                            </DropdownMenuItem>
                             {permissions.canUpdate && !isConverted && (
                               <DropdownMenuItem onClick={() => actions.handleEdit(item)} className="cursor-pointer">
                                 <Pencil className="mr-2 h-4 w-4" />

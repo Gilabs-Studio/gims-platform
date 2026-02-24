@@ -523,6 +523,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// CRM Pipeline menu (Sprint 20)
+	if _, err := createChildMenu("Pipeline", "kanban", "/crm/pipeline", &crmMenu.ID, 2); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
 	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {

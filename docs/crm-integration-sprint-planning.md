@@ -463,12 +463,12 @@ type Lead struct {
 
 - [x] Lead list page `/crm/leads` — DataTable with advanced filters (status, source, assigned, score range)
 - [x] Lead dialog form (create/edit) — includes BANT section
-- [ ] Lead detail page `/crm/leads/[id]` — full detail with activity timeline (deferred)
+- [x] Lead detail page `/crm/leads/[id]` — full detail with activity timeline
 - [x] Lead conversion dialog — mapping fields ke Customer + Contact + Deal
-- [ ] Lead analytics cards (di atas list atau di dashboard CRM) (deferred — analytics API ready)
+- [x] Lead analytics cards (di atas list atau di dashboard CRM)
 - [x] i18n: lead translations (en/id)
 - [x] Route: `app/[locale]/(dashboard)/crm/leads/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx` (deferred)
+- [x] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
@@ -485,7 +485,7 @@ type Lead struct {
 - [x] i18n integration check (request.ts)
 - [x] Customer module dependency — create customer saat conversion
 - [x] Contact dependency — create contact saat conversion
-- [ ] Deal dependency (Sprint 20) — create deal saat conversion (deferred — Sprint 20 belum selesai, conversion tanpa deal)
+- [x] Deal dependency (Sprint 20) — create deal saat conversion (Sprint 20 complete, can integrate)
 
 ### Table Relations
 
@@ -552,13 +552,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
-- [ ] **Frontend:** Pipeline Kanban board + Deal form + History timeline
+- [x] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
+- [x] **Frontend:** Pipeline Kanban board + Deal form + History timeline
 
 ### API Tasks
 
 #### Deal
-- [ ] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Deal — Sales opportunity tracked through pipeline stages
@@ -606,7 +606,7 @@ type Deal struct {
 ```
 
 #### Deal Product Item
-- [ ] `DealProductItem` - Model (nested CRUD via Deal)
+- [x] `DealProductItem` - Model (nested CRUD via Deal)
 
 ```go
 // DealProductItem — Product line items in a deal (snapshot pricing)
@@ -628,7 +628,7 @@ type DealProductItem struct {
 ```
 
 #### Deal History
-- [ ] `DealHistory` - Model (auto-created on stage move)
+- [x] `DealHistory` - Model (auto-created on stage move)
 
 ```go
 // DealHistory — Audit trail of pipeline stage transitions
@@ -650,55 +650,55 @@ type DealHistory struct {
 ```
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
-- [ ] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
-- [ ] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
-- [ ] `POST /api/v1/crm/deals` — Create deal (with product items)
-- [ ] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
-- [ ] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
-- [ ] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
-- [ ] `GET /api/v1/crm/deals/:id/history` — Get stage change history
-- [ ] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
-- [ ] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
-- [ ] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample deals with product items across pipeline stages
-- [ ] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
+- [x] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
+- [x] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
+- [x] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
+- [x] `POST /api/v1/crm/deals` — Create deal (with product items)
+- [x] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
+- [x] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
+- [x] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
+- [x] `GET /api/v1/crm/deals/:id/history` — Get stage change history
+- [x] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
+- [x] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
+- [x] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample deals with product items across pipeline stages
+- [x] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
 
 ### Frontend Tasks
 
-- [ ] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
+- [x] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
   - Columns = pipeline stages (ordered)
   - Cards = deals (show title, customer, value, probability, assigned rep)
   - Drag deal card → trigger `move-stage` API
   - Stage summary at column header (total value, deal count)
-- [ ] Deal side panel form (create/edit/view) — with product items table
+- [x] Deal side panel form (create/edit/view) — with product items table
   - Product items: add/remove products, set quantity, price, discount
   - Auto-calculate deal value from items subtotal
   - BANT section (collapsible)
-- [ ] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
-- [ ] Pipeline summary dashboard cards (value funnel, forecast)
-- [ ] i18n: deal/pipeline translations (en/id)
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
+- [x] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
+- [x] Pipeline summary dashboard cards (value funnel, forecast)
+- [x] i18n: deal/pipeline translations (en/id)
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Kanban board render stages sebagai kolom, deals sebagai cards
-- [ ] Drag-and-drop memindahkan deal ke stage baru + auto-create history
-- [ ] Deal value auto-calculated dari product items jika ada items
-- [ ] Deal probability auto-sync dari stage probability saat move
-- [ ] History timeline menampilkan semua stage transitions
-- [ ] Product items bisa add/remove/edit di dalam deal form
-- [ ] Pipeline summary dan forecast menampilkan data aggregate yang benar
-- [ ] Won/Lost stage move mengubah deal status + set ActualCloseDate
+- [x] Kanban board render stages sebagai kolom, deals sebagai cards
+- [x] Drag-and-drop memindahkan deal ke stage baru + auto-create history
+- [x] Deal value auto-calculated dari product items jika ada items
+- [x] Deal probability auto-sync dari stage probability saat move
+- [x] History timeline menampilkan semua stage transitions
+- [x] Product items bisa add/remove/edit di dalam deal form
+- [x] Pipeline summary dan forecast menampilkan data aggregate yang benar
+- [x] Won/Lost stage move mengubah deal status + set ActualCloseDate
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Product module dependency — reference `products.id` dari ERP
-- [ ] Customer & Contact dependency — FK relations
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Product module dependency — reference `products.id` dari ERP
+- [x] Customer & Contact dependency — FK relations
 
 ### Table Relations
 
