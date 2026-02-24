@@ -499,6 +499,7 @@ func SeedPermissions() error {
 		{"/crm/settings/activity-types", "crm_activity_type.create", "Create Activity Types", "CREATE", "crm_activity_type"},
 		{"/crm/settings/activity-types", "crm_activity_type.update", "Edit Activity Types", "EDIT", "crm_activity_type"},
 		{"/crm/settings/activity-types", "crm_activity_type.delete", "Delete Activity Types", "DELETE", "crm_activity_type"},
+
 	}
 
 	// Build menu URL to ID map

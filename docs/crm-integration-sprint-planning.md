@@ -292,13 +292,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Contact CRUD + Customer-Contact relation endpoints
-- [ ] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
+- [x] **API:** Contact CRUD + Customer-Contact relation endpoints
+- [x] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
 
 ### API Tasks
 
 #### Contact
-- [ ] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Contact — Person associated with a Customer, child of Customer
@@ -319,44 +319,44 @@ type Contact struct {
 }
 ```
 
-- [ ] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
-- [ ] `GET /api/v1/crm/contacts/:id` — Get contact detail
-- [ ] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
-- [ ] `PUT /api/v1/crm/contacts/:id` — Update contact
-- [ ] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
-- [ ] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
-- [ ] Register model di `migrate.go`
-- [ ] Seeder: sample contacts linked to existing customers
-- [ ] Permission seeder: `crm_contact.read|create|update|delete`
+- [x] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
+- [x] `GET /api/v1/crm/contacts/:id` — Get contact detail
+- [x] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
+- [x] `PUT /api/v1/crm/contacts/:id` — Update contact
+- [x] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
+- [x] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
+- [x] Register model di `migrate.go`
+- [x] Seeder: sample contacts linked to existing customers
+- [x] Permission seeder: `crm_contact.read|create|update|delete`
 
 #### Customer Module Update
-- [ ] `GET /api/v1/customers/:id/contacts` — List contacts per customer (new endpoint di customer handler)
+- [x] `GET /api/v1/crm/contacts?customer_id=:id` — List contacts per customer (via CRM contacts endpoint with customer_id filter)
 - [ ] Update customer detail response — include `contacts` count
 
 ### Frontend Tasks
 
-- [ ] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
+- [x] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
   - Tab shows list of contacts for the customer
   - Quick-add contact button di dalam tab (opens contact side panel form)
   - Click contact → open contact side panel (create/edit/view)
-- [ ] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
-- [ ] i18n: contact translations (en/id)
+- [x] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
+- [x] i18n: contact translations (en/id)
 
 > **Note:** Tidak ada halaman `/crm/contacts` — Contact diakses hanya via tab di Customer side panel.
 
 ### Success Criteria
 
-- [ ] Contact CRUD berfungsi penuh (via API)
-- [ ] Contact wajib memiliki valid Customer reference
-- [ ] Customer side panel menampilkan tab Contacts
-- [ ] Quick-add contact dari Customer tab berfungsi
-- [ ] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
+- [x] Contact CRUD berfungsi penuh (via API)
+- [x] Contact wajib memiliki valid Customer reference
+- [x] Customer side panel menampilkan tab Contacts
+- [x] Quick-add contact dari Customer tab berfungsi
+- [x] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Customer module dependency — import customer models, no circular dependency
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Customer module dependency — import customer models, no circular dependency
 
 ### Table Relations
 

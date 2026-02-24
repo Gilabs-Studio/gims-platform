@@ -211,6 +211,8 @@ func AutoMigrate() error {
 		&crm.LeadStatus{},
 		&crm.ContactRole{},
 		&crm.ActivityType{},
+		// CRM Contact entity (Sprint 18)
+		&crm.Contact{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Phone, Landmark } from "lucide-react";
+import { MapPin, Edit, Phone, Landmark, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
 import { useCustomer } from "../../hooks/use-customers";
 import type { Customer } from "../../types";
 
@@ -65,6 +68,8 @@ export function CustomerDetailModal({
   onEdit,
 }: CustomerDetailModalProps) {
   const t = useTranslations("customer.customer");
+  const tContact = useTranslations("crmContact");
+  const [activeTab, setActiveTab] = useState("details");
 
   // Always fetch fresh detail when modal opens so relationships are populated
   const { data: detailRes, isLoading } = useCustomer(customer?.id ?? "", {
@@ -99,7 +104,10 @@ export function CustomerDetailModal({
     entity.default_tax_rate != null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => {
+      if (v) setActiveTab("details");
+      onOpenChange(v);
+    }}>
       <DialogContent
         size="xl"
         className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
@@ -146,8 +154,33 @@ export function CustomerDetailModal({
           </div>
         </DialogHeader>
 
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        {/* Tab navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="px-5 pt-0">
+          <TabsList className="w-full">
+            <TabsTrigger value="details" className="cursor-pointer">
+              {t("common.viewDetails")}
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="cursor-pointer">
+              <Users className="h-3.5 w-3.5 mr-1.5" />
+              {tContact("tab")}
+              {(entity.contacts_count ?? 0) > 0 && (
+                <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px]">
+                  {entity.contacts_count}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Contacts tab content */}
+        {activeTab === "contacts" && entity.id && (
+          <div className="overflow-y-auto flex-1 px-5 py-4">
+            <CustomerContactsTab customerId={entity.id} />
+          </div>
+        )}
+
+        {/* Details tab content */}
+        <div className={`overflow-y-auto flex-1 px-5 py-4 space-y-4 ${activeTab !== "details" ? "hidden" : ""}`}>
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />

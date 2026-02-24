@@ -145,6 +145,8 @@ export interface Customer {
   default_payment_terms_id?: string | null;
   default_payment_terms?: SalesDefaultOptionBrief | null;
   default_tax_rate?: number | null;
+  // CRM enrichment
+  contacts_count?: number;
 }
 
 // Lightweight brief types used for sales defaults

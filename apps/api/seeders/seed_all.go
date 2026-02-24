@@ -233,5 +233,10 @@ func SeedAll() error {
 		return err
 	}
 
+	// CRM Contacts seeder (Sprint 18 - depends on customers + contact roles)
+	if err := SeedCRMContacts(); err != nil {
+		return err
+	}
+
 	return nil
 }

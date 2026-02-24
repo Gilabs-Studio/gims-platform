@@ -45,6 +45,14 @@ const (
 	ActivityTypeEmailID    = "ce000001-0000-0000-0000-000000000003"
 	ActivityTypeMeetingID  = "ce000001-0000-0000-0000-000000000004"
 	ActivityTypeFollowUpID = "ce000001-0000-0000-0000-000000000005"
+
+	// Contacts (prefix: cf)
+	ContactID1 = "cf000001-0000-0000-0000-000000000001"
+	ContactID2 = "cf000001-0000-0000-0000-000000000002"
+	ContactID3 = "cf000001-0000-0000-0000-000000000003"
+	ContactID4 = "cf000001-0000-0000-0000-000000000004"
+	ContactID5 = "cf000001-0000-0000-0000-000000000005"
+	ContactID6 = "cf000001-0000-0000-0000-000000000006"
 )
 
 // SeedCRMSettings seeds default CRM settings data
@@ -68,6 +76,105 @@ func SeedCRMSettings() error {
 	}
 
 	log.Println("CRM settings seeded successfully")
+	return nil
+}
+
+// SeedCRMContacts seeds sample CRM contacts linked to existing customers
+func SeedCRMContacts() error {
+	log.Println("Seeding CRM contacts...")
+
+	adminID := AdminEmployeeID
+	directorRole := ContactRoleDirectorID
+	managerRole := ContactRoleManagerID
+	picRole := ContactRolePICID
+	purchasingRole := ContactRolePurchasingID
+	financeRole := ContactRoleFinanceID
+
+	contacts := []crm.Contact{
+		{
+			ID:            ContactID1,
+			CustomerID:    Customer1ID,
+			ContactRoleID: &directorRole,
+			Name:          "Ahmad Setiawan",
+			Phone:         "081234567890",
+			Email:         "ahmad.setiawan@apoteksehat.co.id",
+			Position:      "Direktur Utama",
+			Notes:         "Primary decision maker for purchasing",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+		{
+			ID:            ContactID2,
+			CustomerID:    Customer2ID,
+			ContactRoleID: &purchasingRole,
+			Name:          "Siti Rahmawati",
+			Phone:         "082345678901",
+			Email:         "siti.rahmawati@rsharapankita.co.id",
+			Position:      "Kepala Bagian Pengadaan",
+			Notes:         "Handles all procurement requests",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+		{
+			ID:            ContactID3,
+			CustomerID:    Customer3ID,
+			ContactRoleID: &picRole,
+			Name:          "Budi Santoso",
+			Phone:         "083456789012",
+			Email:         "budi.santoso@klinikmedia.co.id",
+			Position:      "PIC Farmasi",
+			Notes:         "Main contact for pharmaceutical orders",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+		{
+			ID:            ContactID4,
+			CustomerID:    Customer4ID,
+			ContactRoleID: &managerRole,
+			Name:          "Dewi Lestari",
+			Phone:         "084567890123",
+			Email:         "dewi.lestari@siloam.co.id",
+			Position:      "Manager Purchasing",
+			Notes:         "Handles large volume orders",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+		{
+			ID:            ContactID5,
+			CustomerID:    Customer5ID,
+			ContactRoleID: &financeRole,
+			Name:          "Eko Prasetyo",
+			Phone:         "085678901234",
+			Email:         "eko.prasetyo@kimiafarma.co.id",
+			Position:      "Staff Keuangan",
+			Notes:         "Handles payment and invoicing",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+		{
+			ID:            ContactID6,
+			CustomerID:    Customer6ID,
+			ContactRoleID: &picRole,
+			Name:          "Fitri Handayani",
+			Phone:         "086789012345",
+			Email:         "fitri.handayani@puskesmas.go.id",
+			Position:      "PIC Obat",
+			Notes:         "Government procurement contact",
+			IsActive:      true,
+			CreatedBy:     &adminID,
+		},
+	}
+
+	for _, contact := range contacts {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"name", "phone", "email", "position", "updated_at"}),
+		}).Create(&contact).Error; err != nil {
+			log.Printf("Warning: Failed to seed contact %s: %v", contact.Name, err)
+		}
+	}
+
+	log.Println("CRM contacts seeded successfully")
 	return nil
 }
 

@@ -5519,6 +5519,254 @@
           ]
         }
       ]
+    },
+    {
+      "name": "CRM",
+      "description": "Customer Relationship Management endpoints",
+      "item": [
+        {
+          "name": "Contacts",
+          "description": "CRM Contact management endpoints with CRUD operations",
+          "item": [
+            {
+              "name": "List Contacts",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts?page=1&per_page=20&search=&customer_id=&contact_role_id=",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by contact name, email, or phone",
+                      "disabled": true
+                    },
+                    {
+                      "key": "customer_id",
+                      "value": "",
+                      "description": "Filter by customer UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "contact_role_id",
+                      "value": "",
+                      "description": "Filter by contact role UUID",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "List CRM contacts with filters and pagination. Requires `crm_contact.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts/form-data",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts", "form-data"]
+                },
+                "description": "Get form data for contact creation/editing. Returns customers and contact roles for dropdown selection. Requires `crm_contact.read` permission.\n\n**Response:**\n- `customers` — list of available customers (id, name)\n- `contact_roles` — list of available contact roles (id, name)"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Contact",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{contact_id}}"
+                    }
+                  ]
+                },
+                "description": "Get CRM contact by ID. Requires `crm_contact.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Contact",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"name\": \"John Smith\",\n  \"contact_role_id\": null,\n  \"phone\": \"+6281234567890\",\n  \"email\": \"john.smith@example.com\",\n  \"position\": \"Procurement Manager\",\n  \"notes\": \"\",\n  \"is_active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts"]
+                },
+                "description": "Create a new CRM contact. Requires `crm_contact.create` permission.\n\n**Fields:**\n- `customer_id` (required, UUID) — associated customer\n- `name` (required, string) — contact person name\n- `contact_role_id` (optional, UUID) — contact role reference\n- `phone` (optional, string) — phone number\n- `email` (optional, string) — email address\n- `position` (optional, string) — job position/title\n- `notes` (optional, string) — additional notes\n- `is_active` (optional, boolean, default true)"
+              },
+              "response": []
+            },
+            {
+              "name": "Update Contact",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"name\": \"John Smith Updated\",\n  \"contact_role_id\": null,\n  \"phone\": \"+6281234567891\",\n  \"email\": \"john.smith.updated@example.com\",\n  \"position\": \"Senior Procurement Manager\",\n  \"notes\": \"Updated contact info\",\n  \"is_active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{contact_id}}"
+                    }
+                  ]
+                },
+                "description": "Update an existing CRM contact. All fields are optional. Requires `crm_contact.update` permission.\n\n**Fields:**\n- `customer_id` (optional, UUID)\n- `name` (optional, string)\n- `contact_role_id` (optional, UUID)\n- `phone` (optional, string)\n- `email` (optional, string)\n- `position` (optional, string)\n- `notes` (optional, string)\n- `is_active` (optional, boolean)"
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Contact",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/crm/contacts/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "contacts", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{contact_id}}"
+                    }
+                  ]
+                },
+                "description": "Delete a CRM contact (soft delete). Requires `crm_contact.delete` permission."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [

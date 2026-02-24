@@ -101,6 +101,8 @@ type CustomerResponse struct {
 	DefaultPaymentTermsID  *string                   `json:"default_payment_terms_id"`
 	DefaultPaymentTerms    *SalesDefaultOptionBrief  `json:"default_payment_terms,omitempty"`
 	DefaultTaxRate         *float64                  `json:"default_tax_rate"`
+	// CRM enrichment
+	ContactsCount          int64                     `json:"contacts_count"`
 }
 
 // SalesDefaultOptionBrief is a lightweight reference for business type / area / payment terms
