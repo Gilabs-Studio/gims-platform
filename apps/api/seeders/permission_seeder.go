@@ -399,6 +399,26 @@ func SeedPermissions() error {
 		{"/finance/salary", "salary.delete", "Delete Salary", "DELETE", "salary"},
 		{"/finance/salary", "salary.approve", "Approve Salary", "APPROVE", "salary"},
 
+		// Finance Reports
+		{"/finance/reports/general-ledger", "finance_report.gl", "View General Ledger Report", "VIEW", "finance_report"},
+		{"/finance/reports/balance-sheet", "finance_report.bs", "View Balance Sheet Report", "VIEW", "finance_report"},
+		{"/finance/reports/profit-loss", "finance_report.pl", "View Profit & Loss Report", "VIEW", "finance_report"},
+		{"/finance/reports/general-ledger", "finance_report.export_gl", "Export General Ledger", "EXPORT", "finance_report"},
+		{"/finance/reports/balance-sheet", "finance_report.export_bs", "Export Balance Sheet", "EXPORT", "finance_report"},
+		{"/finance/reports/profit-loss", "finance_report.export_pl", "Export Profit & Loss", "EXPORT", "finance_report"},
+
+		// Asset Categories
+		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
+		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
+		{"/finance/asset-categories", "asset_category.update", "Edit Asset Categories", "EDIT", "asset_category"},
+		{"/finance/asset-categories", "asset_category.delete", "Delete Asset Categories", "DELETE", "asset_category"},
+
+		// Asset Locations
+		{"/finance/asset-locations", "asset_location.read", "View Asset Locations", "VIEW", "asset_location"},
+		{"/finance/asset-locations", "asset_location.create", "Create Asset Locations", "CREATE", "asset_location"},
+		{"/finance/asset-locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
+		{"/finance/asset-locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
+
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
 		{"/hrd/attendance", "attendance.create", "Create Attendance", "CREATE", "attendance"},

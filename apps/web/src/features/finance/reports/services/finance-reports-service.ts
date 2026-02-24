@@ -14,7 +14,7 @@ export const financeReportsService = {
     return response.data;
   },
 
-  getBalanceSheet: async (params: { as_of_date: string }) => {
+  getBalanceSheet: async (params: { start_date: string; end_date: string }) => {
     const response = await apiClient.get<ApiResponse<BalanceSheetResponse>>(`${BASE_URL}/balance-sheet`, { params });
     return response.data;
   },
@@ -32,7 +32,7 @@ export const financeReportsService = {
     return response.data;
   },
 
-  exportBalanceSheet: async (params: { as_of_date: string }) => {
+  exportBalanceSheet: async (params: { start_date: string; end_date: string }) => {
     const response = await apiClient.get(`${BASE_URL}/export/balance-sheet`, {
       params,
       responseType: 'blob',

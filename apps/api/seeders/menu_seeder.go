@@ -59,7 +59,6 @@ func createChildMenu(name, icon, url string, parentID *string, order int) (*perm
 // SeedMenus seeds initial ERP menus based on database structure
 func SeedMenus() error {
 
-
 	log.Println("Seeding ERP menu structure...")
 
 	// ============================================================
@@ -439,11 +438,36 @@ func SeedMenus() error {
 		{"Cash Bank Journal", "book", "/finance/cash-bank", 8},
 		{"Financial Closing", "lock", "/finance/closing", 9},
 		{"Asset Management", "briefcase", "/finance/assets", 10},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 11},
-		{"Salary", "dollar-sign", "/finance/salary", 12},
+		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
+		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 13},
+		{"Salary", "dollar-sign", "/finance/salary", 14},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Finance Reports Group
+	financeReportsMenu, err := createChildMenu("Reports", "bar-chart-3", "/finance/reports", &financeMenu.ID, 20)
+	if err != nil {
+		return err
+	}
+
+	financeReportChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"General Ledger", "book-open", "/finance/reports/general-ledger", 1},
+		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 2},
+		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 3},
+		{"Aging Reports", "clock", "/finance/aging-reports", 4},
+	}
+	for _, child := range financeReportChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financeReportsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}

@@ -115,5 +115,6 @@ export const purchaseOrderEn = {
     save: "Save",
     cancel: "Cancel",
     load: "Load",
+    createNew: "Create New",
   },
 };

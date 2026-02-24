@@ -3,15 +3,19 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  Clock,
+  Download,
+  Eye,
+  History,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +32,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 
 import {
@@ -57,20 +71,40 @@ function safeDate(value?: string | null): string {
   return d.toLocaleDateString();
 }
 
+function normalizeStatus(status?: string | null): string {
+  return (status ?? "").toLowerCase();
+}
+
 export function SupplierInvoiceDPList() {
   const t = useTranslations("supplierInvoiceDP");
+  const tCommon = useTranslations("common");
 
   const [search, setSearch] = useState<string>("");
+  const debouncedSearch = useDebounce(search, 500);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditId, setAuditId] = useState<string | null>(null);
 
-  const listParams = useMemo(() => ({ page: 1, per_page: 10, search }), [search]);
+  const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
+
+  const listParams = useMemo(
+    () => ({
+      page,
+      per_page: pageSize,
+      search: debouncedSearch || undefined,
+      sort_by: "created_at",
+      sort_dir: "desc",
+    }),
+    [page, pageSize, debouncedSearch],
+  );
   const { data, isLoading, isError } = useSupplierInvoiceDPs(listParams);
 
   const deleteMutation = useDeleteSupplierInvoiceDP();
@@ -81,6 +115,7 @@ export function SupplierInvoiceDPList() {
   const canDelete = useUserPermission("supplier_invoice_dp.delete");
   const canPending = useUserPermission("supplier_invoice_dp.pending");
   const canExport = useUserPermission("supplier_invoice_dp.export");
+  const canAuditTrail = useUserPermission("supplier_invoice_dp.audit_trail");
 
   async function handleExport() {
     try {
@@ -97,13 +132,12 @@ export function SupplierInvoiceDPList() {
   }
 
   async function handleDelete() {
-    if (!deleteId) return;
+    if (!deletingRow?.id) return;
     try {
-      const response = await deleteMutation.mutateAsync(deleteId);
+      const response = await deleteMutation.mutateAsync(deletingRow.id);
       if (!response.success) throw new Error(response.error ?? "delete_failed");
       toast.success(t("toast.deleted"));
-      setDeleteOpen(false);
-      setDeleteId(null);
+      setDeletingRow(null);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -119,64 +153,127 @@ export function SupplierInvoiceDPList() {
     }
   }
 
-  const rows = data?.success ? data.data : [];
+  const rows = data?.data ?? [];
+  const pagination = data?.meta?.pagination;
+
+  const canShowActions =
+    canUpdate || canPending || canAuditTrail || canDelete;
+
+  const getStatusBadge = (status: SupplierInvoiceDPStatus) => {
+    switch (normalizeStatus(status)) {
+      case "paid":
+        return (
+          <Badge variant="success" className="text-xs font-medium">
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "unpaid":
+        return (
+          <Badge variant="outline" className="text-xs font-medium">
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "partial":
+        return (
+          <Badge variant="secondary" className="text-xs font-medium">
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "draft":
+      default:
+        return (
+          <Badge variant="secondary" className="text-xs font-medium">
+            {statusLabel(t, status)}
+          </Badge>
+        );
+    }
+  };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </div>
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("description")}</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("search")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="md:w-[320px]"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="pl-9"
           />
-          <div className="flex gap-2">
-            {canExport ? (
-              <Button variant="outline" onClick={handleExport} className="cursor-pointer">
-                {t("actions.export")}
-              </Button>
-            ) : null}
-            {canCreate ? (
-              <Button
-                onClick={() => {
-                  setEditId(undefined);
-                  setFormOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                {t("actions.create")}
-              </Button>
-            ) : null}
-          </div>
         </div>
-      </CardHeader>
 
-      <CardContent>
-        {isLoading ? <Skeleton className="h-40 w-full" /> : null}
-        {isError ? <div className="text-sm text-destructive">{t("toast.failed")}</div> : null}
+        <div className="flex-1" />
 
-        {!isLoading ? (
-          <Table>
-            <TableHeader>
+        {canExport ? (
+          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+            <Download className="h-4 w-4 mr-2" />
+            {t("actions.export")}
+          </Button>
+        ) : null}
+
+        {canCreate ? (
+          <Button
+            onClick={() => {
+              setEditId(undefined);
+              setFormOpen(true);
+            }}
+            className="cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.create")}
+          </Button>
+        ) : null}
+      </div>
+
+      {isError ? (
+        <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+      ) : null}
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("columns.code")}</TableHead>
+              <TableHead>{t("columns.invoiceNumber")}</TableHead>
+              <TableHead>{t("columns.invoiceDate")}</TableHead>
+              <TableHead>{t("columns.dueDate")}</TableHead>
+              <TableHead>{t("columns.purchaseOrder")}</TableHead>
+              <TableHead className="text-right">{t("columns.amount")}</TableHead>
+              <TableHead>{t("columns.status")}</TableHead>
+              <TableHead>{t("columns.createdAt")}</TableHead>
+              {canShowActions ? <TableHead className="w-[70px]" /> : null}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: canShowActions ? 9 : 8 }).map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : rows.length === 0 ? (
               <TableRow>
-                <TableHead>{t("columns.code")}</TableHead>
-                <TableHead>{t("columns.invoiceNumber")}</TableHead>
-                <TableHead>{t("columns.invoiceDate")}</TableHead>
-                <TableHead>{t("columns.dueDate")}</TableHead>
-                <TableHead>{t("columns.purchaseOrder")}</TableHead>
-                <TableHead className="text-right">{t("columns.amount")}</TableHead>
-                <TableHead>{t("columns.status")}</TableHead>
-                <TableHead>{t("columns.createdAt")}</TableHead>
-                <TableHead className="text-right">{t("actions.view")}</TableHead>
+                <TableCell
+                  colSpan={canShowActions ? 9 : 8}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {tCommon("empty")}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
+            ) : (
+              rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.code}</TableCell>
                   <TableCell>{row.invoice_number}</TableCell>
@@ -184,126 +281,159 @@ export function SupplierInvoiceDPList() {
                   <TableCell>{safeDate(row.due_date)}</TableCell>
                   <TableCell>{row.purchase_order?.code ?? "-"}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                  <TableCell>{statusLabel(t, row.status)}</TableCell>
-                  <TableCell>{safeDate(row.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => {
-                          setDetailId(row.id);
-                          setDetailOpen(true);
-                        }}
-                      >
-                        {t("actions.view")}
-                      </Button>
-                      {canUpdate ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setEditId(row.id);
-                            setFormOpen(true);
-                          }}
-                        >
-                          {t("actions.edit")}
-                        </Button>
-                      ) : null}
-                      {canPending ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => handlePending(row.id)}
-                        >
-                          {t("actions.pending")}
-                        </Button>
-                      ) : null}
-                      {canDelete ? (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setDeleteId(row.id);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          {t("actions.delete")}
-                        </Button>
-                      ) : null}
-                    </div>
+                  <TableCell>{getStatusBadge(row.status)}</TableCell>
+                  <TableCell className="flex items-center justify-between gap-2">
+                    <span>{safeDate(row.created_at)}</span>
+
+                    {canShowActions ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setDetailId(row.id);
+                              setDetailOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            {t("actions.view")}
+                          </DropdownMenuItem>
+
+                          {canUpdate ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => {
+                                setEditId(row.id);
+                                setFormOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              {t("actions.edit")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {canPending ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handlePending(row.id)}
+                            >
+                              <Clock className="h-4 w-4 mr-2" />
+                              {t("actions.pending")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {canAuditTrail ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => {
+                                setAuditId(row.id);
+                                setAuditOpen(true);
+                              }}
+                            >
+                              <History className="h-4 w-4 mr-2" />
+                              {t("actions.auditTrail")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {canDelete ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                              onClick={() => setDeletingRow(row)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {tCommon("delete")}
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
                   </TableCell>
                 </TableRow>
-              ))}
-              {!rows.length ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground">
-                    -
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        ) : null}
-      </CardContent>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      <SupplierInvoiceDPFormDialog open={formOpen} onOpenChange={setFormOpen} invoiceId={editId} />
+      {pagination ? (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
+      <SupplierInvoiceDPFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        invoiceId={editId}
+      />
+
+      {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{t("actions.view")}</DialogTitle>
+            <DialogTitle>{t("detail.title")}</DialogTitle>
           </DialogHeader>
-          {detailId ? <SupplierInvoiceDPDetailWithFetch id={detailId} /> : null}
+          {detailId ? <SupplierInvoiceDPDetailView id={detailId} /> : null}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-md">
+      {/* Audit Trail Dialog */}
+      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{t("actions.delete")}</DialogTitle>
+            <DialogTitle>{t("auditTrail.title")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">Delete this down payment invoice?</div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
-                {t("actions.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteMutation.isPending}
-                className="cursor-pointer"
-              >
-                {t("actions.delete")}
-              </Button>
-            </div>
-          </div>
+          {auditId ? <SupplierInvoiceDPAuditTrailView id={auditId} /> : null}
         </DialogContent>
       </Dialog>
-    </Card>
+
+      <DeleteDialog
+        open={!!deletingRow}
+        onOpenChange={(v) => {
+          if (!v) setDeletingRow(null);
+        }}
+        title={tCommon("delete")}
+        description={tCommon("deleteConfirm")}
+        onConfirm={handleDelete}
+        isLoading={deleteMutation.isPending}
+      />
+    </div>
   );
 }
 
-function SupplierInvoiceDPDetailWithFetch({ id }: { id: string }) {
+/* ───────────────────── Detail View ───────────────────── */
+
+function SupplierInvoiceDPDetailView({ id }: { id: string }) {
   const t = useTranslations("supplierInvoiceDP");
+  const tCommon = useTranslations("common");
   const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
-  if (isError || !data?.success) return <div className="text-sm text-destructive">{t("toast.failed")}</div>;
+  if (isError || !data?.success)
+    return <div className="text-center py-8 text-destructive">{t("detail.failed")}</div>;
 
   const row = data.data;
 
   return (
-    <div className="space-y-2">
-      <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
-      <div className="font-medium">{row.code}</div>
+    <div className="space-y-4">
+      <div>
+        <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
+        <div className="font-semibold text-lg">{row.code}</div>
+      </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <div className="text-sm text-muted-foreground">{t("fields.purchaseOrder")}</div>
           <div className="font-medium">{row.purchase_order?.code ?? "-"}</div>
@@ -322,16 +452,42 @@ function SupplierInvoiceDPDetailWithFetch({ id }: { id: string }) {
         </div>
         <div>
           <div className="text-sm text-muted-foreground">{t("fields.status")}</div>
-          <div className="font-medium">{statusLabel(t, row.status)}</div>
+          <div className="font-medium">
+            <Badge
+              variant={normalizeStatus(row.status) === "paid" ? "success" : "secondary"}
+              className="text-xs"
+            >
+              {statusLabel(t, row.status)}
+            </Badge>
+          </div>
         </div>
       </div>
 
       {row.notes ? (
         <div>
           <div className="text-sm text-muted-foreground">{t("fields.notes")}</div>
-          <div className="whitespace-pre-wrap">{row.notes}</div>
+          <div className="whitespace-pre-wrap text-sm">{row.notes}</div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/* ───────────────────── Audit Trail View ───────────────────── */
+
+function SupplierInvoiceDPAuditTrailView({ id }: { id: string }) {
+  const t = useTranslations("supplierInvoiceDP");
+  const tCommon = useTranslations("common");
+
+  const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
+
+  // For now, use a simple placeholder – can be enhanced with a dedicated audit trail hook later
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (isError) return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+
+  return (
+    <div className="text-center py-8 text-muted-foreground">
+      {t("auditTrail.empty")}
     </div>
   );
 }

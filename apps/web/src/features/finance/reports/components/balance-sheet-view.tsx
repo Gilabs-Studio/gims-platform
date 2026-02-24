@@ -19,18 +19,22 @@ export function BalanceSheetView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
 
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+  const now = new Date();
+  const firstDayOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError } = useBalanceSheet({ as_of_date: asOfDate });
+  const [dateRange, setDateRange] = useState({ start_date: firstDayOfYear, end_date: today });
+
+  const { data, isLoading, isError } = useBalanceSheet(dateRange);
   const report = data?.data;
 
   const handleExport = async () => {
     try {
-      const blob = await financeReportsService.exportBalanceSheet({ as_of_date: asOfDate });
+      const blob = await financeReportsService.exportBalanceSheet(dateRange);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `balance_sheet_${asOfDate}.xlsx`);
+      link.setAttribute("download", `balance_sheet_${dateRange.start_date}_${dateRange.end_date}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -55,8 +59,20 @@ export function BalanceSheetView() {
 
       <div className="flex gap-4 items-end">
         <div className="space-y-2">
-          <Label>{t("as_of_date")}</Label>
-          <Input type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
+          <Label>{t("start_date")}</Label>
+          <Input
+            type="date"
+            value={dateRange.start_date}
+            onChange={(e) => setDateRange((p) => ({ ...p, start_date: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("end_date")}</Label>
+          <Input
+            type="date"
+            value={dateRange.end_date}
+            onChange={(e) => setDateRange((p) => ({ ...p, end_date: e.target.value }))}
+          />
         </div>
       </div>
 
@@ -85,15 +101,15 @@ export function BalanceSheetView() {
               </TableHeader>
               <TableBody>
                 {report.assets?.map((a: BSReportRow, idx: number) => (
-                  <TableRow key={`${a.account_code}-${idx}`}>
-                    <TableCell className="font-mono text-xs">{a.account_code}</TableCell>
-                    <TableCell>{a.account_name}</TableCell>
-                    <TableCell className="text-right font-mono">{(a.balance ?? 0).toLocaleString()}</TableCell>
+                  <TableRow key={`${a.code}-${idx}`}>
+                    <TableCell className="font-mono text-xs">{a.code}</TableCell>
+                    <TableCell>{a.name}</TableCell>
+                    <TableCell className="text-right font-mono">{(a.amount ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_assets")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.total_assets?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{report.asset_total?.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -112,15 +128,15 @@ export function BalanceSheetView() {
               </TableHeader>
               <TableBody>
                 {report.liabilities?.map((l: BSReportRow, idx: number) => (
-                  <TableRow key={`${l.account_code}-${idx}`}>
-                    <TableCell className="font-mono text-xs">{l.account_code}</TableCell>
-                    <TableCell>{l.account_name}</TableCell>
-                    <TableCell className="text-right font-mono">{(l.balance ?? 0).toLocaleString()}</TableCell>
+                  <TableRow key={`${l.code}-${idx}`}>
+                    <TableCell className="font-mono text-xs">{l.code}</TableCell>
+                    <TableCell>{l.name}</TableCell>
+                    <TableCell className="text-right font-mono">{(l.amount ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_liabilities")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.total_liabilities?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{report.liability_total?.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -138,16 +154,16 @@ export function BalanceSheetView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.equity?.map((e: BSReportRow, idx: number) => (
-                  <TableRow key={`${e.account_code}-${idx}`}>
-                    <TableCell className="font-mono text-xs">{e.account_code}</TableCell>
-                    <TableCell>{e.account_name}</TableCell>
-                    <TableCell className="text-right font-mono">{(e.balance ?? 0).toLocaleString()}</TableCell>
+                {report.equities?.map((e: BSReportRow, idx: number) => (
+                  <TableRow key={`${e.code}-${idx}`}>
+                    <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                    <TableCell>{e.name}</TableCell>
+                    <TableCell className="text-right font-mono">{(e.amount ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_equity")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.total_equity?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{report.equity_total?.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

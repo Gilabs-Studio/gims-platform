@@ -16,11 +16,11 @@ export function useGeneralLedger(params: { start_date: string; end_date: string 
   });
 }
 
-export function useBalanceSheet(params: { as_of_date: string }) {
+export function useBalanceSheet(params: { start_date: string; end_date: string }) {
   return useQuery({
     queryKey: financeReportKeys.bs(params),
     queryFn: () => financeReportsService.getBalanceSheet(params),
-    enabled: !!params.as_of_date,
+    enabled: !!params.start_date && !!params.end_date,
   });
 }
 

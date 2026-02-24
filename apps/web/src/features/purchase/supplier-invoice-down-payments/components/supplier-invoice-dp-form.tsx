@@ -122,72 +122,72 @@ export function SupplierInvoiceDPFormDialog({
         {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="space-y-2">
+            <Label>{t("fields.purchaseOrder")}</Label>
+            <Select
+              value={form.watch("purchase_order_id")}
+              onValueChange={(value) => form.setValue("purchase_order_id", value, { shouldValidate: true })}
+              disabled={isBusy || isEdit}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                {(addData?.purchase_orders ?? []).map((po) => (
+                  <SelectItem key={po.id} value={po.id}>
+                    {po.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>{t("fields.purchaseOrder")}</Label>
-              <Select
-                value={form.watch("purchase_order_id")}
-                onValueChange={(value) => form.setValue("purchase_order_id", value, { shouldValidate: true })}
-                disabled={isBusy || isEdit}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("placeholders.select")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(addData?.purchase_orders ?? []).map((po) => (
-                    <SelectItem key={po.id} value={po.id}>
-                      {po.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>{t("fields.invoiceDate")}</Label>
+              <Input
+                type="date"
+                value={form.watch("invoice_date")}
+                onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
             </div>
+            <div className="space-y-2">
+              <Label>{t("fields.dueDate")}</Label>
+              <Input
+                type="date"
+                value={form.watch("due_date")}
+                onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>{t("fields.amount")}</Label>
+              <Input
+                type="number"
+                value={form.watch("amount")}
+                onChange={(e) => form.setValue("amount", Number(e.target.value), { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>{t("fields.notes")}</Label>
+              <Textarea
+                value={form.watch("notes") ?? ""}
+                onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
+                disabled={isBusy}
+              />
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("fields.invoiceDate")}</Label>
-                <Input
-                  type="date"
-                  value={form.watch("invoice_date")}
-                  onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("fields.dueDate")}</Label>
-                <Input
-                  type="date"
-                  value={form.watch("due_date")}
-                  onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>{t("fields.amount")}</Label>
-                <Input
-                  type="number"
-                  value={form.watch("amount")}
-                  onChange={(e) => form.setValue("amount", Number(e.target.value), { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>{t("fields.notes")}</Label>
-                <Textarea
-                  value={form.watch("notes") ?? ""}
-                  onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
-                  disabled={isBusy}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
-                {t("actions.cancel")}
-              </Button>
-              <Button type="submit" disabled={isBusy}>
-                {t("actions.save")}
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
+              {t("actions.cancel")}
+            </Button>
+            <Button type="submit" disabled={isBusy} className="cursor-pointer">
+              {t("actions.save")}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

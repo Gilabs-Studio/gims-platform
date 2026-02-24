@@ -17,6 +17,7 @@ export const purchaseRequisitionEn = {
     reject: "Reject",
     convert: "Convert",
     auditTrail: "Audit Trail",
+    createNew: "Create New",
   },
   toast: {
     created: "Purchase requisition created",

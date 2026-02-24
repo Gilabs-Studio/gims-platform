@@ -115,5 +115,6 @@ export const purchaseOrderId = {
     save: "Simpan",
     cancel: "Batal",
     load: "Muat",
+    createNew: "Buat Baru",
   },
 };

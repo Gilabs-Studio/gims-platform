@@ -28,38 +28,33 @@ export interface GeneralLedgerResponse {
   accounts: GLReportRow[];
 }
 
-export interface BSReportRow {
-  account_code: string;
-  account_name: string;
-  balance: number;
-  type: string;
-  depth: number;
+export interface ReportRow {
+  code: string;
+  name: string;
+  amount: number;
+  is_total?: boolean;
 }
 
 export interface BalanceSheetResponse {
-  as_of_date: string;
-  assets: BSReportRow[];
-  liabilities: BSReportRow[];
-  equity: BSReportRow[];
-  total_assets: number;
-  total_liabilities: number;
-  total_equity: number;
+  date: string;
+  assets: ReportRow[];
+  asset_total: number;
+  liabilities: ReportRow[];
+  liability_total: number;
+  equities: ReportRow[];
+  equity_total: number;
+  liability_equity_total: number;
 }
 
-export interface PLReportRow {
-  account_code: string;
-  account_name: string;
-  amount: number;
-  type: string;
-  depth: number;
-}
+export type BSReportRow = ReportRow;
+export type PLReportRow = ReportRow;
 
 export interface ProfitAndLossResponse {
   start_date: string;
   end_date: string;
-  revenue: PLReportRow[];
-  expenses: PLReportRow[];
-  total_revenue: number;
-  total_expenses: number;
-  net_income: number;
+  revenues: ReportRow[];
+  revenue_total: number;
+  expenses: ReportRow[];
+  expense_total: number;
+  net_profit: number;
 }

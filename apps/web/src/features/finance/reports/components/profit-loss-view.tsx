@@ -20,10 +20,10 @@ export function ProfitLossView() {
   const tCommon = useTranslations("common");
 
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const firstDayOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
   const today = now.toISOString().slice(0, 10);
 
-  const [dateRange, setDateRange] = useState({ start_date: firstDay, end_date: today });
+  const [dateRange, setDateRange] = useState({ start_date: firstDayOfYear, end_date: today });
 
   const { data, isLoading, isError } = useProfitAndLoss(dateRange);
   const report = data?.data;
@@ -100,16 +100,16 @@ export function ProfitLossView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.revenue?.map((r: PLReportRow, idx: number) => (
-                  <TableRow key={`${r.account_code}-${idx}`}>
-                    <TableCell className="font-mono text-xs">{r.account_code}</TableCell>
-                    <TableCell>{r.account_name}</TableCell>
+                {report.revenues?.map((r: PLReportRow, idx: number) => (
+                  <TableRow key={`${r.code}-${idx}`}>
+                    <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                    <TableCell>{r.name}</TableCell>
                     <TableCell className="text-right font-mono">{(r.amount ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.total_revenue?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{report.revenue_total?.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -128,15 +128,15 @@ export function ProfitLossView() {
               </TableHeader>
               <TableBody>
                 {report.expenses?.map((e: PLReportRow, idx: number) => (
-                  <TableRow key={`${e.account_code}-${idx}`}>
-                    <TableCell className="font-mono text-xs">{e.account_code}</TableCell>
-                    <TableCell>{e.account_name}</TableCell>
+                  <TableRow key={`${e.code}-${idx}`}>
+                    <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                    <TableCell>{e.name}</TableCell>
                     <TableCell className="text-right font-mono">{(e.amount ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.total_expenses?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{report.expense_total?.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -146,8 +146,8 @@ export function ProfitLossView() {
           <div className="rounded-md border p-4 bg-muted/20">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold">{t("net_profit_loss")}</span>
-              <span className={`text-lg font-bold font-mono ${(report.net_income ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {(report.net_income ?? 0).toLocaleString()}
+              <span className={`text-lg font-bold font-mono ${(report.net_profit ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {(report.net_profit ?? 0).toLocaleString()}
               </span>
             </div>
           </div>

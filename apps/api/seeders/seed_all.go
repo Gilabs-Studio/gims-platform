@@ -128,6 +128,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Purchase → Finance E2E data (2025-2026) with correct business flows
+	if err := SeedPurchaseFinanceE2E(); err != nil {
+		return err
+	}
+
 	// Integration Flow seeder (Purchase → Stock → Sales → Finance)
 	if err := SeedIntegrationFlow(); err != nil {
 		return err
