@@ -174,6 +174,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 10. CRM
+	crmMenu := &permission.Menu{
+		Name:   "CRM",
+		Icon:   "handshake",
+		URL:    "/crm",
+		Order:  10,
+		Status: "active",
+	}
+	if err := createMenu(crmMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -498,6 +510,34 @@ func SeedMenus() error {
 	}
 	for _, child := range aiChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &aiMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// CRM SUB-MENUS
+	// ============================================================
+
+	// CRM Settings Group
+	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 1)
+	if err != nil {
+		return err
+	}
+
+	crmSettingsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Pipeline Stages", "git-branch", "/crm/settings/pipeline-stages", 1},
+		{"Lead Sources", "target", "/crm/settings/lead-sources", 2},
+		{"Lead Statuses", "tag", "/crm/settings/lead-statuses", 3},
+		{"Contact Roles", "users", "/crm/settings/contact-roles", 4},
+		{"Activity Types", "calendar-check", "/crm/settings/activity-types", 5},
+	}
+	for _, child := range crmSettingsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &crmSettingsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}

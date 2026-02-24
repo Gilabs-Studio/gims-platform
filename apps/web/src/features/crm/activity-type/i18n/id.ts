@@ -1,0 +1,23 @@
+export const activityTypeId = {
+  title: "Jenis Aktivitas",
+  description: "Kelola jenis aktivitas untuk interaksi CRM",
+  create: "Tambah Jenis Aktivitas",
+  edit: "Edit Jenis Aktivitas",
+  deleted: "Jenis aktivitas berhasil dihapus",
+  created: "Jenis aktivitas berhasil dibuat",
+  updated: "Jenis aktivitas berhasil diperbarui",
+  empty: "Tidak ada jenis aktivitas ditemukan",
+  form: {
+    name: "Nama",
+    namePlaceholder: "Masukkan nama aktivitas",
+    code: "Kode",
+    codePlaceholder: "Masukkan kode aktivitas",
+    description: "Deskripsi",
+    descriptionPlaceholder: "Masukkan deskripsi",
+    icon: "Ikon",
+    iconPlaceholder: "Masukkan nama ikon",
+    badgeColor: "Warna Badge",
+    order: "Urutan",
+    isActive: "Aktif",
+  },
+};

@@ -63,6 +63,8 @@ import (
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
+	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+
 	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 )
@@ -304,6 +306,9 @@ func main() {
 
 		// Stock Opname module (Sprint 9)
 		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// CRM module (Sprint 17 - Foundation & Settings)
+		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
