@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import {
   Calendar as CalendarIcon,
@@ -152,7 +153,8 @@ export function EmployeeForm({
     control,
     formState: { errors },
   } = useForm<EmployeeFormData>({
-    resolver: zodResolver(employeeSchema) as Parameters<typeof useForm<EmployeeFormData>>[0]["resolver"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(employeeSchema) as any,
     defaultValues: {
       employee_code: "",
       name: "",
@@ -346,7 +348,7 @@ export function EmployeeForm({
           ...baseData,
           initial_contract: wantsContract
             ? {
-                contract_number: data.contract_number,
+                contract_number: data.contract_number!,
                 contract_type: data.contract_type!,
                 start_date:
                   data.contract_start_date instanceof Date
@@ -412,7 +414,7 @@ export function EmployeeForm({
             {isEditing ? t("editTitle") : t("createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
               className={cn(
