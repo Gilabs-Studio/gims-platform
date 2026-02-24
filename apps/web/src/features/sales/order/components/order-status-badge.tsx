@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Package, Truck, PieChart, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Package, Truck, PieChart, Clock, XCircle, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface OrderStatusBadgeProps {
@@ -18,41 +18,28 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
           {t("draft")}
         </Badge>
       );
-    case "confirmed":
+    case "submitted":
       return (
         <Badge variant="info" className={className}>
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("confirmed")}
+          <Send className="h-3 w-3 mr-1.5" />
+          {t("pending")}
         </Badge>
       );
-    case "processing":
-      return (
-        <Badge variant="warning" className={className}>
-          <Package className="h-3 w-3 mr-1.5" />
-          {t("processing")}
-        </Badge>
-      );
-    case "partial":
-      return (
-        <Badge variant="warning" className={className}>
-          <PieChart className="h-3 w-3 mr-1.5" />
-          {t("partial")}
-        </Badge>
-      );
-    case "shipped":
-      return (
-        <Badge variant="info" className={className}>
-          <Truck className="h-3 w-3 mr-1.5" />
-          {t("shipped")}
-        </Badge>
-      );
-    case "delivered":
+    case "approved":
       return (
         <Badge variant="success" className={className}>
           <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("delivered")}
+          {t("approved")}
         </Badge>
       );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("rejected")}
+        </Badge>
+      );
+
     case "cancelled":
       return (
         <Badge variant="destructive" className={className}>

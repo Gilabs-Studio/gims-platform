@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -137,6 +138,17 @@ func checkRedisRateLimit(ctx context.Context, client *redis.Client, key string, 
 // RateLimitMiddleware creates a rate limiting middleware
 func RateLimitMiddleware(limitType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Bypass rate limiting in development and when explicitly disabled via env var.
+		// This allows local development to avoid hitting 429s while keeping production protected.
+		if config.AppConfig != nil {
+			env := config.AppConfig.Server.Env
+			if env != "production" {
+				if env == "development" || os.Getenv("DISABLE_RATE_LIMIT") == "true" {
+					c.Next()
+					return
+				}
+			}
+		}
 		ip := c.ClientIP()
 		var rule config.RateLimitRule
 		var key string

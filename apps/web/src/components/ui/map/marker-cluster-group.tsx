@@ -6,6 +6,7 @@ import "leaflet.markercluster";
 
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "./marker-cluster.css";
 
 
 interface MarkerClusterGroupProps extends L.MarkerClusterGroupOptions {

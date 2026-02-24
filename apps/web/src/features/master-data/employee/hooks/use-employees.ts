@@ -9,6 +9,11 @@ import type {
   ApproveEmployeeData,
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
+  CreateEmployeeContractData,
+  UpdateEmployeeContractData,
+  TerminateEmployeeContractData,
+  RenewEmployeeContractData,
+  CorrectEmployeeContractData,
 } from "../types";
 
 export const employeeKeys = {
@@ -23,18 +28,19 @@ export const employeeKeys = {
   formData: () => ["employees", "form-data"] as const,
 };
 
-export function useEmployees(params?: ListEmployeesParams) {
+export function useEmployees(params?: ListEmployeesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.list(params ?? {}),
     queryFn: () => employeeService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useEmployee(id: string | undefined) {
+export function useEmployee(id: string | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.detail(id ?? ""),
     queryFn: () => employeeService.getById(id!),
-    enabled: !!id,
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
 
@@ -102,13 +108,8 @@ export function useAssignEmployeeAreas() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: AssignEmployeeAreasData;
-    }) => employeeService.assignAreas(id, data),
+    mutationFn: ({ id, data }: { id: string; data: AssignEmployeeAreasData }) =>
+      employeeService.assignAreas(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
@@ -154,7 +155,7 @@ export function useRemoveEmployeeArea() {
   });
 }
 
-export function useAvailableUsers(search?: string, excludeEmployeeId?: string) {
+export function useAvailableUsers(search?: string, excludeEmployeeId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.availableUsers(search, excludeEmployeeId),
     queryFn: () =>
@@ -162,13 +163,200 @@ export function useAvailableUsers(search?: string, excludeEmployeeId?: string) {
         search,
         exclude_employee_id: excludeEmployeeId,
       }),
+    ...options,
   });
 }
 
-export function useEmployeeFormData() {
+export function useEmployeeFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: employeeKeys.formData(),
     queryFn: () => employeeService.getFormData(),
     staleTime: 5 * 60 * 1000, // Form data rarely changes, cache for 5 minutes
+    ...options,
+  });
+}
+
+// Contract query keys
+export const contractKeys = {
+  all: ["employee-contracts"] as const,
+  lists: (employeeId: string) =>
+    [...contractKeys.all, "list", employeeId] as const,
+  detail: (employeeId: string, contractId: string) =>
+    [...contractKeys.all, "detail", employeeId, contractId] as const,
+  active: (employeeId: string) =>
+    [...contractKeys.all, "active", employeeId] as const,
+};
+
+// Contract hooks
+export function useEmployeeContracts(employeeId: string | undefined) {
+  return useQuery({
+    queryKey: contractKeys.lists(employeeId ?? ""),
+    queryFn: () => employeeService.getEmployeeContracts(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useActiveContract(employeeId: string | undefined) {
+  return useQuery({
+    queryKey: contractKeys.active(employeeId ?? ""),
+    queryFn: () => employeeService.getActiveContract(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: CreateEmployeeContractData;
+    }) => employeeService.createEmployeeContract(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      contractId,
+      data,
+    }: {
+      employeeId: string;
+      contractId: string;
+      data: UpdateEmployeeContractData;
+    }) => employeeService.updateEmployeeContract(employeeId, contractId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      contractId,
+    }: {
+      employeeId: string;
+      contractId: string;
+    }) => employeeService.deleteEmployeeContract(employeeId, contractId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useTerminateEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      contractId,
+      data,
+    }: {
+      employeeId: string;
+      contractId: string;
+      data: TerminateEmployeeContractData;
+    }) =>
+      employeeService.terminateEmployeeContract(employeeId, contractId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useRenewEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      contractId,
+      data,
+    }: {
+      employeeId: string;
+      contractId: string;
+      data: RenewEmployeeContractData;
+    }) => employeeService.renewEmployeeContract(employeeId, contractId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useCorrectActiveEmployeeContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: CorrectEmployeeContractData;
+    }) => employeeService.correctActiveEmployeeContract(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
   });
 }

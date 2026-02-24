@@ -24,4 +24,14 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.PUT("/:id/areas", middleware.RequirePermission("employee.update"), h.BulkUpdateAreas)
 	g.DELETE("/:id/areas/:area_id", middleware.RequirePermission("employee.update"), h.RemoveAreaAssignment)
 	g.POST("/:id/supervisor-areas", middleware.RequirePermission("employee.assign_area"), h.AssignSupervisorAreas)
+
+	// Employee contract management routes
+	g.GET("/:id/contracts", middleware.RequirePermission("employee.read"), h.GetEmployeeContracts)
+	g.POST("/:id/contracts", middleware.RequirePermission("employee.update"), h.CreateEmployeeContract)
+	g.GET("/:id/contracts/active", middleware.RequirePermission("employee.read"), h.GetActiveContract)
+	g.PUT("/:id/contracts/:contract_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeContract)
+	g.DELETE("/:id/contracts/:contract_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeContract)
+	g.POST("/:id/contracts/:contract_id/terminate", middleware.RequirePermission("employee.update"), h.TerminateEmployeeContract)
+	g.POST("/:id/contracts/:contract_id/renew", middleware.RequirePermission("employee.update"), h.RenewEmployeeContract)
+	g.PATCH("/:id/contracts/active", middleware.RequirePermission("employee.update"), h.CorrectActiveEmployeeContract)
 }

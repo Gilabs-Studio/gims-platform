@@ -45,30 +45,33 @@ type SalesOrderUsecase interface {
 }
 
 type salesOrderUsecase struct {
-	db            *gorm.DB
-	orderRepo     salesRepos.SalesOrderRepository
-	quotationRepo salesQuotationRepos.SalesQuotationRepository
-	productRepo   productRepos.ProductRepository
-	inventoryUC   inventoryUsecase.InventoryUsecase
-	employeeRepo  organizationRepos.EmployeeRepository
+	db               *gorm.DB
+	orderRepo        salesRepos.SalesOrderRepository
+	deliveryOrderRepo salesRepos.DeliveryOrderRepository
+	quotationRepo    salesQuotationRepos.SalesQuotationRepository
+	productRepo      productRepos.ProductRepository
+	inventoryUC      inventoryUsecase.InventoryUsecase
+	employeeRepo     organizationRepos.EmployeeRepository
 }
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
 func NewSalesOrderUsecase(
 	db *gorm.DB,
 	orderRepo salesRepos.SalesOrderRepository,
+	deliveryOrderRepo salesRepos.DeliveryOrderRepository,
 	quotationRepo salesQuotationRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
 	inventoryUC inventoryUsecase.InventoryUsecase,
 	employeeRepo organizationRepos.EmployeeRepository,
 ) SalesOrderUsecase {
 	return &salesOrderUsecase{
-		db:            db,
-		orderRepo:     orderRepo,
-		quotationRepo: quotationRepo,
-		productRepo:   productRepo,
-		inventoryUC:   inventoryUC,
-		employeeRepo:  employeeRepo,
+		db:               db,
+		orderRepo:        orderRepo,
+		deliveryOrderRepo: deliveryOrderRepo,
+		quotationRepo:    quotationRepo,
+		productRepo:      productRepo,
+		inventoryUC:      inventoryUC,
+		employeeRepo:     employeeRepo,
 	}
 }
 
@@ -84,7 +87,12 @@ func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRe
 
 	responses := make([]dto.SalesOrderResponse, len(orders))
 	for i := range orders {
-		responses[i] = mapper.ToSalesOrderResponse(&orders[i])
+		// For approved orders, fetch pending delivery quantities
+		var pendingQtyMap map[string]float64
+		if orders[i].Status == models.SalesOrderStatusApproved {
+			pendingQtyMap, _ = u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, orders[i].ID)
+		}
+		responses[i] = mapper.ToSalesOrderResponse(&orders[i], pendingQtyMap)
 	}
 
 	// Calculate pagination
@@ -134,7 +142,7 @@ func (u *salesOrderUsecase) ListItems(ctx context.Context, orderID string, req *
 	// Map to response DTOs
 	responses := make([]dto.SalesOrderItemResponse, len(items))
 	for i := range items {
-		responses[i] = mapper.ToSalesOrderItemResponse(&items[i])
+		responses[i] = mapper.ToSalesOrderItemResponse(&items[i], 0)
 	}
 
 	// Calculate pagination
@@ -174,7 +182,10 @@ func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesO
 		return nil, ErrSalesOrderNotFound
 	}
 
-	response := mapper.ToSalesOrderResponse(order)
+	// Fetch pending delivery quantities for this order
+	pendingQtyMap, _ := u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, order.ID)
+
+	response := mapper.ToSalesOrderResponse(order, pendingQtyMap)
 	return &response, nil
 }
 
@@ -239,7 +250,7 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 		return nil, err
 	}
 
-	response := mapper.ToSalesOrderResponse(created)
+	response := mapper.ToSalesOrderResponse(created, nil)
 	return &response, nil
 }
 
@@ -312,7 +323,7 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 		return nil, err
 	}
 
-	response := mapper.ToSalesOrderResponse(updated)
+	response := mapper.ToSalesOrderResponse(updated, nil)
 	return &response, nil
 }
 
@@ -374,8 +385,8 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, ErrInvalidOrderStatusTransition
 	}
 
-	// Handle stock reservation on confirmation (wrapped in transaction for atomicity)
-	if newStatus == models.SalesOrderStatusConfirmed && !order.ReservedStock {
+	// Handle stock reservation on approval (wrapped in transaction for atomicity)
+	if newStatus == models.SalesOrderStatusApproved && !order.ReservedStock {
 		err := u.db.Transaction(func(tx *gorm.DB) error {
 			txCtx := database.WithTx(ctx, tx)
 
@@ -438,7 +449,7 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
-	response := mapper.ToSalesOrderResponse(updated)
+	response := mapper.ToSalesOrderResponse(updated, nil)
 	return &response, nil
 }
 
@@ -501,7 +512,7 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 		return nil, err
 	}
 
-	response := mapper.ToSalesOrderResponse(created)
+	response := mapper.ToSalesOrderResponse(created, nil)
 	return &response, nil
 }
 
@@ -577,30 +588,18 @@ func (u *salesOrderUsecase) calculateTotals(order *models.SalesOrder) {
 func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrderStatus) bool {
 	validTransitions := map[models.SalesOrderStatus][]models.SalesOrderStatus{
 		models.SalesOrderStatusDraft: {
-			models.SalesOrderStatusConfirmed,
+			models.SalesOrderStatusSubmitted,
 			models.SalesOrderStatusCancelled,
 		},
-		models.SalesOrderStatusConfirmed: {
-			models.SalesOrderStatusProcessing,
+		models.SalesOrderStatusSubmitted: {
+			models.SalesOrderStatusApproved,
+			models.SalesOrderStatusRejected,
+		},
+		models.SalesOrderStatusApproved: {
 			models.SalesOrderStatusCancelled,
 		},
-		models.SalesOrderStatusProcessing: {
-			models.SalesOrderStatusShipped,
-			models.SalesOrderStatusPartial,
-			models.SalesOrderStatusDelivered,
-			models.SalesOrderStatusCancelled,
-		},
-		models.SalesOrderStatusPartial: {
-			models.SalesOrderStatusProcessing, // Can go back to processing if new DO is created/shipped?
-			models.SalesOrderStatusDelivered,
-			models.SalesOrderStatusCancelled,
-		},
-		models.SalesOrderStatusShipped: {
-			models.SalesOrderStatusPartial,
-			models.SalesOrderStatusDelivered,
-		},
-		models.SalesOrderStatusDelivered: {
-			// Cannot transition from delivered
+		models.SalesOrderStatusRejected: {
+			models.SalesOrderStatusDraft,
 		},
 		models.SalesOrderStatusCancelled: {
 			// Cannot transition from cancelled

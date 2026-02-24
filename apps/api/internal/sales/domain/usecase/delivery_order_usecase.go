@@ -183,6 +183,26 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 		req.ReceiverPhone = salesOrder.CustomerPhone
 	}
 
+	// Query pending delivery quantities from existing non-cancelled DOs
+	pendingQtyMap, err := u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, req.SalesOrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if sales order is already fully allocated (delivered + pending DO qty >= ordered qty)
+	isFullyAllocated := true
+	for _, item := range salesOrder.Items {
+		pendingQty := pendingQtyMap[item.ID]
+		allocatedQty := item.DeliveredQuantity + pendingQty
+		if item.Quantity > allocatedQty {
+			isFullyAllocated = false
+			break
+		}
+	}
+	if len(salesOrder.Items) > 0 && isFullyAllocated {
+		return nil, errors.New("sales order is already fully fulfilled — all items have been delivered or allocated to existing delivery orders")
+	}
+
 	// Validate products and batches
 	for _, item := range req.Items {
 		product, err := u.productRepo.FindByID(ctx, item.ProductID)
@@ -198,7 +218,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			item.Price = product.SellingPrice
 		}
 
-		// Check for over-delivery
+		// Check for over-delivery (including pending DO quantities)
 		if item.SalesOrderItemID != nil {
 			var soItem *models.SalesOrderItem
 			for _, soi := range salesOrder.Items {
@@ -209,9 +229,9 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			}
 
 			if soItem != nil {
-				remaining := soItem.Quantity - soItem.DeliveredQuantity
+				pendingQty := pendingQtyMap[soItem.ID]
+				remaining := soItem.Quantity - soItem.DeliveredQuantity - pendingQty
 				if item.Quantity > remaining {
-					// Use a formatted string or specific error
 					return nil, errors.New("cannot deliver more than remaining quantity (over-delivery)")
 				}
 			}
@@ -259,12 +279,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			}
 		}
 
-		// Update sales order status to Processing if it's Confirmed
-		if salesOrder.Status == models.SalesOrderStatusConfirmed {
-			if err := u.salesOrderRepo.UpdateStatus(txCtx, salesOrder.ID, models.SalesOrderStatusProcessing, createdBy, nil); err != nil {
-				return err
-			}
-		}
+		// Sales order status no longer changes based on Delivery Order creation
 
 		return nil
 	})
@@ -292,7 +307,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Check if delivery order can be modified
-	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
+	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusApproved && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryOrderStatus
 	}
 
@@ -535,10 +550,7 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 		}
 	}
 
-	// Check if sales order is fully delivered
-	if err := u.updateSalesOrderStatusIfCompleted(ctx, deliveryOrder.SalesOrderID, userID); err != nil {
-		return nil, err
-	}
+	// Sales order status is no longer tied strictly to Delivery completion
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
@@ -593,8 +605,19 @@ func (u *deliveryOrderUsecase) SelectBatches(ctx context.Context, req *dto.Batch
 func (u *deliveryOrderUsecase) isValidStatusTransition(current, new models.DeliveryOrderStatus) bool {
 	validTransitions := map[models.DeliveryOrderStatus][]models.DeliveryOrderStatus{
 		models.DeliveryOrderStatusDraft: {
+			models.DeliveryOrderStatusSent,
+			models.DeliveryOrderStatusCancelled,
+		},
+		models.DeliveryOrderStatusSent: {
+			models.DeliveryOrderStatusApproved,
+			models.DeliveryOrderStatusRejected,
+		},
+		models.DeliveryOrderStatusApproved: {
 			models.DeliveryOrderStatusPrepared,
 			models.DeliveryOrderStatusCancelled,
+		},
+		models.DeliveryOrderStatusRejected: {
+			models.DeliveryOrderStatusDraft,
 		},
 		models.DeliveryOrderStatusPrepared: {
 			models.DeliveryOrderStatusShipped,
@@ -644,41 +667,3 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 	return false
 }
 
-// updateSalesOrderStatusIfCompleted checks if all items in sales order are delivered and updates status
-func (u *deliveryOrderUsecase) updateSalesOrderStatusIfCompleted(ctx context.Context, salesOrderID string, userID *string) error {
-	salesOrder, err := u.salesOrderRepo.FindByID(ctx, salesOrderID)
-	if err != nil {
-		return err
-	}
-
-	allDelivered := true
-	anyDelivered := false
-
-	for _, item := range salesOrder.Items {
-		if item.DeliveredQuantity < item.Quantity {
-			allDelivered = false
-		}
-		if item.DeliveredQuantity > 0 {
-			anyDelivered = true
-		}
-	}
-
-	// Update status based on delivery progress
-	var newStatus models.SalesOrderStatus
-
-	if allDelivered {
-		newStatus = models.SalesOrderStatusDelivered
-	} else if anyDelivered {
-		newStatus = models.SalesOrderStatusPartial
-	} else {
-		// Should generally be processing if we are calling this after a delivery
-		newStatus = models.SalesOrderStatusProcessing
-	}
-
-	// Only update if status is different
-	if salesOrder.Status != newStatus {
-		return u.salesOrderRepo.UpdateStatus(ctx, salesOrderID, newStatus, userID, nil)
-	}
-
-	return nil
-}

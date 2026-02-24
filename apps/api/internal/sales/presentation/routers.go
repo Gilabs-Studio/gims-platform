@@ -14,11 +14,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterRoutes registers all sales routes
+// SalesDeps holds exported Sales usecases for cross-module consumption
+type SalesDeps struct {
+	QuotationUC usecase.SalesQuotationUsecase
+	OrderUC     usecase.SalesOrderUsecase
+}
+
+// RegisterRoutes registers all sales routes and returns shared dependencies
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC inventoryUsecase.InventoryUsecase) {
+}, invUC inventoryUsecase.InventoryUsecase) *SalesDeps {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
 	estimationRepo := salesRepos.NewSalesEstimationRepository(db)
@@ -33,7 +39,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
 	estimationUC := usecase.NewSalesEstimationUsecase(estimationRepo, quotationRepo, productRepo)
-	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, quotationRepo, productRepo, invUC, employeeRepo)
+	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, deliveryRepo, quotationRepo, productRepo, invUC, employeeRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, invUC)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
@@ -41,6 +47,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
+	quotationPrintHandler := handler.NewSalesQuotationPrintHandler(quotationUC, db)
 	estimationHandler := handler.NewSalesEstimationHandler(estimationUC)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
@@ -54,12 +61,17 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salesGroup.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
-	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler)
+	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler, quotationPrintHandler)
 	router.RegisterSalesEstimationRoutes(salesGroup, estimationHandler)
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
 	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
+
+	return &SalesDeps{
+		QuotationUC: quotationUC,
+		OrderUC:     orderUC,
+	}
 }
 

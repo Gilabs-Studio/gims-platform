@@ -19,6 +19,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/master-data/employees",
   "/master-data/suppliers",
   "/master-data/supplier-types",
+  "/master-data/customers",
+  "/master-data/customer-types",
   "/master-data/banks",
   "/master-data/products",
   "/master-data/product-categories",
@@ -77,6 +79,12 @@ const VALID_DASHBOARD_ROUTES = [
   "/hrd/recruitment",
   "/hrd/work-schedule",
   "/hrd/holidays",
+  // CRM Settings
+  "/crm/settings/pipeline-stages",
+  "/crm/settings/lead-sources",
+  "/crm/settings/lead-statuses",
+  "/crm/settings/contact-roles",
+  "/crm/settings/activity-types",
   // Reports
   "/reports",
   // AI Assistant

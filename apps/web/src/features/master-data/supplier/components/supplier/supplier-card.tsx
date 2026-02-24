@@ -1,9 +1,9 @@
 "use client";
 
 import { Building2, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Supplier, SupplierStatus } from "../../types";
+
+import type { Supplier } from "../../types";
 
 
 
@@ -35,7 +35,8 @@ export function SupplierCard({
       onClick={onClick}
       className={cn(
         "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
-        isSelected && "bg-accent border-l-4 border-l-primary"
+        isSelected && "bg-accent border-l-4 border-l-primary",
+        !supplier.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
@@ -53,16 +54,6 @@ export function SupplierCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge 
-              className="text-xs" 
-              variant={
-                supplier.status === 'approved' ? 'success' :
-                supplier.status === 'pending' ? 'warning' :
-                supplier.status === 'rejected' ? 'destructive' : 'secondary'
-              }
-            >
-              {t(`status.${supplier.status}`)}
-            </Badge>
             {supplier.supplier_type && (
               <span className="text-xs text-muted-foreground">
                 {supplier.supplier_type.name}

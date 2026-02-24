@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { visitService } from "../services/visit-service";
 import type {
   ListSalesVisitsParams,
@@ -89,11 +89,14 @@ export function useVisitCalendarSummary(
 }
 
 // Get interest questions
-export function useInterestQuestions() {
+export function useInterestQuestions(
+  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: visitKeys.interestQuestions(),
     queryFn: () => visitService.getInterestQuestions(),
     staleTime: Infinity, // Questions technically don't change often
+    ...options,
   });
 }
 

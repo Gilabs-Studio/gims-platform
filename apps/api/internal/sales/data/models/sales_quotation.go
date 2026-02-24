@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/google/uuid"
@@ -41,7 +42,11 @@ type SalesQuotation struct {
 	BusinessTypeID *string              `gorm:"type:uuid;index" json:"business_type_id"`
 	BusinessType   *orgModels.BusinessType `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	
-	// Customer snapshot (stored at quotation creation for display without joins)
+	// Customer reference (FK to master data customer)
+	CustomerID      *string                    `gorm:"type:uuid;index" json:"customer_id"`
+	Customer        *customerModels.Customer   `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+
+	// Customer snapshot (stored at quotation creation for historical record)
 	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`
 	CustomerContact string `gorm:"type:varchar(255)" json:"customer_contact"`
 	CustomerPhone   string `gorm:"type:varchar(50)" json:"customer_phone"`

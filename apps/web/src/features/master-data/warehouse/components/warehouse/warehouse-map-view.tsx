@@ -9,7 +9,6 @@ import {
   Warehouse,
   Menu,
   X,
-  Filter,
   Loader2,
   ChevronLeft,
 } from "lucide-react";
@@ -265,8 +264,7 @@ export function WarehouseMapView() {
                 value={activeFilter}
                 onValueChange={(val) => setActiveFilter(val as "all" | "active" | "inactive")}
               >
-                <SelectTrigger className="flex-1">
-                  <Filter className="h-4 w-4 mr-2" />
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,13 +273,18 @@ export function WarehouseMapView() {
                   <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                 </SelectContent>
               </Select>
+              {canCreate && (
+                <Button
+                  onClick={handleCreate}
+                  className={
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-[160px] cursor-pointer"
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("common.create")}
+                </Button>
+              )}
             </div>
-            {canCreate && (
-              <Button onClick={handleCreate} className="w-full cursor-pointer">
-                <Plus className="h-4 w-4 mr-1" />
-                {t("common.create")}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -405,6 +408,7 @@ export function WarehouseMapView() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         warehouse={viewingWarehouse}
+        onEdit={handleEdit}
       />
     </div>
   );

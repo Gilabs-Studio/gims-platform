@@ -17,6 +17,8 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { EstimationForm } from "./estimation-form";
 import { EstimationDetailModal } from "./estimation-detail-modal";
 import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesEstimation, SalesEstimationStatus } from "../types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -47,6 +49,10 @@ export function EstimationList() {
   const canDelete = useUserPermission("sales_estimation.delete");
   const canView = useUserPermission("sales_estimation.read");
   const canApprove = useUserPermission("sales_estimation.approve");
+  const canViewEmployee = useUserPermission("employee.read");
+
+  const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
+  const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
 
   const deleteEstimation = useDeleteEstimation();
   const updateStatus = useUpdateEstimationStatus();
@@ -238,7 +244,21 @@ export function EstimationList() {
                       : "-"}
                   </TableCell>
                   <TableCell>{estimation.customer_name ?? "-"}</TableCell>
-                  <TableCell>{estimation.sales_rep?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {estimation.sales_rep && canViewEmployee ? (
+                      <button
+                        onClick={() => {
+                          setSelectedSalesRepId(estimation.sales_rep!.id);
+                          setIsSalesRepOpen(true);
+                        }}
+                        className="text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {estimation.sales_rep.name}
+                      </button>
+                    ) : (
+                      <span>{estimation.sales_rep?.name ?? "-"}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getProbabilityBadge(estimation.probability ?? 0)}</TableCell>
                   <TableCell>{formatCurrency(estimation.total_amount ?? 0)}</TableCell>
                   <TableCell>{getStatusBadge(estimation.status)}</TableCell>
@@ -266,7 +286,7 @@ export function EstimationList() {
                           {canUpdate && estimation.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(estimation.id, "submitted")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
@@ -276,14 +296,14 @@ export function EstimationList() {
                             <>
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(estimation.id, "approved")}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.approve")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(estimation.id, "rejected")}
-                                className="cursor-pointer text-destructive"
+                                className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <XCircle className="h-4 w-4 mr-2" />
                                 {t("actions.reject")}
@@ -293,7 +313,7 @@ export function EstimationList() {
                           {canUpdate && estimation.status === "approved" && (
                             <DropdownMenuItem
                               onClick={() => setConvertingEstimation(estimation)}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <BarChart3 className="h-4 w-4 mr-2" />
                               {t("actions.convert")}
@@ -367,6 +387,12 @@ export function EstimationList() {
           isLoading={deleteEstimation.isPending}
         />
       )}
+
+      <EmployeeDetailModal
+        open={isSalesRepOpen}
+        onOpenChange={setIsSalesRepOpen}
+        employee={selectedSalesRepId ? { id: selectedSalesRepId } as unknown as MdEmployee : null}
+      />
     </div>
   );
 }

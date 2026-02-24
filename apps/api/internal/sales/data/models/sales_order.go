@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/google/uuid"
@@ -14,13 +15,11 @@ import (
 type SalesOrderStatus string
 
 const (
-	SalesOrderStatusDraft     SalesOrderStatus = "draft"
-	SalesOrderStatusConfirmed SalesOrderStatus = "confirmed"
-	SalesOrderStatusProcessing SalesOrderStatus = "processing"
-	SalesOrderStatusPartial   SalesOrderStatus = "partial"
-	SalesOrderStatusShipped   SalesOrderStatus = "shipped"
-	SalesOrderStatusDelivered SalesOrderStatus = "delivered"
-	SalesOrderStatusCancelled SalesOrderStatus = "cancelled"
+	SalesOrderStatusDraft      SalesOrderStatus = "draft"
+	SalesOrderStatusSubmitted  SalesOrderStatus = "submitted"
+	SalesOrderStatusApproved   SalesOrderStatus = "approved"
+	SalesOrderStatusRejected   SalesOrderStatus = "rejected"
+	SalesOrderStatusCancelled  SalesOrderStatus = "cancelled"
 )
 
 // SalesOrder represents a sales order document
@@ -48,7 +47,11 @@ type SalesOrder struct {
 	DeliveryAreaID *string              `gorm:"type:uuid;index" json:"delivery_area_id"`
 	DeliveryArea   *orgModels.Area      `gorm:"foreignKey:DeliveryAreaID" json:"delivery_area,omitempty"`
 	
-	// Customer snapshot (stored at order creation for display without joins)
+	// Customer reference (FK to master data customer)
+	CustomerID      *string                    `gorm:"type:uuid;index" json:"customer_id"`
+	Customer        *customerModels.Customer   `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+
+	// Customer snapshot (stored at order creation for historical record)
 	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`
 	CustomerContact string `gorm:"type:varchar(255)" json:"customer_contact"`
 	CustomerPhone   string `gorm:"type:varchar(50)" json:"customer_phone"`
@@ -84,7 +87,9 @@ type SalesOrder struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 	
 	// Relations
-	Items          []SalesOrderItem `gorm:"foreignKey:SalesOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	Items           []SalesOrderItem   `gorm:"foreignKey:SalesOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	DeliveryOrders  []DeliveryOrder    `gorm:"foreignKey:SalesOrderID" json:"delivery_orders,omitempty"`
+	CustomerInvoices []CustomerInvoice `gorm:"foreignKey:SalesOrderID" json:"customer_invoices,omitempty"`
 }
 
 // TableName specifies the table name for SalesOrder

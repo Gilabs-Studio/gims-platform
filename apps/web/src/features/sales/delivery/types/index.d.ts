@@ -1,6 +1,6 @@
 // Delivery Order types for Sprint 6
 
-export type DeliveryOrderStatus = "draft" | "prepared" | "shipped" | "delivered" | "cancelled";
+export type DeliveryOrderStatus = "draft" | "sent" | "approved" | "rejected" | "prepared" | "shipped" | "delivered" | "cancelled";
 
 export interface DeliveryOrderItem {
   id: string;

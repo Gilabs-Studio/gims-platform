@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { areaService } from "../services/organization-service";
 import type {
   ListAreasParams,
@@ -20,10 +20,14 @@ export const areaKeys = {
   detail: (id: string) => [...areaKeys.details(), id] as const,
 };
 
-export function useAreas(params?: ListAreasParams) {
-  return useQuery({
+export function useAreas(
+  params?: ListAreasParams,
+  options?: Omit<UseQueryOptions<OrganizationListResponse<Area>, Error, OrganizationListResponse<Area>>, "queryKey" | "queryFn">
+) {
+  return useQuery<OrganizationListResponse<Area>, Error>({
     queryKey: areaKeys.list(params),
     queryFn: () => areaService.list(params),
+    ...options,
   });
 }
 

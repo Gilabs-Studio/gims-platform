@@ -19,10 +19,11 @@ export const businessTypeKeys = {
   detail: (id: string) => [...businessTypeKeys.details(), id] as const,
 };
 
-export function useBusinessTypes(params?: ListOrganizationParams) {
+export function useBusinessTypes(params?: ListOrganizationParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: businessTypeKeys.list(params),
     queryFn: () => businessTypeService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

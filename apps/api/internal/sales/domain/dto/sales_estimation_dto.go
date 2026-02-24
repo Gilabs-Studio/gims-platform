@@ -107,11 +107,12 @@ type SalesEstimationResponse struct {
 	EstimationDate    string                       `json:"estimation_date"`
 	ExpectedCloseDate *string                      `json:"expected_close_date"`
 	
-	CustomerID      *string `json:"customer_id"`
-	CustomerName    string  `json:"customer_name"`
-	CustomerEmail   string  `json:"customer_email"`
-	CustomerPhone   string  `json:"customer_phone"`
-	CustomerContact string  `json:"customer_contact"`
+	CustomerID      *string            `json:"customer_id"`
+	Customer        *CustomerResponse  `json:"customer,omitempty"`
+	CustomerName    string             `json:"customer_name"`
+	CustomerEmail   string             `json:"customer_email"`
+	CustomerPhone   string             `json:"customer_phone"`
+	CustomerContact string             `json:"customer_contact"`
 	
 	SalesRepID      *string                       `json:"sales_rep_id"`
 	SalesRep        *EmployeeResponse             `json:"sales_rep,omitempty"`

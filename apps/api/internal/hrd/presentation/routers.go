@@ -13,18 +13,24 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterRoutes registers all HRD routes
+// HRDDeps holds exported HRD usecases for cross-module consumption
+type HRDDeps struct {
+	HolidayUC      usecase.HolidayUsecase
+	LeaveRequestUC usecase.LeaveRequestUsecase
+	AttendanceUC   usecase.AttendanceRecordUsecase
+}
+
+// RegisterRoutes registers all HRD routes and returns shared dependencies
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}) {
+}) *HRDDeps {
 	// Initialize repositories
 	workScheduleRepo := repositories.NewWorkScheduleRepository(db)
 	holidayRepo := repositories.NewHolidayRepository(db)
 	attendanceRepo := repositories.NewAttendanceRecordRepository(db)
 	overtimeRepo := repositories.NewOvertimeRequestRepository(db)
 	leaveRequestRepo := repositories.NewLeaveRequestRepository(db)
-	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
 	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
 	assetRepo := repositories.NewEmployeeAssetRepository(db)
@@ -47,7 +53,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo, employeeRepo, divisionRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo, employeeRepo)
 	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo)
-	employeeContractUC := usecase.NewEmployeeContractUsecase(employeeContractRepo, employeeRepo)
 	educationHistoryUC := usecase.NewEmployeeEducationHistoryUsecase(educationHistoryRepo, employeeRepo)
 	certificationUC := usecase.NewEmployeeCertificationUsecase(certificationRepo, employeeRepo)
 	assetUC := usecase.NewEmployeeAssetUsecase(assetRepo, employeeRepo)
@@ -64,7 +69,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
 	educationHistoryHandler := handler.NewEmployeeEducationHistoryHandler(educationHistoryUC)
 	certificationHandler := handler.NewEmployeeCertificationHandler(certificationUC)
-	employeeContractHandler := handler.NewEmployeeContractHandler(employeeContractUC)
 	assetHandler := handler.NewEmployeeAssetHandler(assetUC)
 	evaluationGroupHandler := handler.NewEvaluationGroupHandler(evaluationGroupUC)
 	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)
@@ -84,10 +88,15 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterLeaveRequestRoutes(hrdGroup, leaveRequestHandler)
 	router.RegisterEmployeeEducationHistoryRoutes(hrdGroup, educationHistoryHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.SetupEmployeeCertificationRoutes(hrdGroup, certificationHandler, middleware.AuthMiddleware(jwtManager, permService))
-	router.RegisterEmployeeContractRoutes(hrdGroup, employeeContractHandler, middleware.AuthMiddleware(jwtManager, permService))
 	router.SetupEmployeeAssetRoutes(hrdGroup, assetHandler)
 	router.SetupEvaluationGroupRoutes(hrdGroup, evaluationGroupHandler)
 	router.SetupEvaluationCriteriaRoutes(hrdGroup, evaluationCriteriaHandler)
 	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
 	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler)
+
+	return &HRDDeps{
+		HolidayUC:      holidayUC,
+		LeaveRequestUC: leaveRequestUC,
+		AttendanceUC:   attendanceUC,
+	}
 }

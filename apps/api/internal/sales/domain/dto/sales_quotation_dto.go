@@ -8,6 +8,7 @@ type CreateSalesQuotationRequest struct {
 	SalesRepID      string   `json:"sales_rep_id" binding:"required,uuid"`
 	BusinessUnitID  string   `json:"business_unit_id" binding:"required,uuid"`
 	BusinessTypeID  *string  `json:"business_type_id"`
+	CustomerID      *string  `json:"customer_id"`
 	CustomerName    string   `json:"customer_name"`
 	CustomerContact string   `json:"customer_contact"`
 	CustomerPhone   string   `json:"customer_phone"`
@@ -36,6 +37,7 @@ type UpdateSalesQuotationRequest struct {
 	SalesRepID      *string  `json:"sales_rep_id"`
 	BusinessUnitID  *string  `json:"business_unit_id"`
 	BusinessTypeID  *string  `json:"business_type_id"`
+	CustomerID      *string  `json:"customer_id"`
 	CustomerName    *string  `json:"customer_name"`
 	CustomerContact *string  `json:"customer_contact"`
 	CustomerPhone   *string  `json:"customer_phone"`
@@ -88,6 +90,8 @@ type SalesQuotationResponse struct {
 	BusinessUnit        *BusinessUnitResponse         `json:"business_unit,omitempty"`
 	BusinessTypeID      *string                       `json:"business_type_id"`
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
+	CustomerID          *string                       `json:"customer_id"`
+	Customer            *CustomerResponse             `json:"customer,omitempty"`
 	CustomerName        string                        `json:"customer_name"`
 	CustomerContact     string                        `json:"customer_contact"`
 	CustomerPhone       string                        `json:"customer_phone"`
@@ -167,4 +171,15 @@ type ProductResponse struct {
 	Name         string  `json:"name"`
 	SellingPrice float64 `json:"selling_price"`
 	ImageURL     *string `json:"image_url"`
+}
+
+// CustomerResponse represents customer master data in response
+type CustomerResponse struct {
+	ID             string  `json:"id"`
+	Code           string  `json:"code"`
+	Name           string  `json:"name"`
+	CustomerTypeID *string `json:"customer_type_id"`
+	Address        string  `json:"address"`
+	Email          string  `json:"email"`
+	ContactPerson  string  `json:"contact_person"`
 }

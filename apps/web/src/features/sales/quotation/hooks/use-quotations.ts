@@ -25,10 +25,11 @@ export const quotationKeys = {
 };
 
 // List quotations hook with filters
-export function useQuotations(params?: ListSalesQuotationsParams) {
+export function useQuotations(params?: ListSalesQuotationsParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: quotationKeys.list(params),
     queryFn: () => quotationService.list(params),
+    enabled: options?.enabled,
   });
 }
 

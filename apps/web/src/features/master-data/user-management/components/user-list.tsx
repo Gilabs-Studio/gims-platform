@@ -27,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useHasPermission } from "../hooks/use-has-permission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { User } from "../types";
 import { useTranslations } from "next-intl";
@@ -62,6 +61,7 @@ export function UserList() {
     deleteUser,
     createUser,
     updateUser,
+    permissions,
   } = useUserList();
 
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
@@ -69,11 +69,6 @@ export function UserList() {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
-  
-  // Permission checks
-  const hasCreatePermission = useHasPermission("user.create");
-  const hasEditPermission = useHasPermission("user.update");
-  const hasDeletePermission = useHasPermission("user.delete");
   
   // Check if any filters are active
   const hasActiveFilters = status !== "" || roleId !== "";
@@ -145,7 +140,7 @@ export function UserList() {
                 }
               );
             }}
-            disabled={!hasEditPermission || updateUser.isPending}
+            disabled={!permissions.canUpdate || updateUser.isPending}
             className="cursor-pointer"
           />
           <span className="text-sm text-muted-foreground">
@@ -169,7 +164,7 @@ export function UserList() {
           >
             <Eye className="h-3.5 w-3.5" />
           </Button>
-          {hasEditPermission && (
+          {permissions.canUpdate && (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -180,7 +175,7 @@ export function UserList() {
               <Edit className="h-3.5 w-3.5" />
             </Button>
           )}
-          {hasDeletePermission && (
+          {permissions.canDelete && (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -239,7 +234,7 @@ export function UserList() {
                 </Badge>
               )}
             </Button>
-            {hasCreatePermission && (
+            {permissions.canCreate && (
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 size="sm"
@@ -293,7 +288,7 @@ export function UserList() {
               </SelectContent>
             </Select>
           </div>
-          {hasCreatePermission && (
+          {permissions.canCreate && (
             <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               {t("addUser")}
@@ -348,23 +343,25 @@ export function UserList() {
       />
 
       {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Create User</DialogTitle>
-          </DialogHeader>
-          <UserForm
-            onSubmit={async (data) => {
-              await handleCreate(data as CreateUserFormData);
-            }}
-            onCancel={() => setIsCreateDialogOpen(false)}
-            isLoading={createUser.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create User</DialogTitle>
+            </DialogHeader>
+            <UserForm
+              onSubmit={async (data) => {
+                await handleCreate(data as CreateUserFormData);
+              }}
+              onCancel={() => setIsCreateDialogOpen(false)}
+              isLoading={createUser.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit Dialog */}
-      {editingUser && editingUserData?.data && (
+      {editingUser && editingUserData?.data && (permissions.canUpdate) && (
         <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -398,27 +395,29 @@ export function UserList() {
       />
 
       {/* Delete Dialog */}
-      <DeleteDialog
-        open={!!deletingUserId}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeletingUserId(null);
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!deletingUserId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingUserId(null);
+            }
+          }}
+          onConfirm={handleDeleteConfirm}
+          title={t("deleteTitle")}
+          description={
+            deletingUserId
+              ? t("deleteDescriptionWithName", {
+                  name:
+                    users.find((u) => u.id === deletingUserId)?.name ??
+                    t("deleteDescription"),
+                })
+              : t("deleteDescription")
           }
-        }}
-        onConfirm={handleDeleteConfirm}
-        title={t("deleteTitle")}
-        description={
-          deletingUserId
-            ? t("deleteDescriptionWithName", {
-                name:
-                  users.find((u) => u.id === deletingUserId)?.name ??
-                  t("deleteDescription"),
-              })
-            : t("deleteDescription")
-        }
-        itemName="user"
-        isLoading={deleteUser.isPending}
-      />
+          itemName="user"
+          isLoading={deleteUser.isPending}
+        />
+      )}
     </div>
   );
 }

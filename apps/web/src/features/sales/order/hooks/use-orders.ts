@@ -23,10 +23,11 @@ export const orderKeys = {
 };
 
 // List orders hook with filters
-export function useOrders(params?: ListSalesOrdersParams) {
+export function useOrders(params?: ListSalesOrdersParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => orderService.list(params),
+    enabled: options?.enabled,
   });
 }
 
@@ -114,6 +115,19 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({
         queryKey: orderKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+  });
+}
+
+// Approve order mutation (requires sales_order.approve permission)
+export function useApproveOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => orderService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
   });

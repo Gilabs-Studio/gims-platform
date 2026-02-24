@@ -33,7 +33,7 @@ export interface CustomerInvoiceItem {
   updated_at: string;
 }
 
-export type CustomerInvoiceStatus = "unpaid" | "partial" | "paid" | "cancelled";
+export type CustomerInvoiceStatus = "draft" | "sent" | "approved" | "rejected" | "unpaid" | "partial" | "paid" | "cancelled";
 export type CustomerInvoiceType = "regular" | "proforma";
 
 export interface CustomerInvoice {

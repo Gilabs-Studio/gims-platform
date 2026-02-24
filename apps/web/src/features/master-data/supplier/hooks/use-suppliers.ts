@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { supplierService } from "../services/supplier-service";
 import type {
   Supplier,
@@ -36,11 +36,18 @@ export function useSuppliers(params?: SupplierListParams) {
   });
 }
 
-export function useSupplier(id: string) {
+type SupplierDetailResult = Awaited<ReturnType<typeof supplierService.getById>>;
+
+export function useSupplier(
+  id: string,
+  options?: Omit<UseQueryOptions<SupplierDetailResult, Error>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: supplierKeys.detail(id),
     queryFn: () => supplierService.getById(id),
     enabled: !!id,
+    staleTime: 0,
+    ...options,
   });
 }
 

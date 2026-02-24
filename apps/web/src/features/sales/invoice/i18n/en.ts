@@ -57,6 +57,11 @@ export const invoiceEn = {
 
     // Status
     status: {
+      draft: "Draft",
+      sent: "Submitted",
+      pending: "Submitted",
+      approved: "Approved",
+      rejected: "Rejected",
       unpaid: "Unpaid",
       partial: "Partial",
       paid: "Paid",
@@ -76,6 +81,7 @@ export const invoiceEn = {
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
+    amount: "Amount",
     paymentTerms: "Payment Terms",
     salesOrder: "Sales Order",
     invoiceType: "Invoice Type",
@@ -104,6 +110,7 @@ export const invoiceEn = {
     edit: "Edit Invoice",
     delete: "Delete Invoice",
     notFound: "No invoices found",
+    forbidden: "You don't have permission to view invoices",
     noItems: "No items found",
     unknownProduct: "No product selected",
     created: "Invoice created successfully",
@@ -133,6 +140,9 @@ export const invoiceEn = {
 
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       pay: "Record Payment",
       cancel: "Cancel Invoice",
       markPaid: "Mark as Paid",

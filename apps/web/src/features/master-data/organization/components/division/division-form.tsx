@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -11,69 +7,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Division } from "../../types";
-import { useCreateDivision, useUpdateDivision } from "../../hooks/use-divisions";
-import { DivisionFormData } from "../../schemas/organization.schema";
-import { getDivisionSchema } from "../../schemas/organization.schema";
+import { useDivisionForm } from "../../hooks/use-division-form";
 import { ButtonLoading } from "@/components/loading";
 
-interface DivisionFormProps {
+export interface DivisionFormProps {
   open: boolean;
   onClose: () => void;
   division?: Division | null;
 }
 
 export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
-  const t = useTranslations("organization");
-  const isEditing = !!division;
-  const createDivision = useCreateDivision();
-  const updateDivision = useUpdateDivision();
+  const { form, t, isEditing, isLoading, onSubmit } = useDivisionForm({ open, onClose, division });
 
   const {
     register,
-    handleSubmit,
-    reset,
-    watch,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<DivisionFormData>({
-    resolver: zodResolver(getDivisionSchema(t)),
-    defaultValues: {
-      name: "",
-      description: "",
-      is_active: true,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (division) {
-      reset({
-        name: division.name,
-        description: division.description ?? "",
-        is_active: division.is_active,
-      });
-    } else {
-      reset({
-        name: "",
-        description: "",
-        is_active: true,
-      });
-    }
-  }, [division, reset]);
-
-  const onSubmit = async (data: DivisionFormData) => {
-    try {
-      if (isEditing && division) {
-        await updateDivision.mutateAsync({ id: division.id, data });
-      } else {
-        await createDivision.mutateAsync(data);
-      }
-      onClose();
-    } catch (error) {
-      console.error("Failed to save division:", error);
-    }
-  };
-
-  const isLoading = createDivision.isPending || updateDivision.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -84,7 +36,7 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
             {isEditing ? t("division.editTitle") : t("division.createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field orientation="vertical">
             <FieldLabel>{t("division.form.name")}</FieldLabel>
             <Input

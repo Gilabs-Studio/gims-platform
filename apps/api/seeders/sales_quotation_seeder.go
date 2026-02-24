@@ -87,11 +87,12 @@ func SeedSalesQuotation() error {
 		quotationDate := estimation.EstimationDate.AddDate(0, 0, 2)
 		validUntil := quotationDate.AddDate(0, 0, 30) // Valid for 30 days
 
-		// Copy customer data from estimation (snapshot pattern)
+		// Copy customer data from estimation (snapshot + FK pattern)
 		quotation := salesModels.SalesQuotation{
 			Code:            code,
 			QuotationDate:   quotationDate,
 			ValidUntil:      &validUntil,
+			CustomerID:      estimation.CustomerID,
 			CustomerName:    estimation.CustomerName,
 			CustomerContact: estimation.CustomerContact,
 			CustomerPhone:   estimation.CustomerPhone,

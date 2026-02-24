@@ -41,7 +41,7 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 	}
 
 	if m.SalesOrder != nil {
-		salesOrderResp := ToSalesOrderResponse(m.SalesOrder)
+		salesOrderResp := ToSalesOrderResponse(m.SalesOrder, nil)
 		response.SalesOrder = &salesOrderResp
 	}
 
@@ -128,7 +128,7 @@ func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryO
 	if m.SalesOrderItemID != nil {
 		response.SalesOrderItemID = m.SalesOrderItemID
 		if m.SalesOrderItem != nil {
-			salesOrderItemResp := ToSalesOrderItemResponse(m.SalesOrderItem)
+			salesOrderItemResp := ToSalesOrderItemResponse(m.SalesOrderItem, 0)
 			response.SalesOrderItem = &salesOrderItemResp
 		}
 	}

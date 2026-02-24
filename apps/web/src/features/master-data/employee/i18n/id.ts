@@ -11,6 +11,8 @@ export const employeeId: EmployeeTranslations = {
   deleteConfirm: "Apakah Anda yakin ingin menghapus karyawan ini?",
   empty: "Tidak ada karyawan ditemukan",
   createSuccess: "Karyawan berhasil ditambahkan",
+  createSuccessButContractFailed:
+    "Karyawan berhasil dibuat, namun pembuatan kontrak gagal. Silakan buat kontrak secara manual.",
   updateSuccess: "Karyawan berhasil diperbarui",
   deleteSuccess: "Karyawan berhasil dihapus",
   submitSuccess: "Karyawan berhasil diajukan untuk persetujuan",
@@ -26,6 +28,7 @@ export const employeeId: EmployeeTranslations = {
     overview: "Ringkasan",
     employment: "Pekerjaan",
     contract: "Kontrak",
+    contractHistory: "Riwayat Kontrak",
     areas: "Area",
   },
   sections: {
@@ -53,8 +56,8 @@ export const employeeId: EmployeeTranslations = {
     rejected: "Ditolak",
   },
   contractStatus: {
-    permanent: "Tetap",
-    contract: "Kontrak",
+    permanent: "PKWTT",
+    contract: "PKWT",
     probation: "Percobaan",
     intern: "Magang",
   },
@@ -70,7 +73,8 @@ export const employeeId: EmployeeTranslations = {
     user: "Akun Pengguna",
     userPlaceholder: "Pilih akun pengguna",
     noUser: "Tidak ada pengguna terkait",
-    userHint: "Hubungkan karyawan ini ke akun pengguna sistem untuk akses login.",
+    userHint:
+      "Hubungkan karyawan ini ke akun pengguna sistem untuk akses login.",
     division: "Divisi",
     divisionPlaceholder: "Pilih divisi",
     jobPosition: "Jabatan",
@@ -100,8 +104,20 @@ export const employeeId: EmployeeTranslations = {
     bpjsPlaceholder: "Masukkan nomor BPJS",
     contractStatus: "Status Kontrak",
     contractStatusPlaceholder: "Pilih status kontrak",
+    contractType: "Jenis Kontrak",
+    contractTypePlaceholder: "Pilih jenis kontrak",
+    includeContract: "Sertakan Kontrak Awal",
+    includeContractHint:
+      "Aktifkan untuk membuat kontrak bersamaan dengan karyawan ini.",
+    contractNumber: "Nomor Kontrak",
+    contractNumberPlaceholder: "cth. CTR-EMP001-001",
+    contractOptionalHint:
+      "Anda dapat menambahkan kontrak nanti dari halaman detail karyawan.",
+    contractHelpText:
+      "Pilih jenis kontrak untuk mengaktifkan pembuatan kontrak. PKWTT adalah tetap, PKWT dan Magang memerlukan tanggal akhir.",
     contractStartDate: "Tanggal Mulai Kontrak",
     contractEndDate: "Tanggal Akhir Kontrak",
+    document: "Dokumen",
     totalLeaveQuota: "Jatah Cuti (hari)",
     ptkpStatus: "Status PTKP",
     ptkpStatusPlaceholder: "Pilih status PTKP",
@@ -110,7 +126,8 @@ export const employeeId: EmployeeTranslations = {
     replacementForPlaceholder: "Pilih karyawan yang digantikan",
     assignAreas: "Tetapkan Area",
     selectArea: "Pilih area untuk ditambahkan",
-    areasDescription: "Tetapkan karyawan ini ke area dan tentukan peran supervisor.",
+    areasDescription:
+      "Tetapkan karyawan ini ke area dan tentukan peran supervisor.",
     noAreasAssigned: "Belum ada area yang ditetapkan.",
     supervisor: "Supervisor",
     member: "Anggota",
@@ -120,6 +137,7 @@ export const employeeId: EmployeeTranslations = {
     rejectReason: "Alasan Penolakan",
     rejectReasonPlaceholder: "Masukkan alasan penolakan (opsional)",
     selectDate: "Pilih tanggal",
+    selectReason: "Pilih alasan",
   },
   actions: {
     create: "Tambah Karyawan",
@@ -132,6 +150,7 @@ export const employeeId: EmployeeTranslations = {
     assignAreas: "Kelola Area",
     save: "Simpan",
     saving: "Menyimpan...",
+    processing: "Memproses...",
     cancel: "Batal",
     confirm: "Konfirmasi",
   },
@@ -146,6 +165,98 @@ export const employeeId: EmployeeTranslations = {
     contractStatus: "Kontrak",
     isActive: "Aktif",
     actions: "Aksi",
+  },
+  contract: {
+    types: {
+      PKWTT: "PKWTT",
+      PKWT: "PKWT",
+      Intern: "Magang",
+    },
+    statuses: {
+      ACTIVE: "Aktif",
+      EXPIRED: "Kadaluarsa",
+      TERMINATED: "Diakhiri",
+    },
+    sections: {
+      activeContract: "Kontrak Aktif",
+    },
+    empty: {
+      noActive: "Tidak ada kontrak aktif untuk karyawan ini.",
+      noHistory: "Belum ada riwayat kontrak.",
+    },
+    fields: {
+      contractType: "Jenis Kontrak",
+      contractNumber: "Nomor Kontrak",
+      startDate: "Tanggal Mulai",
+      endDate: "Tanggal Akhir",
+      document: "Dokumen",
+      correctionReason: "Alasan Koreksi",
+      terminationReason: "Alasan Pengakhiran",
+      terminationNotes: "Catatan",
+    },
+    terminationReasons: {
+      RESIGNED: "Mengundurkan Diri",
+      DISMISSED: "Diberhentikan",
+      END_CONTRACT: "Habis Kontrak",
+      OTHER: "Lainnya",
+    },
+    actions: {
+      create: "Buat Kontrak",
+      edit: "Edit",
+      renew: "Perbarui",
+      terminate: "Akhiri",
+      correct: "Koreksi",
+      download: "Unduh",
+    },
+    validation: {
+      startDateRequired: "Tanggal mulai wajib diisi",
+      endDateRequiredForNonPermanent:
+        "Tanggal akhir wajib diisi untuk jenis kontrak dan magang",
+      correctionReasonRequired: "Alasan koreksi wajib diisi",
+      contractNumberRequired: "Nomor kontrak wajib diisi",
+      endDateRequired: "Tanggal akhir wajib diisi untuk kontrak non-tetap",
+      invalidDateRange: "Tanggal akhir harus setelah tanggal mulai",
+      reasonRequired: "Alasan pengakhiran wajib diisi",
+    },
+    messages: {
+      createSuccess: "Kontrak berhasil dibuat",
+      createError: "Gagal membuat kontrak",
+      correctSuccess: "Kontrak berhasil dikoreksi",
+      correctError: "Gagal mengkoreksi kontrak",
+      renewSuccess: "Kontrak berhasil diperbarui",
+      renewError: "Gagal memperbarui kontrak",
+      terminateSuccess: "Kontrak berhasil diakhiri",
+      terminateError: "Gagal mengakhiri kontrak",
+    },
+    permanentContract: "PKWTT (Tanpa tanggal akhir)",
+    noEndDate: "Tanpa tanggal akhir (PKWTT)",
+    documentUploaded: "Dokumen kontrak",
+    expiringSoon: "Berakhir dalam {days} hari",
+    expiringInDays: "Berakhir dalam {days} hari",
+    createDescription:
+      "Buat kontrak baru untuk karyawan ini.",
+    renewDescription:
+      "Buat kontrak baru untuk menggantikan yang aktif. Kontrak lama akan ditandai kadaluarsa.",
+    renewInfo: "Perpanjangan Kontrak",
+    renewInfoDetail:
+      "Ini akan membuat kontrak baru dan mengakhiri kontrak sebelumnya. Riwayat kontrak akan tetap tersimpan.",
+    editDescription:
+      "Lakukan koreksi pada kontrak aktif. Ini akan memperbarui detail kontrak.",
+    correctDescription: "Edit detail kontrak",
+    correctWarning: "Peringatan",
+    correctWarningDetail:
+      "Anda akan mengedit kontrak ini. Tindakan ini akan memperbarui informasi kontrak.",
+    terminateDescription:
+      "Akhiri kontrak aktif saat ini. Tindakan ini tidak dapat dibatalkan.",
+    terminateWarning: "Peringatan",
+    terminateWarningDetail:
+      "Ini akan mengakhiri kontrak secara permanen. Karyawan tidak akan memiliki kontrak aktif lagi.",
+    placeholders: {
+      document: "Unggah dokumen kontrak",
+      correctionReason: "Masukkan alasan koreksi",
+      contractNumber: "Masukkan nomor kontrak",
+      terminationNotes: "Masukkan catatan tambahan (opsional)",
+    },
   },
   validation: {
     employeeCodeRequired: "Kode karyawan wajib diisi",

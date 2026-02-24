@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -23,6 +25,7 @@ type DeliveryOrderRepository interface {
 	UpdateStatus(ctx context.Context, id string, status models.DeliveryOrderStatus, userID *string, reason *string) error
 	Ship(ctx context.Context, id string, userID *string, trackingNumber string) error
 	Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error
+	GetPendingDeliveryQtyBySalesOrder(ctx context.Context, salesOrderID string) (map[string]float64, error)
 }
 
 type deliveryOrderRepository struct {
@@ -205,37 +208,45 @@ func (r *deliveryOrderRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *deliveryOrderRepository) GetNextDeliveryNumber(ctx context.Context, prefix string) (string, error) {
+	now := database.GetDB(ctx, r.db).NowFunc()
+	dateStr := now.Format("20060102")
+	prefixWithDate := prefix + "-" + dateStr
+
 	var lastDeliveryOrder models.DeliveryOrder
 	var sequence int
 
-	// Find the last delivery order with the same prefix
+	// Find the last delivery order with the exact same prefix+date (including soft-deleted)
 	err := r.getDB(ctx).
-		Where("code LIKE ?", prefix+"%").
+		Unscoped().
+		Where("code LIKE ?", prefixWithDate+"%").
 		Order("code DESC").
 		First(&lastDeliveryOrder).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// No previous delivery order, start from 1
+			// No previous delivery order today, start from 1
 			sequence = 1
 		} else {
 			return "", err
 		}
 	} else {
-		// Extract sequence number from last code
-		var count int64
-		r.getDB(ctx).Model(&models.DeliveryOrder{}).
-			Where("code LIKE ?", prefix+"%").
-			Count(&count)
-		sequence = int(count) + 1
+		// Extract sequence number from last code (format: PREFIX-YYYYMMDD-XXXX)
+		parts := strings.Split(lastDeliveryOrder.Code, "-")
+		if len(parts) >= 3 {
+			// Sequence is the last part
+			lastSeq, err := strconv.Atoi(parts[len(parts)-1])
+			if err == nil {
+				sequence = lastSeq + 1
+			} else {
+				sequence = 1
+			}
+		} else {
+			sequence = 1
+		}
 	}
 
-	// Generate new code: PREFIX-YYYYMMDD-XXXX
-	now := database.GetDB(ctx, r.db).NowFunc()
-	dateStr := now.Format("20060102")
-	
 	// Format sequence with 4 digits
-	code := prefix + "-" + dateStr + "-" + formatSequence(sequence)
+	code := prefixWithDate + "-" + formatSequence(sequence)
 	
 	return code, nil
 }
@@ -331,4 +342,35 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 	}
 
 	return items, total, nil
+}
+
+// GetPendingDeliveryQtyBySalesOrder returns a map of sales_order_item_id -> total pending quantity
+// from all non-cancelled delivery orders for the given sales order.
+func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.Context, salesOrderID string) (map[string]float64, error) {
+	type result struct {
+		SalesOrderItemID string  `json:"sales_order_item_id"`
+		TotalQty         float64 `json:"total_qty"`
+	}
+
+	var results []result
+	err := r.getDB(ctx).
+		Table("delivery_order_items doi").
+		Select("doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
+		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
+		Where("dord.sales_order_id = ?", salesOrderID).
+		Where("dord.status != ?", models.DeliveryOrderStatusCancelled).
+		Where("dord.deleted_at IS NULL").
+		Where("doi.deleted_at IS NULL").
+		Where("doi.sales_order_item_id IS NOT NULL").
+		Group("doi.sales_order_item_id").
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	pendingMap := make(map[string]float64, len(results))
+	for _, r := range results {
+		pendingMap[r.SalesOrderItemID] = r.TotalQty
+	}
+	return pendingMap, nil
 }

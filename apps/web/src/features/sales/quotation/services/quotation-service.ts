@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  SalesQuotation,
   SalesQuotationListResponse,
   SalesQuotationSingleResponse,
   SalesQuotationItemsListResponse,
@@ -80,5 +79,23 @@ export const quotationService = {
       data
     );
     return response.data;
+  },
+
+  /**
+   * Fetches the PDF from the backend via the authenticated API client,
+   * then opens it in a new browser tab using the built-in PDF viewer.
+   * This avoids cross-origin cookie restrictions (SameSite=Strict).
+   */
+  async openPrintWindow(id: string, companyId?: string): Promise<void> {
+    const params = companyId ? { company_id: companyId } : undefined;
+    const response = await apiClient.get(
+      `${BASE_PATH}/${id}/print`,
+      { responseType: "blob" as const, params }
+    );
+    const blob = new Blob([response.data as BlobPart], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    // Free memory after the PDF tab has loaded
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

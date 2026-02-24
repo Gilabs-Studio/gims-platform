@@ -124,6 +124,15 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 	if req.NIB != "" {
 		company.NIB = req.NIB
 	}
+	if req.ProvinceID != nil {
+		company.ProvinceID = req.ProvinceID
+	}
+	if req.CityID != nil {
+		company.CityID = req.CityID
+	}
+	if req.DistrictID != nil {
+		company.DistrictID = req.DistrictID
+	}
 	if req.VillageID != nil {
 		company.VillageID = req.VillageID
 	}

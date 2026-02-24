@@ -34,6 +34,8 @@ export const orderId = {
       previous: "Sebelumnya",
       next: "Selanjutnya",
       select: "Pilih",
+      customer: "Pelanggan",
+      selectCustomer: "Pilih pelanggan",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",
       back: "Kembali",
@@ -50,6 +52,10 @@ export const orderId = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Diajukan",
+      pending: "Diajukan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
       confirmed: "Dikonfirmasi",
       processing: "Diproses",
       shipped: "Dikirim",
@@ -73,6 +79,8 @@ export const orderId = {
     code: "Kode Pesanan",
     orderDate: "Tanggal Pesanan",
     salesQuotation: "Penawaran Penjualan",
+    salesQuotations: "Penawaran Penjualan",
+    invoice: "Faktur",
     quotation: "Penawaran",
     paymentTerms: "Syarat Pembayaran",
     salesRep: "Sales Representative",
@@ -129,8 +137,17 @@ export const orderId = {
       noProductSelected: "Tidak ada produk dipilih",
     },
 
+    // Fulfillment labels
+    fulfillment: {
+      pending: "menunggu",
+      remaining: "tersisa",
+    },
+
     // Actions
     actions: {
+      send: "Kirim",
+      approve: "Setujui",
+      reject: "Tolak",
       confirm: "Konfirmasi",
       cancel: "Batalkan Pesanan",
       convert: "Konversi dari Penawaran",

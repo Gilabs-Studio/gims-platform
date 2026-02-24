@@ -53,6 +53,10 @@ export const deliveryEn = {
     // Status
     status: {
       draft: "Draft",
+      sent: "Submitted",
+      pending: "Submitted",
+      approved: "Approved",
+      rejected: "Rejected",
       prepared: "Prepared",
       shipped: "Shipped",
       delivered: "Delivered",
@@ -65,6 +69,7 @@ export const deliveryEn = {
     code: "Delivery Code",
     deliveryDate: "Delivery Date",
     salesOrder: "Sales Order",
+    type: "Type",
     warehouse: "Warehouse",
     deliveredBy: "Delivered By",
     courier: "Courier",
@@ -77,6 +82,8 @@ export const deliveryEn = {
     deliveryAddress: "Delivery Address",
     receiverSignature: "Receiver Signature",
     isPartialDelivery: "Partial Delivery",
+    full: "Full",
+    partial: "Partial",
     summary: "Summary",
     notes: "Notes",
     items: "Items",
@@ -88,6 +95,7 @@ export const deliveryEn = {
     edit: "Edit Delivery Order",
     delete: "Delete Delivery Order",
     notFound: "No delivery orders found",
+    forbidden: "You don't have permission to view delivery orders",
     noItems: "No items found",
     unknownProduct: "No product selected",
     created: "Delivery order created successfully",
@@ -117,6 +125,9 @@ export const deliveryEn = {
 
     // Actions
     actions: {
+      send: "Send",
+      approve: "Approve",
+      reject: "Reject",
       prepare: "Prepare",
       ship: "Ship",
       deliver: "Mark as Delivered",

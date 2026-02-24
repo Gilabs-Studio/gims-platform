@@ -1,49 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
-import { useCreateLeaveType, useUpdateLeaveType } from "../hooks/use-leave-type";
+import { useLeaveTypeForm } from "../hooks/use-leave-type-form";
 import type { LeaveType } from "../types";
 
-const schema = z.object({ name: z.string().min(2).max(100), description: z.string().max(500).optional(), max_days: z.number().min(0), is_paid: z.boolean(), is_active: z.boolean() });
-type FormData = z.infer<typeof schema>;
-
 export function LeaveTypeDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: LeaveType | null }) {
-  const t = useTranslations("leaveType");
-  const tCommon = useTranslations("common");
-  const createMutation = useCreateLeaveType();
-  const updateMutation = useUpdateLeaveType();
+  const { form, t, tCommon, isLoading, onSubmit } = useLeaveTypeForm({ open, onOpenChange, editingItem });
   
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({ 
-    resolver: zodResolver(schema), 
-    defaultValues: { name: "", description: "", max_days: 0, is_paid: true, is_active: true } 
-  });
+  const { register, setValue, watch, formState: { errors } } = form;
 
-  useEffect(() => {
-    if (editingItem) reset({ name: editingItem.name, description: editingItem.description ?? "", max_days: editingItem.max_days, is_paid: editingItem.is_paid, is_active: editingItem.is_active });
-    else reset({ name: "", description: "", max_days: 0, is_paid: true, is_active: true });
-  }, [editingItem, reset, open]);
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      if (editingItem) { await updateMutation.mutateAsync({ id: editingItem.id, data }); toast.success(t("updated")); }
-      else { await createMutation.mutateAsync(data); toast.success(t("created")); }
-      onOpenChange(false); reset();
-    } catch { toast.error(tCommon("error")); }
-  };
-
-  const isLoading = createMutation.isPending || updateMutation.isPending;
   const isActive = watch("is_active");
   const isPaid = watch("is_paid");
 
@@ -51,7 +22,7 @@ export function LeaveTypeDialog({ open, onOpenChange, editingItem }: { readonly 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader><DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle><DialogDescription>{t("description")}</DialogDescription></DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
             <Field>
               <FieldLabel>{t("form.name")}</FieldLabel>
