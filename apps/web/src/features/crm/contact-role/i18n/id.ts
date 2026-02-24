@@ -1,0 +1,20 @@
+export const contactRoleId = {
+  title: "Peran Kontak",
+  description: "Kelola peran kontak untuk hubungan CRM",
+  create: "Tambah Peran Kontak",
+  edit: "Edit Peran Kontak",
+  deleted: "Peran kontak berhasil dihapus",
+  created: "Peran kontak berhasil dibuat",
+  updated: "Peran kontak berhasil diperbarui",
+  empty: "Tidak ada peran kontak ditemukan",
+  form: {
+    name: "Nama",
+    namePlaceholder: "Masukkan nama peran",
+    code: "Kode",
+    codePlaceholder: "Masukkan kode peran",
+    description: "Deskripsi",
+    descriptionPlaceholder: "Masukkan deskripsi",
+    badgeColor: "Warna Badge",
+    isActive: "Aktif",
+  },
+};

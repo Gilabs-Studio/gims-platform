@@ -1,0 +1,23 @@
+export const activityTypeEn = {
+  title: "Activity Types",
+  description: "Manage activity types for CRM interactions",
+  create: "Add Activity Type",
+  edit: "Edit Activity Type",
+  deleted: "Activity type deleted successfully",
+  created: "Activity type created successfully",
+  updated: "Activity type updated successfully",
+  empty: "No activity types found",
+  form: {
+    name: "Name",
+    namePlaceholder: "Enter activity name",
+    code: "Code",
+    codePlaceholder: "Enter activity code",
+    description: "Description",
+    descriptionPlaceholder: "Enter description",
+    icon: "Icon",
+    iconPlaceholder: "Enter icon name",
+    badgeColor: "Badge Color",
+    order: "Order",
+    isActive: "Active",
+  },
+};

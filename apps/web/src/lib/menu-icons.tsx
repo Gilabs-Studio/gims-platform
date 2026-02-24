@@ -77,6 +77,9 @@ import {
   CheckSquare,
   Banknote,
   Hammer,
+  Zap,
+  Kanban,
+  Route,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -220,6 +223,11 @@ const iconMap: Record<string, React.ReactNode> = {
   "check-square": <CheckSquare className="h-4 w-4" />,
   banknote: <Banknote className="h-4 w-4" />,
   hammer: <Hammer className="h-4 w-4" />,
+
+  // CRM icons
+  zap: <Zap className="h-4 w-4" />,
+  kanban: <Kanban className="h-4 w-4" />,
+  route: <Route className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

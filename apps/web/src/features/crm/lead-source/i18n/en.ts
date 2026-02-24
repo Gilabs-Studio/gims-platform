@@ -1,0 +1,20 @@
+export const leadSourceEn = {
+  title: "Lead Sources",
+  description: "Manage lead source channels for CRM",
+  create: "Add Lead Source",
+  edit: "Edit Lead Source",
+  deleted: "Lead source deleted successfully",
+  created: "Lead source created successfully",
+  updated: "Lead source updated successfully",
+  empty: "No lead sources found",
+  form: {
+    name: "Name",
+    namePlaceholder: "Enter source name",
+    code: "Code",
+    codePlaceholder: "Enter source code",
+    order: "Order",
+    description: "Description",
+    descriptionPlaceholder: "Enter description",
+    isActive: "Active",
+  },
+};

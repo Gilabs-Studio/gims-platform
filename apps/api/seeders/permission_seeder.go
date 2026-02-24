@@ -468,6 +468,36 @@ func SeedPermissions() error {
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+
+		// CRM Settings - Pipeline Stages
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.read", "View Pipeline Stages", "VIEW", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.create", "Create Pipeline Stages", "CREATE", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.update", "Edit Pipeline Stages", "EDIT", "crm_pipeline_stage"},
+		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.delete", "Delete Pipeline Stages", "DELETE", "crm_pipeline_stage"},
+
+		// CRM Settings - Lead Sources
+		{"/crm/settings/lead-sources", "crm_lead_source.read", "View Lead Sources", "VIEW", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.create", "Create Lead Sources", "CREATE", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.update", "Edit Lead Sources", "EDIT", "crm_lead_source"},
+		{"/crm/settings/lead-sources", "crm_lead_source.delete", "Delete Lead Sources", "DELETE", "crm_lead_source"},
+
+		// CRM Settings - Lead Statuses
+		{"/crm/settings/lead-statuses", "crm_lead_status.read", "View Lead Statuses", "VIEW", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.create", "Create Lead Statuses", "CREATE", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.update", "Edit Lead Statuses", "EDIT", "crm_lead_status"},
+		{"/crm/settings/lead-statuses", "crm_lead_status.delete", "Delete Lead Statuses", "DELETE", "crm_lead_status"},
+
+		// CRM Settings - Contact Roles
+		{"/crm/settings/contact-roles", "crm_contact_role.read", "View Contact Roles", "VIEW", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.create", "Create Contact Roles", "CREATE", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.update", "Edit Contact Roles", "EDIT", "crm_contact_role"},
+		{"/crm/settings/contact-roles", "crm_contact_role.delete", "Delete Contact Roles", "DELETE", "crm_contact_role"},
+
+		// CRM Settings - Activity Types
+		{"/crm/settings/activity-types", "crm_activity_type.read", "View Activity Types", "VIEW", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.create", "Create Activity Types", "CREATE", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.update", "Edit Activity Types", "EDIT", "crm_activity_type"},
+		{"/crm/settings/activity-types", "crm_activity_type.delete", "Delete Activity Types", "DELETE", "crm_activity_type"},
 	}
 
 	// Build menu URL to ID map

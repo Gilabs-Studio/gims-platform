@@ -228,5 +228,10 @@ func SeedAll() error {
 		return err
 	}
 
+	// CRM Settings seeder (Sprint 17)
+	if err := SeedCRMSettings(); err != nil {
+		return err
+	}
+
 	return nil
 }

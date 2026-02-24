@@ -79,6 +79,12 @@ const VALID_DASHBOARD_ROUTES = [
   "/hrd/recruitment",
   "/hrd/work-schedule",
   "/hrd/holidays",
+  // CRM Settings
+  "/crm/settings/pipeline-stages",
+  "/crm/settings/lead-sources",
+  "/crm/settings/lead-statuses",
+  "/crm/settings/contact-roles",
+  "/crm/settings/activity-types",
   // Reports
   "/reports",
   // AI Assistant

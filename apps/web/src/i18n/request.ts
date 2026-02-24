@@ -124,6 +124,17 @@ import { financeSalaryId } from "@/features/finance/salary/i18n/id";
 import { aiChatEn } from "@/features/ai-chat/i18n/en";
 import { aiChatId } from "@/features/ai-chat/i18n/id";
 
+import { pipelineStageEn } from "@/features/crm/pipeline-stage/i18n/en";
+import { pipelineStageId } from "@/features/crm/pipeline-stage/i18n/id";
+import { leadSourceEn } from "@/features/crm/lead-source/i18n/en";
+import { leadSourceId } from "@/features/crm/lead-source/i18n/id";
+import { leadStatusEn } from "@/features/crm/lead-status/i18n/en";
+import { leadStatusId } from "@/features/crm/lead-status/i18n/id";
+import { contactRoleEn } from "@/features/crm/contact-role/i18n/en";
+import { contactRoleId } from "@/features/crm/contact-role/i18n/id";
+import { activityTypeEn } from "@/features/crm/activity-type/i18n/en";
+import { activityTypeId } from "@/features/crm/activity-type/i18n/id";
+
 // Merge all messages
 const messages = {
   en: {
@@ -185,6 +196,11 @@ const messages = {
     financeUpCountryCost: financeUpCountryCostEn,
     financeSalary: financeSalaryEn,
     ...aiChatEn,
+    pipelineStage: pipelineStageEn,
+    leadSource: leadSourceEn,
+    leadStatus: leadStatusEn,
+    contactRole: contactRoleEn,
+    activityType: activityTypeEn,
   },
   id: {
     ...globalIdMessages,
@@ -244,6 +260,11 @@ const messages = {
     financeUpCountryCost: financeUpCountryCostId,
     financeSalary: financeSalaryId,
     ...aiChatId,
+    pipelineStage: pipelineStageId,
+    leadSource: leadSourceId,
+    leadStatus: leadStatusId,
+    contactRole: contactRoleId,
+    activityType: activityTypeId,
   },
 } as const;
 

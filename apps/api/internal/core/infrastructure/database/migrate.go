@@ -9,6 +9,7 @@ import (
 	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
@@ -200,6 +201,12 @@ func AutoMigrate() error {
 		&ai.AIChatMessage{},
 		&ai.AIActionLog{},
 		&ai.AIIntentRegistry{},
+		// CRM Settings entities (Sprint 17)
+		&crm.PipelineStage{},
+		&crm.LeadSource{},
+		&crm.LeadStatus{},
+		&crm.ContactRole{},
+		&crm.ActivityType{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
