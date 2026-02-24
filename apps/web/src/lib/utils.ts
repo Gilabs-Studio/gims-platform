@@ -40,6 +40,21 @@ export function formatDate(
   }).format(dateObj);
 }
 
+export function formatTime(
+  date: Date | string | null | undefined,
+  locale: string = "id-ID"
+): string {
+  if (!date) return "";
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return "";
+
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(dateObj);
+}
+
 export function resolveImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   if (url.startsWith("http") || url.startsWith("blob:") || url.startsWith("data:")) {

@@ -217,6 +217,11 @@ func AutoMigrate() error {
 		&crm.Deal{},
 		&crm.DealProductItem{},
 		&crm.DealHistory{},
+		// CRM Visit Report entities (Sprint 22)
+		&crm.VisitReport{},
+		&crm.VisitReportDetail{},
+		&crm.VisitReportProgressHistory{},
+		&crm.VisitReportInterestAnswer{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

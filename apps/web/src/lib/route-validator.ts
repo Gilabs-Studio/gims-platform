@@ -41,7 +41,6 @@ const VALID_DASHBOARD_ROUTES = [
   "/sales/orders",
   "/sales/delivery-orders",
   "/sales/invoices",
-  "/sales/visits",
   "/sales/targets",
   // Purchase routes
   "/purchase/purchase-requisitions",
@@ -81,6 +80,7 @@ const VALID_DASHBOARD_ROUTES = [
   // CRM
   "/crm/leads",
   "/crm/pipeline",
+  "/crm/visits",
   // CRM Settings
   "/crm/settings/pipeline-stages",
   "/crm/settings/lead-sources",

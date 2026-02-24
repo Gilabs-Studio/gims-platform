@@ -534,6 +534,13 @@ func SeedPermissions() error {
 		{"/crm/pipeline", "crm_deal.delete", "Delete Deals", "DELETE", "crm_deal"},
 		{"/crm/pipeline", "crm_deal.move_stage", "Move Deal Stage", "MOVE_STAGE", "crm_deal"},
 
+		// CRM Visit Reports (Sprint 22)
+		{"/crm/visits", "crm_visit.read", "View Visit Reports", "VIEW", "crm_visit"},
+		{"/crm/visits", "crm_visit.create", "Create Visit Reports", "CREATE", "crm_visit"},
+		{"/crm/visits", "crm_visit.update", "Edit Visit Reports", "EDIT", "crm_visit"},
+		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
+		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
+
 	}
 
 	// Build menu URL to ID map

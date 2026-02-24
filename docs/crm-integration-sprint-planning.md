@@ -899,14 +899,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
+- [x] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
 - [ ] **Frontend:** Visit report pages + approval interface
 - [ ] **Migration:** Deprecate existing SalesVisit
 
 ### API Tasks
 
 #### Visit Report (Merged Entity)
-- [ ] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // VisitReport — Merged entity from ERP SalesVisit + CRM VisitReport
@@ -968,7 +968,7 @@ type VisitReport struct {
 ```
 
 #### Visit Report Detail (Product Interest — from ERP SalesVisitDetail)
-- [ ] `VisitReportDetail` - Model
+- [x] `VisitReportDetail` - Model
 
 ```go
 // VisitReportDetail — Product interest tracking per visit (from ERP SalesVisitDetail)
@@ -988,7 +988,7 @@ type VisitReportDetail struct {
 ```
 
 #### Visit Report Progress History
-- [ ] `VisitReportProgressHistory` - Model
+- [x] `VisitReportProgressHistory` - Model
 
 ```go
 type VisitReportProgressHistory struct {
@@ -1003,32 +1003,32 @@ type VisitReportProgressHistory struct {
 ```
 
 #### Interest Survey (reuse dari ERP)
-- [ ] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
-- [ ] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
+- [x] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
+- [x] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
-- [ ] `GET /api/v1/crm/visits/:id` — Get detail with details + history
-- [ ] `POST /api/v1/crm/visits` — Create visit report
-- [ ] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
-- [ ] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
-- [ ] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
-- [ ] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
-- [ ] `PATCH /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
-- [ ] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
-- [ ] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
-- [ ] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
-- [ ] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample visit reports with varied statuses
-- [ ] Permission seeder: `crm_visit.read|create|update|delete|approve`
+- [x] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
+- [x] `GET /api/v1/crm/visits/:id` — Get detail with details + history
+- [x] `POST /api/v1/crm/visits` — Create visit report
+- [x] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
+- [x] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
+- [x] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
+- [x] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
+- [x] `POST /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
+- [x] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
+- [x] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
+- [x] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
+- [x] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample visit reports with varied statuses
+- [x] Permission seeder: `crm_visit.read|create|update|delete|approve`
 
 #### SalesVisit Deprecation
 - [ ] Create migration script: `cmd/tools/migrate-sales-visits/main.go`
   - Convert existing `SalesVisit` records ke `VisitReport` records
   - Map: CompanyID → CustomerID (lookup company → customer mapping), Details, ProgressHistory
   - Preserve original data (soft archive)
-- [ ] Update `menu_seeder.go` — set Sales Visit menu IsActive = false
+- [x] Update `menu_seeder.go` — set Sales Visit menu IsActive = false (removed from Sales menu, added to CRM)
 - [ ] Add redirect: `GET /api/v1/sales/visits` → 301 redirect info to `/crm/visits`
 
 ### Frontend Tasks
@@ -1060,12 +1060,12 @@ type VisitReportProgressHistory struct {
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
+- [x] Permission integration check (RBAC)
 - [ ] i18n integration check (request.ts)
-- [ ] Customer module — FK reference
-- [ ] Product module — FK reference untuk interest details
+- [x] Customer module — FK reference
+- [x] Product module — FK reference untuk interest details
 - [ ] File upload — photos via existing upload infrastructure
-- [ ] SalesVisitInterestQuestion/Option — reuse existing models atau migrate ke CRM
+- [x] SalesVisitInterestQuestion/Option — reuse existing models (FK reference)
 
 ### Table Relations
 
