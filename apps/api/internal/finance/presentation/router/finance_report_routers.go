@@ -8,11 +8,10 @@ import (
 
 func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReportHandler) {
 	g := rg.Group("/reports")
-	// Use journal.read permission for now or specific report permission
-	g.GET("/general-ledger", middleware.RequirePermission("journal.read"), h.GeneralLedger)
-	g.GET("/balance-sheet", middleware.RequirePermission("journal.read"), h.BalanceSheet)
-	g.GET("/profit-loss", middleware.RequirePermission("journal.read"), h.ProfitAndLoss)
-	g.GET("/export/general-ledger", middleware.RequirePermission("journal.read"), h.ExportGeneralLedger)
-	g.GET("/export/balance-sheet", middleware.RequirePermission("journal.read"), h.ExportBalanceSheet)
-	g.GET("/export/profit-loss", middleware.RequirePermission("journal.read"), h.ExportProfitAndLoss)
+	g.GET("/general-ledger", middleware.RequirePermission("finance_report.gl"), h.GeneralLedger)
+	g.GET("/balance-sheet", middleware.RequirePermission("finance_report.bs"), h.BalanceSheet)
+	g.GET("/profit-loss", middleware.RequirePermission("finance_report.pl"), h.ProfitAndLoss)
+	g.GET("/export/general-ledger", middleware.RequirePermission("finance_report.export_gl"), h.ExportGeneralLedger)
+	g.GET("/export/balance-sheet", middleware.RequirePermission("finance_report.export_bs"), h.ExportBalanceSheet)
+	g.GET("/export/profit-loss", middleware.RequirePermission("finance_report.export_pl"), h.ExportProfitAndLoss)
 }

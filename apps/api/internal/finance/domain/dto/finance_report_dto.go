@@ -40,7 +40,8 @@ type ReportRow struct {
 }
 
 type BalanceSheetResponse struct {
-	Date            time.Time   `json:"date"`
+	StartDate       time.Time   `json:"start_date"`
+	EndDate         time.Time   `json:"end_date"`
 	Assets          []ReportRow `json:"assets"`
 	AssetTotal      float64     `json:"asset_total"`
 	Liabilities     []ReportRow `json:"liabilities"`

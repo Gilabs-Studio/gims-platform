@@ -13,10 +13,10 @@ import (
 
 type FinanceReportUsecase interface {
 	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time) (*dto.GeneralLedgerResponse, error)
-	GetBalanceSheet(ctx context.Context, asOfDate time.Time) (*dto.BalanceSheetResponse, error)
+	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time) (*dto.BalanceSheetResponse, error)
 	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time) (*dto.ProfitAndLossResponse, error)
 	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
-	ExportBalanceSheet(ctx context.Context, asOfDate time.Time) ([]byte, error)
+	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
 	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
 }
 
@@ -94,12 +94,13 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 	}, nil
 }
 
-func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, asOfDate time.Time) (*dto.BalanceSheetResponse, error) {
-	// For Balance Sheet, start date is basically company beginning.
-	// We can use a very old date or just use GetAccountBalances with empty start date if supported.
-	// Let's use a very old date.
-	beginning := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, beginning, asOfDate)
+func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time) (*dto.BalanceSheetResponse, error) {
+	// For Balance Sheet, we get changes from start to end date.
+	// But usually users want to see balance as of end date.
+	// By using startDate, we can see the movement (Opening vs Closing), but currently GetAccountBalances just returns Opening, Debit, Credit, Closing.
+	// Since Balance Sheet is a snapshot, we will display closing balance as of endDate.
+	// However, GetAccountBalances returns accurate ClosingBalance using startDate (the Opening is calculated prior to startDate).
+	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,8 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, asOfDate ti
 	}
 
 	res := &dto.BalanceSheetResponse{
-		Date: asOfDate,
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
 	for _, b := range balances {
@@ -259,8 +261,8 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 	return buf.Bytes(), nil
 }
 
-func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, asOfDate time.Time) ([]byte, error) {
-	data, err := uc.GetBalanceSheet(ctx, asOfDate)
+func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time) ([]byte, error) {
+	data, err := uc.GetBalanceSheet(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -270,8 +272,8 @@ func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, asOfDate
 	f.SetSheetName("Sheet1", sheet)
 
 	f.SetCellValue(sheet, "A1", "Balance Sheet")
-	f.SetCellValue(sheet, "A2", "As of:")
-	f.SetCellValue(sheet, "B2", asOfDate.Format("2006-01-02"))
+	f.SetCellValue(sheet, "A2", "Period:")
+	f.SetCellValue(sheet, "B2", startDate.Format("2006-01-02")+" to "+endDate.Format("2006-01-02"))
 
 	rowNum := 4
 	f.SetCellValue(sheet, "A"+fmt.Sprintf("%d", rowNum), "ASSETS")

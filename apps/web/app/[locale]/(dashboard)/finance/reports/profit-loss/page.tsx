@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { PageMotion } from "@/components/motion";
 
 const ProfitLossView = dynamic(
   () =>
@@ -45,10 +46,12 @@ function ReportSkeleton() {
 
 export default function ProfitLossPage() {
   return (
-    <PermissionGuard requiredPermission="journal.read">
-      <Suspense fallback={<ReportSkeleton />}>
-        <ProfitLossView />
-      </Suspense>
+    <PermissionGuard requiredPermission="finance_report.pl">
+      <PageMotion className="p-6">
+        <Suspense fallback={<ReportSkeleton />}>
+          <ProfitLossView />
+        </Suspense>
+      </PageMotion>
     </PermissionGuard>
   );
 }

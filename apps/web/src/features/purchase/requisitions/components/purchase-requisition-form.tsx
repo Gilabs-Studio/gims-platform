@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -29,6 +30,8 @@ import { usePurchaseRequisitionAddData } from "../hooks/use-purchase-requisition
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import { useEmployee, useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { SupplierDialog } from "@/features/master-data/supplier/components/supplier/supplier-dialog";
+import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 
 import {
 	getPurchaseRequisitionSchema,
@@ -111,6 +114,10 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const createMutation = useCreatePurchaseRequisition();
 	const updateMutation = useUpdatePurchaseRequisition();
+	const queryClient = useQueryClient();
+
+	const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+	const [productDialogOpen, setProductDialogOpen] = useState(false);
 
 	const { data: detailData, isFetching: isFetchingDetail } = usePurchaseRequisition(
 		requisitionId ?? "",
@@ -359,6 +366,21 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															{s.code ? `${s.code} - ${s.name}` : s.name}
 														</SelectItem>
 													))}
+													<div className="p-1 border-t mt-1">
+														<Button
+															type="button"
+															variant="ghost"
+															className="w-full justify-start cursor-pointer text-sm font-normal"
+															onClick={(e) => {
+																e.preventDefault();
+																e.stopPropagation();
+																setSupplierDialogOpen(true);
+															}}
+														>
+															<Plus className="h-4 w-4 mr-2" />
+															{t("actions.createNew") || "Create New Supplier"}
+														</Button>
+													</div>
 												</SelectContent>
 											</Select>
 										)}
@@ -534,6 +556,21 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																		{p.code ? `${p.code} - ${p.name}` : p.name}
 																	</SelectItem>
 																))}
+																<div className="p-1 border-t mt-1">
+																	<Button
+																		type="button"
+																		variant="ghost"
+																		className="w-full justify-start cursor-pointer text-sm font-normal"
+																		onClick={(e) => {
+																			e.preventDefault();
+																			e.stopPropagation();
+																			setProductDialogOpen(true);
+																		}}
+																	>
+																		<Plus className="h-4 w-4 mr-2" />
+																		{t("actions.createNew") || "Create New Product"}
+																	</Button>
+																</div>
 															</SelectContent>
 														</Select>
 													)}
@@ -676,6 +713,22 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 					</div>
 				</form>
 			</DialogContent>
+			<SupplierDialog
+				open={supplierDialogOpen}
+				onOpenChange={(v) => {
+					setSupplierDialogOpen(v);
+					if (!v) queryClient.invalidateQueries({ queryKey: ["purchase-requisitions", "add-data"] });
+				}}
+				editingItem={null}
+			/>
+			<ProductDialog
+				open={productDialogOpen}
+				onOpenChange={(v) => {
+					setProductDialogOpen(v);
+					if (!v) queryClient.invalidateQueries({ queryKey: ["products"] });
+				}}
+				editingItem={null}
+			/>
 		</Dialog>
 	);
 }

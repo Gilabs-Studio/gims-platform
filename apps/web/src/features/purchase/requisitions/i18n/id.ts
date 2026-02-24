@@ -18,6 +18,7 @@ export const purchaseRequisitionId = {
     reject: "Tolak",
     convert: "Konversi",
     auditTrail: "Audit Trail",
+    createNew: "Buat Baru",
   },
   toast: {
     created: "Purchase requisition berhasil dibuat",

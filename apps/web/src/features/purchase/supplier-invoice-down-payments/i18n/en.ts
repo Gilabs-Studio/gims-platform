@@ -9,9 +9,24 @@ export const supplierInvoiceDPEn = {
     deleted: "Down payment invoice deleted",
     failed: "Something went wrong",
   },
+  detail: {
+    title: "Down Payment Detail",
+    failed: "Failed to load down payment invoice",
+  },
+  auditTrail: {
+    title: "Audit Trail",
+    empty: "No audit trail entries",
+    columns: {
+      action: "Action",
+      user: "User",
+      time: "Time",
+      details: "Details",
+    },
+  },
   form: {
     createTitle: "Create Down Payment Invoice",
     editTitle: "Edit Down Payment Invoice",
+    invalid: "Please check required fields",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -44,6 +59,7 @@ export const supplierInvoiceDPEn = {
     edit: "Edit",
     delete: "Delete",
     pending: "Pending",
+    auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",
   },

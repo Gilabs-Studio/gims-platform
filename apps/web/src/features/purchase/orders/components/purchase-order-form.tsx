@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -33,6 +34,8 @@ import { useLoadPurchaseRequisition } from "../hooks/use-load-purchase-requisiti
 import { useApprovedPurchaseRequisitions } from "../hooks/use-approved-purchase-requisitions";
 import { useApprovedSalesOrders } from "../hooks/use-approved-sales-orders";
 import { useLoadSalesOrder } from "../hooks/use-load-sales-order";
+import { SupplierDialog } from "@/features/master-data/supplier/components/supplier/supplier-dialog";
+import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 
 type ProductOption = { id: string; code?: string; name: string };
 
@@ -85,12 +88,16 @@ export function PurchaseOrderForm({
 
   const createMutation = useCreatePurchaseOrder();
   const updateMutation = useUpdatePurchaseOrder();
+  const queryClient = useQueryClient();
   const loadPR = useLoadPurchaseRequisition();
   const loadSO = useLoadSalesOrder();
   const poQuery = usePurchaseOrder(purchaseOrderId ?? "", {
     enabled: open && isEdit && !!purchaseOrderId,
   });
   const po = poQuery.data?.data;
+
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
 
   const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({
     enabled: open,
@@ -537,6 +544,21 @@ export function PurchaseOrderForm({
                           {(po.supplier as any)?.code ? `${(po.supplier as any).code} - ${(po.supplier as any).name}` : (po.supplier as any)?.name || po.supplier_id}
                         </SelectItem>
                       )}
+                      <div className="p-1 border-t mt-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full justify-start cursor-pointer text-sm font-normal"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSupplierDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {t("actions.createNew") || "Create New Supplier"}
+                        </Button>
+                      </div>
                     </SelectContent>
                   </Select>
                 )}
@@ -683,6 +705,21 @@ export function PurchaseOrderForm({
                                   {p.code ? `${p.code} - ${p.name}` : p.name}
                                 </SelectItem>
                               ))}
+                              <div className="p-1 border-t mt-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="w-full justify-start cursor-pointer text-sm font-normal"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setProductDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  {t("actions.createNew") || "Create New Product"}
+                                </Button>
+                              </div>
                             </SelectContent>
                           </Select>
                         )}
@@ -782,6 +819,22 @@ export function PurchaseOrderForm({
           </div>
         </form>
       </DialogContent>
+      <SupplierDialog
+        open={supplierDialogOpen}
+        onOpenChange={(v) => {
+          setSupplierDialogOpen(v);
+          if (!v) queryClient.invalidateQueries({ queryKey: ["purchase", "purchase-orders", "add-data"] });
+        }}
+        editingItem={null}
+      />
+      <ProductDialog
+        open={productDialogOpen}
+        onOpenChange={(v) => {
+          setProductDialogOpen(v);
+          if (!v) queryClient.invalidateQueries({ queryKey: ["products"] });
+        }}
+        editingItem={null}
+      />
     </Dialog>
   );
 }

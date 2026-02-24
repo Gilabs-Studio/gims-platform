@@ -18,7 +18,7 @@ export function GeneralLedgerView() {
   const tCommon = useTranslations("common");
 
   const [dateRange, setDateRange] = useState({
-    start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+    start_date: new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10),
     end_date: new Date().toISOString().slice(0, 10),
   });
 

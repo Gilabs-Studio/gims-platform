@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { PageMotion } from "@/components/motion";
 
 const BalanceSheetView = dynamic(
   () =>
@@ -45,10 +46,12 @@ function ReportSkeleton() {
 
 export default function BalanceSheetPage() {
   return (
-    <PermissionGuard requiredPermission="journal.read">
-      <Suspense fallback={<ReportSkeleton />}>
-        <BalanceSheetView />
-      </Suspense>
+    <PermissionGuard requiredPermission="finance_report.bs">
+      <PageMotion className="p-6">
+        <Suspense fallback={<ReportSkeleton />}>
+          <BalanceSheetView />
+        </Suspense>
+      </PageMotion>
     </PermissionGuard>
   );
 }

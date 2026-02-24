@@ -42,9 +42,10 @@ func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
-	asOfDate := parseDateOrDefault(c, "as_of_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", time.Now())
 
-	res, err := h.uc.GetBalanceSheet(c.Request.Context(), asOfDate)
+	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "BALANCE_SHEET_FAILED", err.Error(), nil, nil)
 		return
@@ -80,9 +81,10 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
-	asOfDate := parseDateOrDefault(c, "as_of_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", time.Now())
 
-	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), asOfDate)
+	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return

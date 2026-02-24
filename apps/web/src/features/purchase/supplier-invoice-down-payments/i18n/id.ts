@@ -9,9 +9,24 @@ export const supplierInvoiceDPId = {
     deleted: "DP faktur berhasil dihapus",
     failed: "Terjadi kesalahan",
   },
+  detail: {
+    title: "Detail Down Payment",
+    failed: "Gagal memuat data DP faktur",
+  },
+  auditTrail: {
+    title: "Jejak Audit",
+    empty: "Belum ada data jejak audit",
+    columns: {
+      action: "Aksi",
+      user: "Pengguna",
+      time: "Waktu",
+      details: "Detail",
+    },
+  },
   form: {
     createTitle: "Buat DP Faktur",
     editTitle: "Ubah DP Faktur",
+    invalid: "Periksa kembali kolom yang wajib diisi",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -44,6 +59,7 @@ export const supplierInvoiceDPId = {
     edit: "Ubah",
     delete: "Hapus",
     pending: "Pending",
+    auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",
   },
