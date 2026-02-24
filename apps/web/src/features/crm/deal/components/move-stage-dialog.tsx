@@ -193,7 +193,7 @@ export function MoveStageDialog({
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label>{t("reason")}</Label>
+            <Label>{t("reason")} *</Label>
             <Controller
               name="reason"
               control={control}
@@ -205,6 +205,9 @@ export function MoveStageDialog({
                 />
               )}
             />
+            {errors.reason && (
+              <p className="text-sm text-destructive">{errors.reason.message}</p>
+            )}
           </div>
 
           {/* Close reason (shown for terminal stages) */}

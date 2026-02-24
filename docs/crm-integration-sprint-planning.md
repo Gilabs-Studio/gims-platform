@@ -754,14 +754,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal conversion to Sales Quotation + Stock availability check
-- [ ] **Frontend:** Conversion UI + Stock indicator
+- [x] **API:** Deal conversion to Sales Quotation + Stock availability check
+- [x] **Frontend:** Conversion UI + Stock indicator
 - [ ] **Migration:** Deprecate Sales Estimation, data migration script
 
 ### API Tasks
 
 #### Deal → Sales Quotation Conversion
-- [ ] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
+- [x] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
 
 ```
 Request Body (optional overrides):
@@ -784,7 +784,7 @@ Response:
 ```
 
 #### Stock Availability Check
-- [ ] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
+- [x] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
 
 ```
 Response:
@@ -818,21 +818,21 @@ Response:
 
 ### Frontend Tasks
 
-- [ ] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
+- [x] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
   - Confirmation dialog with optional overrides (payment terms, business unit, etc.)
   - Success: show link ke quotation yang dibuat
-- [ ] Stock availability indicator di Deal form — per product item
+- [x] Stock availability indicator di Deal form — per product item
   - Green badge: stock sufficient
   - Red badge: stock insufficient with available/requested counts
-- [ ] "Check Stock" button di deal detail yang memanggil stock-check API
+- [x] "Check Stock" button di deal detail yang memanggil stock-check API
 - [ ] **Update Sales menu**: remove/hide "Sales Estimation" link
 - [ ] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
-- [ ] Notification toast saat deal di-convert ke quotation
+- [x] Notification toast saat deal di-convert ke quotation
 
 ### Success Criteria
 
-- [ ] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
-- [ ] Stock check menampilkan available vs requested per product item
+- [x] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
+- [x] Stock check menampilkan available vs requested per product item
 - [ ] Migration script berhasil convert existing estimations ke deals
 - [ ] Sales Estimation menu tersembunyi
 - [ ] `/sales/estimations` redirect ke `/crm/pipeline`
@@ -840,10 +840,10 @@ Response:
 
 ### Integration Requirements
 
-- [ ] Permission integration check: `crm_deal.convert_quotation` permission
-- [ ] Sales module dependency — create SalesQuotation + SalesQuotationItems
-- [ ] Inventory module dependency — query InventoryBatch for stock check
-- [ ] Product module dependency — get current pricing for snapshot
+- [x] Permission integration check: `crm_deal.convert_quotation` permission
+- [x] Sales module dependency — create SalesQuotation + SalesQuotationItems
+- [x] Inventory module dependency — query InventoryBatch for stock check
+- [x] Product module dependency — get current pricing for snapshot
 
 ### Table Relations
 

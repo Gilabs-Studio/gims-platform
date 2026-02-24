@@ -220,7 +220,20 @@ func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStagePar
 }
 
 func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
-	return r.db.WithContext(ctx).Save(deal).Error
+	// Use explicit Select to only update scalar/FK columns, bypassing GORM association
+	// handling entirely. This prevents BelongsTo callbacks from overriding FK values.
+	return r.db.WithContext(ctx).
+		Select(
+			"pipeline_stage_id", "title", "description", "status",
+			"value", "probability",
+			"expected_close_date", "actual_close_date", "close_reason",
+			"customer_id", "contact_id", "assigned_to",
+			"budget_confirmed", "budget_amount",
+			"auth_confirmed", "auth_person",
+			"need_confirmed", "need_description",
+			"time_confirmed", "notes",
+		).
+		Save(deal).Error
 }
 
 func (r *dealRepository) Delete(ctx context.Context, id string) error {

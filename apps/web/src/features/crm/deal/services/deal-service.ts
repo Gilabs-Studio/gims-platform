@@ -11,6 +11,9 @@ import type {
   DealForecast,
   DealHistory,
   ApiResponse,
+  ConvertToQuotationRequest,
+  ConvertToQuotationResponse,
+  StockCheckResponse,
 } from "../types";
 
 const BASE_URL = "/crm/deals";
@@ -98,6 +101,24 @@ export const dealService = {
   getForecast: async (): Promise<ApiResponse<DealForecast>> => {
     const response = await apiClient.get<ApiResponse<DealForecast>>(
       `${BASE_URL}/forecast`
+    );
+    return response.data;
+  },
+
+  convertToQuotation: async (
+    id: string,
+    data: ConvertToQuotationRequest
+  ): Promise<ApiResponse<ConvertToQuotationResponse>> => {
+    const response = await apiClient.post<ApiResponse<ConvertToQuotationResponse>>(
+      `${BASE_URL}/${id}/convert-to-quotation`,
+      data
+    );
+    return response.data;
+  },
+
+  stockCheck: async (id: string): Promise<ApiResponse<StockCheckResponse>> => {
+    const response = await apiClient.get<ApiResponse<StockCheckResponse>>(
+      `${BASE_URL}/${id}/stock-check`
     );
     return response.data;
   },

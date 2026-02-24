@@ -204,6 +204,40 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Failed to create opportunity",
 	},
 
+	// CRM - Deal Conversion Errors
+	"DEAL_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Deal not found",
+	},
+	"DEAL_NOT_WON": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Deal must be won before converting to quotation",
+	},
+	"DEAL_ALREADY_CONVERTED": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Deal has already been converted to a quotation",
+	},
+	"DEAL_NO_ITEMS": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Deal must have product items before converting to quotation",
+	},
+	"DEAL_CUSTOMER_REQUIRED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Deal must have a customer before converting to quotation",
+	},
+	"DEAL_INVALID_STAGE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid pipeline stage",
+	},
+	"DEAL_ALREADY_CLOSED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Deal is already closed",
+	},
+	"DEAL_CLOSE_REASON_REQUIRED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Close reason is required for lost deals",
+	},
+
 	// HRD - Leave Request Errors
 	"INSUFFICIENT_LEAVE_BALANCE": {
 		HTTPStatus: http.StatusBadRequest,

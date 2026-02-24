@@ -58,6 +58,10 @@ type Deal struct {
 	NeedDescription string  `gorm:"type:text" json:"need_description"`
 	TimeConfirmed   bool    `gorm:"default:false" json:"time_confirmed"`
 
+	// Conversion tracking (Deal → Sales Quotation)
+	ConvertedToQuotationID *string    `gorm:"type:uuid;index" json:"converted_to_quotation_id"`
+	ConvertedAt            *time.Time `json:"converted_at"`
+
 	// Metadata
 	Notes     string         `gorm:"type:text" json:"notes"`
 	CreatedBy *string        `gorm:"type:uuid" json:"created_by"`

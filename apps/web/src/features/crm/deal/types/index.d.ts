@@ -31,6 +31,9 @@ export interface Deal {
   time_confirmed: boolean;
   // Items
   items: DealProductItem[];
+  // Conversion tracking
+  converted_to_quotation_id?: string | null;
+  converted_at?: string | null;
   // Metadata
   notes: string;
   created_by?: string | null;
@@ -307,4 +310,34 @@ export interface ApiResponse<T> {
   data: T;
   meta?: { pagination?: PaginationMeta; filters?: Record<string, unknown> };
   error?: string;
+}
+
+// --- Sprint 21: Deal → Sales Quotation Conversion + Stock Check ---
+
+export interface ConvertToQuotationRequest {
+  payment_terms_id?: string;
+  business_unit_id?: string;
+  business_type_id?: string;
+  notes?: string;
+}
+
+export interface ConvertToQuotationResponse {
+  deal_id: string;
+  quotation_id: string;
+  quotation_code: string;
+}
+
+export interface StockCheckItemResponse {
+  product_id: string;
+  product_name: string;
+  requested_quantity: number;
+  available_stock: number;
+  reserved_stock: number;
+  is_sufficient: boolean;
+}
+
+export interface StockCheckResponse {
+  deal_id: string;
+  items: StockCheckItemResponse[];
+  all_sufficient: boolean;
 }

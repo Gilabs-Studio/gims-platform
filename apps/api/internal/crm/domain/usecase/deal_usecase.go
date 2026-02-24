@@ -14,7 +14,10 @@ import (
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // DealUsecase defines the interface for deal business logic
@@ -30,16 +33,20 @@ type DealUsecase interface {
 	GetFormData(ctx context.Context) (*dto.DealFormDataResponse, error)
 	GetPipelineSummary(ctx context.Context) (dto.DealPipelineSummaryResponse, error)
 	GetForecast(ctx context.Context) (dto.DealForecastResponse, error)
+	ConvertToQuotation(ctx context.Context, dealID string, req dto.ConvertToQuotationRequest, userID string) (dto.ConvertToQuotationResponse, error)
+	StockCheck(ctx context.Context, dealID string) (dto.StockCheckResponse, error)
 }
 
 type dealUsecase struct {
-	dealRepo      repositories.DealRepository
-	stageRepo     repositories.PipelineStageRepository
-	customerRepo  customerRepos.CustomerRepository
-	contactRepo   repositories.ContactRepository
-	employeeRepo  orgRepos.EmployeeRepository
-	productRepo   productRepos.ProductRepository
-	leadRepo      repositories.LeadRepository
+	dealRepo           repositories.DealRepository
+	stageRepo          repositories.PipelineStageRepository
+	customerRepo       customerRepos.CustomerRepository
+	contactRepo        repositories.ContactRepository
+	employeeRepo       orgRepos.EmployeeRepository
+	productRepo        productRepos.ProductRepository
+	leadRepo           repositories.LeadRepository
+	salesQuotationRepo salesRepos.SalesQuotationRepository
+	db                 *gorm.DB
 }
 
 // NewDealUsecase creates a new deal usecase
@@ -51,15 +58,19 @@ func NewDealUsecase(
 	employeeRepo orgRepos.EmployeeRepository,
 	productRepo productRepos.ProductRepository,
 	leadRepo repositories.LeadRepository,
+	salesQuotationRepo salesRepos.SalesQuotationRepository,
+	db *gorm.DB,
 ) DealUsecase {
 	return &dealUsecase{
-		dealRepo:     dealRepo,
-		stageRepo:    stageRepo,
-		customerRepo: customerRepo,
-		contactRepo:  contactRepo,
-		employeeRepo: employeeRepo,
-		productRepo:  productRepo,
-		leadRepo:     leadRepo,
+		dealRepo:           dealRepo,
+		stageRepo:          stageRepo,
+		customerRepo:       customerRepo,
+		contactRepo:        contactRepo,
+		employeeRepo:       employeeRepo,
+		productRepo:        productRepo,
+		leadRepo:           leadRepo,
+		salesQuotationRepo: salesQuotationRepo,
+		db:                 db,
 	}
 }
 
@@ -371,6 +382,15 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 		}
 	}
 
+	// Nil out preloaded association pointers so GORM cannot use stale BelongsTo
+	// data to override FK columns during Save.
+	deal.PipelineStage = nil
+	deal.Customer = nil
+	deal.Contact = nil
+	deal.AssignedEmployee = nil
+	deal.Lead = nil
+	deal.Items = nil
+
 	if err := u.dealRepo.Update(ctx, deal); err != nil {
 		return dto.DealResponse{}, fmt.Errorf("failed to update deal: %w", err)
 	}
@@ -398,12 +418,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		return dto.DealResponse{}, errors.New("deal not found")
 	}
 
-	// Prevent stage changes on closed deals
-	if deal.Status != models.DealStatusOpen {
-		return dto.DealResponse{}, errors.New("deal already closed")
-	}
-
-	// Validate target stage
+	// Validate target stage first, so we know if we're re-opening or staying closed
 	toStage, err := u.stageRepo.FindByID(ctx, req.ToStageID)
 	if err != nil {
 		return dto.DealResponse{}, errors.New("invalid pipeline stage")
@@ -434,6 +449,18 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		fromStageName = deal.PipelineStage.Name
 	}
 
+	// Resolve user ID to employee ID to satisfy the FK constraint on crm_deal_history.
+	// The JWT carries a user_id, but the FK references the employees table.
+	var employeeID *string
+	if changedBy != "" {
+		emp, empErr := u.employeeRepo.FindByUserID(ctx, changedBy)
+		if empErr == nil && emp != nil {
+			empID := emp.ID
+			employeeID = &empID
+		}
+		// If no matching employee exists (e.g. system/admin account), ChangedBy stays nil.
+	}
+
 	// Create history record
 	history := &models.DealHistory{
 		ID:              uuid.New().String(),
@@ -445,7 +472,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		FromProbability: fromProbability,
 		ToProbability:   toStage.Probability,
 		DaysInPrevStage: daysInPrevStage,
-		ChangedBy:       &changedBy,
+		ChangedBy:       employeeID,
 		ChangedAt:       time.Now(),
 		Reason:          req.Reason,
 		Notes:           req.Notes,
@@ -471,7 +498,20 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		now := time.Now()
 		deal.ActualCloseDate = &now
 		deal.CloseReason = req.CloseReason
+	} else {
+		// Moving to an open (non-closing) stage — re-open the deal if it was previously closed
+		deal.Status = models.DealStatusOpen
+		deal.ActualCloseDate = nil
+		deal.CloseReason = ""
 	}
+
+	// Nil out preloaded associations before Save to prevent GORM BelongsTo FK override
+	deal.PipelineStage = nil
+	deal.Customer = nil
+	deal.Contact = nil
+	deal.AssignedEmployee = nil
+	deal.Lead = nil
+	deal.Items = nil
 
 	if err := u.dealRepo.Update(ctx, deal); err != nil {
 		return dto.DealResponse{}, fmt.Errorf("failed to update deal stage: %w", err)
@@ -630,4 +670,211 @@ func (u *dealUsecase) GetForecast(ctx context.Context) (dto.DealForecastResponse
 		return dto.DealForecastResponse{}, err
 	}
 	return mapper.ToForecastResponse(data), nil
+}
+
+// ConvertToQuotation converts a won deal into a Sales Quotation
+func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req dto.ConvertToQuotationRequest, userID string) (dto.ConvertToQuotationResponse, error) {
+	deal, err := u.dealRepo.FindByID(ctx, dealID)
+	if err != nil {
+		return dto.ConvertToQuotationResponse{}, errors.New("deal not found")
+	}
+
+	// Validate deal status must be "won"
+	if deal.Status != models.DealStatusWon {
+		return dto.ConvertToQuotationResponse{}, errors.New("deal not won")
+	}
+
+	// Validate deal has not been converted already
+	if deal.ConvertedToQuotationID != nil && *deal.ConvertedToQuotationID != "" {
+		return dto.ConvertToQuotationResponse{}, errors.New("deal already converted")
+	}
+
+	// Validate deal has product items
+	if len(deal.Items) == 0 {
+		return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
+	}
+
+	// Validate deal has customer
+	if deal.CustomerID == nil || *deal.CustomerID == "" {
+		return dto.ConvertToQuotationResponse{}, errors.New("deal customer required")
+	}
+
+	// Snapshot customer data
+	customer, err := u.customerRepo.FindByID(ctx, *deal.CustomerID)
+	if err != nil {
+		return dto.ConvertToQuotationResponse{}, fmt.Errorf("customer not found: %w", err)
+	}
+
+	// Generate quotation code
+	now := time.Now()
+	prefix := "QUO"
+	codePrefix := fmt.Sprintf("%s-%s", prefix, now.Format("200601"))
+	quotationCode, err := u.salesQuotationRepo.GetNextQuotationNumber(ctx, codePrefix)
+	if err != nil {
+		return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to generate quotation code: %w", err)
+	}
+
+	// Build quotation items from deal product items
+	var subtotal float64
+	quotationItems := make([]salesModels.SalesQuotationItem, 0, len(deal.Items))
+	for _, dealItem := range deal.Items {
+		item := salesModels.SalesQuotationItem{
+			ID:       uuid.New().String(),
+			Quantity: float64(dealItem.Quantity),
+			Price:    dealItem.UnitPrice,
+			Discount: dealItem.DiscountAmount,
+		}
+
+		if dealItem.ProductID != nil && *dealItem.ProductID != "" {
+			item.ProductID = *dealItem.ProductID
+		}
+
+		item.CalculateSubtotal()
+		subtotal += item.Subtotal
+		quotationItems = append(quotationItems, item)
+	}
+
+	// Calculate tax (11% PPN)
+	const defaultTaxRate = 11.0
+	taxAmount := subtotal * (defaultTaxRate / 100)
+	totalAmount := subtotal + taxAmount
+
+	// Build quotation
+	quotation := &salesModels.SalesQuotation{
+		ID:            uuid.New().String(),
+		Code:          quotationCode,
+		QuotationDate: now,
+		CustomerID:    deal.CustomerID,
+		CustomerName:  customer.Name,
+		SalesRepID:    deal.AssignedTo,
+		Subtotal:      subtotal,
+		TaxRate:       defaultTaxRate,
+		TaxAmount:     taxAmount,
+		TotalAmount:   totalAmount,
+		Status:        salesModels.SalesQuotationStatusDraft,
+		CreatedBy:     &userID,
+		Items:         quotationItems,
+	}
+
+	// Apply optional overrides
+	if req.PaymentTermsID != nil && *req.PaymentTermsID != "" {
+		quotation.PaymentTermsID = req.PaymentTermsID
+	}
+	if req.BusinessUnitID != nil && *req.BusinessUnitID != "" {
+		quotation.BusinessUnitID = req.BusinessUnitID
+	}
+	if req.BusinessTypeID != nil && *req.BusinessTypeID != "" {
+		quotation.BusinessTypeID = req.BusinessTypeID
+	}
+	if req.Notes != "" {
+		quotation.Notes = req.Notes
+	}
+
+	// Snapshot customer contact info
+	quotation.CustomerContact = customer.ContactPerson
+	quotation.CustomerEmail = customer.Email
+
+	// Create the quotation
+	if err := u.salesQuotationRepo.Create(ctx, quotation); err != nil {
+		return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to create quotation: %w", err)
+	}
+
+	// Update deal with conversion reference
+	quotationID := quotation.ID
+	deal.ConvertedToQuotationID = &quotationID
+	deal.ConvertedAt = &now
+
+	if err := u.dealRepo.Update(ctx, deal); err != nil {
+		return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to update deal conversion: %w", err)
+	}
+
+	return dto.ConvertToQuotationResponse{
+		DealID:        deal.ID,
+		QuotationID:   quotation.ID,
+		QuotationCode: quotation.Code,
+	}, nil
+}
+
+// stockRow holds the aggregated stock data for a product
+type stockRow struct {
+	ProductID        string  `gorm:"column:product_id"`
+	AvailableStock   float64 `gorm:"column:available_stock"`
+	ReservedStock    float64 `gorm:"column:reserved_stock"`
+}
+
+// StockCheck queries ERP inventory for stock availability per deal product item
+func (u *dealUsecase) StockCheck(ctx context.Context, dealID string) (dto.StockCheckResponse, error) {
+	deal, err := u.dealRepo.FindByID(ctx, dealID)
+	if err != nil {
+		return dto.StockCheckResponse{}, errors.New("deal not found")
+	}
+
+	if len(deal.Items) == 0 {
+		return dto.StockCheckResponse{
+			DealID:        deal.ID,
+			Items:         []dto.StockCheckItemResponse{},
+			AllSufficient: true,
+		}, nil
+	}
+
+	// Collect product IDs that have a valid reference
+	productIDs := make([]string, 0, len(deal.Items))
+	for _, item := range deal.Items {
+		if item.ProductID != nil && *item.ProductID != "" {
+			productIDs = append(productIDs, *item.ProductID)
+		}
+	}
+
+	// Query aggregated stock from inventory_batches
+	stockMap := make(map[string]stockRow)
+	if len(productIDs) > 0 {
+		var rows []stockRow
+		err := u.db.WithContext(ctx).
+			Table("inventory_batches").
+			Select(`
+				product_id,
+				COALESCE(SUM(current_quantity - reserved_quantity), 0) as available_stock,
+				COALESCE(SUM(reserved_quantity), 0) as reserved_stock
+			`).
+			Where("product_id IN ? AND is_active = ? AND deleted_at IS NULL", productIDs, true).
+			Group("product_id").
+			Scan(&rows).Error
+		if err != nil {
+			return dto.StockCheckResponse{}, errors.New("stock check failed")
+		}
+		for _, r := range rows {
+			stockMap[r.ProductID] = r
+		}
+	}
+
+	// Build response items
+	allSufficient := true
+	items := make([]dto.StockCheckItemResponse, 0, len(deal.Items))
+	for _, dealItem := range deal.Items {
+		respItem := dto.StockCheckItemResponse{
+			ProductName:       dealItem.ProductName,
+			RequestedQuantity: dealItem.Quantity,
+		}
+
+		if dealItem.ProductID != nil && *dealItem.ProductID != "" {
+			respItem.ProductID = *dealItem.ProductID
+			if stock, ok := stockMap[*dealItem.ProductID]; ok {
+				respItem.AvailableStock = stock.AvailableStock
+				respItem.ReservedStock = stock.ReservedStock
+			}
+		}
+
+		respItem.IsSufficient = respItem.AvailableStock >= float64(respItem.RequestedQuantity)
+		if !respItem.IsSufficient {
+			allSufficient = false
+		}
+
+		items = append(items, respItem)
+	}
+
+	return dto.StockCheckResponse{
+		DealID:        deal.ID,
+		Items:         items,
+		AllSufficient: allSufficient,
+	}, nil
 }

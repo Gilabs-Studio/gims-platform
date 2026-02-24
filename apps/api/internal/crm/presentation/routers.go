@@ -10,6 +10,7 @@ import (
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
+	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -31,6 +32,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
+	salesQuotationRepo := salesRepos.NewSalesQuotationRepository(db)
 
 	// Initialize usecases
 	pipelineStageUC := usecase.NewPipelineStageUsecase(pipelineStageRepo)
@@ -40,7 +42,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
 	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
-	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo)
+	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)

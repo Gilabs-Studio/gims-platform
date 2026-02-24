@@ -126,6 +126,18 @@ export const crmDealEn = {
     winRateDescription: "{won} won out of {total} closed deals",
     stageBreakdown: "Stage Breakdown",
 
+    // Form tabs & section headers
+    tabBasic: "Basic Information",
+    tabItems: "Products & BANT",
+    sectionDealInfo: "Deal Information",
+    sectionCustomerInfo: "Customer & Assignment",
+    summary: "Summary",
+    btnNext: "Next",
+    btnBack: "Back",
+    selectDate: "Select date",
+    dealAlreadyClosed: "This deal is already closed (won/lost) and cannot be edited.",
+    errorAlreadyClosed: "Deal is already closed and cannot be modified.",
+
     // Sections
     sections: {
       basicInfo: "Basic Information",
@@ -143,6 +155,37 @@ export const crmDealEn = {
       stageRequired: "Pipeline stage is required",
       customerRequired: "Customer is required",
       targetStageRequired: "Target stage is required",
+    },
+
+    // Conversion (Sprint 21)
+    conversion: {
+      convertToQuotation: "Convert to Quotation",
+      title: "Convert Deal to Sales Quotation",
+      description: 'Convert "{title}" into a sales quotation with all product items and pricing.',
+      confirm: "Convert to Quotation",
+      converting: "Converting...",
+      convertSuccess: "Deal converted to quotation successfully",
+      convertError: "Failed to convert deal to quotation",
+      quotationCreated: "A sales quotation has been created from this deal.",
+      quotationCode: "Quotation Code",
+      viewQuotation: "View Quotation",
+      alreadyConverted: "This deal has been converted to a sales quotation.",
+      notesLabel: "Additional Notes (Optional)",
+      notesPlaceholder: "Enter any additional notes for the quotation...",
+    },
+
+    // Stock Check (Sprint 21)
+    stock: {
+      checkStock: "Check Stock",
+      checking: "Checking stock availability...",
+      checkError: "Failed to check stock",
+      retry: "Retry",
+      refresh: "Refresh",
+      allSufficient: "All items in stock",
+      someInsufficient: "Some items have insufficient stock",
+      requested: "Requested",
+      available: "Available",
+      status: "Status",
     },
   },
 };

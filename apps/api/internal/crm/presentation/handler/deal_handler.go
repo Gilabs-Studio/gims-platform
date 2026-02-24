@@ -319,6 +319,61 @@ func (h *DealHandler) GetForecast(c *gin.Context) {
 	response.SuccessResponse(c, forecast, nil)
 }
 
+// ConvertToQuotation handles POST request to convert a won deal into a Sales Quotation
+func (h *DealHandler) ConvertToQuotation(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "ID is required",
+		}, nil)
+		return
+	}
+
+	var req dto.ConvertToQuotationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		// Allow empty body (all fields optional)
+		req = dto.ConvertToQuotationRequest{}
+	}
+
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+
+	result, err := h.uc.ConvertToQuotation(c.Request.Context(), id, req, userID)
+	if err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponseCreated(c, result, nil)
+}
+
+// StockCheck handles GET request to check stock availability for deal product items
+func (h *DealHandler) StockCheck(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "ID is required",
+		}, nil)
+		return
+	}
+
+	result, err := h.uc.StockCheck(c.Request.Context(), id)
+	if err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // handleDealError maps business errors to appropriate HTTP responses
 func handleDealError(c *gin.Context, err error) {
 	switch err.Error() {
@@ -359,6 +414,24 @@ func handleDealError(c *gin.Context, err error) {
 			"message": err.Error(),
 			"field":   "expected_close_date",
 		}, nil)
+	case "deal not won":
+		errors.ErrorResponse(c, "DEAL_NOT_WON", map[string]interface{}{
+			"message": "Deal must be won before converting to quotation",
+		}, nil)
+	case "deal already converted":
+		errors.ErrorResponse(c, "DEAL_ALREADY_CONVERTED", map[string]interface{}{
+			"message": "Deal has already been converted to a quotation",
+		}, nil)
+	case "deal has no items":
+		errors.ErrorResponse(c, "DEAL_NO_ITEMS", map[string]interface{}{
+			"message": "Deal must have product items before converting to quotation",
+		}, nil)
+	case "deal customer required":
+		errors.ErrorResponse(c, "DEAL_CUSTOMER_REQUIRED", map[string]interface{}{
+			"message": "Deal must have a customer before converting to quotation",
+		}, nil)
+	case "stock check failed":
+		errors.InternalServerErrorResponse(c, "Failed to query inventory for stock check")
 	default:
 		errors.InternalServerErrorResponse(c, err.Error())
 	}

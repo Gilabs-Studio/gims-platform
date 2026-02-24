@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	dealRead      = "crm_deal.read"
-	dealCreate    = "crm_deal.create"
-	dealUpdate    = "crm_deal.update"
-	dealDelete    = "crm_deal.delete"
-	dealMoveStage = "crm_deal.move_stage"
+	dealRead            = "crm_deal.read"
+	dealCreate          = "crm_deal.create"
+	dealUpdate          = "crm_deal.update"
+	dealDelete          = "crm_deal.delete"
+	dealMoveStage       = "crm_deal.move_stage"
+	dealConvertQuotation = "crm_deal.convert_quotation"
 )
 
 // RegisterDealRoutes registers all deal-related routes
@@ -34,4 +35,6 @@ func RegisterDealRoutes(r *gin.RouterGroup, h *handler.DealHandler) {
 	// Special actions
 	g.POST("/:id/move-stage", middleware.RequirePermission(dealMoveStage), h.MoveStage)
 	g.GET("/:id/history", middleware.RequirePermission(dealRead), h.GetHistory)
+	g.POST("/:id/convert-to-quotation", middleware.RequirePermission(dealConvertQuotation), h.ConvertToQuotation)
+	g.GET("/:id/stock-check", middleware.RequirePermission(dealRead), h.StockCheck)
 }

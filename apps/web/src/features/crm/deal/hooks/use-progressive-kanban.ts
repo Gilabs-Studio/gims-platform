@@ -164,10 +164,17 @@ export function useProgressiveKanbanBoard() {
     [stageStates]
   );
 
-  // Invalidate all deal queries (e.g., after mutation)
+  // Reset progressive loading state without triggering query invalidation.
+  // Used after mutations that already handle their own invalidation.
+  const resetExtraPages = useCallback(() => {
+    setStageStates({});
+  }, []);
+
+  // Invalidate all deal queries and reset extra-page state (full reset).
   const invalidateAll = useCallback(() => {
     setStageStates({});
-    qc.invalidateQueries({ queryKey: dealKeys.all });
+    qc.invalidateQueries({ queryKey: dealKeys.byStage() });
+    qc.invalidateQueries({ queryKey: dealKeys.summary() });
   }, [qc]);
 
   const isLoading =
@@ -180,6 +187,7 @@ export function useProgressiveKanbanBoard() {
     hasMoreForStage,
     isLoadingMoreForStage,
     fetchNextPageForStage,
+    resetExtraPages,
     invalidateAll,
   };
 }

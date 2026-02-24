@@ -99,6 +99,9 @@ type DealResponse struct {
 	TimeConfirmed   bool    `json:"time_confirmed"`
 	// Items
 	Items []DealProductItemResponse `json:"items"`
+	// Conversion tracking
+	ConvertedToQuotationID *string `json:"converted_to_quotation_id"`
+	ConvertedAt            *string `json:"converted_at"`
 	// Metadata
 	Notes     string  `json:"notes"`
 	CreatedBy *string `json:"created_by"`
@@ -273,4 +276,38 @@ type DealStageForecastResponse struct {
 	TotalValue    float64 `json:"total_value"`
 	Probability   int     `json:"probability"`
 	WeightedValue float64 `json:"weighted_value"`
+}
+
+// --- Sprint 21: Deal → Sales Quotation Conversion + Stock Check ---
+
+// ConvertToQuotationRequest defines optional overrides when converting a deal to a quotation
+type ConvertToQuotationRequest struct {
+	PaymentTermsID *string `json:"payment_terms_id" binding:"omitempty,uuid"`
+	BusinessUnitID *string `json:"business_unit_id" binding:"omitempty,uuid"`
+	BusinessTypeID *string `json:"business_type_id" binding:"omitempty,uuid"`
+	Notes          string  `json:"notes"`
+}
+
+// ConvertToQuotationResponse is returned after successful conversion
+type ConvertToQuotationResponse struct {
+	DealID        string `json:"deal_id"`
+	QuotationID   string `json:"quotation_id"`
+	QuotationCode string `json:"quotation_code"`
+}
+
+// StockCheckItemResponse represents stock availability for a single product item
+type StockCheckItemResponse struct {
+	ProductID         string  `json:"product_id"`
+	ProductName       string  `json:"product_name"`
+	RequestedQuantity int     `json:"requested_quantity"`
+	AvailableStock    float64 `json:"available_stock"`
+	ReservedStock     float64 `json:"reserved_stock"`
+	IsSufficient      bool    `json:"is_sufficient"`
+}
+
+// StockCheckResponse is the full stock availability check response for a deal
+type StockCheckResponse struct {
+	DealID        string                   `json:"deal_id"`
+	Items         []StockCheckItemResponse `json:"items"`
+	AllSufficient bool                     `json:"all_sufficient"`
 }

@@ -44,6 +44,13 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		resp.ActualCloseDate = &t
 	}
 
+	// Conversion tracking
+	resp.ConvertedToQuotationID = deal.ConvertedToQuotationID
+	if deal.ConvertedAt != nil {
+		t := deal.ConvertedAt.Format("2006-01-02T15:04:05+07:00")
+		resp.ConvertedAt = &t
+	}
+
 	if deal.PipelineStage != nil {
 		resp.PipelineStage = &dto.DealPipelineStageInfo{
 			ID:          deal.PipelineStage.ID,

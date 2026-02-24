@@ -126,6 +126,18 @@ export const crmDealId = {
     winRateDescription: "{won} berhasil dari {total} deal yang ditutup",
     stageBreakdown: "Rincian Tahap",
 
+    // Form tabs & section headers
+    tabBasic: "Informasi Dasar",
+    tabItems: "Produk & BANT",
+    sectionDealInfo: "Informasi Deal",
+    sectionCustomerInfo: "Pelanggan & Penugasan",
+    summary: "Ringkasan",
+    btnNext: "Selanjutnya",
+    btnBack: "Kembali",
+    selectDate: "Pilih tanggal",
+    dealAlreadyClosed: "Deal ini sudah ditutup (berhasil/gagal) dan tidak dapat diedit.",
+    errorAlreadyClosed: "Deal sudah ditutup dan tidak dapat dimodifikasi.",
+
     // Sections
     sections: {
       basicInfo: "Informasi Dasar",
@@ -143,6 +155,37 @@ export const crmDealId = {
       stageRequired: "Tahap pipeline wajib dipilih",
       customerRequired: "Pelanggan wajib dipilih",
       targetStageRequired: "Tahap tujuan wajib dipilih",
+    },
+
+    // Conversion (Sprint 21)
+    conversion: {
+      convertToQuotation: "Konversi ke Quotation",
+      title: "Konversi Deal ke Sales Quotation",
+      description: 'Konversi "{title}" menjadi sales quotation dengan semua item produk dan harga.',
+      confirm: "Konversi ke Quotation",
+      converting: "Mengonversi...",
+      convertSuccess: "Deal berhasil dikonversi ke quotation",
+      convertError: "Gagal mengonversi deal ke quotation",
+      quotationCreated: "Sales quotation telah dibuat dari deal ini.",
+      quotationCode: "Kode Quotation",
+      viewQuotation: "Lihat Quotation",
+      alreadyConverted: "Deal ini telah dikonversi ke sales quotation.",
+      notesLabel: "Catatan Tambahan (Opsional)",
+      notesPlaceholder: "Masukkan catatan tambahan untuk quotation...",
+    },
+
+    // Stock Check (Sprint 21)
+    stock: {
+      checkStock: "Cek Stok",
+      checking: "Memeriksa ketersediaan stok...",
+      checkError: "Gagal memeriksa stok",
+      retry: "Coba Lagi",
+      refresh: "Perbarui",
+      allSufficient: "Semua item tersedia",
+      someInsufficient: "Beberapa item stok tidak mencukupi",
+      requested: "Diminta",
+      available: "Tersedia",
+      status: "Status",
     },
   },
 };

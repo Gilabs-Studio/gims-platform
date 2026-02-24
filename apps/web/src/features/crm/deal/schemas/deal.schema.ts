@@ -2,10 +2,7 @@ import { z } from "zod";
 
 const dealProductItemSchema = z.object({
   product_id: z.string().uuid("Invalid product ID").optional().or(z.literal("")),
-  product_name: z
-    .string()
-    .min(1, "Product name is required")
-    .max(200, "Product name must be less than 200 characters"),
+  product_name: z.string().max(200).optional().default(""),  // auto-filled when product is selected
   product_sku: z.string().max(50).optional().or(z.literal("")),
   unit_price: z.number().min(0, "Unit price must be non-negative"),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
@@ -29,7 +26,7 @@ export const createDealSchema = z.object({
     .min(2, "Title must be at least 2 characters")
     .max(200, "Title must be less than 200 characters"),
   description: z.string().optional().or(z.literal("")),
-  pipeline_stage_id: z.string().uuid("Pipeline stage is required"),
+  pipeline_stage_id: z.string().min(1, "Pipeline stage is required"),
   value: z.number().min(0, "Value must be non-negative").optional().default(0),
   expected_close_date: z.string().optional().or(z.literal("")),
   customer_id: z.string().uuid("Invalid customer ID").optional().or(z.literal("")),
@@ -55,7 +52,7 @@ export type UpdateDealFormData = z.infer<typeof updateDealSchema>;
 
 export const moveDealStageSchema = z.object({
   to_stage_id: z.string().min(1, "Target stage is required"),
-  reason: z.string().max(500).optional().or(z.literal("")),
+  reason: z.string().min(2, "Reason must be at least 2 characters"),
   notes: z.string().max(500).optional().or(z.literal("")),
   close_reason: z.string().optional().or(z.literal("")),
 });

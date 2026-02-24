@@ -93,7 +93,7 @@ export function KanbanBoard({ onDealClick, onCreateDeal }: KanbanBoardProps) {
     hasMoreForStage,
     isLoadingMoreForStage,
     fetchNextPageForStage,
-    invalidateAll,
+    resetExtraPages,
   } = useProgressiveKanbanBoard();
 
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
@@ -237,7 +237,10 @@ export function KanbanBoard({ onDealClick, onCreateDeal }: KanbanBoardProps) {
         }}
         onSuccess={() => {
           setMoveDialog(null);
-          invalidateAll();
+          // Only reset progressive loading state here — the mutation's
+          // onSuccess already handles targeted query invalidation.
+          // Calling invalidateAll() would trigger a second full refetch.
+          resetExtraPages();
         }}
       />
     </>

@@ -1,8 +1,10 @@
+export { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 export { DealCard } from "./deal-card";
 export { DealDetailModal } from "./deal-detail-modal";
 export { DealDetailPage } from "./deal-detail-page";
 export { DealFormDialog } from "./deal-form-dialog";
 export { DealHistoryTimeline } from "./deal-history-timeline";
+export { DealStockCheck } from "./deal-stock-check";
 export { KanbanBoard } from "./kanban-board";
 export { MoveStageDialog } from "./move-stage-dialog";
 export { PipelineContainer } from "./pipeline-container";

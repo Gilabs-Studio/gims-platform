@@ -8,18 +8,18 @@ import {
   Building2,
   Calendar,
   DollarSign,
+  ExternalLink,
+  FileText,
   Mail,
   Package,
   Pencil,
   Phone,
+  ReceiptText,
   Trash2,
   User,
-  FileText,
-  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -38,6 +38,8 @@ import { useDealById, useDeleteDeal } from "../hooks/use-deals";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
+import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
+import { DealStockCheck } from "./deal-stock-check";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
@@ -69,10 +71,12 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canUpdate = useUserPermission("crm_deal.update");
   const canDelete = useUserPermission("crm_deal.delete");
   const canMoveStage = useUserPermission("crm_deal.move_stage");
+  const canConvert = useUserPermission("crm_deal.convert_quotation");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showMoveStage, setShowMoveStage] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
 
   const deal: Deal | undefined = response?.data;
 
@@ -145,6 +149,18 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Convert to Quotation — only for won deals not yet converted */}
+            {canConvert && deal.status === "won" && !deal.converted_to_quotation_id && (
+              <Button
+                variant="default"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => setShowConvertDialog(true)}
+              >
+                <ReceiptText className="h-4 w-4 mr-1" />
+                {t("conversion.convertToQuotation")}
+              </Button>
+            )}
             {canMoveStage && isOpen && (
               <Button
                 variant="outline"
@@ -179,6 +195,23 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
             )}
           </div>
         </div>
+
+        {/* Conversion status banner */}
+        {deal.converted_to_quotation_id && (
+          <div className="flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+            <ReceiptText className="h-5 w-5 text-green-600 shrink-0" />
+            <div className="flex-1 text-sm">
+              <span className="font-medium text-green-700">{t("conversion.alreadyConverted")}</span>
+            </div>
+            <Link
+              href={`/sales/quotations/${deal.converted_to_quotation_id}`}
+              className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer shrink-0"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t("conversion.viewQuotation")}
+            </Link>
+          </div>
+        )}
 
         {/* Key metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -281,6 +314,13 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {/* Stock availability check for deal items */}
+                {deal.items && deal.items.length > 0 && (
+                  <div className="mt-4">
+                    <DealStockCheck dealId={deal.id} />
                   </div>
                 )}
               </TabsContent>
@@ -472,6 +512,15 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           open={showMoveStage}
           onOpenChange={setShowMoveStage}
           onSuccess={handleMoveStageSuccess}
+        />
+      )}
+
+      {/* Convert to Quotation Dialog */}
+      {canConvert && deal.status === "won" && !deal.converted_to_quotation_id && (
+        <ConvertToQuotationDialog
+          deal={deal}
+          open={showConvertDialog}
+          onOpenChange={setShowConvertDialog}
         />
       )}
 
