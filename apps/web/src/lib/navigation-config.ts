@@ -104,7 +104,6 @@ export const navigationConfig: NavItem[] = [
       { name: "Delivery Orders", url: "/sales/delivery-orders", icon: "truck", permission: "delivery_order.read" },
       { name: "Customer Invoices", url: "/sales/invoices", icon: "receipt", permission: "customer_invoice.read" },
       { name: "Visit Reports", url: "/sales/visits", icon: "map-pin", permission: "sales_visit.read" },
-      { name: "Sales Estimation", url: "/sales/estimations", icon: "bar-chart-3", permission: "sales_estimation.read" },
       { name: "Sales Target", url: "/sales/targets", icon: "check-square", permission: "sales_target.read" },
     ],
   },

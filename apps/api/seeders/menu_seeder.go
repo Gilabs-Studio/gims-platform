@@ -518,8 +518,18 @@ func SeedMenus() error {
 	// CRM SUB-MENUS
 	// ============================================================
 
+	// CRM Leads menu (Sprint 19)
+	if _, err := createChildMenu("Leads", "user-plus", "/crm/leads", &crmMenu.ID, 1); err != nil {
+		return err
+	}
+
+	// CRM Pipeline menu (Sprint 20)
+	if _, err := createChildMenu("Pipeline", "kanban", "/crm/pipeline", &crmMenu.ID, 2); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
-	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 1)
+	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {
 		return err
 	}
@@ -586,6 +596,19 @@ func UpdateMenuStructure() error {
 			return err
 		}
 		log.Printf("Migrated menu URL: %s -> %s", m.oldURL, m.newURL)
+	}
+
+	// Deprecate Sales Estimation menu — replaced by CRM Pipeline
+	var estimationMenu permission.Menu
+	if err := database.DB.Where("url = ?", "/sales/estimations").First(&estimationMenu).Error; err == nil {
+		if estimationMenu.Status != "inactive" {
+			if err := database.DB.Model(&estimationMenu).Updates(map[string]interface{}{
+				"status": "inactive",
+			}).Error; err != nil {
+				return err
+			}
+			log.Println("Deprecated Sales Estimation menu (replaced by CRM Pipeline)")
+		}
 	}
 
 	log.Println("Menu structure update completed")

@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 
+	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
@@ -31,14 +33,15 @@ type CustomerUsecase interface {
 }
 
 type customerUsecase struct {
-	repo     repositories.CustomerRepository
-	typeRepo repositories.CustomerTypeRepository
-	db       *gorm.DB
+	repo        repositories.CustomerRepository
+	typeRepo    repositories.CustomerTypeRepository
+	contactRepo crmRepos.ContactRepository
+	db          *gorm.DB
 }
 
 // NewCustomerUsecase creates a new CustomerUsecase
-func NewCustomerUsecase(repo repositories.CustomerRepository, typeRepo repositories.CustomerTypeRepository, db *gorm.DB) CustomerUsecase {
-	return &customerUsecase{repo: repo, typeRepo: typeRepo, db: db}
+func NewCustomerUsecase(repo repositories.CustomerRepository, typeRepo repositories.CustomerTypeRepository, contactRepo crmRepos.ContactRepository, db *gorm.DB) CustomerUsecase {
+	return &customerUsecase{repo: repo, typeRepo: typeRepo, contactRepo: contactRepo, db: db}
 }
 
 func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.CreateCustomerRequest) (dto.CustomerResponse, error) {
@@ -138,7 +141,19 @@ func (u *customerUsecase) GetByID(ctx context.Context, id string) (dto.CustomerR
 	if err != nil {
 		return dto.CustomerResponse{}, err
 	}
-	return mapper.ToCustomerResponse(customer), nil
+	resp := mapper.ToCustomerResponse(customer)
+
+	// Enrich with contacts count
+	if u.contactRepo != nil {
+		count, err := u.contactRepo.CountByCustomerID(ctx, id)
+		if err != nil {
+			log.Printf("Warning: failed to get contacts count for customer %s: %v", id, err)
+		} else {
+			resp.ContactsCount = count
+		}
+	}
+
+	return resp, nil
 }
 
 func (u *customerUsecase) List(ctx context.Context, params repositories.CustomerListParams) ([]dto.CustomerResponse, int64, error) {
@@ -146,7 +161,25 @@ func (u *customerUsecase) List(ctx context.Context, params repositories.Customer
 	if err != nil {
 		return nil, 0, err
 	}
-	return mapper.ToCustomerResponseList(customers), total, nil
+	responses := mapper.ToCustomerResponseList(customers)
+
+	// Enrich with contacts counts via batch query
+	if u.contactRepo != nil && len(customers) > 0 {
+		ids := make([]string, len(customers))
+		for i, c := range customers {
+			ids[i] = c.ID
+		}
+		counts, err := u.contactRepo.CountByCustomerIDs(ctx, ids)
+		if err != nil {
+			log.Printf("Warning: failed to batch count contacts: %v", err)
+		} else {
+			for i := range responses {
+				responses[i].ContactsCount = counts[responses[i].ID]
+			}
+		}
+	}
+
+	return responses, total, nil
 }
 
 func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateCustomerRequest) (dto.CustomerResponse, error) {

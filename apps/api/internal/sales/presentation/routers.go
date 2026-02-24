@@ -27,7 +27,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 }, invUC inventoryUsecase.InventoryUsecase) *SalesDeps {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
-	estimationRepo := salesRepos.NewSalesEstimationRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
 	deliveryRepo := salesRepos.NewDeliveryOrderRepository(db)
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
@@ -38,7 +37,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(quotationRepo, productRepo)
-	estimationUC := usecase.NewSalesEstimationUsecase(estimationRepo, quotationRepo, productRepo)
 	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, deliveryRepo, quotationRepo, productRepo, invUC, employeeRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, invUC)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo)
@@ -48,7 +46,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
 	quotationPrintHandler := handler.NewSalesQuotationPrintHandler(quotationUC, db)
-	estimationHandler := handler.NewSalesEstimationHandler(estimationUC)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
 	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
@@ -62,7 +59,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler, quotationPrintHandler)
-	router.RegisterSalesEstimationRoutes(salesGroup, estimationHandler)
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)

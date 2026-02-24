@@ -292,13 +292,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Contact CRUD + Customer-Contact relation endpoints
-- [ ] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
+- [x] **API:** Contact CRUD + Customer-Contact relation endpoints
+- [x] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
 
 ### API Tasks
 
 #### Contact
-- [ ] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Contact — Person associated with a Customer, child of Customer
@@ -319,44 +319,44 @@ type Contact struct {
 }
 ```
 
-- [ ] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
-- [ ] `GET /api/v1/crm/contacts/:id` — Get contact detail
-- [ ] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
-- [ ] `PUT /api/v1/crm/contacts/:id` — Update contact
-- [ ] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
-- [ ] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
-- [ ] Register model di `migrate.go`
-- [ ] Seeder: sample contacts linked to existing customers
-- [ ] Permission seeder: `crm_contact.read|create|update|delete`
+- [x] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
+- [x] `GET /api/v1/crm/contacts/:id` — Get contact detail
+- [x] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
+- [x] `PUT /api/v1/crm/contacts/:id` — Update contact
+- [x] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
+- [x] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
+- [x] Register model di `migrate.go`
+- [x] Seeder: sample contacts linked to existing customers
+- [x] Permission seeder: `crm_contact.read|create|update|delete`
 
 #### Customer Module Update
-- [ ] `GET /api/v1/customers/:id/contacts` — List contacts per customer (new endpoint di customer handler)
+- [x] `GET /api/v1/crm/contacts?customer_id=:id` — List contacts per customer (via CRM contacts endpoint with customer_id filter)
 - [ ] Update customer detail response — include `contacts` count
 
 ### Frontend Tasks
 
-- [ ] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
+- [x] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
   - Tab shows list of contacts for the customer
   - Quick-add contact button di dalam tab (opens contact side panel form)
   - Click contact → open contact side panel (create/edit/view)
-- [ ] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
-- [ ] i18n: contact translations (en/id)
+- [x] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
+- [x] i18n: contact translations (en/id)
 
 > **Note:** Tidak ada halaman `/crm/contacts` — Contact diakses hanya via tab di Customer side panel.
 
 ### Success Criteria
 
-- [ ] Contact CRUD berfungsi penuh (via API)
-- [ ] Contact wajib memiliki valid Customer reference
-- [ ] Customer side panel menampilkan tab Contacts
-- [ ] Quick-add contact dari Customer tab berfungsi
-- [ ] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
+- [x] Contact CRUD berfungsi penuh (via API)
+- [x] Contact wajib memiliki valid Customer reference
+- [x] Customer side panel menampilkan tab Contacts
+- [x] Quick-add contact dari Customer tab berfungsi
+- [x] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Customer module dependency — import customer models, no circular dependency
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Customer module dependency — import customer models, no circular dependency
 
 ### Table Relations
 
@@ -391,13 +391,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Lead CRUD + BANT + Analytics + Conversion
-- [ ] **Frontend:** Lead pages + conversion dialog
+- [x] **API:** Lead CRUD + BANT + Analytics + Conversion
+- [x] **Frontend:** Lead pages + conversion dialog
 
 ### API Tasks
 
 #### Lead
-- [ ] `Lead` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Lead` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Lead — Sales prospect with BANT qualification scoring
@@ -447,45 +447,45 @@ type Lead struct {
 }
 ```
 
-- [ ] `GET /api/v1/crm/leads` — List leads (filterable by status, source, assigned_to, score range, date range)
-- [ ] `GET /api/v1/crm/leads/:id` — Get lead detail with relations
-- [ ] `POST /api/v1/crm/leads` — Create lead (auto-assign default LeadStatus)
-- [ ] `PUT /api/v1/crm/leads/:id` — Update lead
-- [ ] `DELETE /api/v1/crm/leads/:id` — Soft delete lead
-- [ ] `GET /api/v1/crm/leads/form-data` — Returns: employees, lead sources, lead statuses, customers
-- [ ] `GET /api/v1/crm/leads/analytics` — Stats by status, source, conversion rate, avg score
-- [ ] `POST /api/v1/crm/leads/:id/convert` — **Lead Conversion** (see Business Logic)
-- [ ] Register model di `migrate.go`
-- [ ] Seeder: sample leads with varied statuses and scores
-- [ ] Permission seeder: `crm_lead.read|create|update|delete|convert`
+- [x] `GET /api/v1/crm/leads` — List leads (filterable by status, source, assigned_to, score range, date range)
+- [x] `GET /api/v1/crm/leads/:id` — Get lead detail with relations
+- [x] `POST /api/v1/crm/leads` — Create lead (auto-assign default LeadStatus)
+- [x] `PUT /api/v1/crm/leads/:id` — Update lead
+- [x] `DELETE /api/v1/crm/leads/:id` — Soft delete lead
+- [x] `GET /api/v1/crm/leads/form-data` — Returns: employees, lead sources, lead statuses, customers
+- [x] `GET /api/v1/crm/leads/analytics` — Stats by status, source, conversion rate, avg score
+- [x] `POST /api/v1/crm/leads/:id/convert` — **Lead Conversion** (see Business Logic)
+- [x] Register model di `migrate.go`
+- [x] Seeder: sample leads with varied statuses and scores
+- [x] Permission seeder: `crm_lead.read|create|update|delete|convert`
 
 ### Frontend Tasks
 
-- [ ] Lead list page `/crm/leads` — DataTable with advanced filters (status, source, assigned, score range)
-- [ ] Lead side panel form (create/edit/view) — includes BANT section
-- [ ] Lead detail page `/crm/leads/[id]` — full detail with activity timeline
-- [ ] Lead conversion dialog — mapping fields ke Customer + Contact + Deal
-- [ ] Lead analytics cards (di atas list atau di dashboard CRM)
-- [ ] i18n: lead translations (en/id)
-- [ ] Route: `app/[locale]/(dashboard)/crm/leads/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx`
+- [x] Lead list page `/crm/leads` — DataTable with advanced filters (status, source, assigned, score range)
+- [x] Lead dialog form (create/edit) — includes BANT section
+- [x] Lead detail page `/crm/leads/[id]` — full detail with activity timeline
+- [x] Lead conversion dialog — mapping fields ke Customer + Contact + Deal
+- [x] Lead analytics cards (di atas list atau di dashboard CRM)
+- [x] i18n: lead translations (en/id)
+- [x] Route: `app/[locale]/(dashboard)/crm/leads/page.tsx` + `loading.tsx`
+- [x] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Lead CRUD berfungsi penuh dengan semua filter
-- [ ] Lead Score dihitung berdasarkan BANT fields + LeadStatus score
-- [ ] Lead conversion membuat Customer (jika baru) + Contact + Deal
-- [ ] Lead yang sudah di-convert tidak bisa di-convert lagi
-- [ ] Analytics endpoint mengembalikan data by status dan source
-- [ ] Default LeadStatus otomatis di-assign saat create
+- [x] Lead CRUD berfungsi penuh dengan semua filter
+- [x] Lead Score dihitung berdasarkan BANT fields + LeadStatus score
+- [x] Lead conversion membuat Customer (jika baru) + Contact + Deal
+- [x] Lead yang sudah di-convert tidak bisa di-convert lagi
+- [x] Analytics endpoint mengembalikan data by status dan source
+- [x] Default LeadStatus otomatis di-assign saat create
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Customer module dependency — create customer saat conversion
-- [ ] Contact dependency — create contact saat conversion
-- [ ] Deal dependency (Sprint 20) — create deal saat conversion (defer jika Sprint 20 belum selesai, buat tanpa deal dulu)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Customer module dependency — create customer saat conversion
+- [x] Contact dependency — create contact saat conversion
+- [x] Deal dependency (Sprint 20) — create deal saat conversion (Sprint 20 complete, can integrate)
 
 ### Table Relations
 
@@ -552,13 +552,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
-- [ ] **Frontend:** Pipeline Kanban board + Deal form + History timeline
+- [x] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
+- [x] **Frontend:** Pipeline Kanban board + Deal form + History timeline
 
 ### API Tasks
 
 #### Deal
-- [ ] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Deal — Sales opportunity tracked through pipeline stages
@@ -606,7 +606,7 @@ type Deal struct {
 ```
 
 #### Deal Product Item
-- [ ] `DealProductItem` - Model (nested CRUD via Deal)
+- [x] `DealProductItem` - Model (nested CRUD via Deal)
 
 ```go
 // DealProductItem — Product line items in a deal (snapshot pricing)
@@ -628,7 +628,7 @@ type DealProductItem struct {
 ```
 
 #### Deal History
-- [ ] `DealHistory` - Model (auto-created on stage move)
+- [x] `DealHistory` - Model (auto-created on stage move)
 
 ```go
 // DealHistory — Audit trail of pipeline stage transitions
@@ -650,55 +650,55 @@ type DealHistory struct {
 ```
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
-- [ ] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
-- [ ] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
-- [ ] `POST /api/v1/crm/deals` — Create deal (with product items)
-- [ ] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
-- [ ] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
-- [ ] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
-- [ ] `GET /api/v1/crm/deals/:id/history` — Get stage change history
-- [ ] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
-- [ ] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
-- [ ] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample deals with product items across pipeline stages
-- [ ] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
+- [x] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
+- [x] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
+- [x] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
+- [x] `POST /api/v1/crm/deals` — Create deal (with product items)
+- [x] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
+- [x] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
+- [x] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
+- [x] `GET /api/v1/crm/deals/:id/history` — Get stage change history
+- [x] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
+- [x] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
+- [x] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample deals with product items across pipeline stages
+- [x] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
 
 ### Frontend Tasks
 
-- [ ] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
+- [x] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
   - Columns = pipeline stages (ordered)
   - Cards = deals (show title, customer, value, probability, assigned rep)
   - Drag deal card → trigger `move-stage` API
   - Stage summary at column header (total value, deal count)
-- [ ] Deal side panel form (create/edit/view) — with product items table
+- [x] Deal side panel form (create/edit/view) — with product items table
   - Product items: add/remove products, set quantity, price, discount
   - Auto-calculate deal value from items subtotal
   - BANT section (collapsible)
-- [ ] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
-- [ ] Pipeline summary dashboard cards (value funnel, forecast)
-- [ ] i18n: deal/pipeline translations (en/id)
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
+- [x] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
+- [x] Pipeline summary dashboard cards (value funnel, forecast)
+- [x] i18n: deal/pipeline translations (en/id)
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Kanban board render stages sebagai kolom, deals sebagai cards
-- [ ] Drag-and-drop memindahkan deal ke stage baru + auto-create history
-- [ ] Deal value auto-calculated dari product items jika ada items
-- [ ] Deal probability auto-sync dari stage probability saat move
-- [ ] History timeline menampilkan semua stage transitions
-- [ ] Product items bisa add/remove/edit di dalam deal form
-- [ ] Pipeline summary dan forecast menampilkan data aggregate yang benar
-- [ ] Won/Lost stage move mengubah deal status + set ActualCloseDate
+- [x] Kanban board render stages sebagai kolom, deals sebagai cards
+- [x] Drag-and-drop memindahkan deal ke stage baru + auto-create history
+- [x] Deal value auto-calculated dari product items jika ada items
+- [x] Deal probability auto-sync dari stage probability saat move
+- [x] History timeline menampilkan semua stage transitions
+- [x] Product items bisa add/remove/edit di dalam deal form
+- [x] Pipeline summary dan forecast menampilkan data aggregate yang benar
+- [x] Won/Lost stage move mengubah deal status + set ActualCloseDate
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Product module dependency — reference `products.id` dari ERP
-- [ ] Customer & Contact dependency — FK relations
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Product module dependency — reference `products.id` dari ERP
+- [x] Customer & Contact dependency — FK relations
 
 ### Table Relations
 
@@ -754,14 +754,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal conversion to Sales Quotation + Stock availability check
-- [ ] **Frontend:** Conversion UI + Stock indicator
-- [ ] **Migration:** Deprecate Sales Estimation, data migration script
+- [x] **API:** Deal conversion to Sales Quotation + Stock availability check
+- [x] **Frontend:** Conversion UI + Stock indicator
+- [x] **Migration:** Deprecate Sales Estimation, data migration script
 
 ### API Tasks
 
 #### Deal → Sales Quotation Conversion
-- [ ] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
+- [x] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
 
 ```
 Request Body (optional overrides):
@@ -784,7 +784,7 @@ Response:
 ```
 
 #### Stock Availability Check
-- [ ] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
+- [x] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
 
 ```
 Response:
@@ -808,42 +808,42 @@ Response:
 ```
 
 #### Sales Estimation Deprecation
-- [ ] Create migration script: `cmd/tools/migrate-estimations/main.go`
+- [x] Create migration script: `cmd/tools/migrate-estimations/main.go`
   - Convert existing `SalesEstimation` records ke `Deal` records
   - Map fields: CustomerID, Items → DealProductItems, Probability, ExpectedCloseDate
   - Set pipeline stage based on estimation status (draft → Qualification, submitted → Proposal, approved → Negotiation, converted → Closed Won)
   - Preserve original estimation data (soft archive, not delete)
-- [ ] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
-- [ ] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
+- [x] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
+- [x] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
 
 ### Frontend Tasks
 
-- [ ] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
+- [x] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
   - Confirmation dialog with optional overrides (payment terms, business unit, etc.)
   - Success: show link ke quotation yang dibuat
-- [ ] Stock availability indicator di Deal form — per product item
+- [x] Stock availability indicator di Deal form — per product item
   - Green badge: stock sufficient
   - Red badge: stock insufficient with available/requested counts
-- [ ] "Check Stock" button di deal detail yang memanggil stock-check API
-- [ ] **Update Sales menu**: remove/hide "Sales Estimation" link
-- [ ] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
-- [ ] Notification toast saat deal di-convert ke quotation
+- [x] "Check Stock" button di deal detail yang memanggil stock-check API
+- [x] **Update Sales menu**: remove/hide "Sales Estimation" link
+- [x] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
+- [x] Notification toast saat deal di-convert ke quotation
 
 ### Success Criteria
 
-- [ ] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
-- [ ] Stock check menampilkan available vs requested per product item
-- [ ] Migration script berhasil convert existing estimations ke deals
-- [ ] Sales Estimation menu tersembunyi
-- [ ] `/sales/estimations` redirect ke `/crm/pipeline`
-- [ ] Quotation yang dibuat dari deal memiliki link balik ke deal
+- [x] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
+- [x] Stock check menampilkan available vs requested per product item
+- [x] Migration script berhasil convert existing estimations ke deals
+- [x] Sales Estimation menu tersembunyi
+- [x] `/sales/estimations` redirect ke `/crm/pipeline`
+- [x] Quotation yang dibuat dari deal memiliki link balik ke deal
 
 ### Integration Requirements
 
-- [ ] Permission integration check: `crm_deal.convert_quotation` permission
-- [ ] Sales module dependency — create SalesQuotation + SalesQuotationItems
-- [ ] Inventory module dependency — query InventoryBatch for stock check
-- [ ] Product module dependency — get current pricing for snapshot
+- [x] Permission integration check: `crm_deal.convert_quotation` permission
+- [x] Sales module dependency — create SalesQuotation + SalesQuotationItems
+- [x] Inventory module dependency — query InventoryBatch for stock check
+- [x] Product module dependency — get current pricing for snapshot
 
 ### Table Relations
 

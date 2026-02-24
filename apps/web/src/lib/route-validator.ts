@@ -42,7 +42,6 @@ const VALID_DASHBOARD_ROUTES = [
   "/sales/delivery-orders",
   "/sales/invoices",
   "/sales/visits",
-  "/sales/estimations",
   "/sales/targets",
   // Purchase routes
   "/purchase/purchase-requisitions",
@@ -79,6 +78,9 @@ const VALID_DASHBOARD_ROUTES = [
   "/hrd/recruitment",
   "/hrd/work-schedule",
   "/hrd/holidays",
+  // CRM
+  "/crm/leads",
+  "/crm/pipeline",
   // CRM Settings
   "/crm/settings/pipeline-stages",
   "/crm/settings/lead-sources",

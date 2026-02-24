@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { sortOptions } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
 
 import {
   useCreateCustomer,
@@ -54,12 +56,14 @@ export function CustomerSidePanel({
   onSuccess,
 }: CustomerSidePanelProps) {
   const t = useTranslations("customer");
+  const tContact = useTranslations("crmContact");
   const isEditing = mode === "edit";
   const isViewing = mode === "view";
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
 
   const {
     register,
@@ -142,6 +146,7 @@ export function CustomerSidePanel({
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
     if (!isOpen) return;
+    setActiveTab("details");
 
     if ((mode === "edit" || mode === "view") && customer?.id) {
       void refetchDetail().then((result) => {
@@ -293,7 +298,28 @@ export function CustomerSidePanel({
         side="right"
         defaultWidth={550}
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20 p-4">
+        {/* Tab navigation for view mode */}
+        {isViewing && customer?.id && (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="px-4 pt-0">
+            <TabsList className="w-full">
+              <TabsTrigger value="details" className="cursor-pointer">{t("common.viewDetails")}</TabsTrigger>
+              <TabsTrigger value="contacts" className="cursor-pointer">{tContact("tab")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        {/* Contacts tab content */}
+        {isViewing && activeTab === "contacts" && customer?.id && (
+          <div className="p-4">
+            <CustomerContactsTab customerId={customer.id} />
+          </div>
+        )}
+
+        {/* Details form (shown in create/edit, or view details tab) */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className={`space-y-6 pb-20 p-4 ${isViewing && activeTab !== "details" ? "hidden" : ""}`}
+        >
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium border-b pb-2">

@@ -52,8 +52,6 @@ import { invoiceEn } from "@/features/sales/invoice/i18n/en";
 import { invoiceId } from "@/features/sales/invoice/i18n/id";
 import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
-import { estimationEn } from "@/features/sales/estimation/i18n/en";
-import { estimationId } from "@/features/sales/estimation/i18n/id";
 import { targetsEn } from "@/features/sales/targets/i18n/en";
 import { targetsId } from "@/features/sales/targets/i18n/id";
 import { visitI18nEn } from "@/features/sales/visit/i18n/en";
@@ -134,6 +132,12 @@ import { activityTypeEn } from "@/features/crm/activity-type/i18n/en";
 import { activityTypeId } from "@/features/crm/activity-type/i18n/id";
 import { financeReportsEn } from "@/features/finance/reports/i18n/en";
 import { financeReportsId } from "@/features/finance/reports/i18n/id";
+import { crmContactEn } from "@/features/crm/contact/i18n/en";
+import { crmContactId } from "@/features/crm/contact/i18n/id";
+import { crmLeadEn } from "@/features/crm/lead/i18n/en";
+import { crmLeadId } from "@/features/crm/lead/i18n/id";
+import { crmDealEn } from "@/features/crm/deal/i18n/en";
+import { crmDealId } from "@/features/crm/deal/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -162,7 +166,6 @@ const messages = {
     ...deliveryEn,
     ...invoiceEn,
     ...commandPaletteEn,
-    ...estimationEn,
     ...targetsEn,
     ...targetsEn,
     ...targetsEn,
@@ -201,6 +204,9 @@ const messages = {
     contactRole: contactRoleEn,
     activityType: activityTypeEn,
     financeReports: financeReportsEn,
+    ...crmContactEn,
+    ...crmLeadEn,
+    ...crmDealEn,
   },
   id: {
     ...globalIdMessages,
@@ -227,7 +233,6 @@ const messages = {
     ...deliveryId,
     ...invoiceId,
     ...commandPaletteId,
-    ...estimationId,
     ...targetsId,
     ...targetsId,
     ...visitI18nId,
@@ -265,6 +270,9 @@ const messages = {
     contactRole: contactRoleId,
     activityType: activityTypeId,
     financeReports: financeReportsId,
+    ...crmContactId,
+    ...crmLeadId,
+    ...crmDealId,
   },
 } as const;
 

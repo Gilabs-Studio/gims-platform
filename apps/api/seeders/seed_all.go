@@ -98,11 +98,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Estimation seeder (Sprint 8)
-	if err := SeedSalesEstimation(); err != nil {
-		return err
-	}
-
 	// Sales Quotation seeder (Sprint 5)
 	if err := SeedSalesQuotation(); err != nil {
 		return err
@@ -230,6 +225,21 @@ func SeedAll() error {
 
 	// CRM Settings seeder (Sprint 17)
 	if err := SeedCRMSettings(); err != nil {
+		return err
+	}
+
+	// CRM Contacts seeder (Sprint 18 - depends on customers + contact roles)
+	if err := SeedCRMContacts(); err != nil {
+		return err
+	}
+
+	// CRM Leads seeder (Sprint 19 - depends on lead sources, statuses, employees, customers)
+	if err := SeedCRMLeads(); err != nil {
+		return err
+	}
+
+	// CRM Deals seeder (Sprint 20 - depends on pipeline stages, customers, contacts, employees, products)
+	if err := SeedCRMDeals(); err != nil {
 		return err
 	}
 

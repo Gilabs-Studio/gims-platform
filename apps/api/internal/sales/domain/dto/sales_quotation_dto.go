@@ -111,6 +111,7 @@ type SalesQuotationResponse struct {
 	RejectedBy          *string                       `json:"rejected_by"`
 	RejectedAt          *string                       `json:"rejected_at"`
 	RejectionReason     *string                       `json:"rejection_reason"`
+	SourceDealID        *string                       `json:"source_deal_id"`
 	ConvertedToSalesOrderID *string                   `json:"converted_to_sales_order_id"`
 	ConvertedAt         *string                       `json:"converted_at"`
 	Items               []SalesQuotationItemResponse  `json:"items,omitempty"`

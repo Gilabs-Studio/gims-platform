@@ -140,8 +140,6 @@ func AutoMigrate() error {
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
-		&sales.SalesEstimation{},
-		&sales.SalesEstimationItem{},
 		// Sales Order entities (Sprint 6)
 		&sales.SalesOrder{},
 		&sales.SalesOrderItem{},
@@ -211,6 +209,14 @@ func AutoMigrate() error {
 		&crm.LeadStatus{},
 		&crm.ContactRole{},
 		&crm.ActivityType{},
+		// CRM Contact entity (Sprint 18)
+		&crm.Contact{},
+		// CRM Lead entity (Sprint 19)
+		&crm.Lead{},
+		// CRM Deal entities (Sprint 20)
+		&crm.Deal{},
+		&crm.DealProductItem{},
+		&crm.DealHistory{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
