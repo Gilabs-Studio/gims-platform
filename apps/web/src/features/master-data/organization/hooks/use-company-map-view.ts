@@ -13,7 +13,7 @@ import {
   useApproveCompany,
   useSubmitCompanyForApproval,
 } from "./use-companies";
-import type { Company, CompanyStatus } from "../types";
+import type { Company } from "../types";
 
 export type PanelMode = "create" | "edit" | "view" | null;
 
@@ -30,7 +30,8 @@ export function useCompanyMapView() {
   // State
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  const [statusFilter, setStatusFilter] = useState<CompanyStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [typeFilter, setTypeFilter] = useState<string | "all">("all");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
@@ -43,7 +44,7 @@ export function useCompanyMapView() {
   const { data, isLoading, refetch } = useCompanies({
     per_page: 100, // Get max allowed for map
     search: debouncedSearch || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
+    is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
   });
 
   const deleteCompany = useDeleteCompany();
@@ -136,6 +137,7 @@ export function useCompanyMapView() {
     state: {
       search,
       statusFilter,
+      typeFilter,
       selectedCompanyId,
       isSidebarOpen,
       panelMode,
@@ -147,6 +149,7 @@ export function useCompanyMapView() {
     actions: {
       setSearch,
       setStatusFilter,
+      setTypeFilter,
       setSelectedCompanyId,
       setIsSidebarOpen,
       setPanelMode,

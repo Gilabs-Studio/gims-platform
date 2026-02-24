@@ -77,6 +77,11 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 		query = query.Where("status = ?", req.Status)
 	}
 
+	// Apply is_active filter when provided
+	if req.IsActive != nil {
+		query = query.Where("is_active = ?", *req.IsActive)
+	}
+
 	// Apply village filter
 	if req.VillageID != "" {
 		query = query.Where("village_id = ?", req.VillageID)
