@@ -19,10 +19,11 @@ export const jobPositionKeys = {
   detail: (id: string) => [...jobPositionKeys.details(), id] as const,
 };
 
-export function useJobPositions(params?: ListOrganizationParams) {
+export function useJobPositions(params?: ListOrganizationParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: jobPositionKeys.list(params),
     queryFn: () => jobPositionService.list(params),
+    ...options,
   });
 }
 

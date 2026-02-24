@@ -34,6 +34,17 @@ export interface Area {
   description?: string;
 }
 
+// Brief customer from master data (embedded in sales responses)
+export interface CustomerBrief {
+  id: string;
+  code: string;
+  name: string;
+  customer_type_id?: string;
+  address?: string;
+  email?: string;
+  contact_person?: string;
+}
+
 export interface Product {
   id: string;
   code: string;
@@ -69,6 +80,8 @@ export interface SalesEstimation {
   id: string;
   code: string;
   estimation_date: string;
+  customer_id?: string;
+  customer?: CustomerBrief;
   customer_name: string;
   customer_contact?: string;
   customer_email?: string;
@@ -178,6 +191,7 @@ export interface SalesEstimationItemsListResponse {
 // Form data types for create/update
 export interface CreateSalesEstimationData {
   estimation_date: string;
+  customer_id?: string;
   customer_name: string;
   customer_contact?: string;
   customer_email?: string;
@@ -206,6 +220,7 @@ export interface CreateSalesEstimationItemData {
 
 export interface UpdateSalesEstimationData {
   estimation_date?: string;
+  customer_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_email?: string;

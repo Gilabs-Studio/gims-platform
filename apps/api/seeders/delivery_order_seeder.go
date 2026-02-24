@@ -28,15 +28,12 @@ func SeedDeliveryOrder() error {
 
 	// Get required reference data
 	var salesOrders []salesModels.SalesOrder
-	if err := db.Where("status IN ?", []salesModels.SalesOrderStatus{
-		salesModels.SalesOrderStatusConfirmed,
-		salesModels.SalesOrderStatusProcessing,
-	}).Preload("Items").Limit(5).Find(&salesOrders).Error; err != nil {
+	if err := db.Where("status = ?", salesModels.SalesOrderStatusApproved).Preload("Items").Limit(5).Find(&salesOrders).Error; err != nil {
 		log.Printf("Warning: Failed to fetch sales orders: %v", err)
 		return err
 	}
 	if len(salesOrders) == 0 {
-		log.Println("Warning: No confirmed sales orders found. Please seed sales orders first.")
+		log.Println("Warning: No approved sales orders found. Please seed sales orders first.")
 		return nil
 	}
 

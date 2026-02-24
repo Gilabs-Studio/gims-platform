@@ -61,7 +61,7 @@ type ListDeliveryOrderItemsRequest struct {
 
 // UpdateDeliveryOrderStatusRequest represents the request to update delivery order status
 type UpdateDeliveryOrderStatusRequest struct {
-	Status            string  `json:"status" binding:"required,oneof=prepared shipped delivered cancelled"`
+	Status            string  `json:"status" binding:"required,oneof=sent approved rejected prepared shipped delivered cancelled"`
 	CancellationReason *string `json:"cancellation_reason"`
 }
 

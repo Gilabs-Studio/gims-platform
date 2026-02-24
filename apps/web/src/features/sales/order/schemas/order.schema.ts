@@ -27,6 +27,7 @@ export const getOrderItemSchema = (t?: TranslationFn) => z.object({
 export const getOrderSchema = (t?: TranslationFn) => z.object({
   order_date: z.string()
     .min(1, getMsg(t, "validation.required", "Order date is required")),
+  customer_id: z.string().uuid().optional().or(z.literal("")),
   sales_quotation_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   payment_terms_id: z.string()
     .min(1, getMsg(t, "validation.required", "Payment terms is required"))
@@ -66,7 +67,7 @@ export const getUpdateOrderSchema = (t?: TranslationFn) => getOrderSchema(t).par
 });
 
 export const getUpdateOrderStatusSchema = (t?: TranslationFn) => z.object({
-  status: z.enum(["draft", "confirmed", "processing", "shipped", "delivered", "cancelled"] as const, {
+  status: z.enum(["draft", "submitted", "approved", "rejected", "cancelled"] as const, {
     message: getMsg(t, "validation.invalidStatus", "Invalid status"),
   }),
   cancellation_reason: z.string().optional(),

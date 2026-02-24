@@ -1,9 +1,8 @@
 "use client";
 
 import { Building, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Company, CompanyStatus } from "../../types";
+import type { Company } from "../../types";
 
 
 
@@ -23,7 +22,6 @@ export function CompanyCard({
   company, 
   isSelected, 
   onClick, 
-  t, 
   onDetail,
   onEdit, 
   onDelete,
@@ -34,8 +32,9 @@ export function CompanyCard({
     <div
       onClick={onClick}
       className={cn(
-        "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24", // Increased padding right for buttons
-        isSelected && "bg-accent border-l-4 border-l-primary"
+        "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
+        isSelected && "bg-accent border-l-4 border-l-primary",
+        !company.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
@@ -43,7 +42,9 @@ export function CompanyCard({
           <Building className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <h4 className="font-medium text-sm truncate">{company.name}</h4>
+          <div className="flex items-center gap-1.5">
+            <h4 className="font-medium text-sm truncate">{company.name}</h4>
+          </div>
           {company.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
@@ -51,14 +52,6 @@ export function CompanyCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge 
-              className="text-xs"
-              variant={
-                company.status === 'rejected' ? 'destructive' : 'secondary'
-              }
-            >
-              {t(`company.status.${company.status}`)}
-            </Badge>
             {company.latitude != null && company.longitude != null && (
               <span className="text-xs text-muted-foreground">
                 📍 {Number(company.latitude).toFixed(4)}, {Number(company.longitude).toFixed(4)}

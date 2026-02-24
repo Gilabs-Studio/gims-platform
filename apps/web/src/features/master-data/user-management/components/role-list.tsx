@@ -42,6 +42,7 @@ export function RoleList() {
     updateRole,
     search,
     setSearch,
+    permissions,
   } = useRoleList();
   
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
@@ -99,7 +100,7 @@ export function RoleList() {
                   }
                 );
               }}
-              disabled={isProtected || updateRole.isPending}
+              disabled={isProtected || updateRole.isPending || !permissions.canUpdate}
               className="cursor-pointer"
               title={isProtected ? "Protected role status cannot be changed" : ""}
             />
@@ -130,54 +131,62 @@ export function RoleList() {
         
         return (
           <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                if (!isProtected) {
-                  setEditingRole(row.id);
+            {permissions.canUpdate && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  if (!isProtected) {
+                    setEditingRole(row.id);
+                  }
+                }}
+                disabled={isProtected}
+                className={isProtected 
+                  ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
+                  : "h-8 w-8"
                 }
-              }}
-              disabled={isProtected}
-              className={isProtected 
-                ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
-                : "h-8 w-8"
-              }
-              title={isProtected ? "This role is protected and cannot be edited" : "Edit"}
-              aria-disabled={isProtected}
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setAssigningPermissions(row.id)}
-              className="h-8 w-8"
-              aria-label={t("assignPermissionsTitle")}
-              title="Assign Permissions"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isProtected) {
-                  setDeletingRoleId(row.id);
+                title={isProtected ? "This role is protected and cannot be edited" : "Edit"}
+                aria-disabled={isProtected}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            
+            {permissions.canAssignPermissions && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setAssigningPermissions(row.id)}
+                className="h-8 w-8"
+                aria-label={t("assignPermissionsTitle")}
+                title="Assign Permissions"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            
+            {permissions.canDelete && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isProtected) {
+                    setDeletingRoleId(row.id);
+                  }
+                }}
+                disabled={isProtected}
+                className={isProtected 
+                  ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
+                  : "h-8 w-8 text-destructive hover:text-destructive"
                 }
-              }}
-              disabled={isProtected}
-              className={isProtected 
-                ? "h-8 w-8 cursor-not-allowed opacity-50 pointer-events-none" 
-                : "h-8 w-8 text-destructive hover:text-destructive"
-              }
-              title={isProtected ? "This role is protected and cannot be deleted" : "Delete"}
-              aria-disabled={isProtected}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+                title={isProtected ? "This role is protected and cannot be deleted" : "Delete"}
+                aria-disabled={isProtected}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         );
       },
@@ -198,10 +207,13 @@ export function RoleList() {
             className="pl-10 h-9"
           />
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          {t("addRole")}
-        </Button>
+        
+        {permissions.canCreate && (
+          <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            {t("addRole")}
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -220,46 +232,50 @@ export function RoleList() {
       />
 
       {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Create Role</DialogTitle>
-          </DialogHeader>
-          <RoleForm
-            onSubmit={async (data) => {
-              await handleCreate(data as CreateRoleFormData);
-            }}
-            onCancel={() => setIsCreateDialogOpen(false)}
-            isLoading={createRole.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+      {(permissions.canCreate || permissions.canUpdate) && (
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create Role</DialogTitle>
+            </DialogHeader>
+            <RoleForm
+              onSubmit={async (data) => {
+                await handleCreate(data as CreateRoleFormData);
+              }}
+              onCancel={() => setIsCreateDialogOpen(false)}
+              isLoading={createRole.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
-          </DialogHeader>
-          {roleForEdit ? (
-            <RoleForm
-              role={roleForEdit}
-              onSubmit={async (data) => {
-                await handleUpdate(data as UpdateRoleFormData);
-              }}
-              onCancel={() => setEditingRole(null)}
-              isLoading={updateRole.isPending}
-            />
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              Loading role data...
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {(permissions.canUpdate) && (
+        <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Role</DialogTitle>
+            </DialogHeader>
+            {roleForEdit ? (
+              <RoleForm
+                role={roleForEdit}
+                onSubmit={async (data) => {
+                  await handleUpdate(data as UpdateRoleFormData);
+                }}
+                onCancel={() => setEditingRole(null)}
+                isLoading={updateRole.isPending}
+              />
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                Loading role data...
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Assign Permissions Dialog */}
-      {assigningPermissions && (
+      {assigningPermissions && (permissions.canAssignPermissions) && (
         <AssignPermissionsDialog
           roleId={assigningPermissions}
           onClose={() => setAssigningPermissions(null)}
@@ -267,30 +283,32 @@ export function RoleList() {
       )}
 
       {/* Delete Dialog */}
-      <DeleteDialog
-        open={!!deletingRoleId}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeletingRoleId(null);
+      {permissions.canDelete && (
+        <DeleteDialog
+          open={!!deletingRoleId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingRoleId(null);
+            }
+          }}
+          onConfirm={async () => {
+            if (deletingRoleId) {
+              await handleDelete(deletingRoleId);
+              setDeletingRoleId(null);
+            }
+          }}
+          title={t("deleteTitle")}
+          description={
+            deletingRoleId
+              ? t("deleteDescriptionWithName", {
+                  name: roles.find((r) => r.id === deletingRoleId)?.name ?? t("deleteDescription"),
+                })
+              : t("deleteDescription")
           }
-        }}
-        onConfirm={async () => {
-          if (deletingRoleId) {
-            await handleDelete(deletingRoleId);
-            setDeletingRoleId(null);
-          }
-        }}
-        title={t("deleteTitle")}
-        description={
-          deletingRoleId
-            ? t("deleteDescriptionWithName", {
-                name: roles.find((r) => r.id === deletingRoleId)?.name ?? t("deleteDescription"),
-              })
-            : t("deleteDescription")
-        }
-        itemName="role"
-        isLoading={deleteRole.isPending}
-      />
+          itemName="role"
+          isLoading={deleteRole.isPending}
+        />
+      )}
     </div>
   );
 }

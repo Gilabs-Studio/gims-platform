@@ -8,10 +8,11 @@ import type {
 
 const QUERY_KEY = "payment-terms";
 
-export function usePaymentTerms(params?: PaymentTermsListParams) {
+export function usePaymentTerms(params?: PaymentTermsListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [QUERY_KEY, params],
     queryFn: () => paymentTermsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

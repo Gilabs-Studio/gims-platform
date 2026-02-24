@@ -9,6 +9,7 @@ type CreateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id" binding:"required"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerID        *string  `json:"customer_id"`
 	CustomerName      string   `json:"customer_name"`
 	CustomerContact   string   `json:"customer_contact"`
 	CustomerPhone     string   `json:"customer_phone"`
@@ -37,6 +38,7 @@ type UpdateSalesOrderRequest struct {
 	BusinessUnitID    *string  `json:"business_unit_id"`
 	BusinessTypeID    *string  `json:"business_type_id"`
 	DeliveryAreaID    *string  `json:"delivery_area_id"`
+	CustomerID        *string  `json:"customer_id"`
 	CustomerName      *string  `json:"customer_name"`
 	CustomerContact   *string  `json:"customer_contact"`
 	CustomerPhone     *string  `json:"customer_phone"`
@@ -60,6 +62,7 @@ type ListSalesOrdersRequest struct {
 	SalesRepID        string `form:"sales_rep_id"`
 	BusinessUnitID    string `form:"business_unit_id"`
 	SalesQuotationID  string `form:"sales_quotation_id"`
+	UnfulfilledOnly   bool   `form:"unfulfilled_only"`
 	SortBy            string `form:"sort_by"`
 	SortDir           string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
 }
@@ -72,7 +75,7 @@ type ListSalesOrderItemsRequest struct {
 
 // UpdateSalesOrderStatusRequest represents the request to update order status
 type UpdateSalesOrderStatusRequest struct {
-	Status            string  `json:"status" binding:"required,oneof=confirmed cancelled"`
+	Status            string  `json:"status" binding:"required,oneof=draft submitted approved rejected cancelled"`
 	CancellationReason *string `json:"cancellation_reason"`
 }
 
@@ -80,11 +83,20 @@ type UpdateSalesOrderStatusRequest struct {
 type ConvertFromQuotationRequest struct {
 	QuotationID       string  `json:"quotation_id" binding:"required,uuid"`
 	DeliveryAreaID    *string `json:"delivery_area_id"`
+	CustomerID        *string `json:"customer_id"`
 	CustomerName      string  `json:"customer_name"`
 	CustomerContact   string  `json:"customer_contact"`
 	CustomerPhone     string  `json:"customer_phone"`
 	CustomerEmail     string  `json:"customer_email"`
 	Notes             string  `json:"notes"`
+}
+
+// FulfillmentSummary represents the delivery fulfillment progress of a sales order
+type FulfillmentSummary struct {
+	TotalOrdered   float64 `json:"total_ordered"`
+	TotalDelivered float64 `json:"total_delivered"`
+	TotalPending   float64 `json:"total_pending"`
+	TotalRemaining float64 `json:"total_remaining"`
 }
 
 // SalesOrderResponse represents the response for a sales order
@@ -104,6 +116,8 @@ type SalesOrderResponse struct {
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
 	DeliveryAreaID      *string                       `json:"delivery_area_id"`
 	DeliveryArea        *AreaResponse                 `json:"delivery_area,omitempty"`
+	CustomerID          *string                       `json:"customer_id"`
+	Customer            *CustomerResponse             `json:"customer,omitempty"`
 	CustomerName        string                        `json:"customer_name"`
 	CustomerContact     string                        `json:"customer_contact"`
 	CustomerPhone       string                        `json:"customer_phone"`
@@ -118,6 +132,7 @@ type SalesOrderResponse struct {
 	ReservedStock       bool                          `json:"reserved_stock"`
 	Status              string                        `json:"status"`
 	Notes               string                        `json:"notes"`
+	Fulfillment         *FulfillmentSummary           `json:"fulfillment,omitempty"`
 	CreatedBy           *string                       `json:"created_by"`
 	ConfirmedBy         *string                       `json:"confirmed_by"`
 	ConfirmedAt         *string                       `json:"confirmed_at"`
@@ -125,24 +140,47 @@ type SalesOrderResponse struct {
 	CancelledAt         *string                       `json:"cancelled_at"`
 	CancellationReason  *string                       `json:"cancellation_reason"`
 	Items               []SalesOrderItemResponse       `json:"items,omitempty"`
+	DeliveryOrders      []DeliveryOrderSummary         `json:"delivery_orders,omitempty"`
+	CustomerInvoices    []CustomerInvoiceSummary       `json:"customer_invoices,omitempty"`
 	CreatedAt           string                        `json:"created_at"`
 	UpdatedAt           string                        `json:"updated_at"`
 }
 
+// DeliveryOrderSummary represents a minimal delivery order for SO status display
+type DeliveryOrderSummary struct {
+	ID                string  `json:"id"`
+	Code              string  `json:"code"`
+	Status            string  `json:"status"`
+	DeliveryDate      string  `json:"delivery_date"`
+	IsPartialDelivery bool    `json:"is_partial_delivery"`
+}
+
+// CustomerInvoiceSummary represents a minimal customer invoice for SO status display
+type CustomerInvoiceSummary struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Status       string  `json:"status"`
+	InvoiceDate  string  `json:"invoice_date"`
+	DueDate      string  `json:"due_date"`
+	Amount       float64 `json:"amount"`
+	PaidAmount   float64 `json:"paid_amount"`
+}
+
 // SalesOrderItemResponse represents an item in the order response
 type SalesOrderItemResponse struct {
-	ID               string            `json:"id"`
-	SalesOrderID     string            `json:"sales_order_id"`
-	ProductID        string            `json:"product_id"`
-	Product          *ProductResponse  `json:"product,omitempty"`
-	Quantity         float64           `json:"quantity"`
-	Price            float64           `json:"price"`
-	Discount         float64           `json:"discount"`
-	Subtotal         float64           `json:"subtotal"`
-	ReservedQuantity float64           `json:"reserved_quantity"`
-	DeliveredQuantity float64          `json:"delivered_quantity"`
-	CreatedAt        string            `json:"created_at"`
-	UpdatedAt        string            `json:"updated_at"`
+	ID                      string            `json:"id"`
+	SalesOrderID            string            `json:"sales_order_id"`
+	ProductID               string            `json:"product_id"`
+	Product                 *ProductResponse  `json:"product,omitempty"`
+	Quantity                float64           `json:"quantity"`
+	Price                   float64           `json:"price"`
+	Discount                float64           `json:"discount"`
+	Subtotal                float64           `json:"subtotal"`
+	ReservedQuantity        float64           `json:"reserved_quantity"`
+	DeliveredQuantity       float64           `json:"delivered_quantity"`
+	PendingDeliveryQuantity float64           `json:"pending_delivery_quantity"`
+	CreatedAt               string            `json:"created_at"`
+	UpdatedAt               string            `json:"updated_at"`
 }
 
 // AreaResponse represents area in response

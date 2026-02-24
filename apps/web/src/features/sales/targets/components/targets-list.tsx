@@ -78,10 +78,10 @@ export function TargetsList() {
     year: yearFilter !== "all" ? parseInt(yearFilter) : undefined,
   });
 
-  const canCreate = useUserPermission("yearly_target.create");
-  const canUpdate = useUserPermission("yearly_target.update");
-  const canDelete = useUserPermission("yearly_target.delete");
-  const canView = useUserPermission("yearly_target.read");
+  const canCreate = useUserPermission("sales_target.create");
+  const canUpdate = useUserPermission("sales_target.update");
+  const canDelete = useUserPermission("sales_target.delete");
+  const canView = useUserPermission("sales_target.read");
 
   const deleteTarget = useDeleteYearlyTarget();
   const updateStatus = useUpdateTargetStatus();
@@ -138,10 +138,10 @@ export function TargetsList() {
   };
   
   const getProgressColor = (percent: number) => {
-    if (percent >= 100) return "bg-purple-500"; 
-    if (percent >= 80) return "bg-green-500";   
-    if (percent >= 50) return "bg-yellow-500";  
-    return "bg-destructive";                    
+    if (percent >= 100) return "bg-purple-500";
+    if (percent >= 80) return "bg-green-500";
+    if (percent >= 50) return "bg-warning";
+    return "bg-destructive";
   };
 
   const getStatusBadge = (status: YearlyTargetStatus) => {
@@ -156,7 +156,7 @@ export function TargetsList() {
       case "submitted":
         return (
           <Badge variant="info" className="font-medium">
-            <Clock className="h-3 w-3 mr-1" />
+            <Send className="h-3 w-3 mr-1" />
             {t("status.submitted")}
           </Badge>
         );

@@ -1,10 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -18,21 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
-import { useCreatePaymentTerms, useUpdatePaymentTerms } from "../hooks/use-payment-terms";
+import { usePaymentTermsForm } from "../hooks/use-payment-terms-form";
 import type { PaymentTerms } from "../types";
 
-const paymentTermsSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100),
-  description: z.string().max(500).optional(),
-  days: z.number().min(0),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof paymentTermsSchema>;
-
-interface PaymentTermsDialogProps {
+export interface PaymentTermsDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly editingItem?: PaymentTerms | null;
@@ -43,67 +28,20 @@ export function PaymentTermsDialog({
   onOpenChange,
   editingItem,
 }: PaymentTermsDialogProps) {
-  const t = useTranslations("paymentTerm");
-  const tCommon = useTranslations("common");
-
-  const createMutation = useCreatePaymentTerms();
-  const updateMutation = useUpdatePaymentTerms();
+  const { form, t, tCommon, isLoading, onSubmit } = usePaymentTermsForm({
+    open,
+    onOpenChange,
+    editingItem,
+  });
 
   const {
     register,
-    handleSubmit,
-    reset,
     setValue,
     watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(paymentTermsSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      days: 0,
-      is_active: true,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (editingItem) {
-      reset({
-        name: editingItem.name,
-        description: editingItem.description ?? "",
-        days: editingItem.days,
-        is_active: editingItem.is_active,
-      });
-    } else {
-      reset({
-        name: "",
-        description: "",
-        days: 0,
-        is_active: true,
-      });
-    }
-  }, [editingItem, reset, open]);
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      if (editingItem) {
-        await updateMutation.mutateAsync({
-          id: editingItem.id,
-          data,
-        });
-        toast.success(t("updated"));
-      } else {
-        await createMutation.mutateAsync(data);
-        toast.success(t("created"));
-      }
-      onOpenChange(false);
-      reset();
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const isLoading = createMutation.isPending || updateMutation.isPending;
   const isActive = watch("is_active");
 
   return (
@@ -114,7 +52,7 @@ export function PaymentTermsDialog({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input

@@ -44,6 +44,7 @@ func (r *salesOrderRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *salesOrderRepository) FindByID(ctx context.Context, id string) (*models.SalesOrder, error) {
 	var order models.SalesOrder
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("SalesQuotation").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
@@ -51,6 +52,12 @@ func (r *salesOrderRepository) FindByID(ctx context.Context, id string) (*models
 		Preload("BusinessType").
 		Preload("DeliveryArea").
 		Preload("Items.Product").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Where("id = ?", id).
 		First(&order).Error
 	if err != nil {
@@ -62,6 +69,7 @@ func (r *salesOrderRepository) FindByID(ctx context.Context, id string) (*models
 func (r *salesOrderRepository) FindByCode(ctx context.Context, code string) (*models.SalesOrder, error) {
 	var order models.SalesOrder
 	err := r.getDB(ctx).
+		Preload("Customer").
 		Preload("SalesQuotation").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
@@ -69,6 +77,12 @@ func (r *salesOrderRepository) FindByCode(ctx context.Context, code string) (*mo
 		Preload("BusinessType").
 		Preload("DeliveryArea").
 		Preload("Items.Product").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Where("code = ?", code).
 		First(&order).Error
 	if err != nil {
@@ -124,6 +138,22 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		query = query.Where("sales_quotation_id = ?", req.SalesQuotationID)
 	}
 
+	// Apply unfulfilled_only filter
+	// Exclude SOs where ALL items have qty fully covered by delivered_quantity + pending DO allocations
+	if req.UnfulfilledOnly {
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM sales_order_items soi
+			WHERE soi.sales_order_id = sales_orders.id
+			AND soi.quantity > soi.delivered_quantity + COALESCE((
+				SELECT SUM(doi.quantity) FROM delivery_order_items doi
+				JOIN delivery_orders dord ON dord.id = doi.delivery_order_id
+				WHERE doi.sales_order_item_id = soi.id
+				AND dord.status != 'cancelled'
+				AND dord.deleted_at IS NULL
+				AND doi.deleted_at IS NULL
+			), 0)
+		)`)}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -156,12 +186,20 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	// Execute query with preloads
 	err := query.
+		Preload("Customer").
 		Preload("SalesQuotation").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
 		Preload("BusinessUnit").
 		Preload("BusinessType").
 		Preload("DeliveryArea").
+		Preload("Items").
+		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
+		}).
+		Preload("CustomerInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "sales_order_id", "code", "status", "invoice_date", "due_date", "amount", "paid_amount").Order("invoice_date desc")
+		}).
 		Limit(perPage).
 		Offset(offset).
 		Find(&orders).Error
@@ -298,7 +336,7 @@ func (r *salesOrderRepository) UpdateStatus(ctx context.Context, id string, stat
 	}
 
 	switch status {
-	case models.SalesOrderStatusConfirmed:
+	case models.SalesOrderStatusApproved:
 		updates["confirmed_by"] = userID
 		updates["confirmed_at"] = database.GetDB(ctx, r.db).NowFunc()
 	case models.SalesOrderStatusCancelled:

@@ -13,11 +13,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterRoutes registers all HRD routes
+// HRDDeps holds exported HRD usecases for cross-module consumption
+type HRDDeps struct {
+	HolidayUC      usecase.HolidayUsecase
+	LeaveRequestUC usecase.LeaveRequestUsecase
+	AttendanceUC   usecase.AttendanceRecordUsecase
+}
+
+// RegisterRoutes registers all HRD routes and returns shared dependencies
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}) {
+}) *HRDDeps {
 	// Initialize repositories
 	workScheduleRepo := repositories.NewWorkScheduleRepository(db)
 	holidayRepo := repositories.NewHolidayRepository(db)
@@ -74,4 +81,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.SetupEvaluationCriteriaRoutes(hrdGroup, evaluationCriteriaHandler)
 	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
 	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler)
+
+	return &HRDDeps{
+		HolidayUC:      holidayUC,
+		LeaveRequestUC: leaveRequestUC,
+		AttendanceUC:   attendanceUC,
+	}
 }

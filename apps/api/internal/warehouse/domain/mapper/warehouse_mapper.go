@@ -27,12 +27,26 @@ func (m *WarehouseMapper) ToResponse(warehouse *models.Warehouse) *dto.Warehouse
 		Description: warehouse.Description,
 		Capacity:    warehouse.Capacity,
 		Address:     warehouse.Address,
+		ProvinceID:  warehouse.ProvinceID,
+		CityID:      warehouse.CityID,
+		DistrictID:  warehouse.DistrictID,
 		VillageID:   warehouse.VillageID,
 		Latitude:    warehouse.Latitude,
 		Longitude:   warehouse.Longitude,
 		IsActive:    warehouse.IsActive,
 		CreatedAt:   warehouse.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   warehouse.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Map other geographic relations if loaded directly
+	if warehouse.Province != nil {
+		response.Province = &geographicDto.ProvinceResponse{ID: warehouse.Province.ID, Name: warehouse.Province.Name}
+	}
+	if warehouse.City != nil {
+		response.City = &geographicDto.CityResponse{ID: warehouse.City.ID, Name: warehouse.City.Name}
+	}
+	if warehouse.District != nil {
+		response.District = &geographicDto.DistrictResponse{ID: warehouse.District.ID, Name: warehouse.District.Name}
 	}
 
 	// Map nested village if present
@@ -79,14 +93,17 @@ func (m *WarehouseMapper) ToResponseList(warehouses []*models.Warehouse) []*dto.
 	return responses
 }
 
-// FromCreateRequest converts CreateWarehouseRequest to Warehouse model
+// FromCreateRequest converts CreateWarehouseRequest to Warehouse model.
+// Code is intentionally omitted here — the usecase assigns the auto-generated value.
 func (m *WarehouseMapper) FromCreateRequest(req dto.CreateWarehouseRequest) *models.Warehouse {
 	warehouse := &models.Warehouse{
-		Code:        req.Code,
 		Name:        req.Name,
 		Description: req.Description,
 		Capacity:    req.Capacity,
 		Address:     req.Address,
+		ProvinceID:  req.ProvinceID,
+		CityID:      req.CityID,
+		DistrictID:  req.DistrictID,
 		VillageID:   req.VillageID,
 		Latitude:    req.Latitude,
 		Longitude:   req.Longitude,
@@ -100,8 +117,16 @@ func (m *WarehouseMapper) FromCreateRequest(req dto.CreateWarehouseRequest) *mod
 	return warehouse
 }
 
-// ApplyUpdateRequest applies UpdateWarehouseRequest to existing Warehouse model
+// ApplyUpdateRequest applies UpdateWarehouseRequest to existing Warehouse model.
+// Loaded geographic associations are explicitly nilled out so GORM's Save() writes the
+// updated FK columns instead of reverting them to the preloaded association PKs.
 func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dto.UpdateWarehouseRequest) {
+	// Nil out preloaded associations to prevent GORM from reverting FK columns
+	warehouse.Province = nil
+	warehouse.City = nil
+	warehouse.District = nil
+	warehouse.Village = nil
+
 	if req.Code != nil {
 		warehouse.Code = *req.Code
 	}
@@ -117,9 +142,15 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 	if req.Address != nil {
 		warehouse.Address = *req.Address
 	}
-	if req.VillageID != nil {
-		warehouse.VillageID = req.VillageID
-	}
+
+	// Geographic FK fields are always applied directly.
+	// nil means the client sent `null` (or omitted) → clear the DB column.
+	// non-nil means the client sent a UUID → write it.
+	warehouse.ProvinceID = req.ProvinceID
+	warehouse.CityID = req.CityID
+	warehouse.DistrictID = req.DistrictID
+	warehouse.VillageID = req.VillageID
+
 	if req.Latitude != nil {
 		warehouse.Latitude = req.Latitude
 	}

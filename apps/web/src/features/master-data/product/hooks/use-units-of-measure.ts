@@ -12,11 +12,12 @@ export const unitOfMeasureKeys = {
   detail: (id: string) => [...unitOfMeasureKeys.details(), id] as const,
 };
 
-export function useUnitsOfMeasure(params?: LookupListParams) {
+export function useUnitsOfMeasure(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: unitOfMeasureKeys.list(params),
     queryFn: () => unitOfMeasureService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

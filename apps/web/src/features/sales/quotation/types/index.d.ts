@@ -36,6 +36,17 @@ export interface Product {
   image_url?: string;
 }
 
+// Brief customer from master data (embedded in sales responses)
+export interface CustomerBrief {
+  id: string;
+  code: string;
+  name: string;
+  customer_type_id?: string;
+  address?: string;
+  email?: string;
+  contact_person?: string;
+}
+
 export interface SalesProspect {
   id: string;
   company?: {
@@ -63,6 +74,8 @@ export interface SalesQuotation {
   code: string;
   quotation_date: string;
   valid_until?: string;
+  customer_id?: string;
+  customer?: CustomerBrief;
   payment_terms_id?: string;
   payment_terms?: PaymentTerms;
   sales_rep_id?: string;
@@ -171,6 +184,7 @@ export interface SalesQuotationItemsListResponse {
 export interface CreateSalesQuotationData {
   quotation_date: string;
   valid_until?: string;
+  customer_id?: string;
   payment_terms_id: string;
   sales_rep_id: string;
   business_unit_id: string;
@@ -197,6 +211,7 @@ export interface CreateSalesQuotationItemData {
 export interface UpdateSalesQuotationData {
   quotation_date?: string;
   valid_until?: string;
+  customer_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;

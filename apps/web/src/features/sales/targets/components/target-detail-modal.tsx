@@ -48,10 +48,10 @@ export function TargetDetailModal({
   // Fetch full detail when modal opens
   const { data: detailData, isLoading } = useYearlyTarget(target?.id ?? "");
 
-  const canEdit = useUserPermission("yearly_target.update");
-  const canDelete = useUserPermission("yearly_target.delete");
-  const canApprove = useUserPermission("yearly_target.approve");
-  const canReject = useUserPermission("yearly_target.reject");
+  const canEdit = useUserPermission("sales_target.update");
+  const canDelete = useUserPermission("sales_target.delete");
+  const canApprove = useUserPermission("sales_target.approve");
+  const canReject = useUserPermission("sales_target.reject");
 
   if (!target) return null;
 
@@ -296,7 +296,7 @@ export function TargetDetailModal({
                                    <p className={cn(
                                        "text-xl font-bold",
                                        displayTarget.achievement_percent >= 100 ? "text-green-600" :
-                                       displayTarget.achievement_percent >= 80 ? "text-yellow-600" : "text-red-600"
+                                           displayTarget.achievement_percent >= 80 ? "text-warning" : "text-red-600"
                                    )}>
                                        {displayTarget.achievement_percent.toFixed(2)}%
                                    </p>
@@ -310,7 +310,7 @@ export function TargetDetailModal({
                                className={cn(
                                    "h-full rounded-full transition-all duration-500",
                                     displayTarget.achievement_percent >= 100 ? "bg-green-500" :
-                                    displayTarget.achievement_percent >= 80 ? "bg-yellow-500" : "bg-red-500"
+                                    displayTarget.achievement_percent >= 80 ? "bg-warning" : "bg-red-500"
                                )}
                                style={{ width: `${Math.min(100, displayTarget.achievement_percent)}%` }}
                            />

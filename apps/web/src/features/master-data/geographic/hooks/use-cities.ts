@@ -20,10 +20,11 @@ export const cityKeys = {
 };
 
 // List cities hook with province filter
-export function useCities(params?: ListCitiesParams) {
+export function useCities(params?: ListCitiesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: cityKeys.list(params),
     queryFn: () => cityService.list(params),
+    ...options,
   });
 }
 

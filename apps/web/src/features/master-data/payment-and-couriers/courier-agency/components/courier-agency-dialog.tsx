@@ -1,10 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -18,23 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
-import { useCreateCourierAgency, useUpdateCourierAgency } from "../hooks/use-courier-agency";
+import { useCourierAgencyForm } from "../hooks/use-courier-agency-form";
 import type { CourierAgency } from "../types";
 
-const courierAgencySchema = z.object({
-  name: z.string().min(2).max(100),
-  description: z.string().max(500).optional(),
-  phone: z.string().max(20).optional(),
-  address: z.string().max(500).optional(),
-  tracking_url: z.string().max(255).optional(),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof courierAgencySchema>;
-
-interface CourierAgencyDialogProps {
+export interface CourierAgencyDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly editingItem?: CourierAgency | null;
@@ -45,70 +28,20 @@ export function CourierAgencyDialog({
   onOpenChange,
   editingItem,
 }: CourierAgencyDialogProps) {
-  const t = useTranslations("courierAgency");
-  const tCommon = useTranslations("common");
-
-  const createMutation = useCreateCourierAgency();
-  const updateMutation = useUpdateCourierAgency();
+  const { form, t, tCommon, isLoading, onSubmit } = useCourierAgencyForm({
+    open,
+    onOpenChange,
+    editingItem,
+  });
 
   const {
     register,
-    handleSubmit,
-    reset,
     setValue,
     watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(courierAgencySchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      phone: "",
-      address: "",
-      tracking_url: "",
-      is_active: true,
-    },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (editingItem) {
-      reset({
-        name: editingItem.name,
-        description: editingItem.description ?? "",
-        phone: editingItem.phone ?? "",
-        address: editingItem.address ?? "",
-        tracking_url: editingItem.tracking_url ?? "",
-        is_active: editingItem.is_active,
-      });
-    } else {
-      reset({
-        name: "",
-        description: "",
-        phone: "",
-        address: "",
-        tracking_url: "",
-        is_active: true,
-      });
-    }
-  }, [editingItem, reset, open]);
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      if (editingItem) {
-        await updateMutation.mutateAsync({ id: editingItem.id, data });
-        toast.success(t("updated"));
-      } else {
-        await createMutation.mutateAsync(data);
-        toast.success(t("created"));
-      }
-      onOpenChange(false);
-      reset();
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const isLoading = createMutation.isPending || updateMutation.isPending;
   const isActive = watch("is_active");
   const trackingUrl = watch("tracking_url");
 
@@ -120,7 +53,7 @@ export function CourierAgencyDialog({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
             <Field>
               <FieldLabel>{t("form.name")}</FieldLabel>

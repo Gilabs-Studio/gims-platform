@@ -12,11 +12,12 @@ export const packagingKeys = {
   detail: (id: string) => [...packagingKeys.details(), id] as const,
 };
 
-export function usePackagings(params?: LookupListParams) {
+export function usePackagings(params?: LookupListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: packagingKeys.list(params),
     queryFn: () => packagingService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

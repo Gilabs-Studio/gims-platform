@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { courierAgencyService } from "../services/courier-agency-service";
 import type {
   CourierAgencyListParams,
@@ -8,10 +8,14 @@ import type {
 
 const QUERY_KEY = "courier-agencies";
 
-export function useCourierAgencies(params?: CourierAgencyListParams) {
+export function useCourierAgencies(
+  params?: CourierAgencyListParams,
+  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: [QUERY_KEY, params],
     queryFn: () => courierAgencyService.list(params),
+    ...options,
   });
 }
 

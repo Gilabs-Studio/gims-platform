@@ -20,11 +20,12 @@ export const supplierTypeKeys = {
 };
 
 // List hook
-export function useSupplierTypes(params?: ListParams) {
+export function useSupplierTypes(params?: ListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: supplierTypeKeys.list(params),
     queryFn: () => supplierTypeService.list(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: options?.enabled ?? true,
   });
 }
 

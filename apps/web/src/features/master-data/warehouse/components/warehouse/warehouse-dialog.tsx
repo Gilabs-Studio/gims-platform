@@ -19,21 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ButtonLoading } from "@/components/loading";
-import { toast } from "sonner";
-
-import { useCreateWarehouse, useUpdateWarehouse } from "../../hooks/use-warehouses";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { sortOptions } from "@/lib/utils";
+import { useWarehouseForm } from "../../hooks/use-warehouse-form";
 import type { Warehouse } from "../../types";
-
-const formSchema = z.object({
-  code: z.string().min(2, "Code must be at least 2 characters").max(50),
-  name: z.string().min(2, "Name must be at least 2 characters").max(100),
-  description: z.string().max(500).optional(),
-  capacity: z.number().min(0).optional().nullable(),
-  address: z.string().max(500).optional(),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof formSchema>;
 
 interface WarehouseDialogProps {
   readonly open: boolean;
@@ -46,84 +41,26 @@ export function WarehouseDialog({
   onOpenChange,
   editingItem,
 }: WarehouseDialogProps) {
-  const t = useTranslations("warehouse");
-  // tCommon alias
-  const tCommon = useTranslations("warehouse");
-  const isEditing = !!editingItem;
-
-  const createWarehouse = useCreateWarehouse();
-  const updateWarehouse = useUpdateWarehouse();
+  const {
+    form,
+    t,
+    isEditing,
+    isLoading,
+    onSubmit,
+    actions,
+    data,
+  } = useWarehouseForm({ open, onOpenChange, editingItem });
 
   const {
     register,
-    handleSubmit,
-    reset,
     control,
-    watch,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      code: "",
-      name: "",
-      description: "",
-      capacity: null,
-      address: "",
-      is_active: true,
-    },
-  });
+  } = form;
 
   const isActive = watch("is_active");
 
-  useEffect(() => {
-    if (editingItem) {
-      reset({
-        code: editingItem.code,
-        name: editingItem.name,
-        description: editingItem.description ?? "",
-        capacity: editingItem.capacity ?? null,
-        address: editingItem.address ?? "",
-        is_active: editingItem.is_active,
-      });
-    } else {
-      reset({
-        code: "",
-        name: "",
-        description: "",
-        capacity: null,
-        address: "",
-        is_active: true,
-      });
-    }
-  }, [editingItem, reset, open]);
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      const payload = {
-        code: data.code,
-        name: data.name,
-        description: data.description || undefined,
-        capacity: data.capacity ?? undefined,
-        address: data.address || undefined,
-        is_active: data.is_active,
-      };
-
-      if (isEditing && editingItem) {
-        await updateWarehouse.mutateAsync({ id: editingItem.id, data: payload });
-        toast.success(t("warehouse.updateSuccess"));
-      } else {
-        await createWarehouse.mutateAsync(payload);
-        toast.success(t("warehouse.createSuccess"));
-      }
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Failed to save warehouse:", error);
-      toast.error(t("common.error_update"));
-    }
-  };
-
-  const isLoading = createWarehouse.isPending || updateWarehouse.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,7 +71,7 @@ export function WarehouseDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Field orientation="vertical">
               <FieldLabel>{t("warehouse.form.code")} *</FieldLabel>
@@ -181,6 +118,12 @@ export function WarehouseDialog({
                 )}
               />
             </Field>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-sm font-medium border-b pb-2">
+              {t("warehouse.sections.location", { fallback: "Location" })}
+            </h3>
 
             <Field orientation="vertical">
               <FieldLabel>{t("warehouse.form.address")}</FieldLabel>
@@ -189,6 +132,87 @@ export function WarehouseDialog({
                 {...register("address")}
               />
             </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field orientation="vertical">
+                <FieldLabel>{t("warehouse.form.province")}</FieldLabel>
+                <Select
+                  value={String(watch("province_id") || "")}
+                  onValueChange={actions.handleProvinceChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions(data.provinces, (p) => p.name).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("warehouse.form.city")}</FieldLabel>
+                <Select
+                  value={String(watch("city_id") || "")}
+                  onValueChange={actions.handleCityChange}
+                  disabled={!watch("province_id")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select City" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions(data.cities, (c) => c.name).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("warehouse.form.district")}</FieldLabel>
+                <Select
+                  value={String(watch("district_id") || "")}
+                  onValueChange={actions.handleDistrictChange}
+                  disabled={!watch("city_id")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select District" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions(data.districts, (d) => d.name).map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("warehouse.form.village")}</FieldLabel>
+                <Select
+                  value={String(watch("village_id") || "")}
+                  onValueChange={(val) => setValue("village_id", val)}
+                  disabled={!watch("district_id")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Village" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions(data.villages, (v) => v.name).map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
           </div>
 
           <Field

@@ -131,6 +131,12 @@ export interface Supplier {
   supplier_type_id?: string;
   supplier_type?: SupplierType;
   address?: string;
+  province_id?: string;
+  province?: { id: string; name: string };
+  city_id?: string;
+  city?: { id: string; name: string };
+  district_id?: string;
+  district?: { id: string; name: string };
   village_id?: string;
   village?: Village;
   email?: string;
@@ -153,10 +159,12 @@ export interface Supplier {
 }
 
 export interface CreateSupplierData {
-  code: string;
   name: string;
   supplier_type_id?: string;
   address?: string;
+  province_id?: string;
+  city_id?: string;
+  district_id?: string;
   village_id?: string;
   email?: string;
   website?: string;
@@ -171,11 +179,13 @@ export interface CreateSupplierData {
 }
 
 export interface UpdateSupplierData {
-  code?: string;
   name?: string;
-  supplier_type_id?: string;
+  supplier_type_id?: string | null;
   address?: string;
-  village_id?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_id?: string | null;
   email?: string;
   website?: string;
   npwp?: string;

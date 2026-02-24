@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -12,8 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sortOptions } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
-import { useCreateVillage, useUpdateVillage } from "../../hooks/use-villages";
-import { getVillageSchema, type CreateVillageFormData } from "../../schemas/geographic.schema";
+import { useVillageForm } from "../../hooks/use-village-form";
 import type { Village, District } from "../../types";
 
 export interface VillageFormProps {
@@ -24,45 +19,15 @@ export interface VillageFormProps {
 }
 
 export function VillageForm({ open, onClose, village, districts }: VillageFormProps) {
-  const t = useTranslations("geographic");
-  const isEditing = !!village;
-  const createVillage = useCreateVillage();
-  const updateVillage = useUpdateVillage();
+  const { form, t, isEditing, isLoading, onSubmit } = useVillageForm({ open, onClose, village });
 
   const {
     register,
-    handleSubmit,
     setValue,
     watch,
-    reset,
     formState: { errors },
-  } = useForm<CreateVillageFormData>({
-    resolver: zodResolver(getVillageSchema(t)),
-    defaultValues: { name: "", code: "", district_id: "", postal_code: "", type: "village", is_active: true },
-  });
+  } = form;
 
-  useEffect(() => {
-    if (village) {
-      reset({ name: village.name, code: village.code, district_id: village.district_id, postal_code: village.postal_code ?? "", type: village.type, is_active: village.is_active });
-    } else {
-      reset({ name: "", code: "", district_id: "", postal_code: "", type: "village", is_active: true });
-    }
-  }, [village, reset]);
-
-  const onSubmit = async (data: CreateVillageFormData) => {
-    try {
-      if (isEditing && village) {
-        await updateVillage.mutateAsync({ id: village.id, data });
-      } else {
-        await createVillage.mutateAsync(data);
-      }
-      onClose();
-    } catch (error) {
-      console.error("Failed to save village:", error);
-    }
-  };
-
-  const isLoading = createVillage.isPending || updateVillage.isPending;
   const districtId = watch("district_id");
   const type = watch("type");
   const isActive = watch("is_active");
@@ -73,7 +38,7 @@ export function VillageForm({ open, onClose, village, districts }: VillageFormPr
         <DialogHeader>
           <DialogTitle>{isEditing ? t("village.edit") : t("village.add")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <Field orientation="vertical">
             <FieldLabel>{t("district.title")}</FieldLabel>
             <Select onValueChange={(val) => setValue("district_id", val)} value={districtId}>

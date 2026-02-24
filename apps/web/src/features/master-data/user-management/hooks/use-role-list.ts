@@ -10,6 +10,7 @@ import {
   useRole,
 } from "./use-roles";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useHasPermission } from "./use-has-permission";
 import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.schema";
 
 export function useRoleList() {
@@ -18,6 +19,12 @@ export function useRoleList() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
+
+  // Permission checks
+  const canCreate = useHasPermission("role.create");
+  const canUpdate = useHasPermission("role.update");
+  const canDelete = useHasPermission("role.delete");
+  const canAssignPermissions = useHasPermission("role.assign_permissions");
 
   const { data, isLoading } = useRoles({ search: debouncedSearch });
   const deleteRole = useDeleteRole();
@@ -81,5 +88,12 @@ export function useRoleList() {
     deleteRole,
     createRole,
     updateRole,
+    // Permissions
+    permissions: {
+      canCreate,
+      canUpdate,
+      canDelete,
+      canAssignPermissions,
+    }
   };
 }

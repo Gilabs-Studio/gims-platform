@@ -105,6 +105,7 @@ func SeedSalesEstimation() error {
 		otherCost       float64
 		discount        float64
 		notes           string
+		customerID      string // FK to master data customer
 		customerName    string
 		customerContact string
 		customerPhone   string
@@ -121,6 +122,7 @@ func SeedSalesEstimation() error {
 			otherCost:       25000,
 			discount:        100000,
 			notes:           "Approved, ready for quotation conversion",
+			customerID:      Customer1ID,
 			customerName:    "PT Apotek Sehat Sentosa",
 			customerContact: "Ibu Sri Mulyani",
 			customerPhone:   "+62 21-5551234",
@@ -137,6 +139,7 @@ func SeedSalesEstimation() error {
 			otherCost:       50000,
 			discount:        200000,
 			notes:           "Approved by management, high priority",
+			customerID:      Customer2ID,
 			customerName:    "RS Harapan Kita Jakarta",
 			customerContact: "dr. Bambang Hartono",
 			customerPhone:   "+62 21-5559876",
@@ -153,6 +156,7 @@ func SeedSalesEstimation() error {
 			otherCost:       20000,
 			discount:        150000,
 			notes:           "Approved for quotation, regular client",
+			customerID:      Customer3ID,
 			customerName:    "Klinik Pratama Medika",
 			customerContact: "dr. Dewi Sartika",
 			customerPhone:   "+62 22-5554321",
@@ -169,6 +173,7 @@ func SeedSalesEstimation() error {
 			otherCost:       75000,
 			discount:        500000,
 			notes:           "High value deal, approved for quotation",
+			customerID:      Customer4ID,
 			customerName:    "RS Siloam Hospitals Surabaya",
 			customerContact: "Ibu Retno Widiastuti",
 			customerPhone:   "+62 31-5558765",
@@ -185,6 +190,7 @@ func SeedSalesEstimation() error {
 			otherCost:       0,
 			discount:        0,
 			notes:           "Initial estimation for new prospect, pending review",
+			customerID:      Customer5ID,
 			customerName:    "Apotek Kimia Farma Cabang Bekasi",
 			customerContact: "Bapak Hendra Wijaya",
 			customerPhone:   "+62 21-5552345",
@@ -201,6 +207,7 @@ func SeedSalesEstimation() error {
 			otherCost:       0,
 			discount:        50000,
 			notes:           "Submitted for approval, awaiting management review",
+			customerID:      Customer6ID,
 			customerName:    "Puskesmas Cempaka Putih",
 			customerContact: "dr. Siti Nurhaliza",
 			customerPhone:   "+62 21-5556543",
@@ -261,11 +268,13 @@ func SeedSalesEstimation() error {
 			eData.discount,
 		)
 
-		// Create estimation
+		// Create estimation with customer master data FK
+		customerID := eData.customerID
 		estimation := salesModels.SalesEstimation{
 			Code:              code,
 			EstimationDate:    estimationDate,
 			ExpectedCloseDate: &expectedClose,
+			CustomerID:        &customerID,
 			CustomerName:      eData.customerName,
 			CustomerEmail:     eData.customerEmail,
 			CustomerPhone:     eData.customerPhone,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { companyService } from "../services/organization-service";
 import type {
   ListCompaniesParams,
@@ -20,18 +20,27 @@ export const companyKeys = {
   detail: (id: string) => [...companyKeys.details(), id] as const,
 };
 
-export function useCompanies(params?: ListCompaniesParams) {
-  return useQuery({
+export function useCompanies(
+  params?: ListCompaniesParams,
+  options?: Omit<UseQueryOptions<OrganizationListResponse<Company>, Error, OrganizationListResponse<Company>>, "queryKey" | "queryFn">
+) {
+  return useQuery<OrganizationListResponse<Company>, Error>({
     queryKey: companyKeys.list(params),
     queryFn: () => companyService.list(params),
+    ...options,
   });
 }
 
-export function useCompany(id: string) {
+export function useCompany(
+  id: string,
+  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: companyKeys.detail(id),
     queryFn: () => companyService.getById(id),
     enabled: !!id,
+    staleTime: 0,
+    ...options,
   });
 }
 
@@ -52,25 +61,11 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCompanyData }) =>
       companyService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: companyKeys.lists() });
-      queryClient.setQueriesData(
-        { queryKey: companyKeys.lists() },
-        (old: OrganizationListResponse<Company> | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((item: Company) =>
-              item.id === id ? { ...item, ...data } : item
-            ),
-          };
-        }
-      );
-    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: companyKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: companyKeys.lists() });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.lists() });

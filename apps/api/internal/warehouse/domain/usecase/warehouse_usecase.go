@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/gilabs/gims/api/internal/warehouse/domain/dto"
@@ -32,19 +33,18 @@ func NewWarehouseUsecase(repo repositories.WarehouseRepository) WarehouseUsecase
 	}
 }
 
-// Create creates a new warehouse
+// Create creates a new warehouse with an auto-generated code (WH-XXXXX format).
 func (uc *warehouseUsecase) Create(ctx context.Context, req dto.CreateWarehouseRequest) (*dto.WarehouseResponse, error) {
-	// Check if code already exists
-	existing, err := uc.repo.GetByCode(ctx, req.Code)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
-	}
-	if existing != nil {
-		return nil, errors.New("warehouse code already exists")
+	// Auto-generate a sequential code so clients never need to supply one
+	code, err := uc.repo.GetNextCode(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate warehouse code: %w", err)
 	}
 
-	// Create warehouse
+	// Build the model and assign the generated code
 	warehouse := uc.mapper.FromCreateRequest(req)
+	warehouse.Code = code
+
 	if err := uc.repo.Create(ctx, warehouse); err != nil {
 		return nil, err
 	}

@@ -56,6 +56,15 @@ export const navigationConfig: NavItem[] = [
         ],
       },
       {
+        name: "Customer",
+        url: "/master-data/customer",
+        icon: "user",
+        children: [
+          { name: "Customers", url: "/master-data/customers", icon: "user-check", permission: "customer.read" },
+          { name: "Customer Types", url: "/master-data/customer-types", icon: "tag", permission: "customer_type.read" },
+        ],
+      },
+      {
         name: "Product",
         url: "/master-data/product",
         icon: "package",
@@ -151,6 +160,36 @@ export const navigationConfig: NavItem[] = [
       { name: "Recruitment", url: "/hrd/recruitment", icon: "user-plus", permission: "recruitment.read" },
       { name: "Work Schedule", url: "/hrd/work-schedule", icon: "calendar-check", permission: "work_schedule.read" },
       { name: "Holidays", url: "/hrd/holidays", icon: "calendar", permission: "holiday.read" },
+    ],
+  },
+  {
+    name: "CRM",
+    icon: "handshake",
+    url: "/crm",
+    children: [
+      { name: "Leads", url: "/crm/leads", icon: "users", permission: "crm_lead.read" },
+      { name: "Pipeline", url: "/crm/pipeline", icon: "kanban", permission: "crm_deal.read" },
+      { name: "Activities", url: "/crm/activities", icon: "activity", permission: "crm_activity.read" },
+      { name: "Tasks", url: "/crm/tasks", icon: "check-square", permission: "crm_task.read" },
+      { name: "Schedules", url: "/crm/schedules", icon: "calendar", permission: "crm_schedule.read" },
+      { name: "Visit Reports", url: "/crm/visits", icon: "map-pin", permission: "crm_visit.read" },
+      { name: "Area Mapping", url: "/crm/area-mapping", icon: "map", permission: "crm_area_mapping.read" },
+      { name: "Route Optimization", url: "/crm/routes", icon: "route", permission: "crm_route.read" },
+      { name: "Sales Performance", url: "/crm/sales-performance", icon: "bar-chart-3", permission: "crm_sales_performance.read" },
+      { name: "Product Analytics", url: "/crm/product-analytics", icon: "pie-chart", permission: "crm_product_analytics.read" },
+      { name: "CRM Targets", url: "/crm/targets", icon: "target", permission: "crm_target.read" },
+      {
+        name: "CRM Settings",
+        url: "/crm/settings",
+        icon: "settings",
+        children: [
+          { name: "Pipeline Stages", url: "/crm/settings/pipeline-stages", icon: "layers", permission: "crm_pipeline_stage.read" },
+          { name: "Lead Sources", url: "/crm/settings/lead-sources", icon: "funnel", permission: "crm_lead_source.read" },
+          { name: "Lead Statuses", url: "/crm/settings/lead-statuses", icon: "tag", permission: "crm_lead_status.read" },
+          { name: "Contact Roles", url: "/crm/settings/contact-roles", icon: "user-cog", permission: "crm_contact_role.read" },
+          { name: "Activity Types", url: "/crm/settings/activity-types", icon: "zap", permission: "crm_activity_type.read" },
+        ],
+      },
     ],
   },
   {

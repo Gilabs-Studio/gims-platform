@@ -8,19 +8,28 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Send, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Send, CheckCircle2, XCircle, FileText, Printer } from "lucide-react";
 import { useQuotations, useDeleteQuotation, useUpdateQuotationStatus } from "../hooks/use-quotations";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { QuotationForm } from "./quotation-form";
 import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
+import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { formatCurrency } from "@/lib/utils";
 
+import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
+import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import { useConvertQuotationToOrder } from "@/features/sales/order/hooks/use-orders";
+import type { SalesOrder } from "@/features/sales/order/types";
 
 export function QuotationList() {
   const t = useTranslations("quotation");
@@ -33,6 +42,8 @@ export function QuotationList() {
   const [editingQuotation, setEditingQuotation] = useState<SalesQuotation | null>(null);
   const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [printingQuotationId, setPrintingQuotationId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuotations({
     page,
@@ -45,11 +56,24 @@ export function QuotationList() {
   const canUpdate = useUserPermission("sales_quotation.update");
   const canDelete = useUserPermission("sales_quotation.delete");
   const canView = useUserPermission("sales_quotation.read");
+  const canViewEmployee = useUserPermission("employee.read");
+  const canApprove = useUserPermission("sales_quotation.approve");
+  const canPrint = useUserPermission("sales_quotation.print");
+
+  // Permission + scope for viewing linked Sales Orders from the Converted badge
+  const hasSalesOrderRead = useUserPermission("sales_order.read");
+  const salesOrderScope = usePermissionScope("sales_order.read");
+  const { user } = useAuthStore();
+
+  const [selectedSalesRep, setSelectedSalesRep] = useState<SalesQuotation["sales_rep"] | null>(null);
+  const [isSalesRepDialogOpen, setIsSalesRepDialogOpen] = useState(false);
 
   const deleteQuotation = useDeleteQuotation();
   const updateStatus = useUpdateQuotationStatus();
+  const convertToOrder = useConvertQuotationToOrder();
   const quotations = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const canCreateOrder = useUserPermission("sales_order.create");
 
   const handleEdit = (quotation: SalesQuotation) => {
     setEditingQuotation(quotation);
@@ -93,8 +117,26 @@ export function QuotationList() {
     }
   };
 
-  const getStatusBadge = (status: SalesQuotationStatus) => {
-    switch (status) {
+  /**
+   * Determines whether the current user can navigate to the linked Sales Order
+   * from the "Converted" badge, based on their sales_order.read permission scope.
+   * - ALL: always clickable
+   * - OWN: only if the quotation was created by the current user
+   * - DIVISION / AREA: show hover (server enforces scope filtering on the SO detail fetch)
+   */
+  const canViewLinkedSalesOrder = (quotation: SalesQuotation): boolean => {
+    if (!hasSalesOrderRead || !quotation.converted_to_sales_order_id) return false;
+    if (salesOrderScope === "ALL") return true;
+    if (salesOrderScope === "OWN") {
+      return quotation.created_by === user?.id;
+    }
+    // DIVISION and AREA: optimistically allow hover — backend enforces access on fetch
+    if (salesOrderScope === "DIVISION" || salesOrderScope === "AREA") return true;
+    return false;
+  };
+
+  const getStatusBadge = (quotation: SalesQuotation) => {
+    switch (quotation.status) {
       case "draft":
         return (
           <Badge variant="secondary">
@@ -106,7 +148,7 @@ export function QuotationList() {
         return (
           <Badge variant="info">
             <Send className="h-3 w-3 mr-1" />
-            {t("status.sent")}
+            {t("status.pending")}
           </Badge>
         );
       case "approved":
@@ -123,15 +165,29 @@ export function QuotationList() {
             {t("status.rejected")}
           </Badge>
         );
-      case "converted":
+      case "converted": {
+        const isClickable = canViewLinkedSalesOrder(quotation);
         return (
-          <Badge variant="outline">
+          <Badge
+            variant="outline"
+            onClick={
+              isClickable
+                ? () => setSelectedOrderId(quotation.converted_to_sales_order_id!)
+                : undefined
+            }
+            className={
+              isClickable
+                ? "cursor-pointer hover:border-primary hover:text-primary transition-colors"
+                : undefined
+            }
+          >
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.converted")}
           </Badge>
         );
+      }
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge>{quotation.status}</Badge>;
     }
   };
 
@@ -176,7 +232,7 @@ export function QuotationList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="sent">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="converted">{t("status.converted")}</SelectItem>
@@ -221,8 +277,22 @@ export function QuotationList() {
                       ? new Date(quotation.quotation_date).toLocaleDateString()
                       : "-"}
                   </TableCell>
-                  <TableCell>{quotation.sales_rep?.name ?? "-"}</TableCell>
-                  <TableCell>{getStatusBadge(quotation.status)}</TableCell>
+                  <TableCell>
+                    {quotation.sales_rep && canViewEmployee ? (
+                      <button
+                        onClick={() => {
+                          setSelectedSalesRep(quotation.sales_rep);
+                          setIsSalesRepDialogOpen(true);
+                        }}
+                        className="text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {quotation.sales_rep.name}
+                      </button>
+                    ) : (
+                      <span>{quotation.sales_rep?.name ?? "-"}</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(quotation)}</TableCell>
                   <TableCell>{formatCurrency(quotation.total_amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
@@ -248,29 +318,67 @@ export function QuotationList() {
                           {canUpdate && quotation.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(quotation.id, "sent")}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.send")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && quotation.status === "sent" && (
+                          {quotation.status === "sent" && (
                             <>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(quotation.id, "approved")}
-                                className="cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.approve")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(quotation.id, "rejected")}
-                                className="cursor-pointer text-destructive"
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {t("actions.reject")}
-                              </DropdownMenuItem>
+                              {canApprove && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(quotation.id, "approved")}
+                                  className="cursor-pointer text-green-600 focus:text-green-600"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(quotation.id, "rejected")}
+                                  className="cursor-pointer text-destructive focus:text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              )}
                             </>
+                          )}
+                          {quotation.status === "approved" && canCreateOrder && (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                try {
+                                  const res = await convertToOrder.mutateAsync({
+                                    quotation_id: quotation.id,
+                                  });
+                                  toast.success(t("status.converted"));
+                                  // open the created Sales Order detail modal
+                                  setSelectedOrderId(res.data.id);
+                                } catch (err: unknown) {
+                                  console.error("Failed to convert quotation:", err);
+                                  if (isAxiosError(err)) {
+                                    const status = err.response?.status;
+                                    if (status === 404) {
+                                      toast.error(
+                                        t("common.error") + " - Convert endpoint not found (404)."
+                                      );
+                                    } else if (status === 403) {
+                                      toast.error(t("common.forbidden") ?? t("common.error"));
+                                    } else {
+                                      toast.error(t("common.error"));
+                                    }
+                                  } else {
+                                    toast.error(t("common.error"));
+                                  }
+                                }
+                              }}
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("convertToOrder")}
+                            </DropdownMenuItem>
                           )}
                           {canDelete && quotation.status === "draft" && (
                             <DropdownMenuItem
@@ -279,6 +387,15 @@ export function QuotationList() {
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingQuotationId(quotation.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -330,6 +447,27 @@ export function QuotationList() {
           description={t("deleteDesc")}
           itemName={t("common.quotation")}
           isLoading={deleteQuotation.isPending}
+        />
+      )}
+
+      <EmployeeDetailModal
+        open={isSalesRepDialogOpen}
+        onOpenChange={setIsSalesRepDialogOpen}
+        employee={selectedSalesRep as unknown as MdEmployee}
+      />
+
+      {/* Sales Order detail modal — opened when user clicks a "Converted" badge */}
+      <OrderDetailModal
+        open={!!selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
+        order={selectedOrderId ? ({ id: selectedOrderId } as SalesOrder) : null}
+      />
+
+      {printingQuotationId && (
+        <QuotationPrintDialog
+          open={!!printingQuotationId}
+          onClose={() => setPrintingQuotationId(null)}
+          quotationId={printingQuotationId}
         />
       )}
     </div>

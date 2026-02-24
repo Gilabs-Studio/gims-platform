@@ -8,7 +8,8 @@ import (
 )
 
 // ToSalesOrderResponse converts a SalesOrder model to response DTO
-func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
+// pendingQtyMap maps sales_order_item_id -> total pending delivery quantity from active DOs
+func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]float64) dto.SalesOrderResponse {
 	response := dto.SalesOrderResponse{
 		ID:                  m.ID,
 		Code:                m.Code,
@@ -21,6 +22,7 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 		OtherCost:           m.OtherCost,
 		TotalAmount:         m.TotalAmount,
 		ReservedStock:       m.ReservedStock,
+		CustomerID:          m.CustomerID,
 		CustomerName:        m.CustomerName,
 		CustomerContact:     m.CustomerContact,
 		CustomerPhone:       m.CustomerPhone,
@@ -29,6 +31,18 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 		Notes:               m.Notes,
 		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if m.Customer != nil {
+		response.Customer = &dto.CustomerResponse{
+			ID:             m.Customer.ID,
+			Code:           m.Customer.Code,
+			Name:           m.Customer.Name,
+			CustomerTypeID: m.Customer.CustomerTypeID,
+			Address:        m.Customer.Address,
+			Email:          m.Customer.Email,
+			ContactPerson:  m.Customer.ContactPerson,
+		}
 	}
 
 	if m.SalesQuotationID != nil {
@@ -120,10 +134,74 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 	}
 
 	// Map items
+	var totalOrdered, totalDelivered, totalPending float64
 	if len(m.Items) > 0 {
 		response.Items = make([]dto.SalesOrderItemResponse, len(m.Items))
 		for i, item := range m.Items {
-			response.Items[i] = ToSalesOrderItemResponse(&item)
+			pendingQty := float64(0)
+			if pendingQtyMap != nil {
+				pendingQty = pendingQtyMap[item.ID]
+			}
+			response.Items[i] = ToSalesOrderItemResponse(&item, pendingQty)
+			totalOrdered += item.Quantity
+			totalDelivered += item.DeliveredQuantity
+			totalPending += pendingQty
+		}
+	}
+
+	// Add fulfillment summary for approved orders
+	if m.Status == salesModels.SalesOrderStatusApproved && len(m.Items) > 0 {
+		totalRemaining := totalOrdered - totalDelivered - totalPending
+		if totalRemaining < 0 {
+			totalRemaining = 0
+		}
+		response.Fulfillment = &dto.FulfillmentSummary{
+			TotalOrdered:   totalOrdered,
+			TotalDelivered: totalDelivered,
+			TotalPending:   totalPending,
+			TotalRemaining: totalRemaining,
+		}
+	}
+
+	// Map delivery orders summary
+	if len(m.DeliveryOrders) > 0 {
+		response.DeliveryOrders = make([]dto.DeliveryOrderSummary, len(m.DeliveryOrders))
+		for i, do := range m.DeliveryOrders {
+			deliveryDate := ""
+			if !do.DeliveryDate.IsZero() {
+				deliveryDate = do.DeliveryDate.Format("2006-01-02")
+			}
+			response.DeliveryOrders[i] = dto.DeliveryOrderSummary{
+				ID:                do.ID,
+				Code:              do.Code,
+				Status:            string(do.Status),
+				DeliveryDate:      deliveryDate,
+				IsPartialDelivery: do.IsPartialDelivery,
+			}
+		}
+	}
+
+	// Map customer invoices summary
+	if len(m.CustomerInvoices) > 0 {
+		response.CustomerInvoices = make([]dto.CustomerInvoiceSummary, len(m.CustomerInvoices))
+		for i, inv := range m.CustomerInvoices {
+			invoiceDate := ""
+			if !inv.InvoiceDate.IsZero() {
+				invoiceDate = inv.InvoiceDate.Format("2006-01-02")
+			}
+			dueDate := ""
+			if inv.DueDate != nil && !inv.DueDate.IsZero() {
+				dueDate = inv.DueDate.Format("2006-01-02")
+			}
+			response.CustomerInvoices[i] = dto.CustomerInvoiceSummary{
+				ID:          inv.ID,
+				Code:        inv.Code,
+				Status:      string(inv.Status),
+				InvoiceDate: invoiceDate,
+				DueDate:     dueDate,
+				Amount:      inv.Amount,
+				PaidAmount:  inv.PaidAmount,
+			}
 		}
 	}
 
@@ -131,19 +209,20 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder) dto.SalesOrderResponse {
 }
 
 // ToSalesOrderItemResponse converts a SalesOrderItem model to response DTO
-func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem) dto.SalesOrderItemResponse {
+func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem, pendingQty float64) dto.SalesOrderItemResponse {
 	response := dto.SalesOrderItemResponse{
-		ID:               m.ID,
-		SalesOrderID:     m.SalesOrderID,
-		ProductID:        m.ProductID,
-		Quantity:         m.Quantity,
-		Price:            m.Price,
-		Discount:         m.Discount,
-		Subtotal:         m.Subtotal,
-		ReservedQuantity: m.ReservedQuantity,
-		DeliveredQuantity: m.DeliveredQuantity,
-		CreatedAt:        m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        m.UpdatedAt.Format(time.RFC3339),
+		ID:                      m.ID,
+		SalesOrderID:            m.SalesOrderID,
+		ProductID:               m.ProductID,
+		Quantity:                m.Quantity,
+		Price:                   m.Price,
+		Discount:                m.Discount,
+		Subtotal:                m.Subtotal,
+		ReservedQuantity:        m.ReservedQuantity,
+		DeliveredQuantity:       m.DeliveredQuantity,
+		PendingDeliveryQuantity: pendingQty,
+		CreatedAt:               m.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:               m.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if m.Product != nil {
@@ -192,6 +271,7 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 		BusinessUnitID:  req.BusinessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
 		DeliveryAreaID:  req.DeliveryAreaID,
+		CustomerID:      req.CustomerID,
 		CustomerName:    req.CustomerName,
 		CustomerContact: req.CustomerContact,
 		CustomerPhone:   req.CustomerPhone,
@@ -262,6 +342,10 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 		m.DeliveryAreaID = req.DeliveryAreaID
 	}
 
+	if req.CustomerID != nil {
+		m.CustomerID = req.CustomerID
+	}
+
 	if req.TaxRate != nil {
 		m.TaxRate = *req.TaxRate
 	}
@@ -328,6 +412,7 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 		BusinessUnitID:  quotation.BusinessUnitID,
 		BusinessTypeID:  quotation.BusinessTypeID,
 		DeliveryAreaID:  deliveryAreaID,
+		CustomerID:      quotation.CustomerID,
 		CustomerName:    customerName,
 		CustomerContact: customerContact,
 		CustomerPhone:   customerPhone,
