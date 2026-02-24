@@ -233,6 +233,8 @@ export const organizationEn = {
       district: "District",
       village: "Village/Kelurahan",
       villagePlaceholder: "Select village",
+      businessType: "Business Type",
+      businessTypePlaceholder: "Select business type",
       director: "Director",
       directorPlaceholder: "Select director",
       isActive: "Active",

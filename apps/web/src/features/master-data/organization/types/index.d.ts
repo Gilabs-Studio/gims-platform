@@ -260,6 +260,8 @@ export interface ListOrganizationParams {
 export interface ListCompaniesParams extends ListOrganizationParams {
   status?: CompanyStatus;
   village_id?: string;
+  company_type_id?: string;
+  is_active?: boolean;
 }
 
 export interface ListAreasParams extends ListOrganizationParams {

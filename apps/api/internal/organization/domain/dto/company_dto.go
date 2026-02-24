@@ -44,6 +44,7 @@ type ListCompaniesRequest struct {
 	PerPage   int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search    string `form:"search" binding:"omitempty,max=100"`
 	Status    string `form:"status" binding:"omitempty,oneof=draft pending approved rejected"`
+	IsActive  *bool  `form:"is_active" binding:"omitempty"`
 	VillageID string `form:"village_id" binding:"omitempty,uuid"`
 	SortBy    string `form:"sort_by" binding:"omitempty,oneof=name status created_at updated_at"`
 	SortDir   string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`

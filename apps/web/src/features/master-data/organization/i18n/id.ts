@@ -235,6 +235,8 @@ export const organizationId: OrganizationTranslations = {
       district: "Kecamatan",
       village: "Desa/Kelurahan",
       villagePlaceholder: "Pilih desa/kelurahan",
+      businessType: "Tipe Bisnis",
+      businessTypePlaceholder: "Pilih tipe bisnis",
       director: "Direktur",
       directorPlaceholder: "Pilih direktur",
       isActive: "Aktif",
