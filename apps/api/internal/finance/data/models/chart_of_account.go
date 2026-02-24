@@ -10,11 +10,18 @@ import (
 type AccountType string
 
 const (
-	AccountTypeAsset     AccountType = "asset"
-	AccountTypeLiability AccountType = "liability"
-	AccountTypeEquity    AccountType = "equity"
-	AccountTypeRevenue   AccountType = "revenue"
-	AccountTypeExpense   AccountType = "expense"
+	AccountTypeAsset        AccountType = "ASSET"
+	AccountTypeLiability    AccountType = "LIABILITY"
+	AccountTypeEquity       AccountType = "EQUITY"
+	AccountTypeRevenue      AccountType = "REVENUE"
+	AccountTypeExpense      AccountType = "EXPENSE"
+	AccountTypeCashBank     AccountType = "CASH_BANK"
+	AccountTypeCurrentAsset AccountType = "CURRENT_ASSET"
+	AccountTypeFixedAsset   AccountType = "FIXED_ASSET"
+	AccountTypeTradePayable AccountType = "TRADE_PAYABLE"
+	AccountTypeCOGS         AccountType = "COST_OF_GOODS_SOLD"
+	AccountTypeSalaryWages  AccountType = "SALARY_WAGES"
+	AccountTypeOperational  AccountType = "OPERATIONAL"
 )
 
 type ChartOfAccount struct {

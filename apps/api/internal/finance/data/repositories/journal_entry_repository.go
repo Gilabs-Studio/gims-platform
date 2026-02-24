@@ -11,14 +11,15 @@ import (
 )
 
 type JournalEntryListParams struct {
-	Search    string
-	Status    *financeModels.JournalStatus
-	StartDate *time.Time
-	EndDate   *time.Time
-	SortBy    string
-	SortDir   string
-	Limit     int
-	Offset    int
+	Search        string
+	Status        *financeModels.JournalStatus
+	StartDate     *time.Time
+	EndDate       *time.Time
+	SortBy        string
+	SortDir       string
+	Limit         int
+	Offset        int
+	ReferenceType *string
 }
 
 type JournalEntryRepository interface {
@@ -74,6 +75,9 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 	}
 	if params.EndDate != nil {
 		q = q.Where("journal_entries.entry_date <= ?", *params.EndDate)
+	}
+	if params.ReferenceType != nil {
+		q = q.Where("journal_entries.reference_type = ?", *params.ReferenceType)
 	}
 
 	if err := q.Count(&total).Error; err != nil {

@@ -1,14 +1,6 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { Component, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -20,7 +12,7 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -41,33 +33,19 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-6">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Something went wrong</CardTitle>
-              <CardDescription>
-                An unexpected error occurred. Please try again.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {process.env.NODE_ENV === "development" && this.state.error && (
-                <div className="rounded-md bg-destructive/10 p-4">
-                  <p className="text-sm font-mono text-destructive">
-                    {this.state.error.message}
-                  </p>
-                </div>
-              )}
-              <Button
-                onClick={() => {
-                  this.setState({ hasError: false, error: null });
-                  window.location.href = "/";
-                }}
-                className="w-full"
-              >
-                Go to Home
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
+          <div className="max-w-md space-y-4 rounded-lg bg-destructive/10 p-6 border border-destructive/20">
+            <h1 className="text-xl font-bold text-destructive">Something went wrong</h1>
+            <p className="text-sm text-muted-foreground">
+              {this.state.error?.message || "An unexpected error occurred."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Reload Application
+            </button>
+          </div>
         </div>
       );
     }

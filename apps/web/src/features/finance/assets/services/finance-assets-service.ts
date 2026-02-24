@@ -51,4 +51,19 @@ export const financeAssetsService = {
     const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/dispose`, data);
     return response.data;
   },
+
+  revalue: async (id: string, data: any): Promise<ApiResponse<Asset>> => {
+    const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/revalue`, data);
+    return response.data;
+  },
+
+  adjust: async (id: string, data: any): Promise<ApiResponse<Asset>> => {
+    const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/adjust`, data);
+    return response.data;
+  },
+
+  approveTransaction: async (txId: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>(`${BASE_URL}/transactions/${txId}/approve`);
+    return response.data;
+  },
 };

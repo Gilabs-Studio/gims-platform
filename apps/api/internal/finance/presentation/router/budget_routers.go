@@ -24,4 +24,5 @@ func RegisterBudgetRoutes(r *gin.RouterGroup, h *handler.BudgetHandler) {
 	g.PUT("/:id", middleware.RequirePermission(budgetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(budgetDelete), h.Delete)
 	g.POST("/:id/approve", middleware.RequirePermission(budgetApprove), h.Approve)
+	g.POST("/:id/sync", middleware.RequirePermission(budgetUpdate), h.SyncActuals)
 }

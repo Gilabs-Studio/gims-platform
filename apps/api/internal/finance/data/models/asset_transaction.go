@@ -15,6 +15,15 @@ const (
 	AssetTransactionTypeDepreciate AssetTransactionType = "depreciate"
 	AssetTransactionTypeTransfer   AssetTransactionType = "transfer"
 	AssetTransactionTypeDispose    AssetTransactionType = "dispose"
+	AssetTransactionTypeRevalue    AssetTransactionType = "revalue"
+	AssetTransactionTypeAdjust     AssetTransactionType = "adjust"
+)
+
+type AssetTransactionStatus string
+
+const (
+	AssetTransactionStatusDraft    AssetTransactionStatus = "draft"
+	AssetTransactionStatusApproved AssetTransactionStatus = "approved"
 )
 
 type AssetTransaction struct {
@@ -23,14 +32,16 @@ type AssetTransaction struct {
 	AssetID string `gorm:"type:uuid;not null;index" json:"asset_id"`
 	Asset   *Asset `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
 
-	Type            AssetTransactionType `gorm:"type:varchar(20);not null;index" json:"type"`
-	TransactionDate time.Time            `gorm:"type:date;not null;index" json:"transaction_date"`
-	Description     string               `gorm:"type:text" json:"description"`
+	Type            AssetTransactionType   `gorm:"type:varchar(20);not null;index" json:"type"`
+	TransactionDate time.Time              `gorm:"type:date;not null;index" json:"transaction_date"`
+	Amount          float64                `gorm:"type:numeric(18,2);not null;default:0" json:"amount"`
+	Description     string                 `gorm:"type:text" json:"description"`
+	Status          AssetTransactionStatus `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"`
 
 	ReferenceType *string `gorm:"type:varchar(50)" json:"reference_type"`
 	ReferenceID   *string `gorm:"type:uuid" json:"reference_id"`
 
-	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
+	CreatedBy *string   `gorm:"type:uuid" json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

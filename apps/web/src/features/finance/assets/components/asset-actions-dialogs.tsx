@@ -19,14 +19,24 @@ import {
   depreciateAssetSchema,
   disposeAssetSchema,
   transferAssetSchema,
+  revalueAssetSchema,
+  adjustAssetSchema,
   type DepreciateAssetValues,
   type DisposeAssetValues,
   type TransferAssetValues,
+  type RevalueAssetValues,
+  type AdjustAssetValues,
 } from "../schemas/asset.schema";
 import type { Asset } from "../types";
-import { useDepreciateFinanceAsset, useDisposeFinanceAsset, useTransferFinanceAsset } from "../hooks/use-finance-assets";
+import {
+  useDepreciateFinanceAsset,
+  useDisposeFinanceAsset,
+  useTransferFinanceAsset,
+  useRevalueFinanceAsset,
+  useAdjustFinanceAsset
+} from "../hooks/use-finance-assets";
 
-type ActionMode = "depreciate" | "transfer" | "dispose";
+type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
 
 type Props = {
   open: boolean;
@@ -41,6 +51,8 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
   const depreciateMutation = useDepreciateFinanceAsset();
   const transferMutation = useTransferFinanceAsset();
   const disposeMutation = useDisposeFinanceAsset();
+  const revalueMutation = useRevalueFinanceAsset();
+  const adjustMutation = useAdjustFinanceAsset();
 
   const { data: locationsData } = useFinanceAssetLocations({ page: 1, per_page: 100, sort_by: "name", sort_dir: "asc" });
   const locationOptions = locationsData?.data ?? [];
@@ -64,6 +76,16 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     [],
   );
 
+  const defaultRevalue: RevalueAssetValues = useMemo(
+    () => ({ new_cost: asset?.acquisition_cost ?? 0, transaction_date: new Date().toISOString().slice(0, 10), description: "" }),
+    [asset?.acquisition_cost],
+  );
+
+  const defaultAdjust: AdjustAssetValues = useMemo(
+    () => ({ amount: 0, transaction_date: new Date().toISOString().slice(0, 10), description: "" }),
+    [],
+  );
+
   const depreciateForm = useForm<DepreciateAssetValues>({
     resolver: zodResolver(depreciateAssetSchema),
     defaultValues: defaultDepreciate,
@@ -79,6 +101,16 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     defaultValues: defaultDispose,
   });
 
+  const revalueForm = useForm<RevalueAssetValues>({
+    resolver: zodResolver(revalueAssetSchema),
+    defaultValues: defaultRevalue,
+  });
+
+  const adjustForm = useForm<AdjustAssetValues>({
+    resolver: zodResolver(adjustAssetSchema),
+    defaultValues: defaultAdjust,
+  });
+
   const transferLocationId = useWatch({
     control: transferForm.control,
     name: "location_id",
@@ -89,9 +121,15 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     if (mode === "depreciate") depreciateForm.reset(defaultDepreciate);
     if (mode === "transfer") transferForm.reset(defaultTransfer);
     if (mode === "dispose") disposeForm.reset(defaultDispose);
-  }, [open, mode, defaultDepreciate, defaultTransfer, defaultDispose, depreciateForm, transferForm, disposeForm]);
+    if (mode === "revalue") revalueForm.reset(defaultRevalue);
+    if (mode === "adjust") adjustForm.reset(defaultAdjust);
+  }, [open, mode, defaultDepreciate, defaultTransfer, defaultDispose, defaultRevalue, defaultAdjust, depreciateForm, transferForm, disposeForm, revalueForm, adjustForm]);
 
-  const isSubmitting = depreciateMutation.isPending || transferMutation.isPending || disposeMutation.isPending;
+  const isSubmitting = depreciateMutation.isPending ||
+    transferMutation.isPending ||
+    disposeMutation.isPending ||
+    revalueMutation.isPending ||
+    adjustMutation.isPending;
 
   const submitDepreciate = async (values: DepreciateAssetValues) => {
     const id = asset?.id ?? "";
@@ -139,8 +177,36 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     }
   };
 
+  const submitRevalue = async (values: RevalueAssetValues) => {
+    const id = asset?.id ?? "";
+    if (!id) return;
+    try {
+      await revalueMutation.mutateAsync({ id, data: values });
+      toast.success(t("toast.done"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
+  const submitAdjust = async (values: AdjustAssetValues) => {
+    const id = asset?.id ?? "";
+    if (!id) return;
+    try {
+      await adjustMutation.mutateAsync({ id, data: values });
+      toast.success(t("toast.done"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
   const title =
-    mode === "depreciate" ? t("dialogs.depreciateTitle") : mode === "transfer" ? t("dialogs.transferTitle") : t("dialogs.disposeTitle");
+    mode === "depreciate" ? t("dialogs.depreciateTitle") :
+      mode === "transfer" ? t("dialogs.transferTitle") :
+        mode === "revalue" ? t("dialogs.revalueTitle") :
+          mode === "adjust" ? t("dialogs.adjustTitle") :
+            t("dialogs.disposeTitle");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -226,6 +292,68 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
             <div className="space-y-2">
               <Label htmlFor="dispose_description">{t("dialogs.description")}</Label>
               <Textarea id="dispose_description" rows={4} {...disposeForm.register("description")} />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.cancel")}
+              </Button>
+              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+                {t("dialogs.submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {mode === "revalue" && (
+          <form className="space-y-4" onSubmit={revalueForm.handleSubmit(submitRevalue)}>
+            <div className="space-y-2">
+              <Label htmlFor="revalue_new_cost">{t("fields.newCost")}</Label>
+              <Input id="revalue_new_cost" type="number" {...revalueForm.register("new_cost", { valueAsNumber: true })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="revalue_date">{t("fields.transactionDate")}</Label>
+              <Input id="revalue_date" type="date" {...revalueForm.register("transaction_date")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="revalue_description">{t("dialogs.description")}</Label>
+              <Textarea id="revalue_description" rows={4} {...revalueForm.register("description")} />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.cancel")}
+              </Button>
+              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+                {t("dialogs.submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {mode === "adjust" && (
+          <form className="space-y-4" onSubmit={adjustForm.handleSubmit(submitAdjust)}>
+            <div className="space-y-2">
+              <Label htmlFor="adjust_amount">{t("fields.amount")}</Label>
+              <Input id="adjust_amount" type="number" {...adjustForm.register("amount", { valueAsNumber: true })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adjust_date">{t("fields.transactionDate")}</Label>
+              <Input id="adjust_date" type="date" {...adjustForm.register("transaction_date")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adjust_description">{t("dialogs.description")}</Label>
+              <Textarea id="adjust_description" rows={4} {...adjustForm.register("description")} />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button

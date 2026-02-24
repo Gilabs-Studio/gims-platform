@@ -31,7 +31,7 @@ import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { useRateLimitStore } from "@/lib/stores/useRateLimitStore";
 import { ButtonLoading } from "@/components/loading";
 
-export function LoginForm() {
+export default function LoginForm() {
   const t = useTranslations("auth.login");
 
   /**
@@ -79,12 +79,12 @@ export function LoginForm() {
   // and the tick state ensures it updates every second
   const countdownText = resetTime
     ? (() => {
-        const text = getCountdownText();
-        if (text === "a moment") {
-          return null;
-        }
-        return text;
-      })()
+      const text = getCountdownText();
+      if (text === "a moment") {
+        return null;
+      }
+      return text;
+    })()
     : null;
 
   const isRateLimited = countdownText !== null;

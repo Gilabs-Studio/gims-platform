@@ -31,14 +31,15 @@ type CashBankJournalUsecase interface {
 }
 
 type cashBankJournalUsecase struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
-	repo    repositories.CashBankJournalRepository
-	mapper  *mapper.CashBankJournalMapper
+	db        *gorm.DB
+	coaRepo   repositories.ChartOfAccountRepository
+	repo      repositories.CashBankJournalRepository
+	journalUC JournalEntryUsecase
+	mapper    *mapper.CashBankJournalMapper
 }
 
-func NewCashBankJournalUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.CashBankJournalRepository, mapper *mapper.CashBankJournalMapper) CashBankJournalUsecase {
-	return &cashBankJournalUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper}
+func NewCashBankJournalUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.CashBankJournalRepository, journalUC JournalEntryUsecase, mapper *mapper.CashBankJournalMapper) CashBankJournalUsecase {
+	return &cashBankJournalUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
 }
 
 func validateCashBankLines(lines []dto.CashBankJournalLineRequest) (float64, error) {
@@ -108,17 +109,17 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 		}
 
 		cb := &financeModels.CashBankJournal{
-			TransactionDate: trxDate,
-			Type:            req.Type,
-			Description:     strings.TrimSpace(req.Description),
-			BankAccountID:   bankAccountID,
+			TransactionDate:             trxDate,
+			Type:                        req.Type,
+			Description:                 strings.TrimSpace(req.Description),
+			BankAccountID:               bankAccountID,
 			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
 			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
 			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
 			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
-			TotalAmount:     sum,
-			Status:          financeModels.CashBankStatusDraft,
-			CreatedBy:       &actorID,
+			TotalAmount:                 sum,
+			Status:                      financeModels.CashBankStatusDraft,
+			CreatedBy:                   &actorID,
 		}
 		if err := tx.Create(cb).Error; err != nil {
 			return err
@@ -130,15 +131,15 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 			typeSnap := ""
 			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.CashBankJournalLine{
-				CashBankJournalID: cb.ID,
-				ChartOfAccountID:  strings.TrimSpace(ln.ChartOfAccountID),
+				CashBankJournalID:          cb.ID,
+				ChartOfAccountID:           strings.TrimSpace(ln.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				ReferenceType:     ln.ReferenceType,
-				ReferenceID:       ln.ReferenceID,
-				Amount:            ln.Amount,
-				Memo:              strings.TrimSpace(ln.Memo),
+				ReferenceType:              ln.ReferenceType,
+				ReferenceID:                ln.ReferenceID,
+				Amount:                     ln.Amount,
+				Memo:                       strings.TrimSpace(ln.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -233,15 +234,15 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 		if err := tx.Model(&financeModels.CashBankJournal{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
-				"transaction_date": trxDate,
-				"type":             req.Type,
-				"description":      strings.TrimSpace(req.Description),
-				"bank_account_id":  bankAccountID,
+				"transaction_date":               trxDate,
+				"type":                           req.Type,
+				"description":                    strings.TrimSpace(req.Description),
+				"bank_account_id":                bankAccountID,
 				"bank_account_name_snapshot":     bankNameSnap,
 				"bank_account_number_snapshot":   bankNumberSnap,
 				"bank_account_holder_snapshot":   bankHolderSnap,
 				"bank_account_currency_snapshot": bankCurrencySnap,
-				"total_amount":     sum,
+				"total_amount":                   sum,
 			}).Error; err != nil {
 			return err
 		}
@@ -256,15 +257,15 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 			typeSnap := ""
 			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.CashBankJournalLine{
-				CashBankJournalID: id,
-				ChartOfAccountID:  strings.TrimSpace(ln.ChartOfAccountID),
+				CashBankJournalID:          id,
+				ChartOfAccountID:           strings.TrimSpace(ln.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				ReferenceType:     ln.ReferenceType,
-				ReferenceID:       ln.ReferenceID,
-				Amount:            ln.Amount,
-				Memo:              strings.TrimSpace(ln.Memo),
+				ReferenceType:              ln.ReferenceType,
+				ReferenceID:                ln.ReferenceID,
+				Amount:                     ln.Amount,
+				Memo:                       strings.TrimSpace(ln.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -407,92 +408,68 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 	}
 	bankCOAID := strings.TrimSpace(*bank.ChartOfAccountID)
 
-	var postedID string
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := ensureNotClosed(ctx, tx, cb.TransactionDate); err != nil {
-			return err
-		}
-		now := time.Now()
-		refType := "cash_bank"
-
-		je := &financeModels.JournalEntry{
-			EntryDate:     cb.TransactionDate,
-			Description:   strings.TrimSpace(cb.Description),
-			ReferenceType: &refType,
-			ReferenceID:   &cb.ID,
-			Status:        financeModels.JournalStatusPosted,
-			PostedAt:      &now,
-			PostedBy:      &actorID,
-			CreatedBy:     &actorID,
-		}
-		if err := tx.Create(je).Error; err != nil {
-			return err
-		}
-
-		if cb.Type == financeModels.CashBankTypeCashIn {
-			bankDebit := &financeModels.JournalLine{
-				JournalEntryID:   je.ID,
-				ChartOfAccountID: bankCOAID,
-				Debit:            cb.TotalAmount,
-				Credit:           0,
-				Memo:             "Cash/Bank inflow",
-			}
-			if err := tx.Create(bankDebit).Error; err != nil {
-				return err
-			}
-			for _, ln := range cb.Lines {
-				credit := &financeModels.JournalLine{
-					JournalEntryID:   je.ID,
-					ChartOfAccountID: ln.ChartOfAccountID,
-					Debit:            0,
-					Credit:           ln.Amount,
-					Memo:             strings.TrimSpace(ln.Memo),
-				}
-				if err := tx.Create(credit).Error; err != nil {
-					return err
-				}
-			}
-		} else {
-			bankCredit := &financeModels.JournalLine{
-				JournalEntryID:   je.ID,
-				ChartOfAccountID: bankCOAID,
+	var lines []dto.JournalLineRequest
+	if cb.Type == financeModels.CashBankTypeCashIn {
+		lines = append(lines, dto.JournalLineRequest{
+			ChartOfAccountID: bankCOAID,
+			Debit:            cb.TotalAmount,
+			Credit:           0,
+			Memo:             "Cash/Bank inflow",
+		})
+		for _, ln := range cb.Lines {
+			lines = append(lines, dto.JournalLineRequest{
+				ChartOfAccountID: ln.ChartOfAccountID,
 				Debit:            0,
-				Credit:           cb.TotalAmount,
-				Memo:             "Cash/Bank outflow",
-			}
-			if err := tx.Create(bankCredit).Error; err != nil {
-				return err
-			}
-			for _, ln := range cb.Lines {
-				debit := &financeModels.JournalLine{
-					JournalEntryID:   je.ID,
-					ChartOfAccountID: ln.ChartOfAccountID,
-					Debit:            ln.Amount,
-					Credit:           0,
-					Memo:             strings.TrimSpace(ln.Memo),
-				}
-				if err := tx.Create(debit).Error; err != nil {
-					return err
-				}
-			}
+				Credit:           ln.Amount,
+				Memo:             strings.TrimSpace(ln.Memo),
+			})
 		}
+	} else {
+		lines = append(lines, dto.JournalLineRequest{
+			ChartOfAccountID: bankCOAID,
+			Debit:            0,
+			Credit:           cb.TotalAmount,
+			Memo:             "Cash/Bank outflow",
+		})
+		for _, ln := range cb.Lines {
+			lines = append(lines, dto.JournalLineRequest{
+				ChartOfAccountID: ln.ChartOfAccountID,
+				Debit:            ln.Amount,
+				Credit:           0,
+				Memo:             strings.TrimSpace(ln.Memo),
+			})
+		}
+	}
 
-		if err := tx.Model(&financeModels.CashBankJournal{}).
-			Where("id = ?", cb.ID).
-			Updates(map[string]interface{}{
-				"status":           financeModels.CashBankStatusPosted,
-				"journal_entry_id": je.ID,
-				"posted_at":        now,
-				"posted_by":        actorID,
-			}).Error; err != nil {
-			return err
-		}
-		postedID = cb.ID
-		return nil
-	})
+	dateStr := cb.TransactionDate.Format("2006-01-02")
+	refType := "cash_bank"
+
+	journalReq := &dto.CreateJournalEntryRequest{
+		EntryDate:     dateStr,
+		Description:   strings.TrimSpace(cb.Description),
+		ReferenceType: &refType,
+		ReferenceID:   &cb.ID,
+		Lines:         lines,
+	}
+
+	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
 	if err != nil {
 		return nil, err
 	}
+
+	now := time.Now()
+	if err := uc.db.WithContext(ctx).Model(&financeModels.CashBankJournal{}).
+		Where("id = ?", cb.ID).
+		Updates(map[string]interface{}{
+			"status":           financeModels.CashBankStatusPosted,
+			"journal_entry_id": journalRes.ID,
+			"posted_at":        now,
+			"posted_by":        actorID,
+		}).Error; err != nil {
+		return nil, err
+	}
+
+	postedID := cb.ID
 
 	full, err := uc.repo.FindByID(ctx, postedID, true)
 	if err != nil {

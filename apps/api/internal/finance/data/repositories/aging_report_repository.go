@@ -58,49 +58,72 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 
 	asOf := params.AsOfDate.Format("2006-01-02")
 	search := strings.TrimSpace(params.Search)
+	like := "%" + search + "%"
 
-	base := r.db.WithContext(ctx).Table("customer_invoices ci").
-		Select("ci.id as invoice_id, ci.code, ci.invoice_number, ci.invoice_date, COALESCE(ci.due_date, ci.invoice_date) as due_date, ci.amount, ci.remaining_amount").
-		Where("ci.deleted_at IS NULL").
-		Where("ci.status IN ?", []string{"unpaid", "partial"}).
-		Where("ci.remaining_amount > 0").
-		Where("ci.invoice_date <= ?::date", asOf)
-
-	if search != "" {
-		like := "%" + search + "%"
-		base = base.Where("ci.code ILIKE ? OR ci.invoice_number ILIKE ?", like, like)
-	}
-
-	countQ := base.Session(&gorm.Session{NewDB: true})
-	if err := countQ.Count(&total).Error; err != nil {
+	countSQL := `
+		SELECT COUNT(*)
+		FROM customer_invoices ci
+		WHERE ci.deleted_at IS NULL
+			AND ci.status IN ('unpaid', 'partial')
+			AND ci.remaining_amount > 0
+			AND ci.invoice_date <= ?::date
+			AND (
+				? = ''
+				OR ci.code ILIKE ?
+				OR ci.invoice_number ILIKE ?
+			)
+	`
+	if err := r.db.WithContext(ctx).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	q := base.Order("ci.invoice_date desc")
-	if params.Limit > 0 {
-		q = q.Limit(params.Limit)
+	listSQL := `
+		SELECT 
+			ci.id as invoice_id, 
+			ci.code, 
+			ci.invoice_number, 
+			ci.invoice_date, 
+			COALESCE(ci.due_date, ci.invoice_date) as due_date, 
+			ci.amount, 
+			ci.remaining_amount
+		FROM customer_invoices ci
+		WHERE ci.deleted_at IS NULL
+			AND ci.status IN ('unpaid', 'partial')
+			AND ci.remaining_amount > 0
+			AND ci.invoice_date <= ?::date
+			AND (
+				? = ''
+				OR ci.code ILIKE ?
+				OR ci.invoice_number ILIKE ?
+			)
+		ORDER BY ci.invoice_date DESC
+		LIMIT ? OFFSET ?
+	`
+	if params.Limit <= 0 {
+		params.Limit = 10
 	}
-	if params.Offset > 0 {
-		q = q.Offset(params.Offset)
+	if params.Offset < 0 {
+		params.Offset = 0
 	}
 
-	if err := q.Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(listSQL, asOf, search, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
+
 	return rows, total, nil
 }
 
 type apAgingScanRow struct {
-	InvoiceID     string          `gorm:"column:invoice_id"`
-	Code          string          `gorm:"column:code"`
-	InvoiceNumber string          `gorm:"column:invoice_number"`
-	InvoiceDate   sql.NullString  `gorm:"column:invoice_date"`
-	DueDate       sql.NullString  `gorm:"column:due_date"`
-	SupplierID    string          `gorm:"column:supplier_id"`
-	SupplierName  string          `gorm:"column:supplier_name"`
-	Amount        float64         `gorm:"column:amount"`
-	PaidAmount    float64         `gorm:"column:paid_amount"`
-	Remaining     float64         `gorm:"column:remaining_amount"`
+	InvoiceID     string         `gorm:"column:invoice_id"`
+	Code          string         `gorm:"column:code"`
+	InvoiceNumber string         `gorm:"column:invoice_number"`
+	InvoiceDate   sql.NullString `gorm:"column:invoice_date"`
+	DueDate       sql.NullString `gorm:"column:due_date"`
+	SupplierID    string         `gorm:"column:supplier_id"`
+	SupplierName  string         `gorm:"column:supplier_name"`
+	Amount        float64        `gorm:"column:amount"`
+	PaidAmount    float64        `gorm:"column:paid_amount"`
+	Remaining     float64        `gorm:"column:remaining_amount"`
 }
 
 func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingListParams) ([]APAgingRow, int64, error) {
@@ -118,7 +141,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 			SELECT si.id
 			FROM supplier_invoices si
 			LEFT JOIN purchase_payments pp
-				ON pp.invoice_id = si.id
+				ON pp.supplier_invoice_id = si.id
 				AND pp.status = 'CONFIRMED'
 				AND pp.deleted_at IS NULL
 			WHERE si.deleted_at IS NULL
@@ -153,7 +176,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 		FROM supplier_invoices si
 		LEFT JOIN suppliers s ON s.id = si.supplier_id AND s.deleted_at IS NULL
 		LEFT JOIN purchase_payments pp
-			ON pp.invoice_id = si.id
+			ON pp.supplier_invoice_id = si.id
 			AND pp.status = 'CONFIRMED'
 			AND pp.deleted_at IS NULL
 		WHERE si.deleted_at IS NULL

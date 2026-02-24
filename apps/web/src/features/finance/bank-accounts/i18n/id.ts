@@ -9,6 +9,8 @@ export const financeBankAccountsId = {
     currency: "Mata Uang",
     status: "Status",
     coa: "Chart of Account",
+    bankAddress: "Alamat Bank",
+    bankPhone: "Telepon Bank",
   },
   status: {
     active: "Aktif",

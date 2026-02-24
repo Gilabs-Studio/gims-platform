@@ -57,6 +57,8 @@ export const financeAssetsEn = {
     depreciate: "Depreciate",
     transfer: "Transfer",
     dispose: "Dispose",
+    revalue: "Revalue",
+    adjust: "Adjust",
   },
   form: {
     createTitle: "Create Asset",

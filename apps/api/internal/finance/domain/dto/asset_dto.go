@@ -77,10 +77,24 @@ type AssetTransactionResponse struct {
 	AssetID         string                             `json:"asset_id"`
 	Type            financeModels.AssetTransactionType `json:"type"`
 	TransactionDate time.Time                          `json:"transaction_date"`
+	Amount          float64                            `json:"amount"`
 	Description     string                             `json:"description"`
+	Status          string                             `json:"status"`
 	ReferenceType   *string                            `json:"reference_type"`
 	ReferenceID     *string                            `json:"reference_id"`
 	CreatedAt       time.Time                          `json:"created_at"`
+}
+
+type RevalueAssetRequest struct {
+	RevaluationDate string  `json:"revaluation_date" binding:"required"`
+	NewValue        float64 `json:"new_value" binding:"required,gt=0"`
+	Description     string  `json:"description"`
+}
+
+type AdjustAssetRequest struct {
+	AdjustmentDate   string  `json:"adjustment_date" binding:"required"`
+	AdjustmentAmount float64 `json:"adjustment_amount" binding:"required"`
+	Description      string  `json:"description"`
 }
 
 type AssetResponse struct {

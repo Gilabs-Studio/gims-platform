@@ -106,3 +106,13 @@ func (h *BudgetHandler) Approve(c *gin.Context) {
 	}
 	response.SuccessResponse(c, res, nil)
 }
+
+func (h *BudgetHandler) SyncActuals(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.SyncActuals(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "BUDGET_SYNC_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}

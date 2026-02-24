@@ -27,6 +27,9 @@ export interface BankAccount {
   account_holder: string;
   currency: string;
   chart_of_account_id?: string | null;
+  village_id?: string | null;
+  bank_address?: string;
+  bank_phone?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -47,5 +50,8 @@ export interface BankAccountInput {
   account_holder: string;
   currency: string;
   chart_of_account_id?: string | null;
+  village_id?: string | null;
+  bank_address?: string;
+  bank_phone?: string;
   is_active?: boolean;
 }

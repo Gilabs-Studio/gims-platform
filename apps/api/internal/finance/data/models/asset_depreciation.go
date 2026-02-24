@@ -7,6 +7,13 @@ import (
 	"gorm.io/gorm"
 )
 
+type AssetDepreciationStatus string
+
+const (
+	AssetDepreciationStatusPending  AssetDepreciationStatus = "pending"
+	AssetDepreciationStatusApproved AssetDepreciationStatus = "approved"
+)
+
 type AssetDepreciation struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
@@ -21,9 +28,11 @@ type AssetDepreciation struct {
 	Accumulated float64 `gorm:"type:numeric(18,2);not null" json:"accumulated"`
 	BookValue   float64 `gorm:"type:numeric(18,2);not null" json:"book_value"`
 
+	Status AssetDepreciationStatus `gorm:"type:varchar(20);not null;default:'pending';index" json:"status"`
+
 	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id"`
 
-	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
+	CreatedBy *string   `gorm:"type:uuid" json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

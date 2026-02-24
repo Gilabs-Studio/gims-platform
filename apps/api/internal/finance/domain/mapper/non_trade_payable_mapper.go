@@ -39,16 +39,18 @@ func (m *NonTradePayableMapper) ToResponse(item *financeModels.NonTradePayable) 
 	}
 
 	return dto.NonTradePayableResponse{
-		ID: item.ID,
-		TransactionDate: item.TransactionDate,
-		Description: item.Description,
+		ID:               item.ID,
+		TransactionDate:  item.TransactionDate,
+		Code:             item.Code,
+		Description:      item.Description,
 		ChartOfAccountID: item.ChartOfAccountID,
-		ChartOfAccount: coaResp,
-		Amount: item.Amount,
-		VendorName: item.VendorName,
-		DueDate: item.DueDate,
-		ReferenceNo: item.ReferenceNo,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ChartOfAccount:   coaResp,
+		Amount:           item.Amount,
+		VendorName:       item.VendorName,
+		DueDate:          item.DueDate,
+		ReferenceNo:      item.ReferenceNo,
+		Status:           string(item.Status),
+		CreatedAt:        item.CreatedAt,
+		UpdatedAt:        item.UpdatedAt,
 	}
 }

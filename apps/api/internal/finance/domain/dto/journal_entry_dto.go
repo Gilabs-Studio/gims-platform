@@ -30,14 +30,15 @@ type UpdateJournalEntryRequest struct {
 }
 
 type ListJournalEntriesRequest struct {
-	Page      int                          `form:"page" binding:"omitempty,min=1"`
-	PerPage   int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
-	Search    string                       `form:"search"`
-	Status    *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted"`
-	StartDate *string                      `form:"start_date"`
-	EndDate   *string                      `form:"end_date"`
-	SortBy    string                       `form:"sort_by"`
-	SortDir   string                       `form:"sort_dir"`
+	Page          int                          `form:"page" binding:"omitempty,min=1"`
+	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search        string                       `form:"search"`
+	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted"`
+	StartDate     *string                      `form:"start_date"`
+	EndDate       *string                      `form:"end_date"`
+	SortBy        string                       `form:"sort_by"`
+	SortDir       string                       `form:"sort_dir"`
+	ReferenceType *string                      `form:"reference_type"`
 }
 
 type JournalLineResponse struct {

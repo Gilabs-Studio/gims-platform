@@ -3,8 +3,9 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import type { Locale } from "@/types/locale";
+
 import { ReactQueryProvider } from "@/lib/react-query";
-import { ErrorBoundary } from "@/components/error-boundary";
+import ErrorBoundary from "@/components/error-boundary";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AppLayout } from "@/components/layouts/app-layout";
 import { Toaster } from "sonner";
@@ -26,7 +27,7 @@ export default async function LocaleLayout({
   const messages = await getMessages({ locale });
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages} key={locale}>
+    <NextIntlClientProvider locale={locale} messages={messages}>
       <ErrorBoundary>
         <ThemeProvider
           attribute="class"

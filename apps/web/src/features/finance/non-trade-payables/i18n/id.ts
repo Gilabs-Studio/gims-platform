@@ -10,11 +10,17 @@ export const financeNonTradePayablesId = {
     dueDate: "Jatuh tempo",
     referenceNo: "No referensi",
     description: "Deskripsi",
+    paymentDate: "Tanggal pembayaran",
+    bankAccount: "Rekening bank",
+    code: "Kode",
+    status: "Status",
+    notes: "Catatan",
   },
   actions: {
     create: "Buat",
     edit: "Ubah",
     delete: "Hapus",
+    pay: "Bayar",
   },
   form: {
     createTitle: "Buat Utang",
@@ -24,11 +30,13 @@ export const financeNonTradePayablesId = {
   },
   placeholders: {
     select: "Pilih...",
+    selectBank: "Pilih rekening bank...",
   },
   toast: {
     created: "Utang dibuat",
     updated: "Utang diperbarui",
     deleted: "Utang dihapus",
+    paid: "Pembayaran dicatat",
     failed: "Aksi gagal",
   },
 };

@@ -371,6 +371,7 @@ func SeedPermissions() error {
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
 		{"/finance/salary", "salary.update", "Edit Salary", "EDIT", "salary"},
 		{"/finance/salary", "salary.delete", "Delete Salary", "DELETE", "salary"},
+		{"/finance/salary", "salary.approve", "Approve Salary", "APPROVE", "salary"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},

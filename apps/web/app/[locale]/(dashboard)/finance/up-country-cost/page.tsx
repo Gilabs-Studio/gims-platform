@@ -9,7 +9,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 const FinanceUpCountryCostContainer = dynamic(
   () =>
     import("@/features/finance/up-country-cost/components").then((mod) => ({
-      default: mod.FinanceUpCountryCostContainer,
+      default: mod.UpCountryCostPage,
     })),
   { loading: () => null },
 );

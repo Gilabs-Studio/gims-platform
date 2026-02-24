@@ -35,6 +35,7 @@ type JournalEntryUsecase interface {
 	List(ctx context.Context, req *dto.ListJournalEntriesRequest) ([]dto.JournalEntryResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
+	PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error)
 }
 
 type journalEntryUsecase struct {
@@ -323,14 +324,15 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	}
 
 	params := repositories.JournalEntryListParams{
-		Search:    req.Search,
-		Status:    req.Status,
-		StartDate: startDate,
-		EndDate:   endDate,
-		SortBy:    req.SortBy,
-		SortDir:   req.SortDir,
-		Limit:     perPage,
-		Offset:    (page - 1) * perPage,
+		Search:        req.Search,
+		Status:        req.Status,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		SortBy:        req.SortBy,
+		SortDir:       req.SortDir,
+		Limit:         perPage,
+		Offset:        (page - 1) * perPage,
+		ReferenceType: req.ReferenceType,
 	}
 
 	items, total, err := uc.repo.List(ctx, params)
@@ -455,4 +457,47 @@ func (uc *journalEntryUsecase) TrialBalance(ctx context.Context, startDate, endD
 
 	resp := &dto.TrialBalanceResponse{StartDate: startDate, EndDate: endDate, Rows: out}
 	return resp, nil
+}
+
+func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+	if req.ReferenceType == nil || req.ReferenceID == nil {
+		return nil, errors.New("reference type and reference id are required for PostOrUpdateJournal")
+	}
+
+	var existing financeModels.JournalEntry
+	err := uc.db.WithContext(ctx).
+		Where("reference_type = ? AND reference_id = ?", req.ReferenceType, req.ReferenceID).
+		First(&existing).Error
+
+	if err == nil {
+		if existing.Status == financeModels.JournalStatusPosted {
+			return nil, ErrJournalPostedImmutable
+		}
+
+		updateReq := &dto.UpdateJournalEntryRequest{
+			EntryDate:     req.EntryDate,
+			Description:   req.Description,
+			ReferenceType: req.ReferenceType,
+			ReferenceID:   req.ReferenceID,
+			Lines:         req.Lines,
+		}
+
+		updateres, err := uc.Update(ctx, existing.ID, updateReq)
+		if err != nil {
+			return nil, err
+		}
+
+		return uc.Post(ctx, updateres.ID)
+	} else if err == gorm.ErrRecordNotFound {
+		createres, err := uc.Create(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return uc.Post(ctx, createres.ID)
+	}
+
+	return nil, err
 }

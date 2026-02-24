@@ -53,11 +53,11 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="start_date">Start date</Label>
+            <Label htmlFor="start_date">{t("fields.startDate")}</Label>
             <Input id="start_date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="end_date">End date</Label>
+            <Label htmlFor="end_date">{t("fields.endDate")}</Label>
             <Input id="end_date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
         </div>
@@ -74,11 +74,11 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
+                  <TableHead>{t("fields.code")}</TableHead>
+                  <TableHead>{t("fields.name")}</TableHead>
                   <TableHead className="text-right">{t("fields.debit")}</TableHead>
                   <TableHead className="text-right">{t("fields.credit")}</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">{t("fields.balance")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -106,7 +106,7 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
-            Close
+            {tCommon("close")}
           </Button>
         </DialogFooter>
       </DialogContent>

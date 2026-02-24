@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type CoaType = "asset" | "liability" | "equity" | "revenue" | "expense";
+export type CoaType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "CASH_BANK" | "CURRENT_ASSET" | "FIXED_ASSET" | "TRADE_PAYABLE" | "COST_OF_GOODS_SOLD" | "SALARY_WAGES" | "OPERATIONAL";
 
 export interface ChartOfAccount {
   id: string;
