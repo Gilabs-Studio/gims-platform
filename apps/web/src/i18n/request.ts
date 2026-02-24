@@ -52,8 +52,6 @@ import { invoiceEn } from "@/features/sales/invoice/i18n/en";
 import { invoiceId } from "@/features/sales/invoice/i18n/id";
 import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
-import { estimationEn } from "@/features/sales/estimation/i18n/en";
-import { estimationId } from "@/features/sales/estimation/i18n/id";
 import { targetsEn } from "@/features/sales/targets/i18n/en";
 import { targetsId } from "@/features/sales/targets/i18n/id";
 import { visitI18nEn } from "@/features/sales/visit/i18n/en";
@@ -168,7 +166,6 @@ const messages = {
     ...deliveryEn,
     ...invoiceEn,
     ...commandPaletteEn,
-    ...estimationEn,
     ...targetsEn,
     ...targetsEn,
     ...targetsEn,
@@ -236,7 +233,6 @@ const messages = {
     ...deliveryId,
     ...invoiceId,
     ...commandPaletteId,
-    ...estimationId,
     ...targetsId,
     ...targetsId,
     ...visitI18nId,

@@ -5765,6 +5765,317 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Deals",
+          "description": "CRM Deal management endpoints — pipeline deals with CRUD, stage transitions, conversion to Sales Quotation, and stock availability check",
+          "item": [
+            {
+              "name": "List Deals",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals?page=1&per_page=20&search=&status=&customer_id=&assigned_to=&pipeline_stage_id=",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" },
+                    { "key": "search", "value": "", "description": "Search by deal title or code", "disabled": true },
+                    { "key": "status", "value": "", "description": "Filter by status: open, won, lost", "disabled": true },
+                    { "key": "customer_id", "value": "", "description": "Filter by customer UUID", "disabled": true },
+                    { "key": "assigned_to", "value": "", "description": "Filter by assigned employee UUID", "disabled": true },
+                    { "key": "pipeline_stage_id", "value": "", "description": "Filter by pipeline stage UUID", "disabled": true }
+                  ]
+                },
+                "description": "List CRM deals with filters and pagination. Requires `crm_deal.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "List Deals By Stage",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/by-stage?status=open",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", "by-stage"],
+                  "query": [
+                    { "key": "status", "value": "open", "description": "Filter by status: open, won, lost" }
+                  ]
+                },
+                "description": "List deals grouped by pipeline stage for Kanban view. Requires `crm_deal.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/form-data",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", "form-data"]
+                },
+                "description": "Get form data for deal creation/editing. Returns employees, customers, contacts, pipeline stages, products, and leads for dropdown selection. Requires `crm_deal.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Pipeline Summary",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/summary",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", "summary"]
+                },
+                "description": "Get pipeline summary with deal counts and values grouped by stage. Requires `crm_deal.read` permission.\n\n**Response:**\n- `total_deals`, `total_value` — overall counts\n- `open_deals`, `open_value`, `won_deals`, `won_value`, `lost_deals`, `lost_value`\n- `by_stage` — array of stage summaries with deal_count and total_value"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Forecast",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/forecast",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", "forecast"]
+                },
+                "description": "Get deal forecast with weighted values by probability. Requires `crm_deal.read` permission.\n\n**Response:**\n- `total_weighted_value` — sum of (value * probability) across all open deals\n- `total_deals` — count of open deals\n- `by_stage` — breakdown per stage with probability and weighted_value"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Deal",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Get CRM deal by ID with all related data (customer, contact, items, pipeline stage). Requires `crm_deal.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Deal",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Enterprise Deal\",\n  \"description\": \"Large enterprise software deal\",\n  \"pipeline_stage_id\": \"{{pipeline_stage_id}}\",\n  \"value\": 50000000,\n  \"expected_close_date\": \"2025-03-31\",\n  \"customer_id\": \"{{customer_id}}\",\n  \"contact_id\": null,\n  \"assigned_to\": null,\n  \"lead_id\": null,\n  \"budget_confirmed\": true,\n  \"budget_amount\": 50000000,\n  \"auth_confirmed\": false,\n  \"auth_person\": \"\",\n  \"need_confirmed\": true,\n  \"need_description\": \"Need enterprise CRM solution\",\n  \"time_confirmed\": false,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"product_name\": \"Enterprise License\",\n      \"product_sku\": \"ENT-001\",\n      \"unit_price\": 25000000,\n      \"quantity\": 2,\n      \"discount_percent\": 0,\n      \"discount_amount\": 0,\n      \"notes\": \"\"\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/deals",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals"]
+                },
+                "description": "Create a new CRM deal. Requires `crm_deal.create` permission.\n\n**Fields:**\n- `title` (required) — deal title\n- `pipeline_stage_id` (required, UUID) — initial pipeline stage\n- `value` (number) — deal value\n- `expected_close_date` (date string)\n- `customer_id` (optional, UUID)\n- `contact_id` (optional, UUID)\n- `assigned_to` (optional, UUID) — employee ID\n- `lead_id` (optional, UUID) — originating lead\n- BANT fields: `budget_confirmed`, `budget_amount`, `auth_confirmed`, `auth_person`, `need_confirmed`, `need_description`, `time_confirmed`\n- `items` — array of product items with product_id, product_name, unit_price, quantity, discount"
+              },
+              "response": []
+            },
+            {
+              "name": "Update Deal",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Enterprise Deal\",\n  \"value\": 60000000,\n  \"notes\": \"Price updated after negotiation\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Update an existing CRM deal. All fields are optional. Requires `crm_deal.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Deal",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Delete a CRM deal (soft delete). Requires `crm_deal.delete` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Move Deal Stage",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"to_stage_id\": \"{{pipeline_stage_id}}\",\n  \"reason\": \"Moving to next stage after client approval\",\n  \"notes\": \"\",\n  \"close_reason\": \"\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id/move-stage",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id", "move-stage"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Move a deal to a different pipeline stage. Requires `crm_deal.move_stage` permission.\n\n**Fields:**\n- `to_stage_id` (required, UUID) — target pipeline stage\n- `reason` (required) — reason for stage change\n- `notes` (optional) — additional notes\n- `close_reason` (optional) — reason when moving to Closed Won/Lost"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Deal History",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id/history",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id", "history"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Get stage transition history for a deal. Returns all stage moves with timestamps, reasons, and who made the change. Requires `crm_deal.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Convert to Quotation",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"payment_terms_id\": null,\n  \"business_unit_id\": null,\n  \"business_type_id\": null,\n  \"notes\": \"Converted from CRM deal\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id/convert-to-quotation",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id", "convert-to-quotation"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Convert a won deal to a Sales Quotation. Requires `crm_deal.convert_quotation` permission.\n\n**Prerequisites:**\n- Deal status must be `won`\n- Deal must not have been previously converted\n- Deal must have at least one product item\n- Deal must have a customer\n\n**Optional Overrides:**\n- `payment_terms_id` (UUID) — override payment terms\n- `business_unit_id` (UUID) — override business unit\n- `business_type_id` (UUID) — override business type\n- `notes` (string) — additional notes for the quotation\n\n**Response:**\n- `deal_id` — source deal UUID\n- `quotation_id` — created quotation UUID\n- `quotation_code` — generated quotation code (e.g., QUO-202506-00001)\n\n**Error Codes:**\n- `DEAL_NOT_WON` (422) — deal status is not won\n- `DEAL_ALREADY_CONVERTED` (409) — deal already converted\n- `DEAL_NO_ITEMS` (422) — no product items\n- `DEAL_CUSTOMER_REQUIRED` (422) — no customer assigned"
+              },
+              "response": []
+            },
+            {
+              "name": "Stock Check",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/deals/:id/stock-check",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "deals", ":id", "stock-check"],
+                  "variable": [{ "key": "id", "value": "{{deal_id}}" }]
+                },
+                "description": "Check stock availability for all product items in a deal against ERP inventory. Requires `crm_deal.read` permission.\n\n**Response:**\n- `deal_id` — deal UUID\n- `items` — array of stock check results per product:\n  - `product_id`, `product_name`\n  - `requested_quantity` — quantity in deal\n  - `available_stock` — current stock from inventory_batches\n  - `reserved_stock` — already reserved stock\n  - `is_sufficient` — whether available > requested\n- `all_sufficient` — true if all items have sufficient stock"
+              },
+              "response": []
+            },
+            {
+              "name": "Sales Estimation (Deprecated)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/sales/estimations",
+                  "host": ["{{base_url}}"],
+                  "path": ["sales", "estimations"]
+                },
+                "description": "**DEPRECATED** — Sales Estimation has been replaced by CRM Pipeline (Deals).\n\nThis endpoint returns HTTP 301 with redirect info:\n- `redirect_to`: `/crm/pipeline`\n- `api_endpoint`: `/api/v1/crm/deals`\n\nUse CRM Deals endpoints instead."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }

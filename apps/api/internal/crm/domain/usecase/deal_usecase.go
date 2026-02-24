@@ -740,6 +740,7 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 	totalAmount := subtotal + taxAmount
 
 	// Build quotation
+	dealIDRef := dealID
 	quotation := &salesModels.SalesQuotation{
 		ID:            uuid.New().String(),
 		Code:          quotationCode,
@@ -747,6 +748,7 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		CustomerID:    deal.CustomerID,
 		CustomerName:  customer.Name,
 		SalesRepID:    deal.AssignedTo,
+		SourceDealID:  &dealIDRef,
 		Subtotal:      subtotal,
 		TaxRate:       defaultTaxRate,
 		TaxAmount:     taxAmount,

@@ -73,6 +73,9 @@ type SalesQuotation struct {
 	RejectedAt     *time.Time `json:"rejected_at"`
 	RejectionReason *string   `gorm:"type:text" json:"rejection_reason"`
 	
+	// Source tracking (backlink from CRM Deal conversion)
+	SourceDealID *string `gorm:"type:uuid;index" json:"source_deal_id"`
+
 	// Conversion tracking
 	ConvertedToSalesOrderID *string    `gorm:"type:uuid;index" json:"converted_to_sales_order_id"`
 	ConvertedAt             *time.Time `json:"converted_at"`

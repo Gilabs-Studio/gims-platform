@@ -98,11 +98,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Estimation seeder (Sprint 8)
-	if err := SeedSalesEstimation(); err != nil {
-		return err
-	}
-
 	// Sales Quotation seeder (Sprint 5)
 	if err := SeedSalesQuotation(); err != nil {
 		return err

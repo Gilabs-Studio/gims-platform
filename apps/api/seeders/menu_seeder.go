@@ -598,6 +598,19 @@ func UpdateMenuStructure() error {
 		log.Printf("Migrated menu URL: %s -> %s", m.oldURL, m.newURL)
 	}
 
+	// Deprecate Sales Estimation menu — replaced by CRM Pipeline
+	var estimationMenu permission.Menu
+	if err := database.DB.Where("url = ?", "/sales/estimations").First(&estimationMenu).Error; err == nil {
+		if estimationMenu.Status != "inactive" {
+			if err := database.DB.Model(&estimationMenu).Updates(map[string]interface{}{
+				"status": "inactive",
+			}).Error; err != nil {
+				return err
+			}
+			log.Println("Deprecated Sales Estimation menu (replaced by CRM Pipeline)")
+		}
+	}
+
 	log.Println("Menu structure update completed")
 	return nil
 }

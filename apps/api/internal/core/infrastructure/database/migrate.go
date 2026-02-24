@@ -140,8 +140,6 @@ func AutoMigrate() error {
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
-		&sales.SalesEstimation{},
-		&sales.SalesEstimationItem{},
 		// Sales Order entities (Sprint 6)
 		&sales.SalesOrder{},
 		&sales.SalesOrderItem{},

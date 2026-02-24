@@ -756,7 +756,7 @@ erDiagram
 
 - [x] **API:** Deal conversion to Sales Quotation + Stock availability check
 - [x] **Frontend:** Conversion UI + Stock indicator
-- [ ] **Migration:** Deprecate Sales Estimation, data migration script
+- [x] **Migration:** Deprecate Sales Estimation, data migration script
 
 ### API Tasks
 
@@ -808,13 +808,13 @@ Response:
 ```
 
 #### Sales Estimation Deprecation
-- [ ] Create migration script: `cmd/tools/migrate-estimations/main.go`
+- [x] Create migration script: `cmd/tools/migrate-estimations/main.go`
   - Convert existing `SalesEstimation` records ke `Deal` records
   - Map fields: CustomerID, Items → DealProductItems, Probability, ExpectedCloseDate
   - Set pipeline stage based on estimation status (draft → Qualification, submitted → Proposal, approved → Negotiation, converted → Closed Won)
   - Preserve original estimation data (soft archive, not delete)
-- [ ] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
-- [ ] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
+- [x] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
+- [x] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
 
 ### Frontend Tasks
 
@@ -825,18 +825,18 @@ Response:
   - Green badge: stock sufficient
   - Red badge: stock insufficient with available/requested counts
 - [x] "Check Stock" button di deal detail yang memanggil stock-check API
-- [ ] **Update Sales menu**: remove/hide "Sales Estimation" link
-- [ ] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
+- [x] **Update Sales menu**: remove/hide "Sales Estimation" link
+- [x] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
 - [x] Notification toast saat deal di-convert ke quotation
 
 ### Success Criteria
 
 - [x] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
 - [x] Stock check menampilkan available vs requested per product item
-- [ ] Migration script berhasil convert existing estimations ke deals
-- [ ] Sales Estimation menu tersembunyi
-- [ ] `/sales/estimations` redirect ke `/crm/pipeline`
-- [ ] Quotation yang dibuat dari deal memiliki link balik ke deal
+- [x] Migration script berhasil convert existing estimations ke deals
+- [x] Sales Estimation menu tersembunyi
+- [x] `/sales/estimations` redirect ke `/crm/pipeline`
+- [x] Quotation yang dibuat dari deal memiliki link balik ke deal
 
 ### Integration Requirements
 
