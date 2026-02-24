@@ -175,7 +175,6 @@ export function DealFormDialog({
   const dealValue = watch("value");
 
   const handleFormSubmit = (data: CreateDealFormData) => {
-    console.log("[DealForm] submit data:", JSON.stringify(data, null, 2));
     const cleaned = {
       ...data,
       customer_id: data.customer_id || undefined,
@@ -246,7 +245,6 @@ export function DealFormDialog({
 
             <form
               onSubmit={handleSubmit(handleFormSubmit, (fieldErrors) => {
-                console.log("[DealForm] validation errors:", fieldErrors);
                 // If Tab 1 fields have errors but the user is on Tab 2, switch back
                 const tab1Fields = ["title", "pipeline_stage_id"] as const;
                 if (tab1Fields.some((f) => fieldErrors[f])) setActiveTab("basic");
