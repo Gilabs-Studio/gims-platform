@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,22 +11,23 @@ import (
 )
 
 type AssetListParams struct {
-	Search    string
-	Status    *financeModels.AssetStatus
+	Search     string
+	Status     *financeModels.AssetStatus
 	CategoryID *string
 	LocationID *string
-	StartDate *time.Time
-	EndDate   *time.Time
-	Limit     int
-	Offset    int
-	SortBy    string
-	SortDir   string
+	StartDate  *time.Time
+	EndDate    *time.Time
+	Limit      int
+	Offset     int
+	SortBy     string
+	SortDir    string
 }
 
 type AssetRepository interface {
 	FindByID(ctx context.Context, id string, withDetails bool) (*financeModels.Asset, error)
 	List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error)
 	FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error)
+	GenerateCode(ctx context.Context) (string, error)
 }
 
 type assetRepository struct {
@@ -54,9 +56,9 @@ func (r *assetRepository) FindByID(ctx context.Context, id string, withDetails b
 }
 
 var assetAllowedSort = map[string]string{
-	"created_at":        "assets.created_at",
-	"updated_at":        "assets.updated_at",
-	"acquisition_date":  "assets.acquisition_date",
+	"created_at":       "assets.created_at",
+	"updated_at":       "assets.updated_at",
+	"acquisition_date": "assets.acquisition_date",
 	"code":             "assets.code",
 	"name":             "assets.name",
 	"book_value":       "assets.book_value",
@@ -126,4 +128,28 @@ func (r *assetRepository) FindLastDepreciation(ctx context.Context, assetID stri
 		return nil, err
 	}
 	return &last, nil
+}
+
+func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
+	now := time.Now()
+	prefix := "AST-" + now.Format("200601") + "-"
+
+	var lastAsset financeModels.Asset
+	err := r.db.WithContext(ctx).
+		Unscoped().
+		Where("code LIKE ?", prefix+"%").
+		Order("code DESC").
+		First(&lastAsset).Error
+
+	nextNum := 1
+	if err == nil {
+		parts := strings.Split(lastAsset.Code, "-")
+		if len(parts) == 3 {
+			var lastNum int
+			fmt.Sscanf(parts[2], "%d", &lastNum)
+			nextNum = lastNum + 1
+		}
+	}
+
+	return fmt.Sprintf("%s%04d", prefix, nextNum), nil
 }

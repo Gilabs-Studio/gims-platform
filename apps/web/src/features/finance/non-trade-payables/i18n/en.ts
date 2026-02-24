@@ -10,11 +10,17 @@ export const financeNonTradePayablesEn = {
     dueDate: "Due date",
     referenceNo: "Reference no",
     description: "Description",
+    paymentDate: "Payment date",
+    bankAccount: "Bank account",
+    code: "Code",
+    status: "Status",
+    notes: "Notes",
   },
   actions: {
     create: "Create",
     edit: "Edit",
     delete: "Delete",
+    pay: "Pay",
   },
   form: {
     createTitle: "Create Payable",
@@ -24,11 +30,13 @@ export const financeNonTradePayablesEn = {
   },
   placeholders: {
     select: "Select...",
+    selectBank: "Select bank account...",
   },
   toast: {
     created: "Payable created",
     updated: "Payable updated",
     deleted: "Payable deleted",
+    paid: "Payment recorded",
     failed: "Action failed",
   },
 };

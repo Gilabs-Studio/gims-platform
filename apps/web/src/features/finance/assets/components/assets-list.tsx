@@ -21,7 +21,9 @@ import { useDeleteFinanceAsset, useFinanceAssets } from "../hooks/use-finance-as
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
-type ActionMode = "depreciate" | "transfer" | "dispose";
+import { Badge } from "@/components/ui/badge";
+
+type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
 
 export function AssetsList() {
   const t = useTranslations("financeAssets");
@@ -63,6 +65,14 @@ export function AssetsList() {
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active": return "bg-green-500";
+      case "disposed": return "bg-red-500";
+      default: return "bg-slate-500";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -150,7 +160,11 @@ export function AssetsList() {
                   <TableCell>
                     {item.accumulated_depreciation?.toLocaleString?.() ?? item.accumulated_depreciation}
                   </TableCell>
-                  <TableCell>{t(`status.${item.status}`)}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(item.status)}>
+                      {t(`status.${item.status}`)}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -193,6 +207,30 @@ export function AssetsList() {
                             }}
                           >
                             {t("actions.transfer")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setActionMode("revalue");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            {t("actions.revalue")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setActionMode("adjust");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            {t("actions.adjust")}
                           </DropdownMenuItem>
                         )}
                         {canUpdate && item.status === "active" && (

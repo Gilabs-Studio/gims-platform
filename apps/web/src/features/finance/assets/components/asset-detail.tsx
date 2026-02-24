@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 
 import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { useFinanceAsset } from "../hooks/use-finance-assets";
+import { useFinanceAsset, useApproveFinanceAssetTransaction } from "../hooks/use-finance-assets";
 import type { Asset, AssetDepreciation, AssetTransaction } from "../types";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { toast } from "sonner";
+import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
 function formatNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return "-";
@@ -32,6 +36,13 @@ function getStatusVariant(status: Asset["status"]) {
   return "secondary";
 }
 
+function getTxStatusVariant(status: string) {
+  if (status === "APPROVED") return "success";
+  if (status === "DRAFT") return "secondary";
+  if (status === "CANCELLED") return "destructive";
+  return "secondary";
+}
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -41,15 +52,39 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
+
 export function AssetDetail({ id }: { id: string }) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
 
+  const canUpdate = useUserPermission("asset.update");
+  const canApprove = useUserPermission("asset.update");
+
   const { data, isLoading, isError } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;
 
+  const [actionOpen, setActionOpen] = useState(false);
+  const [actionMode, setActionMode] = useState<ActionMode>("depreciate");
+
+  const approveMutation = useApproveFinanceAssetTransaction();
+
+  const handleAction = (mode: ActionMode) => {
+    setActionMode(mode);
+    setActionOpen(true);
+  };
+
   const depreciations = useMemo<AssetDepreciation[]>(() => asset?.depreciations ?? [], [asset?.depreciations]);
   const transactions = useMemo<AssetTransaction[]>(() => asset?.transactions ?? [], [asset?.transactions]);
+
+  const handleApprove = async (txId: string) => {
+    try {
+      await approveMutation.mutateAsync(txId);
+      toast.success(t("toast.done"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -82,7 +117,42 @@ export function AssetDetail({ id }: { id: string }) {
           </div>
           <p className="text-sm text-muted-foreground">{t("detail.subtitle")}</p>
         </div>
+
+        {canUpdate && asset.status === "active" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="cursor-pointer">
+                {tCommon("actions")}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("depreciate")}>
+                {t("actions.depreciate")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("transfer")}>
+                {t("actions.transfer")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("revalue")}>
+                {t("actions.revalue")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("adjust")}>
+                {t("actions.adjust")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("dispose")}>
+                {t("actions.dispose")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
+
+      <AssetActionsDialogs
+        open={actionOpen}
+        onOpenChange={setActionOpen}
+        mode={actionMode}
+        asset={asset}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -164,7 +234,10 @@ export function AssetDetail({ id }: { id: string }) {
                   <TableRow>
                     <TableHead>{t("detail.transactions.date")}</TableHead>
                     <TableHead>{t("detail.transactions.type")}</TableHead>
+                    <TableHead>{t("detail.transactions.amount")}</TableHead>
+                    <TableHead>{t("detail.transactions.status")}</TableHead>
                     <TableHead>{t("detail.transactions.description")}</TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -172,7 +245,24 @@ export function AssetDetail({ id }: { id: string }) {
                     <TableRow key={tr.id}>
                       <TableCell>{formatDate(tr.transaction_date)}</TableCell>
                       <TableCell>{tr.type}</TableCell>
+                      <TableCell>{formatNumber(tr.amount)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getTxStatusVariant(tr.status)}>{tr.status}</Badge>
+                      </TableCell>
                       <TableCell className="whitespace-normal">{tr.description}</TableCell>
+                      <TableCell className="text-right">
+                        {tr.status === "DRAFT" && canApprove && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-600 cursor-pointer"
+                            onClick={() => handleApprove(tr.id)}
+                            disabled={approveMutation.isPending}
+                          >
+                            {tCommon("approve")}
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

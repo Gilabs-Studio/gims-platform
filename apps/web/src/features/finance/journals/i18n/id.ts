@@ -26,10 +26,15 @@ export const financeJournalsId = {
     credit: "Kredit",
     memo: "Memo",
     account: "Akun",
+    startDate: "Tanggal Mulai",
+    endDate: "Tanggal Selesai",
+    code: "Kode",
+    name: "Nama",
+    balance: "Saldo",
   },
   status: {
     draft: "Draft",
-    posted: "Posted",
+    posted: "Diposting",
   },
   form: {
     createTitle: "Buat Jurnal",

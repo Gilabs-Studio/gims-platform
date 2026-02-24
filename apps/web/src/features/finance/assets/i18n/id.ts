@@ -57,6 +57,8 @@ export const financeAssetsId = {
     depreciate: "Depresiasi",
     transfer: "Transfer",
     dispose: "Lepas",
+    revalue: "Revaluasi",
+    adjust: "Penyesuaian",
   },
   form: {
     createTitle: "Buat Aset",

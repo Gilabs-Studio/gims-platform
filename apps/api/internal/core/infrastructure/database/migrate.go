@@ -133,6 +133,10 @@ func AutoMigrate() error {
 		&finance.FinancialClosing{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
+		&finance.SalaryStructure{},
+		&finance.UpCountryCost{},
+		&finance.UpCountryCostEmployee{},
+		&finance.UpCountryCostItem{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},

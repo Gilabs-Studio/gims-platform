@@ -47,3 +47,25 @@ export function useDeleteFinanceNonTradePayable() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() }),
   });
 }
+
+export function useApproveFinanceNonTradePayable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeNonTradePayablesService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });
+    },
+  });
+}
+
+export function usePayFinanceNonTradePayable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => financeNonTradePayablesService.pay(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });
+    },
+  });
+}

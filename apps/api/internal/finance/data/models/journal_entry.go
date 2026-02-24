@@ -14,6 +14,23 @@ const (
 	JournalStatusPosted JournalStatus = "posted"
 )
 
+type ReferenceType string
+
+const (
+	RefSO                ReferenceType = "SO"         // Sales Order
+	RefPO                ReferenceType = "PO"         // Purchase Order
+	RefDO                ReferenceType = "DO"         // Delivery Order
+	RefGR                ReferenceType = "GR"         // Goods Receipt
+	RefStockOpname       ReferenceType = "STOCK_OP"   // Stock Opname
+	RefAdjustment        ReferenceType = "ADJUSTMENT" // Adjustment
+	RefNonTradePayable   ReferenceType = "NTP"        // Non-Trade Payable
+	RefPayment           ReferenceType = "PAYMENT"    // Payment
+	RefAssetTransaction  ReferenceType = "ASSET_TXN"  // Asset Transaction
+	RefAssetDepreciation ReferenceType = "ASSET_DEP"  // Asset Depreciation
+	RefCashBank          ReferenceType = "CASH_BANK"  // Cash Bank
+	RefUpCountryCost     ReferenceType = "UP_COUNTRY" // Up Country Cost
+)
+
 type JournalEntry struct {
 	ID          string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	EntryDate   time.Time `gorm:"type:date;not null;index" json:"entry_date"`

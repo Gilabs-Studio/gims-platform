@@ -32,3 +32,19 @@ export const disposeAssetSchema = z.object({
 });
 
 export type DisposeAssetValues = z.infer<typeof disposeAssetSchema>;
+
+export const revalueAssetSchema = z.object({
+  new_cost: z.number().positive(),
+  transaction_date: z.string().trim().min(1),
+  description: z.string().optional(),
+});
+
+export type RevalueAssetValues = z.infer<typeof revalueAssetSchema>;
+
+export const adjustAssetSchema = z.object({
+  amount: z.number(),
+  transaction_date: z.string().trim().min(1),
+  description: z.string().optional(),
+});
+
+export type AdjustAssetValues = z.infer<typeof adjustAssetSchema>;

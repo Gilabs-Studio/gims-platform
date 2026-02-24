@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	ErrBudgetNotFound        = errors.New("budget not found")
+	ErrBudgetNotFound          = errors.New("budget not found")
 	ErrBudgetApprovedImmutable = errors.New("approved budget cannot be modified")
-	ErrBudgetInvalidItems    = errors.New("invalid budget items")
+	ErrBudgetInvalidItems      = errors.New("invalid budget items")
 )
 
 type BudgetUsecase interface {
@@ -27,6 +27,7 @@ type BudgetUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.BudgetResponse, error)
 	List(ctx context.Context, req *dto.ListBudgetsRequest) ([]dto.BudgetResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.BudgetResponse, error)
+	SyncActuals(ctx context.Context, id string) (*dto.BudgetResponse, error)
 }
 
 type budgetUsecase struct {
@@ -123,13 +124,13 @@ func (uc *budgetUsecase) Create(ctx context.Context, req *dto.CreateBudgetReques
 			typeSnap := ""
 			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.BudgetItem{
-				BudgetID:        b.ID,
-				ChartOfAccountID: strings.TrimSpace(it.ChartOfAccountID),
+				BudgetID:                   b.ID,
+				ChartOfAccountID:           strings.TrimSpace(it.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				Amount:          it.Amount,
-				Memo:            strings.TrimSpace(it.Memo),
+				Amount:                     it.Amount,
+				Memo:                       strings.TrimSpace(it.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -227,13 +228,13 @@ func (uc *budgetUsecase) Update(ctx context.Context, id string, req *dto.UpdateB
 			typeSnap := ""
 			snapshotCOAIntoLine(&codeSnap, &nameSnap, &typeSnap, coa)
 			item := &financeModels.BudgetItem{
-				BudgetID:         id,
-				ChartOfAccountID: strings.TrimSpace(it.ChartOfAccountID),
+				BudgetID:                   id,
+				ChartOfAccountID:           strings.TrimSpace(it.ChartOfAccountID),
 				ChartOfAccountCodeSnapshot: codeSnap,
 				ChartOfAccountNameSnapshot: nameSnap,
 				ChartOfAccountTypeSnapshot: typeSnap,
-				Amount:           it.Amount,
-				Memo:             strings.TrimSpace(it.Memo),
+				Amount:                     it.Amount,
+				Memo:                       strings.TrimSpace(it.Memo),
 			}
 			if err := tx.Create(item).Error; err != nil {
 				return err
@@ -385,6 +386,24 @@ func (uc *budgetUsecase) Approve(ctx context.Context, id string) (*dto.BudgetRes
 	if err != nil {
 		return nil, err
 	}
+	resp := uc.mapper.ToResponse(full)
+	return &resp, nil
+}
+
+func (uc *budgetUsecase) SyncActuals(ctx context.Context, id string) (*dto.BudgetResponse, error) {
+	id = strings.TrimSpace(id)
+	if _, err := uc.repo.FindByID(ctx, id, false); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrBudgetNotFound
+		}
+		return nil, err
+	}
+
+	if err := uc.repo.SyncActuals(ctx, id); err != nil {
+		return nil, err
+	}
+
+	full, _ := uc.repo.FindByID(ctx, id, true)
 	resp := uc.mapper.ToResponse(full)
 	return &resp, nil
 }

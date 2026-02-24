@@ -116,8 +116,8 @@ export const navigationConfig: NavItem[] = [
       { name: "Requisitions", url: "/purchase/purchase-requisitions", icon: "clipboard-list", permission: "purchase_requisition.read" },
       { name: "Purchase Orders", url: "/purchase/purchase-orders", icon: "shopping-cart", permission: "purchase_order.read" },
       { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
-	  { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
-	  { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
+      { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
+      { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
     ],
   },
   {
@@ -147,6 +147,17 @@ export const navigationConfig: NavItem[] = [
       { name: "Asset Management", url: "/finance/assets", icon: "building-2", permission: "asset.read" },
       { name: "Up Country Cost", url: "/finance/up-country-cost", icon: "map-pin", permission: "up_country_cost.read" },
       { name: "Salary", url: "/finance/salary", icon: "coins", permission: "salary.read" },
+      {
+        name: "Reports",
+        url: "/finance/reports",
+        icon: "bar-chart-3",
+        children: [
+          { name: "General Ledger", url: "/finance/reports/general-ledger", icon: "book-open", permission: "journal.read" },
+          { name: "Balance Sheet", url: "/finance/reports/balance-sheet", icon: "scale", permission: "journal.read" },
+          { name: "Profit & Loss", url: "/finance/reports/profit-loss", icon: "trending-up", permission: "journal.read" },
+          { name: "Aging Reports", url: "/finance/aging-reports", icon: "clock", permission: "journal.read" },
+        ],
+      },
     ],
   },
   {

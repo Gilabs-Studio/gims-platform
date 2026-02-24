@@ -59,6 +59,9 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
       account_holder: initial?.account_holder ?? "",
       currency: initial?.currency ?? "IDR",
       chart_of_account_id: initial?.chart_of_account_id ?? null,
+      village_id: initial?.village_id ?? null,
+      bank_address: initial?.bank_address ?? "",
+      bank_phone: initial?.bank_phone ?? "",
       is_active: initial?.is_active ?? true,
     }),
     [initial],
@@ -85,6 +88,9 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
         account_holder: values.account_holder,
         currency: values.currency,
         chart_of_account_id: values.chart_of_account_id ?? null,
+        village_id: values.village_id ?? null,
+        bank_address: values.bank_address,
+        bank_phone: values.bank_phone,
         is_active: values.is_active ?? true,
       };
 
@@ -130,6 +136,17 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
             <div className="space-y-2">
               <Label htmlFor="account_holder">{t("fields.accountHolder")}</Label>
               <Input id="account_holder" {...form.register("account_holder")} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="bank_address">{t("fields.bankAddress")}</Label>
+              <Input id="bank_address" {...form.register("bank_address")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank_phone">{t("fields.bankPhone")}</Label>
+              <Input id="bank_phone" {...form.register("bank_phone")} />
             </div>
           </div>
 

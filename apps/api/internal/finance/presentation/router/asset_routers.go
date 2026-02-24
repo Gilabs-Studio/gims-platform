@@ -24,6 +24,10 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g.PUT("/:id", middleware.RequirePermission(assetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(assetDelete), h.Delete)
 	g.POST("/:id/depreciate", middleware.RequirePermission(assetDepreciate), h.Depreciate)
+	g.POST("/depreciations/:dep_id/approve", middleware.RequirePermission(assetDepreciate), h.ApproveDepreciation)
 	g.POST("/:id/transfer", middleware.RequirePermission(assetUpdate), h.Transfer)
 	g.POST("/:id/dispose", middleware.RequirePermission(assetUpdate), h.Dispose)
+	g.POST("/:id/revalue", middleware.RequirePermission(assetUpdate), h.Revalue)
+	g.POST("/:id/adjust", middleware.RequirePermission(assetUpdate), h.Adjust)
+	g.POST("/transactions/:tx_id/approve", middleware.RequirePermission(assetUpdate), h.ApproveTransaction)
 }

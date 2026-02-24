@@ -18,15 +18,18 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 		return nil
 	}
 	return &dto.BankAccountResponse{
-		ID:            model.ID,
-		Name:          model.Name,
-		AccountNumber: model.AccountNumber,
-		AccountHolder: model.AccountHolder,
-		Currency:      model.Currency,
+		ID:               model.ID,
+		Name:             model.Name,
+		AccountNumber:    model.AccountNumber,
+		AccountHolder:    model.AccountHolder,
+		Currency:         model.Currency,
 		ChartOfAccountID: model.ChartOfAccountID,
-		IsActive:      model.IsActive,
-		CreatedAt:     model.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:     model.UpdatedAt.Format(time.RFC3339),
+		VillageID:        model.VillageID,
+		BankAddress:      model.BankAddress,
+		BankPhone:        model.BankPhone,
+		IsActive:         model.IsActive,
+		CreatedAt:        model.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        model.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

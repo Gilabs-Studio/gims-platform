@@ -132,6 +132,8 @@ import { contactRoleEn } from "@/features/crm/contact-role/i18n/en";
 import { contactRoleId } from "@/features/crm/contact-role/i18n/id";
 import { activityTypeEn } from "@/features/crm/activity-type/i18n/en";
 import { activityTypeId } from "@/features/crm/activity-type/i18n/id";
+import { financeReportsEn } from "@/features/finance/reports/i18n/en";
+import { financeReportsId } from "@/features/finance/reports/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -198,6 +200,7 @@ const messages = {
     leadStatus: leadStatusEn,
     contactRole: contactRoleEn,
     activityType: activityTypeEn,
+    financeReports: financeReportsEn,
   },
   id: {
     ...globalIdMessages,
@@ -261,6 +264,7 @@ const messages = {
     leadStatus: leadStatusId,
     contactRole: contactRoleId,
     activityType: activityTypeId,
+    financeReports: financeReportsId,
   },
 } as const;
 

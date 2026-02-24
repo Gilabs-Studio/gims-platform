@@ -16,14 +16,27 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import type { NonTradePayable } from "../types";
-import { useDeleteFinanceNonTradePayable, useFinanceNonTradePayables } from "../hooks/use-finance-non-trade-payables";
+import {
+  useDeleteFinanceNonTradePayable,
+  useFinanceNonTradePayables,
+  useApproveFinanceNonTradePayable
+} from "../hooks/use-finance-non-trade-payables";
 import { NonTradePayableForm } from "./non-trade-payable-form";
+import { PayNonTradePayableDialog } from "./pay-dialog";
+import { Badge } from "@/components/ui/badge";
 
 function formatDate(value: string) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toISOString().slice(0, 10);
 }
+
+const statusColors: Record<string, string> = {
+  DRAFT: "bg-slate-500",
+  APPROVED: "bg-blue-500",
+  PAID: "bg-green-500",
+  CANCELLED: "bg-red-500",
+};
 
 export function NonTradePayablesList() {
   const t = useTranslations("financeNonTradePayables");
@@ -32,6 +45,7 @@ export function NonTradePayablesList() {
   const canCreate = useUserPermission("non_trade_payable.create");
   const canUpdate = useUserPermission("non_trade_payable.update");
   const canDelete = useUserPermission("non_trade_payable.delete");
+  const canApprove = useUserPermission("non_trade_payable.update");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -43,6 +57,7 @@ export function NonTradePayablesList() {
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<NonTradePayable | null>(null);
   const [deleting, setDeleting] = useState<NonTradePayable | null>(null);
+  const [paying, setPaying] = useState<NonTradePayable | null>(null);
 
   const { data, isLoading, isError } = useFinanceNonTradePayables({
     page,
@@ -55,10 +70,20 @@ export function NonTradePayablesList() {
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
   const deleteMutation = useDeleteFinanceNonTradePayable();
+  const approveMutation = useApproveFinanceNonTradePayable();
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveMutation.mutateAsync(id);
+      toast.success(t("toast.approved"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -103,11 +128,12 @@ export function NonTradePayablesList() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t("fields.code")}</TableHead>
               <TableHead>{t("fields.transactionDate")}</TableHead>
               <TableHead>{t("fields.vendorName")}</TableHead>
               <TableHead>{t("fields.amount")}</TableHead>
               <TableHead>{t("fields.dueDate")}</TableHead>
-              <TableHead>{t("fields.referenceNo")}</TableHead>
+              <TableHead>{t("fields.status")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -115,25 +141,30 @@ export function NonTradePayablesList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell className="font-mono text-xs">{item.code}</TableCell>
                   <TableCell>{formatDate(item.transaction_date)}</TableCell>
                   <TableCell>{item.vendor_name || "-"}</TableCell>
                   <TableCell>{item.amount?.toLocaleString?.() ?? item.amount}</TableCell>
                   <TableCell>{item.due_date ? formatDate(item.due_date) : "-"}</TableCell>
-                  <TableCell>{item.reference_no || "-"}</TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[item.status] || "bg-slate-500"}>
+                      {item.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -142,7 +173,7 @@ export function NonTradePayablesList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {canUpdate && (
+                        {item.status === "DRAFT" && canUpdate && (
                           <DropdownMenuItem
                             className="cursor-pointer"
                             onClick={() => {
@@ -154,7 +185,23 @@ export function NonTradePayablesList() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
-                        {canDelete && (
+                        {item.status === "DRAFT" && canApprove && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-blue-600"
+                            onClick={() => handleApprove(item.id)}
+                          >
+                            {t("actions.approve")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "APPROVED" && canApprove && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-green-600 font-bold"
+                            onClick={() => setPaying(item)}
+                          >
+                            {t("actions.pay")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "DRAFT" && canDelete && (
                           <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
                             {t("actions.delete")}
                           </DropdownMenuItem>
@@ -181,6 +228,14 @@ export function NonTradePayablesList() {
       />
 
       <NonTradePayableForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} initialData={editing} />
+
+      <PayNonTradePayableDialog
+        open={!!paying}
+        onOpenChange={(open) => {
+          if (!open) setPaying(null);
+        }}
+        item={paying}
+      />
 
       <DeleteDialog
         open={!!deleting}

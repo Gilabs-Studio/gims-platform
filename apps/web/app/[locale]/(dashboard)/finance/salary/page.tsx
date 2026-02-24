@@ -9,7 +9,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 const FinanceSalaryContainer = dynamic(
   () =>
     import("@/features/finance/salary/components").then((mod) => ({
-      default: mod.FinanceSalaryContainer,
+      default: mod.SalaryPage,
     })),
   { loading: () => null },
 );
