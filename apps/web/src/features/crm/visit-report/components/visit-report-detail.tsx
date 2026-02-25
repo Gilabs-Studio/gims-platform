@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -459,9 +460,13 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                   {t("form.employee")}
                 </h4>
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                    {visit.employee.name.charAt(0)}
-                  </div>
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={visit.employee.email ? `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(visit.employee.email)}` : undefined}
+                      alt={visit.employee.name}
+                    />
+                    <AvatarFallback dataSeed={visit.employee.email} className="text-xs">{visit.employee.name}</AvatarFallback>
+                  </Avatar>
                   <span className="text-sm">{visit.employee.name}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{visit.employee.employee_code}</p>

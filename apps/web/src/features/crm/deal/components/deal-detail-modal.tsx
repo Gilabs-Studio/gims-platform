@@ -38,6 +38,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DealHistoryTimeline } from "./deal-history-timeline";
 import type { Deal } from "../types";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface DealDetailModalProps {
   deal: Deal | null;
@@ -337,9 +338,13 @@ export function DealDetailModal({
                     {t("assignedTo")}
                   </h4>
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                      {deal.assigned_employee.name.charAt(0)}
-                    </div>
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage
+                        src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(deal.assigned_employee.employee_code)}`}
+                        alt={deal.assigned_employee.name}
+                      />
+                      <AvatarFallback dataSeed={deal.assigned_employee.employee_code} className="text-xs">{deal.assigned_employee.name}</AvatarFallback>
+                    </Avatar>
                     <span className="text-sm">{deal.assigned_employee.name}</span>
                   </div>
                 </div>
