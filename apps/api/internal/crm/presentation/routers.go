@@ -30,6 +30,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leadRepo := repositories.NewLeadRepository(db)
 	dealRepo := repositories.NewDealRepository(db)
 	visitReportRepo := repositories.NewVisitReportRepository(db)
+	activityRepo := repositories.NewActivityRepository(db)
+	taskRepo := repositories.NewTaskRepository(db)
+	reminderRepo := repositories.NewReminderRepository(db)
+	scheduleRepo := repositories.NewScheduleRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
@@ -45,6 +49,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
 	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
+	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)
+	taskUC := usecase.NewTaskUsecase(taskRepo, reminderRepo, contactRepo, dealRepo, customerRepo, employeeRepo)
+	scheduleUC := usecase.NewScheduleUsecase(scheduleRepo, taskRepo, employeeRepo)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)
@@ -57,6 +64,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	dealH := handler.NewDealHandler(dealUC)
 	visitReportH := handler.NewVisitReportHandler(visitReportUC)
 	visitReportPrintH := handler.NewVisitReportPrintHandler(visitReportUC)
+	activityH := handler.NewActivityHandler(activityUC)
+	taskH := handler.NewTaskHandler(taskUC)
+	scheduleH := handler.NewScheduleHandler(scheduleUC)
 
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
@@ -72,4 +82,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterLeadRoutes(group, leadH)
 	router.RegisterDealRoutes(group, dealH)
 	router.RegisterVisitReportRoutes(group, visitReportH, visitReportPrintH)
+	router.RegisterActivityRoutes(group, activityH)
+	router.RegisterTaskRoutes(group, taskH)
+	router.RegisterScheduleRoutes(group, scheduleH)
 }

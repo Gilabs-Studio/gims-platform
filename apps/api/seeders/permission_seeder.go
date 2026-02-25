@@ -541,6 +541,23 @@ func SeedPermissions() error {
 		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
 		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
 
+		// CRM Activities (Sprint 23)
+		{"/crm/activities", "crm_activity.read", "View Activities", "VIEW", "crm_activity"},
+		{"/crm/activities", "crm_activity.create", "Create Activities", "CREATE", "crm_activity"},
+
+		// CRM Tasks (Sprint 23)
+		{"/crm/tasks", "crm_task.read", "View Tasks", "VIEW", "crm_task"},
+		{"/crm/tasks", "crm_task.create", "Create Tasks", "CREATE", "crm_task"},
+		{"/crm/tasks", "crm_task.update", "Edit Tasks", "EDIT", "crm_task"},
+		{"/crm/tasks", "crm_task.delete", "Delete Tasks", "DELETE", "crm_task"},
+		{"/crm/tasks", "crm_task.assign", "Assign Tasks", "ASSIGN", "crm_task"},
+
+		// CRM Schedules (Sprint 23)
+		{"/crm/schedules", "crm_schedule.read", "View Schedules", "VIEW", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.create", "Create Schedules", "CREATE", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.update", "Edit Schedules", "EDIT", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.delete", "Delete Schedules", "DELETE", "crm_schedule"},
+
 	}
 
 	// Build menu URL to ID map

@@ -81,6 +81,9 @@ const VALID_DASHBOARD_ROUTES = [
   "/crm/leads",
   "/crm/pipeline",
   "/crm/visits",
+  "/crm/activities",
+  "/crm/tasks",
+  "/crm/schedules",
   // CRM Settings
   "/crm/settings/pipeline-stages",
   "/crm/settings/lead-sources",

@@ -138,6 +138,12 @@ import { crmDealEn } from "@/features/crm/deal/i18n/en";
 import { crmDealId } from "@/features/crm/deal/i18n/id";
 import { crmVisitReportEn } from "@/features/crm/visit-report/i18n/en";
 import { crmVisitReportId } from "@/features/crm/visit-report/i18n/id";
+import { crmActivityEn } from "@/features/crm/activity/i18n/en";
+import { crmActivityId } from "@/features/crm/activity/i18n/id";
+import { crmTaskEn } from "@/features/crm/task/i18n/en";
+import { crmTaskId } from "@/features/crm/task/i18n/id";
+import { crmScheduleEn } from "@/features/crm/schedule/i18n/en";
+import { crmScheduleId } from "@/features/crm/schedule/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -207,6 +213,9 @@ const messages = {
     ...crmLeadEn,
     ...crmDealEn,
     ...crmVisitReportEn,
+    ...crmActivityEn,
+    ...crmTaskEn,
+    ...crmScheduleEn,
   },
   id: {
     ...globalIdMessages,
@@ -273,6 +282,9 @@ const messages = {
     ...crmLeadId,
     ...crmDealId,
     ...crmVisitReportId,
+    ...crmActivityId,
+    ...crmTaskId,
+    ...crmScheduleId,
   },
 } as const;
 

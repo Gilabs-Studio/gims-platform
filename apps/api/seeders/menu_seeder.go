@@ -550,8 +550,23 @@ func SeedMenus() error {
 		return err
 	}
 
+	// CRM Activities menu (Sprint 23)
+	if _, err := createChildMenu("Activities", "activity", "/crm/activities", &crmMenu.ID, 3); err != nil {
+		return err
+	}
+
+	// CRM Tasks menu (Sprint 23)
+	if _, err := createChildMenu("Tasks", "check-square", "/crm/tasks", &crmMenu.ID, 4); err != nil {
+		return err
+	}
+
+	// CRM Schedules menu (Sprint 23)
+	if _, err := createChildMenu("Schedules", "calendar", "/crm/schedules", &crmMenu.ID, 5); err != nil {
+		return err
+	}
+
 	// CRM Visit Reports menu (Sprint 22)
-	if _, err := createChildMenu("Visit Reports", "map-pin", "/crm/visits", &crmMenu.ID, 3); err != nil {
+	if _, err := createChildMenu("Visit Reports", "map-pin", "/crm/visits", &crmMenu.ID, 6); err != nil {
 		return err
 	}
 

@@ -7961,6 +7961,529 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Activities",
+          "description": "CRM Activity logging endpoints - immutable activity records",
+          "item": [
+            {
+              "name": "List Activities",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/activities?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "activities"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Page number" },
+                    { "key": "per_page", "value": "20", "description": "Items per page (max 100)" },
+                    { "key": "search", "value": "", "description": "Search in description", "disabled": true },
+                    { "key": "type", "value": "", "description": "Filter by type (visit/call/email/meeting/follow_up/task/deal/lead)", "disabled": true },
+                    { "key": "customer_id", "value": "", "description": "Filter by customer", "disabled": true },
+                    { "key": "contact_id", "value": "", "description": "Filter by contact", "disabled": true },
+                    { "key": "deal_id", "value": "", "description": "Filter by deal", "disabled": true },
+                    { "key": "employee_id", "value": "", "description": "Filter by employee", "disabled": true },
+                    { "key": "date_from", "value": "", "description": "Filter from date (ISO 8601)", "disabled": true },
+                    { "key": "date_to", "value": "", "description": "Filter to date (ISO 8601)", "disabled": true }
+                  ]
+                },
+                "description": "List all CRM activities with filtering and pagination. Requires `crm_activity.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Activity Timeline",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/activities/timeline?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "activities", "timeline"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" }
+                  ]
+                },
+                "description": "Get activity timeline sorted by timestamp descending. Requires `crm_activity.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Activity",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/activities/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "activities", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Get activity by ID. Requires `crm_activity.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Activity",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"call\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"description\": \"Follow-up call with client\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null,\n  \"timestamp\": null\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/activities",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "activities"]
+                },
+                "description": "Create a new immutable activity record. Requires `crm_activity.create` permission."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Tasks",
+          "description": "CRM Task management endpoints with reminders",
+          "item": [
+            {
+              "name": "List Tasks",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" },
+                    { "key": "status", "value": "", "description": "Filter: pending/in_progress/completed/cancelled", "disabled": true },
+                    { "key": "priority", "value": "", "description": "Filter: low/medium/high/urgent", "disabled": true },
+                    { "key": "type", "value": "", "description": "Filter: general/call/email/meeting/follow_up", "disabled": true },
+                    { "key": "assigned_to", "value": "", "description": "Filter by assigned employee", "disabled": true },
+                    { "key": "is_overdue", "value": "true", "description": "Filter overdue tasks", "disabled": true }
+                  ]
+                },
+                "description": "List all CRM tasks with filtering. Requires `crm_task.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Task Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/form-data",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", "form-data"]
+                },
+                "description": "Get form dropdown data (employees, customers, contacts, deals, statuses, priorities, types). Requires `crm_task.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Get task by ID with all relations. Requires `crm_task.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Follow up client meeting\",\n  \"description\": \"Discuss project requirements\",\n  \"type\": \"meeting\",\n  \"priority\": \"high\",\n  \"due_date\": \"2025-02-15T10:00:00Z\",\n  \"assigned_to\": \"{{employee_id}}\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks"]
+                },
+                "description": "Create a new task. Requires `crm_task.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated task title\",\n  \"priority\": \"urgent\",\n  \"status\": \"in_progress\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Update an existing task. Requires `crm_task.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Soft delete a task. Requires `crm_task.delete` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Assign Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assigned_to\": \"{{employee_id}}\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/assign",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "assign"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Assign a task to an employee. Requires `crm_task.assign` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Complete Task",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/complete",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "complete"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Mark a task as completed. Sets completed_at timestamp. Requires `crm_task.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Mark Task In Progress",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/in-progress",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "in-progress"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Mark a task as in progress. Requires `crm_task.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "List Task Reminders",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/reminders",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "reminders"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "List all reminders for a task. Requires `crm_task.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Reminder",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"remind_at\": \"2025-02-15T09:30:00Z\",\n  \"reminder_type\": \"in_app\",\n  \"message\": \"Meeting with client in 30 minutes\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/reminders",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "reminders"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Create a new reminder for a task. Requires `crm_task.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Reminder",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"remind_at\": \"2025-02-15T09:00:00Z\",\n  \"message\": \"Updated reminder message\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/reminders/:reminderId",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "reminders", ":reminderId"],
+                  "variable": [
+                    { "key": "id", "value": "" },
+                    { "key": "reminderId", "value": "" }
+                  ]
+                },
+                "description": "Update a task reminder. Requires `crm_task.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Reminder",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/tasks/:id/reminders/:reminderId",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "tasks", ":id", "reminders", ":reminderId"],
+                  "variable": [
+                    { "key": "id", "value": "" },
+                    { "key": "reminderId", "value": "" }
+                  ]
+                },
+                "description": "Delete a task reminder. Requires `crm_task.delete` permission."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Schedules",
+          "description": "CRM Schedule management endpoints",
+          "item": [
+            {
+              "name": "List Schedules",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" },
+                    { "key": "status", "value": "", "description": "Filter: pending/confirmed/completed/cancelled", "disabled": true },
+                    { "key": "employee_id", "value": "", "description": "Filter by employee", "disabled": true }
+                  ]
+                },
+                "description": "List all schedules with filtering. Requires `crm_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Schedule Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules/form-data",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules", "form-data"]
+                },
+                "description": "Get form dropdown data (employees, tasks, statuses). Requires `crm_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Get schedule by ID. Requires `crm_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Client meeting\",\n  \"description\": \"Discuss quarterly review\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"scheduled_at\": \"2025-02-15T10:00:00Z\",\n  \"end_at\": \"2025-02-15T11:00:00Z\",\n  \"location\": \"Meeting Room A\",\n  \"reminder_minutes_before\": 30\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules"]
+                },
+                "description": "Create a new schedule. Requires `crm_schedule.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated meeting\",\n  \"status\": \"confirmed\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Update a schedule. Requires `crm_schedule.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/crm/schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["crm", "schedules", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Soft delete a schedule. Requires `crm_schedule.delete` permission."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }
