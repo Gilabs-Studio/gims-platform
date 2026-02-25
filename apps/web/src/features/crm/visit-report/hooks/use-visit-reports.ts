@@ -114,8 +114,9 @@ export function useSubmitVisitReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: SubmitVisitData }) =>
       visitReportService.submit(id, data),
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       qc.invalidateQueries({ queryKey: visitReportKeys.all });
+      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
 }
@@ -125,8 +126,10 @@ export function useApproveVisitReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: ApproveVisitData }) =>
       visitReportService.approve(id, data),
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       qc.invalidateQueries({ queryKey: visitReportKeys.all });
+      // Force refetch the specific detail to ensure UI sync
+      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
 }
@@ -136,8 +139,21 @@ export function useRejectVisitReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: RejectVisitData }) =>
       visitReportService.reject(id, data),
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       qc.invalidateQueries({ queryKey: visitReportKeys.all });
+      // Force refetch the specific detail to ensure UI sync
+      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useUploadVisitPhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, photoUrls }: { id: string; photoUrls: string[] }) =>
+      visitReportService.uploadPhotos(id, photoUrls),
+    onSuccess: (_response, variables) => {
+      qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
 }

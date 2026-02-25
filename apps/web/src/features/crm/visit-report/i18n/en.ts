@@ -120,6 +120,24 @@ export const crmVisitReportEn = {
       rejectionReason: "Rejection Reason",
       noHistory: "No progress history",
     },
+    photos: {
+      upload: "Upload Photo",
+      maxReached: "Maximum photos reached",
+      uploaded: "uploaded",
+      remaining: "remaining",
+      empty: "No photos uploaded",
+      preview: "Photo Preview",
+    },
+    metrics: {
+      total: "Total Visits",
+      pending: "Pending Approval",
+      approved: "Approved",
+      checkInRate: "Check-in Rate",
+    },
+    calendar: {
+      today: "Today",
+      more: "more",
+    },
     validation: {
       visitDateRequired: "Visit date is required",
       employeeRequired: "Sales representative is required",

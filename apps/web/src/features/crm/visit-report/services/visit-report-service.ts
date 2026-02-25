@@ -67,8 +67,17 @@ export const visitReportService = {
     return response.data;
   },
 
-  uploadPhotos: async (id: string, formData: FormData): Promise<ApiResponse<VisitReport>> => {
-    const response = await apiClient.post<ApiResponse<VisitReport>>(`${BASE_URL}/${id}/photos`, formData, {
+  uploadPhotos: async (id: string, photoUrls: string[]): Promise<ApiResponse<VisitReport>> => {
+    const response = await apiClient.post<ApiResponse<VisitReport>>(`${BASE_URL}/${id}/photos`, {
+      photo_urls: photoUrls,
+    });
+    return response.data;
+  },
+
+  uploadImage: async (file: File): Promise<ApiResponse<{ url: string; filename: string }>> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>("/upload/image", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return response.data;
@@ -82,5 +91,10 @@ export const visitReportService = {
   getProgressHistory: async (id: string): Promise<ApiResponse<VisitReportProgressHistory[]>> => {
     const response = await apiClient.get<ApiResponse<VisitReportProgressHistory[]>>(`${BASE_URL}/${id}/history`);
     return response.data;
+  },
+
+  getPrintUrl: (id: string): string => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
+    return `${apiBase}/api/v1${BASE_URL}/${id}/print`;
   },
 };

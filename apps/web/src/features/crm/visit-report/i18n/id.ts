@@ -120,6 +120,24 @@ export const crmVisitReportId = {
       rejectionReason: "Alasan Penolakan",
       noHistory: "Tidak ada riwayat progress",
     },
+    photos: {
+      upload: "Unggah Foto",
+      maxReached: "Foto maksimum tercapai",
+      uploaded: "diunggah",
+      remaining: "tersisa",
+      empty: "Belum ada foto diunggah",
+      preview: "Pratinjau Foto",
+    },
+    metrics: {
+      total: "Total Kunjungan",
+      pending: "Menunggu Persetujuan",
+      approved: "Disetujui",
+      checkInRate: "Rasio Check-in",
+    },
+    calendar: {
+      today: "Hari Ini",
+      more: "lagi",
+    },
     validation: {
       visitDateRequired: "Tanggal kunjungan wajib diisi",
       employeeRequired: "Sales representative wajib diisi",

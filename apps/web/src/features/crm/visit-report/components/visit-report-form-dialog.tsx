@@ -46,6 +46,7 @@ export function VisitReportFormDialog({ open, onClose, visit }: VisitReportFormD
     employees,
     deals,
     leads,
+    products,
     questions,
     watchedDetails,
     calculateInterest,
@@ -313,10 +314,11 @@ export function VisitReportFormDialog({ open, onClose, visit }: VisitReportFormD
                                   <SelectValue placeholder={t("form.productPlaceholder")} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {/* Products loaded from form data - not available in this context, use a message */}
-                                  <SelectItem value="placeholder" disabled className="text-muted-foreground">
-                                    {t("form.productPlaceholder")}
-                                  </SelectItem>
+                                  {products.map((p) => (
+                                    <SelectItem key={p.id} value={p.id} className="cursor-pointer">
+                                      {p.code} - {p.name}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             )}

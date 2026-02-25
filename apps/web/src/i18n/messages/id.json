@@ -35,7 +35,8 @@
     "entries": "kumpulan data",
     "rowsPerPage": "Baris per halaman",
     "export": "Ekspor",
-    "exportFailed": "Gagal mengekspor data"
+    "exportFailed": "Gagal mengekspor data",
+    "print": "Cetak"
   },
   "notFound": {
     "label": "404",

@@ -20,6 +20,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Package,
+  Printer,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,8 +38,11 @@ import {
 import { formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory } from "../hooks/use-visit-reports";
+import { visitReportService } from "../services/visit-report-service";
 import { VisitReportFormDialog } from "./visit-report-form-dialog";
 import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
+import { VisitReportPhotos } from "./visit-report-photos";
+import { VisitReportGpsMap } from "./visit-report-gps-map";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
@@ -200,6 +204,17 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Print button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => window.open(visitReportService.getPrintUrl(visit.id), "_blank")}
+            >
+              <Printer className="h-4 w-4 mr-1" />
+              {tCommon("print")}
+            </Button>
+
             {isDraft && (
               <Button
                 variant="outline"
@@ -415,6 +430,13 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 <p className="text-sm whitespace-pre-wrap">{visit.notes}</p>
               </div>
             )}
+
+            {/* Photos */}
+            <VisitReportPhotos
+              visitId={visit.id}
+              photos={visit.photos}
+              isEditable={isDraft && canUpdate}
+            />
           </div>
 
           {/* Right: sidebar */}
@@ -452,12 +474,22 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                     <p className="text-sm">{visit.check_in_at ? formatDate(visit.check_in_at) : "-"}</p>
                   </div>
                 </div>
-                {visit.check_in_location && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
-                    <MapPin className="h-3 w-3" />
-                    <span>{visit.check_in_location}</span>
-                  </div>
-                )}
+                {visit.check_in_location && (() => {
+                  try {
+                    const loc = JSON.parse(visit.check_in_location) as Record<string, number>;
+                    const lat = loc.lat ?? loc.latitude;
+                    const lng = loc.lng ?? loc.longitude;
+                    if (lat != null && lng != null) {
+                      return (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
+                          <MapPin className="h-3 w-3" />
+                          <span>{lat.toFixed(6)}, {lng.toFixed(6)}{loc.accuracy != null ? ` ±${Math.round(loc.accuracy)}m` : ""}</span>
+                        </div>
+                      );
+                    }
+                  } catch { /* skip invalid */ }
+                  return null;
+                })()}
                 <div className="flex items-center gap-2">
                   {visit.check_out_at ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -469,14 +501,32 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                     <p className="text-sm">{visit.check_out_at ? formatDate(visit.check_out_at) : "-"}</p>
                   </div>
                 </div>
-                {visit.check_out_location && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
-                    <MapPin className="h-3 w-3" />
-                    <span>{visit.check_out_location}</span>
-                  </div>
-                )}
+                {visit.check_out_location && (() => {
+                  try {
+                    const loc = JSON.parse(visit.check_out_location) as Record<string, number>;
+                    const lat = loc.lat ?? loc.latitude;
+                    const lng = loc.lng ?? loc.longitude;
+                    if (lat != null && lng != null) {
+                      return (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
+                          <MapPin className="h-3 w-3" />
+                          <span>{lat.toFixed(6)}, {lng.toFixed(6)}{loc.accuracy != null ? ` ±${Math.round(loc.accuracy)}m` : ""}</span>
+                        </div>
+                      );
+                    }
+                  } catch { /* skip invalid */ }
+                  return null;
+                })()}
               </div>
             </div>
+
+            {/* GPS Map */}
+            <VisitReportGpsMap
+              checkInLocation={visit.check_in_location}
+              checkOutLocation={visit.check_out_location}
+              checkInAt={visit.check_in_at}
+              checkOutAt={visit.check_out_at}
+            />
 
             {/* Approval */}
             {(visit.status === "approved" || visit.status === "rejected") && (

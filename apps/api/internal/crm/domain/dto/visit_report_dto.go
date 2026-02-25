@@ -288,6 +288,7 @@ type VisitReportFormDataResponse struct {
 	Employees         []VisitFormDataEmployee          `json:"employees"`
 	Deals             []VisitFormDataDeal              `json:"deals"`
 	Leads             []VisitFormDataLead              `json:"leads"`
+	Products          []VisitFormDataProduct           `json:"products"`
 	InterestQuestions []VisitInterestQuestionResponse  `json:"interest_questions"`
 	Outcomes          []VisitFormDataOption             `json:"outcomes"`
 	Statuses          []VisitFormDataOption             `json:"statuses"`
@@ -326,6 +327,14 @@ type VisitFormDataLead struct {
 	Code      string `json:"code"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+}
+
+// VisitFormDataProduct is a product option for forms
+type VisitFormDataProduct struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	SellingPrice float64 `json:"selling_price"`
 }
 
 // VisitFormDataOption is a generic enum option for forms

@@ -263,6 +263,7 @@ export interface VisitReportFormDataResponse {
   employees: VisitFormDataEmployee[];
   deals: VisitFormDataDeal[];
   leads: VisitFormDataLead[];
+  products: VisitFormDataProduct[];
   interest_questions: VisitInterestQuestion[];
   outcomes: VisitFormDataOption[];
   statuses: VisitFormDataOption[];
@@ -296,6 +297,13 @@ export interface VisitFormDataLead {
   code: string;
   first_name: string;
   last_name: string;
+}
+
+export interface VisitFormDataProduct {
+  id: string;
+  code: string;
+  name: string;
+  selling_price: number;
 }
 
 export interface VisitFormDataOption {

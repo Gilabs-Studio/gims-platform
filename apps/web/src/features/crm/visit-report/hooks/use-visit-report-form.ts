@@ -39,6 +39,7 @@ export function useVisitReportForm({ open, onClose, visit }: UseVisitReportFormP
   const employees = formData?.employees ?? [];
   const deals = formData?.deals ?? [];
   const leads = formData?.leads ?? [];
+  const products = formData?.products ?? [];
   const questions: VisitInterestQuestion[] = formData?.interest_questions ?? [];
 
   const schema = getVisitReportSchema();
@@ -226,6 +227,7 @@ export function useVisitReportForm({ open, onClose, visit }: UseVisitReportFormP
     employees,
     deals,
     leads,
+    products,
     questions,
     watchedDetails,
     calculateInterest,

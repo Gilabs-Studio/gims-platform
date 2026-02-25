@@ -44,7 +44,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
 	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
-	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo)
+	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)
@@ -56,6 +56,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	leadH := handler.NewLeadHandler(leadUC)
 	dealH := handler.NewDealHandler(dealUC)
 	visitReportH := handler.NewVisitReportHandler(visitReportUC)
+	visitReportPrintH := handler.NewVisitReportPrintHandler(visitReportUC)
 
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
@@ -70,5 +71,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterContactRoutes(group, contactH)
 	router.RegisterLeadRoutes(group, leadH)
 	router.RegisterDealRoutes(group, dealH)
-	router.RegisterVisitReportRoutes(group, visitReportH)
+	router.RegisterVisitReportRoutes(group, visitReportH, visitReportPrintH)
 }

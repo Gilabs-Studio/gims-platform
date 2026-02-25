@@ -15,7 +15,7 @@ const (
 )
 
 // RegisterVisitReportRoutes registers all visit report routes
-func RegisterVisitReportRoutes(r *gin.RouterGroup, h *handler.VisitReportHandler) {
+func RegisterVisitReportRoutes(r *gin.RouterGroup, h *handler.VisitReportHandler, printH *handler.VisitReportPrintHandler) {
 	g := r.Group("/visits")
 
 	// Static routes first (before parameterized routes)
@@ -27,6 +27,9 @@ func RegisterVisitReportRoutes(r *gin.RouterGroup, h *handler.VisitReportHandler
 	g.GET("/:id", middleware.RequirePermission(visitRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(visitUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(visitDelete), h.Delete)
+
+	// Print PDF
+	g.GET("/:id/print", middleware.RequirePermission(visitRead), printH.PrintVisitReport)
 
 	// Workflow actions
 	g.POST("/:id/check-in", middleware.RequirePermission(visitUpdate), h.CheckIn)

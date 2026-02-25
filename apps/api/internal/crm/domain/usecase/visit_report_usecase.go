@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/google/uuid"
 )
 
@@ -56,6 +57,7 @@ type visitReportUsecase struct {
 	employeeRepo orgRepos.EmployeeRepository
 	dealRepo     repositories.DealRepository
 	leadRepo     repositories.LeadRepository
+	productRepo  productRepos.ProductRepository
 }
 
 // NewVisitReportUsecase creates a new visit report usecase
@@ -66,6 +68,7 @@ func NewVisitReportUsecase(
 	employeeRepo orgRepos.EmployeeRepository,
 	dealRepo repositories.DealRepository,
 	leadRepo repositories.LeadRepository,
+	productRepo productRepos.ProductRepository,
 ) VisitReportUsecase {
 	return &visitReportUsecase{
 		visitRepo:    visitRepo,
@@ -74,6 +77,7 @@ func NewVisitReportUsecase(
 		employeeRepo: employeeRepo,
 		dealRepo:     dealRepo,
 		leadRepo:     leadRepo,
+		productRepo:  productRepo,
 	}
 }
 
@@ -645,6 +649,24 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		})
 	}
 
+	// Products (active only)
+	products, _, err := u.productRepo.List(ctx, productRepos.ProductListParams{
+		ListParams: productRepos.ListParams{Limit: 500},
+		Status:     "active",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
+	}
+	productOptions := make([]dto.VisitFormDataProduct, 0, len(products))
+	for _, p := range products {
+		productOptions = append(productOptions, dto.VisitFormDataProduct{
+			ID:           p.ID,
+			Code:         p.Code,
+			Name:         p.Name,
+			SellingPrice: p.SellingPrice,
+		})
+	}
+
 	// Interest questions
 	questions, err := u.visitRepo.ListInterestQuestions(ctx)
 	if err != nil {
@@ -673,6 +695,7 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		Employees:         employeeOptions,
 		Deals:             dealOptions,
 		Leads:             leadOptions,
+		Products:          productOptions,
 		InterestQuestions: questionResponses,
 		Outcomes:          outcomes,
 		Statuses:          statuses,

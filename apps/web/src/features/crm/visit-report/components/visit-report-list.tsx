@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   MoreHorizontal,
   Plus,
@@ -12,6 +13,12 @@ import {
   LogIn,
   LogOut,
   Send,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  LayoutList,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VisitReportFormDialog } from "./visit-report-form-dialog";
+import { VisitReportCalendarView } from "./visit-report-calendar-view";
 import { useVisitReportList } from "../hooks/use-visit-report-list";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
@@ -68,6 +76,7 @@ export function VisitReportList() {
   const { state, actions, data, permissions, translations } = useVisitReportList();
   const { t, tCommon } = translations;
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
 
   if (data.isError) {
     return (
@@ -93,6 +102,24 @@ export function VisitReportList() {
             {t("addVisit")}
           </Button>
         )}
+        <div className="flex items-center rounded-md border p-0.5">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="icon"
+            className="cursor-pointer h-7 w-7"
+            onClick={() => setViewMode("table")}
+          >
+            <LayoutList className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "calendar" ? "secondary" : "ghost"}
+            size="icon"
+            className="cursor-pointer h-7 w-7"
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -151,7 +178,48 @@ export function VisitReportList() {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* Summary Metrics — visible for team-level scope (ALL, DIVISION, AREA) */}
+      {data.hasTeamView && !data.isLoading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-lg border p-3 space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-xs">{t("metrics.total")}</span>
+            </div>
+            <p className="text-2xl font-bold">{data.metrics.total}</p>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span className="text-xs">{t("metrics.pending")}</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-600">{data.metrics.statusCounts.submitted}</p>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="text-xs">{t("metrics.approved")}</span>
+            </div>
+            <p className="text-2xl font-bold text-green-600">{data.metrics.statusCounts.approved}</p>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <XCircle className="h-4 w-4" />
+              <span className="text-xs">{t("metrics.checkInRate")}</span>
+            </div>
+            <p className="text-2xl font-bold">{data.metrics.checkInRate}%</p>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar View */}
+      {viewMode === "calendar" && (
+        <VisitReportCalendarView items={data.items} />
+      )}
+
+      {/* Table View */}
+      {viewMode === "table" && (
+      <>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -331,6 +399,8 @@ export function VisitReportList() {
             actions.setPage(1);
           }}
         />
+      )}
+      </>
       )}
 
       {/* Dialogs */}
