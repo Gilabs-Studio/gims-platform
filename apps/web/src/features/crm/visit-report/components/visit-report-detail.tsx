@@ -146,6 +146,10 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
 
   const handleApprove = async () => {
     if (!visit) return;
+    if (visit.status !== "submitted") {
+      toast.error(tCommon("error") || "Visit must be submitted before approval");
+      return;
+    }
     try {
       await approveMutation.mutateAsync({ id: visit.id, data: {} });
       toast.success(t("approved"));
@@ -234,7 +238,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                   size="sm"
                   className="cursor-pointer"
                   onClick={handleApprove}
-                  disabled={approveMutation.isPending}
+                  disabled={approveMutation.isPending || visit.status !== "submitted"}
                 >
                   <ThumbsUp className="h-4 w-4 mr-1" />
                   {t("actions.approve")}
@@ -243,7 +247,14 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                   variant="outline"
                   size="sm"
                   className="cursor-pointer text-destructive hover:text-destructive"
-                  onClick={() => setShowRejectDialog(true)}
+                  onClick={() => {
+                    if (visit.status !== "submitted") {
+                      toast.error(tCommon("error") || "Visit must be submitted before rejection");
+                      return;
+                    }
+                    setShowRejectDialog(true);
+                  }}
+                  disabled={visit.status !== "submitted"}
                 >
                   <ThumbsDown className="h-4 w-4 mr-1" />
                   {t("actions.reject")}
