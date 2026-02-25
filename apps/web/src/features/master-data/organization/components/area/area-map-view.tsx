@@ -13,32 +13,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import L from "leaflet";
+// Static imports are safe here — this whole file is loaded via dynamic({ ssr: false })
+import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — leaflet CSS has no type declarations; required for map rendering
+import "leaflet/dist/leaflet.css";
 import type { FeatureCollection, Feature } from "geojson";
 import type { Area } from "../../types";
 
 // Fix for default marker icons in Next.js
-if (typeof window !== "undefined") {
-  delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-}
-
-// Dynamic imports for SSR compatibility
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-const GeoJSON = dynamic(
-  () => import("react-leaflet").then((mod) => mod.GeoJSON),
-  { ssr: false }
-);
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
 
 type MapStyle = "auto" | "light" | "dark" | "satellite";
 
@@ -70,42 +59,45 @@ interface AreaMapViewProps {
   readonly className?: string;
 }
 
-// MapFocus component to handle map view changes
-const MapFocus = dynamic(
-  () =>
-    Promise.all([import("react-leaflet"), import("react")]).then(
-      ([reactLeaflet, react]) => {
-        const MapFocusInner = ({
-          center,
-          zoom,
-          shouldAnimate,
-        }: {
-          center: L.LatLngExpression;
-          zoom: number;
-          shouldAnimate: boolean;
-        }) => {
-          const map = reactLeaflet.useMap();
-          const prevRef = react.useRef<string | null>(null);
+// Calls map.invalidateSize() once on mount so tiles render correctly
+// when the map initialises inside an animated or dynamically-sized container.
+function InvalidateSize() {
+  const map = useMap();
+  useEffect(() => {
+    // Small delay ensures the container has its final CSS dimensions
+    const id = setTimeout(() => map.invalidateSize(), 100);
+    return () => clearTimeout(id);
+  }, [map]);
+  return null;
+}
 
-          react.useEffect(() => {
-            if (!map) return;
-            const key = `${JSON.stringify(center)}-${zoom}`;
-            if (prevRef.current === key) return;
-            prevRef.current = key;
+// Moves the map view when center/zoom props change
+function MapFocus({
+  center,
+  zoom,
+  shouldAnimate,
+}: {
+  center: L.LatLngExpression;
+  zoom: number;
+  shouldAnimate: boolean;
+}) {
+  const map = useMap();
+  const prevRef = useRef<string | null>(null);
 
-            if (shouldAnimate) {
-              map.flyTo(center, zoom, { duration: 1.5 });
-            } else {
-              map.setView(center, zoom, { animate: false });
-            }
-          }, [map, center, zoom, shouldAnimate]);
-          return null;
-        };
-        return { default: MapFocusInner };
-      }
-    ),
-  { ssr: false }
-);
+  useEffect(() => {
+    const key = `${JSON.stringify(center)}-${zoom}`;
+    if (prevRef.current === key) return;
+    prevRef.current = key;
+
+    if (shouldAnimate) {
+      map.flyTo(center, zoom, { duration: 1.5 });
+    } else {
+      map.setView(center, zoom, { animate: false });
+    }
+  }, [map, center, zoom, shouldAnimate]);
+
+  return null;
+}
 
 function AreaMapViewComponent({
   areas,
@@ -121,8 +113,11 @@ function AreaMapViewComponent({
   const [mapZoom, setMapZoom] = useState(5);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const [hoveredAreaId, setHoveredAreaId] = useState<string | null>(null);
+  // Only remount GeoJSON layer when the underlying data changes — NOT on hover or selection
   const [geoJsonKey, setGeoJsonKey] = useState(0);
   const areaToFeatureMapRef = useRef<Map<string, Feature>>(new Map());
+  // Direct layer references so we can call setStyle() without remounting
+  const layerByAreaIdRef = useRef<Map<string, L.Path>>(new Map());
   const { resolvedTheme } = useTheme();
 
   // Build area lookup by province name (case-insensitive)
@@ -171,30 +166,24 @@ function AreaMapViewComponent({
     [areaByProvince, getProvinceFromFeature]
   );
 
-  // Style each GeoJSON feature based on matched area
+  // Style each GeoJSON feature based on matched area — initial render only.
+  // Hover and selection updates are applied imperatively via setStyle() in the effect above.
   const styleFeature = useCallback(
     (feature?: Feature): L.PathOptions => {
       if (!feature) return {};
       const area = findAreaForFeature(feature);
       const isSelected = area?.id === selectedAreaId;
-      const isHovered = area?.id === hoveredAreaId;
       const color = area?.color ?? DEFAULT_AREA_COLOR;
 
       return {
         fillColor: color,
-        fillOpacity: isSelected
-          ? SELECTED_OPACITY
-          : isHovered
-            ? HOVER_OPACITY
-            : area
-              ? DEFAULT_OPACITY
-              : 0.1,
-        color: isSelected ? color : isHovered ? color : "rgba(255,255,255,0.5)",
-        weight: isSelected ? 3 : isHovered ? 2 : 1,
+        fillOpacity: isSelected ? SELECTED_OPACITY : area ? DEFAULT_OPACITY : 0.1,
+        color: isSelected ? color : "rgba(255,255,255,0.5)",
+        weight: isSelected ? 3 : 1,
         dashArray: area ? undefined : "4 4",
       };
     },
-    [findAreaForFeature, selectedAreaId, hoveredAreaId]
+    [findAreaForFeature, selectedAreaId]
   );
 
   // Handle feature events (hover, click)
@@ -205,6 +194,8 @@ function AreaMapViewComponent({
 
       // Map area to its GeoJSON feature for zoom-to-area
       areaToFeatureMapRef.current.set(area.id, feature);
+      // Track the actual Leaflet layer for direct style updates
+      layerByAreaIdRef.current.set(area.id, layer as L.Path);
 
       // Tooltip with area name
       (layer as L.Path).bindTooltip(
@@ -223,9 +214,28 @@ function AreaMapViewComponent({
     [findAreaForFeature, onAreaClick]
   );
 
-  // Update GeoJSON styling reactively
+  // Rebuild GeoJSON only when areas data actually changes
   useEffect(() => {
+    areaToFeatureMapRef.current.clear();
+    layerByAreaIdRef.current.clear();
     setGeoJsonKey((prev) => prev + 1);
+  }, [areas]);
+
+  // Update layer styles directly when hover/selection changes — no GeoJSON remount
+  useEffect(() => {
+    layerByAreaIdRef.current.forEach((layer, areaId) => {
+      const area = areas.find((a) => a.id === areaId);
+      if (!area) return;
+      const color = area.color ?? DEFAULT_AREA_COLOR;
+      const isSelected = areaId === selectedAreaId;
+      const isHovered = areaId === hoveredAreaId;
+      layer.setStyle({
+        fillColor: color,
+        fillOpacity: isSelected ? SELECTED_OPACITY : isHovered ? HOVER_OPACITY : DEFAULT_OPACITY,
+        color: isSelected || isHovered ? color : "rgba(255,255,255,0.5)",
+        weight: isSelected ? 3 : isHovered ? 2 : 1,
+      });
+    });
   }, [selectedAreaId, hoveredAreaId, areas]);
 
   // Zoom to selected area
@@ -275,13 +285,13 @@ function AreaMapViewComponent({
           <Button
             variant="outline"
             size="icon"
-            className="absolute top-2 right-2 z-[1000] bg-background/90 backdrop-blur-sm shadow-md cursor-pointer hover:bg-background"
+            className="absolute top-2 right-2 z-1000 bg-background/90 backdrop-blur-sm shadow-md cursor-pointer hover:bg-background"
             type="button"
           >
             <Layers className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36 z-[1001]">
+        <DropdownMenuContent align="end" className="w-36 z-1001">
           {(["auto", "light", "dark", "satellite"] as MapStyle[]).map((style) => (
             <DropdownMenuItem
               key={style}
@@ -295,7 +305,7 @@ function AreaMapViewComponent({
       </DropdownMenu>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-[1000] bg-background/90 backdrop-blur-sm rounded-lg shadow-md p-3 max-h-[200px] overflow-y-auto">
+      <div className="absolute bottom-4 right-4 z-1000 bg-background/90 backdrop-blur-sm rounded-lg shadow-md p-3 max-h-[200px] overflow-y-auto">
         <p className="text-xs font-medium mb-2">Areas</p>
         <div className="space-y-1">
           {areas.filter((a) => a.is_active).map((area) => (
@@ -327,6 +337,7 @@ function AreaMapViewComponent({
         doubleClickZoom
         dragging
       >
+        <InvalidateSize />
         <TileLayer
           key={`${mapStyle}-${resolvedTheme}`}
           attribution={activeTile.attribution}
