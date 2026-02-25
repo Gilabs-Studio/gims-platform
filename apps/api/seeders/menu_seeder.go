@@ -365,9 +365,7 @@ func SeedMenus() error {
 		{"Sales Orders", "shopping-cart", "/sales/orders", 2},
 		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
-		{"Visit Reports", "map-pin", "/sales/visits", 5},
-		{"Sales Estimation", "calculator", "/sales/estimations", 6},
-		{"Sales Target", "target", "/sales/targets", 7},
+		{"Sales Target", "target", "/sales/targets", 5},
 	}
 	for _, child := range salesChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &salesMenu.ID, child.order); err != nil {
@@ -549,6 +547,31 @@ func SeedMenus() error {
 
 	// CRM Pipeline menu (Sprint 20)
 	if _, err := createChildMenu("Pipeline", "kanban", "/crm/pipeline", &crmMenu.ID, 2); err != nil {
+		return err
+	}
+
+	// CRM Activities menu (Sprint 23)
+	if _, err := createChildMenu("Activities", "activity", "/crm/activities", &crmMenu.ID, 3); err != nil {
+		return err
+	}
+
+	// CRM Tasks menu (Sprint 23)
+	if _, err := createChildMenu("Tasks", "check-square", "/crm/tasks", &crmMenu.ID, 4); err != nil {
+		return err
+	}
+
+	// CRM Schedules menu (Sprint 23)
+	if _, err := createChildMenu("Schedules", "calendar", "/crm/schedules", &crmMenu.ID, 5); err != nil {
+		return err
+	}
+
+	// CRM Visit Reports menu (Sprint 22)
+	if _, err := createChildMenu("Visit Reports", "map-pin", "/crm/visits", &crmMenu.ID, 6); err != nil {
+		return err
+	}
+
+	// CRM Area Mapping menu (Sprint 24)
+	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
 		return err
 	}
 

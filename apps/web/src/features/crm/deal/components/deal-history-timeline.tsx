@@ -6,20 +6,35 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/utils";
 import { useDealHistory } from "../hooks/use-deals";
+import type { DealHistory as DealHistoryEntry } from "../types";
 
 interface DealHistoryTimelineProps {
   dealId: string;
 }
 
-function getNodeIcon(toStageName?: string) {
-  const name = toStageName?.toLowerCase() ?? "";
+function getNodeIcon(entry: DealHistoryEntry) {
+  if (entry.to_stage?.is_won) return <Trophy className="h-3 w-3" />;
+  if (entry.to_stage?.is_lost) return <XCircle className="h-3 w-3" />;
+  const name = entry.to_stage_name?.toLowerCase() ?? "";
   if (name.includes("won")) return <Trophy className="h-3 w-3" />;
   if (name.includes("lost")) return <XCircle className="h-3 w-3" />;
   return <ArrowRight className="h-3 w-3" />;
 }
 
-function getNodeColor(toStageName?: string): string {
-  const name = toStageName?.toLowerCase() ?? "";
+function getNodeStyle(entry: DealHistoryEntry): React.CSSProperties {
+  if (entry.to_stage?.color) {
+    return { backgroundColor: entry.to_stage.color, color: "#fff" };
+  }
+  if (entry.to_stage?.is_won) return {};
+  if (entry.to_stage?.is_lost) return {};
+  return {};
+}
+
+function getNodeClassName(entry: DealHistoryEntry): string {
+  if (entry.to_stage?.color) return "";
+  if (entry.to_stage?.is_won) return "bg-green-500 text-white";
+  if (entry.to_stage?.is_lost) return "bg-destructive text-destructive-foreground";
+  const name = entry.to_stage_name?.toLowerCase() ?? "";
   if (name.includes("won")) return "bg-green-500 text-white";
   if (name.includes("lost")) return "bg-destructive text-destructive-foreground";
   return "bg-primary text-primary-foreground";
@@ -54,32 +69,60 @@ export function DealHistoryTimeline({ dealId }: DealHistoryTimelineProps) {
   }
 
   return (
-    <div className="relative pl-6 space-y-0">
-      {/* Vertical line */}
-      <div className="absolute left-[11px] top-3 bottom-3 w-px bg-border" />
+    <div className="relative space-y-0">
+      {/* Full-height vertical line positioned at node center so circles always connect */}
+      <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
 
       {history.map((entry) => (
-        <div key={entry.id} className="relative pb-6 last:pb-0">
-          {/* Node */}
-          <div
-            className={`absolute left-[-13px] flex h-6 w-6 items-center justify-center rounded-full ${getNodeColor(entry.to_stage_name)}`}
-          >
-            {getNodeIcon(entry.to_stage_name)}
+        <div key={entry.id} className="flex gap-3 pb-6 last:pb-0">
+          {/* Left column: node circle + connecting line — flex keeps line perfectly centered */}
+          <div className="relative flex flex-col items-center shrink-0">
+            <div
+              className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full shrink-0 ${getNodeClassName(entry)}`}
+              style={getNodeStyle(entry)}
+            >
+              {getNodeIcon(entry)}
+            </div>
+            {/* per-item connector removed — using full-height absolute line */}
           </div>
 
-          {/* Content */}
-          <div className="ml-4">
-            {/* Stage transition */}
+          {/* Right: content */}
+          <div className="flex-1 min-w-0 pt-0.5">
+            {/* Stage transition badges */}
             <div className="flex items-center gap-2 flex-wrap">
               {entry.from_stage_name && (
-                <Badge variant="outline" className="text-xs">
+                <Badge
+                  className="text-xs"
+                  style={
+                    entry.from_stage?.color
+                      ? {
+                          backgroundColor: `${entry.from_stage.color}22`,
+                          color: entry.from_stage.color,
+                          borderColor: `${entry.from_stage.color}55`,
+                        }
+                      : undefined
+                  }
+                  variant={entry.from_stage?.color ? "outline" : "outline"}
+                >
                   {entry.from_stage_name}
                 </Badge>
               )}
               {entry.from_stage_name && (
-                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
               )}
-              <Badge variant="secondary" className="text-xs">
+              <Badge
+                className="text-xs border-transparent"
+                style={
+                  entry.to_stage?.color
+                    ? {
+                        backgroundColor: entry.to_stage.color,
+                        color: "#fff",
+                        borderColor: entry.to_stage.color,
+                      }
+                    : undefined
+                }
+                variant={entry.to_stage?.color ? undefined : "secondary"}
+              >
                 {entry.to_stage_name}
               </Badge>
             </div>
@@ -109,12 +152,13 @@ export function DealHistoryTimeline({ dealId }: DealHistoryTimelineProps) {
             )}
 
             {/* Days in previous stage */}
-            {entry.days_in_prev_stage !== undefined && entry.days_in_prev_stage > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                <Clock className="inline-block h-3 w-3 mr-0.5 -mt-px" />
-                {t("daysInPreviousStage", { days: entry.days_in_prev_stage })}
-              </p>
-            )}
+            {entry.days_in_prev_stage !== undefined &&
+              entry.days_in_prev_stage > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <Clock className="inline-block h-3 w-3 mr-0.5 -mt-px" />
+                  {t("daysInPreviousStage", { days: entry.days_in_prev_stage })}
+                </p>
+              )}
 
             {/* Performed by & date */}
             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">

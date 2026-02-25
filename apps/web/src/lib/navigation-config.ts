@@ -103,7 +103,6 @@ export const navigationConfig: NavItem[] = [
       { name: "Sales Orders", url: "/sales/orders", icon: "shopping-cart", permission: "sales_order.read" },
       { name: "Delivery Orders", url: "/sales/delivery-orders", icon: "truck", permission: "delivery_order.read" },
       { name: "Customer Invoices", url: "/sales/invoices", icon: "receipt", permission: "customer_invoice.read" },
-      { name: "Visit Reports", url: "/sales/visits", icon: "map-pin", permission: "sales_visit.read" },
       { name: "Sales Target", url: "/sales/targets", icon: "check-square", permission: "sales_target.read" },
     ],
   },

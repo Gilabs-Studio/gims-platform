@@ -33,7 +33,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	businessUnitUC := usecase.NewBusinessUnitUsecase(businessUnitRepo)
 	businessTypeUC := usecase.NewBusinessTypeUsecase(businessTypeRepo)
 	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
-	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo)
+	// Pass employeeRepo for GetFormData endpoint.
+	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
 	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo)
 

@@ -3,7 +3,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { useCreateArea, useUpdateArea } from "./use-areas";
+import { useCreateArea, useUpdateArea, useAreaFormData } from "./use-areas";
 import { AreaFormData, getAreaSchema } from "../schemas/organization.schema";
 import type { Area } from "../types";
 
@@ -13,20 +13,33 @@ export interface UseAreaFormProps {
   area?: Area | null;
 }
 
+const DEFAULT_COLOR = "#3b82f6";
+
+const DEFAULT_VALUES: AreaFormData = {
+  name: "",
+  description: "",
+  is_active: true,
+  code: "",
+  color: DEFAULT_COLOR,
+  manager_id: "",
+  province: "",
+  regency: "",
+  district: "",
+};
+
 export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!area;
 
   const createArea = useCreateArea();
   const updateArea = useUpdateArea();
+  const { data: formDataResp } = useAreaFormData();
+
+  const employees = formDataResp?.data?.employees ?? [];
 
   const form = useForm<AreaFormData>({
     resolver: zodResolver(getAreaSchema(t)),
-    defaultValues: {
-      name: "",
-      description: "",
-      is_active: true,
-    },
+    defaultValues: DEFAULT_VALUES,
   });
 
   useEffect(() => {
@@ -36,30 +49,37 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
           name: area.name,
           description: area.description ?? "",
           is_active: area.is_active,
+          code: area.code ?? "",
+          color: area.color ?? DEFAULT_COLOR,
+          manager_id: area.manager_id ?? "",
+          province: area.province ?? "",
+          regency: area.regency ?? "",
+          district: area.district ?? "",
         });
       } else {
-        form.reset({
-          name: "",
-          description: "",
-          is_active: true,
-        });
+        form.reset(DEFAULT_VALUES);
       }
     }
   }, [open, area, form]);
 
   const onSubmit: SubmitHandler<AreaFormData> = async (data) => {
+    // Clean empty string UUIDs to null for optional foreign keys
+    const cleanedData = {
+      ...data,
+      manager_id: data.manager_id || null,
+    };
+
     try {
       if (isEditing && area) {
-        await updateArea.mutateAsync({ id: area.id, data });
-        toast.success(t("area.updateSuccess", { fallback: "Area updated successfully" }));
+        await updateArea.mutateAsync({ id: area.id, data: cleanedData });
+        toast.success(t("area.updateSuccess"));
       } else {
-        await createArea.mutateAsync(data);
-        toast.success(t("area.createSuccess", { fallback: "Area created successfully" }));
+        await createArea.mutateAsync(cleanedData);
+        toast.success(t("area.createSuccess"));
       }
       onClose();
-    } catch (error) {
-      console.error("Failed to save area:", error);
-      toast.error(t("area.updateError", { fallback: "Failed to save area" }));
+    } catch {
+      toast.error(t("area.saveError"));
     }
   };
 
@@ -70,6 +90,7 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
     t,
     isEditing,
     isLoading,
+    employees,
     onSubmit: form.handleSubmit(onSubmit),
   };
 }

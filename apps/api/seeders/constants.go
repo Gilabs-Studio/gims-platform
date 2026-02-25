@@ -51,6 +51,11 @@ const (
 	AreaJawaTengahID  = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
 	AreaJawaTimurID   = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
 	AreaBaliID        = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
+	AreaBantenID      = "a6a6a6a6-a6a6-a6a6-a6a6-a6a6a6a6a6a6"
+	AreaDIYID         = "a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a7"
+	AreaSumateraUtaraID = "a8a8a8a8-a8a8-a8a8-a8a8-a8a8a8a8a8a8"
+	AreaSulawesiSelatanID = "a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9"
+	AreaKalimantanTimurID = "aabababa-baba-baba-baba-babababababa" // hex-only: a, b
 )
 
 // Employee IDs (Fixed)

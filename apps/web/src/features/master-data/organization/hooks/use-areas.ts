@@ -18,6 +18,7 @@ export const areaKeys = {
   list: (params?: ListAreasParams) => [...areaKeys.lists(), params] as const,
   details: () => [...areaKeys.all, "detail"] as const,
   detail: (id: string) => [...areaKeys.details(), id] as const,
+  formData: () => [...areaKeys.all, "form-data"] as const,
 };
 
 export function useAreas(
@@ -158,5 +159,13 @@ export function useRemoveAreaEmployee() {
         queryKey: areaKeys.detail(variables.areaId),
       });
     },
+  });
+}
+
+export function useAreaFormData() {
+  return useQuery({
+    queryKey: areaKeys.formData(),
+    queryFn: () => areaService.getFormData(),
+    staleTime: 5 * 60 * 1000,
   });
 }
