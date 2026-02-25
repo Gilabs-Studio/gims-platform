@@ -3,6 +3,8 @@
 import { Link } from "@/i18n/routing";
 import { ChevronRight } from "lucide-react";
 import { useBreadcrumb } from "@/hooks/use-breadcrumb";
+import { usePathname } from "@/i18n/routing";
+import { useDealById } from "@/features/crm/deal/hooks/use-deals";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import { getMenuIcon } from "@/lib/menu-icons";
@@ -12,6 +14,29 @@ export function Breadcrumb() {
   const { data: permissionsData } = useUserPermissions();
   const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
   const breadcrumbItems = useBreadcrumb(menus);
+  const pathname = usePathname();
+
+  // Normalize pathname (remove locale prefix)
+  const normalizedPath = (() => {
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments[0] === "id" || segments[0] === "en") {
+      return "/" + segments.slice(1).join("/");
+    }
+    return pathname;
+  })();
+
+  // Extract deal id if on deal detail route and call hook unconditionally
+  const _match = normalizedPath.match(/^\/crm\/pipeline\/([^/]+)$/);
+  const dealId = _match ? _match[1] : "";
+  const { data: dealResp } = useDealById(dealId);
+
+  let overriddenItems = breadcrumbItems;
+  const dealTitle = dealResp?.data?.title;
+  if (dealTitle && breadcrumbItems.length > 0 && dealId) {
+    overriddenItems = breadcrumbItems.map((it, idx) =>
+      idx === breadcrumbItems.length - 1 ? { ...it, label: dealTitle } : it
+    );
+  }
 
   // Don't show breadcrumb if only dashboard (single item)
   if (breadcrumbItems.length <= 1) {
@@ -24,7 +49,7 @@ export function Breadcrumb() {
       className="flex items-center gap-2 text-sm text-muted-foreground"
     >
       <ol className="flex items-center gap-2">
-        {breadcrumbItems.map((item, index) => {
+        {overriddenItems.map((item, index) => {
           const isLast = index === breadcrumbItems.length - 1;
           const icon = item.icon ? getMenuIcon(item.icon) : null;
 
