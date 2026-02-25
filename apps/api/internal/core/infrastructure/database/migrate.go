@@ -227,6 +227,8 @@ func AutoMigrate() error {
 		&crm.Task{},
 		&crm.Reminder{},
 		&crm.Schedule{},
+		// CRM Area Mapping entities (Sprint 24)
+		&crm.AreaCapture{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

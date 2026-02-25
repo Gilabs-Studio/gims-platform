@@ -101,17 +101,23 @@ func SeedOrganization() error {
 		log.Println("Business types already seeded, skipping...")
 	}
 
-	// 5. Seed Areas
+	// 5. Seed Areas (enhanced with territory fields for Sprint 24 CRM integration)
 	var areaCount int64
 	db.Model(&models.Area{}).Count(&areaCount)
 	if areaCount == 0 {
-		log.Println("Seeding areas...")
+		log.Println("Seeding areas with territory data...")
+		// ManagerID intentionally omitted — employees are seeded after organization
 		areas := []models.Area{
-			{ID: AreaJabodetabekID, Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", IsActive: true},
-			{ID: AreaJawaBaratID, Name: "Jawa Barat", Description: "Bandung and surrounding areas", IsActive: true},
-			{ID: AreaJawaTengahID, Name: "Jawa Tengah", Description: "Semarang, Solo, Jogja", IsActive: true},
-			{ID: AreaJawaTimurID, Name: "Jawa Timur", Description: "Surabaya, Malang", IsActive: true},
-			{ID: AreaBaliID, Name: "Bali", Description: "Bali region", IsActive: true},
+			{ID: AreaJabodetabekID, Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", IsActive: true, Code: "JABODETABEK", Color: "#3b82f6", Province: "DKI Jakarta"},
+			{ID: AreaJawaBaratID, Name: "Jawa Barat", Description: "Bandung and surrounding areas", IsActive: true, Code: "JAWA-BARAT", Color: "#10b981", Province: "Jawa Barat"},
+			{ID: AreaJawaTengahID, Name: "Jawa Tengah", Description: "Semarang, Solo and surrounding areas", IsActive: true, Code: "JAWA-TENGAH", Color: "#f59e0b", Province: "Jawa Tengah"},
+			{ID: AreaJawaTimurID, Name: "Jawa Timur", Description: "Surabaya, Malang and surrounding areas", IsActive: true, Code: "JAWA-TIMUR", Color: "#ef4444", Province: "Jawa Timur"},
+			{ID: AreaBaliID, Name: "Bali", Description: "Bali region", IsActive: true, Code: "BALI", Color: "#8b5cf6", Province: "Bali"},
+			{ID: AreaBantenID, Name: "Banten", Description: "Serang, Cilegon, Tangerang Selatan", IsActive: true, Code: "BANTEN", Color: "#06b6d4", Province: "Banten"},
+			{ID: AreaDIYID, Name: "DI Yogyakarta", Description: "Yogyakarta and surrounding areas", IsActive: true, Code: "DIY", Color: "#ec4899", Province: "Daerah Istimewa Yogyakarta"},
+			{ID: AreaSumateraUtaraID, Name: "Sumatera Utara", Description: "Medan and surrounding areas", IsActive: true, Code: "SUMUT", Color: "#14b8a6", Province: "Sumatera Utara"},
+			{ID: AreaSulawesiSelatanID, Name: "Sulawesi Selatan", Description: "Makassar and surrounding areas", IsActive: true, Code: "SULSEL", Color: "#f97316", Province: "Sulawesi Selatan"},
+			{ID: AreaKalimantanTimurID, Name: "Kalimantan Timur", Description: "Balikpapan, Samarinda", IsActive: true, Code: "KALTIM", Color: "#84cc16", Province: "Kalimantan Timur"},
 		}
 		for i := range areas {
 			if err := db.Create(&areas[i]).Error; err != nil {

@@ -144,6 +144,8 @@ import { crmTaskEn } from "@/features/crm/task/i18n/en";
 import { crmTaskId } from "@/features/crm/task/i18n/id";
 import { crmScheduleEn } from "@/features/crm/schedule/i18n/en";
 import { crmScheduleId } from "@/features/crm/schedule/i18n/id";
+import { areaMappingEn } from "@/features/crm/area-mapping/i18n/en";
+import { areaMappingId } from "@/features/crm/area-mapping/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -216,6 +218,7 @@ const messages = {
     ...crmActivityEn,
     ...crmTaskEn,
     ...crmScheduleEn,
+    ...areaMappingEn,
   },
   id: {
     ...globalIdMessages,
@@ -285,6 +288,7 @@ const messages = {
     ...crmActivityId,
     ...crmTaskId,
     ...crmScheduleId,
+    ...areaMappingId,
   },
 } as const;
 

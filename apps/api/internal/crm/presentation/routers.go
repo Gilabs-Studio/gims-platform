@@ -34,6 +34,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taskRepo := repositories.NewTaskRepository(db)
 	reminderRepo := repositories.NewReminderRepository(db)
 	scheduleRepo := repositories.NewScheduleRepository(db)
+	areaCaptureRepo := repositories.NewAreaCaptureRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
@@ -52,6 +53,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)
 	taskUC := usecase.NewTaskUsecase(taskRepo, reminderRepo, contactRepo, dealRepo, customerRepo, employeeRepo)
 	scheduleUC := usecase.NewScheduleUsecase(scheduleRepo, taskRepo, employeeRepo)
+	areaCaptureUC := usecase.NewAreaCaptureUsecase(areaCaptureRepo)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)
@@ -67,6 +69,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	activityH := handler.NewActivityHandler(activityUC)
 	taskH := handler.NewTaskHandler(taskUC)
 	scheduleH := handler.NewScheduleHandler(scheduleUC)
+	areaCaptureH := handler.NewAreaCaptureHandler(areaCaptureUC)
 
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
@@ -85,4 +88,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterActivityRoutes(group, activityH)
 	router.RegisterTaskRoutes(group, taskH)
 	router.RegisterScheduleRoutes(group, scheduleH)
+	router.RegisterAreaCaptureRoutes(group, areaCaptureH)
 }

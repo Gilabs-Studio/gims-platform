@@ -570,6 +570,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// CRM Area Mapping menu (Sprint 24)
+	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
 	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {

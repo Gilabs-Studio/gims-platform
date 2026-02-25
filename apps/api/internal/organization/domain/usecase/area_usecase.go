@@ -26,16 +26,15 @@ type AreaUsecase interface {
 	Create(ctx context.Context, req *dto.CreateAreaRequest) (*dto.AreaResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateAreaRequest) (*dto.AreaResponse, error)
 	Delete(ctx context.Context, id string) error
-	// AssignSupervisors assigns the specified employees as supervisors of the area.
 	AssignSupervisors(ctx context.Context, areaID string, req *dto.AssignAreaSupervisorsRequest) (*dto.AreaDetailResponse, error)
-	// AssignMembers assigns the specified employees as members of the area.
 	AssignMembers(ctx context.Context, areaID string, req *dto.AssignAreaMembersRequest) (*dto.AreaDetailResponse, error)
-	// RemoveEmployee removes an employee (supervisor or member) from the area.
 	RemoveEmployee(ctx context.Context, areaID, employeeID string) (*dto.AreaDetailResponse, error)
+	GetFormData(ctx context.Context) (*dto.AreaFormDataResponse, error)
 }
 
 type areaUsecase struct {
 	areaRepo         repositories.AreaRepository
+	employeeRepo     repositories.EmployeeRepository
 	employeeAreaRepo repositories.EmployeeAreaRepository
 }
 
@@ -43,10 +42,12 @@ type areaUsecase struct {
 func NewAreaUsecase(
 	areaRepo repositories.AreaRepository,
 	employeeAreaRepo repositories.EmployeeAreaRepository,
+	employeeRepo repositories.EmployeeRepository,
 ) AreaUsecase {
 	return &areaUsecase{
 		areaRepo:         areaRepo,
 		employeeAreaRepo: employeeAreaRepo,
+		employeeRepo:     employeeRepo,
 	}
 }
 
@@ -130,6 +131,7 @@ func (u *areaUsecase) Update(ctx context.Context, id string, req *dto.UpdateArea
 		return nil, err
 	}
 
+	// Check name uniqueness if changed
 	if req.Name != "" && req.Name != area.Name {
 		existing, err := u.areaRepo.FindByName(ctx, req.Name)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -138,15 +140,10 @@ func (u *areaUsecase) Update(ctx context.Context, id string, req *dto.UpdateArea
 		if existing != nil && existing.ID != id {
 			return nil, ErrAreaAlreadyExists
 		}
-		area.Name = req.Name
 	}
 
-	if req.Description != "" {
-		area.Description = req.Description
-	}
-	if req.IsActive != nil {
-		area.IsActive = *req.IsActive
-	}
+	// Apply all update fields via mapper
+	mapper.ApplyUpdateToArea(area, req)
 
 	if err := u.areaRepo.Update(ctx, area); err != nil {
 		return nil, err
@@ -225,4 +222,24 @@ func (u *areaUsecase) RemoveEmployee(ctx context.Context, areaID, employeeID str
 	}
 
 	return u.GetByIDWithDetails(ctx, areaID)
+}
+
+func (u *areaUsecase) GetFormData(ctx context.Context) (*dto.AreaFormDataResponse, error) {
+	employees, err := u.employeeRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	employeeOptions := make([]dto.EmployeeFormOption, 0, len(employees))
+	for _, emp := range employees {
+		employeeOptions = append(employeeOptions, dto.EmployeeFormOption{
+			ID:           emp.ID,
+			EmployeeCode: emp.EmployeeCode,
+			Name:         emp.Name,
+		})
+	}
+
+	return &dto.AreaFormDataResponse{
+		Employees: employeeOptions,
+	}, nil
 }

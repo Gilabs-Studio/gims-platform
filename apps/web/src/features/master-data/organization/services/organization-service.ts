@@ -6,6 +6,7 @@ import type {
   BusinessType,
   Area,
   AreaDetailResponse,
+  AreaFormDataResponse,
   AssignAreaSupervisorsData,
   AssignAreaMembersData,
   Company,
@@ -296,6 +297,13 @@ export const areaService = {
   async removeEmployee(areaId: string, employeeId: string): Promise<OrganizationSingleResponse<AreaDetailResponse>> {
     const response = await apiClient.delete<OrganizationSingleResponse<AreaDetailResponse>>(
       `${BASE_PATH}/areas/${areaId}/employees/${employeeId}`
+    );
+    return response.data;
+  },
+
+  async getFormData(): Promise<OrganizationSingleResponse<AreaFormDataResponse>> {
+    const response = await apiClient.get<OrganizationSingleResponse<AreaFormDataResponse>>(
+      `${BASE_PATH}/areas/form-data`
     );
     return response.data;
   },

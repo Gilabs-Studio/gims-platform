@@ -558,6 +558,10 @@ func SeedPermissions() error {
 		{"/crm/schedules", "crm_schedule.update", "Edit Schedules", "EDIT", "crm_schedule"},
 		{"/crm/schedules", "crm_schedule.delete", "Delete Schedules", "DELETE", "crm_schedule"},
 
+		// CRM Area Mapping (Sprint 24)
+		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
+		{"/crm/area-mapping", "crm_area_mapping.create", "Capture Area Location", "CREATE", "crm_area_mapping"},
+
 	}
 
 	// Build menu URL to ID map
