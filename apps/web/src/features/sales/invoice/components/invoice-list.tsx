@@ -42,6 +42,7 @@ export function InvoiceList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    type: "regular", // ONLY fetch regular invoices
   });
 
   const canCreate = useUserPermission("customer_invoice.create");
@@ -231,7 +232,7 @@ export function InvoiceList() {
         </Select>
         <div className="flex-1" />
         {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             {t("add")}
           </Button>

@@ -118,6 +118,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales → Finance End-to-End Integration seeder
+	if err := SeedSalesFinanceE2E(); err != nil {
+		return err
+	}
+
 	// Finance - Asset & Closing seeder (Sprint 12)
 	if err := SeedFinanceSprint12(); err != nil {
 		return err

@@ -78,58 +78,74 @@ func SeedCustomerInvoice() error {
 
 	// Create sample invoices with different statuses
 	invoices := []struct {
-		status       salesModels.CustomerInvoiceStatus
-		daysAgo      int
-		dueDaysAfter int
-		itemsCount   int
-		notes        string
-		fromOrder    bool
-		paidPercent  float64 // 0 = unpaid, 0.5 = partial, 1.0 = paid
+		status         salesModels.CustomerInvoiceStatus
+		daysAgo        int
+		dueDaysAfter   int
+		itemsCount     int
+		notes          string
+		fromOrder      bool
+		paidPercent    float64 // 0 = unpaid, 0.5 = partial, 1.0 = paid
+		hasDownPayment bool
 	}{
 		{
-			status:       salesModels.CustomerInvoiceStatusUnpaid,
-			daysAgo:      2,
-			dueDaysAfter: 30,
-			itemsCount:   3,
-			notes:        "Invoice for medical supplies",
-			fromOrder:    true,
-			paidPercent:  0,
+			status:         salesModels.CustomerInvoiceStatusUnpaid,
+			daysAgo:        2,
+			dueDaysAfter:   30,
+			itemsCount:     3,
+			notes:          "Invoice for medical supplies (with DP)",
+			fromOrder:      true,
+			paidPercent:    0,
+			hasDownPayment: true,
 		},
 		{
-			status:       salesModels.CustomerInvoiceStatusPartial,
-			daysAgo:      10,
-			dueDaysAfter: 30,
-			itemsCount:   4,
-			notes:        "Partial payment received",
-			fromOrder:    true,
-			paidPercent:  0.5,
+			status:         salesModels.CustomerInvoiceStatusPaid,
+			daysAgo:        15,
+			dueDaysAfter:   30,
+			itemsCount:     2,
+			notes:          "Fully paid invoice with earlier DP",
+			fromOrder:      true,
+			paidPercent:    1.0,
+			hasDownPayment: true,
 		},
 		{
-			status:       salesModels.CustomerInvoiceStatusPaid,
-			daysAgo:      20,
-			dueDaysAfter: 30,
-			itemsCount:   5,
-			notes:        "Fully paid invoice",
-			fromOrder:    true,
-			paidPercent:  1.0,
+			status:         salesModels.CustomerInvoiceStatusPartial,
+			daysAgo:        10,
+			dueDaysAfter:   30,
+			itemsCount:     4,
+			notes:          "Partial payment received",
+			fromOrder:      true,
+			paidPercent:    0.5,
+			hasDownPayment: false,
 		},
 		{
-			status:       salesModels.CustomerInvoiceStatusUnpaid,
-			daysAgo:      5,
-			dueDaysAfter: 14,
-			itemsCount:   2,
-			notes:        "Urgent delivery invoice",
-			fromOrder:    false,
-			paidPercent:  0,
+			status:         salesModels.CustomerInvoiceStatusPaid,
+			daysAgo:        20,
+			dueDaysAfter:   30,
+			itemsCount:     5,
+			notes:          "Fully paid invoice",
+			fromOrder:      true,
+			paidPercent:    1.0,
+			hasDownPayment: false,
 		},
 		{
-			status:       salesModels.CustomerInvoiceStatusCancelled,
-			daysAgo:      3,
-			dueDaysAfter: 30,
-			itemsCount:   3,
-			notes:        "Cancelled due to order cancellation",
-			fromOrder:    true,
-			paidPercent:  0,
+			status:         salesModels.CustomerInvoiceStatusUnpaid,
+			daysAgo:        5,
+			dueDaysAfter:   14,
+			itemsCount:     2,
+			notes:          "Urgent delivery invoice",
+			fromOrder:      false,
+			paidPercent:    0,
+			hasDownPayment: false,
+		},
+		{
+			status:         salesModels.CustomerInvoiceStatusCancelled,
+			daysAgo:        3,
+			dueDaysAfter:   30,
+			itemsCount:     3,
+			notes:          "Cancelled due to order cancellation",
+			fromOrder:      true,
+			paidPercent:    0,
+			hasDownPayment: false,
 		},
 	}
 
@@ -166,12 +182,12 @@ func SeedCustomerInvoice() error {
 				var product productModels.Product
 				if err := db.First(&product, "id = ?", soItem.ProductID).Error; err == nil {
 					item := salesModels.CustomerInvoiceItem{
-						ProductID:  soItem.ProductID,
-						Quantity:   soItem.Quantity,
-						Price:      soItem.Price,
-						Discount:   soItem.Discount,
-						HPPAmount:  product.CurrentHpp, // Use current HPP from product
-						Subtotal:   (soItem.Price * soItem.Quantity) - soItem.Discount,
+						ProductID: soItem.ProductID,
+						Quantity:  soItem.Quantity,
+						Price:     soItem.Price,
+						Discount:  soItem.Discount,
+						HPPAmount: product.CurrentHpp, // Use current HPP from product
+						Subtotal:  (soItem.Price * soItem.Quantity) - soItem.Discount,
 					}
 					items = append(items, item)
 				}
@@ -186,12 +202,12 @@ func SeedCustomerInvoice() error {
 				discount := float64(j * 5000)
 
 				item := salesModels.CustomerInvoiceItem{
-					ProductID:  product.ID,
-					Quantity:   quantity,
-					Price:      price,
-					Discount:   discount,
-					HPPAmount:  product.CurrentHpp,
-					Subtotal:   (price * quantity) - discount,
+					ProductID: product.ID,
+					Quantity:  quantity,
+					Price:     price,
+					Discount:  discount,
+					HPPAmount: product.CurrentHpp,
+					Subtotal:  (price * quantity) - discount,
 				}
 				items = append(items, item)
 			}
@@ -223,6 +239,30 @@ func SeedCustomerInvoice() error {
 		// Link to sales order if available
 		if linkedOrder != nil {
 			invoice.SalesOrderID = &linkedOrder.ID
+
+			if invData.hasDownPayment {
+				dpAmount := totalAmount * 0.2 // 20% DP
+				dpCtx := context.Background()
+				dpCode, _ := invoiceRepo.GetNextInvoiceNumber(dpCtx, "CIDP")
+
+				dpInvoice := salesModels.CustomerInvoice{
+					Code:         dpCode,
+					InvoiceDate:  invoiceDate.AddDate(0, 0, -2), // DP was 2 days ago
+					Type:         salesModels.CustomerInvoiceTypeDownPayment,
+					SalesOrderID: &linkedOrder.ID,
+					Amount:       dpAmount,
+					Subtotal:     dpAmount,
+					PaidAmount:   dpAmount,
+					Status:       salesModels.CustomerInvoiceStatusPaid,
+				}
+				db.Create(&dpInvoice)
+				log.Printf("Seeded Down Payment %s (ID: %s) for SO %s", dpCode, dpInvoice.ID, linkedOrder.Code)
+
+				invoice.DownPaymentInvoiceID = &dpInvoice.ID
+				invoice.DownPaymentAmount = dpAmount
+				invoice.Amount = totalAmount - dpAmount
+				totalAmount = invoice.Amount // update totalAmount for paidPercent calculation below
+			}
 		}
 
 		// Set payment fields based on status

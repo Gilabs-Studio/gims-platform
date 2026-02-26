@@ -14,27 +14,32 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 	}
 
 	resp := &dto.CustomerInvoiceResponse{
-		ID:              invoice.ID,
-		Code:            invoice.Code,
-		InvoiceNumber:   invoice.InvoiceNumber,
-		Type:            string(invoice.Type),
-		InvoiceDate:     invoice.InvoiceDate.Format("2006-01-02"),
-		SalesOrderID:    invoice.SalesOrderID,
-		PaymentTermsID:  invoice.PaymentTermsID,
-		Subtotal:        invoice.Subtotal,
-		TaxRate:         invoice.TaxRate,
-		TaxAmount:       invoice.TaxAmount,
-		DeliveryCost:    invoice.DeliveryCost,
-		OtherCost:       invoice.OtherCost,
-		Amount:          invoice.Amount,
-		PaidAmount:      invoice.PaidAmount,
-		RemainingAmount: invoice.RemainingAmount,
-		Status:          string(invoice.Status),
-		Notes:           invoice.Notes,
-		CreatedBy:       invoice.CreatedBy,
-		CancelledBy:     invoice.CancelledBy,
-		CreatedAt:       invoice.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       invoice.UpdatedAt.Format(time.RFC3339),
+		ID:                invoice.ID,
+		Code:              invoice.Code,
+		InvoiceNumber:     invoice.InvoiceNumber,
+		Type:              string(invoice.Type),
+		InvoiceDate:       invoice.InvoiceDate.Format("2006-01-02"),
+		SalesOrderID:      invoice.SalesOrderID,
+		PaymentTermsID:    invoice.PaymentTermsID,
+		Subtotal:          invoice.Subtotal,
+		TaxRate:           invoice.TaxRate,
+		TaxAmount:         invoice.TaxAmount,
+		DeliveryCost:      invoice.DeliveryCost,
+		OtherCost:         invoice.OtherCost,
+		DownPaymentAmount: invoice.DownPaymentAmount,
+		Amount:            invoice.Amount,
+		PaidAmount:        invoice.PaidAmount,
+		RemainingAmount:   invoice.RemainingAmount,
+		Status:            string(invoice.Status),
+		Notes:             invoice.Notes,
+		CreatedBy:         invoice.CreatedBy,
+		CancelledBy:       invoice.CancelledBy,
+		CreatedAt:         invoice.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         invoice.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if invoice.DownPaymentInvoiceID != nil {
+		resp.DownPaymentInvoiceID = invoice.DownPaymentInvoiceID
 	}
 
 	// Map optional date fields
