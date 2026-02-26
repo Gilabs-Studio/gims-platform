@@ -20,13 +20,12 @@ import { StockOpnameStatusBadge } from "./stock-opname-status-badge";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { formatDate } from "@/lib/utils";
-import { StockOpnameStatus } from "../types";
+import { StockOpnameStatus, StockOpname } from "../types";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { StockOpnameDetailDialog } from "./stock-opname-detail-dialog";
 import { EditStockOpnameDialog } from "./edit-stock-opname-dialog";
 import { CreateStockOpnameDialog } from "./stock-opname-form";
-import { Badge } from "@/components/ui/badge";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
@@ -47,7 +46,7 @@ export function StockOpnameList() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpnameOpen, setEditOpnameOpen] = useState(false);
-  const [editingOpname, setEditingOpname] = useState<any>(null); // Ideally invoke full opname type
+    const [editingOpname, setEditingOpname] = useState<StockOpname | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleView = (id: string) => {
@@ -82,7 +81,7 @@ export function StockOpnameList() {
   const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
   const warehouses = warehouseData?.data ?? [];
 
-  const opnames = data?.data ?? [];
+    const opnames: StockOpname[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const handleDelete = async () => {
@@ -158,7 +157,7 @@ export function StockOpnameList() {
                 </SelectContent>
             </Select>
             
-            <Select value={status} onValueChange={(v) => { setStatus(v as any); setPage(1); }}>
+            <Select value={status} onValueChange={(v: string) => { setStatus(v as StockOpnameStatus | "all"); setPage(1); }}>
                 <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder={t("filter.status")} />
                 </SelectTrigger>
@@ -245,13 +244,13 @@ export function StockOpnameList() {
                                      return <span className="text-muted-foreground text-sm">-</span>;
                                 }
                                 return variance > 0 ? (
-                                     <Badge variant="success">
+                                     <span className="font-medium" style={{ color: 'hsl(var(--chart-2))' }}>
                                          +{variance}
-                                     </Badge>
+                                     </span>
                                 ) : (
-                                     <Badge variant="destructive">
+                                     <span className="font-medium" style={{ color: 'hsl(var(--chart-4))' }}>
                                          {variance}
-                                     </Badge>
+                                     </span>
                                 );
                             })()}
                         </TableCell>

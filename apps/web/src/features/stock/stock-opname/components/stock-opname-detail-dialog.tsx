@@ -299,7 +299,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                         </div>
                          <div className="p-3 border rounded-lg text-center space-y-1 bg-muted/20">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.totalVariance")}</p>
-                            <p className={`text-2xl font-bold ${opname.total_variance_qty < 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                            <p className="text-2xl font-bold" style={{ color: opname.total_variance_qty < 0 ? 'hsl(var(--chart-4))' : 'hsl(var(--chart-2))' }}>
                                 {opname.total_variance_qty > 0 ? '+' : ''}{opname.total_variance_qty}
                             </p>
                         </div>
@@ -384,12 +384,11 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 {item.variance_qty === 0 ? (
-                                                                    <Badge>Match</Badge>
+                                                                    <span className="text-muted-foreground">-</span>
+                                                                ) : item.variance_qty > 0 ? (
+                                                                    <span className="font-medium" style={{ color: 'hsl(var(--chart-2))' }}>+{item.variance_qty}</span>
                                                                 ) : (
-                                                                    item.variance_qty > 0 ? (
-                                                                        <Badge variant="success">+{item.variance_qty}</Badge>                                                                    ) : (
-                                                                        <Badge variant="destructive">{item.variance_qty}</Badge>
-                                                                    )
+                                                                    <span className="font-medium" style={{ color: 'hsl(var(--chart-4))' }}>{item.variance_qty}</span>
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="text-sm text-muted-foreground italic">
