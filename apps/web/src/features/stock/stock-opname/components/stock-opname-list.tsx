@@ -245,11 +245,11 @@ export function StockOpnameList() {
                                      return <span className="text-muted-foreground text-sm">-</span>;
                                 }
                                 return variance > 0 ? (
-                                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                     <Badge variant="success">
                                          +{variance}
                                      </Badge>
                                 ) : (
-                                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                     <Badge variant="destructive">
                                          {variance}
                                      </Badge>
                                 );

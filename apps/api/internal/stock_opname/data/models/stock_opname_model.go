@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -45,6 +46,7 @@ type StockOpnameItem struct {
 	ID            string   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	StockOpnameID string   `gorm:"type:uuid;not null;index"`
 	ProductID     string   `gorm:"type:uuid;not null;index"`
+	Product       *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 	SystemQty     float64  `gorm:"type:decimal(15,2);not null;default:0"`
 	PhysicalQty   *float64 `gorm:"type:decimal(15,2)"` // Nullable until counted
 	VarianceQty   float64  `gorm:"type:decimal(15,2);default:0"`

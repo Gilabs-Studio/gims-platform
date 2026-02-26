@@ -99,7 +99,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
       if (!opnameId) return;
 
       // Prepare new items list
-      let newItemsRequests: StockOpnameItemRequest[] = items.map(i => ({
+      const newItemsRequests: StockOpnameItemRequest[] = items.map(i => ({
           product_id: i.product_id,
           system_qty: i.system_qty,
           physical_qty: i.physical_qty,
@@ -384,15 +384,12 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 {item.variance_qty === 0 ? (
-                                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                                        Match
-                                                                    </Badge>
+                                                                    <Badge>Match</Badge>
                                                                 ) : (
-                                                                    <Badge variant="outline" className={`
-                                                                        ${item.variance_qty > 0 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}
-                                                                    `}>
-                                                                        {item.variance_qty > 0 ? '+' : ''}{item.variance_qty}
-                                                                    </Badge>
+                                                                    item.variance_qty > 0 ? (
+                                                                        <Badge variant="success">+{item.variance_qty}</Badge>                                                                    ) : (
+                                                                        <Badge variant="destructive">{item.variance_qty}</Badge>
+                                                                    )
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="text-sm text-muted-foreground italic">
