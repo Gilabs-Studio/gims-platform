@@ -29,32 +29,8 @@ func SeedPermissions() error {
 		// Dashboard
 		{"/dashboard", "dashboard.view", "View Dashboard", "VIEW", "dashboard"},
 
-		// Master Data - Geographic
-		// Master Data - Geographic
-		{"/master-data/geographic/countries", "country.read", "View Countries", "VIEW", "country"},
-		{"/master-data/geographic/countries", "country.create", "Create Countries", "CREATE", "country"},
-		{"/master-data/geographic/countries", "country.update", "Edit Countries", "EDIT", "country"},
-		{"/master-data/geographic/countries", "country.delete", "Delete Countries", "DELETE", "country"},
-
-		{"/master-data/geographic/provinces", "province.read", "View Provinces", "VIEW", "province"},
-		{"/master-data/geographic/provinces", "province.create", "Create Provinces", "CREATE", "province"},
-		{"/master-data/geographic/provinces", "province.update", "Edit Provinces", "EDIT", "province"},
-		{"/master-data/geographic/provinces", "province.delete", "Delete Provinces", "DELETE", "province"},
-
-		{"/master-data/geographic/cities", "city.read", "View Cities", "VIEW", "city"},
-		{"/master-data/geographic/cities", "city.create", "Create Cities", "CREATE", "city"},
-		{"/master-data/geographic/cities", "city.update", "Edit Cities", "EDIT", "city"},
-		{"/master-data/geographic/cities", "city.delete", "Delete Cities", "DELETE", "city"},
-
-		{"/master-data/geographic/districts", "district.read", "View Districts", "VIEW", "district"},
-		{"/master-data/geographic/districts", "district.create", "Create Districts", "CREATE", "district"},
-		{"/master-data/geographic/districts", "district.update", "Edit Districts", "EDIT", "district"},
-		{"/master-data/geographic/districts", "district.delete", "Delete Districts", "DELETE", "district"},
-
-		{"/master-data/geographic/villages", "village.read", "View Villages", "VIEW", "village"},
-		{"/master-data/geographic/villages", "village.create", "Create Villages", "CREATE", "village"},
-		{"/master-data/geographic/villages", "village.update", "Edit Villages", "EDIT", "village"},
-		{"/master-data/geographic/villages", "village.delete", "Delete Villages", "DELETE", "village"},
+		// Master Data - Geographic (read-only map page)
+		{"/master-data/geographic", "geographic.read", "View Geographic Map", "VIEW", "geographic"},
 
 		// Master Data - Organization
 		{"/master-data/company", "company.read", "View Company", "VIEW", "company"},

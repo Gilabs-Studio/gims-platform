@@ -189,28 +189,9 @@ func SeedMenus() error {
 	// MASTER DATA SUB-MENUS
 	// ============================================================
 
-	// Geographic Group
-	geographicMenu, err := createChildMenu("Geographic", "globe", "/master-data/geographic", &masterDataMenu.ID, 1)
-	if err != nil {
+	// Geographic - single read-only map page (no CRUD sub-pages)
+	if _, err := createChildMenu("Geographic", "globe", "/master-data/geographic", &masterDataMenu.ID, 1); err != nil {
 		return err
-	}
-
-	geographicChildren := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"Countries", "flag", "/master-data/geographic/countries", 1},
-		{"Provinces", "map", "/master-data/geographic/provinces", 2},
-		{"Cities", "building", "/master-data/geographic/cities", 3},
-		{"Districts", "map-pin", "/master-data/geographic/districts", 4},
-		{"Villages", "home", "/master-data/geographic/villages", 5},
-	}
-	for _, child := range geographicChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &geographicMenu.ID, child.order); err != nil {
-			return err
-		}
 	}
 
 	// Organization Group

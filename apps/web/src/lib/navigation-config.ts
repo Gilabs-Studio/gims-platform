@@ -23,13 +23,7 @@ export const navigationConfig: NavItem[] = [
         name: "Geographic",
         url: "/master-data/geographic",
         icon: "globe",
-        children: [
-          { name: "Countries", url: "/master-data/countries", icon: "flag", permission: "country.read" },
-          { name: "Provinces", url: "/master-data/provinces", icon: "map", permission: "province.read" },
-          { name: "Cities", url: "/master-data/cities", icon: "building-2", permission: "city.read" },
-          { name: "Districts", url: "/master-data/districts", icon: "map-pin", permission: "district.read" },
-          { name: "Villages", url: "/master-data/villages", icon: "map-pin", permission: "village.read" },
-        ],
+        permission: "geographic.read",
       },
       {
         name: "Organization",
