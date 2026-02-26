@@ -17,6 +17,7 @@ var (
 
 type InventoryUsecase interface {
 	GetStockList(ctx context.Context, req *dto.GetInventoryListRequest) (*dto.GetInventoryListResponse, error)
+	GetInventoryMetrics(ctx context.Context) (*dto.InventoryMetrics, error)
 
 	// Tree View
 	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
@@ -112,11 +113,35 @@ func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInve
 }
 
 func (u *inventoryUsecase) GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) (*dto.GetInventoryTreeBatchesResponse, error) {
-	items, err := u.repo.GetTreeBatches(ctx, req)
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PerPage <= 0 {
+		req.PerPage = 10
+	}
+
+	items, total, err := u.repo.GetTreeBatches(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return &dto.GetInventoryTreeBatchesResponse{Data: items}, nil
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+
+	return &dto.GetInventoryTreeBatchesResponse{
+		Data: items,
+		Meta: dto.PaginationMeta{
+			Total:      total,
+			Page:       req.Page,
+			PerPage:    req.PerPage,
+			TotalPages: totalPages,
+			HasNext:    req.Page < totalPages,
+			HasPrev:    req.Page > 1,
+		},
+	}, nil
+}
+
+func (u *inventoryUsecase) GetInventoryMetrics(ctx context.Context) (*dto.InventoryMetrics, error) {
+	return u.repo.GetInventoryMetrics(ctx)
 }
 
 func (u *inventoryUsecase) ReserveStock(ctx context.Context, productID string, quantity float64) error {

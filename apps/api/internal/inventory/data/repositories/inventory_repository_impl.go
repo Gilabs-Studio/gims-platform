@@ -87,15 +87,12 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 
 	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
 
-	// Count Total (Expensive with Group By, use subquery or count distinct)
-	// Approximate count or separate query
-	// Using GORM Count with Group By can be tricky.
+	// Filter low-stock items via HAVING (aggregated available <= min_stock covers low + OOS)
+	if req.LowStock {
+		query = query.Having("COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) <= p.min_stock")
+	}
 
-	// Let's use a count wrapper
-	// We need total count of rows (Product-Warehouse combinations)
-
-	// Because of the Group By, Count() behavior changes.
-	// Simple approach:
+	// Count Total (wrapping group-by query in subquery for accuracy)
 	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -104,8 +101,12 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	offset := (req.Page - 1) * req.PerPage
 	query = query.Limit(req.PerPage).Offset(offset)
 
-	// Order
-	query = query.Order("p.name ASC, w.name ASC")
+	// Order: when low_stock filter is on, sort by stock-fill percentage ascending (most critical first)
+	if req.LowStock {
+		query = query.Order("(COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) / NULLIF(p.max_stock, 0)) ASC NULLS FIRST, p.name ASC")
+	} else {
+		query = query.Order("p.name ASC, w.name ASC")
+	}
 
 	if err := query.Find(&items).Error; err != nil {
 		return nil, 0, err
@@ -285,10 +286,29 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	return items, total, nil
 }
 
-// GetTreeBatches returns batches for a specific product and warehouse
-func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) ([]dto.InventoryBatchItem, error) {
+// GetTreeBatches returns batches for a specific product and warehouse with pagination
+func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) ([]dto.InventoryBatchItem, int64, error) {
 	var items []dto.InventoryBatchItem
+	var total int64
 
+	// Default pagination values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PerPage <= 0 {
+		req.PerPage = 10
+	}
+
+	base := r.DB(ctx).Table("inventory_batches ib").
+		Where("ib.deleted_at IS NULL").
+		Where("ib.warehouse_id = ?", req.WarehouseID).
+		Where("ib.product_id = ?", req.ProductID)
+
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (req.Page - 1) * req.PerPage
 	query := r.DB(ctx).Table("inventory_batches ib").
 		Select(`
 			ib.id,
@@ -301,13 +321,87 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 		Where("ib.deleted_at IS NULL").
 		Where("ib.warehouse_id = ?", req.WarehouseID).
 		Where("ib.product_id = ?", req.ProductID).
-		Order("ib.expiry_date ASC, ib.created_at ASC")
+		Order("ib.expiry_date ASC NULLS LAST, ib.created_at ASC").
+		Limit(req.PerPage).
+		Offset(offset)
 
 	if err := query.Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+// GetInventoryMetrics returns high-level inventory summary for owner/admin dashboards
+func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.InventoryMetrics, error) {
+	// CTE to aggregate product-warehouse stock levels
+	metricsQuery := `
+		WITH stock_levels AS (
+			SELECT 
+				w.id  AS warehouse_id,
+				p.id  AS product_id,
+				p.min_stock,
+				p.max_stock,
+				COALESCE(SUM(ib.current_quantity), 0) AS on_hand,
+				COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) AS available
+			FROM products p
+			JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL
+			JOIN warehouses w ON w.id = ib.warehouse_id AND w.deleted_at IS NULL
+			WHERE p.deleted_at IS NULL
+			GROUP BY w.id, p.id, p.min_stock, p.max_stock
+		)
+		SELECT
+			COUNT(*)                                                                     AS total_items,
+			COUNT(DISTINCT product_id)                                                   AS total_products,
+			COUNT(DISTINCT warehouse_id)                                                 AS total_warehouses,
+			COALESCE(SUM(on_hand), 0)                                                    AS total_on_hand,
+			COUNT(CASE WHEN available <= 0                                   THEN 1 END) AS out_of_stock_count,
+			COUNT(CASE WHEN available > 0 AND available <= min_stock         THEN 1 END) AS low_stock_count,
+			COUNT(CASE WHEN max_stock > 0 AND available > max_stock          THEN 1 END) AS overstock_count,
+			COUNT(CASE WHEN available > min_stock AND (max_stock = 0 OR available <= max_stock) THEN 1 END) AS ok_count
+		FROM stock_levels
+	`
+
+	type rawMetrics struct {
+		TotalItems      int     `json:"total_items"`
+		TotalProducts   int     `json:"total_products"`
+		TotalWarehouses int     `json:"total_warehouses"`
+		TotalOnHand     float64 `json:"total_on_hand"`
+		OutOfStockCount int     `json:"out_of_stock_count"`
+		LowStockCount   int     `json:"low_stock_count"`
+		OverstockCount  int     `json:"overstock_count"`
+		OkCount         int     `json:"ok_count"`
+	}
+
+	var raw rawMetrics
+	if err := r.DB(ctx).Raw(metricsQuery).Scan(&raw).Error; err != nil {
 		return nil, err
 	}
 
-	return items, nil
+	// Expiring and expired batches counts
+	var expiringCount int64
+	var expiredCount int64
+
+	r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'").
+		Count(&expiringCount)
+
+	r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date < CURRENT_DATE").
+		Count(&expiredCount)
+
+	return &dto.InventoryMetrics{
+		TotalItems:           raw.TotalItems,
+		TotalProducts:        raw.TotalProducts,
+		TotalWarehouses:      raw.TotalWarehouses,
+		TotalOnHand:          raw.TotalOnHand,
+		OkCount:              raw.OkCount,
+		LowStockCount:        raw.LowStockCount,
+		OutOfStockCount:      raw.OutOfStockCount,
+		OverstockCount:       raw.OverstockCount,
+		ExpiringBatches30Day: int(expiringCount),
+		ExpiredBatches:       int(expiredCount),
+	}, nil
 }
 
 // Stock Management Implementations

@@ -6,11 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock, Layers, TrendingDown, CalendarX } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useInventory } from "../hooks/use-inventory";
+import { useInventory, useInventoryMetrics } from "../hooks/use-inventory";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { resolveImageUrl } from "@/lib/utils";
 
@@ -19,11 +21,42 @@ import { LayoutList, GanttChart, Eye } from "lucide-react"; // Icons for toggle
 import { InventoryDetailDialog } from "./inventory-detail-dialog";
 import { InventoryStockItem } from "../types";
 
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  colorClass,
+  isLoading,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  colorClass: string;
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="flex-1 min-w-0">
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`p-2 rounded-md shrink-0 ${colorClass}`}>
+          <Icon className="h-4 w-4 text-white" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground truncate">{label}</p>
+          {isLoading ? (
+            <Skeleton className="h-5 w-16 mt-0.5" />
+          ) : (
+            <p className="text-lg font-bold tabular-nums leading-tight">{value}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function InventoryList() {
   const t = useTranslations("inventory");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  // const [search, setSearch] = useState(""); // Kept original
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [warehouseId, setWarehouseId] = useState<string>("all");
@@ -50,6 +83,9 @@ export function InventoryList() {
     warehouse_id: warehouseId !== "all" ? warehouseId : undefined,
     low_stock: showLowStock || undefined,
   });
+
+  const { data: metricsData, isLoading: metricsLoading } = useInventoryMetrics();
+  const metrics = metricsData?.data;
 
   const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
   const warehouses = warehouseData?.data ?? [];
@@ -105,6 +141,59 @@ export function InventoryList() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
+      </div>
+
+      {/* Inventory Metrics Cards */}
+      <div className="flex flex-wrap gap-3">
+        <MetricCard
+          label="Total SKU"
+          value={metrics?.total_items ?? 0}
+          icon={Package}
+          colorClass="bg-primary"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Total On Hand"
+          value={metrics?.total_on_hand?.toLocaleString() ?? 0}
+          icon={Layers}
+          colorClass="bg-blue-500"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Healthy Stock"
+          value={metrics?.ok_count ?? 0}
+          icon={CheckCircle2}
+          colorClass="bg-green-600"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Low Stock"
+          value={metrics?.low_stock_count ?? 0}
+          icon={TrendingDown}
+          colorClass="bg-yellow-500"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Out of Stock"
+          value={metrics?.out_of_stock_count ?? 0}
+          icon={XCircle}
+          colorClass="bg-destructive"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Expiring (30d)"
+          value={metrics?.expiring_batches_30_day ?? 0}
+          icon={Clock}
+          colorClass="bg-orange-500"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Expired Batches"
+          value={metrics?.expired_batches ?? 0}
+          icon={CalendarX}
+          colorClass="bg-rose-700"
+          isLoading={metricsLoading}
+        />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

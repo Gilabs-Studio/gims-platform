@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem } from "../types";
+import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem, InventoryBatchesResponse, InventoryMetrics } from "../types";
 
 const BASE_URL = "/stock/inventory";
 
@@ -17,6 +17,11 @@ export const inventoryService = {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<InventoryStockItem>>>(
       `${BASE_URL}?${searchParams.toString()}`
     );
+    return response.data;
+  },
+
+  getMetrics: async () => {
+    const response = await apiClient.get<ApiResponse<InventoryMetrics>>(`${BASE_URL}/metrics`);
     return response.data;
   },
 
@@ -39,12 +44,14 @@ export const inventoryService = {
     return response.data;
   },
 
-  getTreeBatches: async (warehouseId: string, productId: string) => {
+  getTreeBatches: async (warehouseId: string, productId: string, params: { page: number; per_page: number }) => {
     const searchParams = new URLSearchParams();
     searchParams.append("warehouse_id", warehouseId);
     searchParams.append("product_id", productId);
+    searchParams.append("page", params.page.toString());
+    searchParams.append("per_page", params.per_page.toString());
 
-    const response = await apiClient.get<ApiResponse<{ data: InventoryBatchItem[] }>>(
+    const response = await apiClient.get<ApiResponse<InventoryBatchesResponse>>(
       `/stock/tree/batches?${searchParams.toString()}`
     );
     return response.data;

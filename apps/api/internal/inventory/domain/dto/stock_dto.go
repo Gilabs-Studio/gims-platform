@@ -114,8 +114,25 @@ type GetInventoryTreeProductsResponse struct {
 type GetInventoryTreeBatchesRequest struct {
 	WarehouseID string `form:"warehouse_id" binding:"required"`
 	ProductID   string `form:"product_id" binding:"required"`
+	Page        int    `form:"page"`
+	PerPage     int    `form:"per_page"`
 }
 
 type GetInventoryTreeBatchesResponse struct {
 	Data []InventoryBatchItem `json:"data"`
+	Meta PaginationMeta       `json:"meta"`
+}
+
+// InventoryMetrics provides a high-level summary for owner/admin dashboards
+type InventoryMetrics struct {
+	TotalItems           int     `json:"total_items"`            // Unique product-warehouse combinations
+	TotalProducts        int     `json:"total_products"`         // Unique products with stock
+	TotalWarehouses      int     `json:"total_warehouses"`       // Warehouses with active inventory
+	TotalOnHand          float64 `json:"total_on_hand"`          // Sum of all on-hand units
+	OkCount              int     `json:"ok_count"`               // Items within healthy range
+	LowStockCount        int     `json:"low_stock_count"`        // Items at or below min_stock
+	OutOfStockCount      int     `json:"out_of_stock_count"`     // Items with zero available
+	OverstockCount       int     `json:"overstock_count"`        // Items exceeding max_stock
+	ExpiringBatches30Day int     `json:"expiring_batches_30_day"` // Batches expiring within 30 days
+	ExpiredBatches       int     `json:"expired_batches"`        // Expired batches still with qty > 0
 }

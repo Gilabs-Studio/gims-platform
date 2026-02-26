@@ -91,9 +91,14 @@ func (h *InventoryHandler) GetTreeBatches(c *gin.Context) {
 		return
 	}
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+
 	req := &dto.GetInventoryTreeBatchesRequest{
 		WarehouseID: warehouseID,
 		ProductID:   productID,
+		Page:        page,
+		PerPage:     perPage,
 	}
 
 	result, err := h.usecase.GetTreeBatches(c.Request.Context(), req)
@@ -102,5 +107,14 @@ func (h *InventoryHandler) GetTreeBatches(c *gin.Context) {
 		return
 	}
 
+	response.SuccessResponse(c, result, nil)
+}
+
+func (h *InventoryHandler) GetInventoryMetrics(c *gin.Context) {
+	result, err := h.usecase.GetInventoryMetrics(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil, nil)
+		return
+	}
 	response.SuccessResponse(c, result, nil)
 }

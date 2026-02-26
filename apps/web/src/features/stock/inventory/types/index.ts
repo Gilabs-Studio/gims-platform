@@ -26,6 +26,11 @@ export interface InventoryBatchItem {
   available: number;
 }
 
+export interface InventoryBatchesResponse {
+  data: InventoryBatchItem[];
+  meta: PaginationMeta;
+}
+
 // Tree types
 export interface StockSummary {
   total_items: number;
@@ -67,4 +72,17 @@ export interface ApiResponse<T> {
   data: T;
   meta?: any;
   message?: string;
+}
+
+export interface InventoryMetrics {
+  total_items: number;
+  total_products: number;
+  total_warehouses: number;
+  total_on_hand: number;
+  ok_count: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  overstock_count: number;
+  expiring_batches_30_day: number;
+  expired_batches: number;
 }

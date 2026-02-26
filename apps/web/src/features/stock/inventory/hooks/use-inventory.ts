@@ -18,3 +18,11 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
     placeholderData: (previousData) => previousData,
   });
 };
+
+export const useInventoryMetrics = () => {
+  return useQuery({
+    queryKey: ["inventory", "metrics"],
+    queryFn: () => inventoryService.getMetrics(),
+    staleTime: 60000, // Metrics are refreshed every minute
+  });
+};

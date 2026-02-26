@@ -41,6 +41,8 @@ func RegisterRoutes(
 	stock.Use(middleware.ScopeMiddleware(db))
 	{
 		stock.GET("/inventory", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+		// Metrics endpoint for owner/admin dashboards — placed before /:id routes for specificity
+		stock.GET("/inventory/metrics", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetInventoryMetrics)
 
 		// Tree View Routes
 		stock.GET("/tree/warehouses", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeWarehouses)

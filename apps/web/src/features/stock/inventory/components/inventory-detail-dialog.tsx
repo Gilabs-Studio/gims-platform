@@ -12,9 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import { InventoryStockItem } from "../types";
 import { useInventoryTreeBatches } from "../hooks/use-inventory-tree";
-import { Package, Calendar, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { useState } from "react";
 
 interface InventoryDetailDialogProps {
   open: boolean;
@@ -23,12 +22,8 @@ interface InventoryDetailDialogProps {
 }
 
 function BatchList({ warehouseId, productId }: { warehouseId: string; productId: string }) {
-  const { batches, isLoading } = useInventoryTreeBatches(warehouseId, productId, true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-
-  const paginatedBatches = batches.slice((page - 1) * pageSize, page * pageSize);
-  const total = batches.length;
+  const PAGE_SIZE = 5;
+  const { batches, meta, isLoading, page, setPage } = useInventoryTreeBatches(warehouseId, productId, true, PAGE_SIZE);
 
   if (isLoading) {
     return (
@@ -51,7 +46,7 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
 
   return (
     <div className="space-y-3">
-      {paginatedBatches.map((batch) => (
+      {batches.map((batch) => (
         <div 
           key={batch.id} 
           className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors gap-3"
@@ -86,18 +81,15 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
           </div>
         </div>
       ))}
-      {total > 0 && (
+      {meta && meta.total > 0 && (
         <div className="pt-2">
             <DataTablePagination
                 pageIndex={page}
-                pageSize={pageSize}
-                rowCount={total}
+                pageSize={PAGE_SIZE}
+                rowCount={meta.total}
                 onPageChange={setPage}
-                onPageSizeChange={(newSize) => {
-                    setPageSize(newSize);
-                    setPage(1);
-                }}
-                pageSizeOptions={[5, 10, 20]} 
+                onPageSizeChange={() => null}
+                pageSizeOptions={[5]} 
             />
         </div>
       )}
