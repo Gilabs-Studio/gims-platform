@@ -54,3 +54,32 @@ func (h *MapDataHandler) GetMapData(c *gin.Context) {
 
 	response.SuccessResponse(c, featureCollection, nil)
 }
+
+// ReverseGeocode handles GET /geographic/reverse-geocode
+// Resolves lat/lng coordinates to Province, City, and District
+func (h *MapDataHandler) ReverseGeocode(c *gin.Context) {
+	var req dto.ReverseGeocodeRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	result, err := h.mapDataUC.ReverseGeocode(c.Request.Context(), &req)
+	if err != nil {
+		switch err {
+		case usecase.ErrReverseGeocodeNotFound:
+			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+				"message": "No administrative boundary found for the given coordinates",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}

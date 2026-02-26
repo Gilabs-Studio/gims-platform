@@ -14,6 +14,8 @@ import type {
   ListVillagesParams,
   MapDataParams,
   MapDataResponse,
+  ReverseGeocodeParams,
+  ReverseGeocodeResponse,
 } from "../types";
 
 const BASE_PATH = "/geographic";
@@ -123,6 +125,17 @@ export const mapDataService = {
   async getMapData(params: MapDataParams): Promise<MapDataResponse> {
     const response = await apiClient.get<MapDataResponse>(
       `${BASE_PATH}/map-data`,
+      { params }
+    );
+    return response.data;
+  },
+};
+
+// Reverse Geocode Service - resolves coordinates to administrative boundaries
+export const reverseGeocodeService = {
+  async reverseGeocode(params: ReverseGeocodeParams): Promise<ReverseGeocodeResponse> {
+    const response = await apiClient.get<ReverseGeocodeResponse>(
+      `${BASE_PATH}/reverse-geocode`,
       { params }
     );
     return response.data;

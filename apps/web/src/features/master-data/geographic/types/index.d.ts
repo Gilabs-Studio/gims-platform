@@ -149,3 +149,26 @@ export interface MapDataResponse {
   timestamp: string;
   request_id: string;
 }
+
+// Reverse geocode types
+export interface ReverseGeocodeParams {
+  lat: number;
+  lng: number;
+}
+
+export interface ReverseGeocodeResult {
+  province_id: string;
+  province_name: string;
+  city_id: string;
+  city_name: string;
+  city_type: string;
+  district_id: string;
+  district_name: string;
+}
+
+export interface ReverseGeocodeResponse {
+  success: boolean;
+  data: ReverseGeocodeResult;
+  timestamp: string;
+  request_id: string;
+}

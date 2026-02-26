@@ -62,6 +62,7 @@ type provinceMapping struct {
 // simpleGeoJSONFeature is the village-level GeoJSON structure used for seeding
 type simpleGeoJSONFeature struct {
 	Properties map[string]interface{} `json:"properties"`
+	Geometry   json.RawMessage        `json:"geometry"`
 }
 
 type simpleGeoJSONCollection struct {
@@ -106,6 +107,12 @@ func SeedGeographic() error {
 	uniqueCities := map[string]cityKey{}                 // bpsCode → cityKey
 	uniqueDistricts := map[string]districtKey{}          // bpsCode → districtKey
 
+	// Geometry collection maps for reverse geocode — aggregate polygons
+	// from district-level features into province/city/district geometries
+	provinceGeoms := map[string][]json.RawMessage{}
+	cityGeoms := map[string][]json.RawMessage{}
+	districtGeoms := map[string][]json.RawMessage{}
+
 	for _, feat := range col.Features {
 		p := feat.Properties
 
@@ -124,6 +131,19 @@ func SeedGeographic() error {
 		}
 		if dBPS != "" && dName != "" && cBPS != "" {
 			uniqueDistricts[dBPS] = districtKey{bpsCode: dBPS, name: dName, cityBPS: cBPS}
+		}
+
+		// Collect geometry for reverse geocode support
+		if len(feat.Geometry) > 0 {
+			if pBPS != "" {
+				provinceGeoms[pBPS] = append(provinceGeoms[pBPS], feat.Geometry)
+			}
+			if cBPS != "" {
+				cityGeoms[cBPS] = append(cityGeoms[cBPS], feat.Geometry)
+			}
+			if dBPS != "" {
+				districtGeoms[dBPS] = append(districtGeoms[dBPS], feat.Geometry)
+			}
 		}
 	}
 
@@ -238,8 +258,115 @@ func SeedGeographic() error {
 	}
 	log.Printf("Districts seeded: %d", seededDistricts)
 
+	// ── Update geometry for reverse geocode ────────────────────────────────────
+	log.Println("Updating geometry data for reverse geocode support...")
+
+	updatedProvGeom := 0
+	for bps, geoms := range provinceGeoms {
+		provID, ok := provinceIDByBPS[bps]
+		if !ok {
+			continue
+		}
+		merged := mergeGeoJSONGeometries(geoms)
+		if merged == "" {
+			continue
+		}
+		if err := db.Model(&models.Province{}).Where("id = ?", provID).Update("geometry", merged).Error; err != nil {
+			log.Printf("WARN: province geometry %s: %v", bps, err)
+		} else {
+			updatedProvGeom++
+		}
+	}
+	log.Printf("Province geometries updated: %d", updatedProvGeom)
+
+	updatedCityGeom := 0
+	for bps, geoms := range cityGeoms {
+		cityID, ok := cityIDByBPS[bps]
+		if !ok {
+			continue
+		}
+		merged := mergeGeoJSONGeometries(geoms)
+		if merged == "" {
+			continue
+		}
+		if err := db.Model(&models.City{}).Where("id = ?", cityID).Update("geometry", merged).Error; err != nil {
+			log.Printf("WARN: city geometry %s: %v", bps, err)
+		} else {
+			updatedCityGeom++
+		}
+	}
+	log.Printf("City geometries updated: %d", updatedCityGeom)
+
+	updatedDistGeom := 0
+	for bps, geoms := range districtGeoms {
+		merged := mergeGeoJSONGeometries(geoms)
+		if merged == "" {
+			continue
+		}
+		if err := db.Model(&models.District{}).Where("code = ?", bps).Update("geometry", merged).Error; err != nil {
+			log.Printf("WARN: district geometry %s: %v", bps, err)
+		} else {
+			updatedDistGeom++
+		}
+	}
+	log.Printf("District geometries updated: %d", updatedDistGeom)
+
 	log.Println("Geographic data seeded successfully!")
 	return nil
+}
+
+// mergeGeoJSONGeometries combines multiple GeoJSON geometries (Polygon/MultiPolygon)
+// into a single geometry suitable for point-in-polygon reverse geocoding.
+// Returns empty string if no valid geometries found.
+func mergeGeoJSONGeometries(geoms []json.RawMessage) string {
+	type geomObj struct {
+		Type        string          `json:"type"`
+		Coordinates json.RawMessage `json:"coordinates"`
+	}
+
+	// Collect individual polygon coordinate arrays without parsing float values
+	var polygonFragments []json.RawMessage
+
+	for _, raw := range geoms {
+		var g geomObj
+		if err := json.Unmarshal(raw, &g); err != nil {
+			continue
+		}
+		switch g.Type {
+		case "Polygon":
+			polygonFragments = append(polygonFragments, g.Coordinates)
+		case "MultiPolygon":
+			var polys []json.RawMessage
+			if err := json.Unmarshal(g.Coordinates, &polys); err != nil {
+				continue
+			}
+			polygonFragments = append(polygonFragments, polys...)
+		}
+	}
+
+	if len(polygonFragments) == 0 {
+		return ""
+	}
+
+	// Single polygon — store as Polygon for efficiency
+	if len(polygonFragments) == 1 {
+		result, err := json.Marshal(geomObj{Type: "Polygon", Coordinates: polygonFragments[0]})
+		if err != nil {
+			return ""
+		}
+		return string(result)
+	}
+
+	// Multiple polygons — combine into MultiPolygon
+	coordsJSON, err := json.Marshal(polygonFragments)
+	if err != nil {
+		return ""
+	}
+	result, err := json.Marshal(geomObj{Type: "MultiPolygon", Coordinates: coordsJSON})
+	if err != nil {
+		return ""
+	}
+	return string(result)
 }
 
 // strProp safely extracts a non-nil string from a GeoJSON properties map.

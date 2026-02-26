@@ -13,27 +13,17 @@ import {
 } from "../dialog";
 import dynamic from "next/dynamic";
 
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-
-const Marker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Marker),
-  { ssr: false }
-);
-
-// Component untuk handle map click dan marker drag (must be inside MapContainer)
-// This must be a separate file or use a different approach
-const MapClickHandler = dynamic(
-  () => import("./map-click-handler").then((mod) => mod.MapClickHandler),
-  { ssr: false }
-);
+// Dynamically load the self-contained map picker (SSR-safe).
+// Icon fix runs at module scope inside map-picker-inner.tsx,
+// eliminating the race condition that caused "iconUrl not set".
+const MapPickerInner = dynamic(() => import("./map-picker-inner"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center bg-muted/30">
+      <span className="text-sm text-muted-foreground">Loading map...</span>
+    </div>
+  ),
+});
 
 // Default location: Jakarta, Indonesia
 const DEFAULT_LOCATION: [number, number] = [-6.2088, 106.8456];
@@ -57,33 +47,8 @@ export function MapPickerModal({
   title = "Select Location",
   description = "Click on the map or drag the marker to set the location coordinates",
 }: MapPickerModalProps) {
-  const [mounted, setMounted] = useState(false);
   const [currentLat, setCurrentLat] = useState(latitude || DEFAULT_LOCATION[0]);
   const [currentLng, setCurrentLng] = useState(longitude || DEFAULT_LOCATION[1]);
-
-  // Setup Leaflet CSS and icon only on client-side
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Import CSS dynamically
-    // @ts-expect-error - CSS import for Leaflet
-    void import("leaflet/dist/leaflet.css");
-    
-    // Setup Leaflet icon using direct paths from CDN
-    void import("leaflet").then((L) => {
-      const DefaultIcon = L.default.icon({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-      
-      L.default.Marker.prototype.options.icon = DefaultIcon;
-      setMounted(true);
-    });
-  }, []);
 
   useEffect(() => {
     if (open) {
@@ -102,10 +67,6 @@ export function MapPickerModal({
     onOpenChange(false);
   };
 
-  if (!mounted) {
-    return null;
-  }
-
   const initialPosition: [number, number] = [currentLat, currentLng];
 
   return (
@@ -118,24 +79,12 @@ export function MapPickerModal({
 
         <div className="space-y-4 px-6 sm:px-0">
           <div className="h-[300px] sm:h-[500px] rounded-md border overflow-hidden relative">
-            <MapContainer
-              center={initialPosition}
-              zoom={13}
-              className="h-full w-full"
-              scrollWheelZoom={true}
-              touchZoom={true}
-              doubleClickZoom={true}
-              dragging={true}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MapClickHandler
-                onCoordinateSelect={handleCoordinateSelect}
+            {open && (
+              <MapPickerInner
                 initialPosition={initialPosition}
+                onCoordinateSelect={handleCoordinateSelect}
               />
-            </MapContainer>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

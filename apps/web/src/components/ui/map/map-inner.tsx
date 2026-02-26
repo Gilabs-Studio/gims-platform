@@ -20,12 +20,23 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+// Turbopack may return a plain string or a StaticImageData object for PNG imports.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getImageSrc = (img: any): string => {
+  if (typeof img === "string" && img) return img;
+  if (typeof img?.src === "string" && img.src) return img.src;
+  if (typeof img?.default === "string" && img.default) return img.default;
+  if (typeof img?.default?.src === "string" && img.default.src) return img.default.src;
+  return "";
+};
+
 // Setup icons globally
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconUrl: markerIcon.src,
-  iconRetinaUrl: markerIcon2x.src,
-  shadowUrl: markerShadow.src,
+  iconUrl: getImageSrc(markerIcon),
+  iconRetinaUrl: getImageSrc(markerIcon2x),
+  shadowUrl: getImageSrc(markerShadow),
 });
 
 export interface MapMarker<T> {
