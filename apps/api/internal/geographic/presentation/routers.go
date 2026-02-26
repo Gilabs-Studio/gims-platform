@@ -22,6 +22,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	cityRepo := repositories.NewCityRepository(db)
 	districtRepo := repositories.NewDistrictRepository(db)
 	villageRepo := repositories.NewVillageRepository(db)
+	mapDataRepo := repositories.NewMapDataRepository(db)
 
 	// Initialize usecases
 	countryUC := usecase.NewCountryUsecase(countryRepo)
@@ -29,6 +30,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	cityUC := usecase.NewCityUsecase(cityRepo, provinceRepo)
 	districtUC := usecase.NewDistrictUsecase(districtRepo, cityRepo)
 	villageUC := usecase.NewVillageUsecase(villageRepo, districtRepo)
+	mapDataUC := usecase.NewMapDataUsecase(mapDataRepo)
 
 	// Initialize handlers
 	countryH := handler.NewCountryHandler(countryUC)
@@ -36,12 +38,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	cityH := handler.NewCityHandler(cityUC)
 	districtH := handler.NewDistrictHandler(districtUC)
 	villageH := handler.NewVillageHandler(villageUC)
+	mapDataH := handler.NewMapDataHandler(mapDataUC)
 
 	// Create geographic group under API
 	group := api.Group("/geographic")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 
-	// Register routes
+	// Register routes - map-data first for route specificity
+	router.RegisterMapDataRoutes(group, mapDataH)
 	router.RegisterCountryRoutes(group, countryH)
 	router.RegisterProvinceRoutes(group, provinceH)
 	router.RegisterCityRoutes(group, cityH)

@@ -250,3 +250,14 @@ func (h *AreaHandler) RemoveEmployee(c *gin.Context) {
 
 	response.SuccessResponse(c, area, nil)
 }
+
+// GetFormData handles GET /areas/form-data and returns employee options for area forms
+func (h *AreaHandler) GetFormData(c *gin.Context) {
+	formData, err := h.areaUC.GetFormData(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, formData, nil)
+}

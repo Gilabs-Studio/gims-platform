@@ -37,125 +37,32 @@ export const geographicEn = {
       statusUpdated: "Status updated successfully",
     },
 
-    // Country
-    country: {
-      title: "Country",
-      subtitle: "Manage country data for geographic hierarchy",
-      name: "Country Name",
-      code: "Country Code",
-      phoneCode: "Phone Code",
-      search: "Search countries...",
-      add: "Add Country",
-      edit: "Edit Country",
-      delete: "Delete Country",
-      notFound: "No countries found",
-      created: "Country created successfully",
-      updated: "Country updated successfully",
-      deleted: "Country deleted successfully",
-      deleteDesc: "Are you sure you want to delete this country? This action cannot be undone. Countries with existing provinces cannot be deleted.",
-      validation: {
-        invalidId: "Invalid country ID",
-      },
-      itemName: "country",
-    },
-
-    // Province
-    province: {
-      title: "Provinces",
-      subtitle: "Manage province data with country hierarchy",
-      name: "Province Name",
-      code: "Province Code",
-      search: "Search provinces...",
-      add: "Add Province",
-      edit: "Edit Province",
-      delete: "Delete Province",
-      notFound: "No provinces found",
-      selectCountry: "Select Country",
-      created: "Province created successfully",
-      updated: "Province updated successfully",
-      deleted: "Province deleted successfully",
-      deleteDesc: "Are you sure you want to delete this province? Provinces with existing cities cannot be deleted.",
-      validation: {
-        invalidId: "Invalid province ID",
-      },
-      itemName: "province",
-    },
-
-    // City
-    city: {
-      title: "Cities",
-      subtitle: "Manage city/regency data with province hierarchy",
-      name: "City Name",
-      code: "City Code",
-      type: "Type",
-      types: {
-        city: "City (Kota)",
-        regency: "Regency (Kabupaten)",
-      },
-      search: "Search cities...",
-      add: "Add City",
-      edit: "Edit City",
-      delete: "Delete City",
-      notFound: "No cities found",
+    // Map page
+    map: {
+      title: "Geographic Map",
+      subtitle: "Explore provinces, cities, and districts on an interactive map",
+      filters: "Map Filters",
       selectProvince: "Select Province",
-      created: "City created successfully",
-      updated: "City updated successfully",
-      deleted: "City deleted successfully",
-      deleteDesc: "Cities with existing districts cannot be deleted.",
-      validation: {
-        invalidId: "Invalid city ID",
-      },
-      itemName: "city",
-    },
-
-    // District
-    district: {
-      title: "Districts",
-      subtitle: "Manage district data with city hierarchy",
-      name: "District Name",
-      code: "District Code",
-      search: "Search districts...",
-      add: "Add District",
-      edit: "Edit District",
-      delete: "Delete District",
-      notFound: "No districts found",
       selectCity: "Select City",
-      created: "District created successfully",
-      updated: "District updated successfully",
-      deleted: "District deleted successfully",
-      deleteDesc: "Districts with existing villages cannot be deleted.",
-      validation: {
-        invalidId: "Invalid district ID",
-      },
-      itemName: "district",
+      selectDistrict: "Select District",
+      resetFilters: "Reset",
+      noData: "No geographic data available for this selection",
+      featureCount: "features",
     },
 
-    // Village
-    village: {
-      title: "Villages",
-      subtitle: "Manage village/kelurahan data with district hierarchy",
-      name: "Village Name",
-      code: "Village Code",
-      type: "Type",
-      types: {
-        village: "Desa",
-        kelurahan: "Kelurahan",
-      },
-      postalCode: "Postal Code",
-      search: "Search villages...",
-      add: "Add Village",
-      edit: "Edit Village",
-      delete: "Delete Village",
-      notFound: "No villages found",
+    // Location selector
+    location: {
+      province: "Province",
+      city: "City",
+      district: "District",
+      village: "Village",
+      selectProvince: "Select Province",
+      selectCity: "Select City",
       selectDistrict: "Select District",
-      created: "Village created successfully",
-      updated: "Village updated successfully",
-      deleted: "Village deleted successfully",
-      deleteDesc: "Are you sure you want to delete this village?",
-      validation: {
-        invalidId: "Invalid district ID",
-      },
-      itemName: "village",
+      selectVillage: "Select Village",
+      selectProvinceFirst: "Select province first",
+      selectCityFirst: "Select city first",
+      selectDistrictFirst: "Select district first",
     },
 
     // Validation

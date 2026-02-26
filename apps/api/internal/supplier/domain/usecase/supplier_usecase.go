@@ -87,6 +87,9 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	if req.VillageID != "" {
 		supplier.VillageID = &req.VillageID
 	}
+	if req.VillageName != "" {
+		supplier.VillageName = &req.VillageName
+	}
 
 	if err := u.repo.Create(ctx, supplier); err != nil {
 		return dto.SupplierResponse{}, err
@@ -220,6 +223,9 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 		} else {
 			supplier.VillageID = req.VillageID
 		}
+	}
+	if req.VillageName != nil {
+		supplier.VillageName = req.VillageName
 	}
 
 	if req.Latitude != nil {

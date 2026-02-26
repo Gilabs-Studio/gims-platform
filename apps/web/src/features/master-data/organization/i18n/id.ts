@@ -25,6 +25,7 @@ export const organizationId: OrganizationTranslations = {
     view: "Lihat",
     success_update: "Berhasil memperbarui {name}",
     error_update: "Gagal memperbarui",
+    none: "Tidak Ada",
   },
   division: {
     title: "Divisi",
@@ -124,6 +125,7 @@ export const organizationId: OrganizationTranslations = {
     updateSuccess: "Area berhasil diperbarui",
     deleteSuccess: "Area berhasil dihapus",
     deleteError: "Tidak dapat menghapus area dengan karyawan yang ditugaskan",
+    saveError: "Gagal menyimpan area",
     detail: {
       title: "Detail Area",
       info: "Info",
@@ -175,6 +177,13 @@ export const organizationId: OrganizationTranslations = {
       description: "Deskripsi",
       descriptionPlaceholder: "Masukkan deskripsi (opsional)",
       isActive: "Aktif",
+      code: "Kode Area",
+      color: "Warna Peta",
+      province: "Provinsi",
+      regency: "Kabupaten/Kota",
+      district: "Kecamatan",
+      manager: "Manajer Area",
+      selectManager: "Pilih manajer",
     },
   },
   company: {
@@ -258,5 +267,6 @@ export const organizationId: OrganizationTranslations = {
     nibMaxLength: "NIB maksimal 30 karakter",
     addressMaxLength: "Alamat maksimal 500 karakter",
     atLeastOneArea: "Minimal satu area harus dipilih",
+    codeMaxLength: "Kode maksimal 50 karakter",
   },
 };

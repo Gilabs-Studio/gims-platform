@@ -750,7 +750,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListProvincesID, IntentCode: "LIST_PROVINCES", DisplayName: "List Provinces",
 			Description: "Query provinces",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "province.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/provinces",
 			ParameterSchema: strPtr(`{"search":"string","country_id":"uuid"}`),
 			IsActive: true,
@@ -758,7 +758,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListCitiesID, IntentCode: "LIST_CITIES", DisplayName: "List Cities",
 			Description: "Query cities/regencies",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "city.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/cities",
 			ParameterSchema: strPtr(`{"search":"string","province_id":"uuid"}`),
 			IsActive: true,
@@ -766,7 +766,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListDistrictsID, IntentCode: "LIST_DISTRICTS", DisplayName: "List Districts",
 			Description: "Query districts",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "district.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/districts",
 			ParameterSchema: strPtr(`{"search":"string","city_id":"uuid"}`),
 			IsActive: true,

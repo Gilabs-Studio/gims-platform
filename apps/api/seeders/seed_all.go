@@ -253,5 +253,15 @@ func SeedAll() error {
 		return err
 	}
 
+	// CRM Visit Reports seeder (Sprint 22 - depends on employees, customers, contacts, deals, leads)
+	if err := SeedCRMVisitReports(); err != nil {
+		return err
+	}
+
+	// CRM Activities, Tasks & Schedules seeder (Sprint 23 - depends on employees, customers, contacts, activity types)
+	if err := SeedCRMActivitiesTasksSchedules(); err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -25,6 +25,7 @@ type Customer struct {
 	DistrictID     *string             `gorm:"type:uuid;index" json:"district_id"`
 	District       *geographic.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	VillageID      *string             `gorm:"type:uuid;index" json:"village_id"`
+	VillageName    *string             `gorm:"type:varchar(255)" json:"village_name,omitempty"`
 	Village        *geographic.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 	Email          string              `gorm:"type:varchar(100)" json:"email"`
 	Website        string              `gorm:"type:varchar(200)" json:"website"`

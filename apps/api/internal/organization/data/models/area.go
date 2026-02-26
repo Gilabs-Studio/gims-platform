@@ -7,7 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Area represents a geographical/sales area
+// Area represents a geographical/sales territory with optional map polygon outline.
+// Enhanced in Sprint 24 to merge CRM Brick concept — adds territory code, polygon, color, manager.
 type Area struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
@@ -17,8 +18,17 @@ type Area struct {
 	UpdatedAt   time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// EmployeeAreas contains all employee assignments (supervisors and members) for this area.
-	// Use IsSupervisor flag to differentiate roles.
+	// Sprint 24: CRM Territory enhancement fields
+	Code      string  `gorm:"type:varchar(50);uniqueIndex" json:"code"`            // Territory code (e.g. JAWA-BARAT)
+	Polygon   *string `gorm:"type:jsonb" json:"polygon"`                           // GeoJSON polygon coordinates stored as JSONB
+	Color     string  `gorm:"type:varchar(20)" json:"color"`                       // Display color on map (hex)
+	ManagerID *string `gorm:"type:uuid;index" json:"manager_id"`                   // FK to employees (area manager)
+	Province  string  `gorm:"type:varchar(100)" json:"province"`                   // Province name (display)
+	Regency   string  `gorm:"type:varchar(100)" json:"regency"`                    // Regency/City name (display)
+	District  string  `gorm:"type:varchar(100)" json:"district"`                   // District name (display)
+
+	// Relations
+	Manager       *Employee      `gorm:"foreignKey:ManagerID" json:"manager,omitempty"`
 	EmployeeAreas []EmployeeArea `gorm:"foreignKey:AreaID" json:"employee_areas,omitempty"`
 }
 

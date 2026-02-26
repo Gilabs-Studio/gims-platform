@@ -2,6 +2,7 @@
 
 import { Building2, Calendar, DollarSign, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import type { Deal } from "../types";
@@ -100,9 +101,13 @@ export function DealCard({ deal, onClick }: DealCardProps) {
 
         {deal.assigned_employee?.name && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
-              {deal.assigned_employee.name.charAt(0)}
-            </div>
+            <Avatar className="h-5 w-5">
+              <AvatarImage
+                src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(deal.assigned_employee.employee_code)}`}
+                alt={deal.assigned_employee.name}
+              />
+              <AvatarFallback dataSeed={deal.assigned_employee.employee_code} className="text-[10px]">{deal.assigned_employee.name}</AvatarFallback>
+            </Avatar>
             <span className="truncate">{deal.assigned_employee.name}</span>
           </div>
         )}

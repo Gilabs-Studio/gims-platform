@@ -9,9 +9,6 @@ import (
 // RegisterCountryRoutes registers country routes
 func RegisterCountryRoutes(rg *gin.RouterGroup, h *handler.CountryHandler) {
 	g := rg.Group("/countries")
-	g.GET("", middleware.RequirePermission("country.read"), h.List)
-	g.GET("/:id", middleware.RequirePermission("country.read"), h.GetByID)
-	g.POST("", middleware.RequirePermission("country.create"), h.Create)
-	g.PUT("/:id", middleware.RequirePermission("country.update"), h.Update)
-	g.DELETE("/:id", middleware.RequirePermission("country.delete"), h.Delete)
+	g.GET("", middleware.RequirePermission("geographic.read"), h.List)
+	g.GET("/:id", middleware.RequirePermission("geographic.read"), h.GetByID)
 }

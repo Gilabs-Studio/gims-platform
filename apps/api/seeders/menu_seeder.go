@@ -189,28 +189,9 @@ func SeedMenus() error {
 	// MASTER DATA SUB-MENUS
 	// ============================================================
 
-	// Geographic Group
-	geographicMenu, err := createChildMenu("Geographic", "globe", "/master-data/geographic", &masterDataMenu.ID, 1)
-	if err != nil {
+	// Geographic - single read-only map page (no CRUD sub-pages)
+	if _, err := createChildMenu("Geographic", "globe", "/master-data/geographic", &masterDataMenu.ID, 1); err != nil {
 		return err
-	}
-
-	geographicChildren := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"Countries", "flag", "/master-data/geographic/countries", 1},
-		{"Provinces", "map", "/master-data/geographic/provinces", 2},
-		{"Cities", "building", "/master-data/geographic/cities", 3},
-		{"Districts", "map-pin", "/master-data/geographic/districts", 4},
-		{"Villages", "home", "/master-data/geographic/villages", 5},
-	}
-	for _, child := range geographicChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &geographicMenu.ID, child.order); err != nil {
-			return err
-		}
 	}
 
 	// Organization Group
@@ -555,6 +536,31 @@ func SeedMenus() error {
 		return err
 	}
 
+	// CRM Activities menu (Sprint 23)
+	if _, err := createChildMenu("Activities", "activity", "/crm/activities", &crmMenu.ID, 3); err != nil {
+		return err
+	}
+
+	// CRM Tasks menu (Sprint 23)
+	if _, err := createChildMenu("Tasks", "check-square", "/crm/tasks", &crmMenu.ID, 4); err != nil {
+		return err
+	}
+
+	// CRM Schedules menu (Sprint 23)
+	if _, err := createChildMenu("Schedules", "calendar", "/crm/schedules", &crmMenu.ID, 5); err != nil {
+		return err
+	}
+
+	// CRM Visit Reports menu (Sprint 22)
+	if _, err := createChildMenu("Visit Reports", "map-pin", "/crm/visits", &crmMenu.ID, 6); err != nil {
+		return err
+	}
+
+	// CRM Area Mapping menu (Sprint 24)
+	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
 	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {
@@ -577,6 +583,14 @@ func SeedMenus() error {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &crmSettingsMenu.ID, child.order); err != nil {
 			return err
 		}
+	}
+
+	// ============================================================
+	// REPORTS SUB-MENUS
+	// ============================================================
+
+	if _, err := createChildMenu("Sales Overview", "trending-up", "/reports/sales-overview", &reportsMenu.ID, 1); err != nil {
+		return err
 	}
 
 	log.Println("ERP menus seeded successfully")

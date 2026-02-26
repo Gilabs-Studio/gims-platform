@@ -172,22 +172,11 @@ export function CompanySidePanel(props: CompanySidePanelProps) {
 
                 <Field orientation="vertical">
                   <FieldLabel>{t("company.form.village")}</FieldLabel>
-                  <Select
-                    value={String(form.watch("village_id") || "")}
-                    onValueChange={(val) => actions.setValue("village_id", val)}
+                  <Input
+                    {...form.register("village_name")}
                     disabled={state.isViewing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={state.districtId ? "Select Village" : "Select District first"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortOptions(data.villages, (v) => v.name).map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Village / Kelurahan"
+                  />
                 </Field>
               </div>
             </div>

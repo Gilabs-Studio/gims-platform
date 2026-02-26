@@ -45,8 +45,35 @@ export interface Area {
   supervisor_count?: number;
   supervisor_names?: string[];
   member_count?: number;
+  // Sprint 24: Territory enhancement fields
+  code?: string;
+  polygon?: GeoJSON.Geometry | null;
+  color?: string;
+  manager_id?: string | null;
+  manager?: AreaManager | null;
+  province?: string;
+  regency?: string;
+  district?: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Area manager brief info */
+export interface AreaManager {
+  id: string;
+  employee_code: string;
+  name: string;
+}
+
+/** Form data response for area dropdowns */
+export interface AreaFormDataResponse {
+  employees: AreaEmployeeOption[];
+}
+
+export interface AreaEmployeeOption {
+  id: string;
+  employee_code: string;
+  name: string;
 }
 
 /** Brief employee entry within an area's supervisor/member list */
@@ -71,6 +98,15 @@ export interface AreaDetailResponse {
   member_count: number;
   supervisors: EmployeeInAreaResponse[];
   members: EmployeeInAreaResponse[];
+  // Sprint 24: Territory enhancement fields
+  code?: string;
+  polygon?: GeoJSON.Geometry | null;
+  color?: string;
+  manager_id?: string | null;
+  manager?: AreaManager | null;
+  province?: string;
+  regency?: string;
+  district?: string;
   created_at: string;
   updated_at: string;
 }
@@ -233,12 +269,26 @@ export interface CreateAreaData {
   name: string;
   description?: string;
   is_active?: boolean;
+  code?: string;
+  polygon?: GeoJSON.Geometry | null;
+  color?: string;
+  manager_id?: string | null;
+  province?: string;
+  regency?: string;
+  district?: string;
 }
 
 export interface UpdateAreaData {
   name?: string;
   description?: string;
   is_active?: boolean;
+  code?: string;
+  polygon?: GeoJSON.Geometry | null;
+  color?: string;
+  manager_id?: string | null;
+  province?: string;
+  regency?: string;
+  district?: string;
 }
 
 export interface AssignAreaSupervisorsData {
@@ -267,6 +317,7 @@ export interface ListCompaniesParams extends ListOrganizationParams {
 export interface ListAreasParams extends ListOrganizationParams {
   has_supervisor?: boolean;
   has_members?: boolean;
+  province?: string;
 }
 
 export interface PaginationMeta {

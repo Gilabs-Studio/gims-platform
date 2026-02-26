@@ -236,6 +236,10 @@ export function useMoveDealStage() {
         },
       });
       qc.invalidateQueries({ queryKey: dealKeys.summary() });
+      // Invalidate deal detail so the stage badge refreshes in modal/page header
+      qc.invalidateQueries({ queryKey: dealKeys.detail(id) });
+      // Invalidate history so reason & notes of the new entry are immediately visible
+      qc.invalidateQueries({ queryKey: dealKeys.history(id) });
     },
   });
 }

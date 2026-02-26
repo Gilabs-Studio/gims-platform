@@ -34,7 +34,6 @@ import {
 import { useProvinces } from "../../../geographic/hooks/use-provinces";
 import { useCities } from "../../../geographic/hooks/use-cities";
 import { useDistricts } from "../../../geographic/hooks/use-districts";
-import { useVillages } from "../../../geographic/hooks/use-villages";
 import { getCustomerSchema, type CustomerFormData } from "../../schemas/customer.schema";
 import type { Customer } from "../../types";
 
@@ -83,7 +82,7 @@ export function CustomerSidePanel({
       npwp: "",
       contact_person: "",
       notes: "",
-      village_id: "",
+      village_name: "",
       province_id: undefined,
       city_id: undefined,
       district_id: undefined,
@@ -133,15 +132,9 @@ export function CustomerSidePanel({
     cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
     { enabled: isOpen && !!cityId }
   );
-  const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!districtId }
-  );
-
   const provinces = provincesData?.data ?? [];
   const cities = citiesData?.data ?? [];
   const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
 
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
@@ -170,7 +163,7 @@ export function CustomerSidePanel({
           npwp: entity.npwp ?? "",
           contact_person: entity.contact_person ?? "",
           notes: entity.notes ?? "",
-          village_id: entity.village_id ?? "",
+          village_name: entity.village_name ?? "",
           province_id: entity.province_id ?? p?.id ?? undefined,
           city_id: entity.city_id ?? c?.id ?? undefined,
           district_id: entity.district_id ?? d?.id ?? undefined,
@@ -194,7 +187,7 @@ export function CustomerSidePanel({
         npwp: "",
         contact_person: "",
         notes: "",
-        village_id: "",
+        village_name: "",
         province_id: undefined,
         city_id: undefined,
         district_id: undefined,
@@ -229,7 +222,7 @@ export function CustomerSidePanel({
             province_id: data.province_id || null,
             city_id: data.city_id || null,
             district_id: data.district_id || null,
-            village_id: data.village_id || null,
+            village_name: data.village_name || null,
             latitude: data.latitude,
             longitude: data.longitude,
             is_active: data.is_active,
@@ -255,7 +248,7 @@ export function CustomerSidePanel({
           province_id: data.province_id || undefined,
           city_id: data.city_id || undefined,
           district_id: data.district_id || undefined,
-          village_id: data.village_id || undefined,
+          village_name: data.village_name || undefined,
           latitude: data.latitude,
           longitude: data.longitude,
           is_active: data.is_active,
@@ -458,7 +451,6 @@ export function CustomerSidePanel({
                         // Cascade reset: clear all dependent geographic fields
                         setValue("city_id", undefined, { shouldDirty: true });
                         setValue("district_id", undefined, { shouldDirty: true });
-                        setValue("village_id", undefined, { shouldDirty: true });
                       }}
                       disabled={isViewing}
                     >
@@ -489,7 +481,6 @@ export function CustomerSidePanel({
                       onValueChange={(val) => {
                         field.onChange(val);
                         setValue("district_id", undefined, { shouldDirty: true });
-                        setValue("village_id", undefined, { shouldDirty: true });
                       }}
                       disabled={isViewing}
                     >
@@ -525,7 +516,6 @@ export function CustomerSidePanel({
                       value={field.value ?? ""}
                       onValueChange={(val) => {
                         field.onChange(val);
-                        setValue("village_id", undefined, { shouldDirty: true });
                       }}
                       disabled={isViewing}
                     >
@@ -552,34 +542,10 @@ export function CustomerSidePanel({
 
               <Field orientation="vertical">
                 <FieldLabel>{t("customer.form.village")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="village_id"
-                  render={({ field }) => (
-                    <Select
-                      key={`village-${districtId ?? ""}`}
-                      value={field.value ?? ""}
-                      onValueChange={field.onChange}
-                      disabled={isViewing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("customer.form.villagePlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {districtId ? (
-                          sortOptions(villages, (v) => v.name).map((v) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {v.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="_" disabled>
-                            {t("customer.form.selectDistrictFirst")}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
+                <Input
+                  {...register("village_name")}
+                  disabled={isViewing}
+                  placeholder={t("customer.form.villagePlaceholder")}
                 />
               </Field>
             </div>

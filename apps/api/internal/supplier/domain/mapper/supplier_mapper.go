@@ -18,6 +18,7 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		CityID:         m.CityID,
 		DistrictID:     m.DistrictID,
 		VillageID:      m.VillageID,
+		VillageName:    m.VillageName,
 		Email:          m.Email,
 		Website:        m.Website,
 		NPWP:           m.NPWP,

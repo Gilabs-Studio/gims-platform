@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -335,9 +336,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   {t("sections.assignment")}
                 </h4>
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                    {lead.assigned_employee.name.charAt(0)}
-                  </div>
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(lead.assigned_employee.employee_code)}`}
+                      alt={lead.assigned_employee.name}
+                    />
+                    <AvatarFallback dataSeed={lead.assigned_employee.employee_code} className="text-xs">{lead.assigned_employee.name}</AvatarFallback>
+                  </Avatar>
                   <span className="text-sm">{lead.assigned_employee.name}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">

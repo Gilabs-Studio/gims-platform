@@ -1,14 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { villageService } from "../services/geographic-service";
-import type {
-  ListVillagesParams,
-  CreateVillageData,
-  UpdateVillageData,
-  Village,
-  GeographicListResponse,
-} from "../types";
+import type { ListVillagesParams } from "../types";
 
 // Query keys
 export const villageKeys = {
@@ -35,67 +29,5 @@ export function useVillage(id: string) {
     queryKey: villageKeys.detail(id),
     queryFn: () => villageService.getById(id),
     enabled: !!id,
-  });
-}
-
-// Create village mutation
-export function useCreateVillage() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateVillageData) => villageService.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: villageKeys.lists() });
-    },
-  });
-}
-
-// Update village mutation
-export function useUpdateVillage() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateVillageData }) =>
-      villageService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: villageKeys.lists() });
-
-      // Update all list caches optimistically
-      queryClient.setQueriesData(
-        { queryKey: villageKeys.lists() },
-        (old: GeographicListResponse<Village> | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((village: Village) =>
-              village.id === id ? { ...village, ...data } : village
-            ),
-          };
-        }
-      );
-    },
-    onSuccess: (_, variables) => {
-      // Only invalidate detail query if exists
-      queryClient.invalidateQueries({
-        queryKey: villageKeys.detail(variables.id),
-      });
-    },
-    onError: () => {
-      // Refetch on error to revert optimistic update
-      queryClient.invalidateQueries({ queryKey: villageKeys.lists() });
-    },
-  });
-}
-
-// Delete village mutation
-export function useDeleteVillage() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => villageService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: villageKeys.lists() });
-    },
   });
 }

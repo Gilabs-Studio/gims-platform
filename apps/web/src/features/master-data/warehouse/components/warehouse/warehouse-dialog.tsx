@@ -195,22 +195,11 @@ export function WarehouseDialog({
 
               <Field orientation="vertical">
                 <FieldLabel>{t("warehouse.form.village")}</FieldLabel>
-                <Select
-                  value={String(watch("village_id") || "")}
-                  onValueChange={(val) => setValue("village_id", val)}
-                  disabled={!watch("district_id")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.villages, (v) => v.name).map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  {...register("village_name")}
+                  placeholder="Village / Kelurahan"
+                  disabled={false}
+                />
               </Field>
             </div>
           </div>

@@ -54,8 +54,6 @@ import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
 import { targetsEn } from "@/features/sales/targets/i18n/en";
 import { targetsId } from "@/features/sales/targets/i18n/id";
-import { visitI18nEn } from "@/features/sales/visit/i18n/en";
-import { visitI18nId } from "@/features/sales/visit/i18n/id";
 import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
 import { inventoryEn } from "@/features/stock/inventory/i18n/en";
@@ -147,6 +145,18 @@ import { crmLeadEn } from "@/features/crm/lead/i18n/en";
 import { crmLeadId } from "@/features/crm/lead/i18n/id";
 import { crmDealEn } from "@/features/crm/deal/i18n/en";
 import { crmDealId } from "@/features/crm/deal/i18n/id";
+import { crmVisitReportEn } from "@/features/crm/visit-report/i18n/en";
+import { crmVisitReportId } from "@/features/crm/visit-report/i18n/id";
+import { crmActivityEn } from "@/features/crm/activity/i18n/en";
+import { crmActivityId } from "@/features/crm/activity/i18n/id";
+import { crmTaskEn } from "@/features/crm/task/i18n/en";
+import { crmTaskId } from "@/features/crm/task/i18n/id";
+import { crmScheduleEn } from "@/features/crm/schedule/i18n/en";
+import { crmScheduleId } from "@/features/crm/schedule/i18n/id";
+import { areaMappingEn } from "@/features/crm/area-mapping/i18n/en";
+import { areaMappingId } from "@/features/crm/area-mapping/i18n/id";
+import { salesOverviewReportEn } from "@/features/reports/sales-overview/i18n/en";
+import { salesOverviewReportId } from "@/features/reports/sales-overview/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -179,7 +189,6 @@ const messages = {
     ...targetsEn,
     ...targetsEn,
     ...targetsEn,
-    ...visitI18nEn,
     ...hrdEn,
     ...inventoryEn,
     stock_opname: stockOpnameEn,
@@ -219,6 +228,12 @@ const messages = {
     ...crmContactEn,
     ...crmLeadEn,
     ...crmDealEn,
+    ...crmVisitReportEn,
+    ...crmActivityEn,
+    ...crmTaskEn,
+    ...crmScheduleEn,
+    ...areaMappingEn,
+    ...salesOverviewReportEn,
   },
   id: {
     ...globalIdMessages,
@@ -248,7 +263,6 @@ const messages = {
     ...commandPaletteId,
     ...targetsId,
     ...targetsId,
-    ...visitI18nId,
     ...hrdId,
     ...inventoryId,
     stock_opname: stockOpnameId,
@@ -288,6 +302,12 @@ const messages = {
     ...crmContactId,
     ...crmLeadId,
     ...crmDealId,
+    ...crmVisitReportId,
+    ...crmActivityId,
+    ...crmTaskId,
+    ...crmScheduleId,
+    ...areaMappingId,
+    ...salesOverviewReportId,
   },
 } as const;
 

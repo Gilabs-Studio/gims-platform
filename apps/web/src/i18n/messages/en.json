@@ -40,7 +40,8 @@
     "avatarUpdatedSuccessfully": "Avatar updated successfully!",
     "somethingWentWrong": "Something went wrong",
     "export": "Export",
-    "exportFailed": "Failed to export data"
+    "exportFailed": "Failed to export data",
+    "print": "Print"
   },
   "notFound": {
     "label": "404",

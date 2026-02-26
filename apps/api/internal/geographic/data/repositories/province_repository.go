@@ -35,7 +35,7 @@ func (r *provinceRepository) getDB(ctx context.Context) *gorm.DB {
 
 func (r *provinceRepository) FindByID(ctx context.Context, id string) (*models.Province, error) {
 	var province models.Province
-	err := r.getDB(ctx).Preload("Country").Where("id = ?", id).First(&province).Error
+	err := r.getDB(ctx).Select("id, country_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("Country").Where("id = ?", id).First(&province).Error
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *provinceRepository) FindByID(ctx context.Context, id string) (*models.P
 
 func (r *provinceRepository) FindByCode(ctx context.Context, code string) (*models.Province, error) {
 	var province models.Province
-	err := r.getDB(ctx).Preload("Country").Where("code = ?", code).First(&province).Error
+	err := r.getDB(ctx).Select("id, country_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("Country").Where("code = ?", code).First(&province).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,8 @@ func (r *provinceRepository) List(ctx context.Context, req *dto.ListProvincesReq
 	var provinces []models.Province
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.Province{}).Preload("Country")
+	// Exclude geometry column from list queries for performance
+	query := r.getDB(ctx).Model(&models.Province{}).Select("id, country_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("Country")
 
 	// Apply search filter
 	if req.Search != "" {

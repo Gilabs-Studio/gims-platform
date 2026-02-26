@@ -899,14 +899,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
+- [x] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
 - [ ] **Frontend:** Visit report pages + approval interface
 - [ ] **Migration:** Deprecate existing SalesVisit
 
 ### API Tasks
 
 #### Visit Report (Merged Entity)
-- [ ] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // VisitReport — Merged entity from ERP SalesVisit + CRM VisitReport
@@ -968,7 +968,7 @@ type VisitReport struct {
 ```
 
 #### Visit Report Detail (Product Interest — from ERP SalesVisitDetail)
-- [ ] `VisitReportDetail` - Model
+- [x] `VisitReportDetail` - Model
 
 ```go
 // VisitReportDetail — Product interest tracking per visit (from ERP SalesVisitDetail)
@@ -988,7 +988,7 @@ type VisitReportDetail struct {
 ```
 
 #### Visit Report Progress History
-- [ ] `VisitReportProgressHistory` - Model
+- [x] `VisitReportProgressHistory` - Model
 
 ```go
 type VisitReportProgressHistory struct {
@@ -1003,32 +1003,32 @@ type VisitReportProgressHistory struct {
 ```
 
 #### Interest Survey (reuse dari ERP)
-- [ ] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
-- [ ] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
+- [x] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
+- [x] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
-- [ ] `GET /api/v1/crm/visits/:id` — Get detail with details + history
-- [ ] `POST /api/v1/crm/visits` — Create visit report
-- [ ] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
-- [ ] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
-- [ ] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
-- [ ] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
-- [ ] `PATCH /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
-- [ ] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
-- [ ] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
-- [ ] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
-- [ ] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample visit reports with varied statuses
-- [ ] Permission seeder: `crm_visit.read|create|update|delete|approve`
+- [x] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
+- [x] `GET /api/v1/crm/visits/:id` — Get detail with details + history
+- [x] `POST /api/v1/crm/visits` — Create visit report
+- [x] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
+- [x] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
+- [x] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
+- [x] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
+- [x] `POST /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
+- [x] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
+- [x] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
+- [x] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
+- [x] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample visit reports with varied statuses
+- [x] Permission seeder: `crm_visit.read|create|update|delete|approve`
 
 #### SalesVisit Deprecation
 - [ ] Create migration script: `cmd/tools/migrate-sales-visits/main.go`
   - Convert existing `SalesVisit` records ke `VisitReport` records
   - Map: CompanyID → CustomerID (lookup company → customer mapping), Details, ProgressHistory
   - Preserve original data (soft archive)
-- [ ] Update `menu_seeder.go` — set Sales Visit menu IsActive = false
+- [x] Update `menu_seeder.go` — set Sales Visit menu IsActive = false (removed from Sales menu, added to CRM)
 - [ ] Add redirect: `GET /api/v1/sales/visits` → 301 redirect info to `/crm/visits`
 
 ### Frontend Tasks
@@ -1060,12 +1060,12 @@ type VisitReportProgressHistory struct {
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
+- [x] Permission integration check (RBAC)
 - [ ] i18n integration check (request.ts)
-- [ ] Customer module — FK reference
-- [ ] Product module — FK reference untuk interest details
+- [x] Customer module — FK reference
+- [x] Product module — FK reference untuk interest details
 - [ ] File upload — photos via existing upload infrastructure
-- [ ] SalesVisitInterestQuestion/Option — reuse existing models atau migrate ke CRM
+- [x] SalesVisitInterestQuestion/Option — reuse existing models (FK reference)
 
 ### Table Relations
 
@@ -1121,13 +1121,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Activity logging + Task CRUD + Schedule CRUD + Reminders
-- [ ] **Frontend:** Activity timeline + Task management + Schedule calendar
+- [x] **API:** Activity logging + Task CRUD + Schedule CRUD + Reminders
+- [x] **Frontend:** Activity timeline + Task management + Schedule calendar
 
 ### API Tasks
 
 #### Activity
-- [ ] `Activity` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Activity` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Activity — Immutable log of all CRM interactions
@@ -1152,7 +1152,7 @@ type Activity struct {
 ```
 
 #### Task
-- [ ] `Task` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Task` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Task — Actionable items with assignment and priority
@@ -1180,7 +1180,7 @@ type Task struct {
 ```
 
 #### Reminder
-- [ ] `Reminder` - Model (nested CRUD via Task)
+- [x] `Reminder` - Model (nested CRUD via Task)
 
 ```go
 // Reminder — Notification triggers for tasks
@@ -1198,7 +1198,7 @@ type Reminder struct {
 ```
 
 #### Schedule
-- [ ] `Schedule` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Schedule` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Schedule — Calendar entries for planned activities
@@ -1218,63 +1218,63 @@ type Schedule struct {
 ```
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/activities` — List activities (filterable by type, customer, employee, date range)
-- [ ] `GET /api/v1/crm/activities/:id` — Get activity detail
-- [ ] `POST /api/v1/crm/activities` — Create activity manually (rate-limited: 60/min)
-- [ ] `GET /api/v1/crm/activities/timeline` — Activity timeline (chronological, paginated)
-- [ ] `GET /api/v1/crm/tasks` — List tasks (filterable by status, priority, assigned_to, due_date range)
-- [ ] `GET /api/v1/crm/tasks/:id` — Get task detail with reminders
-- [ ] `POST /api/v1/crm/tasks` — Create task
-- [ ] `PUT /api/v1/crm/tasks/:id` — Update task
-- [ ] `DELETE /api/v1/crm/tasks/:id` — Soft delete task
-- [ ] `POST /api/v1/crm/tasks/:id/assign` — Assign task to employee
-- [ ] `POST /api/v1/crm/tasks/:id/complete` — Mark task as completed
-- [ ] `POST /api/v1/crm/tasks/:id/in-progress` — Mark task as in progress
-- [ ] Task Reminders: nested CRUD (`GET|POST|PUT|DELETE /api/v1/crm/tasks/:id/reminders`)
-- [ ] `GET /api/v1/crm/schedules` — List schedules (filterable by employee, date range, status)
-- [ ] `GET /api/v1/crm/schedules/:id` — Get schedule detail
-- [ ] `POST /api/v1/crm/schedules` — Create schedule
-- [ ] `PUT /api/v1/crm/schedules/:id` — Update schedule
-- [ ] `DELETE /api/v1/crm/schedules/:id` — Soft delete schedule
-- [ ] `GET /api/v1/crm/tasks/form-data` — Returns: employees, customers, contacts, deals
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample activities, tasks, schedules
-- [ ] Permission seeder: `crm_activity.read|create`, `crm_task.read|create|update|delete|assign`, `crm_schedule.read|create|update|delete`
+- [x] `GET /api/v1/crm/activities` — List activities (filterable by type, customer, employee, date range)
+- [x] `GET /api/v1/crm/activities/:id` — Get activity detail
+- [x] `POST /api/v1/crm/activities` — Create activity manually (rate-limited: 60/min)
+- [x] `GET /api/v1/crm/activities/timeline` — Activity timeline (chronological, paginated)
+- [x] `GET /api/v1/crm/tasks` — List tasks (filterable by status, priority, assigned_to, due_date range)
+- [x] `GET /api/v1/crm/tasks/:id` — Get task detail with reminders
+- [x] `POST /api/v1/crm/tasks` — Create task
+- [x] `PUT /api/v1/crm/tasks/:id` — Update task
+- [x] `DELETE /api/v1/crm/tasks/:id` — Soft delete task
+- [x] `POST /api/v1/crm/tasks/:id/assign` — Assign task to employee
+- [x] `POST /api/v1/crm/tasks/:id/complete` — Mark task as completed
+- [x] `POST /api/v1/crm/tasks/:id/in-progress` — Mark task as in progress
+- [x] Task Reminders: nested CRUD (`GET|POST|PUT|DELETE /api/v1/crm/tasks/:id/reminders`)
+- [x] `GET /api/v1/crm/schedules` — List schedules (filterable by employee, date range, status)
+- [x] `GET /api/v1/crm/schedules/:id` — Get schedule detail
+- [x] `POST /api/v1/crm/schedules` — Create schedule
+- [x] `PUT /api/v1/crm/schedules/:id` — Update schedule
+- [x] `DELETE /api/v1/crm/schedules/:id` — Soft delete schedule
+- [x] `GET /api/v1/crm/tasks/form-data` — Returns: employees, customers, contacts, deals
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample activities, tasks, schedules
+- [x] Permission seeder: `crm_activity.read|create`, `crm_task.read|create|update|delete|assign`, `crm_schedule.read|create|update|delete`
 
 ### Frontend Tasks
 
-- [ ] Activity timeline page `/crm/activities` — chronological feed with entity filters
+- [x] Activity timeline page `/crm/activities` — chronological feed with entity filters
   - Each activity shows: icon (by type), description, timestamp, linked entities (customer, deal, lead)
   - Filter by type, customer, employee, date range
-- [ ] Task list page `/crm/tasks` — DataTable with status/priority filters
+- [x] Task list page `/crm/tasks` — DataTable with status/priority filters
   - Task status badge (color-coded by priority)
   - Quick actions: assign, complete, in-progress
   - Overdue indicator for past-due tasks
-- [ ] Task form (side panel) — with reminder setup
-- [ ] Schedule calendar page `/crm/schedules` — week/month view
+- [x] Task form (side panel) — with reminder setup
+- [x] Schedule calendar page `/crm/schedules` — week/month view
   - Calendar grid showing scheduled activities
   - Click to create new schedule
   - Color-coded by status
-- [ ] i18n: activity/task/schedule translations (en/id)
-- [ ] Routes: `app/[locale]/(dashboard)/crm/activities/page.tsx` + `loading.tsx`
-- [ ] Routes: `app/[locale]/(dashboard)/crm/tasks/page.tsx` + `loading.tsx`
-- [ ] Routes: `app/[locale]/(dashboard)/crm/schedules/page.tsx` + `loading.tsx`
+- [x] i18n: activity/task/schedule translations (en/id)
+- [x] Routes: `app/[locale]/(dashboard)/crm/activities/page.tsx` + `loading.tsx`
+- [x] Routes: `app/[locale]/(dashboard)/crm/tasks/page.tsx` + `loading.tsx`
+- [x] Routes: `app/[locale]/(dashboard)/crm/schedules/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Activity timeline menampilkan semua CRM activities secara kronologis
-- [ ] Task CRUD + assignment berfungsi
-- [ ] Task completion mengubah status dan set CompletedAt
-- [ ] Reminders tersimpan dan terkait ke tasks
-- [ ] Schedule calendar menampilkan jadwal per minggu/bulan
-- [ ] Activities auto-logged dari modul lain (lead, deal, visit) — Sprint sebelumnya
-- [ ] Task overdue indicator tampil untuk tasks melewati due date
+- [x] Activity timeline menampilkan semua CRM activities secara kronologis
+- [x] Task CRUD + assignment berfungsi
+- [x] Task completion mengubah status dan set CompletedAt
+- [x] Reminders tersimpan dan terkait ke tasks
+- [x] Schedule calendar menampilkan jadwal per minggu/bulan
+- [x] Activities auto-logged dari modul lain (lead, deal, visit) — Sprint sebelumnya
+- [x] Task overdue indicator tampil untuk tasks melewati due date
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Activity auto-logging: dipanggil dari Lead, Deal, Visit usecases
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Activity auto-logging: dipanggil dari Lead, Deal, Visit usecases
 
 ### Table Relations
 
