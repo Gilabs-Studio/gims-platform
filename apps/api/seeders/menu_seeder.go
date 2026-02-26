@@ -580,6 +580,14 @@ func SeedMenus() error {
 		}
 	}
 
+	// ============================================================
+	// REPORTS SUB-MENUS
+	// ============================================================
+
+	if _, err := createChildMenu("Sales Overview", "trending-up", "/reports/sales-overview", &reportsMenu.ID, 1); err != nil {
+		return err
+	}
+
 	log.Println("ERP menus seeded successfully")
 	return nil
 }

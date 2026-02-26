@@ -89,6 +89,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/crm/settings/activity-types",
   // Reports
   "/reports",
+  "/reports/sales-overview",
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",

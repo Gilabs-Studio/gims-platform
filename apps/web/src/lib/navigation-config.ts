@@ -214,6 +214,14 @@ export const navigationConfig: NavItem[] = [
     icon: "bar-chart-3",
     url: "/reports",
     permission: "report.view",
+    children: [
+      {
+        name: "Sales Overview",
+        url: "/reports/sales-overview",
+        icon: "trending-up",
+        permission: "report_sales_overview.read",
+      },
+    ],
   },
   {
     name: "AI Assistant",
