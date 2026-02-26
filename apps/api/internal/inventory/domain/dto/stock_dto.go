@@ -32,7 +32,14 @@ type GetInventoryListRequest struct {
 	Search      string `form:"search"`
 	WarehouseID string `form:"warehouse_id"`
 	ProductID   string `form:"product_id"`
+	// LowStock is a legacy shorthand for Status=low_stock; kept for backward compat
 	LowStock    bool   `form:"low_stock"`
+	// Status filters items by stock status: ok | low_stock | out_of_stock | overstock
+	Status      string `form:"status"`
+	// HasExpiring filters items that have at least one batch expiring within 30 days
+	HasExpiring bool   `form:"has_expiring"`
+	// HasExpired filters items that have at least one expired batch still holding quantity
+	HasExpired  bool   `form:"has_expired"`
 }
 
 type GetInventoryListResponse struct {

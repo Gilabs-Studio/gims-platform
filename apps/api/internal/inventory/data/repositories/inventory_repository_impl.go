@@ -87,9 +87,32 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 
 	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
 
-	// Filter low-stock items via HAVING (aggregated available <= min_stock covers low + OOS)
-	if req.LowStock {
-		query = query.Having("COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) <= p.min_stock")
+	// --- Status / expiry HAVING filters ---
+	// Resolve effective status filter: explicit Status takes precedence; LowStock is legacy shorthand
+	effectiveStatus := req.Status
+	if effectiveStatus == "" && req.LowStock {
+		effectiveStatus = "low_stock"
+	}
+
+	available := "COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0)"
+
+	switch effectiveStatus {
+	case "out_of_stock":
+		query = query.Having(available+" <= 0")
+	case "low_stock":
+		query = query.Having(available+" > 0 AND "+available+" <= p.min_stock")
+	case "overstock":
+		query = query.Having("p.max_stock > 0 AND "+available+" > p.max_stock")
+	case "ok":
+		query = query.Having(available+" > p.min_stock AND (p.max_stock = 0 OR "+available+" <= p.max_stock)")
+	}
+
+	if req.HasExpiring {
+		query = query.Having("COALESCE(SUM(CASE WHEN ib.expiry_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') AND ib.current_quantity > 0 THEN 1 ELSE 0 END), 0) > 0")
+	}
+
+	if req.HasExpired {
+		query = query.Having("COALESCE(SUM(CASE WHEN ib.expiry_date < CURRENT_DATE AND ib.current_quantity > 0 THEN 1 ELSE 0 END), 0) > 0")
 	}
 
 	// Count Total (wrapping group-by query in subquery for accuracy)
@@ -101,9 +124,9 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	offset := (req.Page - 1) * req.PerPage
 	query = query.Limit(req.PerPage).Offset(offset)
 
-	// Order: when low_stock filter is on, sort by stock-fill percentage ascending (most critical first)
-	if req.LowStock {
-		query = query.Order("(COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) / NULLIF(p.max_stock, 0)) ASC NULLS FIRST, p.name ASC")
+	// Order: critical-first when filtering by low/OOS status; otherwise alphabetical
+	if effectiveStatus == "low_stock" || effectiveStatus == "out_of_stock" {
+		query = query.Order("(" + available + " / NULLIF(p.max_stock, 0)) ASC NULLS FIRST, p.name ASC")
 	} else {
 		query = query.Order("p.name ASC, w.name ASC")
 	}

@@ -27,6 +27,9 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 	warehouseID := c.Query("warehouse_id")
 	productID := c.Query("product_id")
 	lowStock := c.Query("low_stock") == "true"
+	status := c.Query("status")
+	hasExpiring := c.Query("has_expiring") == "true"
+	hasExpired := c.Query("has_expired") == "true"
 
 	req := &dto.GetInventoryListRequest{
 		Page:        page,
@@ -35,6 +38,9 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 		WarehouseID: warehouseID,
 		ProductID:   productID,
 		LowStock:    lowStock,
+		Status:      status,
+		HasExpiring: hasExpiring,
+		HasExpired:  hasExpired,
 	}
 
 	result, err := h.usecase.GetStockList(c.Request.Context(), req)

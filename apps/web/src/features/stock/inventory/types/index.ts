@@ -49,8 +49,15 @@ export interface InventoryTreeWarehouse {
 export interface InventoryFilters {
   search?: string;
   warehouse_id?: string;
+  /** Legacy low-stock shorthand; prefer status="low_stock" */
   low_stock?: boolean;
   product_id?: string;
+  /** Filter by stock status: ok | low_stock | out_of_stock | overstock */
+  status?: "ok" | "low_stock" | "out_of_stock" | "overstock";
+  /** Show only items with batches expiring within 30 days */
+  has_expiring?: boolean;
+  /** Show only items with expired batches still holding quantity */
+  has_expired?: boolean;
 }
 
 export interface PaginationMeta {
