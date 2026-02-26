@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-all duration-300 overflow-hidden relative",
+  "inline-flex items-center justify-center rounded-lg border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-all duration-300 overflow-hidden relative",
   {
     variants: {
       variant: {
@@ -16,13 +16,13 @@ const badgeVariants = cva(
         secondary:
           "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 [a&]:hover:scale-105 [a&]:hover:shadow-md [a&]:hover:shadow-destructive/30",
+          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 [a&]:hover:scale-105 [a&]:hover:shadow-md [a&]:hover:shadow-destructive/30",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         success:
           "border-transparent bg-green-600 text-white [a&]:hover:bg-green-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         warning:
-          "border-transparent bg-yellow-600 text-white [a&]:hover:bg-yellow-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-yellow-500/90 text-white [a&]:hover:bg-yellow-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         info:
           "border-transparent bg-blue-600 text-white [a&]:hover:bg-blue-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         active:
