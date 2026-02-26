@@ -28,7 +28,6 @@ import { useSupplierTypes } from "../../hooks/use-supplier-types";
 import { useProvinces } from "../../../geographic/hooks/use-provinces";
 import { useCities } from "../../../geographic/hooks/use-cities";
 import { useDistricts } from "../../../geographic/hooks/use-districts";
-import { useVillages } from "../../../geographic/hooks/use-villages";
 import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
 import { SupplierPhoneList } from "./supplier-phone-list";
 import { SupplierBankList } from "./supplier-bank-list";
@@ -45,7 +44,7 @@ const formSchema = z.object({
   province_id: z.string().optional(),
   city_id: z.string().optional(),
   district_id: z.string().optional(),
-  village_id: z.string().optional(),
+  village_name: z.string().optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   is_active: z.boolean(),
@@ -112,7 +111,7 @@ export function SupplierSidePanel({
       province_id: undefined,
       city_id: undefined,
       district_id: undefined,
-      village_id: "",
+      village_name: "",
       latitude: null,
       longitude: null,
       is_active: true,
@@ -147,15 +146,9 @@ export function SupplierSidePanel({
     cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
     { enabled: isOpen && !!cityId }
   );
-  const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!districtId }
-  );
-
   const provinces = provincesData?.data ?? [];
   const cities = citiesData?.data ?? [];
   const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
 
   // Reset active tab when panel opens — deferred to satisfy react-hooks/set-state-in-effect
   useEffect(() => {
@@ -193,7 +186,7 @@ export function SupplierSidePanel({
           province_id: entity.province_id ?? p?.id ?? undefined,
           city_id: entity.city_id ?? c?.id ?? undefined,
           district_id: entity.district_id ?? d?.id ?? undefined,
-          village_id: entity.village_id ?? "",
+          village_name: entity.village_name ?? "",
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
           is_active: entity.is_active,
@@ -221,7 +214,7 @@ export function SupplierSidePanel({
         npwp: "",
         contact_person: "",
         notes: "",
-        village_id: "",
+        village_name: "",
           latitude: null,
           longitude: null,
         phone_numbers: [],
@@ -244,7 +237,7 @@ export function SupplierSidePanel({
             province_id: data.province_id ?? "",
             city_id: data.city_id ?? "",
             district_id: data.district_id ?? "",
-            village_id: data.village_id ?? "",
+            village_name: data.village_name ?? "",
             email: data.email ?? "",
             website: data.website ?? "",
             npwp: data.npwp ?? "",
@@ -263,7 +256,7 @@ export function SupplierSidePanel({
           province_id: data.province_id || undefined,
           city_id: data.city_id || undefined,
           district_id: data.district_id || undefined,
-          village_id: data.village_id || undefined,
+          village_name: data.village_name || undefined,
           email: data.email || undefined,
           website: data.website || undefined,
           npwp: data.npwp || undefined,
@@ -504,7 +497,6 @@ export function SupplierSidePanel({
                             field.onChange(val);
                             setValue("city_id", undefined, { shouldDirty: true });
                             setValue("district_id", undefined, { shouldDirty: true });
-                            setValue("village_id", undefined, { shouldDirty: true });
                           }}
                           disabled={isViewing}
                         >
@@ -534,7 +526,6 @@ export function SupplierSidePanel({
                           onValueChange={(val) => {
                             field.onChange(val);
                             setValue("district_id", undefined, { shouldDirty: true });
-                            setValue("village_id", undefined, { shouldDirty: true });
                           }}
                           disabled={isViewing}
                         >
@@ -567,7 +558,6 @@ export function SupplierSidePanel({
                           value={field.value ?? ""}
                           onValueChange={(val) => {
                             field.onChange(val);
-                            setValue("village_id", undefined, { shouldDirty: true });
                           }}
                           disabled={isViewing}
                         >
@@ -592,31 +582,10 @@ export function SupplierSidePanel({
 
                   <Field orientation="vertical">
                     <FieldLabel>{t("form.village")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="village_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Village" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {districtId ? villages.map((v) => (
-                              <SelectItem key={v.id} value={v.id}>
-                                {v.name}
-                              </SelectItem>
-                            )) : (
-                              <SelectItem value="_" disabled>
-                                Select district first
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
+                    <Input
+                      {...register("village_name")}
+                      disabled={isViewing}
+                      placeholder="Village / Kelurahan"
                     />
                   </Field>
                 </div>

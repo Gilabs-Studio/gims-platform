@@ -37,125 +37,32 @@ export const geographicId = {
       statusUpdated: "Status berhasil diperbarui",
     },
 
-    // Country
-    country: {
-      title: "Negara",
-      subtitle: "Kelola data negara untuk hierarki geografis",
-      name: "Nama Negara",
-      code: "Kode Negara",
-      phoneCode: "Kode Telepon",
-      search: "Cari negara...",
-      add: "Tambah Negara",
-      edit: "Ubah Negara",
-      delete: "Hapus Negara",
-      notFound: "Tidak ada negara ditemukan",
-      created: "Negara berhasil dibuat",
-      updated: "Negara berhasil diperbarui",
-      deleted: "Negara berhasil dihapus",
-      deleteDesc: "Apakah Anda yakin ingin menghapus negara ini? Tindakan ini tidak dapat dibatalkan. Negara yang memiliki provinsi tidak dapat dihapus.",
-      validation: {
-        invalidId: "ID negara tidak valid",
-      },
-      itemName: "negara",
-    },
-
-    // Province
-    province: {
-      title: "Provinsi",
-      subtitle: "Kelola data provinsi dengan hierarki negara",
-      name: "Nama Provinsi",
-      code: "Kode Provinsi",
-      search: "Cari provinsi...",
-      add: "Tambah Provinsi",
-      edit: "Ubah Provinsi",
-      delete: "Hapus Provinsi",
-      notFound: "Tidak ada provinsi ditemukan",
-      selectCountry: "Pilih Negara",
-      created: "Provinsi berhasil dibuat",
-      updated: "Provinsi berhasil diperbarui",
-      deleted: "Provinsi berhasil dihapus",
-      deleteDesc: "Apakah Anda yakin ingin menghapus provinsi ini? Provinsi yang memiliki kota/kabupaten tidak dapat dihapus.",
-      validation: {
-        invalidId: "ID provinsi tidak valid",
-      },
-      itemName: "provinsi",
-    },
-
-    // City
-    city: {
-      title: "Kota/Kabupaten",
-      subtitle: "Kelola data kota/kabupaten dengan hierarki provinsi",
-      name: "Nama Kota/Kabupaten",
-      code: "Kode",
-      type: "Tipe",
-      types: {
-        city: "Kota",
-        regency: "Kabupaten",
-      },
-      search: "Cari kota/kabupaten...",
-      add: "Tambah Kota/Kabupaten",
-      edit: "Ubah Kota/Kabupaten",
-      delete: "Hapus Kota/Kabupaten",
-      notFound: "Tidak ada kota/kabupaten ditemukan",
+    // Map page
+    map: {
+      title: "Peta Geografis",
+      subtitle: "Jelajahi provinsi, kota, dan kecamatan pada peta interaktif",
+      filters: "Filter Peta",
       selectProvince: "Pilih Provinsi",
-      created: "Kota/Kabupaten berhasil dibuat",
-      updated: "Kota/Kabupaten berhasil diperbarui",
-      deleted: "Kota/Kabupaten berhasil dihapus",
-      deleteDesc: "Kota/Kabupaten yang memiliki kecamatan tidak dapat dihapus.",
-      validation: {
-        invalidId: "ID kota tidak valid",
-      },
-      itemName: "kota",
-    },
-
-    // District
-    district: {
-      title: "Kecamatan",
-      subtitle: "Kelola data kecamatan dengan hierarki kota",
-      name: "Nama Kecamatan",
-      code: "Kode Kecamatan",
-      search: "Cari kecamatan...",
-      add: "Tambah Kecamatan",
-      edit: "Ubah Kecamatan",
-      delete: "Hapus Kecamatan",
-      notFound: "Tidak ada kecamatan ditemukan",
-      selectCity: "Pilih Kota",
-      created: "Kecamatan berhasil dibuat",
-      updated: "Kecamatan berhasil diperbarui",
-      deleted: "Kecamatan berhasil dihapus",
-      deleteDesc: "Kecamatan yang memiliki desa/kelurahan tidak dapat dihapus.",
-      validation: {
-        invalidId: "ID kecamatan tidak valid",
-      },
-      itemName: "kecamatan",
-    },
-
-    // Village
-    village: {
-      title: "Desa/Kelurahan",
-      subtitle: "Kelola data desa/kelurahan dengan hierarki kecamatan",
-      name: "Nama Desa/Kelurahan",
-      code: "Kode Desa",
-      type: "Tipe",
-      types: {
-        village: "Desa",
-        kelurahan: "Kelurahan",
-      },
-      postalCode: "Kode Pos",
-      search: "Cari desa...",
-      add: "Tambah Desa",
-      edit: "Ubah Desa",
-      delete: "Hapus Desa",
-      notFound: "Tidak ada desa ditemukan",
+      selectCity: "Pilih Kota/Kabupaten",
       selectDistrict: "Pilih Kecamatan",
-      created: "Desa berhasil dibuat",
-      updated: "Desa berhasil diperbarui",
-      deleted: "Desa berhasil dihapus",
-      deleteDesc: "Apakah Anda yakin ingin menghapus desa ini?",
-      validation: {
-        invalidId: "ID kecamatan tidak valid",
-      },
-      itemName: "desa",
+      resetFilters: "Reset",
+      noData: "Tidak ada data geografis untuk pilihan ini",
+      featureCount: "fitur",
+    },
+
+    // Location selector
+    location: {
+      province: "Provinsi",
+      city: "Kota/Kabupaten",
+      district: "Kecamatan",
+      village: "Desa/Kelurahan",
+      selectProvince: "Pilih Provinsi",
+      selectCity: "Pilih Kota/Kabupaten",
+      selectDistrict: "Pilih Kecamatan",
+      selectVillage: "Pilih Desa/Kelurahan",
+      selectProvinceFirst: "Pilih provinsi terlebih dahulu",
+      selectCityFirst: "Pilih kota terlebih dahulu",
+      selectDistrictFirst: "Pilih kecamatan terlebih dahulu",
     },
 
     // Validation

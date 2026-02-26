@@ -12,21 +12,13 @@ import type {
   ListCitiesParams,
   ListDistrictsParams,
   ListVillagesParams,
-  CreateCountryData,
-  UpdateCountryData,
-  CreateProvinceData,
-  UpdateProvinceData,
-  CreateCityData,
-  UpdateCityData,
-  CreateDistrictData,
-  UpdateDistrictData,
-  CreateVillageData,
-  UpdateVillageData,
+  MapDataParams,
+  MapDataResponse,
 } from "../types";
 
 const BASE_PATH = "/geographic";
 
-// Country Service
+// Country Service (read-only)
 export const countryService = {
   async list(
     params?: ListGeographicParams
@@ -44,37 +36,9 @@ export const countryService = {
     );
     return response.data;
   },
-
-  async create(
-    data: CreateCountryData
-  ): Promise<GeographicSingleResponse<Country>> {
-    const response = await apiClient.post<GeographicSingleResponse<Country>>(
-      `${BASE_PATH}/countries`,
-      data
-    );
-    return response.data;
-  },
-
-  async update(
-    id: string,
-    data: UpdateCountryData
-  ): Promise<GeographicSingleResponse<Country>> {
-    const response = await apiClient.put<GeographicSingleResponse<Country>>(
-      `${BASE_PATH}/countries/${id}`,
-      data
-    );
-    return response.data;
-  },
-
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/countries/${id}`
-    );
-    return response.data;
-  },
 };
 
-// Province Service
+// Province Service (read-only)
 export const provinceService = {
   async list(
     params?: ListProvincesParams
@@ -92,37 +56,9 @@ export const provinceService = {
     );
     return response.data;
   },
-
-  async create(
-    data: CreateProvinceData
-  ): Promise<GeographicSingleResponse<Province>> {
-    const response = await apiClient.post<GeographicSingleResponse<Province>>(
-      `${BASE_PATH}/provinces`,
-      data
-    );
-    return response.data;
-  },
-
-  async update(
-    id: string,
-    data: UpdateProvinceData
-  ): Promise<GeographicSingleResponse<Province>> {
-    const response = await apiClient.put<GeographicSingleResponse<Province>>(
-      `${BASE_PATH}/provinces/${id}`,
-      data
-    );
-    return response.data;
-  },
-
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/provinces/${id}`
-    );
-    return response.data;
-  },
 };
 
-// City Service
+// City Service (read-only)
 export const cityService = {
   async list(
     params?: ListCitiesParams
@@ -140,35 +76,9 @@ export const cityService = {
     );
     return response.data;
   },
-
-  async create(data: CreateCityData): Promise<GeographicSingleResponse<City>> {
-    const response = await apiClient.post<GeographicSingleResponse<City>>(
-      `${BASE_PATH}/cities`,
-      data
-    );
-    return response.data;
-  },
-
-  async update(
-    id: string,
-    data: UpdateCityData
-  ): Promise<GeographicSingleResponse<City>> {
-    const response = await apiClient.put<GeographicSingleResponse<City>>(
-      `${BASE_PATH}/cities/${id}`,
-      data
-    );
-    return response.data;
-  },
-
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/cities/${id}`
-    );
-    return response.data;
-  },
 };
 
-// District Service
+// District Service (read-only)
 export const districtService = {
   async list(
     params?: ListDistrictsParams
@@ -186,37 +96,9 @@ export const districtService = {
     );
     return response.data;
   },
-
-  async create(
-    data: CreateDistrictData
-  ): Promise<GeographicSingleResponse<District>> {
-    const response = await apiClient.post<GeographicSingleResponse<District>>(
-      `${BASE_PATH}/districts`,
-      data
-    );
-    return response.data;
-  },
-
-  async update(
-    id: string,
-    data: UpdateDistrictData
-  ): Promise<GeographicSingleResponse<District>> {
-    const response = await apiClient.put<GeographicSingleResponse<District>>(
-      `${BASE_PATH}/districts/${id}`,
-      data
-    );
-    return response.data;
-  },
-
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/districts/${id}`
-    );
-    return response.data;
-  },
 };
 
-// Village Service
+// Village Service (read-only)
 export const villageService = {
   async list(
     params?: ListVillagesParams
@@ -234,31 +116,14 @@ export const villageService = {
     );
     return response.data;
   },
+};
 
-  async create(
-    data: CreateVillageData
-  ): Promise<GeographicSingleResponse<Village>> {
-    const response = await apiClient.post<GeographicSingleResponse<Village>>(
-      `${BASE_PATH}/villages`,
-      data
-    );
-    return response.data;
-  },
-
-  async update(
-    id: string,
-    data: UpdateVillageData
-  ): Promise<GeographicSingleResponse<Village>> {
-    const response = await apiClient.put<GeographicSingleResponse<Village>>(
-      `${BASE_PATH}/villages/${id}`,
-      data
-    );
-    return response.data;
-  },
-
-  async delete(id: string): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      `${BASE_PATH}/villages/${id}`
+// Map Data Service - fetches GeoJSON feature collections for map visualization
+export const mapDataService = {
+  async getMapData(params: MapDataParams): Promise<MapDataResponse> {
+    const response = await apiClient.get<MapDataResponse>(
+      `${BASE_PATH}/map-data`,
+      { params }
     );
     return response.data;
   },

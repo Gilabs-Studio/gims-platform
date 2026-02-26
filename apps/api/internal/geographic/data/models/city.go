@@ -15,6 +15,7 @@ type City struct {
 	Name       string         `gorm:"type:varchar(100);not null;index" json:"name"`
 	Code       string         `gorm:"type:varchar(20);uniqueIndex;not null" json:"code"`
 	Type       string         `gorm:"type:varchar(20);default:'city'" json:"type"` // city, regency (kabupaten)
+	Geometry   *string        `gorm:"type:jsonb" json:"geometry,omitempty"` // GeoJSON geometry (MultiPolygon/Polygon)
 	IsActive   bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`

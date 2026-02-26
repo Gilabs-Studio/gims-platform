@@ -5,11 +5,7 @@
 const VALID_DASHBOARD_ROUTES = [
   "/dashboard",
   // Master Data routes
-  "/master-data/countries",
-  "/master-data/provinces",
-  "/master-data/cities",
-  "/master-data/districts",
-  "/master-data/villages",
+  "/master-data/geographic",
   "/master-data/company",
   "/master-data/divisions",
   "/master-data/job-positions",
@@ -93,6 +89,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/crm/settings/activity-types",
   // Reports
   "/reports",
+  "/reports/sales-overview",
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",

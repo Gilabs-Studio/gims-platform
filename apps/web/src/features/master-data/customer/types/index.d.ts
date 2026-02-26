@@ -118,6 +118,7 @@ export interface Customer {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   province?: { id: string; name: string } | null;
   city?: { id: string; name: string } | null;
   district?: { id: string; name: string } | null;
@@ -170,6 +171,7 @@ export interface CreateCustomerData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   email?: string;
   website?: string;
   npwp?: string;
@@ -197,6 +199,7 @@ export interface UpdateCustomerData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   email?: string | null;
   website?: string | null;
   npwp?: string | null;

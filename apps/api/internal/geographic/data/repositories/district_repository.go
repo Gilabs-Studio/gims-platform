@@ -35,7 +35,7 @@ func (r *districtRepository) getDB(ctx context.Context) *gorm.DB {
 
 func (r *districtRepository) FindByID(ctx context.Context, id string) (*models.District, error) {
 	var district models.District
-	err := r.getDB(ctx).Preload("City").Preload("City.Province").Preload("City.Province.Country").Where("id = ?", id).First(&district).Error
+	err := r.getDB(ctx).Select("id, city_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("City").Preload("City.Province").Preload("City.Province.Country").Where("id = ?", id).First(&district).Error
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *districtRepository) FindByID(ctx context.Context, id string) (*models.D
 
 func (r *districtRepository) FindByCode(ctx context.Context, code string) (*models.District, error) {
 	var district models.District
-	err := r.getDB(ctx).Preload("City").Preload("City.Province").Preload("City.Province.Country").Where("code = ?", code).First(&district).Error
+	err := r.getDB(ctx).Select("id, city_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("City").Preload("City.Province").Preload("City.Province.Country").Where("code = ?", code).First(&district).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,8 @@ func (r *districtRepository) List(ctx context.Context, req *dto.ListDistrictsReq
 	var districts []models.District
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.District{}).Preload("City").Preload("City.Province")
+	// Exclude geometry column from list queries for performance
+	query := r.getDB(ctx).Model(&models.District{}).Select("id, city_id, name, code, is_active, created_at, updated_at, deleted_at").Preload("City").Preload("City.Province")
 
 	// Apply search filter
 	if req.Search != "" {

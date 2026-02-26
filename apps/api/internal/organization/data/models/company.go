@@ -33,10 +33,11 @@ type Company struct {
 	DistrictID *string        `gorm:"type:uuid;index" json:"district_id"`
 	District   *models.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	NIB        string         `gorm:"type:varchar(30)" json:"nib"`
-	VillageID  *string        `gorm:"type:uuid;index" json:"village_id"`
-	Latitude   *float64       `gorm:"type:decimal(10,8)" json:"latitude"`
-	Longitude  *float64       `gorm:"type:decimal(11,8)" json:"longitude"`
-	Village    *models.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
+	VillageID   *string         `gorm:"type:uuid;index" json:"village_id"`
+	VillageName *string         `gorm:"type:varchar(255)" json:"village_name,omitempty"`
+	Latitude    *float64        `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude   *float64        `gorm:"type:decimal(11,8)" json:"longitude"`
+	Village     *models.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
 	DirectorID *string        `gorm:"type:uuid;index" json:"director_id"` // Employee FK (Sprint 3)
 	// Approval workflow
 	Status     CompanyStatus  `gorm:"type:varchar(20);default:'draft';index" json:"status"`

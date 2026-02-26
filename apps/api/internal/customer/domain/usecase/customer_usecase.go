@@ -84,8 +84,7 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		ProvinceID:     req.ProvinceID,
 		CityID:         req.CityID,
 		DistrictID:     req.DistrictID,
-		VillageID:      req.VillageID,
-		// Sales defaults
+		VillageID:      req.VillageID,		VillageName:   req.VillageName,		// Sales defaults
 		DefaultBusinessTypeID: req.DefaultBusinessTypeID,
 		DefaultAreaID:         req.DefaultAreaID,
 		DefaultSalesRepID:     req.DefaultSalesRepID,
@@ -238,6 +237,9 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 	if req.VillageID != nil {
 		customer.VillageID = req.VillageID
 		customer.Village = nil
+	}
+	if req.VillageName != nil {
+		customer.VillageName = req.VillageName
 	}
 	if req.Latitude != nil {
 		customer.Latitude = req.Latitude

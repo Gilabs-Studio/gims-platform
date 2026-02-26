@@ -24,6 +24,8 @@ type Warehouse struct {
 	District    *geographic.District `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	VillageID   *string             `gorm:"type:uuid;index" json:"village_id"`
 	Village     *geographic.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
+	// VillageName stores the kelurahan/desa name as free text (preferred over VillageID FK)
+	VillageName *string             `gorm:"type:varchar(255)" json:"village_name,omitempty"`
 	// Location coordinates
 	Latitude  *float64       `gorm:"type:decimal(10,8)" json:"latitude"`
 	Longitude *float64       `gorm:"type:decimal(11,8)" json:"longitude"`

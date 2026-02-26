@@ -760,7 +760,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, []);
 
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
-  const isFullScreenMapPage = pathname?.includes("/master-data/company") || pathname?.includes("/master-data/suppliers") || pathname?.includes("/master-data/warehouses") || pathname?.includes("/master-data/customers") || pathname?.includes("/master-data/areas");
+  const isFullScreenMapPage = pathname?.includes("/master-data/company") || pathname?.includes("/master-data/suppliers") || pathname?.includes("/master-data/warehouses") || pathname?.includes("/master-data/customers") || pathname?.includes("/master-data/areas") || pathname?.includes("/master-data/geographic");
 
   // Check if current parent has children (should show detail sidebar)
   const shouldShowDetailSidebar = useMemo(() => {

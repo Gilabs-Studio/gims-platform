@@ -40,8 +40,9 @@ export const getCustomerSchema = (t?: TranslationFn) =>
       .or(z.literal("")),
     contact_person: z.string().max(100).optional().or(z.literal("")),
     notes: z.string().max(1000).optional().or(z.literal("")),
-    village_id: z
+    village_name: z
       .string()
+      .max(255)
       .optional()
       .or(z.literal(""))
       .nullable(),
