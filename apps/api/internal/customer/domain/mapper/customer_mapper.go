@@ -19,6 +19,7 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		CityID:         m.CityID,
 		DistrictID:     m.DistrictID,
 		VillageID:      m.VillageID,
+		VillageName:    m.VillageName,
 		Email:          m.Email,
 		Website:        m.Website,
 		NPWP:           m.NPWP,

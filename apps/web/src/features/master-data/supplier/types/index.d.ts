@@ -138,6 +138,7 @@ export interface Supplier {
   district_id?: string;
   district?: { id: string; name: string };
   village_id?: string;
+  village_name?: string;
   village?: Village;
   email?: string;
   website?: string;
@@ -166,6 +167,7 @@ export interface CreateSupplierData {
   city_id?: string;
   district_id?: string;
   village_id?: string;
+  village_name?: string;
   email?: string;
   website?: string;
   npwp?: string;
@@ -186,6 +188,7 @@ export interface UpdateSupplierData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   email?: string;
   website?: string;
   npwp?: string;

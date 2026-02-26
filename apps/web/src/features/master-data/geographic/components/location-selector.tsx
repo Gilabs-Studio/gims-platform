@@ -11,16 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { useProvinces } from "../hooks/use-provinces";
 import { useCities } from "../hooks/use-cities";
 import { useDistricts } from "../hooks/use-districts";
-import { useVillages } from "../hooks/use-villages";
 
 interface FieldNames {
   province_id: string;
   city_id: string;
   district_id: string;
-  village_id: string;
+  village_name: string;
 }
 
 interface LocationSelectorLabels {
@@ -53,7 +53,7 @@ const DEFAULT_FIELD_NAMES: FieldNames = {
   province_id: "province_id",
   city_id: "city_id",
   district_id: "district_id",
-  village_id: "village_id",
+  village_name: "village_name",
 };
 
 const DEFAULT_LABELS: Required<LocationSelectorLabels> = {
@@ -103,24 +103,18 @@ export function LocationSelector({
     { city_id: String(cityId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!cityId }
   );
-  const { data: villagesData } = useVillages(
-    { district_id: String(districtId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: enabled && !!districtId }
-  );
 
   const provinces = provincesData?.data ?? [];
   const cities = citiesData?.data ?? [];
   const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
 
   // Clear dependent fields when parent value is cleared externally
   useEffect(() => {
     if (!provinceId) {
       setValue(fields.city_id, undefined, { shouldDirty: false });
       setValue(fields.district_id, undefined, { shouldDirty: false });
-      setValue(fields.village_id, undefined, { shouldDirty: false });
     }
-  }, [provinceId, setValue, fields.city_id, fields.district_id, fields.village_id]);
+  }, [provinceId, setValue, fields.city_id, fields.district_id]);
 
   return (
     <div className={className ?? "grid grid-cols-2 gap-4"}>
@@ -137,7 +131,6 @@ export function LocationSelector({
                 field.onChange(val);
                 setValue(fields.city_id, undefined, { shouldDirty: true });
                 setValue(fields.district_id, undefined, { shouldDirty: true });
-                setValue(fields.village_id, undefined, { shouldDirty: true });
               }}
               disabled={disabled}
             >
@@ -168,7 +161,6 @@ export function LocationSelector({
               onValueChange={(val) => {
                 field.onChange(val);
                 setValue(fields.district_id, undefined, { shouldDirty: true });
-                setValue(fields.village_id, undefined, { shouldDirty: true });
               }}
               disabled={disabled}
             >
@@ -204,7 +196,6 @@ export function LocationSelector({
               value={field.value ?? ""}
               onValueChange={(val) => {
                 field.onChange(val);
-                setValue(fields.village_id, undefined, { shouldDirty: true });
               }}
               disabled={disabled}
             >
@@ -229,35 +220,20 @@ export function LocationSelector({
         />
       </Field>
 
-      {/* Village */}
+      {/* Village - free text input (Indonesia has ~83k villages, dropdown is impractical) */}
       <Field orientation="vertical">
         <FieldLabel>{labels.village}</FieldLabel>
         <Controller
           control={control}
-          name={fields.village_id}
+          name={fields.village_name}
           render={({ field }) => (
-            <Select
+            <Input
+              {...field}
               value={field.value ?? ""}
-              onValueChange={field.onChange}
+              placeholder={labels.selectVillage ?? "Village / Kelurahan"}
               disabled={disabled}
-            >
-              <SelectTrigger className="cursor-pointer">
-                <SelectValue placeholder={labels.selectVillage} />
-              </SelectTrigger>
-              <SelectContent>
-                {districtId ? (
-                  villages.map((v) => (
-                    <SelectItem key={v.id} value={v.id} className="cursor-pointer">
-                      {v.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="_" disabled>
-                    {labels.selectDistrictFirst}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+              className="cursor-text"
+            />
           )}
         />
       </Field>
