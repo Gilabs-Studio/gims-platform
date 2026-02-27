@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -19,67 +18,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Building2,
   Calendar,
-  CheckCircle2,
-  Clock,
   FileText,
   Hash,
   Receipt,
-  TrendingUp,
 } from "lucide-react";
 
-import type { SupplierInvoiceDetail, SupplierInvoiceStatus } from "../types";
+import type { SupplierInvoiceDetail as ISupplierInvoiceDetail } from "../types";
 import { useSupplierInvoice } from "../hooks/use-supplier-invoices";
+import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
-
-function StatusBadge({ status, t }: { status: SupplierInvoiceStatus; t: ReturnType<typeof useTranslations> }) {
-  switch (normalizeStatus(status)) {
-    case "paid":
-      return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {t("status.paid")}
-        </Badge>
-      );
-    case "unpaid":
-      return (
-        <Badge variant="warning" className="text-xs font-medium">
-          <Clock className="h-3 w-3 mr-1" />
-          {t("status.unpaid")}
-        </Badge>
-      );
-    case "partial":
-      return (
-        <Badge variant="info" className="text-xs font-medium">
-          <TrendingUp className="h-3 w-3 mr-1" />
-          {t("status.partial")}
-        </Badge>
-      );
-    case "draft":
-    default:
-      return (
-        <Badge variant="secondary" className="text-xs font-medium">
-          <FileText className="h-3 w-3 mr-1" />
-          {t("status.draft")}
-        </Badge>
-      );
-  }
-}
-
-export function SupplierInvoiceDetailView({ data }: { data: SupplierInvoiceDetail }) {
+export function SupplierInvoiceDetailView({ data }: { data: ISupplierInvoiceDetail }) {
   const t = useTranslations("supplierInvoice");
 
   return (
@@ -102,12 +54,12 @@ export function SupplierInvoiceDetailView({ data }: { data: SupplierInvoiceDetai
           <div className="text-right text-sm text-muted-foreground space-y-1">
             <div className="flex items-center gap-1 justify-end">
               <Calendar className="h-3 w-3" />
-              {safeDate(data.invoice_date)}
+              {formatDate(data.invoice_date)}
             </div>
             <div className="flex items-center gap-1 justify-end text-xs">
               <span>{t("fields.dueDate")}:</span>
-              <span className={safeDate(data.due_date) !== "-" ? "font-medium" : ""}>
-                {safeDate(data.due_date)}
+              <span className={data.due_date ? "font-medium" : ""}>
+                {formatDate(data.due_date)}
               </span>
             </div>
           </div>
@@ -197,13 +149,13 @@ export function SupplierInvoiceDetailView({ data }: { data: SupplierInvoiceDetai
   );
 }
 
-interface SupplierInvoiceDetailDialogProps {
+interface SupplierInvoiceDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly invoiceId?: string | null;
 }
 
-export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvoiceDetailDialogProps) {
+export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvoiceDetailProps) {
   const t = useTranslations("supplierInvoice");
   const id = invoiceId ?? "";
 
@@ -221,7 +173,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
             <DialogTitle className="text-xl">
               {detail?.invoice_number ?? t("detail.title")}
             </DialogTitle>
-            {detail && <StatusBadge status={detail.status} t={t} />}
+            {detail && <SupplierInvoiceStatusBadge status={detail.status} />}
           </div>
         </DialogHeader>
 

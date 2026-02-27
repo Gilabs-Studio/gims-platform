@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -21,82 +20,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Building2,
   Calendar,
-  CheckCircle2,
-  Clock,
   FileText,
   User,
-  XCircle,
 } from "lucide-react";
 
 import { usePurchaseRequisition } from "../hooks/use-purchase-requisitions";
-
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
-
-function StatusBadge({ status, t }: { status: string; t: ReturnType<typeof useTranslations> }) {
-  switch (normalizeStatus(status)) {
-    case "draft":
-      return (
-        <Badge variant="secondary" className="text-xs font-medium">
-          <Clock className="h-3 w-3 mr-1" />
-          {t("status.draft")}
-        </Badge>
-      );
-    case "submitted":
-      return (
-        <Badge variant="info" className="text-xs font-medium">
-          <FileText className="h-3 w-3 mr-1" />
-          {t("status.submitted")}
-        </Badge>
-      );
-    case "approved":
-      return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {t("status.approved")}
-        </Badge>
-      );
-    case "rejected":
-      return (
-        <Badge variant="destructive" className="text-xs font-medium">
-          <XCircle className="h-3 w-3 mr-1" />
-          {t("status.rejected")}
-        </Badge>
-      );
-    case "converted":
-      return (
-        <Badge variant="outline" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {t("status.converted")}
-        </Badge>
-      );
-    case "cancelled":
-      return (
-        <Badge variant="inactive" className="text-xs font-medium">
-          <XCircle className="h-3 w-3 mr-1" />
-          {t("status.cancelled")}
-        </Badge>
-      );
-    default:
-      return <Badge variant="outline" className="text-xs font-medium">{status}</Badge>;
-  }
-}
+import { PurchaseRequisitionStatusBadge } from "./purchase-requisition-status-badge";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface PurchaseRequisitionDetailProps {
   readonly open: boolean;
@@ -118,7 +48,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle className="text-xl">{pr?.code ?? t("detail.title")}</DialogTitle>
-            {pr && <StatusBadge status={pr.status} t={t} />}
+            {pr && <PurchaseRequisitionStatusBadge status={pr.status} />}
           </div>
         </DialogHeader>
 
@@ -147,9 +77,9 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   <p className="text-sm text-muted-foreground">{t("detail.title")}</p>
                 </div>
                 <div className="text-right text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 justify-end">
                     <Calendar className="h-3 w-3" />
-                    {safeDate(pr.request_date)}
+                    {formatDate(pr.request_date)}
                   </div>
                 </div>
               </div>
@@ -196,23 +126,23 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                 <div className="grid grid-cols-2 divide-x">
                   <div className="p-3 flex justify-between items-center px-6">
                     <span className="text-sm text-muted-foreground">{t("fields.subtotal")}</span>
-                    <span className="font-mono font-medium">{formatMoney(pr.subtotal)}</span>
+                    <span className="font-mono font-medium">{formatCurrency(pr.subtotal)}</span>
                   </div>
                   <div className="p-3 flex justify-between items-center px-6">
                     <span className="text-sm text-muted-foreground">{t("fields.taxAmount")}</span>
-                    <span className="font-mono font-medium">{formatMoney(pr.tax_amount)}</span>
+                    <span className="font-mono font-medium">{formatCurrency(pr.tax_amount)}</span>
                   </div>
                   <div className="p-3 flex justify-between items-center px-6 border-t">
                     <span className="text-sm text-muted-foreground">{t("fields.deliveryCost")}</span>
-                    <span className="font-mono font-medium">{formatMoney(pr.delivery_cost)}</span>
+                    <span className="font-mono font-medium">{formatCurrency(pr.delivery_cost)}</span>
                   </div>
                   <div className="p-3 flex justify-between items-center px-6 border-t">
                     <span className="text-sm text-muted-foreground">{t("fields.otherCost")}</span>
-                    <span className="font-mono font-medium">{formatMoney(pr.other_cost)}</span>
+                    <span className="font-mono font-medium">{formatCurrency(pr.other_cost)}</span>
                   </div>
                   <div className="col-span-2 p-3 flex justify-between items-center px-6 border-t bg-muted/20">
                     <span className="font-semibold">{t("fields.total")}</span>
-                    <span className="font-mono font-bold text-lg">{formatMoney(pr.total_amount)}</span>
+                    <span className="font-mono font-bold text-lg">{formatCurrency(pr.total_amount)}</span>
                   </div>
                 </div>
               </div>
@@ -238,9 +168,9 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                             {it.product?.name ?? it.product_id}
                           </TableCell>
                           <TableCell className="text-right">{it.quantity}</TableCell>
-                          <TableCell className="text-right font-mono">{formatMoney(it.purchase_price)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(it.purchase_price)}</TableCell>
                           <TableCell className="text-right">{it.discount}%</TableCell>
-                          <TableCell className="text-right font-mono">{formatMoney(it.subtotal)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(it.subtotal)}</TableCell>
                         </TableRow>
                       ))
                     ) : (

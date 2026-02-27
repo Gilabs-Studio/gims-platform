@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -21,45 +20,13 @@ import {
 import {
   Building2,
   Calendar,
-  CheckCircle2,
-  Clock,
   FileText,
   Package,
 } from "lucide-react";
 
 import { useGoodsReceipt } from "../hooks/use-goods-receipts";
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
-
-function StatusBadge({ status, t }: { status: string; t: ReturnType<typeof useTranslations> }) {
-  switch (normalizeStatus(status)) {
-    case "draft":
-      return (
-        <Badge variant="secondary" className="text-xs font-medium">
-          <Clock className="h-3 w-3 mr-1" />
-          {t("status.draft")}
-        </Badge>
-      );
-    case "confirmed":
-      return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {t("status.confirmed")}
-        </Badge>
-      );
-    default:
-      return <Badge variant="outline" className="text-xs font-medium">{status}</Badge>;
-  }
-}
+import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
+import { formatDate } from "@/lib/utils";
 
 interface GoodsReceiptDetailProps {
   readonly open: boolean;
@@ -83,7 +50,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle className="text-xl">{gr?.code ?? t("detail.title")}</DialogTitle>
-            {gr && <StatusBadge status={gr.status} t={t} />}
+            {gr && <GoodsReceiptStatusBadge status={gr.status} />}
           </div>
         </DialogHeader>
 
@@ -108,7 +75,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
               <div className="text-right text-sm text-muted-foreground">
                 <div className="flex items-center gap-1 justify-end">
                   <Calendar className="h-3 w-3" />
-                  {safeDate(gr.receipt_date)}
+                  {formatDate(gr.receipt_date)}
                 </div>
               </div>
             </div>

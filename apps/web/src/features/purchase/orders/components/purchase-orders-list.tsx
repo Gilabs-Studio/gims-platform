@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  CheckCircle2,
   Clock,
   Download,
   Eye,
@@ -13,13 +12,12 @@ import {
   Plus,
   Search,
   Trash2,
-  XCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -39,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
   useConfirmPurchaseOrder,
@@ -51,26 +50,7 @@ import { PurchaseOrderAuditTrail } from "./purchase-order-audit-trail";
 import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderReviseDialog } from "./purchase-order-revise-dialog";
-
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
+import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -116,7 +96,11 @@ export function PurchaseOrdersList() {
   const confirmMutation = useConfirmPurchaseOrder();
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return (
+      <div className="text-center py-8 text-destructive">
+        {tCommon("error")}
+      </div>
+    );
   }
 
   const handleExport = async () => {
@@ -140,51 +124,16 @@ export function PurchaseOrdersList() {
     }
   };
 
-  const getStatusBadge = (rawStatus?: string | null) => {
-    const status = normalizeStatus(rawStatus);
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "revised":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Pencil className="h-3 w-3 mr-1" />
-            {t("status.revised")}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.approved")}
-          </Badge>
-        );
-      case "closed":
-        return (
-          <Badge variant="outline" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.closed")}
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="text-xs font-medium">
-            {rawStatus ?? "-"}
-          </Badge>
-        );
-    }
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
   };
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -229,43 +178,63 @@ export function PurchaseOrdersList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("columns.code")}</TableHead>
+              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.orderDate")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead className="text-right">{t("columns.total")}</TableHead>
               <TableHead>{t("columns.createdAt")}</TableHead>
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (
               items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-medium">{it.code}</TableCell>
-                  <TableCell>{safeDate(it.order_date)}</TableCell>
-                  <TableCell>{it.supplier?.name ?? "-"}</TableCell>
-                  <TableCell>{getStatusBadge(it.status)}</TableCell>
-                  <TableCell className="text-right">{formatMoney(it.total_amount)}</TableCell>
-                  <TableCell className="flex items-center justify-between gap-2">
-                    <span>{safeDate(it.created_at)}</span>
-
-                    {(canView || canAuditTrail || canEdit || canConfirm || canRevise || canDelete) ? (
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => canView && handleView(it.id)}
+                  >
+                    {it.code}
+                  </TableCell>
+                  <TableCell>{formatDate(it.order_date)}</TableCell>
+                  <TableCell className="font-medium">
+                    {it.supplier?.name ?? "-"}
+                  </TableCell>
+                  <TableCell>
+                    <PurchaseOrderStatusBadge status={it.status ?? ""} />
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(it.total_amount)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{formatDate(it.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {it.created_at ? new Date(it.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {(canView || canAuditTrail || canEdit || canConfirm || canRevise || canDelete) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -273,20 +242,17 @@ export function PurchaseOrdersList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {canView ? (
+                          {canView && (
                             <DropdownMenuItem
                               className="cursor-pointer"
-                              onClick={() => {
-                                setDetailId(it.id);
-                                setDetailOpen(true);
-                              }}
+                              onClick={() => handleView(it.id)}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("actions.view")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canAuditTrail ? (
+                          {canAuditTrail && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -297,9 +263,9 @@ export function PurchaseOrdersList() {
                               <History className="h-4 w-4 mr-2" />
                               {t("actions.auditTrail")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canEdit && ["draft", "revised"].includes(normalizeStatus(it.status)) ? (
+                          {canEdit && ["draft", "revised"].includes((it.status ?? "").toLowerCase()) && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -311,9 +277,9 @@ export function PurchaseOrdersList() {
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("actions.edit")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canConfirm && ["draft", "revised"].includes(normalizeStatus(it.status)) ? (
+                          {canConfirm && ["draft", "revised"].includes((it.status ?? "").toLowerCase()) && (
                             <DropdownMenuItem
                               className="cursor-pointer text-green-600 focus:text-green-600"
                               onClick={async () => {
@@ -328,9 +294,9 @@ export function PurchaseOrdersList() {
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("actions.confirm")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canRevise && ["draft", "approved"].includes(normalizeStatus(it.status)) ? (
+                          {canRevise && ["draft", "approved"].includes((it.status ?? "").toLowerCase()) && (
                             <DropdownMenuItem
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                               onClick={() => {
@@ -341,20 +307,20 @@ export function PurchaseOrdersList() {
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("actions.revise")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canDelete && normalizeStatus(it.status) === "draft" ? (
+                          {canDelete && (it.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-destructive"
+                              className="cursor-pointer text-destructive focus:text-destructive"
                               onClick={() => setDeletingItem(it)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("actions.delete")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : null}
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -368,8 +334,8 @@ export function PurchaseOrdersList() {
           pageIndex={pagination.page}
           pageSize={pagination.per_page}
           rowCount={pagination.total}
-          onPageChange={(p) => setPage(p)}
-          onPageSizeChange={(ps: number) => {
+          onPageChange={setPage}
+          onPageSizeChange={(ps) => {
             setPageSize(ps);
             setPage(1);
           }}
@@ -402,7 +368,7 @@ export function PurchaseOrdersList() {
           setAuditOpen(false);
           setAuditId(null);
         }}
-        purchaseOrderId={auditId}
+        purchaseOrderId={detailId || auditId}
       />
 
       <PurchaseOrderReviseDialog
@@ -416,10 +382,8 @@ export function PurchaseOrdersList() {
 
       <DeleteDialog
         open={!!deletingItem}
-        onOpenChange={(open) => {
-          if (!open) setDeletingItem(null);
-        }}
-        itemName="purchase order"
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+        itemName={tCommon("purchaseOrder") || "purchase order"}
         onConfirm={async () => {
           if (!deletingItem) return;
           try {
@@ -431,6 +395,7 @@ export function PurchaseOrdersList() {
             setDeletingItem(null);
           }
         }}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

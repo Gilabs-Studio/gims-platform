@@ -184,11 +184,11 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
                     <div className="text-sm font-medium">{formatCurrency(selectedInvoice.amount)}</div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm text-muted-foreground">Paid Amount</div>
+                    <div className="text-sm text-muted-foreground">{t("overview.paidAmount")}</div>
                     <div className="text-sm font-medium">{formatCurrency(selectedInvoice.paid_amount)}</div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm text-muted-foreground">Remaining Amount</div>
+                    <div className="text-sm text-muted-foreground">{t("overview.remainingAmount")}</div>
                     <div className="text-sm font-medium">{formatCurrency(selectedInvoice.remaining_amount)}</div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
