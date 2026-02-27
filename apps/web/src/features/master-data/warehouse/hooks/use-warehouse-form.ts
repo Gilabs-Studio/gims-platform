@@ -5,9 +5,6 @@ import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateWarehouse, useUpdateWarehouse, useWarehouse } from "./use-warehouses";
-import { useProvinces } from "../../geographic/hooks/use-provinces";
-import { useCities } from "../../geographic/hooks/use-cities";
-import { useDistricts } from "../../geographic/hooks/use-districts";
 import type { Warehouse } from "../types";
 
 export const warehouseFormSchema = z.object({
@@ -68,21 +65,6 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
 
   const provinceId = form.watch("province_id");
   const cityId = form.watch("city_id");
-  const districtId = form.watch("district_id");
-
-  const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: open });
-  const { data: citiesData } = useCities(
-    cityId || provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined,
-    { enabled: open && !!provinceId }
-  );
-  const { data: districtsData } = useDistricts(
-    districtId || cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
-    { enabled: open && !!cityId }
-  );
-
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
 
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
@@ -164,21 +146,6 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
     }
   };
 
-  const handleProvinceChange = (val: string) => {
-    form.setValue("province_id", val);
-    form.setValue("city_id", undefined);
-    form.setValue("district_id", undefined);
-  };
-
-  const handleCityChange = (val: string) => {
-    form.setValue("city_id", val);
-    form.setValue("district_id", undefined);
-  };
-
-  const handleDistrictChange = (val: string) => {
-    form.setValue("district_id", val);
-  };
-
   const isLoading = createWarehouse.isPending || updateWarehouse.isPending || isLoadingDetail;
 
   return {
@@ -188,15 +155,5 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
     isEditing,
     isLoading,
     onSubmit: form.handleSubmit(onSubmit),
-    actions: {
-      handleProvinceChange,
-      handleCityChange,
-      handleDistrictChange,
-    },
-    data: {
-      provinces,
-      cities,
-      districts,
-    }
   };
 }

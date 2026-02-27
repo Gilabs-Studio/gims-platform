@@ -37,20 +37,28 @@ import { useMap } from "react-leaflet";
 // @ts-expect-error -- leaflet CSS import has no type declarations
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// Fix default marker icons for Next.js
-if (typeof window !== "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-}
+// Turbopack may return a plain string or a StaticImageData object for PNG imports.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getImageSrc = (img: any): string => {
+  if (typeof img === "string" && img) return img;
+  if (typeof img?.src === "string" && img.src) return img.src;
+  if (typeof img?.default === "string" && img.default) return img.default;
+  if (typeof img?.default?.src === "string" && img.default.src) return img.default.src;
+  return "";
+};
+
+// Fix default marker icons for Next.js (static imports avoid CDN dependency)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: getImageSrc(markerIcon2x),
+  iconUrl: getImageSrc(markerIcon),
+  shadowUrl: getImageSrc(markerShadow),
+});
 
 interface SalesRepCheckInMapProps {
   readonly locations: readonly SalesRepCheckInLocation[];

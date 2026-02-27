@@ -6,11 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock, Layers, TrendingDown, CalendarX, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useInventory } from "../hooks/use-inventory";
+import { useInventory, useInventoryMetrics } from "../hooks/use-inventory";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { resolveImageUrl } from "@/lib/utils";
 
@@ -19,17 +21,85 @@ import { LayoutList, GanttChart, Eye } from "lucide-react"; // Icons for toggle
 import { InventoryDetailDialog } from "./inventory-detail-dialog";
 import { InventoryStockItem } from "../types";
 
+type MetricFilterKey = "ok" | "low_stock" | "out_of_stock" | "overstock" | "has_expiring" | "has_expired";
+
+const METRIC_FILTER_LABELS: Record<MetricFilterKey, string> = {
+  ok: "Healthy Stock",
+  low_stock: "Low Stock",
+  out_of_stock: "Out of Stock",
+  overstock: "Overstock",
+  has_expiring: "Expiring within 30 days",
+  has_expired: "Expired Batches (with remaining qty)",
+};
+
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  colorClass,
+  isLoading,
+  filterKey,
+  activeFilter,
+  onFilterChange,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  colorClass: string;
+  isLoading: boolean;
+  filterKey?: MetricFilterKey;
+  activeFilter?: MetricFilterKey | null;
+  onFilterChange?: (key: MetricFilterKey | null) => void;
+}) {
+  const isClickable = !!filterKey && !!onFilterChange;
+  const isActive = isClickable && activeFilter === filterKey;
+
+  return (
+    <Card
+      className={`flex-1 min-w-0 transition-all ${
+        isClickable
+          ? "cursor-pointer hover:shadow-md hover:ring-2 hover:ring-primary/30"
+          : ""
+      } ${
+        isActive ? "ring-2 ring-primary shadow-md" : ""
+      }`}
+      onClick={isClickable ? () => onFilterChange!(isActive ? null : filterKey) : undefined}
+    >
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`p-2 rounded-md shrink-0 ${colorClass} ${isActive ? "ring-2 ring-white/50" : ""}`}>
+          <Icon className="h-4 w-4 text-white" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground truncate">{label}</p>
+          {isLoading ? (
+            <Skeleton className="h-5 w-16 mt-0.5" />
+          ) : (
+            <p className={`text-lg font-bold tabular-nums leading-tight ${isActive ? "text-primary" : ""}`}>
+              {value}
+            </p>
+          )}
+        </div>
+        {isActive && (
+          <div className="ml-auto shrink-0">
+            <X className="h-3.5 w-3.5 text-primary" />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function InventoryList() {
   const t = useTranslations("inventory");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  // const [search, setSearch] = useState(""); // Kept original
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [warehouseId, setWarehouseId] = useState<string>("all");
-  const [showLowStock, setShowLowStock] = useState(false);
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
-  
+  // Unified metric filter — null means no active filter
+  const [activeMetricFilter, setActiveMetricFilter] = useState<MetricFilterKey | null>(null);
+
   // Dialog State
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryStockItem | null>(null);
@@ -39,17 +109,35 @@ export function InventoryList() {
     setDialogOpen(true);
   };
 
-  // Force list view when searching
+  // When a metric card is clicked, always switch to list to show filtered results
+  const handleMetricFilter = (key: MetricFilterKey | null) => {
+    setActiveMetricFilter(key);
+    if (key !== null) setViewMode("list");
+    setPage(1);
+  };
+
+  // Force list view when searching or when a metric filter is active
   const isSearchActive = !!debouncedSearch;
-  const currentView = isSearchActive ? "list" : viewMode;
+  const currentView = isSearchActive || activeMetricFilter ? "list" : viewMode;
+
+  // Build inventory query params from active metric filter
+  const inventoryFilterParams = (() => {
+    if (!activeMetricFilter) return {};
+    if (activeMetricFilter === "has_expiring") return { has_expiring: true };
+    if (activeMetricFilter === "has_expired") return { has_expired: true };
+    return { status: activeMetricFilter as "ok" | "low_stock" | "out_of_stock" | "overstock" };
+  })();
 
   const { data, isLoading, isError } = useInventory({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
     warehouse_id: warehouseId !== "all" ? warehouseId : undefined,
-    low_stock: showLowStock || undefined,
+    ...inventoryFilterParams,
   });
+
+  const { data: metricsData, isLoading: metricsLoading } = useInventoryMetrics();
+  const metrics = metricsData?.data;
 
   const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
   const warehouses = warehouseData?.data ?? [];
@@ -107,6 +195,90 @@ export function InventoryList() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
+      {/* Inventory Metrics Cards */}
+      <div className="flex flex-wrap gap-3">
+        <MetricCard
+          label="Total SKU"
+          value={metrics?.total_items ?? 0}
+          icon={Package}
+          colorClass="bg-primary"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Total On Hand"
+          value={metrics?.total_on_hand?.toLocaleString() ?? 0}
+          icon={Layers}
+          colorClass="bg-blue-500"
+          isLoading={metricsLoading}
+        />
+        <MetricCard
+          label="Healthy Stock"
+          value={metrics?.ok_count ?? 0}
+          icon={CheckCircle2}
+          colorClass="bg-green-600"
+          isLoading={metricsLoading}
+          filterKey="ok"
+          activeFilter={activeMetricFilter}
+          onFilterChange={handleMetricFilter}
+        />
+        <MetricCard
+          label="Low Stock"
+          value={metrics?.low_stock_count ?? 0}
+          icon={TrendingDown}
+          colorClass="bg-yellow-500"
+          isLoading={metricsLoading}
+          filterKey="low_stock"
+          activeFilter={activeMetricFilter}
+          onFilterChange={handleMetricFilter}
+        />
+        <MetricCard
+          label="Out of Stock"
+          value={metrics?.out_of_stock_count ?? 0}
+          icon={XCircle}
+          colorClass="bg-destructive"
+          isLoading={metricsLoading}
+          filterKey="out_of_stock"
+          activeFilter={activeMetricFilter}
+          onFilterChange={handleMetricFilter}
+        />
+        <MetricCard
+          label="Expiring (30d)"
+          value={metrics?.expiring_batches_30_day ?? 0}
+          icon={Clock}
+          colorClass="bg-orange-500"
+          isLoading={metricsLoading}
+          filterKey="has_expiring"
+          activeFilter={activeMetricFilter}
+          onFilterChange={handleMetricFilter}
+        />
+        <MetricCard
+          label="Expired Batches"
+          value={metrics?.expired_batches ?? 0}
+          icon={CalendarX}
+          colorClass="bg-rose-700"
+          isLoading={metricsLoading}
+          filterKey="has_expired"
+          activeFilter={activeMetricFilter}
+          onFilterChange={handleMetricFilter}
+        />
+      </div>
+
+      {/* Active metric filter badge */}
+      {activeMetricFilter && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-2 py-1 px-3 text-sm font-normal">
+            <span className="text-muted-foreground">Filtered:</span>
+            <span className="font-medium">{METRIC_FILTER_LABELS[activeMetricFilter]}</span>
+            <button
+              onClick={() => handleMetricFilter(null)}
+              className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors cursor-pointer"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-1 gap-4 w-full sm:w-auto">
           <div className="relative flex-1 max-w-sm">
@@ -152,7 +324,10 @@ export function InventoryList() {
                     variant={viewMode === "tree" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-8 px-3"
-                    onClick={() => setViewMode("tree")}
+                    onClick={() => {
+                      setViewMode("tree");
+                      setActiveMetricFilter(null);
+                    }}
                 >
                     <GanttChart className="h-4 w-4 mr-2" />
                     Tree
@@ -169,15 +344,15 @@ export function InventoryList() {
              </div>
            )}
 
-           {currentView === "list" && (
+           {currentView === "list" && !activeMetricFilter && (
             <Button 
-                variant={showLowStock ? "destructive" : "outline"}
-                onClick={() => setShowLowStock(!showLowStock)}
+                variant="outline"
+                onClick={() => handleMetricFilter("low_stock")}
                 size="sm"
                 className="cursor-pointer"
             >
                 <AlertTriangle className="h-4 w-4 mr-2" />
-                {showLowStock ? t("filter.showAll") : t("filter.showLowStockOnly")}
+                {t("filter.showLowStockOnly")}
             </Button>
            )}
         </div>

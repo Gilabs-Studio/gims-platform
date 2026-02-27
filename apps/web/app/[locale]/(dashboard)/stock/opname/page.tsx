@@ -21,7 +21,7 @@ export async function generateMetadata({ params: { locale } }: { params: { local
 
 export default function StockOpnamePage() {
   return (
-    <PermissionGuard requiredPermission="opname.read">
+    <PermissionGuard requiredPermission="stock_opname.read">
       <Suspense fallback={null}>
         <StockOpnameList />
       </Suspense>

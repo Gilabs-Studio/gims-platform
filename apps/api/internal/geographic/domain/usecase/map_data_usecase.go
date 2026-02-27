@@ -6,19 +6,25 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/orb/planar"
+
 	"github.com/gilabs/gims/api/internal/geographic/data/repositories"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 )
 
 var (
-	ErrMapDataInvalidLevel    = errors.New("invalid map data level")
+	ErrMapDataInvalidLevel       = errors.New("invalid map data level")
 	ErrMapDataProvinceIDRequired = errors.New("province_id is required for city level")
 	ErrMapDataCityIDRequired     = errors.New("city_id is required for district level")
+	ErrReverseGeocodeNotFound    = errors.New("no administrative boundary found for coordinates")
 )
 
 // MapDataUsecase defines the interface for map data business logic
 type MapDataUsecase interface {
 	GetMapData(ctx context.Context, req *dto.MapDataRequest) (*dto.GeoJSONFeatureCollection, error)
+	ReverseGeocode(ctx context.Context, req *dto.ReverseGeocodeRequest) (*dto.ReverseGeocodeResult, error)
 }
 
 type mapDataUsecase struct {
@@ -153,4 +159,105 @@ func (u *mapDataUsecase) getDistrictMapData(ctx context.Context, cityID string) 
 		Type:     "FeatureCollection",
 		Features: features,
 	}, nil
+}
+
+// ReverseGeocode resolves lat/lng coordinates to Province, City, and District
+// using a hierarchical approach: province -> city -> district for efficiency.
+func (u *mapDataUsecase) ReverseGeocode(ctx context.Context, req *dto.ReverseGeocodeRequest) (*dto.ReverseGeocodeResult, error) {
+	point := orb.Point{req.Longitude, req.Latitude} // orb uses [lng, lat] order
+
+	// Step 1: Find province containing the point
+	provinces, err := u.mapDataRepo.FindProvincesWithGeometry(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch provinces for reverse geocode: %w", err)
+	}
+
+	var matchedProvinceID, matchedProvinceName string
+	for _, p := range provinces {
+		if p.Geometry == nil {
+			continue
+		}
+		if containsPoint(*p.Geometry, point) {
+			matchedProvinceID = p.ID
+			matchedProvinceName = p.Name
+			break
+		}
+	}
+
+	if matchedProvinceID == "" {
+		return nil, ErrReverseGeocodeNotFound
+	}
+
+	// Step 2: Find city within matched province
+	cities, err := u.mapDataRepo.FindCitiesWithGeometryByProvince(ctx, matchedProvinceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch cities for reverse geocode: %w", err)
+	}
+
+	var matchedCityID, matchedCityName, matchedCityType string
+	for _, c := range cities {
+		if c.Geometry == nil {
+			continue
+		}
+		if containsPoint(*c.Geometry, point) {
+			matchedCityID = c.ID
+			matchedCityName = c.Name
+			matchedCityType = c.Type
+			break
+		}
+	}
+
+	if matchedCityID == "" {
+		// Point is in province but no city matched — return province-level result
+		return &dto.ReverseGeocodeResult{
+			ProvinceID:   matchedProvinceID,
+			ProvinceName: matchedProvinceName,
+		}, nil
+	}
+
+	// Step 3: Find district within matched city
+	districts, err := u.mapDataRepo.FindDistrictsWithGeometryByCity(ctx, matchedCityID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch districts for reverse geocode: %w", err)
+	}
+
+	var matchedDistrictID, matchedDistrictName string
+	for _, d := range districts {
+		if d.Geometry == nil {
+			continue
+		}
+		if containsPoint(*d.Geometry, point) {
+			matchedDistrictID = d.ID
+			matchedDistrictName = d.Name
+			break
+		}
+	}
+
+	return &dto.ReverseGeocodeResult{
+		ProvinceID:   matchedProvinceID,
+		ProvinceName: matchedProvinceName,
+		CityID:       matchedCityID,
+		CityName:     matchedCityName,
+		CityType:     matchedCityType,
+		DistrictID:   matchedDistrictID,
+		DistrictName: matchedDistrictName,
+	}, nil
+}
+
+// containsPoint checks whether a GeoJSON geometry string contains the given point.
+// Supports both Polygon and MultiPolygon geometry types.
+func containsPoint(geometryJSON string, point orb.Point) bool {
+	geom, err := geojson.UnmarshalGeometry([]byte(geometryJSON))
+	if err != nil {
+		return false
+	}
+
+	switch g := geom.Geometry().(type) {
+	case orb.Polygon:
+		return planar.PolygonContains(g, point)
+	case orb.MultiPolygon:
+		return planar.MultiPolygonContains(g, point)
+	default:
+		return false
+	}
 }
