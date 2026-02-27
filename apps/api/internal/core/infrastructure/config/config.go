@@ -136,10 +136,15 @@ var AppConfig *Config
 
 func Load() error {
 	// Load .env file if exists (for local development only)
-	// Skip .env loading in production to use Docker environment variables
+	// Skip .env loading in production to use Docker environment variables.
+	// IMPORTANT: Read env value BEFORE and AFTER loading .env, because ENV/APP_ENV may
+	// only exist inside .env (not in OS env). On first read it defaults to "development",
+	// so we always attempt to load .env, then re-read to get the correct value.
 	envValue := getEnv("APP_ENV", getEnv("ENV", "development")) // Support both APP_ENV and ENV
 	if envValue != "production" {
 		_ = godotenv.Load()
+		// Re-read after loading .env so ENV=production inside the file is honoured
+		envValue = getEnv("APP_ENV", getEnv("ENV", envValue))
 	}
 
 	AppConfig = &Config{
