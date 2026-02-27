@@ -49,6 +49,8 @@ export const purchasePaymentEn = {
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     amount: "Invoice Amount",
+    paidAmount: "Paid Amount",
+    remainingAmount: "Remaining Amount",
     status: "Status",
   },
   auditTrail: {

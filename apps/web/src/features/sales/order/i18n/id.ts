@@ -62,7 +62,6 @@ export const orderId = {
       shipped: "Dikirim",
       delivered: "Terkirim",
       partial: "Parsial",
-      closed: "Selesai",
       cancelled: "Dibatalkan",
     },
 

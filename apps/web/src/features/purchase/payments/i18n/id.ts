@@ -49,6 +49,8 @@ export const purchasePaymentId = {
     invoiceDate: "Tanggal Invoice",
     dueDate: "Jatuh Tempo",
     amount: "Jumlah Tagihan",
+    paidAmount: "Jumlah Dibayar",
+    remainingAmount: "Sisa Tagihan",
     status: "Status",
   },
   auditTrail: {
