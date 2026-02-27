@@ -7,15 +7,18 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
+	"github.com/google/uuid"
 )
 
 // SeedCustomerInvoice seeds sample customer invoice data
 func SeedCustomerInvoice() error {
 	db := database.DB
+	adminID := getAdminID(db)
 
 	var count int64
 	db.Model(&salesModels.CustomerInvoice{}).Count(&count)
@@ -55,6 +58,11 @@ func SeedCustomerInvoice() error {
 	if len(products) == 0 {
 		log.Println("Warning: No approved products found. Please seed products first.")
 		return nil
+	}
+
+	var bankAccount coreModels.BankAccount
+	if err := db.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
+		log.Printf("Warning: Failed to fetch bank account: %v", err)
 	}
 
 	// Initialize repository for code generation
@@ -112,10 +120,10 @@ func SeedCustomerInvoice() error {
 			daysAgo:        10,
 			dueDaysAfter:   30,
 			itemsCount:     4,
-			notes:          "Partial payment received",
+			notes:          "Partial payment with DP deducted",
 			fromOrder:      true,
 			paidPercent:    0.5,
-			hasDownPayment: false,
+			hasDownPayment: true,
 		},
 		{
 			status:         salesModels.CustomerInvoiceStatusPaid,
@@ -234,6 +242,7 @@ func SeedCustomerInvoice() error {
 			Amount:         totalAmount,
 			Status:         invData.status,
 			Notes:          invData.notes,
+			CreatedBy:      &adminID,
 		}
 
 		// Link to sales order if available
@@ -254,6 +263,7 @@ func SeedCustomerInvoice() error {
 					Subtotal:     dpAmount,
 					PaidAmount:   dpAmount,
 					Status:       salesModels.CustomerInvoiceStatusPaid,
+					CreatedBy:    &adminID,
 				}
 				db.Create(&dpInvoice)
 				log.Printf("Seeded Down Payment %s (ID: %s) for SO %s", dpCode, dpInvoice.ID, linkedOrder.Code)
@@ -281,6 +291,24 @@ func SeedCustomerInvoice() error {
 		if err := db.Create(&invoice).Error; err != nil {
 			log.Printf("Warning: Failed to create invoice %s: %v", code, err)
 			continue
+		}
+
+		// Create actual SalesPayment if there is paid amount
+		adminID := getAdminID(db)
+		if invoice.PaidAmount > 0 && bankAccount.ID != "" {
+			payment := salesModels.SalesPayment{
+				ID:                uuid.New().String(),
+				CustomerInvoiceID: invoice.ID,
+				BankAccountID:     bankAccount.ID,
+				PaymentDate:       invoice.InvoiceDate.Format("2006-01-02"),
+				Amount:            invoice.PaidAmount,
+				Method:            "BANK",
+				Status:            salesModels.SalesPaymentStatusConfirmed,
+				CreatedBy:         adminID,
+			}
+			if err := db.Create(&payment).Error; err != nil {
+				log.Printf("Warning: Failed to create payment for invoice %s: %v", code, err)
+			}
 		}
 
 		// Create items with invoice ID

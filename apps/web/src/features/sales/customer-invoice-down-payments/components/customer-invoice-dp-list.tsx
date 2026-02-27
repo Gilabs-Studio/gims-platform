@@ -12,6 +12,9 @@ import {
   Pencil,
   Plus,
   Search,
+  CheckCircle2,
+  DollarSign,
+  FileEdit,
   Trash2,
 } from "lucide-react";
 
@@ -163,26 +166,30 @@ export function CustomerInvoiceDPList() {
     switch (normalizeStatus(status)) {
       case "paid":
         return (
-          <Badge variant="success" className="text-xs font-medium">
+          <Badge variant="success">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="outline" className="text-xs font-medium">
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge variant="warning">
+            <DollarSign className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "draft":
       default:
         return (
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge variant="secondary">
+            <FileEdit className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );

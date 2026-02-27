@@ -50,15 +50,21 @@ type SupplierInvoice struct {
 	DueDate          string `gorm:"type:varchar(20);index;not null" json:"due_date"`
 	TaxInvoiceNumber string `gorm:"type:varchar(100);index" json:"tax_invoice_number,omitempty"`
 
-	TaxRate      float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
-	TaxAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
-	DeliveryCost float64 `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
-	OtherCost    float64 `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
-	SubTotal     float64 `gorm:"type:decimal(15,2);default:0" json:"sub_total"`
-	Amount       float64 `gorm:"type:decimal(15,2);default:0" json:"amount"`
+	TaxRate         float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
+	TaxAmount       float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
+	DeliveryCost    float64 `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
+	OtherCost       float64 `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
+	SubTotal        float64 `gorm:"type:decimal(15,2);default:0" json:"sub_total"`
+	Amount          float64 `gorm:"type:decimal(15,2);default:0" json:"amount"`
+	PaidAmount      float64 `gorm:"type:decimal(15,2);default:0" json:"paid_amount"`
+	RemainingAmount float64 `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
 
-	Status SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
-	Notes  *string               `gorm:"type:text" json:"notes,omitempty"`
+	DownPaymentInvoiceID *string          `gorm:"type:uuid;index" json:"down_payment_invoice_id,omitempty"`
+	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
+
+	Status    SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	PaymentAt *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
+	Notes     *string               `gorm:"type:text" json:"notes,omitempty"`
 
 	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`

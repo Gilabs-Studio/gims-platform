@@ -153,7 +153,7 @@ export function DeliveryList() {
     try {
       await deliverDelivery.mutateAsync({
         id: deliverDeliveryId,
-        data: { 
+        data: {
           receiver_signature: signatureUrl,
           receiver_name: receiverName,
         },
@@ -169,28 +169,28 @@ export function DeliveryList() {
     switch (status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
@@ -211,20 +211,20 @@ export function DeliveryList() {
         );
       case "delivered":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.delivered")}
           </Badge>
         );
       case "cancelled":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.cancelled")}
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
     }
   };
 
@@ -266,7 +266,7 @@ export function DeliveryList() {
           <SelectTrigger className="w-48">
             <SelectValue placeholder={t("common.filterBy")} />
           </SelectTrigger>
-            <SelectContent>
+          <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
             <SelectItem value="sent">{t("status.pending")}</SelectItem>

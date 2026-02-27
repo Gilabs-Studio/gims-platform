@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   History,
+  Clock,
   MoreHorizontal,
   Plus,
   Search,
@@ -179,11 +180,15 @@ export function SalesPaymentsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
+              Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell />
                 </TableRow>
               ))
             ) : items.length === 0 ? (
@@ -204,9 +209,17 @@ export function SalesPaymentsList() {
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
                     <TableCell>
-                      <Badge variant={status === "CONFIRMED" ? "default" : "secondary"}>
-                        {status === "CONFIRMED" ? t("status.confirmed") : t("status.pending")}
-                      </Badge>
+                      {status === "CONFIRMED" ? (
+                        <Badge variant="success" className="text-xs font-medium">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {t("status.confirmed")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="info" className="text-xs font-medium">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {t("status.pending")}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">{formatMoney(item.amount)}</TableCell>
                     <TableCell className="text-right">

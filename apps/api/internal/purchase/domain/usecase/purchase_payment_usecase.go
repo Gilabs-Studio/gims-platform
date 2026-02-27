@@ -285,8 +285,72 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 		if newTotal >= inv.Amount-0.0001 {
 			newStatus = models.SupplierInvoiceStatusPaid
 		}
-		if err := tx.Model(&inv).Updates(map[string]interface{}{"status": newStatus, "updated_at": time.Now()}).Error; err != nil {
+		updateData := map[string]interface{}{
+			"status":           newStatus,
+			"paid_amount":      newTotal,
+			"remaining_amount": math.Max(0, inv.Amount-newTotal),
+			"updated_at":       time.Now(),
+		}
+		if newStatus == models.SupplierInvoiceStatusPaid {
+			now := time.Now()
+			updateData["payment_at"] = &now
+		}
+
+		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
 			return err
+		}
+
+		// If regular invoice is fully paid and it has a PurchaseOrder, close the PO
+		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeNormal && inv.PurchaseOrderID != "" {
+			var po models.PurchaseOrder
+			if err := tx.First(&po, "id = ?", inv.PurchaseOrderID).Error; err == nil {
+				_ = tx.Model(&po).Update("status", "closed").Error
+			}
+		}
+
+		// When a DP Invoice becomes paid, update existing Regular Invoices on the same PO
+		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeDownPayment && inv.PurchaseOrderID != "" {
+			// Sum all paid DP amounts for this PO
+			type dpSumRow struct{ Total float64 }
+			var dpSum dpSumRow
+			if err := tx.Model(&models.SupplierInvoice{}).
+				Select("COALESCE(SUM(paid_amount),0) as total").
+				Where("purchase_order_id = ?", inv.PurchaseOrderID).
+				Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+				Where("status = ?", models.SupplierInvoiceStatusPaid).
+				Where("deleted_at IS NULL").
+				Scan(&dpSum).Error; err != nil {
+				return err
+			}
+
+			// Find all Regular Invoices on the same PO and update them
+			var regularInvoices []models.SupplierInvoice
+			if err := tx.Where("purchase_order_id = ?", inv.PurchaseOrderID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
+				Where("deleted_at IS NULL").
+				Find(&regularInvoices).Error; err != nil {
+				return err
+			}
+
+			for _, regInv := range regularInvoices {
+				// Recalculate: original amount = subtotal + tax + delivery + other
+				originalAmount := regInv.SubTotal + regInv.TaxAmount + regInv.DeliveryCost + regInv.OtherCost
+				newAmount := math.Max(0, originalAmount-dpSum.Total)
+				newRemaining := math.Max(0, newAmount-regInv.PaidAmount)
+
+				dpInvID := inv.ID
+				regUpdates := map[string]interface{}{
+					"down_payment_invoice_id": &dpInvID,
+					"down_payment_amount":     dpSum.Total,
+					"amount":                  newAmount,
+					"remaining_amount":        newRemaining,
+					"updated_at":              time.Now(),
+				}
+				if err := tx.Model(&models.SupplierInvoice{}).Where("id = ?", regInv.ID).Updates(regUpdates).Error; err != nil {
+					return err
+				}
+				fmt.Printf("✅ Updated Regular Invoice %s: DP deducted %.2f, new amount %.2f\n", regInv.Code, dpSum.Total, newAmount)
+			}
 		}
 
 		confirmedID = pay.ID

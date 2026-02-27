@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -124,62 +125,62 @@ export function InvoiceList() {
     switch (status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="secondary">
+          <Badge variant="outline" className="text-xs font-medium">
             <Clock className="h-3 w-3 mr-1" />
             {t("status.unpaid")}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="warning">
+          <Badge variant="warning" className="text-xs font-medium">
             <DollarSign className="h-3 w-3 mr-1" />
             {t("status.partial")}
           </Badge>
         );
       case "paid":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.paid")}
           </Badge>
         );
       case "cancelled":
         return (
-          <Badge variant="destructive">
+          <Badge variant="secondary" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.cancelled")}
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
     }
   };
 
@@ -252,14 +253,29 @@ export function InvoiceList() {
               <TableHead>{t("salesOrder")}</TableHead>
               <TableHead>{t("dpCode")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("totalAmount")}</TableHead>
-              <TableHead>{t("paidAmount")}</TableHead>
-              <TableHead>{t("remainingAmount")}</TableHead>
+              <TableHead className="text-right">{t("totalAmount")}</TableHead>
+              <TableHead className="text-right">{t("paidAmount")}</TableHead>
+              <TableHead className="text-right">{t("remainingAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell />
+                </TableRow>
+              ))
+            ) : invoices.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
@@ -303,20 +319,18 @@ export function InvoiceList() {
                           setSelectedDPId(invoice.down_payment_invoice_id!);
                           setIsDPOpen(true);
                         }}
-                        className="cursor-pointer font-medium text-primary hover:underline hover:bg-transparent p-0 m-0 border-none bg-transparent"
+                        className="font-medium text-primary hover:underline cursor-pointer"
                       >
-                        <Badge variant="outline" className="font-mono cursor-pointer hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                          {invoice.down_payment_invoice_code}
-                        </Badge>
+                        {invoice.down_payment_invoice_code}
                       </button>
                     ) : (
-                      <span className="text-muted-foreground text-xs">{t('item.noProductSelected').replace(/.*No.*/i, '-')}</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.amount ?? 0)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
