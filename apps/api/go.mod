@@ -13,6 +13,7 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/joho/godotenv v1.5.1
 	github.com/kolesa-team/go-webp v1.0.5
+	github.com/paulmach/orb v0.12.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stretchr/testify v1.11.1
 	github.com/xuri/excelize/v2 v2.10.0
@@ -65,6 +66,7 @@ require (
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
+	go.mongodb.org/mongo-driver v1.11.4 // indirect
 	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/net v0.47.0 // indirect

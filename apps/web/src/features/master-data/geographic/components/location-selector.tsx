@@ -128,6 +128,7 @@ export function LocationSelector({
             <Select
               value={field.value ?? ""}
               onValueChange={(val) => {
+                if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
                 setValue(fields.city_id, undefined, { shouldDirty: true });
                 setValue(fields.district_id, undefined, { shouldDirty: true });
@@ -159,6 +160,7 @@ export function LocationSelector({
             <Select
               value={field.value ?? ""}
               onValueChange={(val) => {
+                if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
                 setValue(fields.district_id, undefined, { shouldDirty: true });
               }}

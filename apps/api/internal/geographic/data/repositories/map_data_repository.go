@@ -13,6 +13,8 @@ type MapDataRepository interface {
 	FindProvincesWithGeometry(ctx context.Context) ([]models.Province, error)
 	FindCitiesWithGeometryByProvince(ctx context.Context, provinceID string) ([]models.City, error)
 	FindDistrictsWithGeometryByCity(ctx context.Context, cityID string) ([]models.District, error)
+	FindDistrictsWithGeometryByProvince(ctx context.Context, provinceID string) ([]models.District, error)
+	FindAllDistrictsWithGeometry(ctx context.Context) ([]models.District, error)
 }
 
 type mapDataRepository struct {
@@ -60,6 +62,33 @@ func (r *mapDataRepository) FindDistrictsWithGeometryByCity(ctx context.Context,
 	err := r.getDB(ctx).
 		Where("city_id = ? AND is_active = ? AND geometry IS NOT NULL", cityID, true).
 		Order("name ASC").
+		Find(&districts).Error
+	if err != nil {
+		return nil, err
+	}
+	return districts, nil
+}
+
+// FindDistrictsWithGeometryByProvince returns all districts in a province with City preloaded
+func (r *mapDataRepository) FindDistrictsWithGeometryByProvince(ctx context.Context, provinceID string) ([]models.District, error) {
+	var districts []models.District
+	err := r.getDB(ctx).
+		Joins("JOIN cities ON cities.id = districts.city_id").
+		Where("cities.province_id = ? AND districts.is_active = ? AND districts.geometry IS NOT NULL", provinceID, true).
+		Preload("City").
+		Find(&districts).Error
+	if err != nil {
+		return nil, err
+	}
+	return districts, nil
+}
+
+// FindAllDistrictsWithGeometry returns all active districts with geometry, with City and Province preloaded
+func (r *mapDataRepository) FindAllDistrictsWithGeometry(ctx context.Context) ([]models.District, error) {
+	var districts []models.District
+	err := r.getDB(ctx).
+		Where("is_active = ? AND geometry IS NOT NULL", true).
+		Preload("City.Province").
 		Find(&districts).Error
 	if err != nil {
 		return nil, err

@@ -7,7 +7,9 @@ export const inventoryEn = {
       ok: "OK",
       lowStock: "Low Stock",
       outOfStock: "Out of Stock",
-      overstock: "Overstock"
+      overstock: "Overstock",
+      expiring: "Expiring",
+      expired: "Expired"
     },
     filter: {
       warehouse: "Warehouse",
