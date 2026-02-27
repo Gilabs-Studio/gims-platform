@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -128,7 +128,6 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   });
 
   const {
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -387,6 +386,82 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   const isLoading = createQuotation.isPending || updateQuotation.isPending;
   const isFormLoading = isEdit && (isLoadingQuotation || isFetchingQuotation) && !fullQuotationData?.data;
 
+  // ─── Quick-create (Odoo-style inline creation from combobox) ───────────────
+  type QuickCreateType =
+    | "paymentTerm"
+    | "businessUnit"
+    | "businessType"
+    | "customer"
+    | "product"
+    | "employee"
+    | null;
+
+  const [quickCreate, setQuickCreate] = useState<{
+    type: QuickCreateType;
+    itemIndex?: number;
+  }>({ type: null });
+
+  const openQuickCreate = useCallback(
+    (type: QuickCreateType, _initialName?: string, itemIndex?: number) =>
+      setQuickCreate({ type, itemIndex }),
+    [],
+  );
+
+  const closeQuickCreate = useCallback(
+    () => setQuickCreate({ type: null }),
+    [],
+  );
+
+  const handlePaymentTermCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      setValue("payment_terms_id", item.id, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleBusinessUnitCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      setValue("business_unit_id", item.id, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleBusinessTypeCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      setValue("business_type_id", item.id, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleCustomerCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      setValue("customer_id", item.id, { shouldValidate: true });
+      setValue("customer_name", item.name, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleProductCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      const idx = quickCreate.itemIndex ?? 0;
+      setValue(`items.${idx}.product_id`, item.id, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate, quickCreate.itemIndex],
+  );
+
+  const handleEmployeeCreated = useCallback(
+    (item: { id: string; name: string }) => {
+      setValue("sales_rep_id", item.id, { shouldValidate: true });
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
       setActiveTab("basic");
@@ -456,5 +531,15 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     handleCustomerChange,
     handleDialogChange,
     onInvalid,
+    // Quick-create state & handlers
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
+    handleBusinessUnitCreated,
+    handleBusinessTypeCreated,
+    handleCustomerCreated,
+    handleProductCreated,
+    handleEmployeeCreated,
   };
 }

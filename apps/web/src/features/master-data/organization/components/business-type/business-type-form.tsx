@@ -14,10 +14,12 @@ export interface BusinessTypeFormProps {
   open: boolean;
   onClose: () => void;
   businessType?: BusinessType | null;
+  /** Called after a successful create with id and name of the new item */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function BusinessTypeForm({ open, onClose, businessType }: BusinessTypeFormProps) {
-  const { form, t, isEditing, isLoading, onSubmit } = useBusinessTypeForm({ open, onClose, businessType });
+export function BusinessTypeForm({ open, onClose, businessType, onCreated }: BusinessTypeFormProps) {
+  const { form, t, isEditing, isLoading, onSubmit } = useBusinessTypeForm({ open, onClose, businessType, onCreated });
 
   const {
     register,

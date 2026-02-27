@@ -14,10 +14,12 @@ export interface BusinessUnitFormProps {
   open: boolean;
   onClose: () => void;
   businessUnit?: BusinessUnit | null;
+  /** Called after a successful create with id and name of the new item */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function BusinessUnitForm({ open, onClose, businessUnit }: BusinessUnitFormProps) {
-  const { form, t, isEditing, isLoading, onSubmit } = useBusinessUnitForm({ open, onClose, businessUnit });
+export function BusinessUnitForm({ open, onClose, businessUnit, onCreated }: BusinessUnitFormProps) {
+  const { form, t, isEditing, isLoading, onSubmit } = useBusinessUnitForm({ open, onClose, businessUnit, onCreated });
 
   const {
     register,

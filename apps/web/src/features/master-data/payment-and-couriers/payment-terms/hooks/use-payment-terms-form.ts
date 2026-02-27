@@ -20,9 +20,11 @@ export interface UsePaymentTermsFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: PaymentTerms | null;
+  /** Called after a successful create with the newly created item's id and name */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function usePaymentTermsForm({ open, onOpenChange, editingItem }: UsePaymentTermsFormProps) {
+export function usePaymentTermsForm({ open, onOpenChange, editingItem, onCreated }: UsePaymentTermsFormProps) {
   const t = useTranslations("paymentTerm");
   const tCommon = useTranslations("common");
 
@@ -68,8 +70,9 @@ export function usePaymentTermsForm({ open, onOpenChange, editingItem }: UsePaym
         });
         toast.success(t("updated", { fallback: "Payment term updated successfully" }));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = await createMutation.mutateAsync(data);
         toast.success(t("created", { fallback: "Payment term created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
       form.reset();
