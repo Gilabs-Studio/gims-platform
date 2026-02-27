@@ -13,6 +13,10 @@ export const supplierInvoiceEn = {
     title: "Supplier Invoice Detail",
     failed: "Failed to load supplier invoice",
   },
+  tabs: {
+    general: "General",
+    items: "Items",
+  },
   auditTrail: {
     title: "Audit Trail",
     empty: "No audit trail entries",

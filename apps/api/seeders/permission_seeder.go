@@ -225,11 +225,7 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
-		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
-		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
-		{"/sales/visits", "sales_visit.update", "Edit Sales Visits", "EDIT", "sales_visit"},
-		{"/sales/visits", "sales_visit.delete", "Delete Sales Visits", "DELETE", "sales_visit"},
-		{"/sales/visits", "sales_visit.approve", "Approve Sales Visits", "APPROVE", "sales_visit"},
+
 
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
@@ -481,6 +477,10 @@ func SeedPermissions() error {
 		// Reports - Sales Overview
 		{"/reports/sales-overview", "report_sales_overview.read", "View Sales Overview Report", "VIEW", "report_sales_overview"},
 		{"/reports/sales-overview", "report_sales_overview.export", "Export Sales Overview Report", "EXPORT", "report_sales_overview"},
+
+		// Reports - Product Analysis
+		{"/reports/product-analysis", "report_product_analysis.read", "View Product Analysis Report", "VIEW", "report_product_analysis"},
+		{"/reports/product-analysis", "report_product_analysis.export", "Export Product Analysis Report", "EXPORT", "report_product_analysis"},
 
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},

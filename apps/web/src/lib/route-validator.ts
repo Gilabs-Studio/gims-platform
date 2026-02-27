@@ -90,6 +90,7 @@ const VALID_DASHBOARD_ROUTES = [
   // Reports
   "/reports",
   "/reports/sales-overview",
+  "/reports/product-analysis",
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",

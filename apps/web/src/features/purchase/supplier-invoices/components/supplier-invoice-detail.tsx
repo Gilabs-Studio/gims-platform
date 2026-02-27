@@ -2,9 +2,13 @@
 
 import { useTranslations } from "next-intl";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -14,7 +18,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
+import {
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Hash,
+  Receipt,
+  TrendingUp,
+} from "lucide-react";
 
 import type { SupplierInvoiceDetail, SupplierInvoiceStatus } from "../types";
 import { useSupplierInvoice } from "../hooks/use-supplier-invoices";
@@ -26,21 +41,41 @@ function safeDate(value?: string | null): string {
   return d.toLocaleDateString();
 }
 
-function statusVariant(status: SupplierInvoiceStatus):
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline" {
-  switch (status) {
-    case "PAID":
-      return "default";
-    case "PARTIAL":
-      return "secondary";
-    case "UNPAID":
-      return "outline";
-    case "DRAFT":
+function normalizeStatus(status?: string | null): string {
+  return (status ?? "").toLowerCase();
+}
+
+function StatusBadge({ status, t }: { status: SupplierInvoiceStatus; t: ReturnType<typeof useTranslations> }) {
+  switch (normalizeStatus(status)) {
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t("status.paid")}
+        </Badge>
+      );
+    case "unpaid":
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1" />
+          {t("status.unpaid")}
+        </Badge>
+      );
+    case "partial":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <TrendingUp className="h-3 w-3 mr-1" />
+          {t("status.partial")}
+        </Badge>
+      );
+    case "draft":
     default:
-      return "secondary";
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t("status.draft")}
+        </Badge>
+      );
   }
 }
 
@@ -48,45 +83,86 @@ export function SupplierInvoiceDetailView({ data }: { data: SupplierInvoiceDetai
   const t = useTranslations("supplierInvoice");
 
   return (
-    <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
-            <div className="font-medium">{data.code}</div>
-          </div>
-          <Badge variant={statusVariant(data.status)}>{t(`status.${data.status.toLowerCase()}`)}</Badge>
-        </div>
+    <Tabs defaultValue="general" className="w-full">
+      <TabsList>
+        <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
+        <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+      </TabsList>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.purchaseOrder")}</div>
-            <div className="font-medium">{data.purchase_order?.code ?? "-"}</div>
+      <TabsContent value="general" className="space-y-6 py-4">
+        {/* Header Card */}
+        <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
+          <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+            <Receipt className="h-6 w-6" />
           </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.paymentTerms")}</div>
-            <div className="font-medium">{data.payment_terms?.name ?? "-"}</div>
+          <div className="flex-1">
+            <h3 className="font-bold text-lg">{data.invoice_number}</h3>
+            <p className="text-sm text-muted-foreground font-mono">{data.code}</p>
           </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.invoiceNumber")}</div>
-            <div className="font-medium">{data.invoice_number}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.invoiceDate")}</div>
-            <div className="font-medium">{safeDate(data.invoice_date)}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.dueDate")}</div>
-            <div className="font-medium">{safeDate(data.due_date)}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("columns.amount")}</div>
-            <div className="font-medium">{formatCurrency(data.amount)}</div>
+          <div className="text-right text-sm text-muted-foreground space-y-1">
+            <div className="flex items-center gap-1 justify-end">
+              <Calendar className="h-3 w-3" />
+              {safeDate(data.invoice_date)}
+            </div>
+            <div className="flex items-center gap-1 justify-end text-xs">
+              <span>{t("fields.dueDate")}:</span>
+              <span className={safeDate(data.due_date) !== "-" ? "font-medium" : ""}>
+                {safeDate(data.due_date)}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="font-medium">{t("items.title")}</div>
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
+              <Building2 className="h-4 w-4" />
+              {t("fields.purchaseOrder")}
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">{t("fields.purchaseOrder")}</span>
+                <span className="col-span-2 font-mono font-medium text-primary">
+                  {data.purchase_order?.code ?? "-"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">{t("fields.paymentTerms")}</span>
+                <span className="col-span-2 font-medium">{data.payment_terms?.name ?? "-"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
+              <FileText className="h-4 w-4" />
+              {t("fields.notes")}
+            </h4>
+            <div className="space-y-2 text-sm">
+              {data.notes ? (
+                <p className="text-muted-foreground">{data.notes}</p>
+              ) : (
+                <p className="text-muted-foreground">-</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Amount Summary */}
+        <div className="bg-card border rounded-lg overflow-hidden">
+          <div className="p-4 flex justify-between items-center px-6 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold">{t("columns.amount")}</span>
+            </div>
+            <span className="font-mono font-bold text-xl">{formatCurrency(data.amount)}</span>
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="items" className="py-4">
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -98,27 +174,26 @@ export function SupplierInvoiceDetailView({ data }: { data: SupplierInvoiceDetai
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="max-w-[240px] truncate">{item.product_id}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                  <TableCell className="text-right">{item.discount}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.sub_total)}</TableCell>
+              {data.items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">-</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                data.items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium max-w-[240px] truncate">{item.product_id}</TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(item.price)}</TableCell>
+                    <TableCell className="text-right">{item.discount}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(item.sub_total)}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
-
-        {data.notes ? (
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{t("fields.notes")}</div>
-            <div className="whitespace-pre-wrap">{data.notes}</div>
-          </div>
-        ) : null}
-      </div>
-    </ScrollArea>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -130,7 +205,6 @@ interface SupplierInvoiceDetailDialogProps {
 
 export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvoiceDetailDialogProps) {
   const t = useTranslations("supplierInvoice");
-  const tCommon = useTranslations("common");
   const id = invoiceId ?? "";
 
   const { data, isLoading, isError } = useSupplierInvoice(id, {
@@ -143,17 +217,22 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("detail.title")}</DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-xl">
+              {detail?.invoice_number ?? t("detail.title")}
+            </DialogTitle>
+            {detail && <StatusBadge status={detail.status} t={t} />}
+          </div>
         </DialogHeader>
 
         {isLoading ? (
           <div className="space-y-3">
-            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-16 w-full" />
             <Skeleton className="h-4 w-72" />
             <Skeleton className="h-48 w-full" />
           </div>
         ) : isError || !detail ? (
-          <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+          <div className="text-sm text-destructive">{t("detail.failed")}</div>
         ) : (
           <SupplierInvoiceDetailView data={detail} />
         )}

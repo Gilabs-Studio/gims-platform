@@ -4,10 +4,16 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  AlertCircle,
+  Banknote,
+  Calendar,
+  CheckCircle2,
   Clock,
   Download,
   Eye,
+  FileText,
   History,
+  Hash,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -44,7 +50,8 @@ import {
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 import {
   useDeleteCustomerInvoiceDP,
@@ -164,18 +171,21 @@ export function CustomerInvoiceDPList() {
       case "paid":
         return (
           <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="outline" className="text-xs font-medium">
+          <Badge variant="warning" className="text-xs font-medium">
+            <Clock className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
+            <AlertCircle className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -183,6 +193,7 @@ export function CustomerInvoiceDPList() {
       default:
         return (
           <Badge variant="secondary" className="text-xs font-medium">
+            <FileText className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -413,59 +424,127 @@ export function CustomerInvoiceDPList() {
 
 /* ───────────────────── Detail View ───────────────────── */
 
+function DPStatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: ReturnType<typeof useTranslations> }) {
+  switch (normalizeStatus(status)) {
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3" />
+          {t("status.paid")}
+        </Badge>
+      );
+    case "unpaid":
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <Clock className="h-3 w-3" />
+          {t("status.unpaid")}
+        </Badge>
+      );
+    case "partial":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <AlertCircle className="h-3 w-3" />
+          {t("status.partial")}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3" />
+          {t("status.draft")}
+        </Badge>
+      );
+  }
+}
+
 function CustomerInvoiceDPDetailView({ id }: { id: string }) {
   const t = useTranslations("customerInvoiceDP");
-  const tCommon = useTranslations("common");
   const { data, isLoading, isError } = useCustomerInvoiceDP(id, { enabled: !!id });
 
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-4 pt-2">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
   if (isError || !data?.success)
     return <div className="text-center py-8 text-destructive">{t("detail.failed")}</div>;
 
   const row = data.data;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
-        <div className="font-semibold text-lg">{row.code}</div>
+    <div className="space-y-6 pt-2">
+      {/* Header card */}
+      <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
+        <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+          <FileText className="h-6 w-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-lg">{row.code}</h3>
+          <p className="text-sm text-muted-foreground font-mono">{row.invoice_number}</p>
+        </div>
+        <div className="shrink-0">
+          <DPStatusBadge status={row.status} t={t} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.salesOrder")}</div>
-          <div className="font-medium">{row.sales_order?.code ?? "-"}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* invoice dates */}
+        <div className="space-y-3">
+          <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
+            <Calendar className="h-4 w-4" />
+            {t("fields.invoiceDate")}
+          </h4>
+          <div className="space-y-2 text-sm">
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-muted-foreground">{t("fields.invoiceDate")}</span>
+              <span className="col-span-2 font-medium">{formatDate(row.invoice_date)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-muted-foreground">{t("fields.dueDate")}</span>
+              <span className="col-span-2 font-medium">{formatDate(row.due_date)}</span>
+            </div>
+          </div>
         </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.amount")}</div>
-          <div className="font-medium">{formatCurrency(row.amount)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.invoiceDate")}</div>
-          <div className="font-medium">{safeDate(row.invoice_date)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.dueDate")}</div>
-          <div className="font-medium">{safeDate(row.due_date)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.status")}</div>
-          <div className="font-medium">
-            <Badge
-              variant={normalizeStatus(row.status) === "paid" ? "success" : "secondary"}
-              className="text-xs"
-            >
-              {statusLabel(t, row.status)}
-            </Badge>
+
+        {/* reference */}
+        <div className="space-y-3">
+          <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
+            <Hash className="h-4 w-4" />
+            {t("fields.salesOrder")}
+          </h4>
+          <div className="space-y-2 text-sm">
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-muted-foreground">{t("fields.salesOrder")}</span>
+              <span className="col-span-2 font-mono font-medium text-primary">{row.sales_order?.code ?? "-"}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {row.notes ? (
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.notes")}</div>
-          <div className="whitespace-pre-wrap text-sm">{row.notes}</div>
+      {/* Amount */}
+      <div className="bg-card border rounded-lg overflow-hidden">
+        <div className="p-4 text-center space-y-1 bg-primary/5">
+          <p className="text-xs text-muted-foreground uppercase font-semibold">{t("fields.amount")}</p>
+          <p className="text-2xl font-bold font-mono text-primary">{formatCurrency(row.amount)}</p>
         </div>
+      </div>
+
+      {row.notes ? (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <h4 className="font-semibold flex items-center gap-2 text-sm">
+              <Banknote className="h-4 w-4" />
+              {t("fields.notes")}
+            </h4>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap rounded-md bg-muted/30 p-3 border">
+              {row.notes}
+            </p>
+          </div>
+        </>
       ) : null}
     </div>
   );

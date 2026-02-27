@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
+  Clock,
   Download,
   Eye,
   History,
@@ -204,8 +205,12 @@ export function PurchasePaymentsList() {
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
                     <TableCell>
-                      <Badge variant={status === "CONFIRMED" ? "default" : "secondary"}>
-                        {status === "CONFIRMED" ? t("status.confirmed") : t("status.pending")}
+                      <Badge variant={status === "CONFIRMED" ? "success" : "warning"} className="text-xs font-medium">
+                        {status === "CONFIRMED" ? (
+                          <><CheckCircle2 className="h-3 w-3 mr-1" />{t("status.confirmed")}</>
+                        ) : (
+                          <><Clock className="h-3 w-3 mr-1" />{t("status.pending")}</>
+                        )}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">{formatMoney(item.amount)}</TableCell>
@@ -252,7 +257,7 @@ export function PurchasePaymentsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.confirm")}

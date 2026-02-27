@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
+  Clock,
   Download,
   Eye,
   History,
@@ -12,6 +13,7 @@ import {
   Plus,
   Search,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -144,24 +146,28 @@ export function PurchaseOrdersList() {
       case "draft":
         return (
           <Badge variant="secondary" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "revised":
         return (
           <Badge variant="info" className="text-xs font-medium">
+            <Pencil className="h-3 w-3 mr-1" />
             {t("status.revised")}
           </Badge>
         );
       case "approved":
         return (
           <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "closed":
         return (
           <Badge variant="outline" className="text-xs font-medium">
+            <XCircle className="h-3 w-3 mr-1" />
             {t("status.closed")}
           </Badge>
         );
@@ -309,7 +315,7 @@ export function PurchaseOrdersList() {
 
                           {canConfirm && ["draft", "revised"].includes(normalizeStatus(it.status)) ? (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-green-600 focus:text-green-600"
                               onClick={async () => {
                                 try {
                                   await confirmMutation.mutateAsync(it.id);
@@ -326,7 +332,7 @@ export function PurchaseOrdersList() {
 
                           {canRevise && ["draft", "approved"].includes(normalizeStatus(it.status)) ? (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                               onClick={() => {
                                 setReviseId(it.id);
                                 setReviseOpen(true);

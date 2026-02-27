@@ -4,15 +4,18 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  CheckCircle2,
   Clock,
   Download,
   Eye,
+  FileText,
   History,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -166,18 +169,21 @@ export function SupplierInvoicesList() {
       case "paid":
         return (
           <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="outline" className="text-xs font-medium">
+          <Badge variant="warning" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
+            <TrendingUp className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -185,6 +191,7 @@ export function SupplierInvoicesList() {
       default:
         return (
           <Badge variant="secondary" className="text-xs font-medium">
+            <FileText className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
