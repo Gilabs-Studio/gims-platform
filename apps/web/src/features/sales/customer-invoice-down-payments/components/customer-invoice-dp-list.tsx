@@ -245,7 +245,9 @@ export function CustomerInvoiceDPList() {
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.salesOrder")}</TableHead>
+              <TableHead>{t("columns.relatedInvoiceCode")}</TableHead>
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
+              <TableHead className="text-right">{t("columns.remainingAmount")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead>{t("columns.createdAt")}</TableHead>
               {canShowActions ? <TableHead className="w-[70px]" /> : null}
@@ -255,7 +257,7 @@ export function CustomerInvoiceDPList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: canShowActions ? 8 : 7 }).map((__, j) => (
+                  {Array.from({ length: canShowActions ? 10 : 9 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -265,8 +267,8 @@ export function CustomerInvoiceDPList() {
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={canShowActions ? 8 : 7}
-                  className="text-center py-8 text-muted-foreground"
+                  colSpan={canShowActions ? 10 : 9}
+                  className="h-24 text-center text-muted-foreground"
                 >
                   {tCommon("empty")}
                 </TableCell>
@@ -278,7 +280,17 @@ export function CustomerInvoiceDPList() {
                   <TableCell>{safeDate(row.invoice_date)}</TableCell>
                   <TableCell>{safeDate(row.due_date)}</TableCell>
                   <TableCell>{row.sales_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    {row.related_invoice_code ? (
+                      <Badge variant="outline" className="font-mono">
+                        {row.related_invoice_code}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">{tCommon('empty').replace(/.*No.*/i, '-')}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
                   <TableCell className="flex items-center justify-between gap-2">
                     <span>{safeDate(row.created_at)}</span>

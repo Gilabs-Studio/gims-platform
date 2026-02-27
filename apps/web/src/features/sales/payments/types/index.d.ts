@@ -44,6 +44,8 @@ export interface SalesPaymentInvoiceSummary {
   tax_rate: number;
   tax_amount: number;
   amount: number;
+  paid_amount?: number;
+  remaining_amount?: number;
   status: string;
   notes?: string | null;
 }
@@ -76,10 +78,13 @@ export interface SalesPaymentDetail extends SalesPaymentListItem {
 export interface SalesPaymentAddInvoiceItem {
   id: string;
   sales_order?: { id: string; code: string } | null;
-  invoice_number: string;
+  code: string;
+  invoice_number?: string | null;
   invoice_date: string;
   due_date: string;
   amount: number;
+  paid_amount: number;
+  remaining_amount: number;
   status: string;
 }
 

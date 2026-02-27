@@ -78,6 +78,7 @@ export const invoiceEn = {
     title: "Customer Invoices",
     subtitle: "Manage customer invoices and track payments",
     code: "Invoice Code",
+    dpCode: "DP Code",
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",

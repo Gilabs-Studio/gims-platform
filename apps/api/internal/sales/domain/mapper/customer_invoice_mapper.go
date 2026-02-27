@@ -41,6 +41,9 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 	if invoice.DownPaymentInvoiceID != nil {
 		resp.DownPaymentInvoiceID = invoice.DownPaymentInvoiceID
 	}
+	if invoice.DownPaymentInvoice != nil {
+		resp.DownPaymentInvoiceCode = &invoice.DownPaymentInvoice.Code
+	}
 
 	// Map optional date fields
 	if invoice.DueDate != nil {

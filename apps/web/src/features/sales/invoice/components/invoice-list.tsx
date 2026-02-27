@@ -17,6 +17,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
@@ -35,6 +36,8 @@ export function InvoiceList() {
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(null);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
   const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
+  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isDPOpen, setIsDPOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -247,15 +250,18 @@ export function InvoiceList() {
               <TableHead>{t("invoiceDate")}</TableHead>
               <TableHead>{t("dueDate")}</TableHead>
               <TableHead>{t("salesOrder")}</TableHead>
+              <TableHead>{t("dpCode")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
               <TableHead>{t("totalAmount")}</TableHead>
+              <TableHead>{t("paidAmount")}</TableHead>
+              <TableHead>{t("remainingAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -290,8 +296,27 @@ export function InvoiceList() {
                       <span>{invoice.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {invoice.down_payment_invoice_code && invoice.down_payment_invoice_id ? (
+                      <button
+                        onClick={() => {
+                          setSelectedDPId(invoice.down_payment_invoice_id!);
+                          setIsDPOpen(true);
+                        }}
+                        className="cursor-pointer font-medium text-primary hover:underline hover:bg-transparent p-0 m-0 border-none bg-transparent"
+                      >
+                        <Badge variant="outline" className="font-mono cursor-pointer hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                          {invoice.down_payment_invoice_code}
+                        </Badge>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">{t('item.noProductSelected').replace(/.*No.*/i, '-')}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
                   <TableCell>{formatCurrency(invoice.amount ?? 0)}</TableCell>
+                  <TableCell>{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
+                  <TableCell>{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
@@ -416,6 +441,14 @@ export function InvoiceList() {
           open={isSalesOrderOpen}
           onClose={() => setIsSalesOrderOpen(false)}
           order={{ id: selectedSalesOrderId } as unknown as SalesOrder}
+        />
+      )}
+
+      {selectedDPId && (
+        <CustomerInvoiceDPDetailModal
+          open={isDPOpen}
+          onOpenChange={setIsDPOpen}
+          id={selectedDPId}
         />
       )}
 

@@ -38,7 +38,7 @@ export type PurchasePaymentMethod = "BANK" | "CASH";
 export interface PurchasePaymentInvoiceSummary {
   id: string;
   code: string;
-  invoice_number: string;
+  invoice_number?: string | null;
   invoice_date: string;
   due_date: string;
   tax_rate: number;
@@ -76,7 +76,8 @@ export interface PurchasePaymentDetail extends PurchasePaymentListItem {
 export interface PurchasePaymentAddInvoiceItem {
   id: string;
   purchase_order?: { id: string; code: string } | null;
-  invoice_number: string;
+  code: string;
+  invoice_number?: string | null;
   invoice_date: string;
   due_date: string;
   amount: number;

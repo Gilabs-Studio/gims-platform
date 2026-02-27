@@ -95,14 +95,21 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 				Code string `json:"code"`
 			}{ID: inv.PurchaseOrder.ID, Code: inv.PurchaseOrder.Code}
 		}
+		var totalPaid float64
+		uc.db.WithContext(ctx).Model(&models.PurchasePayment{}).
+			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusConfirmed).
+			Select("COALESCE(SUM(amount), 0)").Scan(&totalPaid)
+
 		invItems = append(invItems, &dto.PurchasePaymentAddInvoiceItem{
-			ID:            inv.ID,
-			PurchaseOrder: poObj,
-			InvoiceNumber: inv.InvoiceNumber,
-			InvoiceDate:   inv.InvoiceDate,
-			DueDate:       inv.DueDate,
-			Amount:        inv.Amount,
-			Status:        string(inv.Status),
+			ID:              inv.ID,
+			PurchaseOrder:   poObj,
+			InvoiceNumber:   inv.InvoiceNumber,
+			InvoiceDate:     inv.InvoiceDate,
+			DueDate:         inv.DueDate,
+			Amount:          inv.Amount,
+			PaidAmount:      totalPaid,
+			RemainingAmount: inv.Amount - totalPaid,
+			Status:          string(inv.Status),
 		})
 	}
 

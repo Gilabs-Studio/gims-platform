@@ -74,8 +74,8 @@ func (uc *customerInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	return &dto.CustomerInvoiceDownPaymentAddResponse{SalesOrders: soRes}, nil
 }
 
-func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ci *models.CustomerInvoice) *dto.CustomerInvoiceDownPaymentDetailResponse {
-	var n string
+func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci *models.CustomerInvoice) *dto.CustomerInvoiceDownPaymentDetailResponse {
+	n := ""
 	if ci.Notes != "" {
 		n = ci.Notes
 	}
@@ -97,25 +97,33 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ci *models.CustomerInvo
 	if ci.SalesOrderID != nil {
 		salesOrderID = *ci.SalesOrderID
 	}
+	var relatedCode *string
+	var regularInvoice models.CustomerInvoice
+	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+		relatedCode = &regularInvoice.Code
+	}
+
 	return &dto.CustomerInvoiceDownPaymentDetailResponse{
-		ID:            ci.ID,
-		SalesOrderID:  salesOrderID,
-		SalesOrder:    soDto,
-		CustomerID:    custID,
-		Code:          ci.Code,
-		InvoiceNumber: ci.InvoiceNumber,
-		InvoiceDate:   ci.InvoiceDate.Format("2006-01-02"),
-		DueDate:       dueDate,
-		Amount:        ci.Amount,
-		Status:        string(ci.Status),
-		Notes:         &n,
-		CreatedBy:     ci.CreatedBy,
-		CreatedAt:     ci.CreatedAt,
-		UpdatedAt:     ci.UpdatedAt,
+		ID:                 ci.ID,
+		SalesOrderID:       salesOrderID,
+		SalesOrder:         soDto,
+		CustomerID:         custID,
+		Code:               ci.Code,
+		RelatedInvoiceCode: relatedCode,
+		InvoiceNumber:      ci.InvoiceNumber,
+		InvoiceDate:        ci.InvoiceDate.Format("2006-01-02"),
+		DueDate:            dueDate,
+		Amount:             ci.Amount,
+		RemainingAmount:    ci.RemainingAmount,
+		Status:             string(ci.Status),
+		Notes:              &n,
+		CreatedBy:          ci.CreatedBy,
+		CreatedAt:          ci.CreatedAt,
+		UpdatedAt:          ci.UpdatedAt,
 	}
 }
 
-func (uc *customerInvoiceDownPaymentUsecase) mapToList(ci *models.CustomerInvoice) *dto.CustomerInvoiceDownPaymentListResponse {
+func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *models.CustomerInvoice) *dto.CustomerInvoiceDownPaymentListResponse {
 	var soDto *dto.CustomerInvoiceDownPaymentSalesOrder
 	if ci.SalesOrder != nil {
 		soDto = &dto.CustomerInvoiceDownPaymentSalesOrder{ID: ci.SalesOrder.ID, Code: ci.SalesOrder.Code}
@@ -129,17 +137,25 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ci *models.CustomerInvoic
 	if ci.SalesOrderID != nil {
 		salesOrderID = *ci.SalesOrderID
 	}
+	var relatedCode *string
+	var regularInvoice models.CustomerInvoice
+	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+		relatedCode = &regularInvoice.Code
+	}
+
 	return &dto.CustomerInvoiceDownPaymentListResponse{
-		ID:            ci.ID,
-		SalesOrderID:  salesOrderID,
-		SalesOrder:    soDto,
-		Code:          ci.Code,
-		InvoiceNumber: ci.InvoiceNumber,
-		InvoiceDate:   ci.InvoiceDate.Format("2006-01-02"),
-		DueDate:       dueDate,
-		Amount:        ci.Amount,
-		Status:        string(ci.Status),
-		CreatedAt:     ci.CreatedAt,
+		ID:                 ci.ID,
+		SalesOrderID:       salesOrderID,
+		SalesOrder:         soDto,
+		Code:               ci.Code,
+		RelatedInvoiceCode: relatedCode,
+		InvoiceNumber:      ci.InvoiceNumber,
+		InvoiceDate:        ci.InvoiceDate.Format("2006-01-02"),
+		DueDate:            dueDate,
+		Amount:             ci.Amount,
+		RemainingAmount:    ci.RemainingAmount,
+		Status:             string(ci.Status),
+		CreatedAt:          ci.CreatedAt,
 	}
 }
 
@@ -152,7 +168,7 @@ func (uc *customerInvoiceDownPaymentUsecase) List(ctx context.Context, params *d
 	res := make([]*dto.CustomerInvoiceDownPaymentListResponse, 0, len(items))
 	for _, it := range items {
 		i := it
-		res = append(res, uc.mapToList(&i))
+		res = append(res, uc.mapToList(ctx, &i))
 	}
 	return res, total, nil
 }
@@ -168,7 +184,7 @@ func (uc *customerInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id str
 	if ci.Type != models.CustomerInvoiceTypeDownPayment {
 		return nil, ErrCustomerInvoiceNotFound
 	}
-	return uc.mapToDetail(ci), nil
+	return uc.mapToDetail(ctx, ci), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dto.CreateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
@@ -238,7 +254,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.create", out.ID, map[string]interface{}{"after": out})
-	return uc.mapToDetail(out), nil
+	return uc.mapToDetail(ctx, out), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
@@ -315,7 +331,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.update", id, map[string]interface{}{"after": out})
-	return uc.mapToDetail(out), nil
+	return uc.mapToDetail(ctx, out), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Delete(ctx context.Context, id string) error {
@@ -373,7 +389,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.pending", id, map[string]interface{}{"after": out})
-	return uc.mapToDetail(out), nil
+	return uc.mapToDetail(ctx, out), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {

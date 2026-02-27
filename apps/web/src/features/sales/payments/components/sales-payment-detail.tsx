@@ -69,7 +69,7 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-muted-foreground">{t("fields.invoice")}</div>
-                <div className="font-medium">{detail.invoice?.invoice_number ?? "-"}</div>
+                <div className="font-medium">{detail.invoice?.code} {detail.invoice?.invoice_number ? `(${detail.invoice?.invoice_number})` : ""}</div>
               </div>
               <Badge variant={normalizeStatus(detail.status) === "CONFIRMED" ? "default" : "secondary"}>
                 {normalizeStatus(detail.status) === "CONFIRMED" ? t("status.confirmed") : t("status.pending")}

@@ -199,7 +199,7 @@ export function SalesPaymentsList() {
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.invoice?.invoice_number ?? "-"}</TableCell>
+                    <TableCell className="font-medium">{item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}</TableCell>
                     <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
@@ -324,7 +324,7 @@ export function SalesPaymentsList() {
           if (!v) setDeletingItem(null);
         }}
         title={t("actions.delete")}
-        description={deletingItem ? String(deletingItem.invoice?.invoice_number ?? "-") : ""}
+        description={deletingItem ? String(deletingItem.invoice?.code || deletingItem.invoice?.invoice_number || "-") : ""}
         isLoading={deleteMutation.isPending}
         onConfirm={async () => {
           if (!deletingItem) return;

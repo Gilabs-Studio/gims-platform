@@ -61,6 +61,7 @@ export const orderEn = {
       shipped: "Shipped",
       delivered: "Delivered",
       partial: "Partial",
+      closed: "Closed",
       cancelled: "Cancelled",
     },
 
