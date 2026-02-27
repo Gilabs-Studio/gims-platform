@@ -478,6 +478,10 @@ func SeedPermissions() error {
 		{"/reports/sales-overview", "report_sales_overview.read", "View Sales Overview Report", "VIEW", "report_sales_overview"},
 		{"/reports/sales-overview", "report_sales_overview.export", "Export Sales Overview Report", "EXPORT", "report_sales_overview"},
 
+		// Reports - Product Analysis
+		{"/reports/product-analysis", "report_product_analysis.read", "View Product Analysis Report", "VIEW", "report_product_analysis"},
+		{"/reports/product-analysis", "report_product_analysis.export", "Export Product Analysis Report", "EXPORT", "report_product_analysis"},
+
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},

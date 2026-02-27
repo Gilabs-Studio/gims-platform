@@ -224,6 +224,12 @@ export const navigationConfig: NavItem[] = [
         icon: "trending-up",
         permission: "report_sales_overview.read",
       },
+      {
+        name: "Product Analysis",
+        url: "/reports/product-analysis",
+        icon: "bar-chart-3",
+        permission: "report_product_analysis.read",
+      },
     ],
   },
   {

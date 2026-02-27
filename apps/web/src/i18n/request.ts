@@ -157,6 +157,8 @@ import { areaMappingEn } from "@/features/crm/area-mapping/i18n/en";
 import { areaMappingId } from "@/features/crm/area-mapping/i18n/id";
 import { salesOverviewReportEn } from "@/features/reports/sales-overview/i18n/en";
 import { salesOverviewReportId } from "@/features/reports/sales-overview/i18n/id";
+import { productAnalysisReportEn } from "@/features/reports/product-analysis/i18n/en";
+import { productAnalysisReportId } from "@/features/reports/product-analysis/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -234,6 +236,7 @@ const messages = {
     ...crmScheduleEn,
     ...areaMappingEn,
     ...salesOverviewReportEn,
+    ...productAnalysisReportEn,
   },
   id: {
     ...globalIdMessages,
@@ -308,6 +311,7 @@ const messages = {
     ...crmScheduleId,
     ...areaMappingId,
     ...salesOverviewReportId,
+    ...productAnalysisReportId,
   },
 } as const;
 

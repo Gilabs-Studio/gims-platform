@@ -18,12 +18,15 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 }) {
 	// Initialize repositories
 	salesOverviewRepo := repositories.NewSalesOverviewRepository(db)
+	productAnalysisRepo := repositories.NewProductAnalysisRepository(db)
 
 	// Initialize usecases
 	salesOverviewUC := usecase.NewSalesOverviewUsecase(salesOverviewRepo)
+	productAnalysisUC := usecase.NewProductAnalysisUsecase(productAnalysisRepo)
 
 	// Initialize handlers
 	salesOverviewHandler := handler.NewSalesOverviewHandler(salesOverviewUC)
+	productAnalysisHandler := handler.NewProductAnalysisHandler(productAnalysisUC)
 
 	// Create reports group under API with auth middleware
 	reportGroup := api.Group("/reports")
@@ -32,4 +35,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterSalesOverviewRoutes(reportGroup, salesOverviewHandler)
+	router.RegisterProductAnalysisRoutes(reportGroup, productAnalysisHandler)
 }
