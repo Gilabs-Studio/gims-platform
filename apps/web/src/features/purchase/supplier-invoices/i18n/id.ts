@@ -13,6 +13,10 @@ export const supplierInvoiceId = {
     title: "Detail Faktur Supplier",
     failed: "Gagal memuat faktur supplier",
   },
+  tabs: {
+    general: "Umum",
+    items: "Item",
+  },
   auditTrail: {
     title: "Jejak Audit",
     empty: "Tidak ada data jejak audit",

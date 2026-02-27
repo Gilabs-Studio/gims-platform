@@ -403,14 +403,7 @@ func SeedAIIntentRegistry() error {
 			ParameterSchema: strPtr(`{"delivery_order_id":"uuid","customer_name":"string"}`),
 			IsActive: true,
 		},
-		{
-			ID: IntentListSalesVisitsID, IntentCode: "LIST_SALES_VISITS", DisplayName: "List Sales Visits",
-			Description: "Query sales visit records",
-			Module: "sales", ActionType: "QUERY", RequiredPermission: "sales_visit.read", RequiresConfirmation: false,
-			EndpointPath: "/api/v1/sales/visits",
-			ParameterSchema: strPtr(`{"search":"string","date_from":"string(YYYY-MM-DD)","date_to":"string(YYYY-MM-DD)"}`),
-			IsActive: true,
-		},
+		// LIST_SALES_VISITS intent removed because sales visit reports were disabled in seeders
 		{
 			ID: IntentListSalesEstimationsID, IntentCode: "LIST_SALES_ESTIMATIONS", DisplayName: "List Sales Estimations",
 			Description: "Query sales estimations",

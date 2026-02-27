@@ -100,7 +100,6 @@ export const navigationConfig: NavItem[] = [
       { name: "Down Payments", url: "/sales/customer-invoice-down-payments", icon: "banknote", permission: "customer_invoice_dp.read" },
       { name: "Payments", url: "/sales/payments", icon: "credit-card", permission: "sales_payment.read" },
       { name: "Receivables Recap", url: "/sales/receivables-recap", icon: "bar-chart-3", permission: "sales_payment.read" },
-      
       { name: "Sales Target", url: "/sales/targets", icon: "check-square", permission: "sales_target.read" },
     ],
   },
@@ -193,7 +192,7 @@ export const navigationConfig: NavItem[] = [
       { name: "Activities", url: "/crm/activities", icon: "activity", permission: "crm_activity.read" },
       { name: "Tasks", url: "/crm/tasks", icon: "check-square", permission: "crm_task.read" },
       { name: "Schedules", url: "/crm/schedules", icon: "calendar", permission: "crm_schedule.read" },
-      
+      { name: "Visit Reports", url: "/crm/visits", icon: "map-pin", permission: "crm_visit.read" },
       { name: "Area Mapping", url: "/crm/area-mapping", icon: "map", permission: "crm_area_mapping.read" },
       { name: "Route Optimization", url: "/crm/routes", icon: "route", permission: "crm_route.read" },
       { name: "Sales Performance", url: "/crm/sales-performance", icon: "bar-chart-3", permission: "crm_sales_performance.read" },

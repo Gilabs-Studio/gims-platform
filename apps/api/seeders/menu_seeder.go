@@ -347,7 +347,6 @@ func SeedMenus() error {
 		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
-		{"Visit Reports", "map-pin", "/sales/visits", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
 		{"Sales Target", "target", "/sales/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},

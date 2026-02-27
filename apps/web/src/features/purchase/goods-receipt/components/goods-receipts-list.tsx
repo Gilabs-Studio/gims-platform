@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
+  Clock,
   Download,
   Eye,
   History,
@@ -130,12 +131,14 @@ export function GoodsReceiptsList() {
       case "draft":
         return (
           <Badge variant="secondary" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "confirmed":
         return (
           <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.confirmed")}
           </Badge>
         );
@@ -270,7 +273,7 @@ export function GoodsReceiptsList() {
 
                           {canConfirm && normalizeStatus(it.status) === "draft" ? (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-green-600 focus:text-green-600"
                               onClick={async () => {
                                 try {
                                   await confirmMutation.mutateAsync(it.id);

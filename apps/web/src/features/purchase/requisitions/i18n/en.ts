@@ -38,6 +38,10 @@ export const purchaseRequisitionEn = {
     title: "Purchase Requisition Detail",
     failed: "Failed to load purchase requisition",
   },
+  tabs: {
+    general: "General",
+    items: "Items",
+  },
   fields: {
     requestDate: "Request Date",
     supplier: "Supplier",
