@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const uuidLikeRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidLike = () => z.string().regex(uuidLikeRegex);
+
 export const purchaseOrderItemSchema = z.object({
   product_id: z.string().min(1),
   quantity: z.number().gt(0),
@@ -10,11 +13,11 @@ export const purchaseOrderItemSchema = z.object({
 
 export const purchaseOrderSchema = z.object({
   source: z.enum(["manual", "pr", "so"]).default("manual"),
-  supplier_id: z.string().uuid().nullable().optional(),
-  payment_terms_id: z.string().uuid().nullable().optional(),
-  business_unit_id: z.string().uuid().nullable().optional(),
-  purchase_requisitions_id: z.string().uuid().nullable().optional(),
-  sales_order_id: z.string().uuid().nullable().optional(),
+  supplier_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
+  payment_terms_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
+  business_unit_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
+  purchase_requisitions_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
+  sales_order_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
   order_date: z.string().min(1),
   due_date: z.string().nullable().optional(),
   tax_rate: z.number().gte(0).lte(100).optional(),

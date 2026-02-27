@@ -58,6 +58,9 @@ export interface SupplierInvoiceListItem {
   other_cost: number;
   sub_total: number;
   amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
   status: SupplierInvoiceStatus;
   notes?: string | null;
   created_at: string;
@@ -93,6 +96,9 @@ export interface SupplierInvoiceDetail {
   other_cost: number;
   sub_total: number;
   amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
   status: SupplierInvoiceStatus;
   notes?: string | null;
   items: SupplierInvoiceItemDetail[];

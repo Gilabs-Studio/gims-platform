@@ -10,7 +10,6 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
-	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -457,15 +456,16 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		// 2. Budget Guard (Engagement Point)
 		// Check total PO committed against a general Purchase/Cost account (e.g., "50000")
 		// In a real ERP, this would map by Product Category to specific Expense/Asset accounts.
-		if po.TotalAmount > 0 {
-			// Using "50000" (COGS/Purchases) as the commitment check account
-			if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", time.Now(), po.TotalAmount); err != nil {
-				// We don't want to block ALL purchases if budget isn't setup,
-				// but the helper returns nil if no budget exists.
-				// If it returns error, it means budget EXISTS and is EXCEEDED.
-				// return err // Uncomment to strictly block
+		// Note: The previous call passed "COMMITTED_PURCHASE_COA" which is not a valid UUID
+		// and caused the Postgres transaction to abort.
+		/*
+			if po.TotalAmount > 0 {
+				// Using "50000" (COGS/Purchases) as the commitment check account
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", time.Now(), po.TotalAmount); err != nil {
+					// return err // Uncomment to strictly block
+				}
 			}
-		}
+		*/
 
 		// 3. Update Status
 		if err := tx.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {

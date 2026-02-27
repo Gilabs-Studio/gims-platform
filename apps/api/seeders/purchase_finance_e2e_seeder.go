@@ -145,22 +145,10 @@ func SeedPurchaseFinanceE2E() error {
 		}
 
 		scenarios2025 := []purchaseScenario{
-			// Q1 2025 — Establishing business
-			{1, "001", 20, 45000, 11, "PAID", 1.0, 0, 0, false, 0},
-			{2, "002", 15, 62000, 11, "PAID", 1.0, 1, 1, false, 0},
-			{3, "003", 30, 38000, 11, "PAID", 1.0, 2, 0, true, 500000},
-			// Q2 2025 — Growth phase
-			{4, "004", 50, 55000, 11, "PAID", 1.0, 3, 2, false, 0},
-			{5, "005", 25, 78000, 11, "PAID", 1.0, 4, 1, false, 0},
-			{6, "006", 40, 42000, 11, "PAID", 1.0, 0, 0, true, 750000},
-			// Q3 2025 — Scaling
-			{7, "007", 60, 51000, 11, "PAID", 1.0, 1, 2, false, 0},
-			{8, "008", 35, 67000, 11, "PAID", 1.0, 2, 1, false, 0},
-			{9, "009", 45, 43000, 11, "PARTIAL", 0.6, 3, 0, false, 0},
-			// Q4 2025 — Year end
-			{10, "010", 55, 59000, 11, "PAID", 1.0, 4, 2, true, 1200000},
-			{11, "011", 30, 72000, 11, "PAID", 1.0, 0, 1, false, 0},
-			{12, "012", 40, 48000, 11, "UNPAID", 0, 1, 0, false, 0},
+			// 2025 — 3 historical records with diverse statuses
+			{3, "001", 30, 45000, 11, "PAID", 1.0, 0, 0, true, 500000},
+			{7, "002", 50, 62000, 11, "PAID", 1.0, 1, 1, false, 0},
+			{11, "003", 40, 48000, 11, "PARTIAL", 0.6, 2, 2, false, 0},
 		}
 
 		for _, sc := range scenarios2025 {
@@ -195,13 +183,10 @@ func SeedPurchaseFinanceE2E() error {
 		// ─────────────────── CURRENT YEAR: 2026 ───────────────────
 
 		scenarios2026 := []purchaseScenario{
-			// Jan 2026
+			// 2026 — 3 current records with diverse statuses
 			{1, "001", 45, 52000, 11, "PAID", 1.0, 0, 0, false, 0},
-			{1, "002", 30, 68000, 11, "UNPAID", 0, 2, 1, true, 900000},
-			// Feb 2026 — current month
-			{2, "003", 25, 47000, 11, "PARTIAL", 0.5, 3, 2, false, 0},
-			{2, "004", 60, 53000, 11, "PAID", 1.0, 4, 0, false, 0},
-			{2, "005", 20, 85000, 11, "UNPAID", 0, 1, 1, true, 600000},
+			{2, "002", 25, 68000, 11, "UNPAID", 0, 2, 1, true, 900000},
+			{2, "003", 35, 47000, 11, "PARTIAL", 0.5, 3, 2, false, 0},
 		}
 
 		for _, sc := range scenarios2026 {
@@ -562,6 +547,8 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	}
 
 	// 3. Supplier Invoice Down Payment (if applicable)
+	var dpID *string
+	var dpAmt float64
 	if in.withDP && in.dpAmount > 0 {
 		dp := purchaseModels.SupplierInvoice{
 			Type:            purchaseModels.SupplierInvoiceTypeDownPayment,
@@ -574,29 +561,81 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			DueDate:         orderDate.AddDate(0, 0, 7).Format("2006-01-02"),
 			Amount:          in.dpAmount,
 			SubTotal:        in.dpAmount,
+			PaidAmount:      in.dpAmount,
+			RemainingAmount: 0,
 			Status:          purchaseModels.SupplierInvoiceStatusPaid,
 			CreatedBy:       in.adminID,
 		}
+		now := time.Now()
+		dp.PaymentAt = &now
 		if err := tx.Create(&dp).Error; err != nil {
 			log.Printf("Warning: Failed to create DP %s: %v", dp.Code, err)
+		} else {
+			dpID = &dp.ID
+			dpAmt = dp.Amount
+
+			// Create DP payment record
+			dpRefNum := fmt.Sprintf("PAY-DP-E2E-%s", prefix)
+			dpPayment := purchaseModels.PurchasePayment{
+				SupplierInvoiceID: dp.ID,
+				BankAccountID:     in.bankAccount.ID,
+				PaymentDate:       orderDate.AddDate(0, 0, 5).Format("2006-01-02"),
+				Amount:            in.dpAmount,
+				Method:            purchaseModels.PurchasePaymentMethodBank,
+				Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+				ReferenceNumber:   &dpRefNum,
+				CreatedBy:         in.adminID,
+			}
+			if err := tx.Create(&dpPayment).Error; err != nil {
+				log.Printf("Warning: Failed to create DP payment: %v", err)
+			}
 		}
 	}
 
 	// 4. Supplier Invoice (Normal)
+	// Calculate cash payment amount
+	var cashPayAmount float64
+	switch in.payStatus {
+	case "PAID":
+		cashPayAmount = total - dpAmt // Pay the remaining after DP
+	case "PARTIAL":
+		cashPayAmount = (total - dpAmt) * in.payRatio // Partial of remaining
+	default:
+		cashPayAmount = 0
+	}
+
+	totalSettled := dpAmt + cashPayAmount
+	remainingAmount := total - totalSettled
+
+	// Determine actual status based on total settled
+	var siStatus purchaseModels.SupplierInvoiceStatus
+	if remainingAmount <= 0.01 && total > 0 {
+		siStatus = purchaseModels.SupplierInvoiceStatusPaid
+	} else if totalSettled > 0 {
+		siStatus = purchaseModels.SupplierInvoiceStatusPartial
+	} else {
+		siStatus = purchaseModels.SupplierInvoiceStatusUnpaid
+	}
+
 	si := purchaseModels.SupplierInvoice{
-		Type:            purchaseModels.SupplierInvoiceTypeNormal,
-		PurchaseOrderID: po.ID,
-		SupplierID:      in.supplier.ID,
-		PaymentTermsID:  &in.pt.ID,
-		Code:            fmt.Sprintf("SI-E2E-%s", prefix),
-		InvoiceNumber:   fmt.Sprintf("INV-E2E-%s", prefix),
-		InvoiceDate:     invoiceDate.Format("2006-01-02"),
-		DueDate:         invoiceDate.AddDate(0, 0, 30).Format("2006-01-02"),
-		TaxRate:         in.taxRate,
-		TaxAmount:       tax,
-		SubTotal:        subtotal,
-		Amount:          total,
-		CreatedBy:       in.adminID,
+		Type:                 purchaseModels.SupplierInvoiceTypeNormal,
+		PurchaseOrderID:      po.ID,
+		SupplierID:           in.supplier.ID,
+		PaymentTermsID:       &in.pt.ID,
+		Code:                 fmt.Sprintf("SI-E2E-%s", prefix),
+		InvoiceNumber:        fmt.Sprintf("INV-E2E-%s", prefix),
+		InvoiceDate:          invoiceDate.Format("2006-01-02"),
+		DueDate:              invoiceDate.AddDate(0, 0, 30).Format("2006-01-02"),
+		TaxRate:              in.taxRate,
+		TaxAmount:            tax,
+		SubTotal:             subtotal,
+		Amount:               total,
+		DownPaymentAmount:    dpAmt,
+		PaidAmount:           cashPayAmount,
+		RemainingAmount:      remainingAmount,
+		DownPaymentInvoiceID: dpID,
+		Status:               siStatus,
+		CreatedBy:            in.adminID,
 		Items: []purchaseModels.SupplierInvoiceItem{
 			{
 				PurchaseOrderItemID: &po.Items[0].ID,
@@ -608,14 +647,9 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		},
 	}
 
-	// Set status based on pay scenario
-	switch in.payStatus {
-	case "PAID":
-		si.Status = purchaseModels.SupplierInvoiceStatusPaid
-	case "PARTIAL":
-		si.Status = purchaseModels.SupplierInvoiceStatusPartial
-	default:
-		si.Status = purchaseModels.SupplierInvoiceStatusUnpaid
+	if siStatus == purchaseModels.SupplierInvoiceStatusPaid {
+		now := time.Now()
+		si.PaymentAt = &now
 	}
 
 	if err := tx.Create(&si).Error; err != nil {
@@ -633,19 +667,14 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			})
 	}
 
-	// 5. Purchase Payment (if PAID or PARTIAL)
-	if in.payStatus == "PAID" || in.payStatus == "PARTIAL" {
-		payAmount := total
-		if in.payStatus == "PARTIAL" {
-			payAmount = total * in.payRatio
-		}
-
+	// 5. Purchase Payment (if there is cash payment)
+	if cashPayAmount > 0 {
 		refNum := fmt.Sprintf("PAY-E2E-%s", prefix)
 		pp := purchaseModels.PurchasePayment{
 			SupplierInvoiceID: si.ID,
 			BankAccountID:     in.bankAccount.ID,
 			PaymentDate:       payDate.Format("2006-01-02"),
-			Amount:            payAmount,
+			Amount:            cashPayAmount,
 			Method:            purchaseModels.PurchasePaymentMethodBank,
 			Status:            purchaseModels.PurchasePaymentStatusConfirmed,
 			ReferenceNumber:   &refNum,
@@ -660,8 +689,8 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			createJournal(tx, payDate, fmt.Sprintf("Payment %s", si.Code),
 				stringPtr("PURCHASE_PAYMENT"), stringPtr(pp.ID), in.adminID,
 				[]journalLineInput{
-					{in.apCOA, payAmount, 0, "Debit AP"},
-					{in.bankCOA, 0, payAmount, "Credit Cash/Bank"},
+					{in.apCOA, cashPayAmount, 0, "Debit AP"},
+					{in.bankCOA, 0, cashPayAmount, "Credit Cash/Bank"},
 				})
 		}
 	}

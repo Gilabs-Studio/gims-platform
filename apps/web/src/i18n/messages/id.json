@@ -36,7 +36,15 @@
     "rowsPerPage": "Baris per halaman",
     "export": "Ekspor",
     "exportFailed": "Gagal mengekspor data",
-    "print": "Cetak"
+    "print": "Cetak",
+    "filterBy": "Filter berdasarkan",
+    "status": "Status",
+    "supplierInvoice": "Invoice Supplier",
+    "supplierInvoiceDP": "DP Invoice Supplier",
+    "purchasePayment": "Pembayaran Pembelian",
+    "purchaseRequisition": "Permintaan Pembelian",
+    "purchaseOrder": "Pesanan Pembelian",
+    "goodsReceipt": "Penerimaan Barang"
   },
   "notFound": {
     "label": "404",

@@ -222,6 +222,7 @@ func SeedIntegrationFlow() error {
 				TaxAmount:       tax,
 				SubTotal:        subtotal,
 				Amount:          total,
+				RemainingAmount: total,
 				Status:          purchaseModels.SupplierInvoiceStatusUnpaid,
 				CreatedBy:       adminID,
 				Items: []purchaseModels.SupplierInvoiceItem{
@@ -274,11 +275,16 @@ func SeedIntegrationFlow() error {
 					return err
 				}
 
-				// Update SI status
-				tx.Model(&si).Update("status", purchaseModels.SupplierInvoiceStatusPaid)
+				// Update SI status, paid amount, remaining
+				paidNow := time.Now()
+				tx.Model(&si).Updates(map[string]interface{}{
+					"status":           purchaseModels.SupplierInvoiceStatusPaid,
+					"paid_amount":      total,
+					"remaining_amount": 0,
+					"payment_at":       &paidNow,
+				})
 
 				// RECORDING: PAYMENT JOURNAL (Dr AP / Cr Bank)
-				// We use BankAccount's COA if available, otherwise assume 11100
 				cashCoa := ""
 				var baItem coreModels.BankAccount
 				tx.First(&baItem, "id = ?", bankAccount.ID)

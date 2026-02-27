@@ -35,25 +35,45 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name, Days: &days}
 	}
 
+	var dpMini *dto.SupplierInvoiceAddDownPaymentMini
+	if si.DownPaymentInvoice != nil {
+		dpMini = &dto.SupplierInvoiceAddDownPaymentMini{
+			ID:            si.DownPaymentInvoice.ID,
+			Code:          si.DownPaymentInvoice.Code,
+			InvoiceNumber: si.DownPaymentInvoice.InvoiceNumber,
+			InvoiceDate:   si.DownPaymentInvoice.InvoiceDate,
+			DueDate:       si.DownPaymentInvoice.DueDate,
+			Amount:        si.DownPaymentInvoice.Amount,
+			Status:        string(si.DownPaymentInvoice.Status),
+		}
+		if si.DownPaymentInvoice.Notes != nil {
+			dpMini.Notes = si.DownPaymentInvoice.Notes
+		}
+	}
+
 	return &dto.SupplierInvoiceListResponse{
-		ID:           si.ID,
-		PurchaseOrder: poMini,
-		PaymentTerms:  ptMini,
-		Type:         string(si.Type),
-		Code:         si.Code,
-		InvoiceNumber: si.InvoiceNumber,
-		InvoiceDate:  si.InvoiceDate,
-		DueDate:      si.DueDate,
-		TaxRate:      si.TaxRate,
-		TaxAmount:    si.TaxAmount,
-		DeliveryCost: si.DeliveryCost,
-		OtherCost:    si.OtherCost,
-		SubTotal:     si.SubTotal,
-		Amount:       si.Amount,
-		Status:       string(si.Status),
-		Notes:        si.Notes,
-		CreatedAt:    si.CreatedAt,
-		UpdatedAt:    si.UpdatedAt,
+		ID:                 si.ID,
+		PurchaseOrder:      poMini,
+		PaymentTerms:       ptMini,
+		Type:               string(si.Type),
+		Code:               si.Code,
+		InvoiceNumber:      si.InvoiceNumber,
+		InvoiceDate:        si.InvoiceDate,
+		DueDate:            si.DueDate,
+		TaxRate:            si.TaxRate,
+		TaxAmount:          si.TaxAmount,
+		DeliveryCost:       si.DeliveryCost,
+		OtherCost:          si.OtherCost,
+		SubTotal:           si.SubTotal,
+		Amount:             si.Amount,
+		PaidAmount:         si.PaidAmount,
+		RemainingAmount:    si.RemainingAmount,
+		DownPaymentAmount:  si.DownPaymentAmount,
+		DownPaymentInvoice: dpMini,
+		Status:             string(si.Status),
+		Notes:              si.Notes,
+		CreatedAt:          si.CreatedAt,
+		UpdatedAt:          si.UpdatedAt,
 	}
 }
 
@@ -87,6 +107,22 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		ptMini = &dto.SupplierInvoicePaymentTermsMini{ID: si.PaymentTerms.ID, Name: si.PaymentTerms.Name, Days: &days}
 	}
 
+	var dpMini *dto.SupplierInvoiceAddDownPaymentMini
+	if si.DownPaymentInvoice != nil {
+		dpMini = &dto.SupplierInvoiceAddDownPaymentMini{
+			ID:            si.DownPaymentInvoice.ID,
+			Code:          si.DownPaymentInvoice.Code,
+			InvoiceNumber: si.DownPaymentInvoice.InvoiceNumber,
+			InvoiceDate:   si.DownPaymentInvoice.InvoiceDate,
+			DueDate:       si.DownPaymentInvoice.DueDate,
+			Amount:        si.DownPaymentInvoice.Amount,
+			Status:        string(si.DownPaymentInvoice.Status),
+		}
+		if si.DownPaymentInvoice.Notes != nil {
+			dpMini.Notes = si.DownPaymentInvoice.Notes
+		}
+	}
+
 	items := make([]dto.SupplierInvoiceItemResponse, 0, len(si.Items))
 	for _, it := range si.Items {
 		productObj := any(it.Product)
@@ -102,40 +138,44 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 			}
 		}
 		items = append(items, dto.SupplierInvoiceItemResponse{
-			ID:                 it.ID,
-			SupplierInvoiceID:  it.SupplierInvoiceID,
-			ProductID:          it.ProductID,
-			Product:            productObj,
-			Quantity:           it.Quantity,
-			Price:              it.Price,
-			Discount:           it.Discount,
-			SubTotal:           it.SubTotal,
+			ID:                  it.ID,
+			SupplierInvoiceID:   it.SupplierInvoiceID,
+			ProductID:           it.ProductID,
+			Product:             productObj,
+			Quantity:            it.Quantity,
+			Price:               it.Price,
+			Discount:            it.Discount,
+			SubTotal:            it.SubTotal,
 			PurchaseOrderItemID: it.PurchaseOrderItemID,
-			CreatedAt:          it.CreatedAt,
-			UpdatedAt:          it.UpdatedAt,
+			CreatedAt:           it.CreatedAt,
+			UpdatedAt:           it.UpdatedAt,
 		})
 	}
 
 	return &dto.SupplierInvoiceDetailResponse{
-		ID:           si.ID,
-		PurchaseOrder: poMini,
-		PaymentTerms:  ptMini,
-		Type:         string(si.Type),
-		Code:         si.Code,
-		InvoiceNumber: si.InvoiceNumber,
-		InvoiceDate:  si.InvoiceDate,
-		DueDate:      si.DueDate,
-		TaxRate:      si.TaxRate,
-		TaxAmount:    si.TaxAmount,
-		DeliveryCost: si.DeliveryCost,
-		OtherCost:    si.OtherCost,
-		SubTotal:     si.SubTotal,
-		Amount:       si.Amount,
-		Status:       string(si.Status),
-		Notes:        si.Notes,
-		Items:        items,
-		CreatedAt:    si.CreatedAt,
-		UpdatedAt:    si.UpdatedAt,
+		ID:                 si.ID,
+		PurchaseOrder:      poMini,
+		PaymentTerms:       ptMini,
+		Type:               string(si.Type),
+		Code:               si.Code,
+		InvoiceNumber:      si.InvoiceNumber,
+		InvoiceDate:        si.InvoiceDate,
+		DueDate:            si.DueDate,
+		TaxRate:            si.TaxRate,
+		TaxAmount:          si.TaxAmount,
+		DeliveryCost:       si.DeliveryCost,
+		OtherCost:          si.OtherCost,
+		SubTotal:           si.SubTotal,
+		Amount:             si.Amount,
+		PaidAmount:         si.PaidAmount,
+		RemainingAmount:    si.RemainingAmount,
+		DownPaymentAmount:  si.DownPaymentAmount,
+		DownPaymentInvoice: dpMini,
+		Status:             string(si.Status),
+		Notes:              si.Notes,
+		Items:              items,
+		CreatedAt:          si.CreatedAt,
+		UpdatedAt:          si.UpdatedAt,
 	}
 }
 
@@ -147,18 +187,26 @@ func (m *SupplierInvoiceMapper) ToDownPaymentListResponse(si *models.SupplierInv
 	if si.PurchaseOrder != nil {
 		poMini = &dto.SupplierInvoicePurchaseOrderMini{ID: si.PurchaseOrder.ID, Code: si.PurchaseOrder.Code}
 	}
+	regulars := []dto.SupplierInvoiceDownPaymentRegularInvoiceMini{}
+	for _, reg := range si.RegularInvoices {
+		regulars = append(regulars, dto.SupplierInvoiceDownPaymentRegularInvoiceMini{
+			ID:   reg.ID,
+			Code: reg.Code,
+		})
+	}
 	return &dto.SupplierInvoiceDownPaymentListResponse{
-		ID:           si.ID,
-		PurchaseOrder: poMini,
-		Code:         si.Code,
-		InvoiceNumber: si.InvoiceNumber,
-		InvoiceDate:  si.InvoiceDate,
-		DueDate:      si.DueDate,
-		Amount:       si.Amount,
-		Status:       string(si.Status),
-		Notes:        si.Notes,
-		CreatedAt:    si.CreatedAt,
-		UpdatedAt:    si.UpdatedAt,
+		ID:              si.ID,
+		PurchaseOrder:   poMini,
+		Code:            si.Code,
+		InvoiceNumber:   si.InvoiceNumber,
+		InvoiceDate:     si.InvoiceDate,
+		DueDate:         si.DueDate,
+		Amount:          si.Amount,
+		Status:          string(si.Status),
+		Notes:           si.Notes,
+		RegularInvoices: regulars,
+		CreatedAt:       si.CreatedAt,
+		UpdatedAt:       si.UpdatedAt,
 	}
 }
 
@@ -178,17 +226,25 @@ func (m *SupplierInvoiceMapper) ToDownPaymentDetailResponse(si *models.SupplierI
 	if si.PurchaseOrder != nil {
 		poMini = &dto.SupplierInvoicePurchaseOrderMini{ID: si.PurchaseOrder.ID, Code: si.PurchaseOrder.Code}
 	}
+	regulars := []dto.SupplierInvoiceDownPaymentRegularInvoiceMini{}
+	for _, reg := range si.RegularInvoices {
+		regulars = append(regulars, dto.SupplierInvoiceDownPaymentRegularInvoiceMini{
+			ID:   reg.ID,
+			Code: reg.Code,
+		})
+	}
 	return &dto.SupplierInvoiceDownPaymentDetailResponse{
-		ID:           si.ID,
-		PurchaseOrder: poMini,
-		Code:         si.Code,
-		InvoiceNumber: si.InvoiceNumber,
-		InvoiceDate:  si.InvoiceDate,
-		DueDate:      si.DueDate,
-		Amount:       si.Amount,
-		Status:       string(si.Status),
-		Notes:        si.Notes,
-		CreatedAt:    si.CreatedAt,
-		UpdatedAt:    si.UpdatedAt,
+		ID:              si.ID,
+		PurchaseOrder:   poMini,
+		Code:            si.Code,
+		InvoiceNumber:   si.InvoiceNumber,
+		InvoiceDate:     si.InvoiceDate,
+		DueDate:         si.DueDate,
+		Amount:          si.Amount,
+		Status:          string(si.Status),
+		Notes:           si.Notes,
+		RegularInvoices: regulars,
+		CreatedAt:       si.CreatedAt,
+		UpdatedAt:       si.UpdatedAt,
 	}
 }

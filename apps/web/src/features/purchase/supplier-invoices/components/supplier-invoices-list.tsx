@@ -49,6 +49,8 @@ import type { SupplierInvoiceListItem } from "../types";
 import { SupplierInvoiceAuditTrail } from "./supplier-invoice-audit-trail";
 import { SupplierInvoiceDetail } from "./supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
+import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
+import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 
 const SupplierInvoiceFormDialog = dynamic(
   () => import("./supplier-invoice-form").then((m) => m.SupplierInvoiceFormDialog),
@@ -63,6 +65,7 @@ export function SupplierInvoicesList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<string | "all">("all");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
@@ -75,11 +78,18 @@ export function SupplierInvoicesList() {
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceListItem | null>(null);
 
+  const [isPOOpen, setIsPOOpen] = useState(false);
+  const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
+
+  const [isDPOpen, setIsDPOpen] = useState(false);
+  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+
   const listParams = useMemo(
     () => ({
       page,
       per_page: pageSize,
       search: debouncedSearch || undefined,
+      status: statusFilter !== "all" ? statusFilter.toUpperCase() : undefined,
       sort_by: "created_at",
       sort_dir: "desc",
     }),
@@ -153,6 +163,21 @@ export function SupplierInvoicesList() {
           />
         </div>
 
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className="flex h-10 w-48 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="all">{tCommon("filterBy")} {tCommon("status") || "Status"}</option>
+          <option value="draft">Draft</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+        </select>
+
         <div className="flex-1" />
 
         {canExport && (
@@ -181,11 +206,13 @@ export function SupplierInvoicesList() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
-              <TableHead>{t("columns.invoiceNumber")}</TableHead>
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
+              <TableHead>DP Iny</TableHead>
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
+              <TableHead className="text-right">Paid Amount</TableHead>
+              <TableHead className="text-right">Remaining</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead>{t("columns.createdAt")}</TableHead>
               <TableHead className="w-[70px]" />
@@ -198,8 +225,9 @@ export function SupplierInvoicesList() {
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -209,7 +237,7 @@ export function SupplierInvoicesList() {
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={10}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -224,11 +252,43 @@ export function SupplierInvoicesList() {
                   >
                     {row.code}
                   </TableCell>
-                  <TableCell>{row.invoice_number}</TableCell>
                   <TableCell>{formatDate(row.invoice_date)}</TableCell>
                   <TableCell>{formatDate(row.due_date)}</TableCell>
-                  <TableCell>{row.purchase_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    {row.purchase_order ? (
+                      <span
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPOId(row.purchase_order!.id);
+                          setIsPOOpen(true);
+                        }}
+                      >
+                        {row.purchase_order.code}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.down_payment_invoice ? (
+                      <span
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDPId(row.down_payment_invoice!.id);
+                          setIsDPOpen(true);
+                        }}
+                      >
+                        {row.down_payment_invoice.code}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(row.amount)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(row.paid_amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount ?? 0)}</TableCell>
                   <TableCell>
                     <SupplierInvoiceStatusBadge status={row.status} />
                   </TableCell>
@@ -302,7 +362,7 @@ export function SupplierInvoicesList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canDelete && (row.status ?? "").toLowerCase() === "draft" && (
+                          {canDelete && ((row.status ?? "").toLowerCase() === "draft" || (row.status ?? "").toLowerCase() === "unpaid") && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
                               onClick={() => setDeletingRow(row)}
@@ -358,6 +418,26 @@ export function SupplierInvoicesList() {
           setAuditId(null);
         }}
       />
+
+      <PurchaseOrderDetail
+        open={isPOOpen}
+        onClose={() => {
+          setIsPOOpen(false);
+          setSelectedPOId(null);
+        }}
+        purchaseOrderId={selectedPOId}
+      />
+
+      {selectedDPId && (
+        <SupplierInvoiceDPDetailModal
+          open={isDPOpen}
+          onOpenChange={(v) => {
+            setIsDPOpen(v);
+            if (!v) setSelectedDPId(null);
+          }}
+          id={selectedDPId}
+        />
+      )}
 
       <DeleteDialog
         open={!!deletingRow}

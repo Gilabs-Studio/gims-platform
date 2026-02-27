@@ -38,6 +38,7 @@ export const supplierInvoiceDPId = {
   },
   columns: {
     code: "Kode",
+    regularInvoice: "Invoices Reguler",
     invoiceNumber: "No. Faktur",
     invoiceDate: "Tanggal",
     dueDate: "Jatuh Tempo",
