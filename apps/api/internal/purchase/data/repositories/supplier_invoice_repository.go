@@ -53,7 +53,9 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 
 	q := r.db.WithContext(ctx).Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
-		Preload("PaymentTerms")
+		Preload("PaymentTerms").
+		Preload("DownPaymentInvoice").
+		Preload("RegularInvoices")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	q = security.ApplyScopeFilter(q, ctx, security.PurchaseScopeQueryOptions())
@@ -103,6 +105,8 @@ func (r *supplierInvoiceRepository) GetByID(ctx context.Context, id string) (*mo
 		Preload("PaymentTerms").
 		Preload("Items").
 		Preload("Items.Product").
+		Preload("DownPaymentInvoice").
+		Preload("RegularInvoices").
 		First(&si, "id = ?", id).Error
 	if err != nil {
 		return nil, err

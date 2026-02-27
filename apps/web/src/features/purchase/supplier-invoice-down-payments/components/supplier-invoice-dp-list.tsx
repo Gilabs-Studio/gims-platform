@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,6 +55,8 @@ import {
   useSupplierInvoiceDP,
   useSupplierInvoiceDPs,
 } from "../hooks/use-supplier-invoice-dp";
+import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
+import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
 import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
@@ -82,6 +85,9 @@ export function SupplierInvoiceDPList() {
   const [auditId, setAuditId] = useState<string | null>(null);
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
+
+  const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
+  const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -189,7 +195,7 @@ export function SupplierInvoiceDPList() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
-              <TableHead>{t("columns.invoiceNumber")}</TableHead>
+              <TableHead>{t("columns.regularInvoice")}</TableHead>
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
@@ -232,7 +238,27 @@ export function SupplierInvoiceDPList() {
                   >
                     {row.code}
                   </TableCell>
-                  <TableCell>{row.invoice_number}</TableCell>
+                  <TableCell>
+                    {row.regular_invoices && row.regular_invoices.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {row.regular_invoices.map((reg) => (
+                          <span
+                            key={reg.id}
+                            className="font-medium text-primary hover:underline cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRegularInvoiceId(reg.id);
+                              setIsRegularInvoiceOpen(true);
+                            }}
+                          >
+                            {reg.code}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>{formatDate(row.invoice_date)}</TableCell>
                   <TableCell>{formatDate(row.due_date)}</TableCell>
                   <TableCell>{row.purchase_order?.code ?? "-"}</TableCell>
@@ -367,6 +393,16 @@ export function SupplierInvoiceDPList() {
         </DialogContent>
       </Dialog>
 
+      {/* Regular Invoice Detail Modal */}
+      <SupplierInvoiceDetail
+        open={isRegularInvoiceOpen}
+        invoiceId={selectedRegularInvoiceId}
+        onClose={() => {
+          setIsRegularInvoiceOpen(false);
+          setSelectedRegularInvoiceId(null);
+        }}
+      />
+
       {/* Audit Trail Dialog */}
       <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
         <DialogContent className="max-w-3xl">
@@ -443,6 +479,18 @@ function SupplierInvoiceDPDetailView({ id, onClose }: { id: string; onClose: () 
           <p className="text-muted-foreground">{t("fields.dueDate")}</p>
           <p className="font-medium">{formatDate(row.due_date)}</p>
         </div>
+        {row.regular_invoices && row.regular_invoices.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("columns.regularInvoice")}</p>
+            <div className="flex flex-wrap gap-2">
+              {row.regular_invoices.map((reg) => (
+                <Badge key={reg.id} variant="outline" className="font-mono text-primary border-primary/20">
+                  {reg.code}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
         {row.notes ? (
           <div className="space-y-1">
             <p className="text-muted-foreground">{t("fields.notes")}</p>

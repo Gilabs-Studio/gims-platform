@@ -39,7 +39,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	siUc := usecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC)
 	siH := handler.NewSupplierInvoiceHandler(siUc)
 
-	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService)
+	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC)
 	siDpH := handler.NewSupplierInvoiceDownPaymentHandler(siDpUc)
 
 	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC)

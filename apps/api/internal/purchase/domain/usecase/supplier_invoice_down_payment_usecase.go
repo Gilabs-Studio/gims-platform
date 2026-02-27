@@ -10,6 +10,9 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -35,10 +38,12 @@ type supplierInvoiceDownPaymentUsecase struct {
 	poRepo       repositories.PurchaseOrderRepository
 	auditService audit.AuditService
 	mapper       *mapper.SupplierInvoiceMapper
+	journalUC    finUsecase.JournalEntryUsecase
+	coaUC        finUsecase.ChartOfAccountUsecase
 }
 
-func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService) SupplierInvoiceDownPaymentUsecase {
-	return &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper()}
+func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) SupplierInvoiceDownPaymentUsecase {
+	return &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC}
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceDownPaymentAddResponse, error) {
@@ -71,6 +76,19 @@ func (uc *supplierInvoiceDownPaymentUsecase) List(ctx context.Context, params re
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// For each DP, if RegularInvoices is empty, try to find them by PO ID (fallback for older records or multiple DPs)
+	for i := range items {
+		if len(items[i].RegularInvoices) == 0 && items[i].PurchaseOrderID != "" {
+			var regulars []models.SupplierInvoice
+			if err := uc.db.WithContext(ctx).
+				Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL", items[i].PurchaseOrderID, models.SupplierInvoiceTypeNormal).
+				Find(&regulars).Error; err == nil {
+				items[i].RegularInvoices = regulars
+			}
+		}
+	}
+
 	return uc.mapper.ToDownPaymentListResponseList(items), total, nil
 }
 
@@ -85,6 +103,17 @@ func (uc *supplierInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id str
 	if si.Type != models.SupplierInvoiceTypeDownPayment {
 		return nil, ErrSupplierInvoiceNotFound
 	}
+
+	// Fallback to PO-based lookup if slice is empty
+	if len(si.RegularInvoices) == 0 && si.PurchaseOrderID != "" {
+		var regulars []models.SupplierInvoice
+		if err := uc.db.WithContext(ctx).
+			Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL", si.PurchaseOrderID, models.SupplierInvoiceTypeNormal).
+			Find(&regulars).Error; err == nil {
+			si.RegularInvoices = regulars
+		}
+	}
+
 	return uc.mapper.ToDownPaymentDetailResponse(si), nil
 }
 
@@ -95,7 +124,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 	var out *models.SupplierInvoice
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var po models.PurchaseOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&po, "id = ?", req.PurchaseOrderID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", req.PurchaseOrderID).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return ErrPurchaseOrderNotFound
 			}
@@ -131,11 +160,78 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}
-		loaded, err := uc.repo.GetByID(ctx, si.ID)
-		if err != nil {
+
+		// LOGIC: Automatically create a Draft Regular Invoice if none exists
+		// This follows the user requirement: when creating a DP invoice,
+		// if no regular invoice exists for this PO, create a draft one and link it.
+		var existingReg models.SupplierInvoice
+		err = tx.Where("purchase_order_id = ? AND type = ?", po.ID, models.SupplierInvoiceTypeNormal).First(&existingReg).Error
+		if err == gorm.ErrRecordNotFound {
+			regCode, err := getNextSupplierInvoiceCodeLocked(tx, "SI")
+			if err != nil {
+				return err
+			}
+
+			// Create items from PO
+			regItems := make([]models.SupplierInvoiceItem, 0, len(po.Items))
+			subTotal := 0.0
+			for _, poIt := range po.Items {
+				itemSub := round2dp(poIt.Quantity * poIt.Price * (1 - poIt.Discount/100))
+				regItems = append(regItems, models.SupplierInvoiceItem{
+					PurchaseOrderItemID: &poIt.ID,
+					ProductID:           poIt.ProductID,
+					Quantity:            poIt.Quantity,
+					Price:               poIt.Price,
+					Discount:            poIt.Discount,
+					SubTotal:            itemSub,
+				})
+				subTotal += itemSub
+			}
+
+			tax := round2dp(subTotal * po.TaxRate / 100)
+			grossAmount := round2dp(subTotal + tax + po.DeliveryCost + po.OtherCost)
+
+			regSi := models.SupplierInvoice{
+				Type:                 models.SupplierInvoiceTypeNormal,
+				PurchaseOrderID:      po.ID,
+				SupplierID:           *po.SupplierID,
+				PaymentTermsID:       po.PaymentTermsID,
+				Code:                 regCode,
+				InvoiceNumber:        fmt.Sprintf("TEMP-%s", regCode),
+				InvoiceDate:          si.InvoiceDate,
+				DueDate:              si.DueDate,
+				TaxRate:              po.TaxRate,
+				TaxAmount:            tax,
+				DeliveryCost:         po.DeliveryCost,
+				OtherCost:            po.OtherCost,
+				SubTotal:             subTotal,
+				Amount:               grossAmount,
+				RemainingAmount:      grossAmount, // DP deduction happens later when Paid
+				DownPaymentInvoiceID: &si.ID,
+				Status:               models.SupplierInvoiceStatusDraft,
+				CreatedBy:            creatorID,
+				Items:                regItems,
+			}
+			if err := tx.Create(&regSi).Error; err != nil {
+				return err
+			}
+		} else if err == nil {
+			// Link to existing draft if it doesn't have a DP yet
+			if existingReg.Status == models.SupplierInvoiceStatusDraft && existingReg.DownPaymentInvoiceID == nil {
+				tx.Model(&existingReg).Update("down_payment_invoice_id", si.ID)
+			}
+		}
+
+		// Fix reloading using the current transaction
+		var s models.SupplierInvoice
+		if err := tx.Preload("PurchaseOrder").
+			Preload("PaymentTerms").
+			Preload("DownPaymentInvoice").
+			Preload("RegularInvoices").
+			First(&s, "id = ?", si.ID).Error; err != nil {
 			return err
 		}
-		out = loaded
+		out = &s
 		return nil
 	})
 	if err != nil {
@@ -197,11 +293,16 @@ func (uc *supplierInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 			return err
 		}
 
-		loaded, err := uc.repo.GetByID(ctx, id)
-		if err != nil {
+		// Fix reloading using the current transaction
+		var s models.SupplierInvoice
+		if err := tx.Preload("PurchaseOrder").
+			Preload("PaymentTerms").
+			Preload("DownPaymentInvoice").
+			Preload("RegularInvoices").
+			First(&s, "id = ?", id).Error; err != nil {
 			return err
 		}
-		out = loaded
+		out = &s
 		return nil
 	})
 	if err != nil {
@@ -225,7 +326,8 @@ func (uc *supplierInvoiceDownPaymentUsecase) Delete(ctx context.Context, id stri
 	if existing.Type != models.SupplierInvoiceTypeDownPayment {
 		return ErrSupplierInvoiceNotFound
 	}
-	if existing.Status != models.SupplierInvoiceStatusDraft {
+	// Allow deletion of draft or unpaid invoices (aligned with Customer Invoice DP pattern)
+	if existing.Status != models.SupplierInvoiceStatusDraft && existing.Status != models.SupplierInvoiceStatusUnpaid {
 		return ErrSupplierInvoiceConflict
 	}
 	if err := uc.repo.Delete(ctx, id); err != nil {
@@ -255,11 +357,25 @@ func (uc *supplierInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 			return err
 		}
 
-		loaded, err := uc.repo.GetByID(ctx, id)
-		if err != nil {
+		// Fix reloading using the current transaction
+		var s models.SupplierInvoice
+		if err := tx.Preload("PurchaseOrder").
+			Preload("PaymentTerms").
+			Preload("DownPaymentInvoice").
+			Preload("RegularInvoices").
+			First(&s, "id = ?", id).Error; err != nil {
 			return err
 		}
-		out = loaded
+		out = &s
+
+		// Trigger Journal Entry for DP recognition (inside transaction)
+		// Debit: Purchase Advances (11900) / Credit: AP (21000)
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.triggerDPJournalEntry(txCtx, &si); err != nil {
+			fmt.Printf("⚠️ Failed to create journal entry for supplier invoice DP %s: %v\n", id, err)
+			// Don't fail the pending operation if journal fails
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -270,6 +386,54 @@ func (uc *supplierInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 	}
 	uc.auditService.Log(ctx, "supplier_invoice_dp.pending", id, map[string]interface{}{"after": out})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
+	// DP Invoice recognition:
+	// Debit: Purchase Advances (11900) - asset representing advance paid to supplier
+	// Credit: AP (21000) - liability to pay the supplier
+
+	advAcct, err := uc.coaUC.GetByCode(ctx, "11900")
+	if err != nil {
+		return err
+	}
+	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
+	if err != nil {
+		return err
+	}
+
+	if si.Amount <= 0 {
+		return nil
+	}
+
+	lines := []finDto.JournalLineRequest{
+		{
+			ChartOfAccountID: advAcct.ID,
+			Debit:            si.Amount,
+			Credit:           0,
+			Memo:             fmt.Sprintf("Purchase Advance - %s", si.InvoiceNumber),
+		},
+		{
+			ChartOfAccountID: apAcct.ID,
+			Debit:            0,
+			Credit:           si.Amount,
+			Memo:             fmt.Sprintf("AP for DP Invoice %s", si.Code),
+		},
+	}
+
+	refID := si.ID
+	refType := "SUPPLIER_INVOICE_DP"
+
+	req := &finDto.CreateJournalEntryRequest{
+		EntryDate:     si.InvoiceDate,
+		Description:   fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
+		ReferenceID:   &refID,
+		ReferenceType: &refType,
+		Lines:         lines,
+	}
+
+	_, err = uc.journalUC.Create(ctx, req)
+	return err
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

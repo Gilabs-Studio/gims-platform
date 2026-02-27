@@ -225,28 +225,54 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 
 		taxRate := math.Max(0, math.Min(100, req.TaxRate))
 		tax := round2dp(subTotal * taxRate / 100)
-		amount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		// Calculate Gross Amount (before DP deduction)
+		grossAmount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		amount := grossAmount
+
+		// Deduct paid Down Payments if this is a normal invoice (aligned with Customer Invoice pattern)
+		// Find any Down Payment for this PO to establish the link
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			po.ID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+		remainingAmount := math.Max(0, amount-dpAmount)
 
 		creatorID, _ := ctx.Value("user_id").(string)
 		si := models.SupplierInvoice{
-			Type:            models.SupplierInvoiceTypeNormal,
-			PurchaseOrderID: po.ID,
-			SupplierID:      *po.SupplierID,
-			PaymentTermsID:  &pt.ID,
-			Code:            code,
-			InvoiceNumber:   req.InvoiceNumber,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
-			TaxRate:         req.TaxRate,
-			TaxAmount:       tax,
-			DeliveryCost:    req.DeliveryCost,
-			OtherCost:       req.OtherCost,
-			SubTotal:        subTotal,
-			Amount:          amount,
-			Status:          models.SupplierInvoiceStatusDraft,
-			Notes:           req.Notes,
-			CreatedBy:       creatorID,
-			Items:           items,
+			Type:                 models.SupplierInvoiceTypeNormal,
+			PurchaseOrderID:      po.ID,
+			SupplierID:           *po.SupplierID,
+			PaymentTermsID:       &pt.ID,
+			Code:                 code,
+			InvoiceNumber:        req.InvoiceNumber,
+			InvoiceDate:          req.InvoiceDate,
+			DueDate:              req.DueDate,
+			TaxRate:              req.TaxRate,
+			TaxAmount:            tax,
+			DeliveryCost:         req.DeliveryCost,
+			OtherCost:            req.OtherCost,
+			SubTotal:             subTotal,
+			DownPaymentAmount:    dpAmount,
+			Amount:               grossAmount,
+			RemainingAmount:      remainingAmount,
+			DownPaymentInvoiceID: dpInvoiceID,
+			Status:               models.SupplierInvoiceStatusDraft,
+			Notes:                req.Notes,
+			CreatedBy:            creatorID,
+			Items:                items,
 		}
 
 		if err := snapshotSupplierInvoice(ctx, tx, &si, nil); err != nil {
@@ -384,29 +410,50 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		}
 
 		taxRate := math.Max(0, math.Min(100, req.TaxRate))
-		tax := subTotal * taxRate / 100
-		amount := subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost)
+		tax := round2dp(subTotal * taxRate / 100)
+		grossAmount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		amount := grossAmount
+
+		// Deduct paid Down Payments (aligned with Customer Invoice pattern)
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND status = ? AND deleted_at IS NULL",
+			po.ID, models.SupplierInvoiceTypeDownPayment, models.SupplierInvoiceStatusPaid).
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				dpAmount += dp.PaidAmount
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+
+		remainingAmount := math.Max(0, amount-dpAmount)
 
 		updatedDraft := &models.SupplierInvoice{
-			ID:              si.ID,
-			Type:            si.Type,
-			PurchaseOrderID: po.ID,
-			SupplierID:      *po.SupplierID,
-			PaymentTermsID:  &pt.ID,
-			Code:            si.Code,
-			InvoiceNumber:   req.InvoiceNumber,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
-			TaxRate:         req.TaxRate,
-			TaxAmount:       tax,
-			DeliveryCost:    req.DeliveryCost,
-			OtherCost:       req.OtherCost,
-			SubTotal:        subTotal,
-			Amount:          amount,
-			Status:          si.Status,
-			Notes:           req.Notes,
-			CreatedBy:       si.CreatedBy,
-			Items:           newItems,
+			ID:                si.ID,
+			Type:              si.Type,
+			PurchaseOrderID:   po.ID,
+			SupplierID:        *po.SupplierID,
+			PaymentTermsID:    &pt.ID,
+			Code:              si.Code,
+			InvoiceNumber:     req.InvoiceNumber,
+			InvoiceDate:       req.InvoiceDate,
+			DueDate:           req.DueDate,
+			TaxRate:           req.TaxRate,
+			TaxAmount:         tax,
+			DeliveryCost:      req.DeliveryCost,
+			OtherCost:         req.OtherCost,
+			SubTotal:          subTotal,
+			DownPaymentAmount: dpAmount,
+			Amount:            grossAmount,
+			RemainingAmount:   math.Max(0, remainingAmount-si.PaidAmount),
+			Status:            si.Status,
+			Notes:             req.Notes,
+			CreatedBy:         si.CreatedBy,
+			Items:             newItems,
 		}
 		if err := snapshotSupplierInvoice(ctx, tx, updatedDraft, &si); err != nil {
 			return err
@@ -425,17 +472,20 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 				}
 				return *updatedDraft.PaymentTermsDaysSnapshot
 			}(),
-			"invoice_number": req.InvoiceNumber,
-			"invoice_date":   req.InvoiceDate,
-			"due_date":       req.DueDate,
-			"tax_rate":       req.TaxRate,
-			"tax_amount":     tax,
-			"delivery_cost":  req.DeliveryCost,
-			"other_cost":     req.OtherCost,
-			"sub_total":      subTotal,
-			"amount":         amount,
-			"notes":          req.Notes,
-			"updated_at":     time.Now(),
+			"invoice_number":          req.InvoiceNumber,
+			"invoice_date":            req.InvoiceDate,
+			"due_date":                req.DueDate,
+			"tax_rate":                req.TaxRate,
+			"tax_amount":              tax,
+			"delivery_cost":           req.DeliveryCost,
+			"other_cost":              req.OtherCost,
+			"sub_total":               subTotal,
+			"down_payment_amount":     dpAmount,
+			"amount":                  grossAmount,
+			"remaining_amount":        math.Max(0, remainingAmount-si.PaidAmount),
+			"down_payment_invoice_id": dpInvoiceID,
+			"notes":                   req.Notes,
+			"updated_at":              time.Now(),
 		}
 		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
@@ -483,7 +533,8 @@ func (uc *supplierInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	if existing.Type != models.SupplierInvoiceTypeNormal {
 		return ErrSupplierInvoiceNotFound
 	}
-	if existing.Status != models.SupplierInvoiceStatusDraft {
+	// Allow deletion of draft or unpaid invoices (aligned with Customer Invoice pattern)
+	if existing.Status != models.SupplierInvoiceStatusDraft && existing.Status != models.SupplierInvoiceStatusUnpaid {
 		return ErrSupplierInvoiceConflict
 	}
 	if err := uc.repo.Delete(ctx, id); err != nil {
@@ -565,7 +616,47 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			}
 		}
 
-		if err := tx.Model(&si).Update("status", models.SupplierInvoiceStatusUnpaid).Error; err != nil {
+		// Recalculate DP deduction before approving and ensure link is made
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			si.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+
+		status := models.SupplierInvoiceStatusUnpaid
+		remainingAmount := math.Max(0, si.Amount-dpAmount)
+		if dpAmount > 0 {
+			if remainingAmount <= 0.0001 {
+				status = models.SupplierInvoiceStatusPaid
+			} else {
+				status = models.SupplierInvoiceStatusPartial
+			}
+		}
+
+		updates := map[string]interface{}{
+			"status":                  status,
+			"down_payment_amount":     dpAmount,
+			"remaining_amount":        remainingAmount,
+			"down_payment_invoice_id": dpInvoiceID,
+		}
+		if status == models.SupplierInvoiceStatusPaid {
+			now := time.Now()
+			updates["payment_at"] = &now
+		}
+
+		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
 		}
 

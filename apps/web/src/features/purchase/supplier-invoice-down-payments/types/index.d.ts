@@ -37,6 +37,11 @@ export interface SupplierInvoiceDPPurchaseOrderMini {
   code: string;
 }
 
+export interface SupplierInvoiceDPRegularInvoiceMini {
+  id: string;
+  code: string;
+}
+
 export interface SupplierInvoiceDPListItem {
   id: string;
   purchase_order?: SupplierInvoiceDPPurchaseOrderMini | null;
@@ -47,6 +52,7 @@ export interface SupplierInvoiceDPListItem {
   amount: number;
   status: SupplierInvoiceDPStatus;
   notes?: string | null;
+  regular_invoices?: SupplierInvoiceDPRegularInvoiceMini[] | null;
   created_at: string;
   updated_at: string;
 }

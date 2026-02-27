@@ -41,7 +41,15 @@
     "somethingWentWrong": "Something went wrong",
     "export": "Export",
     "exportFailed": "Failed to export data",
-    "print": "Print"
+    "print": "Print",
+    "filterBy": "Filter by",
+    "status": "Status",
+    "supplierInvoice": "Supplier Invoice",
+    "supplierInvoiceDP": "Supplier Invoice Down Payment",
+    "purchasePayment": "Purchase Payment",
+    "purchaseRequisition": "Purchase Requisition",
+    "purchaseOrder": "Purchase Order",
+    "goodsReceipt": "Goods Receipt"
   },
   "notFound": {
     "label": "404",

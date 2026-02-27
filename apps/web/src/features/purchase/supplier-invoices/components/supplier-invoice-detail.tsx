@@ -83,6 +83,14 @@ export function SupplierInvoiceDetailView({ data }: { data: ISupplierInvoiceDeta
                 <span className="text-muted-foreground">{t("fields.paymentTerms")}</span>
                 <span className="col-span-2 font-medium">{data.payment_terms?.name ?? "-"}</span>
               </div>
+              {data.down_payment_invoice && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-muted-foreground truncate">DP Ref</span>
+                  <span className="col-span-2 font-mono font-medium text-primary">
+                    {data.down_payment_invoice.code}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -102,13 +110,27 @@ export function SupplierInvoiceDetailView({ data }: { data: ISupplierInvoiceDeta
         </div>
 
         {/* Amount Summary */}
-        <div className="bg-card border rounded-lg overflow-hidden">
+        <div className="bg-card border rounded-lg overflow-hidden flex flex-col items-stretch divide-y">
+          <div className="p-4 flex justify-between items-center px-6">
+            <span className="text-muted-foreground font-medium flex items-center gap-2">
+              <Hash className="h-4 w-4" />
+              Total Amount
+            </span>
+            <span className="font-mono text-lg">{formatCurrency(data.amount)}</span>
+          </div>
+          <div className="p-4 flex justify-between items-center px-6">
+            <span className="text-muted-foreground font-medium flex items-center gap-2">
+              <Hash className="h-4 w-4" />
+              Paid Amount
+            </span>
+            <span className="font-mono text-lg text-emerald-600">{formatCurrency(data.paid_amount)}</span>
+          </div>
           <div className="p-4 flex justify-between items-center px-6 bg-muted/20">
-            <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold">{t("columns.amount")}</span>
-            </div>
-            <span className="font-mono font-bold text-xl">{formatCurrency(data.amount)}</span>
+            <span className="font-semibold flex items-center gap-2">
+              <Hash className="h-4 w-4" />
+              Remaining Amount
+            </span>
+            <span className="font-mono font-bold text-xl">{formatCurrency(data.remaining_amount)}</span>
           </div>
         </div>
       </TabsContent>

@@ -2,6 +2,11 @@ package dto
 
 import "time"
 
+type SupplierInvoiceDownPaymentRegularInvoiceMini struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+}
+
 type SupplierInvoiceDownPaymentListResponse struct {
 	ID string `json:"id"`
 
@@ -14,6 +19,8 @@ type SupplierInvoiceDownPaymentListResponse struct {
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
 	Notes         *string `json:"notes"`
+
+	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -31,6 +38,8 @@ type SupplierInvoiceDownPaymentDetailResponse struct {
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
 	Notes         *string `json:"notes"`
+
+	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

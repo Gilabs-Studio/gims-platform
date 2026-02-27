@@ -177,7 +177,7 @@ export function PurchaseOrderForm({
 
     reset(
       {
-        source: "manual",
+        source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
         supplier_id: po.supplier_id ?? null,
         payment_terms_id: po.payment_terms_id ?? null,
         business_unit_id: po.business_unit_id ?? null,

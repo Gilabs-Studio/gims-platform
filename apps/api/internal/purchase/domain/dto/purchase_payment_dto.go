@@ -47,7 +47,9 @@ type PurchasePaymentAddInvoiceItem struct {
 		ID   string `json:"id"`
 		Code string `json:"code"`
 	} `json:"purchase_order,omitempty"`
+	Code            string  `json:"code"`
 	InvoiceNumber   string  `json:"invoice_number"`
+	Type            string  `json:"type"`
 	InvoiceDate     string  `json:"invoice_date"`
 	DueDate         string  `json:"due_date"`
 	Amount          float64 `json:"amount"`

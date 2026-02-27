@@ -38,6 +38,7 @@ export const supplierInvoiceDPEn = {
   },
   columns: {
     code: "Code",
+    regularInvoice: "Regular Invoice",
     invoiceNumber: "Invoice No.",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
