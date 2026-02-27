@@ -4,15 +4,18 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  CheckCircle2,
   Clock,
   Download,
   Eye,
+  FileText,
   History,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -164,18 +167,21 @@ export function SupplierInvoiceDPList() {
       case "paid":
         return (
           <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="outline" className="text-xs font-medium">
+          <Badge variant="warning" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge variant="info" className="text-xs font-medium">
+            <TrendingUp className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -183,6 +189,7 @@ export function SupplierInvoiceDPList() {
       default:
         return (
           <Badge variant="secondary" className="text-xs font-medium">
+            <FileText className="h-3 w-3 mr-1" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -417,58 +424,77 @@ export function SupplierInvoiceDPList() {
 
 function SupplierInvoiceDPDetailView({ id }: { id: string }) {
   const t = useTranslations("supplierInvoiceDP");
-  const tCommon = useTranslations("common");
   const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
 
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (isLoading) return (
+    <div className="space-y-3">
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
   if (isError || !data?.success)
-    return <div className="text-center py-8 text-destructive">{t("detail.failed")}</div>;
+    return <div className="text-sm text-destructive">{t("detail.failed")}</div>;
 
   const row = data.data;
 
+  const getDetailBadge = (status: SupplierInvoiceDPStatus) => {
+    switch (normalizeStatus(status)) {
+      case "paid":
+        return <Badge variant="success" className="text-xs font-medium"><CheckCircle2 className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
+      case "unpaid":
+        return <Badge variant="warning" className="text-xs font-medium"><Clock className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
+      case "partial":
+        return <Badge variant="info" className="text-xs font-medium"><TrendingUp className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-xs font-medium"><FileText className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
-        <div className="font-semibold text-lg">{row.code}</div>
+    <div className="space-y-6 pt-2">
+      {/* Header Card */}
+      <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
+        <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+          <FileText className="h-6 w-6" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-lg">{row.invoice_number}</h3>
+          <p className="text-sm text-muted-foreground font-mono">{row.code}</p>
+        </div>
+        <div className="text-right">
+          {getDetailBadge(row.status)}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.purchaseOrder")}</div>
-          <div className="font-medium">{row.purchase_order?.code ?? "-"}</div>
+      {/* Info Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div className="space-y-1">
+          <p className="text-muted-foreground">{t("fields.purchaseOrder")}</p>
+          <p className="font-mono font-medium text-primary">{row.purchase_order?.code ?? "-"}</p>
         </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.amount")}</div>
-          <div className="font-medium">{formatCurrency(row.amount)}</div>
+        <div className="space-y-1">
+          <p className="text-muted-foreground">{t("fields.invoiceDate")}</p>
+          <p className="font-medium">{safeDate(row.invoice_date)}</p>
         </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.invoiceDate")}</div>
-          <div className="font-medium">{safeDate(row.invoice_date)}</div>
+        <div className="space-y-1">
+          <p className="text-muted-foreground">{t("fields.dueDate")}</p>
+          <p className="font-medium">{safeDate(row.due_date)}</p>
         </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.dueDate")}</div>
-          <div className="font-medium">{safeDate(row.due_date)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.status")}</div>
-          <div className="font-medium">
-            <Badge
-              variant={normalizeStatus(row.status) === "paid" ? "success" : "secondary"}
-              className="text-xs"
-            >
-              {statusLabel(t, row.status)}
-            </Badge>
+        {row.notes ? (
+          <div className="space-y-1">
+            <p className="text-muted-foreground">{t("fields.notes")}</p>
+            <p className="font-medium">{row.notes}</p>
           </div>
-        </div>
+        ) : null}
       </div>
 
-      {row.notes ? (
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.notes")}</div>
-          <div className="whitespace-pre-wrap text-sm">{row.notes}</div>
+      {/* Amount Card */}
+      <div className="bg-card border rounded-lg overflow-hidden">
+        <div className="p-4 flex justify-between items-center px-6 bg-muted/20">
+          <span className="font-semibold">{t("fields.amount")}</span>
+          <span className="font-mono font-bold text-xl">{formatCurrency(row.amount)}</span>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

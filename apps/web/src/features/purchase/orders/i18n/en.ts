@@ -15,6 +15,10 @@ export const purchaseOrderEn = {
     title: "Purchase Order Detail",
     failed: "Failed to load purchase order",
   },
+  tabs: {
+    general: "General",
+    items: "Items",
+  },
   auditTrail: {
     title: "Audit Trail",
     empty: "No audit trail entries",

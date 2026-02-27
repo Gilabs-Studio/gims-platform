@@ -39,6 +39,10 @@ export const purchaseRequisitionId = {
     title: "Detail Permintaan Pembelian",
     failed: "Gagal memuat purchase requisition",
   },
+  tabs: {
+    general: "Umum",
+    items: "Item",
+  },
   fields: {
     requestDate: "Tanggal Permintaan",
     supplier: "Supplier",

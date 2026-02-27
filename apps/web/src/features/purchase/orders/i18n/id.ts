@@ -15,6 +15,10 @@ export const purchaseOrderId = {
     title: "Detail Purchase Order",
     failed: "Gagal memuat purchase order",
   },
+  tabs: {
+    general: "Umum",
+    items: "Item",
+  },
   auditTrail: {
     title: "Audit Trail",
     empty: "Tidak ada riwayat audit",

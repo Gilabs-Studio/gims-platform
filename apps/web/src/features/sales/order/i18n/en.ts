@@ -56,6 +56,7 @@ export const orderEn = {
       pending: "Submitted",
       approved: "Approved",
       rejected: "Rejected",
+      closed: "Closed",
       confirmed: "Confirmed",
       processing: "Processing",
       shipped: "Shipped",

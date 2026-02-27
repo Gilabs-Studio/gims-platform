@@ -376,7 +376,7 @@ export function PurchaseRequisitionsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.approve")}
@@ -415,7 +415,7 @@ export function PurchaseRequisitionsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-blue-600 focus:text-blue-600"
                               >
                                 <FileText className="h-4 w-4 mr-2" />
                                 {t("actions.convert")}
