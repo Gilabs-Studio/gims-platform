@@ -305,8 +305,8 @@ func main() {
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
-		// Stock Opname module (Sprint 9)
-		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		// Stock Opname module (Sprint 9) — depends on inventory for stock movement on Post
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)

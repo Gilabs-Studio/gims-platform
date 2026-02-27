@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -126,7 +127,17 @@ export function AssetCategoryList() {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{t(`methods.${item.depreciation_method}`)}</TableCell>
                   <TableCell>{item.useful_life_months}</TableCell>
-                  <TableCell>{item.is_active ? tCommon("yes") : tCommon("no")}</TableCell>
+                  <TableCell>{item.is_active ? (
+                    <Badge variant="success" className="text-xs font-medium">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {tCommon("yes")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="inactive" className="text-xs font-medium">
+                      <MinusCircle className="h-3 w-3 mr-1" />
+                      {tCommon("no")}
+                    </Badge>
+                  )}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -144,11 +155,16 @@ export function AssetCategoryList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

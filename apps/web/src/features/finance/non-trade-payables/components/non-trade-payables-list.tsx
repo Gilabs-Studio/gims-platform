@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { Banknote, CheckCircle2, Clock, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -23,7 +25,6 @@ import {
 } from "../hooks/use-finance-non-trade-payables";
 import { NonTradePayableForm } from "./non-trade-payable-form";
 import { PayNonTradePayableDialog } from "./pay-dialog";
-import { Badge } from "@/components/ui/badge";
 
 function formatDate(value: string) {
   const d = new Date(value);
@@ -31,12 +32,62 @@ function formatDate(value: string) {
   return d.toISOString().slice(0, 10);
 }
 
-const statusColors: Record<string, string> = {
-  DRAFT: "bg-slate-500",
-  APPROVED: "bg-blue-500",
-  PAID: "bg-green-500",
-  CANCELLED: "bg-red-500",
-};
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "approved":
+    case "confirmed":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "cancelled":
+    case "rejected":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium">
+          <XCircle className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "unpaid":
+    case "overdue":
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "partial":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {status}
+        </Badge>
+      );
+  }
+}
 
 export function NonTradePayablesList() {
   const t = useTranslations("financeNonTradePayables");
@@ -156,14 +207,12 @@ export function NonTradePayablesList() {
               rows.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.code}</TableCell>
-                  <TableCell>{formatDate(item.transaction_date)}</TableCell>
+                  <TableCell className="tabular-nums">{formatDate(item.transaction_date)}</TableCell>
                   <TableCell>{item.vendor_name || "-"}</TableCell>
-                  <TableCell>{item.amount?.toLocaleString?.() ?? item.amount}</TableCell>
-                  <TableCell>{item.due_date ? formatDate(item.due_date) : "-"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.amount)}</TableCell>
+                  <TableCell className="tabular-nums">{item.due_date ? formatDate(item.due_date) : "-"}</TableCell>
                   <TableCell>
-                    <Badge className={statusColors[item.status] || "bg-slate-500"}>
-                      {item.status}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -182,27 +231,34 @@ export function NonTradePayablesList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {item.status === "DRAFT" && canApprove && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-blue-600"
+                            className="cursor-pointer text-green-600 focus:text-green-600"
                             onClick={() => handleApprove(item.id)}
                           >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
                         {item.status === "APPROVED" && canApprove && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 font-bold"
+                            className="cursor-pointer text-green-600 focus:text-green-600"
                             onClick={() => setPaying(item)}
                           >
+                            <Banknote className="h-4 w-4 mr-2" />
                             {t("actions.pay")}
                           </DropdownMenuItem>
                         )}
                         {item.status === "DRAFT" && canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

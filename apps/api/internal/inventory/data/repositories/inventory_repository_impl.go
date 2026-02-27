@@ -490,9 +490,17 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 		Date:             time.Now(),
 	}
 
-	if req.Type == "IN" || (req.Type == "ADJUST" && req.Quantity > 0) { // Naive assumption for Adjust
+	switch {
+	case req.Type == "IN":
 		movement.QtyIn = req.Quantity
-	} else {
+	case req.Type == "ADJUST" && req.Quantity > 0:
+		// Surplus: physical count > system → stock increases
+		movement.QtyIn = req.Quantity
+	case req.Type == "ADJUST" && req.Quantity < 0:
+		// Shortage: physical count < system → stock decreases
+		movement.QtyOut = -req.Quantity // Store as positive value
+	default:
+		// OUT or TRANSFER
 		movement.QtyOut = req.Quantity
 	}
 
@@ -575,4 +583,31 @@ func (r *inventoryRepository) GetBatchByID(ctx context.Context, batchID string) 
 func (r *inventoryRepository) UpdateBatchReservedQuantity(ctx context.Context, batchID string, quantity float64) error {
 	return r.DB(ctx).Table("inventory_batches").Where("id = ?", batchID).
 		Update("reserved_quantity", gorm.Expr("COALESCE(reserved_quantity, 0) + ?", quantity)).Error
+}
+
+// GetBatchesByProductAndWarehouse returns all active batches for a product in a specific warehouse (FIFO order)
+func (r *inventoryRepository) GetBatchesByProductAndWarehouse(ctx context.Context, productID, warehouseID string) ([]dto.InventoryBatchItem, error) {
+	var items []dto.InventoryBatchItem
+
+	query := r.DB(ctx).Table("inventory_batches ib").
+		Select(`
+			ib.id,
+			ib.batch_number,
+			ib.expiry_date,
+			ib.created_at as received_at,
+			ib.current_quantity,
+			ib.reserved_quantity,
+			(ib.current_quantity - ib.reserved_quantity) as available
+		`).
+		Where("ib.deleted_at IS NULL").
+		Where("ib.product_id = ?", productID).
+		Where("ib.warehouse_id = ?", warehouseID).
+		Where("ib.is_active = true").
+		Order("ib.created_at ASC")
+
+	if err := query.Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }

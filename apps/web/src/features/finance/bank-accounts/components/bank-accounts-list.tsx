@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -128,8 +128,12 @@ export function BankAccountsList() {
                   <TableCell>{item.account_number}</TableCell>
                   <TableCell>{item.currency}</TableCell>
                   <TableCell>
-                    <Badge variant={item.is_active ? "default" : "secondary"}>
-                      {item.is_active ? t("status.active") : t("status.inactive")}
+                    <Badge variant={item.is_active ? "success" : "inactive"} className="text-xs font-medium">
+                      {item.is_active ? (
+                        <><CheckCircle2 className="h-3 w-3 mr-1" />{t("status.active")}</>
+                      ) : (
+                        <><MinusCircle className="h-3 w-3 mr-1" />{t("status.inactive")}</>
+                      )}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -149,11 +153,16 @@ export function BankAccountsList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeletingItem(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeletingItem(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}
