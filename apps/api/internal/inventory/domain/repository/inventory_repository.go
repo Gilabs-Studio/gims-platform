@@ -30,4 +30,7 @@ type InventoryRepository interface {
 	// Batch-level Stock Reservation
 	GetBatchByID(ctx context.Context, batchID string) (*dto.InventoryBatchDetail, error)
 	UpdateBatchReservedQuantity(ctx context.Context, batchID string, quantity float64) error
+
+	// Batch lookup by product + warehouse (for opname adjustments)
+	GetBatchesByProductAndWarehouse(ctx context.Context, productID, warehouseID string) ([]dto.InventoryBatchItem, error)
 }

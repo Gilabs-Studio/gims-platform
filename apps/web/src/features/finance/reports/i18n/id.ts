@@ -32,4 +32,8 @@ export const financeReportsId = {
   total_revenue: "Total Pendapatan",
   total_expenses: "Total Beban",
   net_profit_loss: "Laba / Rugi Bersih",
+  total_debit: "Total Debit",
+  total_credit: "Total Kredit",
+  net_balance: "Saldo Bersih",
+  no_data: "Tidak ada data. Pilih rentang tanggal dan buat laporan.",
 };

@@ -1,32 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Download } from "lucide-react";
+import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { formatCurrency } from "@/lib/utils";
 
 import { useProfitAndLoss } from "../hooks/use-finance-reports";
 import { financeReportsService } from "../services/finance-reports-service";
 import type { PLReportRow } from "../types";
+
+function toApiDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export function ProfitLossView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
 
   const now = new Date();
-  const firstDayOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-  const today = now.toISOString().slice(0, 10);
+  const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
+    from: new Date(now.getFullYear(), 0, 1),
+    to: now,
+  });
 
-  const [dateRange, setDateRange] = useState({ start_date: firstDayOfYear, end_date: today });
+  const dateRange = useMemo(() => ({
+    start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
+    end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [pickerRange]);
 
   const { data, isLoading, isError } = useProfitAndLoss(dateRange);
   const report = data?.data;
+
+  const netProfit = report?.net_profit ?? 0;
 
   const handleExport = async () => {
     try {
@@ -44,36 +58,46 @@ export function ProfitLossView() {
     }
   };
 
+  const metrics = [
+    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp },
+    { label: t("total_expenses"), value: formatCurrency(report?.expense_total ?? 0), Icon: TrendingDown },
+    {
+      label: t("net_profit_loss"),
+      value: formatCurrency(netProfit),
+      Icon: Wallet,
+      valueClass: netProfit >= 0 ? "text-green-600" : "text-destructive",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">{t("pl_title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("pl_description")}</p>
+          <p className="text-muted-foreground">{t("pl_description")}</p>
         </div>
-        <Button onClick={handleExport} variant="outline" className="cursor-pointer">
-          <Download className="h-4 w-4 mr-2" />
-          {t("export")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
+          <Button onClick={handleExport} variant="outline" size="sm" className="cursor-pointer">
+            <Download className="h-4 w-4 mr-2" />
+            {t("export")}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-4 items-end">
-        <div className="space-y-2">
-          <Label>{t("start_date")}</Label>
-          <Input
-            type="date"
-            value={dateRange.start_date}
-            onChange={(e) => setDateRange((p) => ({ ...p, start_date: e.target.value }))}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t("end_date")}</Label>
-          <Input
-            type="date"
-            value={dateRange.end_date}
-            onChange={(e) => setDateRange((p) => ({ ...p, end_date: e.target.value }))}
-          />
-        </div>
+      {/* Summary metrics */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {metrics.map(({ label, value, Icon, valueClass }) => (
+          <Card key={label}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{label}</CardTitle>
+              <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-medium font-mono tabular-nums ${valueClass ?? ""}`}>{value}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {isLoading && (
@@ -104,12 +128,12 @@ export function ProfitLossView() {
                   <TableRow key={`${r.code}-${idx}`}>
                     <TableCell className="font-mono text-xs">{r.code}</TableCell>
                     <TableCell>{r.name}</TableCell>
-                    <TableCell className="text-right font-mono">{(r.amount ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.revenue_total?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -131,12 +155,12 @@ export function ProfitLossView() {
                   <TableRow key={`${e.code}-${idx}`}>
                     <TableCell className="font-mono text-xs">{e.code}</TableCell>
                     <TableCell>{e.name}</TableCell>
-                    <TableCell className="text-right font-mono">{(e.amount ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/30">
                   <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
-                  <TableCell className="text-right font-mono">{report.expense_total?.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -146,8 +170,8 @@ export function ProfitLossView() {
           <div className="rounded-md border p-4 bg-muted/20">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold">{t("net_profit_loss")}</span>
-              <span className={`text-lg font-bold font-mono ${(report.net_profit ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {(report.net_profit ?? 0).toLocaleString()}
+              <span className={`text-lg font-bold font-mono tabular-nums ${netProfit >= 0 ? "text-green-600" : "text-destructive"}`}>
+                {formatCurrency(netProfit)}
               </span>
             </div>
           </div>
@@ -156,3 +180,4 @@ export function ProfitLossView() {
     </div>
   );
 }
+

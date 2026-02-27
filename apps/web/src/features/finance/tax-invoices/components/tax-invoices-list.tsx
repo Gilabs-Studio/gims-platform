@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -131,9 +132,9 @@ export function TaxInvoicesList() {
                 <TableRow key={item.id}>
                   <TableCell>{item.tax_invoice_number}</TableCell>
                   <TableCell>{formatDate(item.tax_invoice_date)}</TableCell>
-                  <TableCell>{item.dpp_amount?.toLocaleString?.() ?? item.dpp_amount}</TableCell>
-                  <TableCell>{item.vat_amount?.toLocaleString?.() ?? item.vat_amount}</TableCell>
-                  <TableCell>{item.total_amount?.toLocaleString?.() ?? item.total_amount}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.dpp_amount)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.vat_amount)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.total_amount)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -151,11 +152,16 @@ export function TaxInvoicesList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

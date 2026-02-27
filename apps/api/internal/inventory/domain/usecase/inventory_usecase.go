@@ -33,6 +33,7 @@ type InventoryUsecase interface {
 
 	// Integration
 	ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error
+	AdjustStockFromOpname(ctx context.Context, req *dto.AdjustStockFromOpnameRequest) error
 
 	// Batch-level Stock Reservation
 	ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error
@@ -297,4 +298,61 @@ func (u *inventoryUsecase) ReserveBatchStock(ctx context.Context, batchID string
 
 func (u *inventoryUsecase) ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error {
 	return u.repo.UpdateBatchReservedQuantity(ctx, batchID, -quantity)
+}
+
+// AdjustStockFromOpname creates ADJUST stock movements and updates batch/product quantities
+// based on variance data from a posted Stock Opname.
+// Positive variance = surplus (qty found more than system) → IN adjustment
+// Negative variance = shortage (qty found less than system) → OUT adjustment
+func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.AdjustStockFromOpnameRequest) error {
+	for _, item := range req.Items {
+		if item.VarianceQty == 0 {
+			continue // No adjustment needed for matching items
+		}
+
+		// Find the oldest batch for this product+warehouse to attach the movement
+		batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
+		if err != nil {
+			return err
+		}
+
+		// Determine batch ID — use the first (oldest) batch if available
+		batchID := ""
+		if len(batches) > 0 {
+			batchID = batches[0].ID
+		}
+
+		// Create the ADJUST stock movement
+		// Pass signed variance so the repo can determine QtyIn vs QtyOut
+		// Positive variance = surplus = QtyIn; Negative = shortage = QtyOut
+		movementReq := &dto.StockMovementRequest{
+			InventoryBatchID: batchID,
+			ProductID:        item.ProductID,
+			WarehouseID:      req.WarehouseID,
+			Type:             "ADJUST",
+			Quantity:         item.VarianceQty,
+			ReferenceType:    "OPNAME",
+			ReferenceID:      req.OpnameID,
+			ReferenceNumber:  req.OpnameNumber,
+			Description:      req.Notes,
+			CreatedBy:        &req.PostedBy,
+		}
+
+		if err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
+			return err
+		}
+
+		// Update batch quantity with the variance delta
+		if batchID != "" {
+			if err := u.repo.UpdateBatchQuantity(ctx, batchID, item.VarianceQty); err != nil {
+				return err
+			}
+		}
+
+		// Update aggregate product stock
+		if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.VarianceQty); err != nil {
+			return err
+		}
+	}
+	return nil
 }

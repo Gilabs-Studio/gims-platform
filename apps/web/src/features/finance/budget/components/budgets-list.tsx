@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -25,6 +26,48 @@ function safeDate(value?: string | null): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString();
+}
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "approved":
+    case "active":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "rejected":
+    case "cancelled":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium">
+          <XCircle className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "closed":
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
 }
 
 export function BudgetsList() {
@@ -133,15 +176,13 @@ export function BudgetsList() {
               items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name ?? "-"}</TableCell>
-                  <TableCell>
+                  <TableCell className="tabular-nums">
                     {safeDate(item.start_date)} - {safeDate(item.end_date)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={item.status === "approved" ? "default" : "secondary"}>
-                      {t(`status.${item.status}`)}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
-                  <TableCell className="text-right">{item.total_amount ?? 0}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.total_amount)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -159,12 +200,13 @@ export function BudgetsList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-green-600 focus:text-green-600"
                             onClick={async () => {
                               try {
                                 await approveMutation.mutateAsync(item.id);
@@ -174,11 +216,16 @@ export function BudgetsList() {
                               }
                             }}
                           >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeletingItem(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeletingItem(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

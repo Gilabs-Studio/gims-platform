@@ -47,7 +47,7 @@ function ReportSkeleton() {
 export default function BalanceSheetPage() {
   return (
     <PermissionGuard requiredPermission="finance_report.bs">
-      <PageMotion className="p-6">
+      <PageMotion>
         <Suspense fallback={<ReportSkeleton />}>
           <BalanceSheetView />
         </Suspense>

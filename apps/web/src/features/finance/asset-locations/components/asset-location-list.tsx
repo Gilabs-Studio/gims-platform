@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -139,11 +139,16 @@ export function AssetLocationList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

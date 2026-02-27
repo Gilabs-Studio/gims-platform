@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,6 +21,34 @@ import {
 } from "../hooks/use-finance-up-country-cost";
 import type { UpCountryCost } from "../types";
 import { UpCountryCostForm } from "./up-country-cost-form";
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "approved":
+    case "active":
+    case "confirmed":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
+}
 
 export function UpCountryCostList() {
   const t = useTranslations("financeUpCountryCost");
@@ -142,13 +171,11 @@ export function UpCountryCostList() {
                   <TableCell>{item.location}</TableCell>
                   <TableCell>{new Date(item.start_date).toLocaleDateString()}</TableCell>
                   <TableCell>{new Date(item.end_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {item.total_amount?.toLocaleString() ?? 0}
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCurrency(item.total_amount)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={item.status === "approved" ? "success" as any : "secondary"}>
-                      {t(`status.${item.status}`)}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -160,16 +187,25 @@ export function UpCountryCostList() {
                       <DropdownMenuContent align="end">
                         {canUpdate && item.status === "draft" && (
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(item)}>
+                            <Pencil className="h-4 w-4 mr-2" />
                             {tCommon("edit")}
                           </DropdownMenuItem>
                         )}
                         {canApprove && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => handleApprove(item.id)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            onClick={() => handleApprove(item.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer text-destructive" onClick={() => handleDelete(item.id)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {tCommon("delete")}
                           </DropdownMenuItem>
                         )}

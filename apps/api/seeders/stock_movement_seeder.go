@@ -3,144 +3,240 @@ package seeders
 import (
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
+	purchaseModels "github.com/gilabs/gims/api/internal/purchase/data/models"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
-	userModels "github.com/gilabs/gims/api/internal/user/data/models"
+	opnameModels "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/google/uuid"
 )
 
-// SeedStockMovement seeds sample stock movements based on existing Inventory Batches and Delivery Orders
+// movementEvent holds a dated movement for chronological sorting
+type movementEvent struct {
+	Date    time.Time
+	Details inventoryModels.StockMovement
+}
+
+// batchKey maps product+warehouse to a batch ID
+type batchKey struct {
+	ProductID   string
+	WarehouseID string
+}
+
+// SeedStockMovement generates stock movements from real relational entities:
+// - IN  movements from confirmed Goods Receipt items
+// - OUT movements from shipped/delivered Delivery Order items
+// - ADJUST movements from posted Stock Opname items with variance
+// No dummy data is created — all references point to existing seeded records.
+// If any category is missing, all movements are deleted and fully re-seeded for consistent balances.
 func SeedStockMovement() error {
 	db := database.DB
 
-	// Check if already seeded with valid data
-	var count int64
-	db.Model(&inventoryModels.StockMovement{}).Count(&count)
-	if count > 0 {
-		var emptyCount int64
-		// Check for "bad" seeds (empty ref_number)
-		db.Model(&inventoryModels.StockMovement{}).Where("ref_number = '' OR ref_number IS NULL").Count(&emptyCount)
+	// Always remove legacy dummy movements from the old batch-based seeder
+	db.Where("ref_number LIKE ?", "GR-INIT-%").Delete(&inventoryModels.StockMovement{})
 
-		if emptyCount == 0 {
-			log.Println("Stock movements already seeded and valid, skipping...")
-			return nil
-		}
-		log.Printf("Found %d stock movements with empty references, re-seeding...", emptyCount)
-		// Clean up bad data
-		db.Where("ref_number = '' OR ref_number IS NULL").Delete(&inventoryModels.StockMovement{})
+	// Check which real categories already exist
+	var inCount, outCount, adjustCount int64
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "GoodsReceipt").Count(&inCount)
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "DeliveryOrder").Count(&outCount)
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "StockOpname").Count(&adjustCount)
+
+	if inCount > 0 && outCount > 0 && adjustCount > 0 {
+		log.Println("Stock movements already seeded for all categories, skipping...")
+		return nil
 	}
 
-	log.Println("Seeding stock movements from existing entities...")
-
-	// 1. Get Admin User for CreatedBy
-	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
-	if defaultEmail == "" {
-		defaultEmail = "admin@example.com"
+	// If any category is missing, delete all and re-seed from scratch
+	// — required for correct chronological running balance across all movement types
+	log.Printf("Stock movement gaps detected (IN=%d, OUT=%d, ADJUST=%d) — deleting all and re-seeding...",
+		inCount, outCount, adjustCount)
+	if err := db.Where("1 = 1").Delete(&inventoryModels.StockMovement{}).Error; err != nil {
+		return fmt.Errorf("failed to clear stock movements for re-seed: %w", err)
 	}
 
-	var adminUser userModels.User
-	if err := db.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
-		// Fallback to any user
-		db.First(&adminUser)
-	}
-	adminID := adminUser.ID
-	if adminID == "" {
-		adminID = "00000000-0000-0000-0000-000000000000"
-	}
+	log.Println("Seeding stock movements from existing relational entities...")
 
-	// 2. Fetch all Products for Cost info
+	adminID := AdminUserID
+
+	// Build product cost lookup
 	var products []productModels.Product
 	if err := db.Find(&products).Error; err != nil {
-		return err
+		return fmt.Errorf("failed to fetch products: %w", err)
 	}
-	productMap := make(map[string]productModels.Product)
+	productCostMap := make(map[string]float64, len(products))
 	for _, p := range products {
-		productMap[p.ID] = p
+		productCostMap[p.ID] = p.CostPrice
 	}
 
-	// Internal struct to sort events
-	type MovementEvent struct {
-		Date         time.Time
-		Details      inventoryModels.StockMovement
-	}
-	var events []MovementEvent
-
-	// 3. Process Inventory Batches (IN Movements / Opening Stock)
+	// Build batch lookup (product+warehouse → first batch ID) for movement references
 	var batches []inventoryModels.InventoryBatch
-	if err := db.Find(&batches).Error; err != nil {
-		return err
-	}
-	log.Printf("Found %d batches for IN movements", len(batches))
-
-	for _, batch := range batches {
-		prod, ok := productMap[batch.ProductID]
-		cost := 0.0
-		if ok {
-			cost = prod.CostPrice
-		}
-
-		// Assume batch creation date is recently, or derive from expiry.
-		// Since we don't store CreatedAt in batch struct in the seeder, let's assume Now - 30 days
-		date := time.Now().AddDate(0, 0, -30)
-
-		evt := inventoryModels.StockMovement{
-			ID:           uuid.NewString(), // Pre-generate ID
-			Date:         date,
-			MovementType: inventoryModels.MovementTypeIn,
-			RefType:      "GoodsReceipt", // Or OpeningStock
-			RefID:        batch.ID, // Use real ID to avoid mock references
-			RefNumber:    fmt.Sprintf("GR-INIT-%s", batch.BatchNumber),
-			Source:       "Initial Stock / Supplier",
-			ProductID:    batch.ProductID,
-			WarehouseID:  batch.WarehouseID,
-			QtyIn:        batch.InitialQuantity,
-			QtyOut:       0,
-			Cost:         cost,
-			InventoryBatchID: &batch.ID,
-			CreatedBy:    &adminID,
-		}
-		
-		events = append(events, MovementEvent{
-			Date:    date,
-			Details: evt,
-		})
+	if err := db.Where("deleted_at IS NULL").Find(&batches).Error; err != nil {
+		return fmt.Errorf("failed to fetch batches: %w", err)
 	}
 
-	// 4. Process Delivery Orders (OUT Movements)
+	batchLookup := make(map[batchKey]string)
+	for _, b := range batches {
+		key := batchKey{ProductID: b.ProductID, WarehouseID: b.WarehouseID}
+		if _, exists := batchLookup[key]; !exists {
+			batchLookup[key] = b.ID
+		}
+	}
+
+	var events []movementEvent
+
+	// 1. IN movements from confirmed Goods Receipts
+	newINCount := seedGoodsReceiptMovements(&events, productCostMap, batchLookup, batches, adminID)
+
+	// 2. OUT movements from shipped/delivered Delivery Orders
+	newOUTCount := seedDeliveryOrderMovements(&events, productCostMap, batchLookup, batches, adminID)
+
+	// 3. ADJUST movements from posted Stock Opnames
+	newADJUSTCount := seedStockOpnameMovements(&events, productCostMap, batchLookup, adminID)
+
+	if len(events) == 0 {
+		log.Println("No relational entities found to generate stock movements")
+		return nil
+	}
+
+	// Sort chronologically for correct running balance calculation
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Date.Before(events[j].Date)
+	})
+
+	// Calculate running balance per Product+Warehouse from scratch
+	balanceMap := make(map[batchKey]float64)
+	var movementsToCreate []inventoryModels.StockMovement
+
+	for _, e := range events {
+		key := batchKey{ProductID: e.Details.ProductID, WarehouseID: e.Details.WarehouseID}
+		current := balanceMap[key]
+		current += e.Details.QtyIn - e.Details.QtyOut
+		e.Details.Balance = current
+		balanceMap[key] = current
+		movementsToCreate = append(movementsToCreate, e.Details)
+	}
+
+	// Batch insert
+	insertBatchSize := 100
+	for i := 0; i < len(movementsToCreate); i += insertBatchSize {
+		end := i + insertBatchSize
+		if end > len(movementsToCreate) {
+			end = len(movementsToCreate)
+		}
+		if err := db.Create(movementsToCreate[i:end]).Error; err != nil {
+			return fmt.Errorf("failed to create stock movements batch: %w", err)
+		}
+	}
+
+	log.Printf("Successfully seeded %d stock movements (IN=%d, OUT=%d, ADJUST=%d)",
+		len(movementsToCreate), newINCount, newOUTCount, newADJUSTCount)
+	return nil
+}
+
+// seedGoodsReceiptMovements creates IN movements from confirmed GR items
+func seedGoodsReceiptMovements(events *[]movementEvent, costMap map[string]float64, batchLookup map[batchKey]string, batches []inventoryModels.InventoryBatch, adminID string) int {
+	db := database.DB
+	count := 0
+
+	var receipts []purchaseModels.GoodsReceipt
+	if err := db.Preload("Items").
+		Where("status = ?", purchaseModels.GoodsReceiptStatusConfirmed).
+		Find(&receipts).Error; err != nil {
+		log.Printf("Warning: Failed to fetch goods receipts: %v", err)
+		return 0
+	}
+	log.Printf("Found %d confirmed goods receipts for IN movements", len(receipts))
+
+	for _, gr := range receipts {
+		movementDate := gr.CreatedAt
+		if gr.ReceiptDate != nil {
+			movementDate = *gr.ReceiptDate
+		}
+
+		for _, item := range gr.Items {
+			cost := costMap[item.ProductID]
+
+			// Find warehouse from existing batches for this product
+			warehouseID := findWarehouseForProduct(item.ProductID, batches)
+			if warehouseID == "" {
+				log.Printf("Warning: Skipping GR item %s — no warehouse found for product %s", item.ID, item.ProductID)
+				continue
+			}
+
+			bID := batchLookup[batchKey{ProductID: item.ProductID, WarehouseID: warehouseID}]
+
+			evt := inventoryModels.StockMovement{
+				ID:           uuid.NewString(),
+				Date:         movementDate,
+				MovementType: inventoryModels.MovementTypeIn,
+				RefType:      "GoodsReceipt",
+				RefID:        gr.ID,
+				RefNumber:    gr.Code,
+				Source:       fmt.Sprintf("Supplier: %s", gr.SupplierNameSnapshot),
+				ProductID:    item.ProductID,
+				WarehouseID:  warehouseID,
+				QtyIn:        item.QuantityReceived,
+				QtyOut:       0,
+				Cost:         cost,
+				CreatedBy:    &adminID,
+			}
+			if bID != "" {
+				evt.InventoryBatchID = &bID
+			}
+
+			*events = append(*events, movementEvent{Date: movementDate, Details: evt})
+			count++
+		}
+	}
+
+	return count
+}
+
+// seedDeliveryOrderMovements creates OUT movements from shipped/delivered DO items
+func seedDeliveryOrderMovements(events *[]movementEvent, costMap map[string]float64, batchLookup map[batchKey]string, batches []inventoryModels.InventoryBatch, adminID string) int {
+	db := database.DB
+	count := 0
+
 	var deliveryOrders []salesModels.DeliveryOrder
-	// Fetch DOs that imply movement (Shipped or Delivered)
-	if err := db.Preload("Items").Where("status IN ?", []salesModels.DeliveryOrderStatus{
-		salesModels.DeliveryOrderStatusShipped,
-		salesModels.DeliveryOrderStatusDelivered,
-	}).Find(&deliveryOrders).Error; err != nil {
-		return err
+	if err := db.Preload("Items").
+		Where("status IN ?", []salesModels.DeliveryOrderStatus{
+			salesModels.DeliveryOrderStatusShipped,
+			salesModels.DeliveryOrderStatusDelivered,
+		}).Find(&deliveryOrders).Error; err != nil {
+		log.Printf("Warning: Failed to fetch delivery orders: %v", err)
+		return 0
 	}
-	log.Printf("Found %d delivery orders for OUT movements", len(deliveryOrders))
+	log.Printf("Found %d shipped/delivered delivery orders for OUT movements", len(deliveryOrders))
 
 	for _, do := range deliveryOrders {
-		// Use ShippedAt date if available, else DeliveryDate
 		movementDate := do.DeliveryDate
 		if do.ShippedAt != nil {
 			movementDate = *do.ShippedAt
 		}
 
+		warehouseID := ""
+		if do.WarehouseID != nil {
+			warehouseID = *do.WarehouseID
+		}
+
 		for _, item := range do.Items {
-			prod, ok := productMap[item.ProductID]
-			cost := 0.0
-			if ok {
-				cost = prod.CostPrice
+			cost := costMap[item.ProductID]
+
+			// Fallback: find warehouse from existing batches
+			itemWarehouse := warehouseID
+			if itemWarehouse == "" {
+				itemWarehouse = findWarehouseForProduct(item.ProductID, batches)
+			}
+			if itemWarehouse == "" {
+				log.Printf("Warning: Skipping DO item %s — no warehouse found", item.ID)
+				continue
 			}
 
-			warehouseID := ""
-			if do.WarehouseID != nil {
-				warehouseID = *do.WarehouseID
-			}
+			bID := batchLookup[batchKey{ProductID: item.ProductID, WarehouseID: itemWarehouse}]
 
 			evt := inventoryModels.StockMovement{
 				ID:           uuid.NewString(),
@@ -148,101 +244,90 @@ func SeedStockMovement() error {
 				MovementType: inventoryModels.MovementTypeOut,
 				RefType:      "DeliveryOrder",
 				RefID:        do.ID,
-				RefNumber:    do.Code, // e.g. DO-2024-0001
-				Source:       "Customer", // Ideally should fetch Customer Name from SO -> Customer
+				RefNumber:    do.Code,
+				Source:       "Customer Delivery",
 				ProductID:    item.ProductID,
-				WarehouseID:  warehouseID,
-				// Note: DO Item struct in seeder context didn't show WarehouseID. 
-				// In a real app, DO Item allocates from a specific Warehouse.
-				// We need to find a warehouse. Let's pick the first one from products or default.
-				// For now, let's try to infer from the batches if we had them or just pick a random one/default
+				WarehouseID:  itemWarehouse,
 				QtyIn:        0,
 				QtyOut:       item.Quantity,
 				Cost:         cost,
 				CreatedBy:    &adminID,
 			}
-			
-			// Try to find a valid warehouse for this product from batches (lazy way)
-			// OR just assign to the first warehouse found in batches for this product
-			assigned := evt.WarehouseID != ""
-			for _, b := range batches {
-				if b.ProductID == item.ProductID {
-					evt.WarehouseID = b.WarehouseID
-					assigned = true
-					break
-				}
-			}
-			if !assigned {
-				// Fallback to first warehouse in batches if available, or just skip logic that depends on it
-				// For DO items, we really should have a warehouse.
-				// Let's query one from DB if we really have to, OR just use a default UUID which might fail validation but better than empty string?
-				// Actually, let's just use the first batch's warehouse as a fallback if batches exist
-				if len(batches) > 0 {
-					evt.WarehouseID = batches[0].WarehouseID
-				} else {
-					// Extremely unlikely if seed_all runs correctly
-					// Only choice is to skip adding this event to avoid FK error
-					log.Printf("Warning: Skipping movement for DO Item %s because no warehouse could be determined", item.ID)
-					continue
-				}
+			if bID != "" {
+				evt.InventoryBatchID = &bID
 			}
 
-			events = append(events, MovementEvent{
-				Date:    movementDate,
-				Details: evt,
-			})
+			*events = append(*events, movementEvent{Date: movementDate, Details: evt})
+			count++
 		}
 	}
 
-	// 5. Sort Events by Date
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Date.Before(events[j].Date)
-	})
+	return count
+}
 
-	// 6. Calculate Balances and Save
-	// We need to track balance per Product + Warehouse
-	type BalanceKey struct {
-		ProductID   string
-		WarehouseID string
+// seedStockOpnameMovements creates ADJUST movements from posted Stock Opname items with non-zero variance
+func seedStockOpnameMovements(events *[]movementEvent, costMap map[string]float64, batchLookup map[batchKey]string, adminID string) int {
+	db := database.DB
+	count := 0
+
+	var opnames []opnameModels.StockOpname
+	if err := db.Preload("Items").
+		Where("status = ?", opnameModels.StockOpnameStatusPosted).
+		Find(&opnames).Error; err != nil {
+		log.Printf("Warning: Failed to fetch posted stock opnames: %v", err)
+		return 0
 	}
-	balanceMap := make(map[BalanceKey]float64)
+	log.Printf("Found %d posted stock opnames for ADJUST movements", len(opnames))
 
-	var movementsToCreate []inventoryModels.StockMovement
+	for _, opname := range opnames {
+		for _, item := range opname.Items {
+			if item.VarianceQty == 0 || item.PhysicalQty == nil {
+				continue
+			}
 
-	for _, e := range events {
-		key := BalanceKey{
-			ProductID:   e.Details.ProductID,
-			WarehouseID: e.Details.WarehouseID,
+			cost := costMap[item.ProductID]
+			bID := batchLookup[batchKey{ProductID: item.ProductID, WarehouseID: opname.WarehouseID}]
+
+			var qtyIn, qtyOut float64
+			if item.VarianceQty > 0 {
+				qtyIn = item.VarianceQty // Surplus
+			} else {
+				qtyOut = -item.VarianceQty // Shortage (stored as positive)
+			}
+
+			evt := inventoryModels.StockMovement{
+				ID:           uuid.NewString(),
+				Date:         opname.Date,
+				MovementType: inventoryModels.MovementTypeAdjust,
+				RefType:      "StockOpname",
+				RefID:        opname.ID,
+				RefNumber:    opname.OpnameNumber,
+				Source:       fmt.Sprintf("Opname Adjustment (%s)", opname.OpnameNumber),
+				ProductID:    item.ProductID,
+				WarehouseID:  opname.WarehouseID,
+				QtyIn:        qtyIn,
+				QtyOut:       qtyOut,
+				Cost:         cost,
+				CreatedBy:    &adminID,
+			}
+			if bID != "" {
+				evt.InventoryBatchID = &bID
+			}
+
+			*events = append(*events, movementEvent{Date: opname.Date, Details: evt})
+			count++
 		}
-		
-		current := balanceMap[key]
-		
-		if e.Details.MovementType == inventoryModels.MovementTypeIn {
-			current += e.Details.QtyIn
-		} else if e.Details.MovementType == inventoryModels.MovementTypeOut {
-			current -= e.Details.QtyOut
-		}
-		
-		e.Details.Balance = current
-		balanceMap[key] = current
-		
-		movementsToCreate = append(movementsToCreate, e.Details)
 	}
 
-	// Batch insert
-	batchSize := 100
-	for i := 0; i < len(movementsToCreate); i += batchSize {
-		end := i + batchSize
-		if end > len(movementsToCreate) {
-			end = len(movementsToCreate)
-		}
-		
-		if err := db.Create(movementsToCreate[i:end]).Error; err != nil {
-			log.Printf("Error creating stock movement batch: %v", err)
-			return err
+	return count
+}
+
+// findWarehouseForProduct returns the first warehouse ID that has batches for this product
+func findWarehouseForProduct(productID string, batches []inventoryModels.InventoryBatch) string {
+	for _, b := range batches {
+		if b.ProductID == productID {
+			return b.WarehouseID
 		}
 	}
-
-	log.Printf("Successfully seeded %d stock movements linked to Batches and DOs!", len(movementsToCreate))
-	return nil
+	return ""
 }

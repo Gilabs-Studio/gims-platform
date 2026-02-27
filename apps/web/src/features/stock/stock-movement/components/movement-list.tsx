@@ -19,11 +19,21 @@ import { StockMovement, StockMovementType } from "../types";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { MovementDetailDialog } from "./movement-detail-dialog";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { DeliveryDetailModal } from "@/features/sales/delivery/components/delivery-detail-modal";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
+import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
+import type { DeliveryOrder } from "@/features/sales/delivery/types";
 
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
   const tCommon = useTranslations("common");
-  
+
+  // Ref-entity permissions
+  const canViewDelivery = useUserPermission("delivery_order.read");
+  const canViewGR = useUserPermission("goods_receipt.read");
+  const canViewOpname = useUserPermission("stock_opname.read");
+
   // Filter States
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -34,14 +44,36 @@ export function MovementList() {
   const [type, setType] = useState<StockMovementType | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  // Dialog State
+  // Movement detail dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockMovement | null>(null);
+
+  // Ref-entity detail dialog state
+  const [refEntityOpen, setRefEntityOpen] = useState(false);
+  const [refEntityType, setRefEntityType] = useState<string | null>(null);
+  const [refEntityId, setRefEntityId] = useState<string | null>(null);
 
   const handleRowClick = (item: StockMovement) => {
     setSelectedItem(item);
     setDialogOpen(true);
   };
+
+  const handleRefClick = (item: StockMovement, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const hasPermission =
+      (item.ref_type === "DeliveryOrder" && canViewDelivery) ||
+      (item.ref_type === "GoodsReceipt" && canViewGR) ||
+      (item.ref_type === "StockOpname" && canViewOpname);
+    if (!hasPermission) return;
+    setRefEntityType(item.ref_type);
+    setRefEntityId(item.ref_id);
+    setRefEntityOpen(true);
+  };
+
+  const refHasPermission = (refType: string) =>
+    (refType === "DeliveryOrder" && canViewDelivery) ||
+    (refType === "GoodsReceipt" && canViewGR) ||
+    (refType === "StockOpname" && canViewOpname);
 
   // Data Fetching
   const { data, isLoading, isError } = useStockMovements({
@@ -193,14 +225,15 @@ export function MovementList() {
                     <MovementBadge type={item.type} />
                   </TableCell>
                   <TableCell>
-                    <span 
-                        className="font-mono text-xs font-bold text-primary hover:underline"
-                        onClick={(e) => {
-                            e.stopPropagation(); // Prevent double trigger if needed, though same action
-                            handleRowClick(item);
-                        }}
+                    <span
+                      className={
+                        refHasPermission(item.ref_type)
+                          ? "cursor-pointer font-mono text-xs font-bold text-primary hover:underline"
+                          : "font-mono text-xs font-medium text-muted-foreground"
+                      }
+                      onClick={(e) => handleRefClick(item, e)}
                     >
-                        {item.ref_number}
+                      {item.ref_number}
                     </span>
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate" title={item.source}>
@@ -241,10 +274,29 @@ export function MovementList() {
         />
       )}
 
-      <MovementDetailDialog 
-        open={dialogOpen} 
-        onOpenChange={setDialogOpen} 
-        item={selectedItem} 
+      <MovementDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        item={selectedItem}
+      />
+
+      {/* Ref-entity detail modals — only mounted when correct type is active */}
+      <DeliveryDetailModal
+        open={refEntityOpen && refEntityType === "DeliveryOrder"}
+        onClose={() => setRefEntityOpen(false)}
+        delivery={refEntityId ? ({ id: refEntityId } as DeliveryOrder) : null}
+      />
+
+      <GoodsReceiptDetail
+        open={refEntityOpen && refEntityType === "GoodsReceipt"}
+        onClose={() => setRefEntityOpen(false)}
+        goodsReceiptId={refEntityId}
+      />
+
+      <StockOpnameDetailDialog
+        open={refEntityOpen && refEntityType === "StockOpname"}
+        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
+        opnameId={refEntityType === "StockOpname" ? refEntityId : null}
       />
     </div>
   );
