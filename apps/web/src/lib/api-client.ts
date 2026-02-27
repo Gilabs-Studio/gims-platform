@@ -142,9 +142,12 @@ apiClient.interceptors.response.use(
     const status = error.response.status;
     const errorData = error.response.data;
 
-    // Skip toast for auth endpoints on 401/403 - these are expected when checking session
-    // But DO NOT skip 429 (rate limit) - we need to show countdown
-    if (isAuthEndpoint && (status === 401 || status === 403)) {
+    // Skip toast for auth endpoints on any error except 429 (rate limit).
+    // /auth/refresh-token, /auth/login, /auth/logout all handle errors internally.
+    // The backend may return 500 for an expired/invalid refresh token (instead of 401),
+    // so we must silence ALL non-429 errors from these endpoints to prevent spurious toasts
+    // when useLoginGuard probes session validity on the login page.
+    if (isAuthEndpoint && status !== 429) {
       return Promise.reject(error);
     }
 
@@ -266,7 +269,10 @@ apiClient.interceptors.response.use(
           });
 
           setTimeout(() => {
-            window.location.href = "/";
+            // Extract locale from current path (/en/... or /id/...) so we land on the right login
+            const segments = window.location.pathname.split("/").filter(Boolean);
+            const locale = ["en", "id"].includes(segments[0]) ? segments[0] : "en";
+            window.location.href = `/${locale}/login`;
           }, 1000);
         }
         return Promise.reject(error);
@@ -341,7 +347,10 @@ apiClient.interceptors.response.use(
               });
 
               setTimeout(() => {
-                window.location.href = "/";
+                // Extract locale from current path (/en/... or /id/...) so we land on the right login
+                const segments = window.location.pathname.split("/").filter(Boolean);
+                const locale = ["en", "id"].includes(segments[0]) ? segments[0] : "en";
+                window.location.href = `/${locale}/login`;
               }, 1000);
             }
             processQueue(refreshError as AxiosError, null);

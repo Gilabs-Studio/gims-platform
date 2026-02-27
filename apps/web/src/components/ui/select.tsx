@@ -283,7 +283,7 @@ function SelectItem({
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
           >
             <CheckIcon className="size-4" />
           </motion.div>

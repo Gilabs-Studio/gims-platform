@@ -11,7 +11,7 @@ export type RaysOrigin =
   | 'bottom-right'
   | 'bottom-left';
 
-interface LightRaysProps {
+export interface LightRaysProps {
   raysOrigin?: RaysOrigin;
   raysColor?: string;
   raysSpeed?: number;

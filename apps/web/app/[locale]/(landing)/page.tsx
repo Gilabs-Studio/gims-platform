@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "@/i18n/routing";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import {
   Package,
@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 
 // WebGL background — single instance, fixed behind entire page
-const LightRays = dynamic(() => import("@/components/landing/light-rays"), {
-  ssr: false,
-});
+import type { LightRaysProps } from "@/components/landing/light-rays";
+const LightRays = dynamic(
+  () => import("@/components/landing/light-rays").then((m) => m.default as React.ComponentType<LightRaysProps>),
+  { ssr: false }
+);
 
 // Leaflet map — requires browser environment
 const MarketingMapDemo = dynamic(
@@ -33,15 +35,14 @@ const MarketingMapDemo = dynamic(
   { ssr: false }
 );
 
-// Primary Electric Blue hsl(221 83% 53%) from globals.css
 const PRIMARY_HEX = "#FFFFF";
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
   visible: (delay = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1], delay },
+    transition: { duration: 0.8, ease: "easeOut", delay },
   }),
 };
 
@@ -124,7 +125,7 @@ function FaqItem({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
             className="overflow-hidden"
           >
             <p className="pb-6 text-sm leading-relaxed text-muted-foreground">
@@ -163,34 +164,22 @@ export default function LandingPage() {
         ════════════════════════════════════════════════════════ */}
         <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
           <div className={W}>
-            <motion.p
-              variants={fadeUp} initial="hidden" animate="visible" custom={0}
-              className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary"
-            >
+            <p className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
               GIMS — Platform Manajemen Distribusi
-            </motion.p>
+            </p>
 
-            <motion.h1
-              variants={fadeUp} initial="hidden" animate="visible" custom={0.12}
-              className="mx-auto max-w-4xl text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
-            >
+            <h1 className="mx-auto max-w-4xl text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]">
               Ribuan pengiriman sehari
               <br />
               <span className="text-primary">Satu layar untuk semuanya</span>
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              variants={fadeUp} initial="hidden" animate="visible" custom={0.22}
-              className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
-            >
+            <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
               Dari purchase order hingga faktur pelanggan — GIMS menghubungkan
               seluruh operasional distribusi Anda dalam satu sistem yang konsisten.
-            </motion.p>
+            </p>
 
-            <motion.div
-              variants={fadeUp} initial="hidden" animate="visible" custom={0.32}
-              className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
-            >
+            <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Link href="/login">
                 <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
                   Mulai sekarang
@@ -206,7 +195,7 @@ export default function LandingPage() {
                   <ArrowUpRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </Link>
-            </motion.div>
+            </div>
           </div>
         </section>
 
@@ -280,7 +269,7 @@ export default function LandingPage() {
             <motion.div
               variants={fadeUp} initial="hidden"
               whileInView="visible" viewport={{ once: true, margin: "-120px" }}
-              className="mx-auto max-w-3xl"
+              className="mx-auto max-w-4xl"
             >
               <h2 className="text-4xl font-light leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Satu sistem yang mencatat,
@@ -329,7 +318,8 @@ export default function LandingPage() {
                 custom={0.1}
                 className="relative h-80 lg:h-[420px] overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur-sm shadow-sm"
               >
-                <MarketingMapDemo />
+                {/* useRemote=false: never call protected APIs from the public landing page */}
+                <MarketingMapDemo useRemote={false} />
 
                 {/* Legend overlay */}
                 <div className="pointer-events-none absolute top-3 right-3 z-500 flex flex-col gap-1.5 rounded-xl border border-border bg-card/90 px-3 py-2.5 backdrop-blur-sm">
