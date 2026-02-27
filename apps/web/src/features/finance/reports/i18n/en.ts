@@ -32,4 +32,8 @@ export const financeReportsEn = {
   total_revenue: "Total Revenue",
   total_expenses: "Total Expenses",
   net_profit_loss: "Net Profit / Loss",
+  total_debit: "Total Debit",
+  total_credit: "Total Credit",
+  net_balance: "Net Balance",
+  no_data: "No data available. Please select a date range and generate the report.",
 };

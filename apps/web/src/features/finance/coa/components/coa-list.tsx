@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Search, Trash2, Pencil } from "lucide-react";
+import { CheckCircle2, MinusCircle, Plus, Search, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -168,7 +169,17 @@ export function CoaList() {
                     <div style={{ paddingLeft: row.depth * 16 }}>{row.name}</div>
                   </TableCell>
                   <TableCell className="capitalize">{t(`types.${row.type}`)}</TableCell>
-                  <TableCell>{row.is_active ? tCommon("yes") : tCommon("no")}</TableCell>
+                  <TableCell>{row.is_active ? (
+                    <Badge variant="success" className="text-xs font-medium">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {tCommon("yes")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="inactive" className="text-xs font-medium">
+                      <MinusCircle className="h-3 w-3 mr-1" />
+                      {tCommon("no")}
+                    </Badge>
+                  )}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {canUpdate && (

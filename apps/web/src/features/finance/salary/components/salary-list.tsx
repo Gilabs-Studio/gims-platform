@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, FileText, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,6 +21,41 @@ import {
 } from "../hooks/use-finance-salary";
 import type { SalaryStructure } from "../types";
 import { SalaryForm } from "./salary-form";
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "active":
+    case "approved":
+    case "confirmed":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "inactive":
+      return (
+        <Badge variant="inactive" className="text-xs font-medium">
+          <MinusCircle className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
+}
 
 export function SalaryList() {
   const t = useTranslations("financeSalary");
@@ -72,15 +108,6 @@ export function SalaryList() {
       toast.success(t("toast.approved"));
     } catch {
       toast.error(t("toast.failed"));
-    }
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "active": return "success";
-      case "draft": return "secondary";
-      case "inactive": return "outline";
-      default: return "secondary";
     }
   };
 
@@ -146,13 +173,11 @@ export function SalaryList() {
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.employee_id}</TableCell>
                   <TableCell>{new Date(item.effective_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {item.basic_salary.toLocaleString()}
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCurrency(item.basic_salary)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(item.status) as any}>
-                      {t(`status.${item.status}`)}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">{item.notes}</TableCell>
                   <TableCell>
@@ -165,16 +190,25 @@ export function SalaryList() {
                       <DropdownMenuContent align="end">
                         {canUpdate && item.status === "draft" && (
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(item)}>
+                            <Pencil className="h-4 w-4 mr-2" />
                             {tCommon("edit")}
                           </DropdownMenuItem>
                         )}
                         {canApprove && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => handleApprove(item.id)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            onClick={() => handleApprove(item.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer text-destructive" onClick={() => handleDelete(item.id)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {tCommon("delete")}
                           </DropdownMenuItem>
                         )}

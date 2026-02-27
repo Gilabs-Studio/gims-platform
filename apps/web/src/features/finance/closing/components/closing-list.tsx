@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -22,6 +23,34 @@ function formatDate(value: string) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toISOString().slice(0, 10);
+}
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "approved":
+    case "closed":
+    case "confirmed":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
 }
 
 export function ClosingList() {
@@ -100,8 +129,8 @@ export function ClosingList() {
             ) : (
               rows.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{formatDate(item.period_end_date)}</TableCell>
-                  <TableCell>{t(`status.${item.status}`)}</TableCell>
+                  <TableCell className="tabular-nums">{formatDate(item.period_end_date)}</TableCell>
+                  <TableCell>{getStatusBadge(item.status, t)}</TableCell>
                   <TableCell>{item.approved_at ? formatDate(item.approved_at) : "-"}</TableCell>
                   <TableCell className="max-w-[520px] truncate">{item.notes || "-"}</TableCell>
                   <TableCell className="text-right">
@@ -119,10 +148,15 @@ export function ClosingList() {
                             setDetailOpen(true);
                           }}
                         >
+                          <Eye className="h-4 w-4 mr-2" />
                           {t("actions.view")}
                         </DropdownMenuItem>
                         {canApprove && item.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setApproving(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            onClick={() => setApproving(item)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}

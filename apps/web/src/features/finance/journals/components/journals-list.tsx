@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -32,6 +33,36 @@ function safeDate(value?: string | null): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString();
+}
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "posted":
+    case "approved":
+    case "confirmed":
+    case "active":
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
 }
 
 export function JournalsList() {
@@ -185,15 +216,13 @@ export function JournalsList() {
             ) : (
               items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{safeDate(item.entry_date)}</TableCell>
-                  <TableCell>{item.description ?? "-"}</TableCell>
+                  <TableCell className="tabular-nums">{safeDate(item.entry_date)}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{item.description ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={item.status === "posted" ? "default" : "secondary"}>
-                      {t(`status.${item.status}`)}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
-                  <TableCell className="text-right">{item.debit_total ?? 0}</TableCell>
-                  <TableCell className="text-right">{item.credit_total ?? 0}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.debit_total)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.credit_total)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -209,6 +238,7 @@ export function JournalsList() {
                             setViewOpen(true);
                           }}
                         >
+                          <Eye className="h-4 w-4 mr-2" />
                           {t("actions.view")}
                         </DropdownMenuItem>
                         {canUpdate && item.status === "draft" && (
@@ -220,12 +250,13 @@ export function JournalsList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canPost && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-green-600 focus:text-green-600"
                             onClick={async () => {
                               try {
                                 await postMutation.mutateAsync(item.id);
@@ -235,14 +266,16 @@ export function JournalsList() {
                               }
                             }}
                           >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.post")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setDeletingItem(item)}
                           >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}
