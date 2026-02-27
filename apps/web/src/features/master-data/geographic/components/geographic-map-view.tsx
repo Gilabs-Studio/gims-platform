@@ -32,14 +32,28 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — leaflet CSS has no type declarations; required for map rendering
 import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import type { Feature, FeatureCollection } from "geojson";
 
-// Fix for default marker icons in Next.js
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+// Turbopack may return a plain string or a StaticImageData object for PNG imports.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getImageSrc = (img: any): string => {
+  if (typeof img === "string" && img) return img;
+  if (typeof img?.src === "string" && img.src) return img.src;
+  if (typeof img?.default === "string" && img.default) return img.default;
+  if (typeof img?.default?.src === "string" && img.default.src) return img.default.src;
+  return "";
+};
+
+// Fix for default marker icons in Next.js (static imports avoid CDN dependency)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconRetinaUrl: getImageSrc(markerIcon2x),
+  iconUrl: getImageSrc(markerIcon),
+  shadowUrl: getImageSrc(markerShadow),
 });
 
 type MapStyle = "auto" | "light" | "dark" | "satellite";

@@ -7,7 +7,9 @@ export const inventoryId = {
       ok: "OK",
       lowStock: "Stok Rendah",
       outOfStock: "Stok Habis",
-      overstock: "Berlebih"
+      overstock: "Berlebih",
+      expiring: "Hampir Kadaluarsa",
+      expired: "Kedaluwarsa"
     },
     filter: {
       warehouse: "Gudang",

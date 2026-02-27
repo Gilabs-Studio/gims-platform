@@ -9,4 +9,5 @@ import (
 func RegisterMapDataRoutes(rg *gin.RouterGroup, h *handler.MapDataHandler) {
 	// Map data endpoint is placed before parameterized routes for route specificity
 	rg.GET("/map-data", h.GetMapData)
+	rg.GET("/reverse-geocode", h.ReverseGeocode)
 }

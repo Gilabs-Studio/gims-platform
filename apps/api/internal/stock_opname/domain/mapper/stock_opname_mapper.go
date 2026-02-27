@@ -36,12 +36,29 @@ func ToStockOpnameItemResponse(m *models.StockOpnameItem) dto.StockOpnameItemRes
 		ID:            m.ID,
 		StockOpnameID: m.StockOpnameID,
 		ProductID:     m.ProductID,
+		ProductName:   m.Product.Name,
+		ProductCode:   m.Product.Code,
 		SystemQty:     m.SystemQty,
 		PhysicalQty:   m.PhysicalQty,
 		VarianceQty:   m.VarianceQty,
 		Notes:         m.Notes,
 	}
 }
+
+func getProductName(m *models.StockOpnameItem) string {
+	if m.Product != nil {
+		return m.Product.Name
+	}
+	return ""
+}
+
+func getProductCode(m *models.StockOpnameItem) string {
+	if m.Product != nil {
+		return m.Product.Code
+	}
+	return ""
+}
+
 
 func ToStockOpnameModel(req *dto.CreateStockOpnameRequest, opnameNumber string, createdBy *string) (*models.StockOpname, error) {
     date, err := time.Parse("2006-01-02", req.Date)

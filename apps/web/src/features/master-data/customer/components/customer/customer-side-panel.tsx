@@ -2,11 +2,11 @@
 
 import { Drawer } from "@/components/ui/drawer";
 import { useEffect, useState, useRef } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Resolver } from "react-hook-form";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -20,10 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
-import { sortOptions } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
+import { LocationPicker } from "../../../geographic/components/location-picker";
 
 import {
   useCreateCustomer,
@@ -31,9 +30,6 @@ import {
   useCustomerFormData,
   useCustomer,
 } from "../../hooks/use-customers";
-import { useProvinces } from "../../../geographic/hooks/use-provinces";
-import { useCities } from "../../../geographic/hooks/use-cities";
-import { useDistricts } from "../../../geographic/hooks/use-districts";
 import { getCustomerSchema, type CustomerFormData } from "../../schemas/customer.schema";
 import type { Customer } from "../../types";
 
@@ -61,7 +57,6 @@ export function CustomerSidePanel({
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
 
   const {
@@ -97,13 +92,6 @@ export function CustomerSidePanel({
     },
   });
 
-  // React Compiler-compatible reactive watches
-  const provinceId = useWatch({ control, name: "province_id" });
-  const cityId = useWatch({ control, name: "city_id" });
-  const districtId = useWatch({ control, name: "district_id" });
-  const latitude = useWatch({ control, name: "latitude" });
-  const longitude = useWatch({ control, name: "longitude" });
-
   const {
     isLoading: isLoadingDetail,
     refetch: refetchDetail,
@@ -122,19 +110,6 @@ export function CustomerSidePanel({
   const areas = formDataRes?.data?.areas ?? [];
   const salesReps = formDataRes?.data?.sales_reps ?? [];
   const paymentTermsList = formDataRes?.data?.payment_terms ?? [];
-
-  const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: isOpen });
-  const { data: citiesData } = useCities(
-    provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!provinceId }
-  );
-  const { data: districtsData } = useDistricts(
-    cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!cityId }
-  );
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
 
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
@@ -269,11 +244,6 @@ export function CustomerSidePanel({
     }
   };
 
-  const handleCoordinateSelect = (lat: number, lng: number) => {
-    setValue("latitude", lat, { shouldValidate: true, shouldDirty: true });
-    setValue("longitude", lng, { shouldValidate: true, shouldDirty: true });
-  };
-
   const isLoading = createCustomer.isPending || updateCustomer.isPending || isLoadingDetail;
 
   const panelTitle = isViewing
@@ -283,8 +253,7 @@ export function CustomerSidePanel({
       : t("customer.createTitle");
 
   return (
-    <>
-      <Drawer
+    <Drawer
         open={isOpen}
         onOpenChange={(open) => !open && onClose()}
         title={panelTitle}
@@ -437,181 +406,12 @@ export function CustomerSidePanel({
               {errors.address && <FieldError>{errors.address.message}</FieldError>}
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.province")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="province_id"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? ""}
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                        // Cascade reset: clear all dependent geographic fields
-                        setValue("city_id", undefined, { shouldDirty: true });
-                        setValue("district_id", undefined, { shouldDirty: true });
-                      }}
-                      disabled={isViewing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("customer.form.provincePlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortOptions(provinces, (p) => p.name).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.city")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="city_id"
-                  render={({ field }) => (
-                    <Select
-                      key={`city-${provinceId ?? ""}`}
-                      value={field.value ?? ""}
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                        setValue("district_id", undefined, { shouldDirty: true });
-                      }}
-                      disabled={isViewing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("customer.form.cityPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {provinceId ? (
-                          sortOptions(cities, (c) => c.name).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="_" disabled>
-                            {t("customer.form.selectProvinceFirst")}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.district")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="district_id"
-                  render={({ field }) => (
-                    <Select
-                      key={`district-${cityId ?? ""}`}
-                      value={field.value ?? ""}
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                      }}
-                      disabled={isViewing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("customer.form.districtPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cityId ? (
-                          sortOptions(districts, (d) => d.name).map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="_" disabled>
-                            {t("customer.form.selectCityFirst")}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.village")}</FieldLabel>
-                <Input
-                  {...register("village_name")}
-                  disabled={isViewing}
-                  placeholder={t("customer.form.villagePlaceholder")}
-                />
-              </Field>
-            </div>
-          </div>
-
-          {/* Coordinates */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="flex items-center gap-2">
-                <Navigation className="h-4 w-4" />
-                <h3 className="text-sm font-medium">
-                  {t("customer.sections.coordinates")}
-                </h3>
-              </div>
-              {!isViewing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsMapPickerOpen(true)}
-                  className="cursor-pointer"
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {t("customer.pickFromMap")}
-                </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.latitude")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <Input
-                      type="number"
-                      step="any"
-                      placeholder="-6.2088"
-                      disabled={isViewing}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber || null)}
-                    />
-                  )}
-                />
-              </Field>
-              <Field orientation="vertical">
-                <FieldLabel>{t("customer.form.longitude")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <Input
-                      type="number"
-                      step="any"
-                      placeholder="106.8456"
-                      disabled={isViewing}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber || null)}
-                    />
-                  )}
-                />
-              </Field>
-            </div>
+            <LocationPicker
+              control={control}
+              setValue={setValue}
+              disabled={isViewing}
+              enabled={isOpen}
+            />
           </div>
 
           {/* Sales Defaults */}
@@ -787,16 +587,5 @@ export function CustomerSidePanel({
           )}
         </form>
       </Drawer>
-
-      <MapPickerModal
-        open={isMapPickerOpen}
-        onOpenChange={setIsMapPickerOpen}
-        latitude={latitude ?? -6.2088}
-        longitude={longitude ?? 106.8456}
-        onCoordinateSelect={handleCoordinateSelect}
-        title={t("customer.mapPicker.title")}
-        description={t("customer.mapPicker.description")}
-      />
-    </>
   );
 }
