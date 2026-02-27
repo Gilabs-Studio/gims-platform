@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/utils"
+	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
+	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/mapper"
@@ -36,11 +38,12 @@ type StockOpnameUsecase interface {
 }
 
 type stockOpnameUsecase struct {
-	repo repository.StockOpnameRepository
+	repo        repository.StockOpnameRepository
+	inventoryUC inventoryUC.InventoryUsecase
 }
 
-func NewStockOpnameUsecase(repo repository.StockOpnameRepository) StockOpnameUsecase {
-	return &stockOpnameUsecase{repo: repo}
+func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase) StockOpnameUsecase {
+	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC}
 }
 
 func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpnameRequest, createdBy *string) (*dto.StockOpnameResponse, error) {
@@ -227,7 +230,59 @@ func (u *stockOpnameUsecase) Reject(ctx context.Context, id string, rejectedBy *
 }
 
 func (u *stockOpnameUsecase) Post(ctx context.Context, id string, postedBy *string) (*dto.StockOpnameResponse, error) {
-	// TODO: Trigger Stock Movement creation here
+	// 1. Validate opname exists and is approved
+	opname, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStockOpnameNotFound
+		}
+		return nil, err
+	}
+
+	if opname.Status != models.StockOpnameStatusApproved {
+		return nil, ErrInvalidStatus
+	}
+
+	// 2. Get all items with variance data
+	items, err := u.repo.ListItems(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list opname items: %w", err)
+	}
+
+	// 3. Build adjustment request from items with non-zero variance
+	var adjustItems []inventoryDTO.AdjustStockItem
+	for _, item := range items {
+		if item.VarianceQty == 0 || item.PhysicalQty == nil {
+			continue
+		}
+		adjustItems = append(adjustItems, inventoryDTO.AdjustStockItem{
+			ProductID:   item.ProductID,
+			VarianceQty: item.VarianceQty,
+		})
+	}
+
+	// 4. Create ADJUST stock movements via inventory usecase
+	if len(adjustItems) > 0 {
+		postedByStr := ""
+		if postedBy != nil {
+			postedByStr = *postedBy
+		}
+
+		adjustReq := &inventoryDTO.AdjustStockFromOpnameRequest{
+			OpnameID:     id,
+			OpnameNumber: opname.OpnameNumber,
+			WarehouseID:  opname.WarehouseID,
+			Items:        adjustItems,
+			PostedBy:     postedByStr,
+			Notes:        fmt.Sprintf("Stock adjustment from opname %s", opname.OpnameNumber),
+		}
+
+		if err := u.inventoryUC.AdjustStockFromOpname(ctx, adjustReq); err != nil {
+			return nil, fmt.Errorf("failed to create stock adjustments: %w", err)
+		}
+	}
+
+	// 5. Update status to posted
 	return u.updateStatus(ctx, id, models.StockOpnameStatusPosted, postedBy)
 }
 
