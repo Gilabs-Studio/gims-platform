@@ -220,6 +220,7 @@ func ToSalesOrderItemResponse(m *salesModels.SalesOrderItem, pendingQty float64)
 		Subtotal:                m.Subtotal,
 		ReservedQuantity:        m.ReservedQuantity,
 		DeliveredQuantity:       m.DeliveredQuantity,
+		InvoicedQuantity:        m.InvoicedQuantity,
 		PendingDeliveryQuantity: pendingQty,
 		CreatedAt:               m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:               m.UpdatedAt.Format(time.RFC3339),

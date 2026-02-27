@@ -8,7 +8,6 @@ import type {
   CreateCustomerInvoiceData,
   UpdateCustomerInvoiceData,
   UpdateCustomerInvoiceStatusData,
-  RecordPaymentData,
 } from "../types";
 
 const BASE_PATH = "/sales/customer-invoices";
@@ -85,17 +84,6 @@ export const invoiceService = {
   async approve(id: string): Promise<CustomerInvoiceSingleResponse> {
     const response = await apiClient.post<CustomerInvoiceSingleResponse>(
       `${BASE_PATH}/${id}/approve`
-    );
-    return response.data;
-  },
-
-  async recordPayment(
-    id: string,
-    data: RecordPaymentData
-  ): Promise<CustomerInvoiceSingleResponse> {
-    const response = await apiClient.post<CustomerInvoiceSingleResponse>(
-      `${BASE_PATH}/${id}/payments`,
-      data
     );
     return response.data;
   },

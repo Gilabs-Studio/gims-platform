@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -435,10 +436,14 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
 
-	// Update status
 	var reason *string
 	if req.CancellationReason != nil {
 		reason = req.CancellationReason
+	}
+
+	// Release stock reservations when cancelling to prevent "trapped" inventory
+	if newStatus == models.DeliveryOrderStatusCancelled {
+		return u.cancelAndReleaseStock(ctx, deliveryOrder, userID, reason)
 	}
 
 	if err := u.deliveryOrderRepo.UpdateStatus(ctx, id, newStatus, userID, reason); err != nil {
@@ -447,6 +452,45 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	response := mapper.ToDeliveryOrderResponse(updated)
+	return &response, nil
+}
+
+// cancelAndReleaseStock handles DO cancellation with proper stock release in a single transaction.
+// This mirrors the stock release logic in Delete() but applies to status cancellation
+// from draft, approved, or prepared states where batch/product reservations exist.
+func (u *deliveryOrderUsecase) cancelAndReleaseStock(
+	ctx context.Context,
+	deliveryOrder *models.DeliveryOrder,
+	userID *string,
+	reason *string,
+) (*dto.DeliveryOrderResponse, error) {
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		// Release batch-level and product-level stock reservations for each item
+		for _, item := range deliveryOrder.Items {
+			if item.InventoryBatchID != nil {
+				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return fmt.Errorf("failed to release batch stock for item %s: %w", item.ID, err)
+				}
+			}
+			if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+				return fmt.Errorf("failed to release product stock for item %s: %w", item.ID, err)
+			}
+		}
+
+		return u.deliveryOrderRepo.UpdateStatus(txCtx, deliveryOrder.ID, models.DeliveryOrderStatusCancelled, userID, reason)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := u.deliveryOrderRepo.FindByID(ctx, deliveryOrder.ID)
 	if err != nil {
 		return nil, err
 	}

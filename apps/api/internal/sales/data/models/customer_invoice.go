@@ -45,6 +45,10 @@ type CustomerInvoice struct {
 	SalesOrderID *string     `gorm:"type:uuid;index" json:"sales_order_id"`
 	SalesOrder   *SalesOrder `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
 
+	// Optional link to Delivery Order (invoice-on-delivery pattern)
+	DeliveryOrderID *string        `gorm:"type:uuid;index" json:"delivery_order_id"`
+	DeliveryOrder   *DeliveryOrder `gorm:"foreignKey:DeliveryOrderID" json:"delivery_order,omitempty"`
+
 	PaymentTermsID *string              `gorm:"type:uuid;index" json:"payment_terms_id"`
 	PaymentTerms   *models.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
 
@@ -109,6 +113,12 @@ type CustomerInvoiceItem struct {
 
 	ProductID string                 `gorm:"type:uuid;not null;index" json:"product_id"`
 	Product   *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+
+	// Link to SO/DO items for partial invoicing tracking
+	SalesOrderItemID    *string            `gorm:"type:uuid;index" json:"sales_order_item_id"`
+	SalesOrderItem      *SalesOrderItem    `gorm:"foreignKey:SalesOrderItemID" json:"sales_order_item,omitempty"`
+	DeliveryOrderItemID *string            `gorm:"type:uuid;index" json:"delivery_order_item_id"`
+	DeliveryOrderItem   *DeliveryOrderItem `gorm:"foreignKey:DeliveryOrderItemID" json:"delivery_order_item,omitempty"`
 
 	Quantity  float64 `gorm:"type:decimal(15,3);not null" json:"quantity"`
 	Price     float64 `gorm:"type:decimal(15,2);not null" json:"price"`

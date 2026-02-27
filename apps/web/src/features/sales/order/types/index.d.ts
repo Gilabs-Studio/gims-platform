@@ -66,6 +66,7 @@ export interface SalesOrderItem {
   subtotal: number;
   reserved_quantity: number;
   delivered_quantity: number;
+  invoiced_quantity: number;
   pending_delivery_quantity?: number;
   installation_status?: string;
   function_test_status?: string;
