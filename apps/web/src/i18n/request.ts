@@ -82,8 +82,17 @@ import { supplierInvoiceId } from "@/features/purchase/supplier-invoices/i18n/id
 import { supplierInvoiceDPEn } from "@/features/purchase/supplier-invoice-down-payments/i18n/en";
 import { supplierInvoiceDPId } from "@/features/purchase/supplier-invoice-down-payments/i18n/id";
 
+import { customerInvoiceDPEn } from "@/features/sales/customer-invoice-down-payments/i18n/en";
+import { customerInvoiceDPId } from "@/features/sales/customer-invoice-down-payments/i18n/id";
+
 import { purchasePaymentEn } from "@/features/purchase/payments/i18n/en";
 import { purchasePaymentId } from "@/features/purchase/payments/i18n/id";
+
+import { salesPaymentEn } from "@/features/sales/payments/i18n/en";
+import { salesPaymentId } from "@/features/sales/payments/i18n/id";
+
+import { receivablesRecapEn } from "@/features/sales/receivables-recap/i18n/en";
+import { receivablesRecapId } from "@/features/sales/receivables-recap/i18n/id";
 
 import { financeCoaEn } from "@/features/finance/coa/i18n/en";
 import { financeCoaId } from "@/features/finance/coa/i18n/id";
@@ -175,6 +184,7 @@ const messages = {
     ...orderEn,
     ...deliveryEn,
     ...invoiceEn,
+    customerInvoiceDP: customerInvoiceDPEn,
     ...commandPaletteEn,
     ...targetsEn,
     ...targetsEn,
@@ -191,6 +201,8 @@ const messages = {
     supplierInvoice: supplierInvoiceEn,
     supplierInvoiceDP: supplierInvoiceDPEn,
     purchasePayment: purchasePaymentEn,
+    salesPayment: salesPaymentEn,
+    receivablesRecap: receivablesRecapEn,
     financeCoa: financeCoaEn,
     financeJournals: financeJournalsEn,
     financeBankAccounts: financeBankAccountsEn,
@@ -247,6 +259,7 @@ const messages = {
     ...orderId,
     ...deliveryId,
     ...invoiceId,
+    customerInvoiceDP: customerInvoiceDPId,
     ...commandPaletteId,
     ...targetsId,
     ...targetsId,
@@ -262,6 +275,8 @@ const messages = {
     supplierInvoice: supplierInvoiceId,
     supplierInvoiceDP: supplierInvoiceDPId,
     purchasePayment: purchasePaymentId,
+    salesPayment: salesPaymentId,
+    receivablesRecap: receivablesRecapId,
     financeCoa: financeCoaId,
     financeJournals: financeJournalsId,
     financeBankAccounts: financeBankAccountsId,

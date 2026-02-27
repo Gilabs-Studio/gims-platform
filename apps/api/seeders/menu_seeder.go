@@ -346,7 +346,12 @@ func SeedMenus() error {
 		{"Sales Orders", "shopping-cart", "/sales/orders", 2},
 		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
-		{"Sales Target", "target", "/sales/targets", 5},
+		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
+		{"Visit Reports", "map-pin", "/sales/visits", 6},
+		{"Sales Estimation", "calculator", "/sales/estimations", 7},
+		{"Sales Target", "target", "/sales/targets", 8},
+		{"Payments", "credit-card", "/sales/payments", 9},
+		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
 	for _, child := range salesChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &salesMenu.ID, child.order); err != nil {

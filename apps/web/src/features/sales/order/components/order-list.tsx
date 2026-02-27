@@ -156,6 +156,7 @@ export function OrderList() {
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
             <SelectItem value="submitted">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="closed">{t("status.closed") || "Closed"}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
           </SelectContent>

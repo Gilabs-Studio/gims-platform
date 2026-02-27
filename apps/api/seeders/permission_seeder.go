@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
+	"gorm.io/gorm"
 )
 
 // permissionDef defines a permission with its menu URL, code, name, action, and resource
@@ -216,6 +217,14 @@ func SeedPermissions() error {
 		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.approve", "Approve Customer Invoices", "APPROVE", "customer_invoice"},
 
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.read", "View Down Payments", "VIEW", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.create", "Create Down Payments", "CREATE", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.update", "Edit Down Payments", "EDIT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.delete", "Delete Down Payments", "DELETE", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.pending", "Pending Down Payments", "PENDING", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
+
 		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
 		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
 		{"/sales/visits", "sales_visit.update", "Edit Sales Visits", "EDIT", "sales_visit"},
@@ -239,6 +248,14 @@ func SeedPermissions() error {
 		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
 		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
 		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
+
+		// Sales Payments
+		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
+		{"/sales/payments", "sales_payment.create", "Create Sales Payments", "CREATE", "sales_payment"},
+		{"/sales/payments", "sales_payment.delete", "Delete Sales Payments", "DELETE", "sales_payment"},
+		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
+		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
+		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -554,46 +571,49 @@ func SeedPermissions() error {
 		menuMap[m.URL] = m.ID
 	}
 
-	// Create permissions
+	// Create permissions in a transaction to speed up seeding
 	var permissionIDs []string
-	for _, p := range permissions {
-		menuID, exists := menuMap[p.menuURL]
-		if !exists {
-			log.Printf("Warning: Menu not found for URL %s, skipping permission %s", p.menuURL, p.code)
-			continue
-		}
-
-		// Check if permission already exists
-		var existingPerm permission.Permission
-		if err := database.DB.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
-			// Permission exists: ensure it matches the latest definition.
-			updates := map[string]interface{}{
-				"name":     p.name,
-				"action":   p.action,
-				"resource": p.resource,
-				"menu_id":  &menuID,
-			}
-			if err := database.DB.Model(&existingPerm).Updates(updates).Error; err != nil {
-				log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, p := range permissions {
+			menuID, exists := menuMap[p.menuURL]
+			if !exists {
+				log.Printf("Warning: Menu not found for URL %s, skipping permission %s", p.menuURL, p.code)
+				continue
 			}
 
-			// Add ID to list and continue
-			permissionIDs = append(permissionIDs, existingPerm.ID)
-			continue
-		}
+			// Check if permission already exists
+			var existingPerm permission.Permission
+			if err := tx.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
+				// Permission exists: ensure it matches the latest definition.
+				updates := map[string]interface{}{
+					"name":     p.name,
+					"action":   p.action,
+					"resource": p.resource,
+					"menu_id":  &menuID,
+				}
+				if err := tx.Model(&existingPerm).Updates(updates).Error; err != nil {
+					log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+				}
+				permissionIDs = append(permissionIDs, existingPerm.ID)
+				continue
+			}
 
-		perm := permission.Permission{
-			Name:     p.name,
-			Code:     p.code,
-			MenuID:   &menuID,
-			Action:   p.action,
-			Resource: p.resource,
+			perm := permission.Permission{
+				Name:     p.name,
+				Code:     p.code,
+				MenuID:   &menuID,
+				Action:   p.action,
+				Resource: p.resource,
+			}
+			if err := tx.Create(&perm).Error; err != nil {
+				log.Printf("Warning: Failed to create permission %s: %v", p.code, err)
+				continue
+			}
+			permissionIDs = append(permissionIDs, perm.ID)
 		}
-		if err := database.DB.Create(&perm).Error; err != nil {
-			log.Printf("Warning: Failed to create permission %s: %v", p.code, err)
-			continue
-		}
-		permissionIDs = append(permissionIDs, perm.ID)
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
@@ -603,14 +623,17 @@ func SeedPermissions() error {
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
 		log.Printf("Warning: Admin role not found: %v", err)
 	} else {
-		for _, permID := range permissionIDs {
-			if err := database.DB.Exec(
-				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
-				adminRole.ID, permID,
-			).Error; err != nil {
-				log.Printf("Warning: Failed to assign permission to admin: %v", err)
+		database.DB.Transaction(func(tx *gorm.DB) error {
+			for _, permID := range permissionIDs {
+				if err := tx.Exec(
+					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
+					adminRole.ID, permID,
+				).Error; err != nil {
+					log.Printf("Warning: Failed to assign permission to admin: %v", err)
+				}
 			}
-		}
+			return nil
+		})
 		log.Printf("Assigned %d permissions to admin role (scope=ALL)", len(permissionIDs))
 	}
 
@@ -625,16 +648,19 @@ func SeedPermissions() error {
 		var viewPermissions []permission.Permission
 		if err := database.DB.Where("action = ?", "VIEW").Find(&viewPermissions).Error; err == nil {
 			viewerCount := 0
-			for _, perm := range viewPermissions {
-				if err := database.DB.Exec(
-					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
-					viewerRole.ID, perm.ID,
-				).Error; err != nil {
-					log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
-				} else {
-					viewerCount++
+			database.DB.Transaction(func(tx *gorm.DB) error {
+				for _, perm := range viewPermissions {
+					if err := tx.Exec(
+						"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
+						viewerRole.ID, perm.ID,
+					).Error; err != nil {
+						log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
+					} else {
+						viewerCount++
+					}
 				}
-			}
+				return nil
+			})
 			log.Printf("Assigned %d VIEW permissions to viewer role (scope=OWN)", viewerCount)
 		}
 	}
@@ -735,24 +761,27 @@ func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]stri
 	}
 
 	count := 0
-	for _, perm := range allPerms {
-		scope := defaultScope
-		for module, moduleScope := range moduleScopes {
-			if matchesModule(perm.Resource, module) {
-				scope = moduleScope
-				break
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range allPerms {
+			scope := defaultScope
+			for module, moduleScope := range moduleScopes {
+				if matchesModule(perm.Resource, module) {
+					scope = moduleScope
+					break
+				}
+			}
+
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+				r.ID, perm.ID, scope,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+			} else {
+				count++
 			}
 		}
-
-		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
-			r.ID, perm.ID, scope,
-		).Error; err != nil {
-			log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
-		} else {
-			count++
-		}
-	}
+		return nil
+	})
 	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
 }
 
@@ -779,16 +808,19 @@ func SyncAdminPermissions() error {
 	}
 
 	assignedCount := 0
-	for _, perm := range allPermissions {
-		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
-			adminRole.ID, perm.ID,
-		).Error; err != nil {
-			log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
-		} else {
-			assignedCount++
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range allPermissions {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
+				adminRole.ID, perm.ID,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
+			} else {
+				assignedCount++
+			}
 		}
-	}
+		return nil
+	})
 
 	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
 	return nil

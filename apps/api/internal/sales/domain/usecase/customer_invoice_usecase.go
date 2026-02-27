@@ -20,9 +20,9 @@ const dateFormat = "2006-01-02"
 
 // Errors
 var (
-	ErrCustomerInvoiceNotFound    = errors.New("customer invoice not found")
-	ErrInvalidInvoiceStatus       = errors.New("invalid invoice status for this operation")
-	ErrInvalidPaymentAmount       = errors.New("payment amount exceeds remaining balance")
+	ErrCustomerInvoiceNotFound = errors.New("customer invoice not found")
+	ErrInvalidInvoiceStatus    = errors.New("invalid invoice status for this operation")
+	ErrInvalidPaymentAmount    = errors.New("payment amount exceeds remaining balance")
 )
 
 // CustomerInvoiceUsecase defines the interface for customer invoice business logic
@@ -152,17 +152,18 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	}
 
 	invoice := &models.CustomerInvoice{
-		Code:           code,
-		Type:           invoiceType,
-		InvoiceDate:    invoiceDate,
-		SalesOrderID:   req.SalesOrderID,
-		PaymentTermsID: req.PaymentTermsID,
-		TaxRate:        req.TaxRate,
-		DeliveryCost:   req.DeliveryCost,
-		OtherCost:      req.OtherCost,
-		Notes:          req.Notes,
-		Status:         models.CustomerInvoiceStatusDraft,
-		CreatedBy:      createdBy,
+		Code:                 code,
+		Type:                 invoiceType,
+		InvoiceDate:          invoiceDate,
+		SalesOrderID:         req.SalesOrderID,
+		PaymentTermsID:       req.PaymentTermsID,
+		DownPaymentInvoiceID: req.DownPaymentInvoiceID,
+		TaxRate:              req.TaxRate,
+		DeliveryCost:         req.DeliveryCost,
+		OtherCost:            req.OtherCost,
+		Notes:                req.Notes,
+		Status:               models.CustomerInvoiceStatusDraft,
+		CreatedBy:            createdBy,
 	}
 
 	// Parse due date
@@ -204,7 +205,36 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	invoice.Items = items
 	invoice.Subtotal = subtotal
 	invoice.TaxAmount = subtotal * (invoice.TaxRate / 100)
+
+	// Default calculation without DP
 	invoice.Amount = subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
+
+	// Deduct paid Down Payments if this is a regular invoice with a sales order
+	if req.SalesOrderID != nil && invoiceType == models.CustomerInvoiceTypeRegular {
+		dpReq := &dto.ListCustomerInvoicesRequest{
+			SalesOrderID: *req.SalesOrderID,
+			Type:         string(models.CustomerInvoiceTypeDownPayment),
+			Status:       string(models.CustomerInvoiceStatusPaid),
+			PerPage:      100,
+		}
+		if dps, _, err := uc.invoiceRepo.List(ctx, dpReq); err == nil {
+			var totalDP float64
+			for _, dp := range dps {
+				totalDP += dp.PaidAmount
+				// Link the first paid DP as the reference
+				if invoice.DownPaymentInvoiceID == nil {
+					dpIDStr := dp.ID
+					invoice.DownPaymentInvoiceID = &dpIDStr
+				}
+			}
+			invoice.DownPaymentAmount = totalDP
+			invoice.Amount = invoice.Amount - totalDP
+			if invoice.Amount < 0 {
+				invoice.Amount = 0
+			}
+		}
+	}
+
 	invoice.RemainingAmount = invoice.Amount
 
 	if err := uc.invoiceRepo.Create(ctx, invoice); err != nil {
@@ -309,6 +339,33 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 	// Recalculate totals
 	invoice.TaxAmount = invoice.Subtotal * (invoice.TaxRate / 100)
 	invoice.Amount = invoice.Subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
+
+	// Deduct paid Down Payments if this is a regular invoice with a sales order
+	if invoice.SalesOrderID != nil && invoice.Type == models.CustomerInvoiceTypeRegular {
+		dpReq := &dto.ListCustomerInvoicesRequest{
+			SalesOrderID: *invoice.SalesOrderID,
+			Type:         string(models.CustomerInvoiceTypeDownPayment),
+			Status:       string(models.CustomerInvoiceStatusPaid),
+			PerPage:      100,
+		}
+		if dps, _, err := uc.invoiceRepo.List(ctx, dpReq); err == nil {
+			var totalDP float64
+			for _, dp := range dps {
+				totalDP += dp.PaidAmount
+				// Link the first paid DP as the reference
+				if invoice.DownPaymentInvoiceID == nil {
+					dpIDStr := dp.ID
+					invoice.DownPaymentInvoiceID = &dpIDStr
+				}
+			}
+			invoice.DownPaymentAmount = totalDP
+			invoice.Amount = invoice.Amount - totalDP
+			if invoice.Amount < 0 {
+				invoice.Amount = 0
+			}
+		}
+	}
+
 	invoice.RemainingAmount = invoice.Amount - invoice.PaidAmount
 
 	if err := uc.invoiceRepo.Update(ctx, invoice); err != nil {

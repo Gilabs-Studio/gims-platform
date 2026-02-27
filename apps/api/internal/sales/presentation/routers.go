@@ -1,8 +1,10 @@
 package presentation
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -24,7 +26,7 @@ type SalesDeps struct {
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC inventoryUsecase.InventoryUsecase) *SalesDeps {
+}, invUC inventoryUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) *SalesDeps {
 	// Initialize repositories
 	quotationRepo := salesRepos.NewSalesQuotationRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
@@ -40,8 +42,18 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, deliveryRepo, quotationRepo, productRepo, invUC, employeeRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, invUC)
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo)
+	auditService := audit.NewAuditService(db)
+	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(yearlyTargetRepo)
+
+	// Sales Payment
+	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
+	salesPaymentUC := usecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditService, journalUC, coaUC)
+
+	// Receivables Recap
+	recapRepo := salesRepos.NewReceivablesRecapRepository(db)
+	recapUC := usecase.NewReceivablesRecapUsecase(recapRepo)
 
 	// Initialize handlers
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
@@ -49,8 +61,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
 	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
+	invoiceDpHandler := handler.NewCustomerInvoiceDownPaymentHandler(invoiceDpUC)
 	visitHandler := handler.NewSalesVisitHandler(visitUC)
 	yearlyTargetHandler := handler.NewYearlyTargetHandler(yearlyTargetUC)
+	salesPaymentHandler := handler.NewSalesPaymentHandler(salesPaymentUC)
+	recapHandler := handler.NewReceivablesRecapHandler(recapUC)
 
 	// Create sales group under API with auth middleware
 	salesGroup := api.Group("/sales")
@@ -62,12 +77,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
+	router.RegisterCustomerInvoiceDownPaymentRoutes(salesGroup, invoiceDpHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
 	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
+	router.RegisterSalesPaymentRoutes(salesGroup, salesPaymentHandler)
+	router.RegisterReceivablesRecapRoutes(salesGroup, recapHandler)
 
 	return &SalesDeps{
 		QuotationUC: quotationUC,
 		OrderUC:     orderUC,
 	}
 }
-

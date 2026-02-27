@@ -298,7 +298,7 @@ func main() {
 		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
 
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
