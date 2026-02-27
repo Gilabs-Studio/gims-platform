@@ -43,6 +43,8 @@ export const customerInvoiceDPId = {
     dueDate: "Jatuh Tempo",
     salesOrder: "SO",
     amount: "Total",
+    remainingAmount: "Sisa Belum Dibayar",
+    relatedInvoiceCode: "Faktur Reguler",
     status: "Status",
     createdAt: "Dibuat",
   },

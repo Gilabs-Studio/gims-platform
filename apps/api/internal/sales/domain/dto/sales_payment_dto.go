@@ -45,13 +45,15 @@ type SalesPaymentAddInvoiceItem struct {
 		ID   string `json:"id"`
 		Code string `json:"code"`
 	} `json:"sales_order,omitempty"`
-	Code          string  `json:"code"`
-	InvoiceNumber *string `json:"invoice_number,omitempty"`
-	Type          string  `json:"type"`
-	InvoiceDate   string  `json:"invoice_date"`
-	DueDate       *string `json:"due_date,omitempty"`
-	Amount        float64 `json:"amount"`
-	Status        string  `json:"status"`
+	Code            string  `json:"code"`
+	InvoiceNumber   *string `json:"invoice_number,omitempty"`
+	Type            string  `json:"type"`
+	InvoiceDate     string  `json:"invoice_date"`
+	DueDate         *string `json:"due_date,omitempty"`
+	Amount          float64 `json:"amount"`
+	PaidAmount      float64 `json:"paid_amount"`
+	RemainingAmount float64 `json:"remaining_amount"`
+	Status          string  `json:"status"`
 }
 
 type SalesPaymentAddResponse struct {

@@ -49,6 +49,8 @@ export const salesPaymentId = {
     invoiceDate: "Tanggal Invoice",
     dueDate: "Jatuh Tempo",
     amount: "Jumlah Tagihan",
+    paidAmount: "Jumlah Terbayar",
+    remainingAmount: "Sisa Pembayaran",
     status: "Status",
   },
   auditTrail: {

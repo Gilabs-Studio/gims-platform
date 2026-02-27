@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  CheckCircle2,
   Clock,
   Download,
   Eye,
@@ -15,8 +14,10 @@ import {
   Plus,
   Search,
   Trash2,
+  CheckCircle2,
   TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +36,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
@@ -44,10 +44,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
   useDeleteSupplierInvoiceDP,
@@ -56,27 +55,13 @@ import {
   useSupplierInvoiceDPs,
 } from "../hooks/use-supplier-invoice-dp";
 import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
-import type { SupplierInvoiceDPListItem, SupplierInvoiceDPStatus } from "../types";
+import type { SupplierInvoiceDPListItem } from "../types";
+import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
 
 const SupplierInvoiceDPFormDialog = dynamic(
   () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
   { ssr: false },
 );
-
-function statusLabel(t: ReturnType<typeof useTranslations>, status: SupplierInvoiceDPStatus) {
-  return t(`status.${status.toLowerCase()}`);
-}
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
 
 export function SupplierInvoiceDPList() {
   const t = useTranslations("supplierInvoiceDP");
@@ -108,6 +93,7 @@ export function SupplierInvoiceDPList() {
     }),
     [page, pageSize, debouncedSearch],
   );
+
   const { data, isLoading, isError } = useSupplierInvoiceDPs(listParams);
 
   const deleteMutation = useDeleteSupplierInvoiceDP();
@@ -119,6 +105,7 @@ export function SupplierInvoiceDPList() {
   const canPending = useUserPermission("supplier_invoice_dp.pending");
   const canExport = useUserPermission("supplier_invoice_dp.export");
   const canAuditTrail = useUserPermission("supplier_invoice_dp.audit_trail");
+  const canView = useUserPermission("supplier_invoice_dp.read");
 
   async function handleExport() {
     try {
@@ -127,80 +114,37 @@ export function SupplierInvoiceDPList() {
       const a = document.createElement("a");
       a.href = url;
       a.download = "supplier-invoice-down-payments.csv";
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
   }
 
-  async function handleDelete() {
-    if (!deletingRow?.id) return;
-    try {
-      const response = await deleteMutation.mutateAsync(deletingRow.id);
-      if (!response.success) throw new Error(response.error ?? "delete_failed");
-      toast.success(t("toast.deleted"));
-      setDeletingRow(null);
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  }
-
-  async function handlePending(id: string) {
-    try {
-      const response = await pendingMutation.mutateAsync(id);
-      if (!response.success) throw new Error(response.error ?? "pending_failed");
-      toast.success(t("toast.pending"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  }
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
 
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const canShowActions =
-    canUpdate || canPending || canAuditTrail || canDelete;
+    canUpdate || canPending || canAuditTrail || canDelete || canView;
 
-  const getStatusBadge = (status: SupplierInvoiceDPStatus) => {
-    switch (normalizeStatus(status)) {
-      case "paid":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {statusLabel(t, status)}
-          </Badge>
-        );
-      case "unpaid":
-        return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1" />
-            {statusLabel(t, status)}
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <TrendingUp className="h-3 w-3 mr-1" />
-            {statusLabel(t, status)}
-          </Badge>
-        );
-      case "draft":
-      default:
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <FileText className="h-3 w-3 mr-1" />
-            {statusLabel(t, status)}
-          </Badge>
-        );
-    }
-  };
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -219,14 +163,14 @@ export function SupplierInvoiceDPList() {
 
         <div className="flex-1" />
 
-        {canExport ? (
+        {canExport && (
           <Button variant="outline" onClick={handleExport} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
             {t("actions.export")}
           </Button>
-        ) : null}
+        )}
 
-        {canCreate ? (
+        {canCreate && (
           <Button
             onClick={() => {
               setEditId(undefined);
@@ -237,18 +181,14 @@ export function SupplierInvoiceDPList() {
             <Plus className="h-4 w-4 mr-2" />
             {t("actions.create")}
           </Button>
-        ) : null}
+        )}
       </div>
-
-      {isError ? (
-        <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
-      ) : null}
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("columns.code")}</TableHead>
+              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.invoiceNumber")}</TableHead>
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
@@ -256,24 +196,28 @@ export function SupplierInvoiceDPList() {
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead>{t("columns.createdAt")}</TableHead>
-              {canShowActions ? <TableHead className="w-[70px]" /> : null}
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: canShowActions ? 9 : 8 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={canShowActions ? 9 : 8}
+                  colSpan={9}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -282,17 +226,30 @@ export function SupplierInvoiceDPList() {
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.code}</TableCell>
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => canView && handleView(row.id)}
+                  >
+                    {row.code}
+                  </TableCell>
                   <TableCell>{row.invoice_number}</TableCell>
-                  <TableCell>{safeDate(row.invoice_date)}</TableCell>
-                  <TableCell>{safeDate(row.due_date)}</TableCell>
+                  <TableCell>{formatDate(row.invoice_date)}</TableCell>
+                  <TableCell>{formatDate(row.due_date)}</TableCell>
                   <TableCell>{row.purchase_order?.code ?? "-"}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                  <TableCell>{getStatusBadge(row.status)}</TableCell>
-                  <TableCell className="flex items-center justify-between gap-2">
-                    <span>{safeDate(row.created_at)}</span>
-
-                    {canShowActions ? (
+                  <TableCell className="text-right font-medium">{formatCurrency(row.amount)}</TableCell>
+                  <TableCell>
+                    <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{formatDate(row.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {row.created_at ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {canShowActions && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -300,18 +257,17 @@ export function SupplierInvoiceDPList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="cursor-pointer"
-                            onClick={() => {
-                              setDetailId(row.id);
-                              setDetailOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            {t("actions.view")}
-                          </DropdownMenuItem>
+                          {canView && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handleView(row.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              {t("actions.view")}
+                            </DropdownMenuItem>
+                          )}
 
-                          {canUpdate ? (
+                          {canUpdate && (row.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -322,19 +278,26 @@ export function SupplierInvoiceDPList() {
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("actions.edit")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canPending ? (
+                          {canPending && (row.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => handlePending(row.id)}
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              onClick={async () => {
+                                try {
+                                  await pendingMutation.mutateAsync(row.id);
+                                  toast.success(t("toast.pending"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
                             >
                               <Clock className="h-4 w-4 mr-2" />
                               {t("actions.pending")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canAuditTrail ? (
+                          {canAuditTrail && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -345,9 +308,9 @@ export function SupplierInvoiceDPList() {
                               <History className="h-4 w-4 mr-2" />
                               {t("actions.auditTrail")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canDelete ? (
+                          {canDelete && (row.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
                               onClick={() => setDeletingRow(row)}
@@ -355,10 +318,10 @@ export function SupplierInvoiceDPList() {
                               <Trash2 className="h-4 w-4 mr-2" />
                               {tCommon("delete")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : null}
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -367,18 +330,18 @@ export function SupplierInvoiceDPList() {
         </Table>
       </div>
 
-      {pagination ? (
+      {pagination && (
         <DataTablePagination
           pageIndex={pagination.page}
           pageSize={pagination.per_page}
           rowCount={pagination.total}
-          onPageChange={(p) => setPage(p)}
+          onPageChange={setPage}
           onPageSizeChange={(size) => {
             setPageSize(size);
             setPage(1);
           }}
         />
-      ) : null}
+      )}
 
       <SupplierInvoiceDPFormDialog
         open={formOpen}
@@ -392,7 +355,15 @@ export function SupplierInvoiceDPList() {
           <DialogHeader>
             <DialogTitle>{t("detail.title")}</DialogTitle>
           </DialogHeader>
-          {detailId ? <SupplierInvoiceDPDetailView id={detailId} /> : null}
+          {detailId ? (
+            <SupplierInvoiceDPDetailView
+              id={detailId}
+              onClose={() => {
+                setDetailOpen(false);
+                setDetailId(null);
+              }}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
 
@@ -408,12 +379,19 @@ export function SupplierInvoiceDPList() {
 
       <DeleteDialog
         open={!!deletingRow}
-        onOpenChange={(v) => {
-          if (!v) setDeletingRow(null);
+        onOpenChange={(v) => !v && setDeletingRow(null)}
+        itemName={tCommon("supplierInvoiceDP") || "supplier invoice down payment"}
+        onConfirm={async () => {
+          if (!deletingRow) return;
+          try {
+            await deleteMutation.mutateAsync(deletingRow.id);
+            toast.success(t("toast.deleted"));
+          } catch {
+            toast.error(t("toast.failed"));
+          } finally {
+            setDeletingRow(null);
+          }
         }}
-        title={tCommon("delete")}
-        description={tCommon("deleteConfirm")}
-        onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
       />
     </div>
@@ -422,7 +400,7 @@ export function SupplierInvoiceDPList() {
 
 /* ───────────────────── Detail View ───────────────────── */
 
-function SupplierInvoiceDPDetailView({ id }: { id: string }) {
+function SupplierInvoiceDPDetailView({ id, onClose }: { id: string; onClose: () => void }) {
   const t = useTranslations("supplierInvoiceDP");
   const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
 
@@ -437,22 +415,8 @@ function SupplierInvoiceDPDetailView({ id }: { id: string }) {
 
   const row = data.data;
 
-  const getDetailBadge = (status: SupplierInvoiceDPStatus) => {
-    switch (normalizeStatus(status)) {
-      case "paid":
-        return <Badge variant="success" className="text-xs font-medium"><CheckCircle2 className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
-      case "unpaid":
-        return <Badge variant="warning" className="text-xs font-medium"><Clock className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
-      case "partial":
-        return <Badge variant="info" className="text-xs font-medium"><TrendingUp className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-xs font-medium"><FileText className="h-3 w-3 mr-1" />{statusLabel(t, status)}</Badge>;
-    }
-  };
-
   return (
     <div className="space-y-6 pt-2">
-      {/* Header Card */}
       <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
         <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
           <FileText className="h-6 w-6" />
@@ -462,11 +426,10 @@ function SupplierInvoiceDPDetailView({ id }: { id: string }) {
           <p className="text-sm text-muted-foreground font-mono">{row.code}</p>
         </div>
         <div className="text-right">
-          {getDetailBadge(row.status)}
+          <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
         </div>
       </div>
 
-      {/* Info Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div className="space-y-1">
           <p className="text-muted-foreground">{t("fields.purchaseOrder")}</p>
@@ -474,11 +437,11 @@ function SupplierInvoiceDPDetailView({ id }: { id: string }) {
         </div>
         <div className="space-y-1">
           <p className="text-muted-foreground">{t("fields.invoiceDate")}</p>
-          <p className="font-medium">{safeDate(row.invoice_date)}</p>
+          <p className="font-medium">{formatDate(row.invoice_date)}</p>
         </div>
         <div className="space-y-1">
           <p className="text-muted-foreground">{t("fields.dueDate")}</p>
-          <p className="font-medium">{safeDate(row.due_date)}</p>
+          <p className="font-medium">{formatDate(row.due_date)}</p>
         </div>
         {row.notes ? (
           <div className="space-y-1">
@@ -488,7 +451,6 @@ function SupplierInvoiceDPDetailView({ id }: { id: string }) {
         ) : null}
       </div>
 
-      {/* Amount Card */}
       <div className="bg-card border rounded-lg overflow-hidden">
         <div className="p-4 flex justify-between items-center px-6 bg-muted/20">
           <span className="font-semibold">{t("fields.amount")}</span>
@@ -507,7 +469,6 @@ function SupplierInvoiceDPAuditTrailView({ id }: { id: string }) {
 
   const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
 
-  // For now, use a simple placeholder – can be enhanced with a dedicated audit trail hook later
   if (isLoading) return <Skeleton className="h-40 w-full" />;
   if (isError) return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
 

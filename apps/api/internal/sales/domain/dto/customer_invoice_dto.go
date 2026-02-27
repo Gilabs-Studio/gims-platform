@@ -75,35 +75,36 @@ type RecordPaymentRequest struct {
 
 // CustomerInvoiceResponse represents the response for a customer invoice
 type CustomerInvoiceResponse struct {
-	ID                   string                        `json:"id"`
-	Code                 string                        `json:"code"`
-	InvoiceNumber        *string                       `json:"invoice_number"`
-	Type                 string                        `json:"type"`
-	InvoiceDate          string                        `json:"invoice_date"`
-	DueDate              *string                       `json:"due_date"`
-	SalesOrderID         *string                       `json:"sales_order_id"`
-	SalesOrder           *SalesOrderBriefResponse      `json:"sales_order,omitempty"`
-	PaymentTermsID       *string                       `json:"payment_terms_id"`
-	PaymentTerms         *PaymentTermsResponse         `json:"payment_terms,omitempty"`
-	DownPaymentInvoiceID *string                       `json:"down_payment_invoice_id,omitempty"`
-	Subtotal             float64                       `json:"subtotal"`
-	TaxRate              float64                       `json:"tax_rate"`
-	TaxAmount            float64                       `json:"tax_amount"`
-	DeliveryCost         float64                       `json:"delivery_cost"`
-	OtherCost            float64                       `json:"other_cost"`
-	DownPaymentAmount    float64                       `json:"down_payment_amount"`
-	Amount               float64                       `json:"amount"`
-	PaidAmount           float64                       `json:"paid_amount"`
-	RemainingAmount      float64                       `json:"remaining_amount"`
-	Status               string                        `json:"status"`
-	Notes                string                        `json:"notes"`
-	PaymentAt            *string                       `json:"payment_at"`
-	CreatedBy            *string                       `json:"created_by"`
-	CancelledBy          *string                       `json:"cancelled_by"`
-	CancelledAt          *string                       `json:"cancelled_at"`
-	Items                []CustomerInvoiceItemResponse `json:"items,omitempty"`
-	CreatedAt            string                        `json:"created_at"`
-	UpdatedAt            string                        `json:"updated_at"`
+	ID                     string                        `json:"id"`
+	Code                   string                        `json:"code"`
+	InvoiceNumber          *string                       `json:"invoice_number"`
+	Type                   string                        `json:"type"`
+	InvoiceDate            string                        `json:"invoice_date"`
+	DueDate                *string                       `json:"due_date"`
+	SalesOrderID           *string                       `json:"sales_order_id"`
+	SalesOrder             *SalesOrderBriefResponse      `json:"sales_order,omitempty"`
+	PaymentTermsID         *string                       `json:"payment_terms_id"`
+	PaymentTerms           *PaymentTermsResponse         `json:"payment_terms,omitempty"`
+	DownPaymentInvoiceID   *string                       `json:"down_payment_invoice_id,omitempty"`
+	DownPaymentInvoiceCode *string                       `json:"down_payment_invoice_code,omitempty"`
+	Subtotal               float64                       `json:"subtotal"`
+	TaxRate                float64                       `json:"tax_rate"`
+	TaxAmount              float64                       `json:"tax_amount"`
+	DeliveryCost           float64                       `json:"delivery_cost"`
+	OtherCost              float64                       `json:"other_cost"`
+	DownPaymentAmount      float64                       `json:"down_payment_amount"`
+	Amount                 float64                       `json:"amount"`
+	PaidAmount             float64                       `json:"paid_amount"`
+	RemainingAmount        float64                       `json:"remaining_amount"`
+	Status                 string                        `json:"status"`
+	Notes                  string                        `json:"notes"`
+	PaymentAt              *string                       `json:"payment_at"`
+	CreatedBy              *string                       `json:"created_by"`
+	CancelledBy            *string                       `json:"cancelled_by"`
+	CancelledAt            *string                       `json:"cancelled_at"`
+	Items                  []CustomerInvoiceItemResponse `json:"items,omitempty"`
+	CreatedAt              string                        `json:"created_at"`
+	UpdatedAt              string                        `json:"updated_at"`
 }
 
 // CustomerInvoiceItemResponse represents an item in the invoice response

@@ -22,34 +22,38 @@ type UpdateCustomerInvoiceDownPaymentRequest struct {
 
 // CustomerInvoiceDownPaymentDetailResponse represents a detailed down payment response
 type CustomerInvoiceDownPaymentDetailResponse struct {
-	ID            string                                `json:"id"`
-	SalesOrderID  string                                `json:"sales_order_id"`
-	SalesOrder    *CustomerInvoiceDownPaymentSalesOrder `json:"sales_order,omitempty"`
-	CustomerID    string                                `json:"customer_id"`
-	Code          string                                `json:"code"`
-	InvoiceNumber *string                               `json:"invoice_number"`
-	InvoiceDate   string                                `json:"invoice_date"`
-	DueDate       *string                               `json:"due_date"`
-	Amount        float64                               `json:"amount"`
-	Status        string                                `json:"status"`
-	Notes         *string                               `json:"notes"`
-	CreatedBy     *string                               `json:"created_by"`
-	CreatedAt     time.Time                             `json:"created_at"`
-	UpdatedAt     time.Time                             `json:"updated_at"`
+	ID                 string                                `json:"id"`
+	SalesOrderID       string                                `json:"sales_order_id"`
+	SalesOrder         *CustomerInvoiceDownPaymentSalesOrder `json:"sales_order,omitempty"`
+	CustomerID         string                                `json:"customer_id"`
+	Code               string                                `json:"code"`
+	RelatedInvoiceCode *string                               `json:"related_invoice_code,omitempty"`
+	InvoiceNumber      *string                               `json:"invoice_number"`
+	InvoiceDate        string                                `json:"invoice_date"`
+	DueDate            *string                               `json:"due_date"`
+	Amount             float64                               `json:"amount"`
+	RemainingAmount    float64                               `json:"remaining_amount"`
+	Status             string                                `json:"status"`
+	Notes              *string                               `json:"notes"`
+	CreatedBy          *string                               `json:"created_by"`
+	CreatedAt          time.Time                             `json:"created_at"`
+	UpdatedAt          time.Time                             `json:"updated_at"`
 }
 
 // CustomerInvoiceDownPaymentListResponse represents a summary down payment response
 type CustomerInvoiceDownPaymentListResponse struct {
-	ID            string                                `json:"id"`
-	SalesOrderID  string                                `json:"sales_order_id"`
-	SalesOrder    *CustomerInvoiceDownPaymentSalesOrder `json:"sales_order,omitempty"`
-	Code          string                                `json:"code"`
-	InvoiceNumber *string                               `json:"invoice_number"`
-	InvoiceDate   string                                `json:"invoice_date"`
-	DueDate       *string                               `json:"due_date"`
-	Amount        float64                               `json:"amount"`
-	Status        string                                `json:"status"`
-	CreatedAt     time.Time                             `json:"created_at"`
+	ID                 string                                `json:"id"`
+	SalesOrderID       string                                `json:"sales_order_id"`
+	SalesOrder         *CustomerInvoiceDownPaymentSalesOrder `json:"sales_order,omitempty"`
+	Code               string                                `json:"code"`
+	RelatedInvoiceCode *string                               `json:"related_invoice_code,omitempty"`
+	InvoiceNumber      *string                               `json:"invoice_number"`
+	InvoiceDate        string                                `json:"invoice_date"`
+	DueDate            *string                               `json:"due_date"`
+	Amount             float64                               `json:"amount"`
+	RemainingAmount    float64                               `json:"remaining_amount"`
+	Status             string                                `json:"status"`
+	CreatedAt          time.Time                             `json:"created_at"`
 }
 
 type CustomerInvoiceDownPaymentSalesOrder struct {

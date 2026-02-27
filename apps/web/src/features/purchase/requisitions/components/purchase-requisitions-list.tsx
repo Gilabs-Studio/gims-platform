@@ -15,6 +15,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -27,7 +28,6 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +38,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { toast } from "sonner";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
   useApprovePurchaseRequisition,
@@ -52,26 +52,7 @@ import { purchaseRequisitionsService } from "../services/purchase-requisitions-s
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
 import { PurchaseRequisitionAuditTrail } from "./purchase-requisition-audit-trail";
-
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
+import { PurchaseRequisitionStatusBadge } from "./purchase-requisition-status-badge";
 
 export function PurchaseRequisitionsList() {
   const t = useTranslations("purchaseRequisition");
@@ -143,61 +124,16 @@ export function PurchaseRequisitionsList() {
     }
   };
 
-  const getStatusBadge = (rawStatus?: string | null) => {
-    const status = normalizeStatus(rawStatus);
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "submitted":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.submitted")}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.approved")}
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.rejected")}
-          </Badge>
-        );
-      case "converted":
-        return (
-          <Badge variant="outline" className="text-xs font-medium">
-            <History className="h-3 w-3 mr-1" />
-            {t("status.converted")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="inactive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline" className="text-xs font-medium">{rawStatus ?? "-"}</Badge>;
-    }
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
   };
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -245,7 +181,7 @@ export function PurchaseRequisitionsList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("columns.code")}</TableHead>
+              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.requestDate")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
@@ -258,27 +194,13 @@ export function PurchaseRequisitionsList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-28" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-40" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-32 ml-auto" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-28" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
@@ -287,12 +209,12 @@ export function PurchaseRequisitionsList() {
                   colSpan={7}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  {t("empty")}
+                  {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (
               items.map((item) => {
-                const status = normalizeStatus(item.status);
+                const status = (item.status ?? "").toLowerCase();
                 const hasRowActions =
                   canView ||
                   canUpdate ||
@@ -305,28 +227,29 @@ export function PurchaseRequisitionsList() {
                 return (
                   <TableRow key={item.id}>
                     <TableCell
-                      className={
-                        canView
-                          ? "font-mono text-sm font-medium text-primary hover:underline cursor-pointer"
-                          : "font-mono text-sm"
-                      }
-                      onClick={() => {
-                        if (!canView) return;
-                        setDetailId(item.id);
-                        setDetailOpen(true);
-                      }}
+                      className="font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => canView && handleView(item.id)}
                     >
                       {item.code}
                     </TableCell>
-                    <TableCell>{item.request_date ?? "-"}</TableCell>
+                    <TableCell>{formatDate(item.request_date)}</TableCell>
                     <TableCell className="font-medium">
                       {item.supplier?.name ?? "-"}
                     </TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-right">
-                      {formatMoney(item.total_amount)}
+                    <TableCell>
+                      <PurchaseRequisitionStatusBadge status={item.status ?? ""} />
                     </TableCell>
-                    <TableCell>{safeDate(item.created_at)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(item.total_amount)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{formatDate(item.created_at)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {hasRowActions && (
                         <DropdownMenu>
@@ -342,10 +265,7 @@ export function PurchaseRequisitionsList() {
                           <DropdownMenuContent align="end">
                             {canView && (
                               <DropdownMenuItem
-                                onClick={() => {
-                                  setDetailId(item.id);
-                                  setDetailOpen(true);
-                                }}
+                                onClick={() => handleView(item.id)}
                                 className="cursor-pointer"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
@@ -393,7 +313,7 @@ export function PurchaseRequisitionsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer text-destructive"
+                                className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <XCircle className="h-4 w-4 mr-2" />
                                 {t("actions.reject")}
@@ -438,7 +358,7 @@ export function PurchaseRequisitionsList() {
                             {canDelete && status === "draft" && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
-                                className="cursor-pointer text-destructive"
+                                className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 {t("actions.delete")}
@@ -461,7 +381,7 @@ export function PurchaseRequisitionsList() {
           pageIndex={pagination.page}
           pageSize={pagination.per_page}
           rowCount={pagination.total}
-          onPageChange={(p) => setPage(p)}
+          onPageChange={setPage}
           onPageSizeChange={(ps) => {
             setPageSize(ps);
             setPage(1);
@@ -471,13 +391,10 @@ export function PurchaseRequisitionsList() {
 
       <DeleteDialog
         open={!!deletingItem}
-        onOpenChange={(open) => {
-          if (!open) setDeletingItem(null);
-        }}
-        itemName="purchase requisition"
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+        itemName={tCommon("purchaseRequisition") || "purchase requisition"}
         onConfirm={async () => {
           if (!deletingItem) return;
-
           try {
             await deleteMutation.mutateAsync(deletingItem.id);
             toast.success(t("toast.deleted"));
@@ -487,34 +404,35 @@ export function PurchaseRequisitionsList() {
             setDeletingItem(null);
           }
         }}
+        isLoading={deleteMutation.isPending}
       />
 
-		<PurchaseRequisitionForm
-			open={formOpen}
-			onClose={() => {
-				setFormOpen(false);
-				setEditingId(null);
-			}}
-			requisitionId={editingId}
-		/>
+      <PurchaseRequisitionForm
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingId(null);
+        }}
+        requisitionId={editingId}
+      />
 
-		<PurchaseRequisitionDetail
-			open={detailOpen}
-			onClose={() => {
-				setDetailOpen(false);
-				setDetailId(null);
-			}}
-			requisitionId={detailId}
-		/>
+      <PurchaseRequisitionDetail
+        open={detailOpen}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailId(null);
+        }}
+        requisitionId={detailId}
+      />
 
-    <PurchaseRequisitionAuditTrail
-      open={auditOpen}
-      onClose={() => {
-        setAuditOpen(false);
-        setAuditId(null);
-      }}
-      requisitionId={auditId}
-    />
+      <PurchaseRequisitionAuditTrail
+        open={auditOpen}
+        onClose={() => {
+          setAuditOpen(false);
+          setAuditId(null);
+        }}
+        requisitionId={detailId || auditId}
+      />
     </div>
   );
 }

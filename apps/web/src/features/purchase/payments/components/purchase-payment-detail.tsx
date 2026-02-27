@@ -9,55 +9,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   Banknote,
   Calendar,
-  CheckCircle2,
-  Clock,
   CreditCard,
   FileText,
   Hash,
 } from "lucide-react";
 
 import { usePurchasePayment } from "../hooks/use-purchase-payments";
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toUpperCase();
-}
-
-function StatusBadge({ status, t }: { status: string; t: ReturnType<typeof useTranslations> }) {
-  if (normalizeStatus(status) === "CONFIRMED") {
-    return (
-      <Badge variant="success" className="text-xs font-medium">
-        <CheckCircle2 className="h-3 w-3 mr-1" />
-        {t("status.confirmed")}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="warning" className="text-xs font-medium">
-      <Clock className="h-3 w-3 mr-1" />
-      {t("status.pending")}
-    </Badge>
-  );
-}
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 
 interface PurchasePaymentDetailProps {
   readonly open: boolean;
@@ -87,7 +49,7 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
             <DialogTitle className="text-xl">
               {detail?.invoice?.invoice_number ?? t("actions.view")}
             </DialogTitle>
-            {detail && <StatusBadge status={detail.status} t={t} />}
+            {detail && <PurchasePaymentStatusBadge status={detail.status ?? ""} />}
           </div>
         </DialogHeader>
 
@@ -112,7 +74,7 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
               <div className="text-right text-sm text-muted-foreground">
                 <div className="flex items-center gap-1 justify-end">
                   <Calendar className="h-3 w-3" />
-                  {safeDate(detail.payment_date)}
+                  {formatDate(detail.payment_date)}
                 </div>
               </div>
             </div>
@@ -131,7 +93,7 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-muted-foreground">{t("fields.method")}</span>
-                    <span className="col-span-2 font-medium">{detail.method}</span>
+                    <span className="col-span-2 font-medium capitalize">{(detail.method ?? "").toLowerCase()}</span>
                   </div>
                 </div>
               </div>
@@ -161,7 +123,7 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
                   <Hash className="h-4 w-4 text-muted-foreground" />
                   <span className="font-semibold">{t("fields.amount")}</span>
                 </div>
-                <span className="font-mono font-bold text-xl">{formatMoney(detail.amount)}</span>
+                <span className="font-mono font-bold text-xl">{formatCurrency(detail.amount)}</span>
               </div>
             </div>
           </div>

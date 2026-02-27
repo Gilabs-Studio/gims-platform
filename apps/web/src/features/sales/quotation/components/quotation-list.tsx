@@ -139,28 +139,28 @@ export function QuotationList() {
     switch (quotation.status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
@@ -176,9 +176,9 @@ export function QuotationList() {
                 : undefined
             }
             className={
-              isClickable
-                ? "cursor-pointer hover:border-primary hover:text-primary transition-colors"
-                : undefined
+              (isClickable
+                ? "cursor-pointer hover:border-primary hover:text-primary transition-colors "
+                : "") + "text-xs font-medium"
             }
           >
             <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -240,7 +240,7 @@ export function QuotationList() {
         </Select>
         <div className="flex-1" />
         {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             {t("add")}
           </Button>
@@ -255,12 +255,23 @@ export function QuotationList() {
               <TableHead>{t("quotationDate")}</TableHead>
               <TableHead>{t("salesRep")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("totalAmount")}</TableHead>
+              <TableHead className="text-right">{t("totalAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotations.length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell />
+                </TableRow>
+              ))
+            ) : quotations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
@@ -293,7 +304,7 @@ export function QuotationList() {
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(quotation)}</TableCell>
-                  <TableCell>{formatCurrency(quotation.total_amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(quotation.total_amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>

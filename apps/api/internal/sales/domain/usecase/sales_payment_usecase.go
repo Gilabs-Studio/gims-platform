@@ -126,15 +126,17 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 		}
 
 		invItems = append(invItems, &dto.SalesPaymentAddInvoiceItem{
-			ID:            inv.ID,
-			SalesOrder:    soObj,
-			Code:          inv.Code,
-			InvoiceNumber: inv.InvoiceNumber,
-			Type:          string(inv.Type),
-			InvoiceDate:   inv.InvoiceDate.Format("2006-01-02"),
-			DueDate:       dueDate,
-			Amount:        inv.Amount,
-			Status:        string(inv.Status),
+			ID:              inv.ID,
+			SalesOrder:      soObj,
+			Code:            inv.Code,
+			InvoiceNumber:   inv.InvoiceNumber,
+			Type:            string(inv.Type),
+			InvoiceDate:     inv.InvoiceDate.Format("2006-01-02"),
+			DueDate:         dueDate,
+			Amount:          inv.Amount,
+			PaidAmount:      inv.PaidAmount,
+			RemainingAmount: inv.RemainingAmount,
+			Status:          string(inv.Status),
 		})
 	}
 

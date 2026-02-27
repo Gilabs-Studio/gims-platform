@@ -3,7 +3,6 @@ package seeders
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
@@ -14,7 +13,6 @@ import (
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	purchaseModels "github.com/gilabs/gims/api/internal/purchase/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
-	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -704,21 +702,4 @@ func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *str
 	if err := tx.Create(&je).Error; err != nil {
 		log.Printf("Warning: Failed to create journal '%s': %v", desc, err)
 	}
-}
-
-func getAdminID(tx *gorm.DB) string {
-	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
-	if defaultEmail == "" {
-		defaultEmail = "admin@example.com"
-	}
-	var user userModels.User
-	if err := tx.Where("email = ?", defaultEmail).First(&user).Error; err != nil {
-		if err := tx.First(&user).Error; err != nil {
-			return "00000000-0000-0000-0000-000000000000"
-		}
-	}
-	if user.ID == "" {
-		return "00000000-0000-0000-0000-000000000000"
-	}
-	return user.ID
 }

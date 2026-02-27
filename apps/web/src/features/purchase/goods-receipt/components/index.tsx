@@ -1,7 +1,21 @@
-"use client";
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
+import { PageMotion } from "@/components/motion";
 
-import { GoodsReceiptsList } from "./goods-receipts-list";
+export const GoodsReceiptsList = dynamic(
+  () =>
+    import("./goods-receipts-list").then((mod) => ({
+      default: mod.GoodsReceiptsList,
+    })),
+  { loading: () => null },
+);
 
 export function GoodsReceiptsContainer() {
-  return <GoodsReceiptsList />;
+  return (
+    <PageMotion>
+      <Suspense fallback={null}>
+        <GoodsReceiptsList />
+      </Suspense>
+    </PageMotion>
+  );
 }

@@ -43,6 +43,8 @@ export const customerInvoiceDPEn = {
     dueDate: "Due Date",
     salesOrder: "SO",
     amount: "Amount",
+    remainingAmount: "Remaining Amount",
+    relatedInvoiceCode: "Regular Invoice",
     status: "Status",
     createdAt: "Created At",
   },

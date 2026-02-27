@@ -44,6 +44,7 @@ func (r *customerInvoiceRepository) FindByID(ctx context.Context, id string) (*m
 	err := r.getDB(ctx).
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
+		Preload("DownPaymentInvoice").
 		Preload("Items.Product").
 		Where("id = ?", id).
 		First(&invoice).Error
@@ -147,6 +148,7 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	err := query.
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
+		Preload("DownPaymentInvoice").
 		Limit(perPage).
 		Offset(offset).
 		Find(&invoices).Error

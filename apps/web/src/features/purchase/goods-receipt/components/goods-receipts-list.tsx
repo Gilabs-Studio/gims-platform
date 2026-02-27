@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
-  Clock,
   Download,
   Eye,
   History,
@@ -18,7 +17,6 @@ import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -38,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 
 import {
   useConfirmGoodsReceipt,
@@ -49,17 +48,7 @@ import type { GoodsReceiptListItem } from "../types";
 import { GoodsReceiptAuditTrail } from "./goods-receipt-audit-trail";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
-}
+import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -101,7 +90,9 @@ export function GoodsReceiptsList() {
   const confirmMutation = useConfirmGoodsReceipt();
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return (
+      <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+    );
   }
 
   const handleExport = async () => {
@@ -125,39 +116,19 @@ export function GoodsReceiptsList() {
     }
   };
 
-  const getStatusBadge = (rawStatus?: string | null) => {
-    const status = normalizeStatus(rawStatus);
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "confirmed":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.confirmed")}
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="text-xs font-medium">
-            {rawStatus ?? "-"}
-          </Badge>
-        );
-    }
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
   };
 
-  const canShowActions = canView || canAuditTrail || canConfirm || canUpdate || canDelete;
+  const canShowActions =
+    canView || canAuditTrail || canConfirm || canUpdate || canDelete;
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -177,7 +148,11 @@ export function GoodsReceiptsList() {
         <div className="flex-1" />
 
         {canExport && (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="cursor-pointer"
+          >
             <Download className="h-4 w-4 mr-2" />
             {t("actions.export")}
           </Button>
@@ -201,43 +176,64 @@ export function GoodsReceiptsList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("columns.code")}</TableHead>
+              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead>{t("columns.createdAt")}</TableHead>
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (
               items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-medium">{it.code}</TableCell>
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => canView && handleView(it.id)}
+                  >
+                    {it.code}
+                  </TableCell>
                   <TableCell>{it.purchase_order?.code ?? "-"}</TableCell>
-                  <TableCell>{it.supplier?.name ?? "-"}</TableCell>
-                  <TableCell>{safeDate(it.receipt_date)}</TableCell>
-                  <TableCell>{getStatusBadge(it.status)}</TableCell>
-                  <TableCell className="flex items-center justify-between gap-2">
-                    <span>{safeDate(it.created_at)}</span>
-
-                    {canShowActions ? (
+                  <TableCell className="font-medium">
+                    {it.supplier?.name ?? "-"}
+                  </TableCell>
+                  <TableCell>{formatDate(it.receipt_date)}</TableCell>
+                  <TableCell>
+                    <GoodsReceiptStatusBadge status={it.status ?? ""} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{formatDate(it.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {it.created_at ? new Date(it.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {canShowActions && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -245,20 +241,17 @@ export function GoodsReceiptsList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {canView ? (
+                          {canView && (
                             <DropdownMenuItem
                               className="cursor-pointer"
-                              onClick={() => {
-                                setDetailId(it.id);
-                                setDetailOpen(true);
-                              }}
+                              onClick={() => handleView(it.id)}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("actions.view")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canUpdate && normalizeStatus(it.status) === "draft" ? (
+                          {canUpdate && (it.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -269,9 +262,9 @@ export function GoodsReceiptsList() {
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("actions.edit")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canConfirm && normalizeStatus(it.status) === "draft" ? (
+                          {canConfirm && (it.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-green-600 focus:text-green-600"
                               onClick={async () => {
@@ -286,9 +279,9 @@ export function GoodsReceiptsList() {
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("actions.confirm")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canAuditTrail ? (
+                          {canAuditTrail && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -299,11 +292,11 @@ export function GoodsReceiptsList() {
                               <History className="h-4 w-4 mr-2" />
                               {t("actions.auditTrail")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
 
-                          {canDelete ? (
+                          {canDelete && (it.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-destructive"
+                              className="cursor-pointer text-destructive focus:text-destructive"
                               onClick={() => {
                                 setDeletingItem(it);
                               }}
@@ -311,10 +304,10 @@ export function GoodsReceiptsList() {
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("actions.delete")}
                             </DropdownMenuItem>
-                          ) : null}
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : null}
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -323,18 +316,18 @@ export function GoodsReceiptsList() {
         </Table>
       </div>
 
-      {pagination ? (
+      {pagination && (
         <DataTablePagination
           pageIndex={pagination.page}
           pageSize={pagination.per_page}
           rowCount={pagination.total}
-          onPageChange={(p) => setPage(p)}
+          onPageChange={setPage}
           onPageSizeChange={(size) => {
             setPageSize(size);
             setPage(1);
           }}
         />
-      ) : null}
+      )}
 
       <GoodsReceiptForm
         open={formOpen}
@@ -356,7 +349,7 @@ export function GoodsReceiptsList() {
 
       <GoodsReceiptAuditTrail
         open={auditOpen}
-        goodsReceiptId={auditId}
+        goodsReceiptId={detailId || auditId}
         onClose={() => {
           setAuditOpen(false);
           setAuditId(null);
@@ -365,19 +358,17 @@ export function GoodsReceiptsList() {
 
       <DeleteDialog
         open={!!deletingItem}
-        onOpenChange={(v) => {
-          if (!v) setDeletingItem(null);
-        }}
-        title={tCommon("delete")}
-        description={tCommon("deleteConfirm")}
+        onOpenChange={(v) => !v && setDeletingItem(null)}
+        itemName={tCommon("goodsReceipt") || "goods receipt"}
         onConfirm={async () => {
           if (!deletingItem) return;
           try {
             await deleteMutation.mutateAsync(deletingItem.id);
             toast.success(t("toast.deleted"));
-            setDeletingItem(null);
           } catch {
             toast.error(t("toast.failed"));
+          } finally {
+            setDeletingItem(null);
           }
         }}
         isLoading={deleteMutation.isPending}

@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  CheckCircle2,
-  Clock,
   Download,
   Eye,
   History,
@@ -12,19 +10,20 @@ import {
   Plus,
   Search,
   Trash2,
+  CheckCircle2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { toast } from "sonner";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
   useConfirmPurchasePayment,
@@ -36,26 +35,7 @@ import { purchasePaymentsService } from "../services/purchase-payments-service";
 import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail } from "./purchase-payment-detail";
 import { PurchasePaymentAuditTrail } from "./purchase-payment-audit-trail";
-
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toUpperCase();
-}
+import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 
 export function PurchasePaymentsList() {
   const t = useTranslations("purchasePayment");
@@ -95,7 +75,9 @@ export function PurchasePaymentsList() {
   const confirmMutation = useConfirmPurchasePayment();
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return (
+      <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+    );
   }
 
   const handleExport = async () => {
@@ -119,34 +101,16 @@ export function PurchasePaymentsList() {
     }
   };
 
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canExport && (
-            <Button variant="outline" onClick={handleExport} className="cursor-pointer">
-              <Download className="h-4 w-4 mr-2" />
-              {t("actions.export")}
-            </Button>
-          )}
-
-          {canCreate && (
-            <Button
-              onClick={() => {
-                setFormOpen(true);
-              }}
-              className="cursor-pointer"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("actions.create")}
-            </Button>
-          )}
-        </div>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -162,77 +126,117 @@ export function PurchasePaymentsList() {
             className="pl-9"
           />
         </div>
+
         <div className="flex-1" />
+
+        {canExport && (
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="cursor-pointer"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("actions.export")}
+          </Button>
+        )}
+
+        {canCreate && (
+          <Button
+            onClick={() => {
+              setFormOpen(true);
+            }}
+            className="cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.create")}
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("fields.invoice")}</TableHead>
+              <TableHead className="w-[200px]">{t("fields.invoice")}</TableHead>
               <TableHead>{t("fields.bankAccount")}</TableHead>
               <TableHead>{t("fields.paymentDate")}</TableHead>
               <TableHead>{t("fields.method")}</TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead className="text-right">{t("fields.amount")}</TableHead>
-              <TableHead />
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
+              Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  -
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (
               items.map((item) => {
-                const status = normalizeStatus(item.status);
+                const status = (item.status ?? "").toUpperCase();
                 const isPending = status === "PENDING";
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.invoice?.invoice_number ?? "-"}</TableCell>
-                    <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
-                    <TableCell>{safeDate(item.payment_date)}</TableCell>
-                    <TableCell>{item.method}</TableCell>
-                    <TableCell>
-                      <Badge variant={status === "CONFIRMED" ? "success" : "warning"} className="text-xs font-medium">
-                        {status === "CONFIRMED" ? (
-                          <><CheckCircle2 className="h-3 w-3 mr-1" />{t("status.confirmed")}</>
-                        ) : (
-                          <><Clock className="h-3 w-3 mr-1" />{t("status.pending")}</>
-                        )}
-                      </Badge>
+                    <TableCell
+                      className="font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => canView && handleView(item.id)}
+                    >
+                      {item.invoice?.code}{" "}
+                      {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}
                     </TableCell>
-                    <TableCell className="text-right">{formatMoney(item.amount)}</TableCell>
-                    <TableCell className="text-right">
-                      {canView && (
+                    <TableCell className="font-medium">
+                      {item.bank_account?.name ?? "-"}
+                    </TableCell>
+                    <TableCell>{formatDate(item.payment_date)}</TableCell>
+                    <TableCell className="capitalize">
+                      {(item.method ?? "").toLowerCase()}
+                    </TableCell>
+                    <TableCell>
+                      <PurchasePaymentStatusBadge status={item.status ?? ""} />
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(item.amount)}
+                    </TableCell>
+                    <TableCell>
+                      {(canView || canAuditTrail || canConfirm || canDelete) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="cursor-pointer">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="cursor-pointer"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setDetailId(item.id);
-                                setDetailOpen(true);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t("actions.view")}
-                            </DropdownMenuItem>
+                            {canView && (
+                              <DropdownMenuItem
+                                onClick={() => handleView(item.id)}
+                                className="cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                {t("actions.view")}
+                              </DropdownMenuItem>
+                            )}
 
                             {canAuditTrail && (
                               <DropdownMenuItem
@@ -267,7 +271,7 @@ export function PurchasePaymentsList() {
                             {canDelete && isPending && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
-                                className="cursor-pointer text-destructive"
+                                className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 {t("actions.delete")}
@@ -285,18 +289,18 @@ export function PurchasePaymentsList() {
         </Table>
       </div>
 
-      {pagination ? (
+      {pagination && (
         <DataTablePagination
-          pageIndex={page}
-          pageSize={pageSize}
-          rowCount={pagination.total ?? 0}
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
           onPageChange={setPage}
           onPageSizeChange={(v) => {
             setPageSize(v);
             setPage(1);
           }}
         />
-      ) : null}
+      )}
 
       <PurchasePaymentForm
         open={formOpen}
@@ -316,7 +320,7 @@ export function PurchasePaymentsList() {
 
       <PurchasePaymentAuditTrail
         open={auditOpen}
-        paymentId={auditId}
+        paymentId={detailId || auditId}
         onClose={() => {
           setAuditOpen(false);
           setAuditId(null);
@@ -325,22 +329,20 @@ export function PurchasePaymentsList() {
 
       <DeleteDialog
         open={!!deletingItem}
-        onOpenChange={(v) => {
-          if (!v) setDeletingItem(null);
-        }}
-        title={t("actions.delete")}
-        description={deletingItem ? String(deletingItem.invoice?.invoice_number ?? "-") : ""}
-        isLoading={deleteMutation.isPending}
+        onOpenChange={(v) => !v && setDeletingItem(null)}
+        itemName={tCommon("purchasePayment") || "purchase payment"}
         onConfirm={async () => {
           if (!deletingItem) return;
           try {
             await deleteMutation.mutateAsync(deletingItem.id);
             toast.success(t("toast.deleted"));
-            setDeletingItem(null);
           } catch {
             toast.error(t("toast.failed"));
+          } finally {
+            setDeletingItem(null);
           }
         }}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

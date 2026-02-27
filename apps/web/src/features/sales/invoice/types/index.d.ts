@@ -45,6 +45,8 @@ export interface CustomerInvoice {
   sales_order?: SalesOrder;
   payment_terms_id?: string;
   payment_terms?: PaymentTerms;
+  down_payment_invoice_id?: string;
+  down_payment_invoice_code?: string;
   invoice_date: string;
   due_date?: string;
   tax_rate: number;

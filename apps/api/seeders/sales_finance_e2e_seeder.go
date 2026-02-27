@@ -238,10 +238,20 @@ func SeedSalesFinanceE2E() error {
 	}
 	db.Create(&so2)
 
+	// Create a DP for Scenario 2
+	dpAmount2 := 1000000.0
+	dpCode2, _ := invoiceRepo.GetNextInvoiceNumber(ctx, "CIDP")
+	dpInv2 := salesModels.CustomerInvoice{
+		ID: uuid.New().String(), Code: dpCode2, InvoiceDate: so2.OrderDate.AddDate(0, 0, 1), Type: salesModels.CustomerInvoiceTypeDownPayment, SalesOrderID: &so2.ID,
+		Amount: dpAmount2, PaidAmount: dpAmount2, Status: salesModels.CustomerInvoiceStatusPaid,
+	}
+	db.Create(&dpInv2)
+
 	invCode2, _ := invoiceRepo.GetNextInvoiceNumber(ctx, "INV")
 	inv2 := salesModels.CustomerInvoice{
 		ID: uuid.New().String(), Code: invCode2, InvoiceDate: so2.OrderDate.AddDate(0, 0, 2), Type: salesModels.CustomerInvoiceTypeRegular, SalesOrderID: &so2.ID,
-		Amount: 5000000.0, PaidAmount: 2000000.0, RemainingAmount: 3000000.0, Status: salesModels.CustomerInvoiceStatusPartial,
+		DownPaymentInvoiceID: &dpInv2.ID, DownPaymentAmount: dpAmount2,
+		Amount: 4000000.0, PaidAmount: 2000000.0, RemainingAmount: 2000000.0, Status: salesModels.CustomerInvoiceStatusPartial,
 	}
 	db.Create(&inv2)
 

@@ -162,11 +162,15 @@ export function SalesPaymentsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
+              Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell />
                 </TableRow>
               ))
             ) : items.length === 0 ? (
@@ -183,7 +187,7 @@ export function SalesPaymentsList() {
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.invoice?.invoice_number ?? "-"}</TableCell>
+                    <TableCell className="font-medium">{item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}</TableCell>
                     <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
@@ -316,7 +320,7 @@ export function SalesPaymentsList() {
           if (!v) setDeletingItem(null);
         }}
         title={t("actions.delete")}
-        description={deletingItem ? String(deletingItem.invoice?.invoice_number ?? "-") : ""}
+        description={deletingItem ? String(deletingItem.invoice?.code || deletingItem.invoice?.invoice_number || "-") : ""}
         isLoading={deleteMutation.isPending}
         onConfirm={async () => {
           if (!deletingItem) return;

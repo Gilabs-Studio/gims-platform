@@ -56,7 +56,7 @@ func (r *salesPaymentRepository) List(ctx context.Context, params SalesPaymentLi
 		Preload("BankAccount")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	q = security.ApplyScopeFilter(q, ctx, security.SalesScopeQueryOptions())
+	q = security.ApplyScopeFilter(q, ctx, security.SalesPaymentScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

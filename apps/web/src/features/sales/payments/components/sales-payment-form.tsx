@@ -53,6 +53,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
     control,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<SalesPaymentFormData>({
     resolver,
@@ -86,6 +87,14 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
     if (!invoiceId) return null;
     return invoices.find((inv) => inv.id === invoiceId) ?? null;
   }, [invoiceId, invoices]);
+
+  useEffect(() => {
+    if (selectedInvoice && selectedInvoice.remaining_amount !== undefined) {
+      setValue("amount", selectedInvoice.remaining_amount, { shouldValidate: true });
+    } else if (!selectedInvoice) {
+      setValue("amount", 0, { shouldValidate: true });
+    }
+  }, [selectedInvoice, setValue]);
 
   const submitting = createMutation.isPending;
 
@@ -137,7 +146,10 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
                     <SelectContent>
                       {invoices.map((inv) => (
                         <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
-                          {inv.invoice_number}
+                          <div className="flex items-center justify-between w-[var(--radix-select-trigger-width)]">
+                            <span>{inv.code} {inv.invoice_number ? `(${inv.invoice_number})` : ""}</span>
+                            <span className="text-muted-foreground ml-4">{formatCurrency(inv.remaining_amount)} {inv.status === "partial" ? "(Partial)" : ""}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -153,7 +165,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm text-muted-foreground">{t("overview.invoiceNumber")}</div>
-                    <div className="text-sm font-medium">{selectedInvoice.invoice_number || "-"}</div>
+                    <div className="text-sm font-medium">{selectedInvoice.code} {selectedInvoice.invoice_number ? `(${selectedInvoice.invoice_number})` : ""}</div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm text-muted-foreground">{t("overview.salesOrder")}</div>
@@ -170,6 +182,14 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm text-muted-foreground">{t("overview.amount")}</div>
                     <div className="text-sm font-medium">{formatCurrency(selectedInvoice.amount)}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm text-muted-foreground">{t("overview.paidAmount")}</div>
+                    <div className="text-sm font-medium">{formatCurrency(selectedInvoice.paid_amount)}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm text-muted-foreground">{t("overview.remainingAmount")}</div>
+                    <div className="text-sm font-medium">{formatCurrency(selectedInvoice.remaining_amount)}</div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm text-muted-foreground">{t("overview.status")}</div>

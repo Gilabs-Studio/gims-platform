@@ -118,8 +118,8 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales → Finance End-to-End Integration seeder
-	if err := SeedSalesFinanceE2E(); err != nil {
+	// Sales → Finance Integration Flow (SQ → SO → DO → INV → PAY)
+	if err := SeedSalesIntegrationFlow(); err != nil {
 		return err
 	}
 

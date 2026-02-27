@@ -41,10 +41,12 @@ export interface CustomerInvoiceDPListItem {
   id: string;
   sales_order?: CustomerInvoiceDPSalesOrderMini | null;
   code: string;
+  related_invoice_code?: string;
   invoice_number: string;
   invoice_date: string;
   due_date: string;
   amount: number;
+  remaining_amount?: number;
   status: CustomerInvoiceDPStatus;
   notes?: string | null;
   created_at: string;
