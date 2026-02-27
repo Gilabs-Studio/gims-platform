@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
+  Clock,
   Download,
   Eye,
   History,
@@ -23,6 +24,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
 import {
@@ -36,24 +38,11 @@ import { SalesPaymentForm } from "./sales-payment-form";
 import { SalesPaymentDetail } from "./sales-payment-detail";
 import { SalesPaymentAuditTrail } from "./sales-payment-audit-trail";
 
-function formatMoney(value: number | null | undefined): string {
-  const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(safe);
-}
-
 function safeDate(value?: string | null): string {
   if (!value) return "-";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString();
-}
-
-function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toUpperCase();
 }
 
 export function SalesPaymentsList() {
@@ -120,32 +109,9 @@ export function SalesPaymentsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canExport && (
-            <Button variant="outline" onClick={handleExport} className="cursor-pointer">
-              <Download className="h-4 w-4 mr-2" />
-              {t("actions.export")}
-            </Button>
-          )}
-
-          {canCreate && (
-            <Button
-              onClick={() => {
-                setFormOpen(true);
-              }}
-              className="cursor-pointer"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t("actions.create")}
-            </Button>
-          )}
-        </div>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -162,6 +128,23 @@ export function SalesPaymentsList() {
           />
         </div>
         <div className="flex-1" />
+        {canExport && (
+          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+            <Download className="h-4 w-4 mr-2" />
+            {t("actions.export")}
+          </Button>
+        )}
+        {canCreate && (
+          <Button
+            onClick={() => {
+              setFormOpen(true);
+            }}
+            className="cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.create")}
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">
@@ -194,8 +177,9 @@ export function SalesPaymentsList() {
               </TableRow>
             ) : (
               items.map((item) => {
-                const status = normalizeStatus(item.status);
-                const isPending = status === "PENDING";
+                const status = (item.status ?? "").toUpperCase();
+                const isConfirmed = status === "CONFIRMED";
+                const isPending = !isConfirmed;
 
                 return (
                   <TableRow key={item.id}>
@@ -204,11 +188,19 @@ export function SalesPaymentsList() {
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
                     <TableCell>
-                      <Badge variant={status === "CONFIRMED" ? "default" : "secondary"}>
-                        {status === "CONFIRMED" ? t("status.confirmed") : t("status.pending")}
-                      </Badge>
+                      {isConfirmed ? (
+                        <Badge variant="success" className="text-xs font-medium">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {t("status.confirmed")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning" className="text-xs font-medium">
+                          <Clock className="h-3 w-3" />
+                          {t("status.pending")}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">{formatMoney(item.amount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.amount ?? 0)}</TableCell>
                     <TableCell className="text-right">
                       {canView && (
                         <DropdownMenu>

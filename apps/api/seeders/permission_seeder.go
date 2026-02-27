@@ -225,11 +225,7 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
-		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
-		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
-		{"/sales/visits", "sales_visit.update", "Edit Sales Visits", "EDIT", "sales_visit"},
-		{"/sales/visits", "sales_visit.delete", "Delete Sales Visits", "DELETE", "sales_visit"},
-		{"/sales/visits", "sales_visit.approve", "Approve Sales Visits", "APPROVE", "sales_visit"},
+
 
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},

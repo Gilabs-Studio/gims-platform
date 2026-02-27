@@ -56,6 +56,7 @@ export const orderId = {
       pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
+      closed: "Tertutup",
       confirmed: "Dikonfirmasi",
       processing: "Diproses",
       shipped: "Dikirim",
