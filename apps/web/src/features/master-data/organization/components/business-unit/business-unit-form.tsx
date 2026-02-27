@@ -32,7 +32,7 @@ export function BusinessUnitForm({ open, onClose, businessUnit, onCreated }: Bus
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent size="default">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("businessUnit.editTitle") : t("businessUnit.createTitle")}

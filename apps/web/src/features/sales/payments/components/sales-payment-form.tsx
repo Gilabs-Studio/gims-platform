@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { salesPaymentSchema, type SalesPaymentFormData } from "../schemas/sales-payment.schema";
 import { useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
+import { BankAccountForm } from "@/features/finance/bank-accounts/components/bank-account-form";
 
 function todayISO(): string {
   const d = new Date();
@@ -44,6 +46,11 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
   const addData = addDataResponse?.data;
   const bankAccounts = addData?.bank_accounts ?? [];
   const invoices = addData?.invoices ?? [];
+
+  type QuickCreateType = "bankAccount" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
+  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
   const resolver = useMemo(() => zodResolver(salesPaymentSchema) as Resolver<SalesPaymentFormData>, []);
 
@@ -96,6 +103,11 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
     }
   }, [selectedInvoice, setValue]);
 
+  const handleBankAccountCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("bank_account_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
   const submitting = createMutation.isPending;
 
   return (
@@ -105,7 +117,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
         if (!v) onClose();
       }}
     >
-      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{t("form.title")}</DialogTitle>
         </DialogHeader>
@@ -146,7 +158,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
                     <SelectContent>
                       {invoices.map((inv) => (
                         <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
-                          <div className="flex items-center justify-between w-[var(--radix-select-trigger-width)]">
+                            <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
                             <span>{inv.code} {inv.invoice_number ? `(${inv.invoice_number})` : ""}</span>
                             <span className="text-muted-foreground ml-4">{formatCurrency(inv.remaining_amount)} {inv.status === "partial" ? "(Partial)" : ""}</span>
                           </div>
@@ -199,28 +211,22 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
               </div>
             ) : null}
 
-            <Field>
+          <Field>
               <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
               <Controller
                 control={control}
                 name="bank_account_id"
                 render={({ field }) => (
-                  <Select
-                    value={field.value}
+                  <CreatableCombobox
+                    options={bankAccounts.map((acc) => ({ value: acc.id, label: `${acc.name} - ${acc.account_number}` }))}
+                    value={field.value || ""}
                     onValueChange={(v) => field.onChange(v)}
-                    disabled={isFetchingAddData || submitting}
-                  >
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("placeholders.select")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bankAccounts.map((acc) => (
-                        <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
-                          {acc.name} - {acc.account_number}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t("placeholders.select")}
+                    isLoading={isFetchingAddData}
+                    createPermission="bank_account.create"
+                    onCreateClick={() => openQuickCreate("bankAccount")}
+                    disabled={submitting}
+                  />
                 )}
               />
               {errors.bank_account_id?.message ? (
@@ -301,6 +307,13 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
           </div>
         </form>
       </DialogContent>
+
+      <BankAccountForm
+        open={quickCreate.type === "bankAccount"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        mode="create"
+        onCreated={handleBankAccountCreated}
+      />
     </Dialog>
   );
 }

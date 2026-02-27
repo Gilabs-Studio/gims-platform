@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch, FormProvider } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,6 +35,11 @@ export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProp
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+
+  type QuickCreateType = "employee" | "courierAgency" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
+  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
   // Fetch full delivery data when editing
   const { data: fullDeliveryData, isLoading: isLoadingDelivery } = useDeliveryOrder(
@@ -350,6 +355,16 @@ export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProp
     }
   };
 
+  const handleDeliveredByCreated = useCallback((item: { id: string; name: string }) => {
+    form.setValue("delivered_by_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, form]);
+
+  const handleCourierAgencyCreated = useCallback((item: { id: string; name: string }) => {
+    form.setValue("courier_agency_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, form]);
+
   const handleAddItem = () => {
     append({
       product_id: "",
@@ -405,5 +420,10 @@ export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProp
     handleDialogChange,
     onInvalid,
     watchedSalesOrderId,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handleDeliveredByCreated,
+    handleCourierAgencyCreated,
   };
 }

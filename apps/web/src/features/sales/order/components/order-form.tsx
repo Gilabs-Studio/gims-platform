@@ -26,8 +26,13 @@ import { formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import { StockWarningInline } from "@/features/sales/components/stock-warning";
 import { AsyncSelect } from "@/components/ui/async-select";
-import type { Employee } from "@/features/master-data/employee/types";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import type { Product } from "@/features/master-data/product/types";
+import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
+import { BusinessUnitForm } from "@/features/master-data/organization/components/business-unit/business-unit-form";
+import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
+import { CustomerSidePanel } from "@/features/master-data/customer/components/customer/customer-side-panel";
+import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
 
 import { useOrderForm } from "../hooks/use-order-form";
 
@@ -55,9 +60,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     areas,
     quotations,
     customers,
-    selectedRep,
-    setSelectedRep,
-    fetchEmployees,
+    employees,
     fetchProducts,
     calculations,
     handleNext,
@@ -73,6 +76,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     deliveryCost,
     otherCost,
     discountAmount,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
+    handleBusinessUnitCreated,
+    handleBusinessTypeCreated,
+    handleCustomerCreated,
+    handleSalesRepCreated,
   } = useOrderForm({ order, open, onClose });
 
   return (
@@ -183,18 +194,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="payment_terms_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("paymentTerms")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {paymentTerms.map((term) => (
-                          <SelectItem key={term.id} value={term.id}>
-                            {term.code ? `${term.code} - ${term.name}` : term.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder={t("paymentTerms")}
+                      createPermission="payment_term.create"
+                      onCreateClick={() => openQuickCreate("paymentTerm")}
+                    />
                   )}
                 />
                 {errors.payment_terms_id && (
@@ -208,25 +215,13 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="sales_rep_id"
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelect<Employee>
-                      label={t("salesRep")}
-                      fetcher={fetchEmployees}
-                      renderOption={(emp) => (
-                        <div className="flex flex-col">
-                          <span className="font-medium">{emp.employee_code}</span>
-                          <span className="text-xs text-muted-foreground">{emp.name}</span>
-                        </div>
-                      )}
-                      getLabel={(emp) => `${emp.employee_code} - ${emp.name}`}
-                      getValue={(emp) => emp.id}
+                    <CreatableCombobox
+                      options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
                       value={field.value || ""}
-                      onChange={(val, item) => {
-                        field.onChange(val);
-                        if (item) setSelectedRep(item);
-                      }}
-                      defaultOptions={selectedRep ? [selectedRep] : []}
-                      preload
-                      disabled={false} // Always strictly typed validation
+                      onValueChange={field.onChange}
+                      placeholder={t("salesRep")}
+                      createPermission="employee.create"
+                      onCreateClick={() => openQuickCreate("employee")}
                     />
                   )}
                 />
@@ -241,18 +236,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="business_unit_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("businessUnit")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {businessUnits.map((unit) => (
-                          <SelectItem key={unit.id} value={unit.id}>
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      options={businessUnits.map(u => ({ value: u.id, label: u.name }))}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder={t("businessUnit")}
+                      createPermission="business_unit.create"
+                      onCreateClick={() => openQuickCreate("businessUnit")}
+                    />
                   )}
                 />
                 {errors.business_unit_id && (
@@ -266,18 +257,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="business_type_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={(value) => field.onChange(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("common.select")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {businessTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      options={businessTypes.map(bt => ({ value: bt.id, label: bt.name }))}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder={t("common.select")}
+                      createPermission="business_type.create"
+                      onCreateClick={() => openQuickCreate("businessType")}
+                    />
                   )}
                 />
                 {errors.business_type_id && (
@@ -316,18 +303,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="customer_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={handleCustomerChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("common.selectCustomer") || "Select customer"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id} className="cursor-pointer">
-                            {customer.code} - {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      options={customers.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
+                      value={field.value || ""}
+                      onValueChange={handleCustomerChange}
+                      placeholder={t("common.selectCustomer") || "Select customer"}
+                      createPermission="customer.create"
+                      onCreateClick={() => openQuickCreate("customer")}
+                    />
                   )}
                 />
               </Field>
@@ -718,6 +701,34 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         </Tabs>
         )}
       </DialogContent>
+
+      <PaymentTermsDialog
+        open={quickCreate.type === "paymentTerm"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={handlePaymentTermCreated}
+      />
+      <BusinessUnitForm
+        open={quickCreate.type === "businessUnit"}
+        onClose={closeQuickCreate}
+        onCreated={handleBusinessUnitCreated}
+      />
+      <BusinessTypeForm
+        open={quickCreate.type === "businessType"}
+        onClose={closeQuickCreate}
+        onCreated={handleBusinessTypeCreated}
+      />
+      <CustomerSidePanel
+        isOpen={quickCreate.type === "customer"}
+        onClose={closeQuickCreate}
+        mode="create"
+        onCreated={handleCustomerCreated}
+      />
+      <EmployeeForm
+        open={quickCreate.type === "employee"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={handleSalesRepCreated}
+      />
     </Dialog>
   );
 }

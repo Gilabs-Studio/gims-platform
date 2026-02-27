@@ -18,6 +18,7 @@ import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/hooks/use-quotations";
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
+import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { productService } from "@/features/master-data/product/services/product-service";
 import { employeeService } from "@/features/master-data/employee/services/employee-service";
 
@@ -45,6 +46,11 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
   const [selectedRep, setSelectedRep] = useState<Employee | undefined>(order?.sales_rep as Employee | undefined);
 
+  type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "employee" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; itemIndex?: number }>({ type: null });
+  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
+  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
   // Fetch full order data with items when editing
   const { data: fullOrderData, isLoading: isLoadingOrder, isFetching: isFetchingOrder } = useOrder(
     order?.id ?? "",
@@ -58,6 +64,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const { data: areasData } = useAreas({ per_page: 100 }, { enabled: open });
   const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" }, { enabled: open });
   const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
+  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
   
   // Async Fetchers
   const fetchProducts = useCallback(async (query: string) => {
@@ -113,6 +120,11 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     const data = customersData?.data ?? [];
     return sortOptions(data, (a) => `${a.code} - ${a.name}`);
   }, [customersData?.data]);
+
+  const employees = useMemo(() => {
+    const data = employeesData?.data ?? [];
+    return sortOptions(data, (a) => `${a.employee_code} - ${a.name}`);
+  }, [employeesData?.data]);
 
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
@@ -505,6 +517,32 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     }
   };
 
+  const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("payment_terms_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
+  const handleBusinessUnitCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("business_unit_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
+  const handleBusinessTypeCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("business_type_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
+  const handleCustomerCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("customer_id", item.id, { shouldValidate: true });
+    setValue("customer_name", item.name, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
+  const handleSalesRepCreated = useCallback((item: { id: string; name: string }) => {
+    setValue("sales_rep_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
   const isLoading = createOrder.isPending || updateOrder.isPending;
   const isFormLoading = isEdit && (isLoadingOrder || isFetchingOrder) && !fullOrderData?.data;
 
@@ -545,6 +583,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     areas,
     quotations,
     customers,
+    employees,
     selectedRep,
     setSelectedRep,
     fetchEmployees,
@@ -563,5 +602,13 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     deliveryCost,
     otherCost,
     discountAmount,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
+    handleBusinessUnitCreated,
+    handleBusinessTypeCreated,
+    handleCustomerCreated,
+    handleSalesRepCreated,
   };
 }

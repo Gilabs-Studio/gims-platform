@@ -32,7 +32,7 @@ export function BusinessTypeForm({ open, onClose, businessType, onCreated }: Bus
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent size="default">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("businessType.editTitle") : t("businessType.createTitle")}
