@@ -28,7 +28,7 @@ type DealUsecase interface {
 	ListByStage(ctx context.Context, params repositories.DealsByStageParams) ([]dto.DealResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateDealRequest) (dto.DealResponse, error)
 	Delete(ctx context.Context, id string) error
-	MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.DealResponse, error)
+	MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.MoveDealStageResponse, error)
 	GetHistory(ctx context.Context, dealID string) ([]dto.DealHistoryResponse, error)
 	GetFormData(ctx context.Context) (*dto.DealFormDataResponse, error)
 	GetPipelineSummary(ctx context.Context) (dto.DealPipelineSummaryResponse, error)
@@ -412,22 +412,27 @@ func (u *dealUsecase) Delete(ctx context.Context, id string) error {
 	return u.dealRepo.Delete(ctx, id)
 }
 
-func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.DealResponse, error) {
+func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.MoveDealStageResponse, error) {
 	deal, err := u.dealRepo.FindByID(ctx, id)
 	if err != nil {
-		return dto.DealResponse{}, errors.New("deal not found")
+		return dto.MoveDealStageResponse{}, errors.New("deal not found")
+	}
+
+	// Block stage movement for deals that have already been converted to a quotation
+	if deal.ConvertedToQuotationID != nil && *deal.ConvertedToQuotationID != "" {
+		return dto.MoveDealStageResponse{}, errors.New("deal already converted")
 	}
 
 	// Validate target stage first, so we know if we're re-opening or staying closed
 	toStage, err := u.stageRepo.FindByID(ctx, req.ToStageID)
 	if err != nil {
-		return dto.DealResponse{}, errors.New("invalid pipeline stage")
+		return dto.MoveDealStageResponse{}, errors.New("invalid pipeline stage")
 	}
 
 	// Require close reason for won/lost stages
 	if (toStage.IsWon || toStage.IsLost) && req.CloseReason == "" {
 		if toStage.IsLost {
-			return dto.DealResponse{}, errors.New("close reason required for lost deals")
+			return dto.MoveDealStageResponse{}, errors.New("close reason required for lost deals")
 		}
 	}
 
@@ -479,7 +484,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 	}
 
 	if err := u.dealRepo.CreateHistory(ctx, history); err != nil {
-		return dto.DealResponse{}, fmt.Errorf("failed to create deal history: %w", err)
+		return dto.MoveDealStageResponse{}, fmt.Errorf("failed to create deal history: %w", err)
 	}
 
 	// Update deal fields
@@ -499,7 +504,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		deal.ActualCloseDate = &now
 		deal.CloseReason = req.CloseReason
 	} else {
-		// Moving to an open (non-closing) stage — re-open the deal if it was previously closed
+		// Moving to an open (non-closing) stage - re-open the deal if it was previously closed
 		deal.Status = models.DealStatusOpen
 		deal.ActualCloseDate = nil
 		deal.CloseReason = ""
@@ -514,16 +519,37 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 	deal.Items = nil
 
 	if err := u.dealRepo.Update(ctx, deal); err != nil {
-		return dto.DealResponse{}, fmt.Errorf("failed to update deal stage: %w", err)
+		return dto.MoveDealStageResponse{}, fmt.Errorf("failed to update deal stage: %w", err)
 	}
 
 	// Reload with preloaded relations
 	updated, err := u.dealRepo.FindByID(ctx, id)
 	if err != nil {
-		return dto.DealResponse{}, err
+		return dto.MoveDealStageResponse{}, err
 	}
 
-	return mapper.ToDealResponse(updated), nil
+	response := dto.MoveDealStageResponse{
+		Deal: mapper.ToDealResponse(updated),
+	}
+
+	// Auto-convert to quotation if requested and stage is won
+	if req.ConvertToQuotation && toStage.IsWon {
+		convReq := dto.ConvertToQuotationRequest{}
+		convResult, convErr := u.ConvertToQuotation(ctx, id, convReq, changedBy)
+		if convErr != nil {
+			// Conversion failed but stage move succeeded — return the deal with error info
+			return response, fmt.Errorf("stage moved successfully but conversion failed: %w", convErr)
+		}
+		response.Conversion = &convResult
+
+		// Reload deal again to reflect conversion fields
+		finalDeal, reloadErr := u.dealRepo.FindByID(ctx, id)
+		if reloadErr == nil {
+			response.Deal = mapper.ToDealResponse(finalDeal)
+		}
+	}
+
+	return response, nil
 }
 
 func (u *dealUsecase) GetHistory(ctx context.Context, dealID string) ([]dto.DealHistoryResponse, error) {

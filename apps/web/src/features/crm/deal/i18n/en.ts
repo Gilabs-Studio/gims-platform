@@ -36,6 +36,11 @@ export const crmDealEn = {
     currentStage: "Current Stage",
     targetStage: "Target Stage",
     selectStage: "Select target stage",
+    moveStageConvertLabel: "Convert to Sales Quotation",
+    moveStageConvertDescription: "Automatically create a sales quotation from this deal upon moving to Won stage.",
+    moveStageConvertNoItems: "Cannot convert: deal has no product items.",
+    moveStageConvertNoCustomer: "Cannot convert: deal has no customer assigned.",
+    convertedToSQBadge: "Converted to SQ",
 
     // Kanban
     kanbanTitle: "Pipeline Board",

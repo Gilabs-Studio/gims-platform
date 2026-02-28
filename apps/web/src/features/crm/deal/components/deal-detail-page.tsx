@@ -162,7 +162,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 {t("conversion.convertToQuotation")}
               </Button>
             )}
-            {canMoveStage && isOpen && (
+            {canMoveStage && isOpen && !deal.converted_to_quotation_id && (
               <Button
                 variant="outline"
                 size="sm"

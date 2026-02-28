@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2, Calendar, DollarSign, User } from "lucide-react";
+import { Building2, Calendar, DollarSign, FileText, User } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,15 @@ function getStatusVariant(
   }
 }
 
+/** Whether the deal has been converted to a Sales Quotation */
+function isConverted(deal: Deal): boolean {
+  return !!deal.converted_to_quotation_id;
+}
+
 export function DealCard({ deal, onClick }: DealCardProps) {
+  const t = useTranslations("crmDeal");
+  const converted = isConverted(deal);
+
   return (
     <Card
       className="cursor-pointer transition-shadow hover:shadow-md"
@@ -47,6 +56,16 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             {deal.status}
           </Badge>
         </div>
+
+        {/* Converted to SQ badge */}
+        {converted && (
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className="text-xs gap-1 border-green-500 text-green-700 bg-green-50">
+              <FileText className="h-3 w-3" />
+              {t("convertedToSQBadge")}
+            </Badge>
+          </div>
+        )}
 
         {deal.customer?.name && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

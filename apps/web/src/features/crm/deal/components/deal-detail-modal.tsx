@@ -93,7 +93,7 @@ export function DealDetailModal({
                 <Badge variant={getStatusVariant(deal.status)}>
                   {deal.status.toUpperCase()}
                 </Badge>
-                {deal.status === "open" && (
+                {deal.status === "open" && !deal.converted_to_quotation_id && (
                   <>
                     <Button
                       variant="outline"

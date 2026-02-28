@@ -36,6 +36,11 @@ export const crmDealId = {
     currentStage: "Tahap Saat Ini",
     targetStage: "Tahap Tujuan",
     selectStage: "Pilih tahap tujuan",
+    moveStageConvertLabel: "Konversi ke Sales Quotation",
+    moveStageConvertDescription: "Otomatis membuat sales quotation dari deal ini saat dipindahkan ke tahap Won.",
+    moveStageConvertNoItems: "Tidak bisa konversi: deal tidak memiliki item produk.",
+    moveStageConvertNoCustomer: "Tidak bisa konversi: deal belum memiliki pelanggan.",
+    convertedToSQBadge: "Dikonversi ke SQ",
 
     // Kanban
     kanbanTitle: "Papan Pipeline",

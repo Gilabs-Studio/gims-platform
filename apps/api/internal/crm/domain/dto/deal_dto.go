@@ -61,10 +61,17 @@ type UpdateDealRequest struct {
 
 // MoveDealStageRequest defines the request body for moving a deal to a different stage
 type MoveDealStageRequest struct {
-	ToStageID   string `json:"to_stage_id" binding:"required,uuid"`
-	Reason      string `json:"reason" binding:"required,min=2"`
-	Notes       string `json:"notes"`
-	CloseReason string `json:"close_reason"`
+	ToStageID            string `json:"to_stage_id" binding:"required,uuid"`
+	Reason               string `json:"reason" binding:"required,min=2"`
+	Notes                string `json:"notes"`
+	CloseReason          string `json:"close_reason"`
+	ConvertToQuotation   bool   `json:"convert_to_quotation"`
+}
+
+// MoveDealStageResponse extends DealResponse with optional conversion result
+type MoveDealStageResponse struct {
+	Deal       DealResponse                `json:"deal"`
+	Conversion *ConvertToQuotationResponse `json:"conversion,omitempty"`
 }
 
 // DealResponse defines the response body for a deal
