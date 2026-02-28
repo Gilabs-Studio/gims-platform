@@ -14,9 +14,10 @@ const (
 	goodsReceiptConfirm    = "goods_receipt.confirm"
 	goodsReceiptExport     = "goods_receipt.export"
 	goodsReceiptAuditTrail = "goods_receipt.audit_trail"
+	goodsReceiptPrint      = "goods_receipt.print"
 )
 
-func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandler) {
+func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandler, printH *handler.GoodsReceiptPrintHandler) {
 	g := r.Group("/goods-receipt")
 	g.GET("/add", middleware.RequirePermission(goodsReceiptCreate), h.Add)
 	g.GET("", middleware.RequirePermission(goodsReceiptRead), h.List)
@@ -24,6 +25,7 @@ func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandl
 	g.POST("", middleware.RequirePermission(goodsReceiptCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(goodsReceiptRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(goodsReceiptAuditTrail), h.AuditTrail)
+	g.GET("/:id/print", middleware.RequirePermission(goodsReceiptPrint), printH.PrintGoodsReceipt)
 	g.PUT("/:id", middleware.RequirePermission(goodsReceiptUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(goodsReceiptDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(goodsReceiptConfirm), h.Confirm)

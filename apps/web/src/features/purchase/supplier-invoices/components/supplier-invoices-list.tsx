@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +52,7 @@ import { SupplierInvoiceDetail } from "./supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
+import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
 
 const SupplierInvoiceFormDialog = dynamic(
   () => import("./supplier-invoice-form").then((m) => m.SupplierInvoiceFormDialog),
@@ -83,6 +85,7 @@ export function SupplierInvoicesList() {
 
   const [isDPOpen, setIsDPOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -108,6 +111,7 @@ export function SupplierInvoicesList() {
   const canExport = useUserPermission("supplier_invoice.export");
   const canAuditTrail = useUserPermission("supplier_invoice.audit_trail");
   const canView = useUserPermission("supplier_invoice.read");
+  const canPrint = useUserPermission("supplier_invoice.print");
 
   async function handleExport() {
     try {
@@ -362,6 +366,16 @@ export function SupplierInvoicesList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canPrint && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPrintingId(row.id)}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("actions.print")}
+                            </DropdownMenuItem>
+                          )}
+
                           {canDelete && ((row.status ?? "").toLowerCase() === "draft" || (row.status ?? "").toLowerCase() === "unpaid") && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
@@ -418,6 +432,14 @@ export function SupplierInvoicesList() {
           setAuditId(null);
         }}
       />
+
+      {printingId && (
+        <SupplierInvoicePrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          invoiceId={printingId}
+        />
+      )}
 
       <PurchaseOrderDetail
         open={isPOOpen}

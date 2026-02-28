@@ -11,6 +11,7 @@ import {
   Search,
   Trash2,
   CheckCircle2,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,6 +37,7 @@ import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail } from "./purchase-payment-detail";
 import { PurchasePaymentAuditTrail } from "./purchase-payment-audit-trail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
+import { PurchasePaymentPrintDialog } from "./purchase-payment-print-dialog";
 
 export function PurchasePaymentsList() {
   const t = useTranslations("purchasePayment");
@@ -52,6 +54,7 @@ export function PurchasePaymentsList() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("purchase_payment.create");
   const canDelete = useUserPermission("purchase_payment.delete");
@@ -59,6 +62,7 @@ export function PurchasePaymentsList() {
   const canExport = useUserPermission("purchase_payment.export");
   const canAuditTrail = useUserPermission("purchase_payment.audit_trail");
   const canView = useUserPermission("purchase_payment.read");
+  const canPrint = useUserPermission("purchase_payment.print");
 
   const { data, isLoading, isError } = usePurchasePayments({
     page,
@@ -251,6 +255,16 @@ export function PurchasePaymentsList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canPrint && (
+                              <DropdownMenuItem
+                                onClick={() => setPrintingId(item.id)}
+                                className="cursor-pointer"
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canConfirm && isPending && (
                               <DropdownMenuItem
                                 onClick={async () => {
@@ -326,6 +340,14 @@ export function PurchasePaymentsList() {
           setAuditId(null);
         }}
       />
+
+      {printingId && (
+        <PurchasePaymentPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          paymentId={printingId}
+        />
+      )}
 
       <DeleteDialog
         open={!!deletingItem}

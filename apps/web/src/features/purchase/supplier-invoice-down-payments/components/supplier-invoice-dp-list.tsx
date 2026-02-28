@@ -16,6 +16,7 @@ import {
   Trash2,
   CheckCircle2,
   TrendingUp,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +61,7 @@ import { SupplierInvoiceDetail } from "../../supplier-invoices/components/suppli
 import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
+import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
 
 const SupplierInvoiceDPFormDialog = dynamic(
   () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
@@ -85,6 +87,7 @@ export function SupplierInvoiceDPList() {
   const [auditId, setAuditId] = useState<string | null>(null);
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
   const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
@@ -112,6 +115,7 @@ export function SupplierInvoiceDPList() {
   const canExport = useUserPermission("supplier_invoice_dp.export");
   const canAuditTrail = useUserPermission("supplier_invoice_dp.audit_trail");
   const canView = useUserPermission("supplier_invoice_dp.read");
+  const canPrint = useUserPermission("supplier_invoice_dp.print");
 
   async function handleExport() {
     try {
@@ -336,6 +340,16 @@ export function SupplierInvoiceDPList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canPrint && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPrintingId(row.id)}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("actions.print")}
+                            </DropdownMenuItem>
+                          )}
+
                           {canDelete && (row.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
@@ -412,6 +426,14 @@ export function SupplierInvoiceDPList() {
           {auditId ? <SupplierInvoiceDPAuditTrailView id={auditId} /> : null}
         </DialogContent>
       </Dialog>
+
+      {printingId && (
+        <SupplierInvoiceDPPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          invoiceId={printingId}
+        />
+      )}
 
       <DeleteDialog
         open={!!deletingRow}

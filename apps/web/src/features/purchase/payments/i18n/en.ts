@@ -16,6 +16,7 @@ export const purchasePaymentEn = {
     auditTrail: "Audit Trail",
     delete: "Delete",
     createNew: "Create New",
+    print: "Print",
   },
   sections: {
     invoiceInfo: "Invoice Information",
@@ -76,4 +77,14 @@ export const purchasePaymentEn = {
       auditTrail: "Audit Trail",
     },
   },
+  // Print dialog
+  print: "Print",
+  printPurchasePayment: "Print Purchase Payment",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

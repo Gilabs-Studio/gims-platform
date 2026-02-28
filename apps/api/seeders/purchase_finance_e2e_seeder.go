@@ -183,22 +183,21 @@ func SeedPurchaseFinanceE2E() error {
 		// ─────────────────── CURRENT YEAR: 2026 ───────────────────
 
 		scenarios2026 := []purchaseScenario{
-			// 2026 — 3 current records with diverse statuses
-			{1, "001", 45, 52000, 11, "PAID", 1.0, 0, 0, false, 0},
-			{2, "002", 25, 68000, 11, "UNPAID", 0, 2, 1, true, 900000},
-			{2, "003", 35, 47000, 11, "PARTIAL", 0.5, 3, 2, false, 0},
+			// 2026 — early-stage POs only (DRAFT/SUBMITTED); no GR/SI created
+			{1, "001", 30, 58000, 11, "DRAFT", 0, 0, 0, false, 0},
+			{2, "002", 20, 72000, 11, "SUBMITTED", 0, 1, 1, false, 0},
 		}
 
 		for _, sc := range scenarios2026 {
 			if err := seedPurchaseFlow(tx, purchaseFlowInput{
-				year:        2026,
-				month:       sc.month,
-				tag:         sc.tag,
-				qty:         sc.qty,
-				price:       sc.price,
-				taxRate:     sc.taxRate,
-				payStatus:   sc.status,
-				payRatio:    sc.payRatio,
+			year:     2026,
+			month:    sc.month,
+			tag:      sc.tag,
+			qty:      sc.qty,
+			price:    sc.price,
+			taxRate:  sc.taxRate,
+			poStatus: sc.status, // "DRAFT" or "SUBMITTED" — GR/SI skipped automatically
+			payRatio: sc.payRatio,
 				product:     products[sc.prodIdx%len(products)],
 				supplier:    suppliers[sc.suppIdx%len(suppliers)],
 				pt:          paymentTerms[0],
@@ -439,6 +438,7 @@ type purchaseFlowInput struct {
 	tag                                     string
 	qty, price                              float64
 	taxRate                                 float64
+	poStatus                                string // "DRAFT", "SUBMITTED", "APPROVED" — defaults to APPROVED if empty
 	payStatus                               string // "PAID", "PARTIAL", "UNPAID"
 	payRatio                                float64
 	product                                 productModels.Product
@@ -466,13 +466,24 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 
 	// 1. Purchase Order
 	po := purchaseModels.PurchaseOrder{
-		Code:           fmt.Sprintf("PO-E2E-%s", prefix),
-		SupplierID:     &in.supplier.ID,
-		PaymentTermsID: &in.pt.ID,
-		BusinessUnitID: &in.bu.ID,
+		Code:                 fmt.Sprintf("PO-E2E-%s", prefix),
+		SupplierID:           &in.supplier.ID,
+		SupplierCodeSnapshot: in.supplier.Code,
+		SupplierNameSnapshot: in.supplier.Name,
+		PaymentTermsID:       &in.pt.ID,
+		BusinessUnitID:       &in.bu.ID,
 		CreatedBy:      in.adminID,
 		OrderDate:      orderDate.Format("2006-01-02"),
-		Status:         purchaseModels.PurchaseOrderStatusApproved,
+		Status:         func() purchaseModels.PurchaseOrderStatus {
+			switch in.poStatus {
+			case "DRAFT":
+				return purchaseModels.PurchaseOrderStatusDraft
+			case "SUBMITTED":
+				return purchaseModels.PurchaseOrderStatusSubmitted
+			default:
+				return purchaseModels.PurchaseOrderStatusApproved
+			}
+		}(),
 		TaxRate:        in.taxRate,
 		TaxAmount:      tax,
 		SubTotal:       subtotal,
@@ -489,6 +500,11 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	}
 	if err := tx.Create(&po).Error; err != nil {
 		return fmt.Errorf("create PO %s: %w", po.Code, err)
+	}
+
+	// Skip GR / SI / payment creation for early-stage POs (DRAFT or SUBMITTED).
+	if in.poStatus == "DRAFT" || in.poStatus == "SUBMITTED" {
+		return nil
 	}
 
 	// 2. Goods Receipt

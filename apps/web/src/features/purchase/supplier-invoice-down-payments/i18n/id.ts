@@ -63,9 +63,20 @@ export const supplierInvoiceDPId = {
     auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",
+    print: "Cetak",
   },
   placeholders: {
     select: "Pilih...",
     pickDate: "Pilih tanggal",
   },
+  // Dialog cetak
+  print: "Cetak",
+  printSupplierInvoiceDP: "Cetak Invoice Uang Muka",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

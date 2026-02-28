@@ -84,8 +84,19 @@ export const goodsReceiptEn = {
     cancel: "Cancel",
     next: "Next",
     back: "Back",
+    print: "Print",
   },
   placeholders: {
     select: "Select...",
   },
+  // Print dialog
+  print: "Print",
+  printGoodsReceipt: "Print Goods Receipt",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

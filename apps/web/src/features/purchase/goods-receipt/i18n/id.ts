@@ -77,9 +77,20 @@ export const goodsReceiptId = {
     cancel: "Batal",
     next: "Selanjutnya",
     back: "Kembali",
+    print: "Cetak",
   },
   placeholders: {
     select: "Pilih...",
     pickDate: "Pilih tanggal",
   },
+  // Dialog cetak
+  print: "Cetak",
+  printGoodsReceipt: "Cetak Penerimaan Barang",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

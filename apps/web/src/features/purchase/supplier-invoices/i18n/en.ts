@@ -82,6 +82,11 @@ export const supplierInvoiceEn = {
     status: "Status",
     createdAt: "Created At",
   },
+  list: {
+    code: "Code",
+    status: "Status",
+    notFound: "No supplier invoices found",
+  },
   status: {
     draft: "Draft",
     unpaid: "Unpaid",
@@ -101,10 +106,21 @@ export const supplierInvoiceEn = {
     next: "Next",
     back: "Back",
     createNew: "Create New",
+    print: "Print",
   },
   placeholders: {
     select: "Select...",
     none: "None",
     pickDate: "Pick a date",
   },
+  // Print dialog
+  print: "Print",
+  printSupplierInvoice: "Print Supplier Invoice",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

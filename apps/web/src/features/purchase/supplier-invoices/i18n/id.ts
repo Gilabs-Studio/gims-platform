@@ -82,6 +82,11 @@ export const supplierInvoiceId = {
     status: "Status",
     createdAt: "Dibuat",
   },
+  list: {
+    code: "Kode",
+    status: "Status",
+    notFound: "Tidak ada faktur supplier",
+  },
   status: {
     draft: "Draft",
     unpaid: "Belum Dibayar",
@@ -101,10 +106,21 @@ export const supplierInvoiceId = {
     next: "Selanjutnya",
     back: "Kembali",
     createNew: "Buat Baru",
+    print: "Cetak",
   },
   placeholders: {
     select: "Pilih...",
     none: "Tidak ada",
     pickDate: "Pilih tanggal",
   },
+  // Dialog cetak
+  print: "Cetak",
+  printSupplierInvoice: "Cetak Invoice Supplier",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

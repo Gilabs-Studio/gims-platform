@@ -66,9 +66,20 @@ export const supplierInvoiceDPEn = {
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",
+    print: "Print",
   },
   placeholders: {
     select: "Select...",
     pickDate: "Pick a date",
   },
+  // Print dialog
+  print: "Print",
+  printSupplierInvoiceDP: "Print Down Payment Invoice",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

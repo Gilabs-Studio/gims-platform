@@ -7,17 +7,21 @@ import (
 )
 
 const (
-	purchaseOrderRead      = "purchase_order.read"
-	purchaseOrderCreate    = "purchase_order.create"
-	purchaseOrderUpdate    = "purchase_order.update"
-	purchaseOrderDelete    = "purchase_order.delete"
-	purchaseOrderConfirm   = "purchase_order.confirm"
-	purchaseOrderRevise    = "purchase_order.revise"
-	purchaseOrderExport    = "purchase_order.export"
+	purchaseOrderRead       = "purchase_order.read"
+	purchaseOrderCreate     = "purchase_order.create"
+	purchaseOrderUpdate     = "purchase_order.update"
+	purchaseOrderDelete     = "purchase_order.delete"
+	purchaseOrderConfirm    = "purchase_order.confirm"
+	purchaseOrderExport     = "purchase_order.export"
 	purchaseOrderAuditTrail = "purchase_order.audit_trail"
+	purchaseOrderPrint      = "purchase_order.print"
+	purchaseOrderSubmit     = "purchase_order.submit"
+	purchaseOrderApprove    = "purchase_order.approve"
+	purchaseOrderReject     = "purchase_order.reject"
+	purchaseOrderClose      = "purchase_order.close"
 )
 
-func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHandler) {
+func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHandler, printH *handler.PurchaseOrderPrintHandler) {
 	g := r.Group("/purchase-orders")
 	g.GET("/add", middleware.RequirePermission(purchaseOrderCreate), h.Add)
 	g.GET("", middleware.RequirePermission(purchaseOrderRead), h.List)
@@ -25,8 +29,14 @@ func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHan
 	g.POST("", middleware.RequirePermission(purchaseOrderCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(purchaseOrderRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseOrderAuditTrail), h.AuditTrail)
+	g.GET("/:id/print", middleware.RequirePermission(purchaseOrderPrint), printH.PrintPurchaseOrder)
 	g.PUT("/:id", middleware.RequirePermission(purchaseOrderUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(purchaseOrderDelete), h.Delete)
+	// New workflow actions
+	g.POST("/:id/submit", middleware.RequirePermission(purchaseOrderSubmit), h.Submit)
+	g.POST("/:id/approve", middleware.RequirePermission(purchaseOrderApprove), h.Approve)
+	g.POST("/:id/reject", middleware.RequirePermission(purchaseOrderReject), h.Reject)
+	g.POST("/:id/close", middleware.RequirePermission(purchaseOrderClose), h.Close)
+	// Legacy backward-compat route
 	g.POST("/:id/confirm", middleware.RequirePermission(purchaseOrderConfirm), h.Confirm)
-	g.POST("/:id/revise", middleware.RequirePermission(purchaseOrderRevise), h.Revise)
 }

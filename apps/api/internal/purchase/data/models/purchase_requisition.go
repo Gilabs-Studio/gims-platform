@@ -15,6 +15,7 @@ type PurchaseRequisitionStatus string
 
 const (
 	PurchaseRequisitionStatusDraft     PurchaseRequisitionStatus = "DRAFT"
+	PurchaseRequisitionStatusSubmitted PurchaseRequisitionStatus = "SUBMITTED"
 	PurchaseRequisitionStatusApproved  PurchaseRequisitionStatus = "APPROVED"
 	PurchaseRequisitionStatusRejected  PurchaseRequisitionStatus = "REJECTED"
 	PurchaseRequisitionStatusConverted PurchaseRequisitionStatus = "CONVERTED"
@@ -52,6 +53,15 @@ type PurchaseRequisition struct {
 	Notes       string  `gorm:"type:text" json:"notes"`
 
 	Status PurchaseRequisitionStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+
+	// Workflow timestamps
+	SubmittedAt *time.Time `gorm:"index"                json:"submitted_at"`
+	ApprovedAt  *time.Time `gorm:"index"                json:"approved_at"`
+	RejectedAt  *time.Time `gorm:"index"                json:"rejected_at"`
+	ConvertedAt *time.Time `gorm:"index"                json:"converted_at"`
+
+	// Reference to the Purchase Order created from conversion
+	ConvertedToPurchaseOrderID *string `gorm:"type:uuid;index" json:"converted_to_purchase_order_id"`
 
 	TaxRate      float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
 	TaxAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`

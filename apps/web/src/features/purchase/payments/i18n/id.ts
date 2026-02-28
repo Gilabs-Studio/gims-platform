@@ -16,6 +16,7 @@ export const purchasePaymentId = {
     auditTrail: "Audit Trail",
     delete: "Hapus",
     createNew: "Buat Baru",
+    print: "Cetak",
   },
   sections: {
     invoiceInfo: "Informasi Invoice",
@@ -76,4 +77,14 @@ export const purchasePaymentId = {
       auditTrail: "Audit Trail",
     },
   },
+  // Dialog cetak
+  print: "Cetak",
+  printPurchasePayment: "Cetak Pembayaran Pembelian",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +50,7 @@ import { GoodsReceiptAuditTrail } from "./goods-receipt-audit-trail";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
+import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -66,6 +68,7 @@ export function GoodsReceiptsList() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -74,6 +77,7 @@ export function GoodsReceiptsList() {
   const canConfirm = useUserPermission("goods_receipt.confirm");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
+  const canPrint = useUserPermission("goods_receipt.print");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
@@ -294,6 +298,16 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canPrint && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPrintingId(it.id)}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("actions.print")}
+                            </DropdownMenuItem>
+                          )}
+
                           {canDelete && (it.status ?? "").toLowerCase() === "draft" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
@@ -355,6 +369,14 @@ export function GoodsReceiptsList() {
           setAuditId(null);
         }}
       />
+
+      {printingId && (
+        <GoodsReceiptPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          receiptId={printingId}
+        />
+      )}
 
       <DeleteDialog
         open={!!deletingItem}

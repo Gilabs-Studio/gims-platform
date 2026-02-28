@@ -101,40 +101,57 @@ func SeedIntegrationFlow() error {
 				continue
 			}
 
-			// A) Purchase Order
-			poQty := 10.0 + float64(i*5)
-			poPrice := prod.CostPrice
-			if poPrice <= 0 {
-				poPrice = 50000.0 + float64(i*1000)
-			}
-			subtotal := poQty * poPrice
-			taxRate := 11.0
-			tax := subtotal * (taxRate / 100)
-			total := subtotal + tax
+// A) Purchase Order — status is varied per index to cover all flow states.
+		poQty := 10.0 + float64(i*5)
+		poPrice := prod.CostPrice
+		if poPrice <= 0 {
+			poPrice = 50000.0 + float64(i*1000)
+		}
+		subtotal := poQty * poPrice
+		taxRate := 11.0
+		tax := subtotal * (taxRate / 100)
+		total := subtotal + tax
 
-			po := purchaseModels.PurchaseOrder{
-				Code:           poCode,
-				SupplierID:     &supplier.ID,
-				PaymentTermsID: &pt.ID,
-				BusinessUnitID: &bu.ID,
-				CreatedBy:      adminID,
-				OrderDate:      now.AddDate(0, 0, -i*2).Format("2006-01-02"),
-				Status:         purchaseModels.PurchaseOrderStatusApproved,
-				TaxRate:        taxRate,
-				TaxAmount:      tax,
-				SubTotal:       subtotal,
-				TotalAmount:    total,
-				Items: []purchaseModels.PurchaseOrderItem{
-					{
-						ProductID: prod.ID,
-						Quantity:  poQty,
-						Price:     poPrice,
-						Subtotal:  subtotal,
-					},
+		var poStatus purchaseModels.PurchaseOrderStatus
+		switch i {
+		case 1:
+			poStatus = purchaseModels.PurchaseOrderStatusDraft
+		case 2:
+			poStatus = purchaseModels.PurchaseOrderStatusSubmitted
+		default:
+			poStatus = purchaseModels.PurchaseOrderStatusApproved
+		}
+
+		po := purchaseModels.PurchaseOrder{
+			Code:                 poCode,
+			SupplierID:           &supplier.ID,
+			SupplierCodeSnapshot: supplier.Code,
+			SupplierNameSnapshot: supplier.Name,
+			PaymentTermsID:       &pt.ID,
+			BusinessUnitID:       &bu.ID,
+			CreatedBy:            adminID,
+			OrderDate:            now.AddDate(0, 0, -i*2).Format("2006-01-02"),
+			Status:               poStatus,
+			TaxRate:              taxRate,
+			TaxAmount:            tax,
+			SubTotal:             subtotal,
+			TotalAmount:          total,
+			Items: []purchaseModels.PurchaseOrderItem{
+				{
+					ProductID: prod.ID,
+					Quantity:  poQty,
+					Price:     poPrice,
+					Subtotal:  subtotal,
 				},
-			}
-			if err := tx.Create(&po).Error; err != nil {
-				return err
+			},
+		}
+		if err := tx.Create(&po).Error; err != nil {
+			return err
+		}
+
+			// GR, SI, and Payment are skipped for DRAFT and SUBMITTED orders.
+			if poStatus != purchaseModels.PurchaseOrderStatusApproved {
+				continue
 			}
 
 			// B) Goods Receipt (Triggers Stock & Accrual Journal)
@@ -259,8 +276,8 @@ func SeedIntegrationFlow() error {
 				_ = tx.Create(&je).Error
 			}
 
-			// D) Purchase Payment (Triggers Payment Journal) - Seed only for first 3 sets
-			if i <= 3 {
+			// D) Purchase Payment (Triggers Payment Journal) — only for the last two APPROVED sets.
+			if i >= 4 {
 				pp := purchaseModels.PurchasePayment{
 					SupplierInvoiceID: si.ID,
 					BankAccountID:     bankAccount.ID,
@@ -309,6 +326,11 @@ func SeedIntegrationFlow() error {
 					}
 					_ = tx.Create(&je).Error
 				}
+			}
+
+			// Close PO for the last set to demonstrate the CLOSED status in the list.
+			if i == 5 {
+				tx.Model(&po).Update("status", purchaseModels.PurchaseOrderStatusClosed)
 			}
 		}
 
