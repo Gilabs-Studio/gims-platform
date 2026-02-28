@@ -72,6 +72,7 @@ type WorkScheduleResponse struct {
 	Name                       string      `json:"name"`
 	Description                string      `json:"description"`
 	DivisionID                 *string     `json:"division_id"`
+	DivisionName               string      `json:"division_name,omitempty"`
 	IsDefault                  bool        `json:"is_default"`
 	IsActive                   bool        `json:"is_active"`
 	StartTime                  string      `json:"start_time"`

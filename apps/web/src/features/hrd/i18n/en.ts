@@ -269,6 +269,7 @@ export const hrdEn = {
         workingDays: "Working Days",
         tolerance: "Tolerance",
         gpsSettings: "GPS Settings",
+        assignment: "Assignment",
       },
 
       descriptions: {

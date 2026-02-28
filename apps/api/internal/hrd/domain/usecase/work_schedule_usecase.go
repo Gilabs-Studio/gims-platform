@@ -64,6 +64,9 @@ func (u *workScheduleUsecase) List(ctx context.Context, req *dto.ListWorkSchedul
 
 	responses := u.mapper.ToResponseList(schedules)
 
+	// Enrich division names
+	u.enrichDivisionNames(ctx, responses)
+
 	// Calculate pagination
 	page := req.Page
 	if page < 1 {
@@ -95,7 +98,9 @@ func (u *workScheduleUsecase) GetByID(ctx context.Context, id string) (*dto.Work
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(ws), nil
+	resp := u.mapper.ToResponse(ws)
+	u.enrichDivisionName(ctx, resp)
+	return resp, nil
 }
 
 func (u *workScheduleUsecase) GetByDivisionID(ctx context.Context, divisionID string) (*dto.WorkScheduleResponse, error) {
@@ -107,7 +112,9 @@ func (u *workScheduleUsecase) GetByDivisionID(ctx context.Context, divisionID st
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(ws), nil
+	resp := u.mapper.ToResponse(ws)
+	u.enrichDivisionName(ctx, resp)
+	return resp, nil
 }
 
 func (u *workScheduleUsecase) GetDefault(ctx context.Context) (*dto.WorkScheduleResponse, error) {
@@ -118,7 +125,9 @@ func (u *workScheduleUsecase) GetDefault(ctx context.Context) (*dto.WorkSchedule
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(ws), nil
+	resp := u.mapper.ToResponse(ws)
+	u.enrichDivisionName(ctx, resp)
+	return resp, nil
 }
 
 func (u *workScheduleUsecase) Create(ctx context.Context, req *dto.CreateWorkScheduleRequest) (*dto.WorkScheduleResponse, error) {
@@ -269,4 +278,43 @@ func (u *workScheduleUsecase) GetFormData(ctx context.Context) (*dto.WorkSchedul
 		Divisions: divisionOptions,
 		Companies: companyOptions,
 	}, nil
+}
+
+// enrichDivisionName populates the DivisionName field for a single response
+func (u *workScheduleUsecase) enrichDivisionName(ctx context.Context, resp *dto.WorkScheduleResponse) {
+	if resp.DivisionID != nil && *resp.DivisionID != "" {
+		division, err := u.divisionRepo.FindByID(ctx, *resp.DivisionID)
+		if err == nil {
+			resp.DivisionName = division.Name
+		}
+	}
+}
+
+// enrichDivisionNames populates DivisionName for a list of responses
+func (u *workScheduleUsecase) enrichDivisionNames(ctx context.Context, responses []dto.WorkScheduleResponse) {
+	// Collect unique division IDs
+	divisionIDs := make(map[string]bool)
+	for _, resp := range responses {
+		if resp.DivisionID != nil && *resp.DivisionID != "" {
+			divisionIDs[*resp.DivisionID] = true
+		}
+	}
+
+	// Fetch division names
+	divisionNames := make(map[string]string)
+	for id := range divisionIDs {
+		division, err := u.divisionRepo.FindByID(ctx, id)
+		if err == nil {
+			divisionNames[id] = division.Name
+		}
+	}
+
+	// Enrich responses
+	for i := range responses {
+		if responses[i].DivisionID != nil {
+			if name, ok := divisionNames[*responses[i].DivisionID]; ok {
+				responses[i].DivisionName = name
+			}
+		}
+	}
 }

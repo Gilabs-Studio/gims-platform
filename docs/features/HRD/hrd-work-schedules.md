@@ -2,7 +2,7 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.2.0  
+> **Version:** 1.3.0  
 > **Status:** ✅ Complete (API + Frontend)  
 > **Last Updated:** February 2026
 
@@ -234,6 +234,7 @@ type BreakTime struct {
 
 - `working_hours_per_day` is auto-calculated from `start_time` and `end_time` and should not be sent in the request.
 - `company_id` is optional — if provided, the company's GPS coordinates are used for `office_latitude` and `office_longitude`.
+- The API response includes `division_name` (resolved from `division_id`), which is used for display in the list and detail views.
 
 ### Response Body (Form Data)
 
@@ -271,12 +272,12 @@ type BreakTime struct {
 
 ### Work Schedules (`/hrd/work-schedules`)
 
-| Component                  | File                            | Description                                                       |
-| -------------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `WorkScheduleList`         | work-schedule-list.tsx          | Paginated table with CRUD actions, default badge, clickable names |
-| `WorkScheduleDialog`       | work-schedule-dialog.tsx        | Create/Edit form dialog with all config fields                    |
-| `WorkScheduleDetailDialog` | work-schedule-detail-dialog.tsx | Read-only detail modal showing all schedule information           |
-| `WorkSchedulePageClient`   | work-schedule-page-client.tsx   | Page wrapper with animations                                      |
+| Component                  | File                            | Description                                                                            |
+| -------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `WorkScheduleList`         | work-schedule-list.tsx          | Paginated table with CRUD actions, default badge, **division column**, clickable names |
+| `WorkScheduleDialog`       | work-schedule-dialog.tsx        | Create/Edit form dialog with all config fields                                         |
+| `WorkScheduleDetailDialog` | work-schedule-detail-dialog.tsx | Read-only detail modal showing all schedule information                                |
+| `WorkSchedulePageClient`   | work-schedule-page-client.tsx   | Page wrapper with animations                                                           |
 
 **Features:**
 
@@ -301,6 +302,7 @@ The detail modal (`WorkScheduleDetailDialog`) displays:
 
 - Schedule name with default badge
 - Status badges (Active/Inactive, Flexible, GPS, Division)
+- **Assignment section** — displays division name or "All Divisions (General)"
 - Work hours (start/end times)
 - Flexible hours range (if enabled)
 - All break times listed
@@ -323,6 +325,7 @@ Translations under `hrd.workSchedule`:
 - `title`, `description` — Page headers
 - `fields.*` — Form field labels (name, startTime, division, officeLocation, coordinates, etc.)
 - `placeholders.*` — Form placeholders (selectDivision, allDivisions, selectCompany, manualCoordinates)
+- `sections.*` — Section headers (workHours, breakTime, workingDays, tolerance, gpsSettings, assignment)
 - `descriptions.*` — Field descriptions (flexible, gps, division, officeLocation)
 - `workingDaysOptions.*` — Preset working day labels
 - `days.*` — Day abbreviations (Mon, Tue, etc.)

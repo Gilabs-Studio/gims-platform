@@ -5236,6 +5236,190 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Work Schedules",
+          "description": "Manage work schedules for divisions - working hours, break times, GPS settings, and tolerance configuration",
+          "item": [
+            {
+              "name": "List Work Schedules",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" },
+                    { "key": "search", "value": "", "disabled": true },
+                    { "key": "is_active", "value": "true", "disabled": true },
+                    { "key": "is_flexible", "value": "", "disabled": true },
+                    { "key": "division_id", "value": "", "disabled": true }
+                  ]
+                },
+                "description": "List work schedules with pagination and filters. Response includes `division_name` resolved from `division_id`. Requires `work_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Work Schedule by ID",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "schedule-uuid", "description": "Work Schedule UUID" }
+                  ]
+                },
+                "description": "Get work schedule by ID. Response includes `division_name` resolved from `division_id`. Requires `work_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Default Work Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/default",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", "default"]
+                },
+                "description": "Get the default work schedule. Requires `work_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Work Schedule Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/form-data",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", "form-data"]
+                },
+                "description": "Get form dropdown data: divisions and companies with GPS coordinates. Requires `work_schedule.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Work Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Standard Office Hours\",\n  \"description\": \"Standard 9-to-5 schedule\",\n  \"start_time\": \"08:00\",\n  \"end_time\": \"17:00\",\n  \"is_flexible\": false,\n  \"breaks\": [{\"start_time\": \"12:00\", \"end_time\": \"13:00\"}],\n  \"working_days\": 31,\n  \"late_tolerance_minutes\": 15,\n  \"early_leave_tolerance_minutes\": 0,\n  \"require_gps\": false,\n  \"gps_radius_meter\": 100,\n  \"office_latitude\": -6.2088,\n  \"office_longitude\": 106.8456,\n  \"division_id\": null\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules"]
+                },
+                "description": "Create a new work schedule. `working_hours_per_day` is auto-calculated. Requires `work_schedule.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Work Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated Office Hours\",\n  \"start_time\": \"09:00\",\n  \"end_time\": \"18:00\",\n  \"late_tolerance_minutes\": 10\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "schedule-uuid", "description": "Work Schedule UUID" }
+                  ]
+                },
+                "description": "Update a work schedule. Requires `work_schedule.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Work Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "schedule-uuid", "description": "Work Schedule UUID" }
+                  ]
+                },
+                "description": "Soft delete a work schedule. Cannot delete the default schedule. Requires `work_schedule.delete` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Set Default Work Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/work-schedules/:id/set-default",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "work-schedules", ":id", "set-default"],
+                  "variable": [
+                    { "key": "id", "value": "schedule-uuid", "description": "Work Schedule UUID" }
+                  ]
+                },
+                "description": "Set a general (non-division) schedule as default. Division-specific schedules cannot be set as default. Requires `work_schedule.update` permission."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }

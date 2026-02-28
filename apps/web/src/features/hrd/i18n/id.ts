@@ -269,6 +269,7 @@ export const hrdId = {
         workingDays: "Hari Kerja",
         tolerance: "Toleransi",
         gpsSettings: "Pengaturan GPS",
+        assignment: "Penugasan",
       },
 
       descriptions: {
