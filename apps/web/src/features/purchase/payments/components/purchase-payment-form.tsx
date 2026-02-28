@@ -5,12 +5,15 @@ import { useForm, Controller } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { CreditCard, FileText } from "lucide-react";
+import { CreditCard, FileText, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -111,6 +114,7 @@ export function PurchasePaymentForm({ open, onClose }: PurchasePaymentFormProps)
   }, [setValue, closeQuickCreate]);
 
   const submitting = createMutation.isPending;
+  const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -242,7 +246,35 @@ export function PurchasePaymentForm({ open, onClose }: PurchasePaymentFormProps)
 
             <Field orientation="vertical">
               <FieldLabel>{t("fields.paymentDate")}</FieldLabel>
-              <Input type="date" {...register("payment_date")} disabled={submitting} />
+              <Controller
+                control={control}
+                name="payment_date"
+                render={({ field }) => (
+                  <Popover open={paymentDateOpen} onOpenChange={setPaymentDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={submitting}
+                        className="w-full justify-start text-left font-normal cursor-pointer"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date: Date | undefined) => {
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          setPaymentDateOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
               {errors.payment_date?.message ? <FieldError>{String(errors.payment_date.message)}</FieldError> : null}
             </Field>
 

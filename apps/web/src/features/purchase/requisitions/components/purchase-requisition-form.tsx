@@ -6,16 +6,19 @@ import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form"
 import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, Trash2, FileText, DollarSign, ShoppingCart } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
 
@@ -104,6 +107,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	const updateMutation = useUpdatePurchaseRequisition();
 
 	const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+	const [requestDateOpen, setRequestDateOpen] = useState(false);
 	const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
 	const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
 	const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -123,6 +127,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		control,
 		reset,
 		setValue,
+		watch,
 		formState: { errors },
 	} = useForm<PurchaseRequisitionFormData>({
 		resolver,
@@ -142,6 +147,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	});
 
 	const { fields, append, remove } = useFieldArray({ control, name: "items" });
+	const watchedItems = watch("items");
 
 	useEffect(() => {
 		if (!open) { setActiveTab("basic"); return; }
@@ -262,7 +268,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	return (
 		<Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-			<DialogContent size="2xl" className="max-h-[90vh] overflow-y-auto">
+			<DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
 				</DialogHeader>
@@ -289,7 +295,30 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 								<div className="grid grid-cols-2 gap-4">
 									<Field orientation="vertical">
 										<FieldLabel>{t("fields.requestDate")}</FieldLabel>
-										<Input type="date" {...register("request_date")} />
+										<Controller
+											control={control}
+											name="request_date"
+											render={({ field }) => (
+												<Popover open={requestDateOpen} onOpenChange={setRequestDateOpen}>
+													<PopoverTrigger asChild>
+														<Button type="button" variant="outline" className="w-full justify-start text-left font-normal cursor-pointer">
+															<CalendarIcon className="mr-2 h-4 w-4" />
+															{field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+														</Button>
+													</PopoverTrigger>
+													<PopoverContent className="w-auto p-0" align="start">
+														<Calendar
+															mode="single"
+															selected={field.value ? new Date(field.value) : undefined}
+															onSelect={(date: Date | undefined) => {
+																field.onChange(date ? date.toISOString().slice(0, 10) : "");
+																setRequestDateOpen(false);
+															}}
+														/>
+													</PopoverContent>
+												</Popover>
+											)}
+										/>
 										{errors.request_date && <FieldError>{t("validation.required")}</FieldError>}
 									</Field>
 
@@ -415,100 +444,155 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 						</TabsContent>
 
 						<TabsContent value="items" className="space-y-4 mt-0">
-							{/* Items Section */}
-							<div className="space-y-4">
-								<div className="flex items-center justify-between pb-2 border-b border-border/50">
-									<div className="flex items-center space-x-2">
+							{/* Items and Summary Grid Layout */}
+							<div className="grid grid-cols-3 gap-6">
+								{/* Items Section - Left Column (2 cols) */}
+								<div className="col-span-2 space-y-4">
+									<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
 										<ShoppingCart className="h-4 w-4 text-primary" />
-										<h3 className="text-sm font-medium">{t("fields.items")}</h3>
+										<h3 className="text-sm font-medium">{t("fields.items")} ({fields.length})</h3>
 									</div>
+
+									<div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+										{fields.map((f, idx) => {
+											const item = watchedItems?.[idx];
+											const itemSubtotal = item
+												? (item.purchase_price ?? 0) * (item.quantity ?? 1) * (1 - ((item.discount ?? 0) / 100))
+												: 0;
+											return (
+												<div
+													key={f.id}
+													className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+												>
+													<div className="absolute top-2 right-2 flex items-center gap-2">
+														<span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{idx + 1}</span>
+														{fields.length > 1 && (
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																onClick={() => remove(idx)}
+																className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+															>
+																<Trash2 className="h-4 w-4" />
+															</Button>
+														)}
+													</div>
+
+													<div className="grid grid-cols-2 gap-3 mt-6">
+														<Field orientation="vertical" className="col-span-2">
+															<FieldLabel>{t("fields.product")} *</FieldLabel>
+															<Controller
+																control={control} name={`items.${idx}.product_id`}
+																render={({ field }) => (
+																	<CreatableCombobox
+																		value={field.value || undefined}
+																		onValueChange={(v) => field.onChange(v || "")}
+																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+																		placeholder={t("placeholders.select")}
+																		createPermission="product.create"
+																		createLabel={t("actions.createNew") || "Create Product"}
+																		onCreateClick={() => openQuickCreate("product")}
+																	/>
+																)}
+															/>
+															{errors.items?.[idx]?.product_id && <FieldError>{t("validation.required")}</FieldError>}
+														</Field>
+
+														<Field orientation="vertical">
+															<FieldLabel>{t("fields.quantity")} *</FieldLabel>
+															<Controller control={control} name={`items.${idx}.quantity`}
+																render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<Field orientation="vertical">
+															<FieldLabel>{t("fields.purchasePrice")} *</FieldLabel>
+															<Controller control={control} name={`items.${idx}.purchase_price`}
+																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<Field orientation="vertical">
+															<FieldLabel>{t("fields.discount")}</FieldLabel>
+															<Controller control={control} name={`items.${idx}.discount`}
+																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<div className="col-span-2 pt-2 border-t border-border/50">
+															<div className="flex items-center justify-between">
+																<span className="text-sm font-medium text-muted-foreground">{t("fields.subtotal")}:</span>
+																<span className="text-base font-bold text-primary">{formatMoney(itemSubtotal)}</span>
+															</div>
+														</div>
+													</div>
+												</div>
+											);
+										})}
+									</div>
+
 									<Button
-										type="button" variant="outline" size="sm" className="cursor-pointer"
+										type="button"
+										variant="outline"
+										size="sm"
 										onClick={() => append({ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null })}
+										className="w-full cursor-pointer border-dashed"
 									>
 										<Plus className="h-4 w-4 mr-2" />
 										{t("actions.addItem")}
 									</Button>
 								</div>
 
-								<div className="rounded-md border divide-y">
-									{fields.map((f, idx) => (
-										<div key={f.id} className="p-4 grid grid-cols-12 gap-3">
-											<Field className="col-span-5">
-												<FieldLabel>{t("fields.product")}</FieldLabel>
-												<Controller
-													control={control} name={`items.${idx}.product_id`}
-													render={({ field }) => (
-														<CreatableCombobox
-															value={field.value || undefined}
-															onValueChange={(v) => field.onChange(v || "")}
-															options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
-															placeholder={t("placeholders.select")}
-															createPermission="product.create"
-															createLabel={t("actions.createNew") || "Create Product"}
-															onCreateClick={() => openQuickCreate("product")}
-														/>
-													)}
-												/>
-												{errors.items?.[idx]?.product_id && <FieldError>{t("validation.required")}</FieldError>}
-											</Field>
-											<Field className="col-span-2">
-												<FieldLabel>{t("fields.quantity")}</FieldLabel>
-												<Controller control={control} name={`items.${idx}.quantity`} render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)} />
-											</Field>
-											<Field className="col-span-2">
-												<FieldLabel>{t("fields.purchasePrice")}</FieldLabel>
-												<Controller control={control} name={`items.${idx}.purchase_price`} render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)} />
-											</Field>
-											<Field className="col-span-2">
-												<FieldLabel>{t("fields.discount")}</FieldLabel>
-												<Controller control={control} name={`items.${idx}.discount`} render={({ field }) => (
-													<NumericInput value={field.value ?? 0} onChange={field.onChange} />
-												)} />
-											</Field>
-											<div className="col-span-1 flex items-end">
-												<Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="cursor-pointer" disabled={fields.length <= 1}>
-													<Trash2 className="h-4 w-4" />
-												</Button>
+								{/* Totals Summary - Right Column */}
+								<div className="col-span-1">
+									<div className="sticky space-y-4">
+										<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+											<DollarSign className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-medium">{t("form.overviewTitle")}</h3>
+										</div>
+	
+										<div className="space-y-3">
+											<div className="flex flex-wrap items-end gap-1">
+												<span className="text-muted-foreground text-sm">{t("fields.subtotal")}:</span>
+												<span className="font-medium ml-auto">{formatMoney(overview.subtotal)}</span>
+											</div>
+											<div className="flex flex-wrap items-end gap-1">
+												<span className="text-muted-foreground text-sm">{t("fields.taxAmount")}:</span>
+												<span className="font-medium ml-auto">{formatMoney(overview.taxAmount)}</span>
+											</div>
+											<div className="flex flex-wrap items-end gap-1">
+												<span className="text-muted-foreground text-sm">{t("fields.deliveryCost")}:</span>
+												<span className="font-medium ml-auto">{formatMoney(overview.deliveryCost)}</span>
+											</div>
+											<div className="flex flex-wrap items-end gap-1">
+												<span className="text-muted-foreground text-sm">{t("fields.otherCost")}:</span>
+												<span className="font-medium ml-auto">{formatMoney(overview.otherCost)}</span>
+											</div>
+											<div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
+												<span className="text-lg font-bold">{t("fields.total")}:</span>
+												<span className="text-lg font-bold text-primary ml-auto">{formatMoney(overview.totalAmount)}</span>
 											</div>
 										</div>
-									))}
+									</div>
 								</div>
 							</div>
 
-							{/* Summary Card */}
-							<Card>
-								<CardHeader><CardTitle className="text-sm">{t("form.overviewTitle")}</CardTitle></CardHeader>
-								<CardContent className="space-y-2 text-sm">
-									<div className="flex justify-between"><span className="text-muted-foreground">{t("fields.items")}</span><span className="font-medium">{overview.itemsCount}</span></div>
-									<div className="flex justify-between"><span className="text-muted-foreground">{t("fields.subtotal")}</span><span className="font-medium">{formatMoney(overview.subtotal)}</span></div>
-									<div className="flex justify-between"><span className="text-muted-foreground">{t("fields.taxAmount")}</span><span className="font-medium">{formatMoney(overview.taxAmount)}</span></div>
-									<div className="flex justify-between"><span className="text-muted-foreground">{t("fields.deliveryCost")}</span><span className="font-medium">{formatMoney(overview.deliveryCost)}</span></div>
-									<div className="flex justify-between"><span className="text-muted-foreground">{t("fields.otherCost")}</span><span className="font-medium">{formatMoney(overview.otherCost)}</span></div>
-									<div className="h-px bg-border" />
-									<div className="flex justify-between font-semibold"><span>{t("fields.total")}</span><span>{formatMoney(overview.totalAmount)}</span></div>
-								</CardContent>
-							</Card>
-
-							<div className="flex items-center justify-between pt-4 border-t">
-								<Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
-									{t("common.back") || "Back"}
+						<div className="flex items-center justify-between pt-4 border-t">
+							<Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
+								{t("common.back") || "Back"}
+							</Button>
+							<div className="flex gap-2">
+								<Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
+									{t("actions.cancel")}
 								</Button>
-								<div className="flex gap-2">
-									<Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
-										{t("actions.cancel")}
-									</Button>
-									<Button type="submit" disabled={isSubmitting || isFetchingDetail} className="cursor-pointer">
-										<ButtonLoading loading={isSubmitting} loadingText={t("actions.saving") || "Saving..."}>
-											{isEdit ? t("actions.save") : t("actions.create") || "Create"}
-										</ButtonLoading>
-									</Button>
-								</div>
+								<Button type="submit" disabled={isSubmitting || isFetchingDetail} className="cursor-pointer">
+									<ButtonLoading loading={isSubmitting} loadingText={t("actions.saving") || "Saving..."}>
+										{isEdit ? t("actions.save") : t("actions.create") || "Create"}
+									</ButtonLoading>
+								</Button>
 							</div>
+						</div>
 						</TabsContent>
 					</form>
 				</Tabs>

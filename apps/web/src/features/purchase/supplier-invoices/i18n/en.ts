@@ -60,6 +60,7 @@ export const supplierInvoiceEn = {
     subtotal: "Subtotal",
     taxAmount: "Tax Amount",
     total: "Total",
+    summaryTitle: "Summary",
   },
   items: {
     title: "Items",
@@ -104,5 +105,6 @@ export const supplierInvoiceEn = {
   placeholders: {
     select: "Select...",
     none: "None",
+    pickDate: "Pick a date",
   },
 };

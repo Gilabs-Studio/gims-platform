@@ -79,6 +79,7 @@ export const purchaseOrderId = {
   placeholders: {
     select: "Pilih...",
     none: "Tidak ada",
+    pickDate: "Pilih tanggal",
   },
   validation: {
     required: "Wajib",

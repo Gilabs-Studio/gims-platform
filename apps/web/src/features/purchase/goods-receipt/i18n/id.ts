@@ -80,5 +80,6 @@ export const goodsReceiptId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
 };

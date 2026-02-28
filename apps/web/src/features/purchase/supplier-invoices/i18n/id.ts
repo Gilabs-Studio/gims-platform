@@ -60,6 +60,7 @@ export const supplierInvoiceId = {
     subtotal: "Subtotal",
     taxAmount: "Nilai Pajak",
     total: "Total",
+    summaryTitle: "Ringkasan",
   },
   items: {
     title: "Item",
@@ -104,5 +105,6 @@ export const supplierInvoiceId = {
   placeholders: {
     select: "Pilih...",
     none: "Tidak ada",
+    pickDate: "Pilih tanggal",
   },
 };

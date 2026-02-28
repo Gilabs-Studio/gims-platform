@@ -1,20 +1,24 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
+import { CalendarIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonLoading } from "@/components/loading";
+import { formatDate } from "@/lib/utils";
 
 import {
   useCreateSupplierInvoiceDP,
@@ -76,6 +80,9 @@ export function SupplierInvoiceDPFormDialog({
   const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
+  const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
+  const [dueDateOpen, setDueDateOpen] = useState(false);
+
   async function onSubmit(values: SupplierInvoiceDPFormData) {
     try {
       if (isEdit && invoiceId) {
@@ -103,6 +110,11 @@ export function SupplierInvoiceDPFormDialog({
         {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">{t("sections.invoiceInfo") || "Invoice Info"}</h3>
+          </div>
+
           <Field orientation="vertical">
             <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
             <Controller
@@ -132,20 +144,66 @@ export function SupplierInvoiceDPFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <Field orientation="vertical">
               <FieldLabel>{t("fields.invoiceDate")}</FieldLabel>
-              <Input
-                type="date"
-                value={form.watch("invoice_date")}
-                onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
-                disabled={isBusy}
+              <Controller
+                control={form.control}
+                name="invoice_date"
+                render={({ field }) => (
+                  <Popover open={invoiceDateOpen} onOpenChange={setInvoiceDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isBusy}
+                        className="w-full justify-start text-left font-normal cursor-pointer"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date: Date | undefined) => {
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          setInvoiceDateOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
               />
             </Field>
             <Field orientation="vertical">
               <FieldLabel>{t("fields.dueDate")}</FieldLabel>
-              <Input
-                type="date"
-                value={form.watch("due_date")}
-                onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
-                disabled={isBusy}
+              <Controller
+                control={form.control}
+                name="due_date"
+                render={({ field }) => (
+                  <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isBusy}
+                        className="w-full justify-start text-left font-normal cursor-pointer"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date: Date | undefined) => {
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          setDueDateOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
               />
             </Field>
           </div>

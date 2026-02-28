@@ -37,6 +37,13 @@ export const goodsReceiptEn = {
     editTitle: "Edit Goods Receipt",
     invalid: "Please check required fields",
   },
+  tabs: {
+    basic: "Basic Info",
+    items: "Items",
+  },
+  sections: {
+    receiptInfo: "Receipt Info",
+  },
   fields: {
     purchaseOrder: "Purchase Order",
     receiptDate: "Receipt Date",

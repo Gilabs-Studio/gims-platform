@@ -193,7 +193,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent size="2xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>

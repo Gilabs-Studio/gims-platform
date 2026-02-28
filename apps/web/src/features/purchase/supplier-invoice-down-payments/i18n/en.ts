@@ -28,6 +28,9 @@ export const supplierInvoiceDPEn = {
     editTitle: "Edit Down Payment Invoice",
     invalid: "Please check required fields",
   },
+  sections: {
+    invoiceInfo: "Invoice Info",
+  },
   fields: {
     purchaseOrder: "Purchase Order",
     invoiceDate: "Invoice Date",
@@ -66,5 +69,6 @@ export const supplierInvoiceDPEn = {
   },
   placeholders: {
     select: "Select...",
+    pickDate: "Pick a date",
   },
 };

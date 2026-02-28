@@ -4,22 +4,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { DollarSign, FileText, ShoppingCart } from "lucide-react";
+import { CalendarIcon, DollarSign, FileText, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 
@@ -33,6 +34,10 @@ import {
   supplierInvoiceSchema,
   type SupplierInvoiceFormData,
 } from "../schemas/supplier-invoice.schema";
+
+// Local narrow types to avoid `any` casts
+type PaymentTermOption = { id: string; name: string; code?: string };
+type ProductRef = { id?: string; name?: string; code?: string };
 
 type QuickCreateType = "paymentTerm" | null;
 
@@ -79,11 +84,11 @@ export function SupplierInvoiceFormDialog({
 
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
-  const paymentTerms = useMemo(() => addData?.payment_terms ?? [], [addData?.payment_terms]);
+  const paymentTerms = useMemo<PaymentTermOption[]>(() => addData?.payment_terms ?? [], [addData?.payment_terms]);
   const mergedPaymentTerms = useMemo(() => {
-    const list = [...paymentTerms];
-    const sel = detailQuery.data?.data?.payment_terms;
-    if (sel?.id && !list.some((x) => x.id === sel.id)) list.push(sel as any);
+    const list: PaymentTermOption[] = [...paymentTerms];
+    const sel = detailQuery.data?.data?.payment_terms as PaymentTermOption | undefined;
+    if (sel?.id && !list.some((x) => x.id === sel.id)) list.push(sel);
     return list;
   }, [paymentTerms, detailQuery.data?.data?.payment_terms]);
 
@@ -130,8 +135,8 @@ export function SupplierInvoiceFormDialog({
       notes: detail.notes ?? null,
       items: detail.items.map((it) => ({
         product_id: it.product_id,
-        product_name: (it.product as any)?.name,
-        product_code: (it.product as any)?.code,
+        product_name: (it.product as ProductRef)?.name,
+        product_code: (it.product as ProductRef)?.code,
         quantity: it.quantity,
         price: it.price,
         discount: it.discount,
@@ -180,6 +185,9 @@ export function SupplierInvoiceFormDialog({
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v),
     []);
 
+  const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
+  const [dueDateOpen, setDueDateOpen] = useState(false);
+
   async function onSubmit(values: SupplierInvoiceFormData) {
     const cleaned = { ...values, items: values.items.filter((it) => it.product_id.length > 0) };
     try {
@@ -220,31 +228,33 @@ export function SupplierInvoiceFormDialog({
                 <h3 className="text-sm font-medium">{t("sections.invoiceInfo") || "Invoice Info"}</h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Field orientation="vertical">
-                  <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
-                  <Select
-                    value={selectedPOId}
-                    onValueChange={(value) => setFormValue("purchase_order_id", value, { shouldValidate: true })}
-                    disabled={isBusy || isEdit}
-                  >
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("placeholders.select")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                      {(addData?.purchase_orders ?? []).map((po) => (
-                        <SelectItem key={po.id} value={po.id} className="cursor-pointer">{po.code}</SelectItem>
-                      ))}
-                      {isEdit && detailQuery.data?.data?.purchase_order && !(addData?.purchase_orders ?? []).some((x) => x.id === detailQuery.data?.data?.purchase_order?.id) && (
-                        <SelectItem value={detailQuery.data.data.purchase_order.id} className="cursor-pointer">
-                          {detailQuery.data.data.purchase_order.code}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
+              {/* Purchase Order — full width */}
+              <Field orientation="vertical">
+                <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                <Select
+                  value={selectedPOId}
+                  onValueChange={(value) => setFormValue("purchase_order_id", value, { shouldValidate: true })}
+                  disabled={isBusy || isEdit}
+                >
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder={t("placeholders.select")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
+                    {(addData?.purchase_orders ?? []).map((po) => (
+                      <SelectItem key={po.id} value={po.id} className="cursor-pointer">{po.code}</SelectItem>
+                    ))}
+                    {isEdit && detailQuery.data?.data?.purchase_order && !(addData?.purchase_orders ?? []).some((x) => x.id === detailQuery.data?.data?.purchase_order?.id) && (
+                      <SelectItem value={detailQuery.data.data.purchase_order.id} className="cursor-pointer">
+                        {detailQuery.data.data.purchase_order.code}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
 
+              {/* Payment Terms + Invoice Number — paired row */}
+              <div className="grid grid-cols-2 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.paymentTerms")}</FieldLabel>
                   <Controller
@@ -254,7 +264,7 @@ export function SupplierInvoiceFormDialog({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
-                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: (pt as any).code ? `${(pt as any).code} - ${pt.name}` : pt.name }))}
+                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}
@@ -272,24 +282,73 @@ export function SupplierInvoiceFormDialog({
                     disabled={isBusy}
                   />
                 </Field>
+              </div>
 
+              {/* Invoice Date + Due Date — paired row with Calendar */}
+              <div className="grid grid-cols-2 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.invoiceDate")}</FieldLabel>
-                  <Input
-                    type="date"
-                    value={form.watch("invoice_date")}
-                    onChange={(e) => setFormValue("invoice_date", e.target.value, { shouldValidate: true })}
-                    disabled={isBusy}
+                  <Controller
+                    control={form.control}
+                    name="invoice_date"
+                    render={({ field }) => (
+                      <Popover open={invoiceDateOpen} onOpenChange={setInvoiceDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isBusy}
+                            className="w-full justify-start text-left font-normal cursor-pointer"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(new Date(field.value), "dd MMM yyyy") : t("placeholders.pickDate") || "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                              setInvoiceDateOpen(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   />
                 </Field>
 
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.dueDate")}</FieldLabel>
-                  <Input
-                    type="date"
-                    value={form.watch("due_date")}
-                    onChange={(e) => setFormValue("due_date", e.target.value, { shouldValidate: true })}
-                    disabled={isBusy}
+                  <Controller
+                    control={form.control}
+                    name="due_date"
+                    render={({ field }) => (
+                      <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isBusy}
+                            className="w-full justify-start text-left font-normal cursor-pointer"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(new Date(field.value), "dd MMM yyyy") : t("placeholders.pickDate") || "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                              setDueDateOpen(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   />
                 </Field>
               </div>
@@ -346,101 +405,137 @@ export function SupplierInvoiceFormDialog({
             </TabsContent>
 
             <TabsContent value="items" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                <ShoppingCart className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-medium">{t("items.title")}</h3>
-              </div>
+                {/* Items and Summary Grid Layout */}
+                <div className="grid grid-cols-3 gap-6">
+                    {/* Items Section - Left Column (2 cols) */}
+                    <div className="col-span-2 space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                            <ShoppingCart className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-medium">{t("items.title")} ({watchedItems.length})</h3>
+                        </div>
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("items.fields.product")}</TableHead>
-                      <TableHead className="text-right">{t("items.fields.quantity")}</TableHead>
-                      <TableHead className="text-right">{t("items.fields.price")}</TableHead>
-                      <TableHead className="text-right">{t("items.fields.discount")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {watchedItems.map((row, idx) => (
-                      <TableRow key={`${row.product_id}-${idx}`}>
-                        <TableCell className="max-w-60 truncate">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{(row as any).product_code || (row.product_id.length > 8 ? row.product_id.slice(0, 8) : row.product_id)}</span>
-                            <span className="text-[10px] text-muted-foreground">{(row as any).product_name || ""}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            className="h-8 text-right"
-                            value={row.quantity}
-                            onChange={(e) => {
-                              const items = form.getValues("items");
-                              items[idx] = { ...items[idx], quantity: Number(e.target.value) };
-                              form.setValue("items", items, { shouldValidate: true });
-                            }}
-                            disabled={isBusy}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            className="h-8 text-right"
-                            value={row.price}
-                            onChange={(e) => {
-                              const items = form.getValues("items");
-                              items[idx] = { ...items[idx], price: Number(e.target.value) };
-                              form.setValue("items", items, { shouldValidate: true });
-                            }}
-                            disabled={isBusy}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            className="h-8 text-right"
-                            value={row.discount ?? 0}
-                            onChange={(e) => {
-                              const items = form.getValues("items");
-                              items[idx] = { ...items[idx], discount: Number(e.target.value) };
-                              form.setValue("items", items, { shouldValidate: true });
-                            }}
-                            disabled={isBusy}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                            {watchedItems.map((row, idx) => {
+                                const itemSubtotal = (row.quantity ?? 0) * (row.price ?? 0) * (1 - ((row.discount ?? 0) / 100));
+                                return (
+                                    <div
+                                        key={`${row.product_id}-${idx}`}
+                                        className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="absolute top-2 right-2">
+                                            <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{idx + 1}</span>
+                                        </div>
 
-              <Card className="bg-muted/30">
-                <CardContent className="p-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.subtotal") || "Subtotal"}</span><span className="font-medium">{formatMoney(subtotal)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.taxAmount") || "Tax"}</span><span className="font-medium">{formatMoney(taxAmount)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.deliveryCost")}</span><span className="font-medium">{formatMoney(Number(deliveryCost))}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.otherCost")}</span><span className="font-medium">{formatMoney(Number(otherCost))}</span></div>
-                  <div className="h-px bg-border" />
-                  <div className="flex justify-between font-semibold"><span>{t("fields.total") || "Total"}</span><span>{formatMoney(totalAmount)}</span></div>
-                </CardContent>
-              </Card>
+                                        <div className="grid grid-cols-2 gap-3 mt-6">
+                                            <div className="col-span-2">
+                                                <FieldLabel>{t("items.fields.product")}</FieldLabel>
+                                                <div className="mt-1 p-2 rounded-md bg-muted/50 text-sm">
+                                                    <p className="font-medium">{(row as { product_code?: string; product_name?: string }).product_code || row.product_id}</p>
+                                                    <p className="text-xs text-muted-foreground">{(row as { product_code?: string; product_name?: string }).product_name || ""}</p>
+                                                </div>
+                                            </div>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
-                  {t("actions.back") || "Back"}
-                </Button>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
-                    {t("actions.cancel")}
-                  </Button>
-                  <Button type="submit" disabled={isBusy} className="cursor-pointer">
-                    <ButtonLoading loading={isBusy}>
-                      {t("actions.save")}
-                    </ButtonLoading>
-                  </Button>
+                                            <Field orientation="vertical">
+                                                <FieldLabel>{t("items.fields.quantity")}</FieldLabel>
+                                                <NumericInput
+                                                    value={row.quantity ?? 0}
+                                                    onChange={(v) => {
+                                                      const items = form.getValues("items");
+                                                      items[idx] = { ...items[idx], quantity: v ?? 0 };
+                                                      form.setValue("items", items, { shouldValidate: true });
+                                                    }}
+                                                    disabled={isBusy}
+                                                />
+                                            </Field>
+
+                                            <Field orientation="vertical">
+                                                <FieldLabel>{t("items.fields.price")}</FieldLabel>
+                                                <NumericInput
+                                                    value={row.price ?? 0}
+                                                    onChange={(v) => {
+                                                      const items = form.getValues("items");
+                                                      items[idx] = { ...items[idx], price: v ?? 0 };
+                                                      form.setValue("items", items, { shouldValidate: true });
+                                                    }}
+                                                    disabled={isBusy}
+                                                />
+                                            </Field>
+
+                                            <Field orientation="vertical">
+                                                <FieldLabel>{t("items.fields.discount")}</FieldLabel>
+                                                <NumericInput
+                                                    value={row.discount ?? 0}
+                                                    onChange={(v) => {
+                                                      const items = form.getValues("items");
+                                                      items[idx] = { ...items[idx], discount: v };
+                                                      form.setValue("items", items, { shouldValidate: true });
+                                                    }}
+                                                    disabled={isBusy}
+                                                />
+                                            </Field>
+
+                                            <div className="col-span-2 pt-2 border-t border-border/50">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground">{t("fields.subtotal")}:</span>
+                                                    <span className="text-base font-bold text-primary">{formatMoney(itemSubtotal)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Totals Summary - Right Column */}
+                    <div className="col-span-1">
+                        <div className="sticky space-y-4">
+                            <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                                <DollarSign className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-medium">{t("fields.summaryTitle") || "Summary"}</h3>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-end gap-1">
+                                    <span className="text-muted-foreground text-sm">{t("fields.subtotal")}:</span>
+                                    <span className="font-medium ml-auto">{formatMoney(subtotal)}</span>
+                                </div>
+                                <div className="flex flex-wrap items-end gap-1">
+                                    <span className="text-muted-foreground text-sm">{t("fields.taxAmount")}:</span>
+                                    <span className="font-medium ml-auto">{formatMoney(taxAmount)}</span>
+                                </div>
+                                <div className="flex flex-wrap items-end gap-1">
+                                    <span className="text-muted-foreground text-sm">{t("fields.deliveryCost")}:</span>
+                                    <span className="font-medium ml-auto">{formatMoney(Number(deliveryCost))}</span>
+                                </div>
+                                <div className="flex flex-wrap items-end gap-1">
+                                    <span className="text-muted-foreground text-sm">{t("fields.otherCost")}:</span>
+                                    <span className="font-medium ml-auto">{formatMoney(Number(otherCost))}</span>
+                                </div>
+                                <div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
+                                    <span className="text-lg font-bold">{t("fields.total")}:</span>
+                                    <span className="text-lg font-bold text-primary ml-auto">{formatMoney(totalAmount)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
+                        {t("actions.back") || "Back"}
+                    </Button>
+                    <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
+                            {t("actions.cancel")}
+                        </Button>
+                        <Button type="submit" disabled={isBusy} className="cursor-pointer">
+                            <ButtonLoading loading={isBusy}>
+                                {t("actions.save")}
+                            </ButtonLoading>
+                        </Button>
+                    </div>
+                </div>
             </TabsContent>
           </form>
         </Tabs>

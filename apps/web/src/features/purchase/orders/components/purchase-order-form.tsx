@@ -5,17 +5,20 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, FileText, DollarSign, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
 import {
@@ -105,6 +108,9 @@ export function PurchaseOrderForm({
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const [orderDateOpen, setOrderDateOpen] = useState(false);
+  const [dueDateOpen, setDueDateOpen] = useState(false);
 
   const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({ enabled: open });
 
@@ -335,7 +341,7 @@ export function PurchaseOrderForm({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent size="2xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
@@ -354,7 +360,7 @@ export function PurchaseOrderForm({
                 <FileText className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-medium">{t("sections.orderInfo") || "Order Info"}</h3>
               </div>
-              <div className="grid gap-4 grid-cols-2">
+              <div className="space-y-4">
                 {!isEdit && (
                   <Field orientation="vertical">
                     <FieldLabel>{t("fields.source")}</FieldLabel>
@@ -497,16 +503,64 @@ export function PurchaseOrderForm({
                   </Field>
                 )}
 
+                <div className="grid grid-cols-2 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.orderDate")}</FieldLabel>
-                  <Input type="date" {...register("order_date")} />
+                  <Controller
+                    control={control}
+                    name="order_date"
+                    render={({ field }) => (
+                      <Popover open={orderDateOpen} onOpenChange={setOrderDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full justify-start text-left font-normal cursor-pointer">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              field.onChange(date ? date.toISOString().slice(0, 10) : "");
+                              setOrderDateOpen(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  />
                   {errors.order_date && <FieldError>{t("validation.required")}</FieldError>}
                 </Field>
 
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.dueDate")}</FieldLabel>
-                  <Input type="date" {...register("due_date")} />
+                  <Controller
+                    control={control}
+                    name="due_date"
+                    render={({ field }) => (
+                      <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full justify-start text-left font-normal cursor-pointer">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              field.onChange(date ? date.toISOString().slice(0, 10) : "");
+                              setDueDateOpen(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  />
                 </Field>
+                </div>
               </div>
 
               {/* Procurement */}
@@ -615,94 +669,149 @@ export function PurchaseOrderForm({
             </TabsContent>
 
             <TabsContent value="items" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                <ShoppingCart className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-medium">{t("items.title") || "Items"}</h3>
-              </div>
+              {/* Items and Summary Grid Layout */}
+              <div className="grid grid-cols-3 gap-6">
+                {/* Items Section - Left Column (2 cols) */}
+                <div className="col-span-2 space-y-4">
+                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                    <ShoppingCart className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium">{t("items.title")} ({fields.length})</h3>
+                  </div>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  onClick={() => append({ product_id: "", quantity: 1, price: 0, discount: 0, notes: null })}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("items.add")}
-                </Button>
-              </div>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {fields.map((f, idx) => {
+                      const item = watchedItems?.[idx];
+                      const itemSubtotal = item
+                        ? (item.price ?? 0) * (item.quantity ?? 1) * (1 - ((item.discount ?? 0) / 100))
+                        : 0;
+                      return (
+                        <div
+                          key={f.id}
+                          className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="absolute top-2 right-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{idx + 1}</span>
+                            {fields.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(idx)}
+                                className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
 
-              <div className="rounded-md border divide-y">
-                {fields.map((f, idx) => (
-                  <div key={f.id} className="p-4 space-y-3">
-                    <div className="grid grid-cols-12 gap-3 items-end">
-                      <Field orientation="vertical" className="col-span-4">
-                        <FieldLabel>{t("items.fields.product")}</FieldLabel>
-                        <Controller
-                          control={control}
-                          name={`items.${idx}.product_id`}
-                          render={({ field }) => (
-                            <CreatableCombobox
-                              value={field.value ?? ""}
-                              onValueChange={(v) => field.onChange(v || "")}
-                              options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
-                              createPermission="product.create"
-                              onCreateClick={() => openQuickCreate("product")}
-                              placeholder={t("placeholders.select")}
-                              createLabel={t("actions.createNew") || "Create New Product"}
-                            />
-                          )}
-                        />
-                        {errors.items?.[idx]?.product_id && <FieldError>{t("validation.required")}</FieldError>}
-                      </Field>
-                      <Field orientation="vertical" className="col-span-2">
-                        <FieldLabel>{t("items.fields.quantity")}</FieldLabel>
-                        <Controller control={control} name={`items.${idx}.quantity`}
-                          render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
-                        />
-                      </Field>
-                      <Field orientation="vertical" className="col-span-2">
-                        <FieldLabel>{t("items.fields.price")}</FieldLabel>
-                        <Controller control={control} name={`items.${idx}.price`}
-                          render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
-                        />
-                      </Field>
-                      <Field orientation="vertical" className="col-span-2">
-                        <FieldLabel>{t("items.fields.discount")}</FieldLabel>
-                        <Controller control={control} name={`items.${idx}.discount`}
-                          render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
-                        />
-                      </Field>
-                      <div className="col-span-1 flex items-end pb-1">
-                        <Button type="button" variant="ghost" size="icon" className="cursor-pointer text-destructive"
-                          onClick={() => remove(idx)} disabled={fields.length === 1}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <div className="grid grid-cols-2 gap-3 mt-6">
+                            <Field orientation="vertical" className="col-span-2">
+                              <FieldLabel>{t("items.fields.product")} *</FieldLabel>
+                              <Controller
+                                control={control}
+                                name={`items.${idx}.product_id`}
+                                render={({ field }) => (
+                                  <CreatableCombobox
+                                    value={field.value ?? ""}
+                                    onValueChange={(v) => field.onChange(v || "")}
+                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+                                    createPermission="product.create"
+                                    onCreateClick={() => openQuickCreate("product")}
+                                    placeholder={t("placeholders.select")}
+                                    createLabel={t("actions.createNew") || "Create New Product"}
+                                  />
+                                )}
+                              />
+                              {errors.items?.[idx]?.product_id && <FieldError>{t("validation.required")}</FieldError>}
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("items.fields.quantity")} *</FieldLabel>
+                              <Controller control={control} name={`items.${idx}.quantity`}
+                                render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
+                              />
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("items.fields.price")} *</FieldLabel>
+                              <Controller control={control} name={`items.${idx}.price`}
+                                render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+                              />
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("items.fields.discount")}</FieldLabel>
+                              <Controller control={control} name={`items.${idx}.discount`}
+                                render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+                              />
+                            </Field>
+
+                            <Field orientation="vertical">
+                              <FieldLabel>{t("items.fields.notes")}</FieldLabel>
+                              <Controller control={control} name={`items.${idx}.notes`}
+                                render={({ field }) => (
+                                  <Input value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
+                                )}
+                              />
+                            </Field>
+
+                            <div className="col-span-2 pt-2 border-t border-border/50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">{t("summary.subtotal")}:</span>
+                                <span className="text-base font-bold text-primary">{formatMoney(itemSubtotal)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ product_id: "", quantity: 1, price: 0, discount: 0, notes: null })}
+                      className="w-full cursor-pointer border-dashed"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {t("items.add")}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Totals Summary - Right Column */}
+                <div className="col-span-1">
+                  <div className="sticky space-y-4">
+                    <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-medium">{t("summary.subtotal") ? "Summary" : "Summary"}</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("summary.subtotal")}:</span>
+                        <span className="font-medium ml-auto">{formatMoney(subtotal)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("summary.taxAmount")} ({taxRate}%):</span>
+                        <span className="font-medium ml-auto">{formatMoney(taxAmount)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("summary.deliveryCost")}:</span>
+                        <span className="font-medium ml-auto">{formatMoney(Number(deliveryCost))}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-muted-foreground text-sm">{t("summary.otherCost")}:</span>
+                        <span className="font-medium ml-auto">{formatMoney(Number(otherCost))}</span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
+                        <span className="text-lg font-bold">{t("summary.total")}:</span>
+                        <span className="text-lg font-bold text-primary ml-auto">{formatMoney(totalAmount)}</span>
                       </div>
                     </div>
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("items.fields.notes")}</FieldLabel>
-                      <Controller control={control} name={`items.${idx}.notes`}
-                        render={({ field }) => (
-                          <Input value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
-                        )}
-                      />
-                    </Field>
                   </div>
-                ))}
+                </div>
               </div>
-
-              <Card className="bg-muted/30">
-                <CardContent className="p-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.subtotal") || "Subtotal"}</span><span className="font-medium">{formatMoney(subtotal)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.taxAmount") || "Tax"}</span><span className="font-medium">{formatMoney(taxAmount)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.deliveryCost")}</span><span className="font-medium">{formatMoney(Number(deliveryCost))}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("fields.otherCost")}</span><span className="font-medium">{formatMoney(Number(otherCost))}</span></div>
-                  <div className="h-px bg-border" />
-                  <div className="flex justify-between font-semibold"><span>{t("fields.total") || "Total"}</span><span>{formatMoney(totalAmount)}</span></div>
-                </CardContent>
-              </Card>
 
               <div className="flex items-center justify-between pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">

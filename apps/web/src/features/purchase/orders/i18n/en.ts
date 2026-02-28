@@ -79,6 +79,7 @@ export const purchaseOrderEn = {
   placeholders: {
     select: "Select...",
     none: "None",
+    pickDate: "Pick a date",
   },
   validation: {
     required: "Required",
