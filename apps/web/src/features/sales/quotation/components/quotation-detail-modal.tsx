@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Printer } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Printer, ExternalLink } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -343,6 +344,20 @@ export function QuotationDetailModal({
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("notes")}</TableCell>
                           <TableCell colSpan={3}>{displayQuotation.notes}</TableCell>
+                        </TableRow>
+                      )}
+                      {displayQuotation.source_deal_id && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("sourceDeal")}</TableCell>
+                          <TableCell colSpan={3}>
+                            <Link
+                              href={`/crm/pipeline/${displayQuotation.source_deal_id}`}
+                              className="inline-flex items-center gap-1.5 text-primary hover:underline text-sm"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              {t("sourceDeal")}
+                            </Link>
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>

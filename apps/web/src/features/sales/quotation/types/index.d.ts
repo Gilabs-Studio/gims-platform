@@ -107,6 +107,7 @@ export interface SalesQuotation {
   rejection_reason?: string;
   converted_to_sales_order_id?: string;
   converted_at?: string;
+  source_deal_id?: string | null;
   items?: SalesQuotationItem[];
   created_at: string;
   updated_at: string;
