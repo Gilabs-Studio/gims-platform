@@ -114,7 +114,7 @@ function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord
 }
 
 export function AttendanceList() {
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
