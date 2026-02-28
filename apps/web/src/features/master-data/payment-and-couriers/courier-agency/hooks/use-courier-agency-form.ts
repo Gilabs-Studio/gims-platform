@@ -22,9 +22,11 @@ export interface UseCourierAgencyFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: CourierAgency | null;
+  /** Called after a successful create with the newly created item's id and name */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useCourierAgencyForm({ open, onOpenChange, editingItem }: UseCourierAgencyFormProps) {
+export function useCourierAgencyForm({ open, onOpenChange, editingItem, onCreated }: UseCourierAgencyFormProps) {
   const t = useTranslations("courierAgency");
   const tCommon = useTranslations("common");
 
@@ -73,8 +75,9 @@ export function useCourierAgencyForm({ open, onOpenChange, editingItem }: UseCou
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated", { fallback: "Courier agency updated successfully" }));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = await createMutation.mutateAsync(data);
         toast.success(t("created", { fallback: "Courier agency created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
       form.reset();

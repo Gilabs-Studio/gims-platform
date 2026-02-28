@@ -36,12 +36,15 @@ interface SupplierDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Supplier | null;
+  /** Called after a successful create with id and name of the new item */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
 export function SupplierDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: SupplierDialogProps) {
   const {
     form,
@@ -53,7 +56,7 @@ export function SupplierDialog({
     activeItem,
     supplierTypes,
     onSubmit,
-  } = useSupplierForm({ open, onOpenChange, editingItem });
+  } = useSupplierForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,

@@ -178,6 +178,7 @@ type SalesOrderItemResponse struct {
 	Subtotal                float64           `json:"subtotal"`
 	ReservedQuantity        float64           `json:"reserved_quantity"`
 	DeliveredQuantity       float64           `json:"delivered_quantity"`
+	InvoicedQuantity        float64           `json:"invoiced_quantity"`
 	PendingDeliveryQuantity float64           `json:"pending_delivery_quantity"`
 	CreatedAt               string            `json:"created_at"`
 	UpdatedAt               string            `json:"updated_at"`

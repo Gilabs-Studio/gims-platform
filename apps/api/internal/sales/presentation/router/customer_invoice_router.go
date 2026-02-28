@@ -17,5 +17,4 @@ func RegisterCustomerInvoiceRoutes(rg *gin.RouterGroup, h *handler.CustomerInvoi
 	g.DELETE("/:id", middleware.RequirePermission("customer_invoice.delete"), h.Delete)
 	g.PATCH("/:id/status", middleware.RequirePermission("customer_invoice.update"), h.UpdateStatus)
 	g.POST("/:id/approve", middleware.RequirePermission("customer_invoice.approve"), h.Approve)
-	g.POST("/:id/payments", middleware.RequirePermission("customer_invoice.update"), h.RecordPayment)
 }

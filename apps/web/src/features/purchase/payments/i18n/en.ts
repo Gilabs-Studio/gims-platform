@@ -15,6 +15,11 @@ export const purchasePaymentEn = {
     view: "View",
     auditTrail: "Audit Trail",
     delete: "Delete",
+    createNew: "Create New",
+  },
+  sections: {
+    invoiceInfo: "Invoice Information",
+    paymentDetails: "Payment Details",
   },
   status: {
     pending: "Pending",

@@ -8,7 +8,6 @@ import type {
   CreateCustomerInvoiceData,
   UpdateCustomerInvoiceData,
   UpdateCustomerInvoiceStatusData,
-  RecordPaymentData,
   CustomerInvoice,
   CustomerInvoiceListResponse,
 } from "../types";
@@ -157,25 +156,3 @@ export function useApproveInvoice() {
   });
 }
 
-// Record payment mutation
-export function useRecordPayment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: RecordPaymentData;
-    }) => invoiceService.recordPayment(id, data),
-    onSuccess: (_, variables) => {
-      // Invalidate detail query
-      queryClient.invalidateQueries({
-        queryKey: invoiceKeys.detail(variables.id),
-      });
-      // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
-    },
-  });
-}

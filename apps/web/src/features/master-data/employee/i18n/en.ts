@@ -4,6 +4,7 @@ export const employeeEn = {
   plural: "Employees",
   description: "Manage company employees",
   createTitle: "Create Employee",
+  create: "Create Employee",
   editTitle: "Edit Employee",
   deleteTitle: "Delete Employee",
   deleteConfirm: "Are you sure you want to delete this employee?",

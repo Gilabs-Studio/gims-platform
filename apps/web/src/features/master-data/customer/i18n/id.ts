@@ -197,9 +197,15 @@ export const customerId: CustomerTranslations = {
     websiteMaxLength: "Website maksimal 200 karakter",
     npwpMaxLength: "NPWP maksimal 30 karakter",
     addressMaxLength: "Alamat maksimal 500 karakter",
-    phoneNumberRequired: "Nomor telepon wajib diisi",
     accountNumberRequired: "Nomor rekening wajib diisi",
     accountNameRequired: "Nama pemilik rekening wajib diisi",
     bankRequired: "Bank wajib dipilih",
+  },
+  // Top-level shortcuts used by QuickCreateCustomerDialog
+  createSuccess: "Pelanggan berhasil dibuat",
+  create: "Buat Pelanggan",
+  form: {
+    name: "Nama",
+    namePlaceholder: "Nama pelanggan",
   },
 };

@@ -75,8 +75,11 @@ export const goodsReceiptId = {
     auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",
+    next: "Selanjutnya",
+    back: "Kembali",
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
 };

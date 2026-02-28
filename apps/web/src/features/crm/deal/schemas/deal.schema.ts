@@ -55,6 +55,7 @@ export const moveDealStageSchema = z.object({
   reason: z.string().min(2, "Reason must be at least 2 characters"),
   notes: z.string().max(500).optional().or(z.literal("")),
   close_reason: z.string().optional().or(z.literal("")),
+  convert_to_quotation: z.boolean(),
 });
 
 export type MoveDealStageFormData = z.infer<typeof moveDealStageSchema>;

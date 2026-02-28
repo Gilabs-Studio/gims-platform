@@ -127,6 +127,7 @@ type SalesOrderItem struct {
 	// Stock reservation tracking
 	ReservedQuantity  float64 `gorm:"type:decimal(15,3);default:0" json:"reserved_quantity"`
 	DeliveredQuantity float64 `gorm:"type:decimal(15,3);default:0" json:"delivered_quantity"`
+	InvoicedQuantity  float64 `gorm:"type:decimal(15,3);default:0" json:"invoiced_quantity"`
 
 	// Timestamps
 	CreatedAt time.Time      `json:"created_at"`

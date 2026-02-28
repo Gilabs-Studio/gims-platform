@@ -46,17 +46,25 @@ function DraggableDealCard({
   deal: Deal;
   onClick: (deal: Deal) => void;
 }) {
+  // Deals already converted to a quotation cannot be moved
+  const isLocked = !!deal.converted_to_quotation_id;
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: deal.id,
     data: { deal },
+    disabled: isLocked,
   });
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      style={{ opacity: isDragging ? 0.4 : 1, touchAction: "none" }}
+      {...(isLocked ? {} : listeners)}
+      {...(isLocked ? {} : attributes)}
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        touchAction: isLocked ? "auto" : "none",
+        cursor: isLocked ? "default" : undefined,
+      }}
     >
       <DealCard deal={deal} onClick={onClick} />
     </div>

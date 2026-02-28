@@ -71,6 +71,7 @@ interface EmployeeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee?: Employee | null;
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
 const GENDER_OPTIONS: Gender[] = ["male", "female"];
@@ -94,6 +95,7 @@ export function EmployeeForm({
   open,
   onOpenChange,
   employee,
+  onCreated,
 }: EmployeeFormProps) {
   const t = useTranslations("employee");
   const isEditing = !!employee;
@@ -365,8 +367,9 @@ export function EmployeeForm({
             : undefined,
         };
 
-        await createEmployee.mutateAsync(cleanData);
+        const result = await createEmployee.mutateAsync(cleanData);
         toast.success(t("createSuccess"));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
     } catch {

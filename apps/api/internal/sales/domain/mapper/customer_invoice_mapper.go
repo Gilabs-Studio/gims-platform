@@ -20,6 +20,7 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 		Type:              string(invoice.Type),
 		InvoiceDate:       invoice.InvoiceDate.Format("2006-01-02"),
 		SalesOrderID:      invoice.SalesOrderID,
+		DeliveryOrderID:   invoice.DeliveryOrderID,
 		PaymentTermsID:    invoice.PaymentTermsID,
 		Subtotal:          invoice.Subtotal,
 		TaxRate:           invoice.TaxRate,
@@ -80,6 +81,14 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 		}
 	}
 
+	// Map DeliveryOrder
+	if invoice.DeliveryOrder != nil {
+		resp.DeliveryOrder = &dto.DeliveryOrderBriefResponse{
+			ID:   invoice.DeliveryOrder.ID,
+			Code: invoice.DeliveryOrder.Code,
+		}
+	}
+
 	// Map Items
 	if len(invoice.Items) > 0 {
 		resp.Items = make([]dto.CustomerInvoiceItemResponse, len(invoice.Items))
@@ -98,10 +107,12 @@ func MapCustomerInvoiceItemToResponse(item *models.CustomerInvoiceItem) *dto.Cus
 	}
 
 	resp := &dto.CustomerInvoiceItemResponse{
-		ID:                item.ID,
-		CustomerInvoiceID: item.CustomerInvoiceID,
-		ProductID:         item.ProductID,
-		Quantity:          item.Quantity,
+		ID:                  item.ID,
+		CustomerInvoiceID:   item.CustomerInvoiceID,
+		ProductID:           item.ProductID,
+		SalesOrderItemID:    item.SalesOrderItemID,
+		DeliveryOrderItemID: item.DeliveryOrderItemID,
+		Quantity:            item.Quantity,
 		Price:             item.Price,
 		Discount:          item.Discount,
 		Subtotal:          item.Subtotal,

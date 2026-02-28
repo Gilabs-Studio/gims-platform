@@ -41,6 +41,7 @@ interface CustomerSidePanelProps {
   readonly mode: PanelMode;
   readonly customer?: Customer | null;
   readonly onSuccess?: () => void;
+  readonly onCreated?: (item: { id: string; name: string }) => void;
 }
 
 export function CustomerSidePanel({
@@ -49,6 +50,7 @@ export function CustomerSidePanel({
   mode,
   customer,
   onSuccess,
+  onCreated,
 }: CustomerSidePanelProps) {
   const t = useTranslations("customer");
   const tContact = useTranslations("crmContact");
@@ -211,7 +213,7 @@ export function CustomerSidePanel({
         toast.success(t("customer.updateSuccess"));
       } else {
         // For creation, omit empty optional fields entirely.
-        await createCustomer.mutateAsync({
+        const result = await createCustomer.mutateAsync({
           name: data.name,
           customer_type_id: data.customer_type_id || undefined,
           address: data.address || undefined,
@@ -234,6 +236,7 @@ export function CustomerSidePanel({
           default_tax_rate: data.default_tax_rate ?? undefined,
         });
         toast.success(t("customer.createSuccess"));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onSuccess?.();
       onClose();

@@ -66,5 +66,6 @@ export const supplierInvoiceDPId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
 };

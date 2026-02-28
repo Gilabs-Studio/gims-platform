@@ -200,6 +200,13 @@ export const customerEn = {
     accountNameRequired: "Account name is required",
     bankRequired: "Bank is required",
   },
+  // Top-level shortcuts used by QuickCreateCustomerDialog
+  createSuccess: "Customer created successfully",
+  create: "Create Customer",
+  form: {
+    name: "Name",
+    namePlaceholder: "Customer name",
+  },
 };
 
 export type CustomerTranslations = typeof customerEn;

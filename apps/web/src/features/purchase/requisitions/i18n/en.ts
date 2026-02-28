@@ -12,6 +12,7 @@ export const purchaseRequisitionEn = {
     delete: "Delete",
     addItem: "Add Item",
     save: "Save",
+    saving: "Saving...",
     cancel: "Cancel",
     approve: "Approve",
     reject: "Reject",
@@ -40,7 +41,16 @@ export const purchaseRequisitionEn = {
   },
   tabs: {
     general: "General",
+    basic: "Basic Info",
     items: "Items",
+  },
+  sections: {
+    procurement: "Procurement",
+    financial: "Financial Summary",
+  },
+  common: {
+    next: "Next",
+    back: "Back",
   },
   fields: {
     requestDate: "Request Date",
@@ -61,10 +71,12 @@ export const purchaseRequisitionEn = {
     quantity: "Qty",
     purchasePrice: "Purchase Price",
     discount: "Discount (%)",
+    address: "Delivery Address",
   },
   placeholders: {
     select: "Select...",
     none: "None",
+    address: "Delivery address",
   },
   validation: {
     required: "Required",

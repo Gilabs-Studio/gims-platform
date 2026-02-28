@@ -149,6 +149,9 @@ export const quotationEn = {
       invalidStatus: "Invalid status",
       invalidEmail: "Invalid email format",
     },
+    // Source CRM deal reference
+    sourceDeal: "Source CRM Deal",
+
     // Workflow timestamps
     approvedAt: "Approved At",
     rejectedAt: "Rejected At",

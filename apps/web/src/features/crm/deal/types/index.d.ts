@@ -173,6 +173,12 @@ export interface MoveDealStageData {
   reason: string;
   notes?: string;
   close_reason?: string;
+  convert_to_quotation?: boolean;
+}
+
+export interface MoveDealStageResponse {
+  deal: Deal;
+  conversion?: ConvertToQuotationResponse | null;
 }
 
 export interface DealListParams {

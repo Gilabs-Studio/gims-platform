@@ -23,7 +23,14 @@ export const productEn = {
     selectCategory: "Select category...",
     cancel: "Cancel",
     save: "Save",
+    // Used by QuickCreateProductDialog
+    name: "Name",
+    namePlaceholder: "Product name",
+    code: "Code",
+    codePlaceholder: "Product code (optional)",
   },
+  // Top-level shortcut for quick-create
+  createSuccess: "Product created successfully",
   productCategory: {
     title: "Product Categories",
     singular: "Product Category",

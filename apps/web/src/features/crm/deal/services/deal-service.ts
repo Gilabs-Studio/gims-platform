@@ -4,6 +4,7 @@ import type {
   CreateDealData,
   UpdateDealData,
   MoveDealStageData,
+  MoveDealStageResponse,
   DealListParams,
   DealsByStageParams,
   DealFormDataResponse,
@@ -69,8 +70,8 @@ export const dealService = {
   moveStage: async (
     id: string,
     data: MoveDealStageData
-  ): Promise<ApiResponse<Deal>> => {
-    const response = await apiClient.post<ApiResponse<Deal>>(
+  ): Promise<ApiResponse<MoveDealStageResponse>> => {
+    const response = await apiClient.post<ApiResponse<MoveDealStageResponse>>(
       `${BASE_URL}/${id}/move-stage`,
       data
     );

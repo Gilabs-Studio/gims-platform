@@ -232,6 +232,7 @@ func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 			"auth_confirmed", "auth_person",
 			"need_confirmed", "need_description",
 			"time_confirmed", "notes",
+			"converted_to_quotation_id", "converted_at",
 		).
 		Save(deal).Error
 }

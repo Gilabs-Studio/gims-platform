@@ -6,6 +6,7 @@ type CreateCustomerInvoiceRequest struct {
 	DueDate              *string                            `json:"due_date"`
 	Type                 string                             `json:"type" binding:"omitempty,oneof=regular proforma down_payment"`
 	SalesOrderID         *string                            `json:"sales_order_id" binding:"omitempty,uuid"`
+	DeliveryOrderID      *string                            `json:"delivery_order_id" binding:"omitempty,uuid"`
 	PaymentTermsID       *string                            `json:"payment_terms_id" binding:"omitempty,uuid"`
 	TaxRate              float64                            `json:"tax_rate" binding:"gte=0,lte=100"`
 	DeliveryCost         float64                            `json:"delivery_cost" binding:"gte=0"`
@@ -17,11 +18,13 @@ type CreateCustomerInvoiceRequest struct {
 
 // CreateCustomerInvoiceItemRequest represents an item in the invoice
 type CreateCustomerInvoiceItemRequest struct {
-	ProductID string  `json:"product_id" binding:"required,uuid"`
-	Quantity  float64 `json:"quantity" binding:"required,gt=0"`
-	Price     float64 `json:"price" binding:"required,gt=0"`
-	Discount  float64 `json:"discount" binding:"gte=0"`
-	HPPAmount float64 `json:"hpp_amount" binding:"gte=0"`
+	ProductID           string  `json:"product_id" binding:"required,uuid"`
+	SalesOrderItemID    *string `json:"sales_order_item_id" binding:"omitempty,uuid"`
+	DeliveryOrderItemID *string `json:"delivery_order_item_id" binding:"omitempty,uuid"`
+	Quantity            float64 `json:"quantity" binding:"required,gt=0"`
+	Price               float64 `json:"price" binding:"required,gt=0"`
+	Discount            float64 `json:"discount" binding:"gte=0"`
+	HPPAmount           float64 `json:"hpp_amount" binding:"gte=0"`
 }
 
 // UpdateCustomerInvoiceRequest represents the request to update a customer invoice
@@ -66,13 +69,6 @@ type UpdateCustomerInvoiceStatusRequest struct {
 	PaymentAt  *string  `json:"payment_at"`
 }
 
-// RecordPaymentRequest represents the request to record a payment
-type RecordPaymentRequest struct {
-	PaidAmount float64 `json:"paid_amount" binding:"required,gt=0"`
-	PaymentAt  *string `json:"payment_at"`
-	Notes      string  `json:"notes"`
-}
-
 // CustomerInvoiceResponse represents the response for a customer invoice
 type CustomerInvoiceResponse struct {
 	ID                     string                        `json:"id"`
@@ -83,6 +79,8 @@ type CustomerInvoiceResponse struct {
 	DueDate                *string                       `json:"due_date"`
 	SalesOrderID           *string                       `json:"sales_order_id"`
 	SalesOrder             *SalesOrderBriefResponse      `json:"sales_order,omitempty"`
+	DeliveryOrderID        *string                       `json:"delivery_order_id"`
+	DeliveryOrder          *DeliveryOrderBriefResponse   `json:"delivery_order,omitempty"`
 	PaymentTermsID         *string                       `json:"payment_terms_id"`
 	PaymentTerms           *PaymentTermsResponse         `json:"payment_terms,omitempty"`
 	DownPaymentInvoiceID   *string                       `json:"down_payment_invoice_id,omitempty"`
@@ -107,19 +105,27 @@ type CustomerInvoiceResponse struct {
 	UpdatedAt              string                        `json:"updated_at"`
 }
 
+// DeliveryOrderBriefResponse represents a brief delivery order info in response
+type DeliveryOrderBriefResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+}
+
 // CustomerInvoiceItemResponse represents an item in the invoice response
 type CustomerInvoiceItemResponse struct {
-	ID                string           `json:"id"`
-	CustomerInvoiceID string           `json:"customer_invoice_id"`
-	ProductID         string           `json:"product_id"`
-	Product           *ProductResponse `json:"product,omitempty"`
-	Quantity          float64          `json:"quantity"`
-	Price             float64          `json:"price"`
-	Discount          float64          `json:"discount"`
-	Subtotal          float64          `json:"subtotal"`
-	HPPAmount         float64          `json:"hpp_amount"`
-	CreatedAt         string           `json:"created_at"`
-	UpdatedAt         string           `json:"updated_at"`
+	ID                  string           `json:"id"`
+	CustomerInvoiceID   string           `json:"customer_invoice_id"`
+	ProductID           string           `json:"product_id"`
+	Product             *ProductResponse `json:"product,omitempty"`
+	SalesOrderItemID    *string          `json:"sales_order_item_id"`
+	DeliveryOrderItemID *string          `json:"delivery_order_item_id"`
+	Quantity            float64          `json:"quantity"`
+	Price               float64          `json:"price"`
+	Discount            float64          `json:"discount"`
+	Subtotal            float64          `json:"subtotal"`
+	HPPAmount           float64          `json:"hpp_amount"`
+	CreatedAt           string           `json:"created_at"`
+	UpdatedAt           string           `json:"updated_at"`
 }
 
 // SalesOrderBriefResponse represents a brief sales order info in response

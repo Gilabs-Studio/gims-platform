@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +34,11 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+
+  type QuickCreateType = "paymentTerm" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
+  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
   // Fetch full invoice data with items when editing
   const { data: fullInvoiceData, isLoading: isLoadingInvoice, isFetching: isFetchingInvoice } = useInvoice(
@@ -350,6 +355,11 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
     }
   };
 
+  const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
+    form.setValue("payment_terms_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, form]);
+
   return {
     form,
     t,
@@ -375,5 +385,9 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
     handleProductChange,
     handleDialogChange,
     onInvalid,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
   };
 }

@@ -37,9 +37,11 @@ export interface UseSupplierFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Supplier | null;
+  /** Called after a successful create with id and name of the new item */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplierFormProps) {
+export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: UseSupplierFormProps) {
   const t = useTranslations("supplier.supplier");
   const tCommon = useTranslations("supplier.common");
   
@@ -151,8 +153,9 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
         toast.success(t("updateSuccess", { fallback: "Supplier updated successfully" }));
       } else {
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        await createMutation.mutateAsync(payload as any);
+        const result = await createMutation.mutateAsync(payload as any);
         toast.success(t("createSuccess", { fallback: "Supplier created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
     } catch {

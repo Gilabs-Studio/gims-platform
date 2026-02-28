@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FileText, AlertTriangle } from "lucide-react";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDealFormData, useMoveDealStage } from "../hooks/use-deals";
 import {
   moveDealStageSchema,
@@ -61,6 +64,7 @@ export function MoveStageDialog({
       reason: "",
       notes: "",
       close_reason: "",
+      convert_to_quotation: false,
     },
   });
 
@@ -78,6 +82,7 @@ export function MoveStageDialog({
         reason: "",
         notes: "",
         close_reason: "",
+        convert_to_quotation: false,
       });
     }
   }, [open, reset]);
@@ -92,6 +97,16 @@ export function MoveStageDialog({
     selectedStage && selectedStage.probability !== undefined
       ? selectedStage.probability === 100 || selectedStage.probability === 0
       : false;
+
+  // Determine if selected stage is a Won stage (for convert checkbox)
+  const isWonStage = selectedStage?.is_won === true;
+
+  // Check if deal has items and customer (prerequisites for conversion)
+  const hasItems = (deal?.items?.length ?? 0) > 0;
+  const hasCustomer = !!deal?.customer_id;
+  const hasPrerequisites = hasItems && hasCustomer;
+  // Permission to create a Sales Quotation determines whether the checkbox is shown
+  const hasPermission = useUserPermission("sales_quotation.create");
 
   // Filter out current stage from available options
   const availableStages = (formData?.pipeline_stages ?? []).filter(
@@ -109,6 +124,7 @@ export function MoveStageDialog({
           reason: data.reason ?? "",
           notes: data.notes || undefined,
           close_reason: data.close_reason || undefined,
+          convert_to_quotation: data.convert_to_quotation || false,
         },
       },
       {
@@ -243,6 +259,48 @@ export function MoveStageDialog({
               )}
             />
           </div>
+
+          {/* Convert to Sales Quotation checkbox (only for Won stages) */}
+          {isWonStage && hasPermission && (
+            <div className="rounded-lg border p-3 space-y-2">
+              <Controller
+                name="convert_to_quotation"
+                control={control}
+                render={({ field }) => (
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="convert_to_quotation"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!hasPrerequisites}
+                      className="mt-0.5 cursor-pointer"
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="convert_to_quotation"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5" />
+                          {t("moveStageConvertLabel")}
+                        </div>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t("moveStageConvertDescription")}
+                      </p>
+                      {!hasPrerequisites && isWonStage && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {!hasItems && t("moveStageConvertNoItems")}
+                          {hasItems && !hasCustomer && t("moveStageConvertNoCustomer")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              />
+            </div>
+          )}
 
           <DialogFooter className="gap-2">
             <Button

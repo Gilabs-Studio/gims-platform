@@ -15,7 +15,12 @@ export const supplierInvoiceEn = {
   },
   tabs: {
     general: "General",
+    basic: "Basic Info",
     items: "Items",
+  },
+  sections: {
+    invoiceInfo: "Invoice Information",
+    financial: "Financial Summary",
   },
   auditTrail: {
     title: "Audit Trail",
@@ -52,6 +57,10 @@ export const supplierInvoiceEn = {
     otherCost: "Other Cost",
     notes: "Notes",
     status: "Status",
+    subtotal: "Subtotal",
+    taxAmount: "Tax Amount",
+    total: "Total",
+    summaryTitle: "Summary",
   },
   items: {
     title: "Items",
@@ -89,8 +98,13 @@ export const supplierInvoiceEn = {
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",
+    next: "Next",
+    back: "Back",
+    createNew: "Create New",
   },
   placeholders: {
     select: "Select...",
+    none: "None",
+    pickDate: "Pick a date",
   },
 };

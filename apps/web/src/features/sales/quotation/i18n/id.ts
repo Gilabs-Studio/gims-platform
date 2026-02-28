@@ -150,6 +150,9 @@ export const quotationId = {
       invalidEmail: "Format email tidak valid",
     },
     // Workflow timestamps
+    // Referensi deal CRM sumber
+    sourceDeal: "Deal CRM Sumber",
+
     approvedAt: "Disetujui Pada",
     rejectedAt: "Ditolak Pada",
     convertedAt: "Dikonversi Pada",

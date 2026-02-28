@@ -24,6 +24,8 @@ export interface CustomerInvoiceItem {
   customer_invoice_id: string;
   product_id: string;
   product?: Product;
+  sales_order_item_id?: string;
+  delivery_order_item_id?: string;
   quantity: number;
   price: number;
   discount: number;
@@ -43,6 +45,8 @@ export interface CustomerInvoice {
   type: CustomerInvoiceType;
   sales_order_id?: string;
   sales_order?: SalesOrder;
+  delivery_order_id?: string;
+  delivery_order?: { id: string; code: string };
   payment_terms_id?: string;
   payment_terms?: PaymentTerms;
   down_payment_invoice_id?: string;
@@ -143,6 +147,7 @@ export interface CreateCustomerInvoiceData {
   due_date?: string;
   type?: CustomerInvoiceType;
   sales_order_id?: string;
+  delivery_order_id?: string;
   payment_terms_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
@@ -153,6 +158,8 @@ export interface CreateCustomerInvoiceData {
 
 export interface CreateCustomerInvoiceItemData {
   product_id: string;
+  sales_order_item_id?: string;
+  delivery_order_item_id?: string;
   quantity: number;
   price: number;
   discount?: number;
@@ -177,8 +184,3 @@ export interface UpdateCustomerInvoiceStatusData {
   payment_at?: string;
 }
 
-export interface RecordPaymentData {
-  paid_amount: number;
-  payment_at?: string;
-  notes?: string;
-}

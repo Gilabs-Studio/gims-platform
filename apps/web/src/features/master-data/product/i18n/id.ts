@@ -23,7 +23,13 @@ export const productId = {
     selectCategory: "Pilih kategori...",
     cancel: "Batal",
     save: "Simpan",
+    // Used by QuickCreateProductDialog
+    name: "Nama",
+    namePlaceholder: "Nama produk",
+    code: "Kode",
+    codePlaceholder: "Kode produk (opsional)",
   },
+  createSuccess: "Produk berhasil dibuat",
   productCategory: {
     title: "Kategori Produk",
     singular: "Kategori Produk",
