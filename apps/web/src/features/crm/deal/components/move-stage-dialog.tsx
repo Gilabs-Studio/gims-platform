@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FileText, AlertTriangle } from "lucide-react";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDealFormData, useMoveDealStage } from "../hooks/use-deals";
 import {
   moveDealStageSchema,
@@ -103,7 +104,9 @@ export function MoveStageDialog({
   // Check if deal has items and customer (prerequisites for conversion)
   const hasItems = (deal?.items?.length ?? 0) > 0;
   const hasCustomer = !!deal?.customer_id;
-  const canConvert = isWonStage && hasItems && hasCustomer;
+  const hasPrerequisites = hasItems && hasCustomer;
+  // Permission to create a Sales Quotation determines whether the checkbox is shown
+  const hasPermission = useUserPermission("sales_quotation.create");
 
   // Filter out current stage from available options
   const availableStages = (formData?.pipeline_stages ?? []).filter(
@@ -258,7 +261,7 @@ export function MoveStageDialog({
           </div>
 
           {/* Convert to Sales Quotation checkbox (only for Won stages) */}
-          {isWonStage && (
+          {isWonStage && hasPermission && (
             <div className="rounded-lg border p-3 space-y-2">
               <Controller
                 name="convert_to_quotation"
@@ -269,7 +272,7 @@ export function MoveStageDialog({
                       id="convert_to_quotation"
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      disabled={!canConvert}
+                      disabled={!hasPrerequisites}
                       className="mt-0.5 cursor-pointer"
                     />
                     <div className="space-y-1">
@@ -285,7 +288,7 @@ export function MoveStageDialog({
                       <p className="text-xs text-muted-foreground">
                         {t("moveStageConvertDescription")}
                       </p>
-                      {!canConvert && isWonStage && (
+                      {!hasPrerequisites && isWonStage && (
                         <p className="text-xs text-amber-600 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {!hasItems && t("moveStageConvertNoItems")}

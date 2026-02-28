@@ -12,7 +12,7 @@ const (
 	dealUpdate          = "crm_deal.update"
 	dealDelete          = "crm_deal.delete"
 	dealMoveStage       = "crm_deal.move_stage"
-	dealConvertQuotation = "crm_deal.convert_quotation"
+	dealConvertQuotation = "sales_quotation.create"
 )
 
 // RegisterDealRoutes registers all deal-related routes

@@ -175,6 +175,7 @@ export const crmDealEn = {
       quotationCode: "Quotation Code",
       viewQuotation: "View Quotation",
       alreadyConverted: "This deal has been converted to a sales quotation.",
+      permissionRequired: "You don't have permission to convert deals",
       notesLabel: "Additional Notes (Optional)",
       notesPlaceholder: "Enter any additional notes for the quotation...",
     },

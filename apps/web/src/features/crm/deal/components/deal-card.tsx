@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Building2, Calendar, DollarSign, FileText, User } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +45,8 @@ function isConverted(deal: Deal): boolean {
 export function DealCard({ deal, onClick }: DealCardProps) {
   const t = useTranslations("crmDeal");
   const converted = isConverted(deal);
+  const canConvert = useUserPermission("sales_quotation.create");
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
 
   return (
     <Card
@@ -60,10 +66,30 @@ export function DealCard({ deal, onClick }: DealCardProps) {
         {/* Converted to SQ badge */}
         {converted && (
           <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="text-xs gap-1 border-green-500 text-green-700 bg-green-50">
+            <Badge variant="success" className="text-xs gap-1">
               <FileText className="h-3 w-3" />
               {t("convertedToSQBadge")}
             </Badge>
+          </div>
+        )}
+
+        {/* Quick convert action for won deals that are not yet converted */}
+        {!converted && deal.status === "won" && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 p-0 text-primary"
+              title={!canConvert ? t("conversion.permissionRequired") : t("conversion.convertToQuotation")}
+              disabled={!canConvert}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!canConvert) return;
+                setShowConvertDialog(true);
+              }}
+            >
+              <FileText className="h-3 w-3" />
+            </Button>
           </div>
         )}
 
@@ -131,6 +157,14 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           </div>
         )}
       </CardContent>
+
+      {canConvert && !converted && deal.status === "won" && (
+        <ConvertToQuotationDialog
+          deal={deal}
+          open={showConvertDialog}
+          onOpenChange={setShowConvertDialog}
+        />
+      )}
     </Card>
   );
 }

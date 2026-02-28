@@ -72,7 +72,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canUpdate = useUserPermission("crm_deal.update");
   const canDelete = useUserPermission("crm_deal.delete");
   const canMoveStage = useUserPermission("crm_deal.move_stage");
-  const canConvert = useUserPermission("crm_deal.convert_quotation");
+  const canConvert = useUserPermission("sales_quotation.create");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -150,13 +150,15 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Convert to Quotation — only for won deals not yet converted */}
-            {canConvert && deal.status === "won" && !deal.converted_to_quotation_id && (
+            {/* Convert to Quotation — show for won deals not yet converted; disable if no permission */}
+            {deal.status === "won" && !deal.converted_to_quotation_id && (
               <Button
                 variant="default"
                 size="sm"
                 className="cursor-pointer"
                 onClick={() => setShowConvertDialog(true)}
+                disabled={!canConvert}
+                title={!canConvert ? t("conversion.permissionRequired") : undefined}
               >
                 <ReceiptText className="h-4 w-4 mr-1" />
                 {t("conversion.convertToQuotation")}
