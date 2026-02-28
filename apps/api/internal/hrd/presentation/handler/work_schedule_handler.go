@@ -188,6 +188,12 @@ func (h *WorkScheduleHandler) SetDefault(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if err == usecase.ErrCannotSetDivisionScheduleAsDefault {
+			errors.ErrorResponse(c, "CANNOT_SET_DIVISION_SCHEDULE_AS_DEFAULT", map[string]interface{}{
+				"schedule_id": id,
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -195,4 +201,15 @@ func (h *WorkScheduleHandler) SetDefault(c *gin.Context) {
 	response.SuccessResponse(c, map[string]interface{}{
 		"message": "Default work schedule set successfully",
 	}, nil)
+}
+
+// GetFormData handles GET /work-schedules/form-data
+func (h *WorkScheduleHandler) GetFormData(c *gin.Context) {
+	formData, err := h.workScheduleUC.GetFormData(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, formData, nil)
 }

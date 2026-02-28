@@ -43,9 +43,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
 	divisionRepo := orgRepos.NewDivisionRepository(db)
 	positionRepo := orgRepos.NewJobPositionRepository(db)
+	companyRepo := orgRepos.NewCompanyRepository(db)
 
 	// Initialize usecases
-	workScheduleUC := usecase.NewWorkScheduleUsecase(workScheduleRepo)
+	workScheduleUC := usecase.NewWorkScheduleUsecase(workScheduleRepo, divisionRepo, companyRepo)
 	holidayUC := usecase.NewHolidayUsecase(holidayRepo)
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo, employeeRepo, divisionRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo, employeeRepo)

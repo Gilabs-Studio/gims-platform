@@ -3,19 +3,23 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDTO "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrWorkScheduleNotFound      = errors.New("work schedule not found")
-	ErrWorkScheduleAlreadyExists = errors.New("work schedule with this name already exists")
-	ErrCannotDeleteDefaultSchedule = errors.New("cannot delete default work schedule")
+	ErrWorkScheduleNotFound               = errors.New("work schedule not found")
+	ErrWorkScheduleAlreadyExists          = errors.New("work schedule with this name already exists")
+	ErrCannotDeleteDefaultSchedule        = errors.New("cannot delete default work schedule")
+	ErrCannotSetDivisionScheduleAsDefault = errors.New("cannot set a division-specific schedule as default")
 )
 
 // WorkScheduleUsecase defines the interface for work schedule business logic
@@ -28,18 +32,27 @@ type WorkScheduleUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateWorkScheduleRequest) (*dto.WorkScheduleResponse, error)
 	Delete(ctx context.Context, id string) error
 	SetDefault(ctx context.Context, id string) error
+	GetFormData(ctx context.Context) (*dto.WorkScheduleFormDataResponse, error)
 }
 
 type workScheduleUsecase struct {
-	repo   repositories.WorkScheduleRepository
-	mapper *mapper.WorkScheduleMapper
+	repo         repositories.WorkScheduleRepository
+	divisionRepo orgRepos.DivisionRepository
+	companyRepo  orgRepos.CompanyRepository
+	mapper       *mapper.WorkScheduleMapper
 }
 
 // NewWorkScheduleUsecase creates a new WorkScheduleUsecase
-func NewWorkScheduleUsecase(repo repositories.WorkScheduleRepository) WorkScheduleUsecase {
+func NewWorkScheduleUsecase(
+	repo repositories.WorkScheduleRepository,
+	divisionRepo orgRepos.DivisionRepository,
+	companyRepo orgRepos.CompanyRepository,
+) WorkScheduleUsecase {
 	return &workScheduleUsecase{
-		repo:   repo,
-		mapper: mapper.NewWorkScheduleMapper(),
+		repo:         repo,
+		divisionRepo: divisionRepo,
+		companyRepo:  companyRepo,
+		mapper:       mapper.NewWorkScheduleMapper(),
 	}
 }
 
@@ -174,12 +187,17 @@ func (u *workScheduleUsecase) Delete(ctx context.Context, id string) error {
 
 func (u *workScheduleUsecase) SetDefault(ctx context.Context, id string) error {
 	// Verify schedule exists
-	_, err := u.repo.FindByID(ctx, id)
+	schedule, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrWorkScheduleNotFound
 		}
 		return err
+	}
+
+	// Only general (non-division) schedules can be set as default
+	if schedule.DivisionID != nil && *schedule.DivisionID != "" {
+		return ErrCannotSetDivisionScheduleAsDefault
 	}
 
 	return u.repo.SetDefault(ctx, id)
@@ -210,4 +228,45 @@ func (u *workScheduleUsecase) GetWorkScheduleForEmployee(ctx context.Context, di
 	}
 
 	return ws, nil
+}
+
+// GetFormData returns dropdown data for the work schedule form (divisions and companies)
+func (u *workScheduleUsecase) GetFormData(ctx context.Context) (*dto.WorkScheduleFormDataResponse, error) {
+	// Get active divisions
+	divListReq := &orgDTO.ListDivisionsRequest{Page: 1, PerPage: 100}
+	divisions, _, err := u.divisionRepo.List(ctx, divListReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch divisions: %w", err)
+	}
+	divisionOptions := make([]dto.DivisionFormOption, 0, len(divisions))
+	for _, div := range divisions {
+		if div.IsActive {
+			divisionOptions = append(divisionOptions, dto.DivisionFormOption{
+				ID:   div.ID,
+				Name: div.Name,
+			})
+		}
+	}
+
+	// Get active companies with coordinates
+	isActive := true
+	compListReq := &orgDTO.ListCompaniesRequest{Page: 1, PerPage: 100, IsActive: &isActive}
+	companies, _, err := u.companyRepo.List(ctx, compListReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch companies: %w", err)
+	}
+	companyOptions := make([]dto.CompanyFormOption, 0, len(companies))
+	for _, c := range companies {
+		companyOptions = append(companyOptions, dto.CompanyFormOption{
+			ID:        c.ID,
+			Name:      c.Name,
+			Latitude:  c.Latitude,
+			Longitude: c.Longitude,
+		})
+	}
+
+	return &dto.WorkScheduleFormDataResponse{
+		Divisions: divisionOptions,
+		Companies: companyOptions,
+	}, nil
 }

@@ -251,6 +251,8 @@ export const hrdEn = {
         officeLatitude: "Office Latitude",
         officeLongitude: "Office Longitude",
         division: "Division",
+        officeLocation: "Office Location",
+        coordinates: "Coordinates",
         isActive: "Active",
         isDefault: "Default",
       },
@@ -272,6 +274,15 @@ export const hrdEn = {
       descriptions: {
         flexible: "Enable flexible working hours with a range of allowed start and end times",
         gps: "Require employees to clock in/out within the specified GPS radius of the office",
+        division: "Assign this schedule to a specific division, or leave empty for a general schedule",
+        officeLocation: "Select a company to use its GPS coordinates for attendance verification",
+      },
+
+      placeholders: {
+        selectDivision: "Select division",
+        allDivisions: "All Divisions (General)",
+        selectCompany: "Select company location",
+        manualCoordinates: "Enter coordinates manually",
       },
 
       days: {

@@ -348,7 +348,7 @@ export function WorkScheduleList() {
                           <Pencil className="mr-2 h-4 w-4" />
                           {tCommon("edit")}
                         </DropdownMenuItem>
-                        {!item.is_default && (
+                        {!item.is_default && !item.division_id && (
                           <DropdownMenuItem
                             onClick={() => handleSetDefault(item.id)}
                             className="cursor-pointer"

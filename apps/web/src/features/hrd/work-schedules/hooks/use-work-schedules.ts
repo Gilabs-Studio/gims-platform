@@ -11,6 +11,7 @@ const QUERY_KEYS = {
   workSchedules: (params?: unknown) => ["work-schedules", params],
   workSchedule: (id: string) => ["work-schedules", id],
   defaultSchedule: () => ["work-schedules", "default"],
+  formData: () => ["work-schedules", "form-data"],
 } as const;
 
 export function useWorkSchedules(params?: {
@@ -95,5 +96,13 @@ export function useDeleteWorkSchedule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
     },
+  });
+}
+
+export function useWorkScheduleFormData() {
+  return useQuery({
+    queryKey: QUERY_KEYS.formData(),
+    queryFn: () => workScheduleService.getFormData(),
+    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }

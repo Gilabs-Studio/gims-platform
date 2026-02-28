@@ -55,6 +55,7 @@ export const workScheduleSchema = z
     office_latitude: z.number().min(-90).max(90).optional(),
     office_longitude: z.number().min(-180).max(180).optional(),
     division_id: z.string().optional().nullable(),
+    company_id: z.string().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -72,18 +73,20 @@ export const workScheduleSchema = z
   )
   .refine(
     (data) => {
-      // If GPS required, coordinates should be set
+      // If GPS required, a company must be selected (to get coordinates)
       if (data.require_gps) {
         return (
-          data.office_latitude !== undefined &&
-          data.office_longitude !== undefined
+          data.company_id ||
+          (data.office_latitude !== undefined &&
+            data.office_longitude !== undefined)
         );
       }
       return true;
     },
     {
-      message: "Office coordinates are required when GPS is enabled",
-      path: ["office_latitude"],
+      message:
+        "Please select a company for GPS coordinates or provide coordinates manually",
+      path: ["company_id"],
     },
   );
 

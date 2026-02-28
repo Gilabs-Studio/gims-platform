@@ -251,6 +251,8 @@ export const hrdId = {
         officeLatitude: "Latitude Kantor",
         officeLongitude: "Longitude Kantor",
         division: "Divisi",
+        officeLocation: "Lokasi Kantor",
+        coordinates: "Koordinat",
         isActive: "Aktif",
         isDefault: "Default",
       },
@@ -272,6 +274,15 @@ export const hrdId = {
       descriptions: {
         flexible: "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
         gps: "Wajibkan karyawan untuk absen masuk/keluar dalam radius GPS yang ditentukan dari kantor",
+        division: "Tetapkan jadwal ini ke divisi tertentu, atau kosongkan untuk jadwal umum",
+        officeLocation: "Pilih perusahaan untuk menggunakan koordinat GPS-nya untuk verifikasi kehadiran",
+      },
+
+      placeholders: {
+        selectDivision: "Pilih divisi",
+        allDivisions: "Semua Divisi (Umum)",
+        selectCompany: "Pilih lokasi perusahaan",
+        manualCoordinates: "Masukkan koordinat manual",
       },
 
       days: {

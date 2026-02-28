@@ -92,3 +92,17 @@ type WorkScheduleResponse struct {
 	CreatedAt                  string      `json:"created_at"`
 	UpdatedAt                  string      `json:"updated_at"`
 }
+
+// CompanyFormOption represents a company option for GPS coordinate picker
+type CompanyFormOption struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+}
+
+// WorkScheduleFormDataResponse represents the form data for work schedule dropdowns
+type WorkScheduleFormDataResponse struct {
+	Divisions []DivisionFormOption `json:"divisions"`
+	Companies []CompanyFormOption  `json:"companies"`
+}
