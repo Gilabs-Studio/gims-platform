@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -379,4 +381,34 @@ func (h *AttendanceRecordHandler) GetFormData(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, formData, nil)
+}
+
+// ProcessAutoAbsent handles manual trigger of auto-absent processing
+func (h *AttendanceRecordHandler) ProcessAutoAbsent(c *gin.Context) {
+	var req dto.ProcessAutoAbsentRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		// Also try JSON body
+		_ = c.ShouldBindJSON(&req)
+	}
+
+	var targetDate time.Time
+	if req.Date != "" {
+		parsed, err := time.Parse("2006-01-02", req.Date)
+		if err != nil {
+			errors.InvalidRequestBodyResponse(c)
+			return
+		}
+		targetDate = parsed
+	} else {
+		// Default to yesterday
+		targetDate = time.Now().AddDate(0, 0, -1)
+	}
+
+	result, err := h.attendanceUC.ProcessAutoAbsent(c.Request.Context(), targetDate)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
 }

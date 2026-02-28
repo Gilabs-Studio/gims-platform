@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import {
   Table,
   TableBody,
@@ -75,7 +76,7 @@ import {
 function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord {
   const dateStr =
     event.date instanceof Date
-      ? event.date.toISOString().split("T")[0]
+      ? format(event.date, "yyyy-MM-dd")
       : String(event.date);
   return {
     id: event.id,

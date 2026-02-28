@@ -2,9 +2,9 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.1.0  
-> **Status:** ✅ Complete (API + Frontend) — Backend improved in Sprint 15  
-> **Last Updated:** January 2026
+> **Version:** 1.2.0  
+> **Status:** ✅ Complete (API + Frontend) — Auto-absent added in Sprint 17  
+> **Last Updated:** February 2026
 
 ---
 
@@ -39,17 +39,19 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 
 ### Key Features
 
-| Feature                 | Description                                                           |
-| ----------------------- | --------------------------------------------------------------------- |
-| GPS-Based Attendance    | Validates employee location during clock in/out                       |
-| Flexible Schedules      | Supports flexible working hours per division                          |
-| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default  |
-| Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule  |
-| Multi-Type Holidays     | Supports National, Collective, and Company holidays                   |
-| Real-time Statistics    | Monthly attendance statistics with various metrics                    |
-| Employee Enrichment     | Responses include employee name, code, and division (for HRD views)   |
-| Detail Enrichment       | Get-by-ID returns work schedule name and approver name (not just IDs) |
-| Form Data Endpoint      | Single API call for all attendance form dropdown options              |
+| Feature                 | Description                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| GPS-Based Attendance    | Validates employee location during clock in/out                                     |
+| Flexible Schedules      | Supports flexible working hours per division                                        |
+| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default                |
+| Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule                |
+| Multi-Type Holidays     | Supports National, Collective, and Company holidays                                 |
+| Real-time Statistics    | Monthly attendance statistics with various metrics                                  |
+| Employee Enrichment     | Responses include employee name, code, and division (for HRD views)                 |
+| Detail Enrichment       | Get-by-ID returns work schedule name and approver name (not just IDs)               |
+| Form Data Endpoint      | Single API call for all attendance form dropdown options                            |
+| Auto Absent             | Daily background worker marks absent employees (respects holidays, leave, off-days) |
+| Manual Absent Trigger   | Admin endpoint to manually trigger auto-absent processing for a specific date       |
 
 ---
 
@@ -86,7 +88,17 @@ Configurable work schedules with support for fixed and flexible hours, GPS valid
 
 Support for National, Collective, and Company holidays. See [Holiday Management](hrd-holidays.md) for full documentation.
 
-### 4. Overtime Management
+### 4. Auto Absent
+
+Automatic attendance marking for employees who don't clock in on working days:
+
+- **Daily Background Worker**: Runs on app startup (for yesterday) and every 24 hours
+- **Manual Trigger**: Admin endpoint to process any specific date
+- **Validations**: Skips holidays, approved leave, off-days, and employees with existing records
+- Creates `ABSENT` records for employees who missed clock-in
+- Creates `LEAVE` records for employees on approved leave (with `leave_request_id` linked)
+
+### 5. Overtime Management
 
 Comprehensive overtime tracking with approval workflow:
 
@@ -131,10 +143,11 @@ apps/api/internal/hrd/
 │       ├── attendance_record_repository.go
 │       ├── work_schedule_repository.go
 │       ├── holiday_repository.go
+│       ├── leave_request_repository.go
 │       └── overtime_request_repository.go
 ├── domain/
 │   ├── dto/
-│   │   ├── attendance_record_dto.go
+│   │   ├── attendance_record_dto.go   # includes AutoAbsentResult, ProcessAutoAbsentRequest
 │   │   ├── work_schedule_dto.go
 │   │   ├── holiday_dto.go
 │   │   └── overtime_request_dto.go
@@ -144,10 +157,12 @@ apps/api/internal/hrd/
 │   │   ├── holiday_mapper.go
 │   │   └── overtime_request_mapper.go
 │   └── usecase/
-│       ├── attendance_record_usecase.go
+│       ├── attendance_record_usecase.go  # includes ProcessAutoAbsent
 │       ├── work_schedule_usecase.go
 │       ├── holiday_usecase.go
 │       └── overtime_request_usecase.go
+├── worker/
+│   └── auto_absent_worker.go            # daily background worker
 └── presentation/
     ├── handler/
     │   ├── attendance_record_handler.go
@@ -351,6 +366,36 @@ if check_out_time > schedule_end_time + 30_minutes_buffer:
 working_minutes = check_out_time - check_in_time - break_duration
 ```
 
+### Auto Absent Processing
+
+For a given date, the system processes all active employees:
+
+```
+1. Check if date is a holiday → skip all employees
+2. Get all active employees
+3. Batch-query existing attendance records for the date
+4. Batch-query approved leave requests covering the date
+5. For each employee WITHOUT an existing record:
+   a. Get work schedule (division-based, fallback to default)
+   b. If NOT a working day → skip (off-day)
+   c. If employee has approved leave → create LEAVE record (link leave_request_id)
+   d. Otherwise → create ABSENT record
+```
+
+**Response (AutoAbsentResult):**
+
+```json
+{
+  "date": "2026-02-27",
+  "total_employees": 50,
+  "absent_created": 3,
+  "leave_created": 2,
+  "skipped": 45,
+  "holiday_skipped": false,
+  "errors": 0
+}
+```
+
 ---
 
 ## API Reference
@@ -374,14 +419,15 @@ working_minutes = check_out_time - check_in_time - break_duration
 
 #### Admin (Permission Required)
 
-| Method | Endpoint                           | Permission        | Description                                                                    |
-| ------ | ---------------------------------- | ----------------- | ------------------------------------------------------------------------------ |
-| GET    | `/api/v1/hrd/attendance/form-data` | attendance.read   | Get form data (employees, schedules, statuses)                                 |
-| GET    | `/api/v1/hrd/attendance`           | attendance.read   | List all records (enriched with employee names, supports `search` query param) |
-| GET    | `/api/v1/hrd/attendance/:id`       | attendance.read   | Get by ID (enriched with employee, work schedule name, approver name)          |
-| POST   | `/api/v1/hrd/attendance/manual`    | attendance.create | Manual entry (`reason` is optional)                                            |
-| PUT    | `/api/v1/hrd/attendance/:id`       | attendance.update | Update record                                                                  |
-| DELETE | `/api/v1/hrd/attendance/:id`       | attendance.delete | Delete record                                                                  |
+| Method | Endpoint                                | Permission        | Description                                                                    |
+| ------ | --------------------------------------- | ----------------- | ------------------------------------------------------------------------------ |
+| GET    | `/api/v1/hrd/attendance/form-data`      | attendance.read   | Get form data (employees, schedules, statuses)                                 |
+| GET    | `/api/v1/hrd/attendance`                | attendance.read   | List all records (enriched with employee names, supports `search` query param) |
+| GET    | `/api/v1/hrd/attendance/:id`            | attendance.read   | Get by ID (enriched with employee, work schedule name, approver name)          |
+| POST   | `/api/v1/hrd/attendance/manual`         | attendance.create | Manual entry (`reason` is optional)                                            |
+| POST   | `/api/v1/hrd/attendance/process-absent` | attendance.create | Trigger auto-absent for a date (defaults to yesterday)                         |
+| PUT    | `/api/v1/hrd/attendance/:id`            | attendance.update | Update record                                                                  |
+| DELETE | `/api/v1/hrd/attendance/:id`            | attendance.delete | Delete record                                                                  |
 
 ### Work Schedule Endpoints
 
@@ -636,11 +682,12 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ## Integration Points
 
-### Integration with Leave Module (Sprint 14)
+### Integration with Leave Module (Sprint 14 → Sprint 17)
 
-- Check leave status before marking absent
-- Link attendance record to leave request
-- Update attendance status to `LEAVE` when on approved leave
+- ✅ Check leave status before marking absent (auto-absent feature)
+- ✅ Link attendance record to leave request via `leave_request_id`
+- ✅ Update attendance status to `LEAVE` when on approved leave
+- Uses `FindApprovedByDateForEmployees` for efficient batch lookup
 
 ### Integration with Payroll (Future)
 
@@ -719,7 +766,15 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
   - **Impact:** `GET /hrd/attendance/my-history` and `GET /hrd/attendance/my-stats` now return correct data for the authenticated employee.
   - **Added:** `GET /hrd/attendance/my-history` documented in Postman collection (was missing).
 
-- **Known Limitation**: Attendance records don't link to leave requests yet (planned for integration)
+- **Sprint 17 — Auto Absent Feature:**
+  - Added `ProcessAutoAbsent` usecase method that creates ABSENT/LEAVE records for employees without clock-in on working days
+  - Added `AutoAbsentWorker` background worker (runs daily, 24h interval)
+  - Added `POST /api/v1/hrd/attendance/process-absent` manual trigger endpoint
+  - Added `FindApprovedByDateForEmployees` to `LeaveRequestRepository` for batch leave lookup
+  - Validations: holidays, approved leave, off-days (per work schedule), existing records
+  - Creates `LEAVE` records with `leave_request_id` linked for employees on approved leave
+  - Worker wired in `main.go` using `hrdDeps.AttendanceUC`
+
 - **Future Improvement**:
   - Add attendance report export (CSV/Excel)
   - Add team attendance dashboard for managers

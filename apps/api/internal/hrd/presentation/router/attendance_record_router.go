@@ -22,6 +22,7 @@ func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRe
 	g.GET("", middleware.RequirePermission("attendance.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("attendance.read"), h.GetByID)
 	g.POST("/manual", middleware.RequirePermission("attendance.create"), h.CreateManualEntry)
+	g.POST("/process-absent", middleware.RequirePermission("attendance.create"), h.ProcessAutoAbsent)
 	g.PUT("/:id", middleware.RequirePermission("attendance.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("attendance.delete"), h.Delete)
 }

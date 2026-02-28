@@ -34,6 +34,11 @@ type LeaveRequestRepository interface {
 	CountPendingRequests(ctx context.Context, employeeID string, startDate, endDate time.Time, excludeID *string) (int64, error)
 	CalculateUsedLeaveDays(ctx context.Context, employeeID string, cutAnnualOnly bool) (int, error)
 	FindOverlappingRequests(ctx context.Context, employeeID string, startDate, endDate time.Time, excludeID *string) ([]*models.LeaveRequest, error)
+
+	// FindApprovedByDateForEmployees returns a map of employeeID → LeaveRequest for
+	// employees who have an APPROVED leave request covering the given date.
+	// Used by the auto-absent worker to skip employees on approved leave.
+	FindApprovedByDateForEmployees(ctx context.Context, date time.Time, employeeIDs []string) (map[string]*models.LeaveRequest, error)
 }
 
 type leaveRequestRepository struct {
@@ -324,4 +329,34 @@ func (r *leaveRequestRepository) FindOverlappingRequests(ctx context.Context, em
 
 	err := query.Find(&leaveRequests).Error
 	return leaveRequests, err
+}
+
+// FindApprovedByDateForEmployees returns a map of employeeID → *LeaveRequest for employees
+// who have an APPROVED leave request covering the given date.
+func (r *leaveRequestRepository) FindApprovedByDateForEmployees(ctx context.Context, date time.Time, employeeIDs []string) (map[string]*models.LeaveRequest, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if len(employeeIDs) == 0 {
+		return make(map[string]*models.LeaveRequest), nil
+	}
+
+	var leaveRequests []*models.LeaveRequest
+	dateOnly := date.Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).
+		Where("employee_id IN ?", employeeIDs).
+		Where("status = ?", models.LeaveStatusApproved).
+		Where("start_date <= ? AND end_date >= ?", dateOnly, dateOnly).
+		Find(&leaveRequests).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]*models.LeaveRequest, len(leaveRequests))
+	for _, lr := range leaveRequests {
+		result[lr.EmployeeID] = lr
+	}
+
+	return result, nil
 }

@@ -161,3 +161,19 @@ type AttendanceStatusFormOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
+
+// ProcessAutoAbsentRequest represents the request to manually trigger auto-absent processing
+type ProcessAutoAbsentRequest struct {
+	Date string `json:"date" form:"date"` // Optional: YYYY-MM-DD, defaults to yesterday
+}
+
+// AutoAbsentResult represents the result of auto-absent processing
+type AutoAbsentResult struct {
+	Date           string `json:"date"`
+	TotalEmployees int    `json:"total_employees"`
+	AbsentCreated  int    `json:"absent_created"`
+	LeaveCreated   int    `json:"leave_created"`
+	Skipped        int    `json:"skipped"` // Already had record, off-day, etc.
+	HolidaySkipped bool   `json:"holiday_skipped"`
+	Errors         int    `json:"errors"`
+}

@@ -52,6 +52,7 @@ import (
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
+	hrdWorker "github.com/gilabs/gims/api/internal/hrd/worker"
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
@@ -301,6 +302,10 @@ func main() {
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Start auto-absent worker (runs daily at startup + every 24 hours)
+		autoAbsentWorker := hrdWorker.NewAutoAbsentWorker(hrdDeps.AttendanceUC, 24*time.Hour)
+		autoAbsentWorker.Start()
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 

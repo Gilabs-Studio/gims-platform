@@ -2,6 +2,7 @@
 
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format, parseISO } from "date-fns";
 import { Clock, User, FileText, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import {
   attendanceRecordSchema,
@@ -67,7 +68,7 @@ export function AttendanceRecordForm({
     defaultValues: event
       ? {
           employee_id: event.employeeId,
-          date: event.date instanceof Date ? event.date.toISOString().split("T")[0] : String(event.date),
+          date: event.date instanceof Date ? format(event.date, "yyyy-MM-dd") : String(event.date),
           check_in_time: event.checkInTime ?? undefined,
           check_out_time: event.checkOutTime ?? undefined,
           check_in_type: (event.checkInType as "NORMAL" | "WFH" | "FIELD_WORK") ?? "NORMAL",
@@ -77,7 +78,7 @@ export function AttendanceRecordForm({
         }
       : {
           employee_id: "",
-          date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
           check_in_time: undefined,
           check_out_time: undefined,
           check_in_type: "NORMAL" as const,
@@ -156,20 +157,16 @@ export function AttendanceRecordForm({
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value
-                        ? new Date(field.value).toLocaleDateString("id-ID", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
+                        ? format(parseISO(field.value), "dd MMMM yyyy")
                         : t("form.date")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value ? new Date(field.value) : undefined}
+                      selected={field.value ? parseISO(field.value) : undefined}
                       onSelect={(date: Date | undefined) => {
-                        field.onChange(date ? date.toISOString().split("T")[0] : "");
+                        field.onChange(date ? format(date, "yyyy-MM-dd") : "");
                       }}
                     />
                   </PopoverContent>
