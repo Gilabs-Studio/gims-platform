@@ -100,6 +100,17 @@ export const leaveRequestService = {
     return response.data;
   },
 
+  async reapproveLeaveRequest(
+    id: string,
+    data: ApproveLeaveRequestPayload
+  ): Promise<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }> {
+    const response = await apiClient.post<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }>(
+      `${BASE_PATH}/${id}/reapprove`,
+      data
+    );
+    return response.data;
+  },
+
   async getMyLeaveRequests(filters?: LeaveRequestFilters): Promise<LeaveRequestsResponse> {
     const response = await apiClient.get<LeaveRequestsResponse>(SELF_PATH, {
       params: filters,

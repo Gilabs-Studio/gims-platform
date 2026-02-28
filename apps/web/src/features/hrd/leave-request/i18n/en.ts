@@ -65,6 +65,7 @@ export const leaveRequestEn = {
       approve: "Approve",
       reject: "Reject",
       cancel: "Cancel",
+      reapprove: "Re-approve",
       submit: "Submit",
       close: "Close",
     },

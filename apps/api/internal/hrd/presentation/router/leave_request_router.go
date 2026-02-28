@@ -35,8 +35,9 @@ func RegisterLeaveRequestRoutes(r *gin.RouterGroup, leaveRequestHandler *handler
 		leaveRequests.GET("/employee/:employee_id/balance", middleware.RequirePermission("leave_request.read"), leaveRequestHandler.GetBalance)
 
 		// Approval workflow endpoints - Only approvers can approve/reject/cancel
-		leaveRequests.POST("/:id/approve", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Approve) // Approve request
-		leaveRequests.POST("/:id/reject", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Reject)   // Reject request
-		leaveRequests.POST("/:id/cancel", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Cancel)   // Cancel request
+		leaveRequests.POST("/:id/approve", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Approve)     // Approve request
+		leaveRequests.POST("/:id/reject", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Reject)       // Reject request
+		leaveRequests.POST("/:id/cancel", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Cancel)       // Cancel request
+		leaveRequests.POST("/:id/reapprove", middleware.RequirePermission("leave_request.approve"), leaveRequestHandler.Reapprove) // Re-approve cancelled/rejected request
 	}
 }

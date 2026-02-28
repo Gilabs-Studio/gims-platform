@@ -65,6 +65,7 @@ export const leaveRequestId = {
       approve: "Setujui",
       reject: "Tolak",
       cancel: "Batal",
+      reapprove: "Setujui Ulang",
       submit: "Kirim",
       close: "Tutup",
     },

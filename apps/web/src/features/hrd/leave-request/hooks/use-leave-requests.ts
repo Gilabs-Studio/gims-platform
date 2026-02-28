@@ -272,6 +272,48 @@ export function useCancelLeaveRequest() {
   });
 }
 
+export function useReapproveLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ApproveLeaveRequestPayload }) =>
+      leaveRequestService.reapproveLeaveRequest(id, data),
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: leaveRequestKeys.lists() });
+
+      const previousData = queryClient.getQueriesData({
+        queryKey: leaveRequestKeys.lists(),
+      });
+
+      queryClient.setQueriesData<LeaveRequestsResponse>({ queryKey: leaveRequestKeys.lists() }, (old) => {
+        if (!old?.data) return old;
+
+        return {
+          ...old,
+          data: old.data.map((item: LeaveRequest) =>
+            item.id === id
+              ? { ...item, status: "APPROVED" as const }
+              : item
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
 export function useCreateMyLeaveRequest() {
   const queryClient = useQueryClient();
 

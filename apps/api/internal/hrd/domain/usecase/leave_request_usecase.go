@@ -35,6 +35,7 @@ type LeaveRequestUsecase interface {
 	Approve(ctx context.Context, id string, req *dto.ApproveLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	Reject(ctx context.Context, id string, req *dto.RejectLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	Cancel(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	Reapprove(ctx context.Context, id string, req *dto.ApproveLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 
 	// Self-service operations (employee owns their requests)
 	CreateSelf(ctx context.Context, req *dto.CreateMyLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
@@ -47,11 +48,12 @@ type LeaveRequestUsecase interface {
 }
 
 type leaveRequestUsecase struct {
-	leaveRequestRepo repositories.LeaveRequestRepository
-	employeeRepo     orgRepos.EmployeeRepository
-	leaveTypeRepo    coreRepos.LeaveTypeRepository
-	holidayRepo      repositories.HolidayRepository
-	mapper           *mapper.LeaveRequestMapper
+	leaveRequestRepo     repositories.LeaveRequestRepository
+	attendanceRecordRepo repositories.AttendanceRecordRepository
+	employeeRepo         orgRepos.EmployeeRepository
+	leaveTypeRepo        coreRepos.LeaveTypeRepository
+	holidayRepo          repositories.HolidayRepository
+	mapper               *mapper.LeaveRequestMapper
 }
 
 // NewLeaveRequestUsecase creates a new instance of LeaveRequestUsecase
@@ -60,13 +62,15 @@ func NewLeaveRequestUsecase(
 	employeeRepo orgRepos.EmployeeRepository,
 	leaveTypeRepo coreRepos.LeaveTypeRepository,
 	holidayRepo repositories.HolidayRepository,
+	attendanceRecordRepo repositories.AttendanceRecordRepository,
 ) LeaveRequestUsecase {
 	return &leaveRequestUsecase{
-		leaveRequestRepo: leaveRequestRepo,
-		employeeRepo:     employeeRepo,
-		leaveTypeRepo:    leaveTypeRepo,
-		holidayRepo:      holidayRepo,
-		mapper:           mapper.NewLeaveRequestMapper(),
+		leaveRequestRepo:     leaveRequestRepo,
+		attendanceRecordRepo: attendanceRecordRepo,
+		employeeRepo:         employeeRepo,
+		leaveTypeRepo:        leaveTypeRepo,
+		holidayRepo:          holidayRepo,
+		mapper:               mapper.NewLeaveRequestMapper(),
 	}
 }
 
@@ -712,6 +716,12 @@ func (u *leaveRequestUsecase) Approve(ctx context.Context, id string, req *dto.A
 		return nil, fmt.Errorf("failed to fetch updated leave request: %w", err)
 	}
 
+	// 8. Create LEAVE attendance records for the approved leave period
+	if err := u.createLeaveAttendanceRecords(ctx, updatedLeaveRequest); err != nil {
+		// Log error but don't fail the approval
+		fmt.Printf("WARNING: failed to create attendance records for leave %s: %v\n", id, err)
+	}
+
 	return u.mapper.ToDetailResponseDTO(updatedLeaveRequest, employee, leaveType), nil
 }
 
@@ -789,9 +799,9 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 	// Use UpdateWithLock to ensure row-level locking (FOR UPDATE)
 	err := u.leaveRequestRepo.UpdateWithLock(ctx, id, func(leaveRequest *models.LeaveRequest) error {
 		// 1. Check if leave request can be cancelled
-		// WHY: Only PENDING or APPROVED status can be cancelled
-		if leaveRequest.Status != models.LeaveStatusPending && leaveRequest.Status != models.LeaveStatusApproved {
-			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
+		// WHY: Only APPROVED status can be cancelled (PENDING has delete action instead)
+		if leaveRequest.Status != models.LeaveStatusApproved {
+			return fmt.Errorf("INVALID_STATUS: only APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
 		}
 
 		// 2. Permission enforcement via router middleware (leave.approve)
@@ -837,7 +847,12 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 		return nil, err
 	}
 
-	// 6. Fetch updated leave request to return
+	// 6. Delete attendance records linked to this leave request
+	if err := u.attendanceRecordRepo.DeleteByLeaveRequestID(ctx, id); err != nil {
+		fmt.Printf("WARNING: failed to delete attendance records for cancelled leave %s: %v\n", id, err)
+	}
+
+	// 7. Fetch updated leave request to return
 	updatedLeaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch updated leave request: %w", err)
@@ -896,4 +911,63 @@ func (u *leaveRequestUsecase) GetFormData(ctx context.Context, currentUserID str
 		Employees:  formEmployees,
 		LeaveTypes: formLeaveTypes,
 	}, nil
+}
+
+// Reapprove re-approves a previously cancelled or rejected leave request
+func (u *leaveRequestUsecase) Reapprove(ctx context.Context, id string, req *dto.ApproveLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	// Reuse the Approve method since CanBeApproved() now includes REJECTED and CANCELLED statuses
+	return u.Approve(ctx, id, req, currentUserID)
+}
+
+// createLeaveAttendanceRecords creates LEAVE attendance records for each working day in the leave period
+func (u *leaveRequestUsecase) createLeaveAttendanceRecords(ctx context.Context, leaveRequest *models.LeaveRequest) error {
+	// First, delete any existing attendance records for this leave request (idempotent)
+	if err := u.attendanceRecordRepo.DeleteByLeaveRequestID(ctx, leaveRequest.ID); err != nil {
+		return fmt.Errorf("failed to clean up existing attendance records: %w", err)
+	}
+
+	// Fetch holidays in the leave period
+	holidays, err := u.holidayRepo.FindByDateRange(ctx, leaveRequest.StartDate, leaveRequest.EndDate)
+	if err != nil {
+		return fmt.Errorf("failed to fetch holidays: %w", err)
+	}
+
+	holidayMap := make(map[string]bool)
+	for _, h := range holidays {
+		holidayMap[h.Date.Format("2006-01-02")] = true
+	}
+
+	// Create attendance records for each working day in the leave period
+	var records []models.AttendanceRecord
+	currentDate := leaveRequest.StartDate
+	leaveRequestID := leaveRequest.ID
+
+	for !currentDate.After(leaveRequest.EndDate) {
+		weekday := currentDate.Weekday()
+		dateStr := currentDate.Format("2006-01-02")
+
+		// Skip weekends and holidays
+		if weekday != time.Saturday && weekday != time.Sunday && !holidayMap[dateStr] {
+			// Check if an attendance record already exists for this date
+			existing, _ := u.attendanceRecordRepo.FindByEmployeeAndDate(ctx, leaveRequest.EmployeeID, currentDate)
+			if existing == nil {
+				records = append(records, models.AttendanceRecord{
+					EmployeeID:     leaveRequest.EmployeeID,
+					Date:           currentDate,
+					Status:         models.AttendanceStatusLeave,
+					LeaveRequestID: &leaveRequestID,
+					Notes:          fmt.Sprintf("Auto-created from approved leave request"),
+					IsManualEntry:  true,
+				})
+			}
+		}
+
+		currentDate = currentDate.AddDate(0, 0, 1)
+	}
+
+	if len(records) > 0 {
+		return u.attendanceRecordRepo.CreateBatch(ctx, records)
+	}
+
+	return nil
 }

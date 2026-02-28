@@ -682,12 +682,40 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ## Integration Points
 
-### Integration with Leave Module (Sprint 14 → Sprint 17)
+### Integration with Leave Module (Sprint 14 → Sprint 17 → Sprint 18)
 
 - ✅ Check leave status before marking absent (auto-absent feature)
 - ✅ Link attendance record to leave request via `leave_request_id`
 - ✅ Update attendance status to `LEAVE` when on approved leave
-- Uses `FindApprovedByDateForEmployees` for efficient batch lookup
+- ✅ **Real-time sync**: Approving a leave request auto-creates `LEAVE` attendance records for each working day
+- ✅ **Cancel sync**: Cancelling an approved leave request auto-deletes linked attendance records
+- ✅ **Re-approve**: Re-approving a cancelled/rejected leave request recreates attendance records
+- Uses `FindApprovedByDateForEmployees` for efficient batch lookup (auto-absent)
+- Uses `CreateBatch` / `DeleteByLeaveRequestID` for real-time sync
+
+#### Leave → Attendance Sync Flow
+
+| Leave Action | Attendance Effect                                    | Backend Method                   |
+| ------------ | ---------------------------------------------------- | -------------------------------- |
+| Approve      | Creates `LEAVE` records for each working day         | `createLeaveAttendanceRecords()` |
+| Cancel       | Deletes all attendance records for the leave request | `DeleteByLeaveRequestID()`       |
+| Reject       | No attendance change                                 | —                                |
+| Re-approve   | Deletes old + creates new `LEAVE` records            | `createLeaveAttendanceRecords()` |
+
+#### Leave Request API (Relevant Endpoints)
+
+| Method | Endpoint                                   | Permission              | Description                                       |
+| ------ | ------------------------------------------ | ----------------------- | ------------------------------------------------- |
+| POST   | `/api/v1/hrd/leave-requests/:id/approve`   | `leave_request.approve` | Approve + auto-create attendance records          |
+| POST   | `/api/v1/hrd/leave-requests/:id/cancel`    | `leave_request.approve` | Cancel (APPROVED only) + delete attendance        |
+| POST   | `/api/v1/hrd/leave-requests/:id/reapprove` | `leave_request.approve` | Re-approve CANCELLED/REJECTED + create attendance |
+
+#### Business Rules
+
+- Cancel action is restricted to `APPROVED` leave requests only (PENDING uses delete)
+- Re-approve is available for `CANCELLED` and `REJECTED` leave requests
+- Attendance records are created only for working days (weekends and holidays excluded)
+- Each attendance record is linked via `leave_request_id` for traceability
 
 ### Integration with Payroll (Future)
 
@@ -774,6 +802,17 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
   - Validations: holidays, approved leave, off-days (per work schedule), existing records
   - Creates `LEAVE` records with `leave_request_id` linked for employees on approved leave
   - Worker wired in `main.go` using `hrdDeps.AttendanceUC`
+
+- **Sprint 18 — Leave Request ↔ Attendance Real-time Sync:**
+  - Approving a leave request now automatically creates `LEAVE` attendance records for each working day in the leave period
+  - Cancelling an approved leave request deletes associated attendance records
+  - Added `Reapprove` action: re-approves `CANCELLED`/`REJECTED` leave requests (recreates attendance records)
+  - Cancel action restricted to `APPROVED` status only (PENDING uses delete action instead)
+  - Added `CreateBatch` and `DeleteByLeaveRequestID` to `AttendanceRecordRepository`
+  - Added `POST /hrd/leave-requests/:id/reapprove` endpoint
+  - Frontend: Added reapprove button in dropdown for CANCELLED/REJECTED items
+  - Frontend: Removed cancel action from dropdown for PENDING items
+  - i18n: Added `reapprove` / `Setujui Ulang` translations
 
 - **Future Improvement**:
   - Add attendance report export (CSV/Excel)

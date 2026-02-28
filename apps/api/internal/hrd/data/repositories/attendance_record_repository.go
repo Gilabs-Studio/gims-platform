@@ -23,6 +23,8 @@ type AttendanceRecordRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetLateEmployeesForDate(ctx context.Context, date time.Time) ([]models.AttendanceRecord, error)
 	GetAbsentEmployeesForDate(ctx context.Context, date time.Time, allEmployeeIDs []string) ([]string, error)
+	DeleteByLeaveRequestID(ctx context.Context, leaveRequestID string) error
+	CreateBatch(ctx context.Context, records []models.AttendanceRecord) error
 }
 
 type attendanceRecordRepository struct {
@@ -255,4 +257,19 @@ func (r *attendanceRecordRepository) GetAbsentEmployeesForDate(ctx context.Conte
 	}
 
 	return absentEmployeeIDs, nil
+}
+
+// DeleteByLeaveRequestID soft-deletes all attendance records linked to a specific leave request
+func (r *attendanceRecordRepository) DeleteByLeaveRequestID(ctx context.Context, leaveRequestID string) error {
+	return r.getDB(ctx).
+		Where("leave_request_id = ?", leaveRequestID).
+		Delete(&models.AttendanceRecord{}).Error
+}
+
+// CreateBatch bulk-inserts attendance records
+func (r *attendanceRecordRepository) CreateBatch(ctx context.Context, records []models.AttendanceRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	return r.getDB(ctx).Create(&records).Error
 }

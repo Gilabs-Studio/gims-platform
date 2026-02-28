@@ -50,7 +50,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	holidayUC := usecase.NewHolidayUsecase(holidayRepo)
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo, leaveRequestRepo, employeeRepo, divisionRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo, employeeRepo)
-	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo)
+	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo, attendanceRepo)
 	evaluationGroupUC := usecase.NewEvaluationGroupUsecase(evaluationGroupRepo, evaluationCriteriaRepo)
 	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo)
 	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo)

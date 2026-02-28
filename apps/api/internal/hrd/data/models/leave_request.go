@@ -123,9 +123,8 @@ func (lr *LeaveRequest) BeforeUpdate(tx *gorm.DB) error {
 		return errors.New("cannot revert approved leave to pending")
 	}
 
-	if oldLeave.Status == LeaveStatusRejected && lr.Status == LeaveStatusApproved {
-		return errors.New("cannot approve a rejected leave without re-submission")
-	}
+	// Allow REJECTED → APPROVED and CANCELLED → APPROVED for re-approve flow
+	// These transitions are valid when HR re-approves an accidentally rejected/cancelled leave
 
 	// If status is changing to APPROVED, ensure ApprovedBy and ApprovedAt are set
 	if lr.Status == LeaveStatusApproved && oldLeave.Status != LeaveStatusApproved {
@@ -144,9 +143,9 @@ func (lr *LeaveRequest) IsEditable() bool {
 }
 
 // CanBeApproved checks if the leave request can be approved
-// WHY: Only PENDING leaves can be approved
+// WHY: PENDING, REJECTED, and CANCELLED leaves can be (re-)approved
 func (lr *LeaveRequest) CanBeApproved() bool {
-	return lr.Status == LeaveStatusPending
+	return lr.Status == LeaveStatusPending || lr.Status == LeaveStatusRejected || lr.Status == LeaveStatusCancelled
 }
 
 // CanBeCancelled checks if the leave request can be cancelled
