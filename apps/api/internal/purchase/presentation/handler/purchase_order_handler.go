@@ -238,19 +238,83 @@ func (h *PurchaseOrderHandler) Confirm(c *gin.Context) {
 	}
 	res, err := h.uc.Confirm(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == "user not authenticated" {
-			errors.UnauthorizedResponse(c, "user not authenticated")
-			return
-		}
-		if err == usecase.ErrPurchaseOrderNotFound {
-			errors.NotFoundResponse(c, "purchase_order", id)
-			return
-		}
-		if err == usecase.ErrPurchaseOrderConflict {
-			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
-			return
-		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		handlePurchaseOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Submit handles POST /purchase/purchase-orders/:id/submit
+func (h *PurchaseOrderHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		handlePurchaseOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Approve handles POST /purchase/purchase-orders/:id/approve
+func (h *PurchaseOrderHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		handlePurchaseOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Reject handles POST /purchase/purchase-orders/:id/reject
+func (h *PurchaseOrderHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reject(c.Request.Context(), id)
+	if err != nil {
+		handlePurchaseOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Close handles POST /purchase/purchase-orders/:id/close
+func (h *PurchaseOrderHandler) Close(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Close(c.Request.Context(), id)
+	if err != nil {
+		handlePurchaseOrderError(c, err)
 		return
 	}
 	response.SuccessResponse(c, res, nil)
@@ -374,7 +438,7 @@ func (h *PurchaseOrderHandler) Export(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	var b strings.Builder
-	b.WriteString("code,order_date,due_date,status,total_amount,created_at\n")
+	b.WriteString("code,order_date,due_date,status,total_amount\n")
 	for _, it := range items {
 		due := ""
 		if it.DueDate != nil {
@@ -386,11 +450,27 @@ func (h *PurchaseOrderHandler) Export(c *gin.Context) {
 			csvEscape(due),
 			csvEscape(it.Status),
 			fmt.Sprintf("%v", it.TotalAmount),
-			csvEscape(it.CreatedAt.String()),
 		}
 		b.WriteString(strings.Join(row, ","))
 		b.WriteString("\n")
 	}
 
 	_, _ = c.Writer.WriteString(b.String())
+}
+
+// handlePurchaseOrderError centralises error-to-HTTP mapping for purchase order actions.
+func handlePurchaseOrderError(c *gin.Context, err error) {
+	if err == nil {
+		return
+	}
+	switch {
+	case err.Error() == "user not authenticated":
+		errors.UnauthorizedResponse(c, "user not authenticated")
+	case err == usecase.ErrPurchaseOrderNotFound:
+		errors.NotFoundResponse(c, "purchase_order", c.Param("id"))
+	case err == usecase.ErrPurchaseOrderConflict:
+		errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+	default:
+		errors.InternalServerErrorResponse(c, err.Error())
+	}
 }

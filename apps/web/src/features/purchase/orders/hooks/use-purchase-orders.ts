@@ -83,6 +83,58 @@ export function useConfirmPurchaseOrder() {
   });
 }
 
+export function useSubmitPurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useApprovePurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useRejectPurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.reject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useClosePurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.close(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
 export function useRevisePurchaseOrder() {
   const queryClient = useQueryClient();
 

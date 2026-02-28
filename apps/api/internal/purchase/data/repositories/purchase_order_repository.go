@@ -21,6 +21,7 @@ type PurchaseOrderRepository interface {
 	Update(ctx context.Context, po *models.PurchaseOrder) (*models.PurchaseOrder, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, status models.PurchaseOrderStatus) (*models.PurchaseOrder, error)
+	UpdateStatusWithTimestamp(ctx context.Context, id string, status models.PurchaseOrderStatus, updates map[string]interface{}) (*models.PurchaseOrder, error)
 	Revise(ctx context.Context, id string, comment string) (*models.PurchaseOrder, error)
 	ExistsByPurchaseRequisitionID(ctx context.Context, prID string) (bool, error)
 	ExistsBySalesOrderID(ctx context.Context, soID string) (bool, error)
@@ -99,7 +100,10 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		Preload("Supplier").
 		Preload("PaymentTerms").
 		Preload("BusinessUnit").
-		Preload("Creator")
+		Preload("Creator").
+		Preload("GoodsReceipts").
+		Preload("SupplierInvoices").
+		Preload("PurchaseRequisition")
 
 	if params.WithItems {
 		query = query.
@@ -297,6 +301,23 @@ func (r *purchaseOrderRepository) UpdateStatus(ctx context.Context, id string, s
 			return err
 		}
 		return tx.Model(&existing).Update("status", status).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.GetByID(ctx, id)
+}
+
+func (r *purchaseOrderRepository) UpdateStatusWithTimestamp(ctx context.Context, id string, status models.PurchaseOrderStatus, updates map[string]interface{}) (*models.PurchaseOrder, error) {
+	updates["status"] = status
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing models.PurchaseOrder
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&existing, "id = ?", id).Error; err != nil {
+			return err
+		}
+		return tx.Model(&existing).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, err

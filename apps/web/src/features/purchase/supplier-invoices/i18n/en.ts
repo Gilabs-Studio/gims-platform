@@ -82,6 +82,11 @@ export const supplierInvoiceEn = {
     status: "Status",
     createdAt: "Created At",
   },
+  list: {
+    code: "Code",
+    status: "Status",
+    notFound: "No supplier invoices found",
+  },
   status: {
     draft: "Draft",
     unpaid: "Unpaid",

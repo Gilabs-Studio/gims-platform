@@ -15,10 +15,12 @@ import (
 type PurchaseOrderStatus string
 
 const (
-	PurchaseOrderStatusDraft    PurchaseOrderStatus = "DRAFT"
-	PurchaseOrderStatusRevised  PurchaseOrderStatus = "REVISED"
-	PurchaseOrderStatusApproved PurchaseOrderStatus = "APPROVED"
-	PurchaseOrderStatusClosed   PurchaseOrderStatus = "CLOSED"
+	PurchaseOrderStatusDraft     PurchaseOrderStatus = "DRAFT"
+	PurchaseOrderStatusSubmitted PurchaseOrderStatus = "SUBMITTED"
+	PurchaseOrderStatusApproved  PurchaseOrderStatus = "APPROVED"
+	PurchaseOrderStatusClosed    PurchaseOrderStatus = "CLOSED"
+	// Kept for backward-compat with existing data; no longer used for new records.
+	PurchaseOrderStatusRevised PurchaseOrderStatus = "REVISED"
 )
 
 type PurchaseOrder struct {
@@ -59,6 +61,10 @@ type PurchaseOrder struct {
 
 	Status PurchaseOrderStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
 
+	SubmittedAt *time.Time `gorm:"index" json:"submitted_at"`
+	ApprovedAt  *time.Time `gorm:"index" json:"approved_at"`
+	ClosedAt    *time.Time `gorm:"index" json:"closed_at"`
+
 	TaxRate      float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
 	TaxAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
 	DeliveryCost float64 `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
@@ -71,6 +77,8 @@ type PurchaseOrder struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	Items []PurchaseOrderItem `gorm:"foreignKey:PurchaseOrderID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	GoodsReceipts    []GoodsReceipt    `gorm:"foreignKey:PurchaseOrderID" json:"goods_receipts,omitempty"`
+	SupplierInvoices []SupplierInvoice `gorm:"foreignKey:PurchaseOrderID" json:"supplier_invoices,omitempty"`
 }
 
 func (PurchaseOrder) TableName() string {

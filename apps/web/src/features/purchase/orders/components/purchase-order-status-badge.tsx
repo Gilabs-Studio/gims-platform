@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Pencil, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, Pencil, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface PurchaseOrderStatusBadgeProps {
@@ -17,6 +17,13 @@ export function PurchaseOrderStatusBadge({ status, className }: PurchaseOrderSta
         <Badge variant="secondary" className={className}>
           <Clock className="h-3 w-3 mr-1.5" />
           {t("draft")}
+        </Badge>
+      );
+    case "submitted":
+      return (
+        <Badge variant="info" className={className}>
+          <Loader2 className="h-3 w-3 mr-1.5" />
+          {t("submitted")}
         </Badge>
       );
     case "revised":

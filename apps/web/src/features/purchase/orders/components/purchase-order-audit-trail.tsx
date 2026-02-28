@@ -104,11 +104,15 @@ function extractChanges(metadata: Record<string, unknown> | null | undefined): A
     });
 }
 
-export function PurchaseOrderAuditTrail({
-  open,
-  onClose,
+interface PurchaseOrderAuditTrailContentProps {
+  readonly purchaseOrderId?: string | null;
+  readonly enabled?: boolean;
+}
+
+export function PurchaseOrderAuditTrailContent({
   purchaseOrderId,
-}: PurchaseOrderAuditTrailProps) {
+  enabled = true,
+}: PurchaseOrderAuditTrailContentProps) {
   const t = useTranslations("purchaseOrder");
   const tCommon = useTranslations("common");
 
@@ -118,11 +122,117 @@ export function PurchaseOrderAuditTrail({
   const { data, isLoading, isError } = usePurchaseOrderAuditTrail(
     purchaseOrderId ?? "",
     { page, per_page: pageSize },
-    { enabled: open && !!purchaseOrderId },
+    { enabled: enabled && !!purchaseOrderId },
   );
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+
+  if (isError) {
+    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("auditTrail.columns.action")}</TableHead>
+              <TableHead>{t("auditTrail.columns.user")}</TableHead>
+              <TableHead>{t("auditTrail.columns.time")}</TableHead>
+              <TableHead>{t("auditTrail.columns.details")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-64" /></TableCell>
+                </TableRow>
+              ))
+            ) : items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  {t("auditTrail.empty")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((it) => (
+                <TableRow key={it.id}>
+                  <TableCell className="font-medium">
+                    <div className="space-y-0.5">
+                      <div>{actionLabel(t, it.action)}</div>
+                      <div className="text-xs text-muted-foreground">{it.action}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{it.user?.email ?? "-"}</TableCell>
+                  <TableCell>{safeDateTime(it.created_at)}</TableCell>
+                  <TableCell className="max-w-[520px]">
+                    {(() => {
+                      const changes = extractChanges(it.metadata);
+                      if (changes.length === 0) {
+                        return <div className="text-xs text-muted-foreground">-</div>;
+                      }
+                      const shown = changes.slice(0, 8);
+                      return (
+                        <div className="max-h-60 overflow-auto pr-2">
+                          <div className="space-y-1 text-xs">
+                            {shown.map((c) => (
+                              <div key={c.field} className="wrap-break-word">
+                                <span className="font-medium">{c.field}</span>
+                                <span className="text-muted-foreground">: </span>
+                                <span className="text-muted-foreground">
+                                  {formatAuditValue(c.field, c.before)}
+                                </span>
+                                <span className="text-muted-foreground"> → </span>
+                                <span className="text-muted-foreground">
+                                  {formatAuditValue(c.field, c.after)}
+                                </span>
+                              </div>
+                            ))}
+                            {changes.length > shown.length ? (
+                              <div className="text-xs text-muted-foreground">
+                                +{changes.length - shown.length} more
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {pagination ? (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(ps) => {
+            setPageSize(ps);
+            setPage(1);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function PurchaseOrderAuditTrail({
+  open,
+  onClose,
+  purchaseOrderId,
+}: PurchaseOrderAuditTrailProps) {
+  const t = useTranslations("purchaseOrder");
 
   return (
     <Dialog
@@ -135,111 +245,7 @@ export function PurchaseOrderAuditTrail({
         <DialogHeader>
           <DialogTitle>{t("auditTrail.title")}</DialogTitle>
         </DialogHeader>
-
-        {isError ? (
-          <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
-        ) : (
-          <div className="space-y-4">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("auditTrail.columns.action")}</TableHead>
-                    <TableHead>{t("auditTrail.columns.user")}</TableHead>
-                    <TableHead>{t("auditTrail.columns.time")}</TableHead>
-                    <TableHead>{t("auditTrail.columns.details")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          <Skeleton className="h-4 w-24" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-40" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-36" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-64" />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                        {t("auditTrail.empty")}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((it) => (
-                      <TableRow key={it.id}>
-                        <TableCell className="font-medium">
-                          <div className="space-y-0.5">
-                            <div>{actionLabel(t, it.action)}</div>
-                            <div className="text-xs text-muted-foreground">{it.action}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{it.user?.email ?? "-"}</TableCell>
-                        <TableCell>{safeDateTime(it.created_at)}</TableCell>
-                        <TableCell className="max-w-[520px]">
-                          {(() => {
-                            const changes = extractChanges(it.metadata);
-                            if (changes.length === 0) {
-                              return <div className="text-xs text-muted-foreground">-</div>;
-                            }
-
-                            const shown = changes.slice(0, 8);
-                            return (
-                              <div className="max-h-[240px] overflow-auto pr-2">
-                                <div className="space-y-1 text-xs">
-                                  {shown.map((c) => (
-                                    <div key={c.field} className="break-words">
-                                      <span className="font-medium">{c.field}</span>
-                                      <span className="text-muted-foreground">: </span>
-                                      <span className="text-muted-foreground">
-                                        {formatAuditValue(c.field, c.before)}
-                                      </span>
-                                      <span className="text-muted-foreground"> → </span>
-                                      <span className="text-muted-foreground">
-                                        {formatAuditValue(c.field, c.after)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {changes.length > shown.length ? (
-                                    <div className="text-xs text-muted-foreground">
-                                      +{changes.length - shown.length} more
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {pagination ? (
-              <DataTablePagination
-                pageIndex={pagination.page}
-                pageSize={pagination.per_page}
-                rowCount={pagination.total}
-                onPageChange={(p) => setPage(p)}
-                onPageSizeChange={(ps) => {
-                  setPageSize(ps);
-                  setPage(1);
-                }}
-              />
-            ) : null}
-          </div>
-        )}
+        <PurchaseOrderAuditTrailContent enabled={open} purchaseOrderId={purchaseOrderId} />
       </DialogContent>
     </Dialog>
   );

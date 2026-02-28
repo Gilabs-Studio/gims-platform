@@ -82,6 +82,11 @@ export const supplierInvoiceId = {
     status: "Status",
     createdAt: "Dibuat",
   },
+  list: {
+    code: "Kode",
+    status: "Status",
+    notFound: "Tidak ada faktur supplier",
+  },
   status: {
     draft: "Draft",
     unpaid: "Belum Dibayar",

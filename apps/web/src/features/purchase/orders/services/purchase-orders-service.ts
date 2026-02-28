@@ -70,6 +70,34 @@ export const purchaseOrdersService = {
     return response.data;
   },
 
+  submit: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
+      `${BASE_URL}/${id}/submit`,
+    );
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
+      `${BASE_URL}/${id}/approve`,
+    );
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
+      `${BASE_URL}/${id}/reject`,
+    );
+    return response.data;
+  },
+
+  close: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
+      `${BASE_URL}/${id}/close`,
+    );
+    return response.data;
+  },
+
   revise: async (
     id: string,
     data: RevisePurchaseOrderInput,

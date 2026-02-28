@@ -3,17 +3,17 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  Clock,
+  CheckCircle2,
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Pencil,
   Plus,
-  Search,
-  Trash2,
-  CheckCircle2,
   Printer,
+  Search,
+  Send,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
@@ -39,15 +46,24 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 import {
-  useConfirmPurchaseOrder,
+  useApprovePurchaseOrder,
+  useClosePurchaseOrder,
   useDeletePurchaseOrder,
   usePurchaseOrders,
+  useRejectPurchaseOrder,
+  useSubmitPurchaseOrder,
 } from "../hooks/use-purchase-orders";
 import { purchaseOrdersService } from "../services/purchase-orders-service";
-import type { PurchaseOrderListItem } from "../types";
-import { PurchaseOrderAuditTrail } from "./purchase-order-audit-trail";
+import type { PurchaseOrderListItem, PurchaseOrderStatus } from "../types";
+import { GoodsReceiptStatusBadge } from "@/features/purchase/goods-receipt/components/goods-receipt-status-badge";
+import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
+import { PurchaseRequisitionDetail } from "@/features/purchase/requisitions/components/purchase-requisition-detail";
+
+import { GRLinkedDialog } from "./gr-linked-dialog";
+import { SILinkedDialog } from "./si-linked-dialog";
 import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderReviseDialog } from "./purchase-order-revise-dialog";
@@ -62,33 +78,53 @@ export function PurchaseOrdersList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | "all">("all");
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
   const [reviseOpen, setReviseOpen] = useState(false);
   const [reviseId, setReviseId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
+  // Supplier detail dialog
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
+
+  // PR reference detail dialog
+  const [selectedPRId, setSelectedPRId] = useState<string | null>(null);
+  const [isPRDetailOpen, setIsPRDetailOpen] = useState(false);
+
+  // GR linked list dialog
+  const [grDialogItem, setGrDialogItem] = useState<PurchaseOrderListItem | null>(null);
+
+  // SI linked list dialog
+  const [siDialogItem, setSiDialogItem] = useState<PurchaseOrderListItem | null>(null);
+
   const canCreate = useUserPermission("purchase_order.create");
   const canEdit = useUserPermission("purchase_order.update");
   const canExport = useUserPermission("purchase_order.export");
   const canView = useUserPermission("purchase_order.read");
-  const canAuditTrail = useUserPermission("purchase_order.audit_trail");
-  const canConfirm = useUserPermission("purchase_order.confirm");
+  const canSubmit = useUserPermission("purchase_order.submit");
+  const canApprove = useUserPermission("purchase_order.approve");
+  const canReject = useUserPermission("purchase_order.reject");
+  const canClose = useUserPermission("purchase_order.close");
   const canRevise = useUserPermission("purchase_order.revise");
   const canDelete = useUserPermission("purchase_order.delete");
   const canPrint = useUserPermission("purchase_order.print");
+  const canViewSupplier = useUserPermission("supplier.read");
+  const canViewGR = useUserPermission("goods_receipt.read");
+  const canViewSI = useUserPermission("supplier_invoice.read");
+  const canViewPR = useUserPermission("purchase_requisition.read");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
     sort_by: "created_at",
     sort_dir: "desc",
   });
@@ -97,7 +133,10 @@ export function PurchaseOrdersList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeletePurchaseOrder();
-  const confirmMutation = useConfirmPurchaseOrder();
+  const submitMutation = useSubmitPurchaseOrder();
+  const approveMutation = useApprovePurchaseOrder();
+  const rejectMutation = useRejectPurchaseOrder();
+  const closeMutation = useClosePurchaseOrder();
 
   if (isError) {
     return (
@@ -133,6 +172,56 @@ export function PurchaseOrdersList() {
     setDetailOpen(true);
   };
 
+  /** Renders first GR status badge; clicking opens the GR linked list dialog. */
+  const renderGRBadges = (it: PurchaseOrderListItem) => {
+    const items = it.goods_receipts;
+    if (!items?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    return (
+      <button
+        type="button"
+        onClick={canViewGR ? () => setGrDialogItem(it) : undefined}
+        className={canViewGR ? "cursor-pointer" : "cursor-default"}
+        title={`${items.length} Goods Receipt(s)`}
+      >
+        <span className="flex items-center gap-1">
+          <GoodsReceiptStatusBadge
+            status={items[0].status}
+            className="text-xs font-medium hover:opacity-80 transition-opacity"
+          />
+          {items.length > 1 && (
+            <span className="text-xs text-muted-foreground">+{items.length - 1}</span>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  /** Renders first SI status badge; clicking opens the SI linked list dialog. */
+  const renderSIBadges = (it: PurchaseOrderListItem) => {
+    const items = it.supplier_invoices;
+    if (!items?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    return (
+      <button
+        type="button"
+        onClick={canViewSI ? () => setSiDialogItem(it) : undefined}
+        className={canViewSI ? "cursor-pointer" : "cursor-default"}
+        title={`${items.length} Supplier Invoice(s)`}
+      >
+        <span className="flex items-center gap-1">
+          <SupplierInvoiceStatusBadge
+            status={items[0].status}
+            className="text-xs font-medium hover:opacity-80 transition-opacity"
+          />
+          {items.length > 1 && (
+            <span className="text-xs text-muted-foreground">+{items.length - 1}</span>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  const normalStatus = (it: PurchaseOrderListItem) => (it.status ?? "").toUpperCase();
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -153,6 +242,25 @@ export function PurchaseOrdersList() {
             className="pl-9"
           />
         </div>
+
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v as PurchaseOrderStatus | "all");
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tCommon("all") ?? "All Status"}</SelectItem>
+            <SelectItem value="DRAFT">{t("status.draft")}</SelectItem>
+            <SelectItem value="SUBMITTED">{t("status.submitted")}</SelectItem>
+            <SelectItem value="APPROVED">{t("status.approved")}</SelectItem>
+            <SelectItem value="CLOSED">{t("status.closed")}</SelectItem>
+          </SelectContent>
+        </Select>
 
         <div className="flex-1" />
 
@@ -182,12 +290,14 @@ export function PurchaseOrdersList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
+              <TableHead className="w-40">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.orderDate")}</TableHead>
+              <TableHead>{t("columns.purchaseRequisition")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
+              <TableHead>{t("columns.goodsReceipts")}</TableHead>
+              <TableHead>{t("columns.supplierInvoices")}</TableHead>
               <TableHead className="text-right">{t("columns.total")}</TableHead>
-              <TableHead>{t("columns.createdAt")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -195,149 +305,242 @@ export function PurchaseOrdersList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  {Array.from({ length: 9 }).map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((it) => (
-                <TableRow key={it.id}>
-                  <TableCell
-                    className="font-medium text-primary hover:underline cursor-pointer"
-                    onClick={() => canView && handleView(it.id)}
-                  >
-                    {it.code}
-                  </TableCell>
-                  <TableCell>{formatDate(it.order_date)}</TableCell>
-                  <TableCell className="font-medium">
-                    {it.supplier?.name ?? "-"}
-                  </TableCell>
-                  <TableCell>
-                    <PurchaseOrderStatusBadge status={it.status ?? ""} />
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(it.total_amount)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span>{formatDate(it.created_at)}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {it.created_at ? new Date(it.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {(canView || canAuditTrail || canEdit || canConfirm || canRevise || canDelete) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canView && (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => handleView(it.id)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t("actions.view")}
-                            </DropdownMenuItem>
-                          )}
+              items.map((it) => {
+                const status = normalStatus(it);
+                const hasRowActions =
+                  canView || canEdit || canSubmit || canApprove ||
+                  canReject || canClose || canRevise || canDelete || canPrint;
 
-                          {canAuditTrail && (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setAuditId(it.id);
-                                setAuditOpen(true);
-                              }}
-                            >
-                              <History className="h-4 w-4 mr-2" />
-                              {t("actions.auditTrail")}
-                            </DropdownMenuItem>
-                          )}
+                return (
+                  <TableRow key={it.id}>
+                    {/* Code — clickable to detail */}
+                    <TableCell
+                      className="font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => canView && handleView(it.id)}
+                    >
+                      {it.code}
+                    </TableCell>
 
-                          {canPrint && (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => setPrintingId(it.id)}
-                            >
-                              <Printer className="h-4 w-4 mr-2" />
-                              {t("actions.print")}
-                            </DropdownMenuItem>
-                          )}
+                    {/* Order Date */}
+                    <TableCell>{formatDate(it.order_date)}</TableCell>
 
-                          {canEdit && ["draft", "revised"].includes((it.status ?? "").toLowerCase()) && (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setFormMode("edit");
-                                setEditingId(it.id);
-                                setFormOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t("actions.edit")}
-                            </DropdownMenuItem>
-                          )}
+                    {/* PR Reference — clickable if permission */}
+                    <TableCell>
+                      {it.purchase_requisition ? (
+                        canViewPR ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPRId(it.purchase_requisition!.id);
+                              setIsPRDetailOpen(true);
+                            }}
+                            className="text-primary hover:underline cursor-pointer text-sm font-medium"
+                          >
+                            {it.purchase_requisition.code}
+                          </button>
+                        ) : (
+                          <span className="text-sm font-medium">{it.purchase_requisition.code}</span>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
 
-                          {canConfirm && ["draft", "revised"].includes((it.status ?? "").toLowerCase()) && (
-                            <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
-                              onClick={async () => {
-                                try {
-                                  await confirmMutation.mutateAsync(it.id);
-                                  toast.success(t("toast.confirmed"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
-                                }
-                              }}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.confirm")}
-                            </DropdownMenuItem>
-                          )}
+                    {/* Supplier — clickable if permission */}
+                    <TableCell>
+                      {it.supplier ? (
+                        canViewSupplier ? (
+                          <button
+                            onClick={() => {
+                              setSelectedSupplierId(it.supplier!.id);
+                              setIsSupplierDialogOpen(true);
+                            }}
+                            className="text-primary hover:underline cursor-pointer text-left text-sm"
+                          >
+                            {it.supplier.name}
+                          </button>
+                        ) : (
+                          <span className="text-sm">{it.supplier.name}</span>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
 
-                          {canRevise && ["draft", "approved"].includes((it.status ?? "").toLowerCase()) && (
-                            <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
-                              onClick={() => {
-                                setReviseId(it.id);
-                                setReviseOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t("actions.revise")}
-                            </DropdownMenuItem>
-                          )}
+                    {/* Status */}
+                    <TableCell>
+                      <PurchaseOrderStatusBadge status={it.status ?? ""} />
+                    </TableCell>
 
-                          {canDelete && (it.status ?? "").toLowerCase() === "draft" && (
-                            <DropdownMenuItem
-                              className="cursor-pointer text-destructive focus:text-destructive"
-                              onClick={() => setDeletingItem(it)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("actions.delete")}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+                    {/* Goods Receipts */}
+                    <TableCell>{renderGRBadges(it)}</TableCell>
+
+                    {/* Supplier Invoices */}
+                    <TableCell>{renderSIBadges(it)}</TableCell>
+
+                    {/* Total */}
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(it.total_amount)}
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell>
+                      {hasRowActions && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="cursor-pointer">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canView && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => handleView(it.id)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                {t("actions.view")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canEdit && status === "DRAFT" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  setFormMode("edit");
+                                  setEditingId(it.id);
+                                  setFormOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {t("actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canSubmit && status === "DRAFT" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                onClick={async () => {
+                                  try {
+                                    await submitMutation.mutateAsync(it.id);
+                                    toast.success(t("toast.submitted"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                {t("actions.submit")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {status === "SUBMITTED" && (
+                              <>
+                                {canApprove && (
+                                  <DropdownMenuItem
+                                    className="cursor-pointer text-green-600 focus:text-green-600"
+                                    onClick={async () => {
+                                      try {
+                                        await approveMutation.mutateAsync(it.id);
+                                        toast.success(t("toast.approved"));
+                                      } catch {
+                                        toast.error(t("toast.failed"));
+                                      }
+                                    }}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    {t("actions.approve")}
+                                  </DropdownMenuItem>
+                                )}
+                                {canReject && (
+                                  <DropdownMenuItem
+                                    className="cursor-pointer text-destructive focus:text-destructive"
+                                    onClick={async () => {
+                                      try {
+                                        await rejectMutation.mutateAsync(it.id);
+                                        toast.success(t("toast.rejected"));
+                                      } catch {
+                                        toast.error(t("toast.failed"));
+                                      }
+                                    }}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    {t("actions.reject")}
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            )}
+
+                            {canClose && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-orange-600 focus:text-orange-600"
+                                onClick={async () => {
+                                  try {
+                                    await closeMutation.mutateAsync(it.id);
+                                    toast.success(t("toast.closed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {t("actions.close")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canRevise && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                onClick={() => {
+                                  setReviseId(it.id);
+                                  setReviseOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {t("actions.revise")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canPrint && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => setPrintingId(it.id)}
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canDelete && status === "DRAFT" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={() => setDeletingItem(it)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {t("actions.delete")}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -355,6 +558,8 @@ export function PurchaseOrdersList() {
           }}
         />
       )}
+
+      {/* ── Dialogs ─────────────────────────────────────────── */}
 
       <PurchaseOrderForm
         open={formOpen}
@@ -376,15 +581,6 @@ export function PurchaseOrdersList() {
         purchaseOrderId={detailId}
       />
 
-      <PurchaseOrderAuditTrail
-        open={auditOpen}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
-        }}
-        purchaseOrderId={detailId || auditId}
-      />
-
       {printingId && (
         <PurchaseOrderPrintDialog
           open={!!printingId}
@@ -401,6 +597,42 @@ export function PurchaseOrdersList() {
         }}
         purchaseOrderId={reviseId}
       />
+
+      <SupplierDetailModal
+        open={isSupplierDialogOpen}
+        onOpenChange={(open) => {
+          setIsSupplierDialogOpen(open);
+          if (!open) setSelectedSupplierId(null);
+        }}
+        supplierId={selectedSupplierId}
+      />
+
+      <PurchaseRequisitionDetail
+        open={isPRDetailOpen}
+        onClose={() => {
+          setIsPRDetailOpen(false);
+          setSelectedPRId(null);
+        }}
+        requisitionId={selectedPRId}
+      />
+
+      {grDialogItem && (
+        <GRLinkedDialog
+          purchaseOrderCode={grDialogItem.code}
+          items={grDialogItem.goods_receipts ?? []}
+          open={!!grDialogItem}
+          onOpenChange={(open) => { if (!open) setGrDialogItem(null); }}
+        />
+      )}
+
+      {siDialogItem && (
+        <SILinkedDialog
+          purchaseOrderCode={siDialogItem.code}
+          items={siDialogItem.supplier_invoices ?? []}
+          open={!!siDialogItem}
+          onOpenChange={(open) => { if (!open) setSiDialogItem(null); }}
+        />
+      )}
 
       <DeleteDialog
         open={!!deletingItem}
