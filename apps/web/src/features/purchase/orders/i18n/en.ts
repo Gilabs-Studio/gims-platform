@@ -17,7 +17,13 @@ export const purchaseOrderEn = {
   },
   tabs: {
     general: "General",
+    basic: "Basic Info",
     items: "Items",
+  },
+  sections: {
+    orderInfo: "Order Information",
+    procurement: "Procurement",
+    financial: "Financial Summary",
   },
   auditTrail: {
     title: "Audit Trail",
@@ -61,6 +67,9 @@ export const purchaseOrderEn = {
     purchaseRequisitionId: "Purchase Requisition ID",
     salesOrderId: "Sales Order ID",
     source: "Source",
+    subtotal: "Subtotal",
+    taxAmount: "Tax Amount",
+    total: "Total",
   },
   source: {
     manual: "Manual",
@@ -120,5 +129,7 @@ export const purchaseOrderEn = {
     cancel: "Cancel",
     load: "Load",
     createNew: "Create New",
+    next: "Next",
+    back: "Back",
   },
 };

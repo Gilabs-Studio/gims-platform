@@ -17,7 +17,13 @@ export const purchaseOrderId = {
   },
   tabs: {
     general: "Umum",
+    basic: "Informasi Dasar",
     items: "Item",
+  },
+  sections: {
+    orderInfo: "Informasi Order",
+    procurement: "Pengadaan",
+    financial: "Ringkasan Keuangan",
   },
   auditTrail: {
     title: "Audit Trail",
@@ -61,6 +67,9 @@ export const purchaseOrderId = {
     purchaseRequisitionId: "ID Purchase Requisition",
     salesOrderId: "ID Sales Order",
     source: "Sumber",
+    subtotal: "Subtotal",
+    taxAmount: "Nilai Pajak",
+    total: "Total",
   },
   source: {
     manual: "Manual",
@@ -120,5 +129,7 @@ export const purchaseOrderId = {
     cancel: "Batal",
     load: "Muat",
     createNew: "Buat Baru",
+    next: "Selanjutnya",
+    back: "Kembali",
   },
 };

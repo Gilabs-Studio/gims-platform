@@ -15,6 +15,11 @@ export const purchasePaymentId = {
     view: "Lihat",
     auditTrail: "Audit Trail",
     delete: "Hapus",
+    createNew: "Buat Baru",
+  },
+  sections: {
+    invoiceInfo: "Informasi Invoice",
+    paymentDetails: "Detail Pembayaran",
   },
   status: {
     pending: "Menunggu",

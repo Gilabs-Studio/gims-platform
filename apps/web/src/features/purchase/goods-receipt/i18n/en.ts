@@ -75,6 +75,8 @@ export const goodsReceiptEn = {
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",
+    next: "Next",
+    back: "Back",
   },
   placeholders: {
     select: "Select...",

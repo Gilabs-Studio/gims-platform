@@ -15,7 +15,12 @@ export const supplierInvoiceId = {
   },
   tabs: {
     general: "Umum",
+    basic: "Informasi Dasar",
     items: "Item",
+  },
+  sections: {
+    invoiceInfo: "Informasi Faktur",
+    financial: "Ringkasan Keuangan",
   },
   auditTrail: {
     title: "Jejak Audit",
@@ -52,6 +57,9 @@ export const supplierInvoiceId = {
     otherCost: "Biaya Lainnya",
     notes: "Catatan",
     status: "Status",
+    subtotal: "Subtotal",
+    taxAmount: "Nilai Pajak",
+    total: "Total",
   },
   items: {
     title: "Item",
@@ -89,8 +97,12 @@ export const supplierInvoiceId = {
     auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",
+    next: "Selanjutnya",
+    back: "Kembali",
+    createNew: "Buat Baru",
   },
   placeholders: {
     select: "Pilih...",
+    none: "Tidak ada",
   },
 };

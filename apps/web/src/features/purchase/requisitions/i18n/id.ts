@@ -13,6 +13,7 @@ export const purchaseRequisitionId = {
     delete: "Hapus",
     addItem: "Tambah Item",
     save: "Simpan",
+    saving: "Menyimpan...",
     cancel: "Batal",
     approve: "Setujui",
     reject: "Tolak",
@@ -41,7 +42,16 @@ export const purchaseRequisitionId = {
   },
   tabs: {
     general: "Umum",
+    basic: "Informasi Dasar",
     items: "Item",
+  },
+  sections: {
+    procurement: "Pengadaan",
+    financial: "Ringkasan Keuangan",
+  },
+  common: {
+    next: "Selanjutnya",
+    back: "Kembali",
   },
   fields: {
     requestDate: "Tanggal Permintaan",
@@ -62,10 +72,12 @@ export const purchaseRequisitionId = {
     quantity: "Qty",
     purchasePrice: "Harga Beli",
     discount: "Diskon (%)",
+    address: "Alamat Pengiriman",
   },
   placeholders: {
     select: "Pilih...",
     none: "Tidak ada",
+    address: "Alamat pengiriman",
   },
   validation: {
     required: "Wajib diisi",
