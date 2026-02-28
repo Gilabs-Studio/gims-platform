@@ -149,6 +149,7 @@ export const invoiceId = {
       markPaid: "Tandai Lunas",
       markAsPaid: "Tandai Lunas",
       viewOrder: "Lihat Pesanan Penjualan",
+      createPayment: "Buat Pembayaran",
     },
 
     // Payment

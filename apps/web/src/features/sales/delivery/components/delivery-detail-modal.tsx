@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
+import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +33,7 @@ import { useDeliveryDetail } from "../hooks/use-delivery-detail";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import { InvoiceForm } from "../../invoice/components/invoice-form";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -64,6 +65,9 @@ export function DeliveryDetailModal({
   const canDelete = useUserPermission("delivery_order.delete");
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
+  const canCreateInvoice = useUserPermission("customer_invoice.create");
+
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
 
   const {
     canViewProduct,
@@ -202,6 +206,17 @@ export function DeliveryDetailModal({
                     title={t("actions.deliver")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                )}
+                {displayDelivery?.status === "delivered" && canCreateInvoice && displayDelivery?.sales_order_id && displayDelivery?.sales_order?.status !== "closed" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateInvoiceOpen(true)}
+                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title={t("actions.createInvoice")}
+                  >
+                    <Receipt className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -469,6 +484,15 @@ export function DeliveryDetailModal({
         onOpenChange={setIsProductOpen}
         productId={selectedProductId}
       />
+
+      {/* Create Invoice from delivered DO's sales order */}
+      {delivery && isCreateInvoiceOpen && displayDelivery?.sales_order_id && (
+        <InvoiceForm
+          open={isCreateInvoiceOpen}
+          onClose={() => setIsCreateInvoiceOpen(false)}
+          defaultSalesOrderId={displayDelivery.sales_order_id}
+        />
+      )}
     </>
   );
 }

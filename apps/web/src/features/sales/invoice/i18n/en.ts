@@ -149,6 +149,7 @@ export const invoiceEn = {
       markPaid: "Mark as Paid",
       markAsPaid: "Mark as Paid",
       viewOrder: "View Sales Order",
+      createPayment: "Create Payment",
     },
 
     // Payment

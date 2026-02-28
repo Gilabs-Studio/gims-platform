@@ -156,6 +156,7 @@ export const orderEn = {
       cancel: "Cancel Order",
       convert: "Convert from Quotation",
       createDelivery: "Create Delivery Order",
+      createInvoice: "Create Invoice",
     },
 
     // Validation

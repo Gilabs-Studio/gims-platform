@@ -44,9 +44,10 @@ interface DeliveryFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly delivery?: DeliveryOrder | null;
+  readonly defaultSalesOrderId?: string;
 }
 
-export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
+export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: DeliveryFormProps) {
   const {
     form,
     t,
@@ -73,7 +74,7 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     closeQuickCreate,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
-  } = useDeliveryForm({ delivery, open, onClose });
+  } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
   const { register, handleSubmit, control, formState: { errors }, getValues, setValue } = form;
 

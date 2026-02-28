@@ -156,6 +156,7 @@ export const orderId = {
       cancel: "Batalkan Pesanan",
       convert: "Konversi dari Penawaran",
       createDelivery: "Buat Surat Jalan",
+      createInvoice: "Buat Faktur",
     },
 
     // Validation

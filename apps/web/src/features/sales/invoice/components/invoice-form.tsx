@@ -29,9 +29,10 @@ interface InvoiceFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly invoice?: CustomerInvoice | null;
+  readonly defaultSalesOrderId?: string;
 }
 
-export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
+export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: InvoiceFormProps) {
   const {
     form,
     t,
@@ -61,7 +62,7 @@ export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
     openQuickCreate,
     closeQuickCreate,
     handlePaymentTermCreated,
-  } = useInvoiceForm({ invoice, open, onClose });
+  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
 

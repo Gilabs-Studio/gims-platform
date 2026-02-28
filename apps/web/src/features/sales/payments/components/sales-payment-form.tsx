@@ -35,9 +35,10 @@ function todayISO(): string {
 interface SalesPaymentFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
+  readonly defaultInvoiceId?: string;
 }
 
-export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
+export function SalesPaymentForm({ open, onClose, defaultInvoiceId }: SalesPaymentFormProps) {
   const t = useTranslations("salesPayment");
 
   const createMutation = useCreateSalesPayment();
@@ -65,7 +66,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
   } = useForm<SalesPaymentFormData>({
     resolver,
     defaultValues: {
-      invoice_id: "",
+      invoice_id: defaultInvoiceId ?? "",
       bank_account_id: "",
       payment_date: todayISO(),
       amount: 0,
@@ -78,7 +79,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
   useEffect(() => {
     if (open) {
       reset({
-        invoice_id: "",
+        invoice_id: defaultInvoiceId ?? "",
         bank_account_id: "",
         payment_date: todayISO(),
         amount: 0,
@@ -87,7 +88,7 @@ export function SalesPaymentForm({ open, onClose }: SalesPaymentFormProps) {
         notes: null,
       });
     }
-  }, [open, reset]);
+  }, [open, reset, defaultInvoiceId]);
 
   const invoiceId = watch("invoice_id");
   const selectedInvoice = useMemo(() => {

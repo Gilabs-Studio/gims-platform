@@ -133,6 +133,7 @@ export const deliveryEn = {
       deliver: "Mark as Delivered",
       selectBatches: "Select Batches",
       captureSignature: "Capture Signature",
+      createInvoice: "Create Invoice",
     },
 
     // Batch Selection
