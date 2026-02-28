@@ -5,7 +5,6 @@ import { purchaseOrdersService } from "../services/purchase-orders-service";
 import type {
   CreatePurchaseOrderInput,
   PurchaseOrderListParams,
-  RevisePurchaseOrderInput,
   UpdatePurchaseOrderInput,
 } from "../types";
 
@@ -131,20 +130,6 @@ export function useClosePurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
-    },
-  });
-}
-
-export function useRevisePurchaseOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RevisePurchaseOrderInput }) =>
-      purchaseOrdersService.revise(id, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(variables.id) });
     },
   });
 }

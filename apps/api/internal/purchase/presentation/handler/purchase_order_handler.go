@@ -320,48 +320,6 @@ func (h *PurchaseOrderHandler) Close(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
-// Revise handles POST /purchase/purchase-orders/:id/revise
-func (h *PurchaseOrderHandler) Revise(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
-		return
-	}
-	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
-		return
-	}
-
-	var req dto.RevisePurchaseOrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
-		return
-	}
-
-	res, err := h.uc.Revise(c.Request.Context(), id, req.RevisionComment)
-	if err != nil {
-		if err.Error() == "user not authenticated" {
-			errors.UnauthorizedResponse(c, "user not authenticated")
-			return
-		}
-		if err == usecase.ErrPurchaseOrderNotFound {
-			errors.NotFoundResponse(c, "purchase_order", id)
-			return
-		}
-		if err == usecase.ErrPurchaseOrderConflict {
-			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
-			return
-		}
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-	response.SuccessResponse(c, res, nil)
-}
-
 // AuditTrail handles GET /purchase/purchase-orders/:id/audit-trail
 func (h *PurchaseOrderHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

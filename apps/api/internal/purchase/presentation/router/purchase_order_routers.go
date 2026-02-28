@@ -12,7 +12,6 @@ const (
 	purchaseOrderUpdate     = "purchase_order.update"
 	purchaseOrderDelete     = "purchase_order.delete"
 	purchaseOrderConfirm    = "purchase_order.confirm"
-	purchaseOrderRevise     = "purchase_order.revise"
 	purchaseOrderExport     = "purchase_order.export"
 	purchaseOrderAuditTrail = "purchase_order.audit_trail"
 	purchaseOrderPrint      = "purchase_order.print"
@@ -38,7 +37,6 @@ func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHan
 	g.POST("/:id/approve", middleware.RequirePermission(purchaseOrderApprove), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(purchaseOrderReject), h.Reject)
 	g.POST("/:id/close", middleware.RequirePermission(purchaseOrderClose), h.Close)
-	// Legacy backward-compat routes
+	// Legacy backward-compat route
 	g.POST("/:id/confirm", middleware.RequirePermission(purchaseOrderConfirm), h.Confirm)
-	g.POST("/:id/revise", middleware.RequirePermission(purchaseOrderRevise), h.Revise)
 }

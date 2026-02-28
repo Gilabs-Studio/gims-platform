@@ -18,9 +18,8 @@ const (
 	PurchaseOrderStatusDraft     PurchaseOrderStatus = "DRAFT"
 	PurchaseOrderStatusSubmitted PurchaseOrderStatus = "SUBMITTED"
 	PurchaseOrderStatusApproved  PurchaseOrderStatus = "APPROVED"
+	PurchaseOrderStatusRejected  PurchaseOrderStatus = "REJECTED"
 	PurchaseOrderStatusClosed    PurchaseOrderStatus = "CLOSED"
-	// Kept for backward-compat with existing data; no longer used for new records.
-	PurchaseOrderStatusRevised PurchaseOrderStatus = "REVISED"
 )
 
 type PurchaseOrder struct {

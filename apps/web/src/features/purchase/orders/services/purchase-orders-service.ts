@@ -8,7 +8,6 @@ import type {
   PurchaseOrderDetail,
   PurchaseOrderListItem,
   PurchaseOrderListParams,
-  RevisePurchaseOrderInput,
 } from "../types";
 
 const BASE_URL = "/purchase/purchase-orders";
@@ -94,17 +93,6 @@ export const purchaseOrdersService = {
   close: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
     const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
       `${BASE_URL}/${id}/close`,
-    );
-    return response.data;
-  },
-
-  revise: async (
-    id: string,
-    data: RevisePurchaseOrderInput,
-  ): Promise<ApiResponse<PurchaseOrderDetail>> => {
-    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
-      `${BASE_URL}/${id}/revise`,
-      data,
     );
     return response.data;
   },

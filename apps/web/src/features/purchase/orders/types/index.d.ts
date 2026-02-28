@@ -30,7 +30,7 @@ export interface PurchaseOrderListParams {
   limit?: number;
 }
 
-export type PurchaseOrderStatus = "DRAFT" | "SUBMITTED" | "REVISED" | "APPROVED" | "CLOSED";
+export type PurchaseOrderStatus = "DRAFT" | "SUBMITTED" | "REJECTED" | "APPROVED" | "CLOSED";
 
 export interface PurchaseOrderRequisitionRef {
   id: string;
@@ -182,10 +182,6 @@ export interface PurchaseOrderAuditTrailEntry {
   metadata: Record<string, unknown>;
   user?: PurchaseOrderAuditTrailUser | null;
   created_at: string;
-}
-
-export interface RevisePurchaseOrderInput {
-  revision_comment: string;
 }
 
 export interface PurchaseOrderListItem {

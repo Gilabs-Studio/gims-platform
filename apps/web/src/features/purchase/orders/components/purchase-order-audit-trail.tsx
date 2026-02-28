@@ -50,7 +50,6 @@ function actionLabel(t: (key: string) => string, rawAction: string): string {
     update: "auditTrail.actions.update",
     delete: "auditTrail.actions.delete",
     confirm: "auditTrail.actions.confirm",
-    revise: "auditTrail.actions.revise",
     export: "auditTrail.actions.export",
     read: "auditTrail.actions.view",
     audit_trail: "auditTrail.actions.auditTrail",

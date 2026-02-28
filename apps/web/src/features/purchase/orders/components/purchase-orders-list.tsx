@@ -66,7 +66,6 @@ import { GRLinkedDialog } from "./gr-linked-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
-import { PurchaseOrderReviseDialog } from "./purchase-order-revise-dialog";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
 
@@ -85,8 +84,6 @@ export function PurchaseOrdersList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [reviseOpen, setReviseOpen] = useState(false);
-  const [reviseId, setReviseId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
@@ -112,7 +109,6 @@ export function PurchaseOrdersList() {
   const canApprove = useUserPermission("purchase_order.approve");
   const canReject = useUserPermission("purchase_order.reject");
   const canClose = useUserPermission("purchase_order.close");
-  const canRevise = useUserPermission("purchase_order.revise");
   const canDelete = useUserPermission("purchase_order.delete");
   const canPrint = useUserPermission("purchase_order.print");
   const canViewSupplier = useUserPermission("supplier.read");
@@ -323,7 +319,8 @@ export function PurchaseOrdersList() {
                 const status = normalStatus(it);
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
-                  canReject || canClose || canRevise || canDelete || canPrint;
+                  canReject || canClose || canDelete || canPrint;
+            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
 
                 return (
                   <TableRow key={it.id}>
@@ -502,18 +499,6 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canRevise && status === "APPROVED" && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
-                                onClick={() => {
-                                  setReviseId(it.id);
-                                  setReviseOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4 mr-2" />
-                                {t("actions.revise")}
-                              </DropdownMenuItem>
-                            )}
 
                             {canPrint && (
                               <DropdownMenuItem
@@ -589,14 +574,6 @@ export function PurchaseOrdersList() {
         />
       )}
 
-      <PurchaseOrderReviseDialog
-        open={reviseOpen}
-        onClose={() => {
-          setReviseOpen(false);
-          setReviseId(null);
-        }}
-        purchaseOrderId={reviseId}
-      />
 
       <SupplierDetailModal
         open={isSupplierDialogOpen}

@@ -22,7 +22,6 @@ type PurchaseOrderRepository interface {
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, status models.PurchaseOrderStatus) (*models.PurchaseOrder, error)
 	UpdateStatusWithTimestamp(ctx context.Context, id string, status models.PurchaseOrderStatus, updates map[string]interface{}) (*models.PurchaseOrder, error)
-	Revise(ctx context.Context, id string, comment string) (*models.PurchaseOrder, error)
 	ExistsByPurchaseRequisitionID(ctx context.Context, prID string) (bool, error)
 	ExistsBySalesOrderID(ctx context.Context, soID string) (bool, error)
 }
@@ -325,24 +324,7 @@ func (r *purchaseOrderRepository) UpdateStatusWithTimestamp(ctx context.Context,
 	return r.GetByID(ctx, id)
 }
 
-func (r *purchaseOrderRepository) Revise(ctx context.Context, id string, comment string) (*models.PurchaseOrder, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var existing models.PurchaseOrder
-		if err := tx.
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			First(&existing, "id = ?", id).Error; err != nil {
-			return err
-		}
-		return tx.Model(&existing).Updates(map[string]interface{}{
-			"status":           models.PurchaseOrderStatusRevised,
-			"revision_comment": strings.TrimSpace(comment),
-		}).Error
-	})
-	if err != nil {
-		return nil, err
-	}
-	return r.GetByID(ctx, id)
-}
+
 
 func (r *purchaseOrderRepository) getNextCodeLocked(ctx context.Context, tx *gorm.DB, prefix string) (string, error) {
 	now := database.GetDB(ctx, r.db).NowFunc()
