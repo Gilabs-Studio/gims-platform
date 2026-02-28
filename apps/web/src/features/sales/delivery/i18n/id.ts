@@ -133,6 +133,7 @@ export const deliveryId = {
       deliver: "Tandai sebagai Terkirim",
       selectBatches: "Pilih Batch",
       captureSignature: "Ambil Tanda Tangan",
+      createInvoice: "Buat Faktur",
     },
 
     // Batch Selection

@@ -21,6 +21,7 @@ import {
   DollarSign,
   FileEdit,
   Trash2,
+  Printer,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -103,6 +105,7 @@ export function CustomerInvoiceDPList() {
   const [auditId, setAuditId] = useState<string | null>(null);
 
   const [deletingRow, setDeletingRow] = useState<CustomerInvoiceDPListItem | null>(null);
+  const [printingDPId, setPrintingDPId] = useState<string | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -125,6 +128,7 @@ export function CustomerInvoiceDPList() {
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canExport = useUserPermission("customer_invoice_dp.export");
   const canAuditTrail = useUserPermission("customer_invoice_dp.audit_trail");
+  const canPrint = useUserPermission("customer_invoice_dp.print");
 
   async function handleExport() {
     try {
@@ -372,6 +376,15 @@ export function CustomerInvoiceDPList() {
                               {tCommon("delete")}
                             </DropdownMenuItem>
                           ) : null}
+                          {canPrint ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              onClick={() => setPrintingDPId(row.id)}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {tCommon("print")}
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : null}
@@ -432,6 +445,14 @@ export function CustomerInvoiceDPList() {
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
       />
+
+      {printingDPId && (
+        <CustomerInvoiceDPPrintDialog
+          open={!!printingDPId}
+          onClose={() => setPrintingDPId(null)}
+          invoiceDpId={printingDPId}
+        />
+      )}
     </div>
   );
 }

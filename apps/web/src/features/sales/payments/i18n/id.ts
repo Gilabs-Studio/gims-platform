@@ -15,6 +15,7 @@ export const salesPaymentId = {
     view: "Lihat",
     auditTrail: "Audit Trail",
     delete: "Hapus",
+    print: "Cetak",
   },
   status: {
     pending: "Menunggu",
@@ -69,6 +70,20 @@ export const salesPaymentId = {
       export: "Export",
       view: "Lihat",
       auditTrail: "Audit Trail",
+      print: "Cetak",
     },
+  },
+
+  // Print dialog
+  print: "Cetak",
+  printPaymentReceipt: "Cetak Kwitansi Pembayaran",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  common: {
+    cancel: "Batal",
+    error: "Terjadi kesalahan",
   },
 };

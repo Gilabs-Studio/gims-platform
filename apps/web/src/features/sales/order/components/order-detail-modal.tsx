@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +33,8 @@ import type { Employee as MdEmployee } from "@/features/master-data/employee/typ
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import type { SalesQuotation } from "../../quotation/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import { DeliveryForm } from "../../delivery/components/delivery-form";
+import { InvoiceForm } from "../../invoice/components/invoice-form";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -61,6 +63,11 @@ export function OrderDetailModal({
   const canDelete = useUserPermission("sales_order.delete");
   const canApprove = useUserPermission("sales_order.approve");
   const canCancel = useUserPermission("sales_order.cancel");
+  const canCreateDO = useUserPermission("delivery_order.create");
+  const canCreateInvoice = useUserPermission("customer_invoice.create");
+
+  const [isCreateDOOpen, setIsCreateDOOpen] = useState(false);
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
 
   const {
     canViewEmployee,
@@ -204,6 +211,28 @@ export function OrderDetailModal({
                     title={t("actions.cancel")}
                   >
                     <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+                {displayOrder?.status === "approved" && canCreateDO && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateDOOpen(true)}
+                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={t("actions.createDelivery")}
+                  >
+                    <Truck className="h-4 w-4" />
+                  </Button>
+                )}
+                {displayOrder?.status === "approved" && canCreateInvoice && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateInvoiceOpen(true)}
+                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title={t("actions.createInvoice")}
+                  >
+                    <Receipt className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -530,6 +559,24 @@ export function OrderDetailModal({
         onOpenChange={setIsProductOpen}
         productId={selectedProductId}
       />
+
+      {/* Create DO from approved SO */}
+      {order && isCreateDOOpen && (
+        <DeliveryForm
+          open={isCreateDOOpen}
+          onClose={() => setIsCreateDOOpen(false)}
+          defaultSalesOrderId={order.id}
+        />
+      )}
+
+      {/* Create Invoice from approved SO */}
+      {order && isCreateInvoiceOpen && (
+        <InvoiceForm
+          open={isCreateInvoiceOpen}
+          onClose={() => setIsCreateInvoiceOpen(false)}
+          defaultSalesOrderId={order.id}
+        />
+      )}
     </>
   );
 }

@@ -25,9 +25,10 @@ export interface UseDeliveryFormProps {
   delivery?: DeliveryOrder | null;
   open: boolean;
   onClose: () => void;
+  defaultSalesOrderId?: string;
 }
 
-export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProps) {
+export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }: UseDeliveryFormProps) {
   const isEdit = !!delivery;
   const t = useTranslations("delivery");
   const createDelivery = useCreateDeliveryOrder();
@@ -103,7 +104,7 @@ export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProp
       : {
           delivery_date: new Date().toISOString().split("T")[0],
           warehouse_id: "",
-          sales_order_id: "",
+          sales_order_id: defaultSalesOrderId ?? "",
           items: [],
         },
   });
@@ -212,10 +213,10 @@ export function useDeliveryForm({ delivery, open, onClose }: UseDeliveryFormProp
     reset({
       delivery_date: new Date().toISOString().split("T")[0],
       warehouse_id: "",
-      sales_order_id: "",
+      sales_order_id: defaultSalesOrderId ?? "",
       items: [],
     });
-  }, [open, isEdit, fullDeliveryData, reset]);
+  }, [open, isEdit, fullDeliveryData, reset, defaultSalesOrderId]);
 
   const basicFieldsList = [
     "delivery_date",

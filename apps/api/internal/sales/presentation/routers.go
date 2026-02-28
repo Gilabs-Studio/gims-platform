@@ -59,12 +59,16 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	quotationHandler := handler.NewSalesQuotationHandler(quotationUC)
 	quotationPrintHandler := handler.NewSalesQuotationPrintHandler(quotationUC, db)
 	orderHandler := handler.NewSalesOrderHandler(orderUC)
+	orderPrintHandler := handler.NewSalesOrderPrintHandler(orderUC, db)
 	deliveryHandler := handler.NewDeliveryOrderHandler(deliveryUC)
 	invoiceHandler := handler.NewCustomerInvoiceHandler(invoiceUC)
+	invoicePrintHandler := handler.NewCustomerInvoicePrintHandler(invoiceUC, db)
 	invoiceDpHandler := handler.NewCustomerInvoiceDownPaymentHandler(invoiceDpUC)
+	invoiceDpPrintHandler := handler.NewCustomerInvoiceDPPrintHandler(invoiceDpUC, db)
 	visitHandler := handler.NewSalesVisitHandler(visitUC)
 	yearlyTargetHandler := handler.NewYearlyTargetHandler(yearlyTargetUC)
 	salesPaymentHandler := handler.NewSalesPaymentHandler(salesPaymentUC)
+	salesPaymentPrintHandler := handler.NewSalesPaymentPrintHandler(salesPaymentUC, db)
 	recapHandler := handler.NewReceivablesRecapHandler(recapUC)
 
 	// Create sales group under API with auth middleware
@@ -74,13 +78,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterSalesQuotationRoutes(salesGroup, quotationHandler, quotationPrintHandler)
-	router.RegisterSalesOrderRoutes(salesGroup, orderHandler)
+	router.RegisterSalesOrderRoutes(salesGroup, orderHandler, orderPrintHandler)
 	router.RegisterDeliveryOrderRoutes(salesGroup, deliveryHandler)
-	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler)
-	router.RegisterCustomerInvoiceDownPaymentRoutes(salesGroup, invoiceDpHandler)
+	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler, invoicePrintHandler)
+	router.RegisterCustomerInvoiceDownPaymentRoutes(salesGroup, invoiceDpHandler, invoiceDpPrintHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
 	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
-	router.RegisterSalesPaymentRoutes(salesGroup, salesPaymentHandler)
+	router.RegisterSalesPaymentRoutes(salesGroup, salesPaymentHandler, salesPaymentPrintHandler)
 	router.RegisterReceivablesRecapRoutes(salesGroup, recapHandler)
 
 	return &SalesDeps{

@@ -68,4 +68,17 @@ export const customerInvoiceDPId = {
   placeholders: {
     select: "Pilih...",
   },
+
+  // Print
+  print: "Cetak",
+  printDownPaymentInvoice: "Cetak Invoice Uang Muka",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  common: {
+    cancel: "Batal",
+    error: "Terjadi kesalahan",
+  },
 };

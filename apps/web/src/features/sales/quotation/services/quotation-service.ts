@@ -82,9 +82,9 @@ export const quotationService = {
   },
 
   /**
-   * Fetches the PDF from the backend via the authenticated API client,
-   * then opens it in a new browser tab using the built-in PDF viewer.
-   * This avoids cross-origin cookie restrictions (SameSite=Strict).
+   * Fetches the print document (HTML) from the backend via the authenticated API client,
+   * then opens it in a new browser tab. The browser's built-in print dialog handles printing.
+   * Fetching instead of navigating directly avoids SameSite=Strict cookie restrictions.
    */
   async openPrintWindow(id: string, companyId?: string): Promise<void> {
     const params = companyId ? { company_id: companyId } : undefined;
@@ -92,7 +92,8 @@ export const quotationService = {
       `${BASE_PATH}/${id}/print`,
       { responseType: "blob" as const, params }
     );
-    const blob = new Blob([response.data as BlobPart], { type: "application/pdf" });
+    const contentType = (response.headers["content-type"] as string) || "text/html; charset=utf-8";
+    const blob = new Blob([response.data as BlobPart], { type: contentType });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
     // Free memory after the PDF tab has loaded

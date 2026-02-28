@@ -149,6 +149,7 @@ export const invoiceId = {
       markPaid: "Tandai Lunas",
       markAsPaid: "Tandai Lunas",
       viewOrder: "Lihat Pesanan Penjualan",
+      createPayment: "Buat Pembayaran",
     },
 
     // Payment
@@ -185,5 +186,14 @@ export const invoiceId = {
     // Workflow timestamps
     paidAt: "Dibayar Pada",
     cancelledAt: "Dibatalkan Pada",
+
+    // Print
+    print: "Cetak",
+    printInvoice: "Cetak Faktur",
+    printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+    printCompanyLabel: "Perusahaan",
+    printCompanyPlaceholder: "Pilih perusahaan...",
+    printNoCompanies: "Tidak ada perusahaan tersedia",
+    printConfirm: "Cetak",
   },
 };

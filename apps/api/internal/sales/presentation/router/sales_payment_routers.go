@@ -15,7 +15,7 @@ const (
 	salesPaymentAuditTrail = "sales_payment.audit_trail"
 )
 
-func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandler) {
+func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandler, printH *handler.SalesPaymentPrintHandler) {
 	g := r.Group("/payments")
 	g.GET("/add", middleware.RequirePermission(salesPaymentCreate), h.Add)
 	g.GET("", middleware.RequirePermission(salesPaymentRead), h.List)
@@ -23,6 +23,7 @@ func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandl
 	g.POST("", middleware.RequirePermission(salesPaymentCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(salesPaymentRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(salesPaymentAuditTrail), h.AuditTrail)
+	g.GET("/:id/print", middleware.RequirePermission("sales_payment.print"), printH.PrintPayment)
 	g.DELETE("/:id", middleware.RequirePermission(salesPaymentDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(salesPaymentConfirm), h.Confirm)
 }

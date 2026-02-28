@@ -149,6 +149,7 @@ export const invoiceEn = {
       markPaid: "Mark as Paid",
       markAsPaid: "Mark as Paid",
       viewOrder: "View Sales Order",
+      createPayment: "Create Payment",
     },
 
     // Payment
@@ -185,6 +186,15 @@ export const invoiceEn = {
     // Workflow timestamps
     paidAt: "Paid At",
     cancelledAt: "Cancelled At",
+
+    // Print
+    print: "Print",
+    printInvoice: "Print Invoice",
+    printSelectCompany: "Select the company to display on the document.",
+    printCompanyLabel: "Company",
+    printCompanyPlaceholder: "Select company...",
+    printNoCompanies: "No companies available",
+    printConfirm: "Print",
   },
 };
 

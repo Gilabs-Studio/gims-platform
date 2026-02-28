@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send, Receipt } from "lucide-react";
 import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useApproveDeliveryOrder, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -21,6 +21,7 @@ import { DeliveryDetailModal } from "./delivery-detail-modal";
 import { ShipDialog } from "./ship-dialog";
 import { DeliverDialog } from "./deliver-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import { InvoiceForm } from "../../invoice/components/invoice-form";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
@@ -87,6 +88,9 @@ export function DeliveryList() {
   const pagination = data?.meta?.pagination;
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
+  const canCreateInvoice = useUserPermission("customer_invoice.create");
+
+  const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
 
   const handleEdit = (delivery: DeliveryOrder) => {
     setEditingDelivery(delivery);
@@ -415,6 +419,15 @@ export function DeliveryList() {
                               {t("actions.deliver")}
                             </DropdownMenuItem>
                           )}
+                          {canCreateInvoice && delivery.status === "delivered" && delivery.sales_order_id && delivery.sales_order?.status !== "closed" && (
+                            <DropdownMenuItem
+                              onClick={() => setCreateInvoiceForOrderId(delivery.sales_order_id)}
+                              className="cursor-pointer text-green-600 focus:text-green-600"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              {t("actions.createInvoice")}
+                            </DropdownMenuItem>
+                          )}
                           {canDelete && delivery.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(delivery.id)}
@@ -499,6 +512,15 @@ export function DeliveryList() {
         isLoading={deliverDelivery.isPending}
         initialReceiverName={deliveries.find(d => d.id === deliverDeliveryId)?.receiver_name}
       />
+
+      {/* Create Invoice from delivered DO's sales order */}
+      {createInvoiceForOrderId && (
+        <InvoiceForm
+          open={!!createInvoiceForOrderId}
+          onClose={() => setCreateInvoiceForOrderId(null)}
+          defaultSalesOrderId={createInvoiceForOrderId}
+        />
+      )}
     </div>
   );
 }

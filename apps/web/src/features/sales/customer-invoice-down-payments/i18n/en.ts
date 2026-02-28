@@ -68,4 +68,17 @@ export const customerInvoiceDPEn = {
   placeholders: {
     select: "Select...",
   },
+
+  // Print
+  print: "Print",
+  printDownPaymentInvoice: "Print Down Payment Invoice",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  common: {
+    cancel: "Cancel",
+    error: "Something went wrong",
+  },
 };
