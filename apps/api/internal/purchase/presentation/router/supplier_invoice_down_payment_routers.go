@@ -14,9 +14,10 @@ const (
 	supplierInvoiceDPPending = "supplier_invoice_dp.pending"
 	supplierInvoiceDPExport  = "supplier_invoice_dp.export"
 	supplierInvoiceDPAuditTrail = "supplier_invoice_dp.audit_trail"
+	supplierInvoiceDPPrint      = "supplier_invoice_dp.print"
 )
 
-func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.SupplierInvoiceDownPaymentHandler) {
+func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.SupplierInvoiceDownPaymentHandler, printH *handler.SupplierInvoiceDPPrintHandler) {
 	g := r.Group("/supplier-invoice-down-payments")
 	g.GET("/add", middleware.RequirePermission(supplierInvoiceDPCreate), h.Add)
 	g.GET("", middleware.RequirePermission(supplierInvoiceDPRead), h.List)
@@ -24,6 +25,7 @@ func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.Sup
 	g.POST("", middleware.RequirePermission(supplierInvoiceDPCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(supplierInvoiceDPRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(supplierInvoiceDPAuditTrail), h.AuditTrail)
+	g.GET("/:id/print", middleware.RequirePermission(supplierInvoiceDPPrint), printH.PrintSupplierInvoiceDP)
 	g.PUT("/:id", middleware.RequirePermission(supplierInvoiceDPUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(supplierInvoiceDPDelete), h.Delete)
 	g.POST("/:id/pending", middleware.RequirePermission(supplierInvoiceDPPending), h.Pending)

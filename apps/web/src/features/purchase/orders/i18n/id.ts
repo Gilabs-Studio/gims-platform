@@ -132,5 +132,16 @@ export const purchaseOrderId = {
     createNew: "Buat Baru",
     next: "Selanjutnya",
     back: "Kembali",
+    print: "Cetak",
   },
+  // Dialog cetak
+  print: "Cetak",
+  printPurchaseOrder: "Cetak Purchase Order",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

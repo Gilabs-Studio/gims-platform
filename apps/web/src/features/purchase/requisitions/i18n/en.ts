@@ -19,6 +19,7 @@ export const purchaseRequisitionEn = {
     convert: "Convert",
     auditTrail: "Audit Trail",
     createNew: "Create New",
+    print: "Print",
   },
   toast: {
     created: "Purchase requisition created",
@@ -121,4 +122,14 @@ export const purchaseRequisitionEn = {
       auditTrail: "Audit Trail",
     },
   },
+  // Print dialog
+  print: "Print",
+  printPurchaseRequisition: "Print Purchase Requisition",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

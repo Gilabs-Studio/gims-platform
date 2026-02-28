@@ -20,6 +20,7 @@ export const purchaseRequisitionId = {
     convert: "Konversi",
     auditTrail: "Audit Trail",
     createNew: "Buat Baru",
+    print: "Cetak",
   },
   toast: {
     created: "Purchase requisition berhasil dibuat",
@@ -121,4 +122,14 @@ export const purchaseRequisitionId = {
       auditTrail: "Audit Trail",
     },
   },
+  // Dialog cetak
+  print: "Cetak",
+  printPurchaseRequisition: "Cetak Permintaan Pembelian",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

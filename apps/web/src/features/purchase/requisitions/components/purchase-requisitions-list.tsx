@@ -14,6 +14,7 @@ import {
   Search,
   Trash2,
   XCircle,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,6 +54,7 @@ import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
 import { PurchaseRequisitionAuditTrail } from "./purchase-requisition-audit-trail";
 import { PurchaseRequisitionStatusBadge } from "./purchase-requisition-status-badge";
+import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
 
 export function PurchaseRequisitionsList() {
   const t = useTranslations("purchaseRequisition");
@@ -70,6 +72,7 @@ export function PurchaseRequisitionsList() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("purchase_requisition.create");
   const canUpdate = useUserPermission("purchase_requisition.update");
@@ -80,6 +83,7 @@ export function PurchaseRequisitionsList() {
   const canExport = useUserPermission("purchase_requisition.export");
   const canAuditTrail = useUserPermission("purchase_requisition.audit_trail");
   const canView = useUserPermission("purchase_requisition.read");
+  const canPrint = useUserPermission("purchase_requisition.print");
 
   const { data, isLoading, isError } = usePurchaseRequisitions({
     page,
@@ -355,6 +359,16 @@ export function PurchaseRequisitionsList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canPrint && (
+                              <DropdownMenuItem
+                                onClick={() => setPrintingId(item.id)}
+                                className="cursor-pointer"
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canDelete && status === "draft" && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
@@ -433,6 +447,14 @@ export function PurchaseRequisitionsList() {
         }}
         requisitionId={detailId || auditId}
       />
+
+      {printingId && (
+        <PurchaseRequisitionPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          requisitionId={printingId}
+        />
+      )}
     </div>
   );
 }

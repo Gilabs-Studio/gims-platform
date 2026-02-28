@@ -132,5 +132,16 @@ export const purchaseOrderEn = {
     createNew: "Create New",
     next: "Next",
     back: "Back",
+    print: "Print",
   },
+  // Print dialog
+  print: "Print",
+  printPurchaseOrder: "Print Purchase Order",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

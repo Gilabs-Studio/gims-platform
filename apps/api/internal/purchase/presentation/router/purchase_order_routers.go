@@ -15,9 +15,10 @@ const (
 	purchaseOrderRevise    = "purchase_order.revise"
 	purchaseOrderExport    = "purchase_order.export"
 	purchaseOrderAuditTrail = "purchase_order.audit_trail"
+	purchaseOrderPrint      = "purchase_order.print"
 )
 
-func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHandler) {
+func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHandler, printH *handler.PurchaseOrderPrintHandler) {
 	g := r.Group("/purchase-orders")
 	g.GET("/add", middleware.RequirePermission(purchaseOrderCreate), h.Add)
 	g.GET("", middleware.RequirePermission(purchaseOrderRead), h.List)
@@ -25,6 +26,7 @@ func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHan
 	g.POST("", middleware.RequirePermission(purchaseOrderCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(purchaseOrderRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseOrderAuditTrail), h.AuditTrail)
+	g.GET("/:id/print", middleware.RequirePermission(purchaseOrderPrint), printH.PrintPurchaseOrder)
 	g.PUT("/:id", middleware.RequirePermission(purchaseOrderUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(purchaseOrderDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(purchaseOrderConfirm), h.Confirm)

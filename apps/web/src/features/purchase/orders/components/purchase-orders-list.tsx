@@ -13,6 +13,7 @@ import {
   Search,
   Trash2,
   CheckCircle2,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +52,7 @@ import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderReviseDialog } from "./purchase-order-revise-dialog";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
+import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -71,6 +73,7 @@ export function PurchaseOrdersList() {
   const [reviseOpen, setReviseOpen] = useState(false);
   const [reviseId, setReviseId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("purchase_order.create");
   const canEdit = useUserPermission("purchase_order.update");
@@ -80,6 +83,7 @@ export function PurchaseOrdersList() {
   const canConfirm = useUserPermission("purchase_order.confirm");
   const canRevise = useUserPermission("purchase_order.revise");
   const canDelete = useUserPermission("purchase_order.delete");
+  const canPrint = useUserPermission("purchase_order.print");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -265,6 +269,16 @@ export function PurchaseOrdersList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canPrint && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPrintingId(it.id)}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("actions.print")}
+                            </DropdownMenuItem>
+                          )}
+
                           {canEdit && ["draft", "revised"].includes((it.status ?? "").toLowerCase()) && (
                             <DropdownMenuItem
                               className="cursor-pointer"
@@ -370,6 +384,14 @@ export function PurchaseOrdersList() {
         }}
         purchaseOrderId={detailId || auditId}
       />
+
+      {printingId && (
+        <PurchaseOrderPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          orderId={printingId}
+        />
+      )}
 
       <PurchaseOrderReviseDialog
         open={reviseOpen}

@@ -54,4 +54,20 @@ export const supplierInvoiceDPService = {
     });
     return response.data as Blob;
   },
+
+  /**
+   * Fetches the Supplier Invoice Down Payment PDF from the backend and opens it in a new browser tab.
+   */
+  openPrintWindow: async (id: string, companyId?: string): Promise<void> => {
+    const params = companyId ? { company_id: companyId } : undefined;
+    const response = await apiClient.get(`${BASE_URL}/${id}/print`, {
+      responseType: "blob" as const,
+      params,
+    });
+    const contentType = (response.headers["content-type"] as string) || "application/pdf";
+    const blob = new Blob([response.data as BlobPart], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  },
 };
