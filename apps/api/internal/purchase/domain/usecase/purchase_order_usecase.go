@@ -301,7 +301,9 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		createdID = created.ID
 
 		prRepoTx := repositories.NewPurchaseRequisitionRepository(tx)
-		if _, err := prRepoTx.UpdateStatus(ctx, pr.ID, models.PurchaseRequisitionStatusConverted); err != nil {
+		if _, err := prRepoTx.UpdateStatus(ctx, pr.ID, models.PurchaseRequisitionStatusConverted, map[string]interface{}{
+			"converted_to_purchase_order_id": createdID,
+		}); err != nil {
 			return err
 		}
 

@@ -206,6 +206,35 @@ func (h *PurchaseRequisitionHandler) AddData(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Submit handles POST /purchase/purchase-requisitions/:id/submit
+func (h *PurchaseRequisitionHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrPurchaseRequisitionNotFound {
+			errors.NotFoundResponse(c, "purchase_requisition", id)
+			return
+		}
+		if err == usecase.ErrInvalidStatus {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
 // Approve handles POST /purchase/purchase-requisitions/:id/approve
 func (h *PurchaseRequisitionHandler) Approve(c *gin.Context) {
 	id := c.Param("id")

@@ -104,6 +104,17 @@ export function useRejectPurchaseRequisition() {
   });
 }
 
+export function useSubmitPurchaseRequisition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => purchaseRequisitionsService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
+    },
+  });
+}
+
 export function useConvertPurchaseRequisition() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -7,14 +7,15 @@ import (
 )
 
 const (
-	purchaseRequisitionCreate = "purchase_requisition.create"
-	purchaseRequisitionRead = "purchase_requisition.read"
-	purchaseRequisitionUpdate = "purchase_requisition.update"
-	purchaseRequisitionDelete = "purchase_requisition.delete"
-	purchaseRequisitionApprove = "purchase_requisition.approve"
-	purchaseRequisitionReject = "purchase_requisition.reject"
-	purchaseRequisitionConvert = "purchase_requisition.convert"
-	purchaseRequisitionExport = "purchase_requisition.export"
+	purchaseRequisitionCreate    = "purchase_requisition.create"
+	purchaseRequisitionRead      = "purchase_requisition.read"
+	purchaseRequisitionUpdate    = "purchase_requisition.update"
+	purchaseRequisitionDelete    = "purchase_requisition.delete"
+	purchaseRequisitionSubmit    = "purchase_requisition.submit"
+	purchaseRequisitionApprove   = "purchase_requisition.approve"
+	purchaseRequisitionReject    = "purchase_requisition.reject"
+	purchaseRequisitionConvert   = "purchase_requisition.convert"
+	purchaseRequisitionExport    = "purchase_requisition.export"
 	purchaseRequisitionAuditTrail = "purchase_requisition.audit_trail"
 	purchaseRequisitionPrint      = "purchase_requisition.print"
 )
@@ -28,6 +29,7 @@ func RegisterPurchaseRequisitionRoutes(rg *gin.RouterGroup, h *handler.PurchaseR
 		g.POST("", middleware.RequirePermission(purchaseRequisitionCreate), h.Create)
 		g.GET("/:id", middleware.RequirePermission(purchaseRequisitionRead), h.GetByID)
 		g.PUT("/:id", middleware.RequirePermission(purchaseRequisitionUpdate), h.Update)
+		g.POST("/:id/submit", middleware.RequirePermission(purchaseRequisitionSubmit), h.Submit)
 		g.POST("/:id/approve", middleware.RequirePermission(purchaseRequisitionApprove), h.Approve)
 		g.POST("/:id/reject", middleware.RequirePermission(purchaseRequisitionReject), h.Reject)
 		g.POST("/:id/convert", middleware.RequirePermission(purchaseRequisitionConvert), h.Convert)

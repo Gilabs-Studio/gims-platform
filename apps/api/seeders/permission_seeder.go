@@ -262,6 +262,7 @@ func SeedPermissions() error {
 		{"/purchase/purchase-requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.submit", "Submit Purchase Requisitions", "SUBMIT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},

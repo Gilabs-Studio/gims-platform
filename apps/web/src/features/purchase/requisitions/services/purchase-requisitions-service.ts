@@ -80,6 +80,13 @@ export const purchaseRequisitionsService = {
     return response.data;
   },
 
+  submit: async (id: string): Promise<ApiResponse<PurchaseRequisitionDetail>> => {
+    const response = await apiClient.post<ApiResponse<PurchaseRequisitionDetail>>(
+      `${BASE_URL}/${id}/submit`,
+    );
+    return response.data;
+  },
+
   convert: async (id: string): Promise<ApiResponse<PurchaseRequisitionConvertResponse>> => {
     const response = await apiClient.post<ApiResponse<PurchaseRequisitionConvertResponse>>(
       `${BASE_URL}/${id}/convert`,

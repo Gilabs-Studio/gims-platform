@@ -77,6 +77,15 @@ type PurchaseRequisitionDetailResponse struct {
 	OtherCost    float64 `json:"other_cost"`
 	TotalAmount  float64 `json:"total_amount"`
 
+	// Workflow timestamps
+	SubmittedAt *string `json:"submitted_at"`
+	ApprovedAt  *string `json:"approved_at"`
+	RejectedAt  *string `json:"rejected_at"`
+	ConvertedAt *string `json:"converted_at"`
+
+	// ID of the Purchase Order created on conversion
+	ConvertedToPurchaseOrderID *string `json:"converted_to_purchase_order_id"`
+
 	Supplier *struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`

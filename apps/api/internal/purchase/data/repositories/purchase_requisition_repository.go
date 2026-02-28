@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -18,7 +19,8 @@ type PurchaseRequisitionRepository interface {
 	GetByID(ctx context.Context, id string) (*models.PurchaseRequisition, error)
 	Create(ctx context.Context, pr *models.PurchaseRequisition) (*models.PurchaseRequisition, error)
 	Update(ctx context.Context, pr *models.PurchaseRequisition) (*models.PurchaseRequisition, error)
-	UpdateStatus(ctx context.Context, id string, status models.PurchaseRequisitionStatus) (*models.PurchaseRequisition, error)
+	// UpdateStatus transitions the PR to the given status and optionally applies extra column updates (e.g. converted_to_purchase_order_id).
+	UpdateStatus(ctx context.Context, id string, status models.PurchaseRequisitionStatus, extra ...map[string]interface{}) (*models.PurchaseRequisition, error)
 	Delete(ctx context.Context, id string) error
 	GetNextCode(ctx context.Context, prefix string) (string, error)
 }
@@ -277,7 +279,7 @@ func (r *purchaseRequisitionRepository) Delete(ctx context.Context, id string) e
 	})
 }
 
-func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseRequisitionStatus) (*models.PurchaseRequisition, error) {
+func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseRequisitionStatus, extra ...map[string]interface{}) (*models.PurchaseRequisition, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing models.PurchaseRequisition
 		if err := tx.
@@ -286,7 +288,29 @@ func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id str
 			return err
 		}
 
-		return tx.Model(&existing).Update("status", status).Error
+		now := time.Now()
+		updates := map[string]interface{}{"status": status}
+
+		// Set workflow timestamp for the new status.
+		switch status {
+		case models.PurchaseRequisitionStatusSubmitted:
+			updates["submitted_at"] = now
+		case models.PurchaseRequisitionStatusApproved:
+			updates["approved_at"] = now
+		case models.PurchaseRequisitionStatusRejected:
+			updates["rejected_at"] = now
+		case models.PurchaseRequisitionStatusConverted:
+			updates["converted_at"] = now
+		}
+
+		// Merge any caller-provided extra updates (e.g. converted_to_purchase_order_id).
+		for _, m := range extra {
+			for k, v := range m {
+				updates[k] = v
+			}
+		}
+
+		return tx.Model(&existing).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, err
