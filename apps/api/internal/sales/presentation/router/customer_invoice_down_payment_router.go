@@ -1,24 +1,26 @@
 package router
 
 import (
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/sales/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterCustomerInvoiceDownPaymentRoutes registers the routes for customer invoice down payment
-func RegisterCustomerInvoiceDownPaymentRoutes(router *gin.RouterGroup, handler *handler.CustomerInvoiceDownPaymentHandler) {
+func RegisterCustomerInvoiceDownPaymentRoutes(router *gin.RouterGroup, h *handler.CustomerInvoiceDownPaymentHandler, printH *handler.CustomerInvoiceDPPrintHandler) {
 	group := router.Group("/customer-invoice-down-payments")
 	{
-		group.GET("", handler.List)
-		group.GET("/add", handler.Add)
-		group.GET("/export", handler.Export)
-		group.GET("/:id", handler.GetByID)
-		group.GET("/:id/audit-trail", handler.AuditTrail)
+		group.GET("", h.List)
+		group.GET("/add", h.Add)
+		group.GET("/export", h.Export)
+		group.GET("/:id", h.GetByID)
+		group.GET("/:id/audit-trail", h.AuditTrail)
+		group.GET("/:id/print", middleware.RequirePermission("customer_invoice_dp.print"), printH.PrintDownPaymentInvoice)
 
-		group.POST("", handler.Create)
-		group.POST("/:id/pending", handler.Pending)
+		group.POST("", h.Create)
+		group.POST("/:id/pending", h.Pending)
 
-		group.PUT("/:id", handler.Update)
-		group.DELETE("/:id", handler.Delete)
+		group.PUT("/:id", h.Update)
+		group.DELETE("/:id", h.Delete)
 	}
 }

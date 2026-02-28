@@ -15,6 +15,7 @@ export const salesPaymentEn = {
     view: "View",
     auditTrail: "Audit Trail",
     delete: "Delete",
+    print: "Print",
   },
   status: {
     pending: "Pending",
@@ -69,6 +70,20 @@ export const salesPaymentEn = {
       export: "Export",
       view: "View",
       auditTrail: "Audit Trail",
+      print: "Print",
     },
+  },
+
+  // Print dialog
+  print: "Print",
+  printPaymentReceipt: "Print Payment Receipt",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  common: {
+    cancel: "Cancel",
+    error: "Something went wrong",
   },
 };

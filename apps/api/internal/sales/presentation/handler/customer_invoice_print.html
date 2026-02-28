@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sales Quotation - {{.Code}}</title>
+  <title>Customer Invoice - {{.Code}}</title>
   <style>
     @page {
       size: A4;
@@ -42,9 +42,7 @@
       line-height: 1.1;
     }
 
-    .company-block {
-      text-align: right;
-    }
+    .company-block { text-align: right; }
 
     .company-block .company-name {
       font-size: 14pt;
@@ -69,9 +67,7 @@
       font-size: 9pt;
     }
 
-    .meta-block {
-      margin-bottom: 10px;
-    }
+    .meta-block { margin-bottom: 10px; }
 
     .meta-block .meta-title {
       font-size: 8pt;
@@ -81,46 +77,19 @@
       margin-bottom: 4px;
     }
 
-    .meta-row {
-      display: flex;
-      line-height: 1.6;
-    }
+    .meta-row { display: flex; line-height: 1.6; }
+    .meta-row .lbl { color: #666; min-width: 130px; }
+    .meta-row .val { color: #000; font-weight: 500; }
 
-    .meta-row .lbl {
-      color: #666;
-      min-width: 120px;
-    }
+    .company-addr { font-size: 8.5pt; color: #555; line-height: 1.5; }
 
-    .meta-row .val {
-      color: #000;
-      font-weight: 500;
-    }
-
-    .company-addr {
-      font-size: 8.5pt;
-      color: #555;
-      line-height: 1.5;
-    }
-
-    .customer-addr {
-      font-size: 9pt;
-      color: #000;
-      line-height: 1.55;
-    }
-
-    .customer-addr strong {
-      font-weight: 700;
-    }
+    .customer-addr { font-size: 9pt; color: #000; line-height: 1.55; }
+    .customer-addr strong { font-weight: 700; }
 
     /* ── Items Table ── */
-    .items-section {
-      margin-bottom: 12px;
-    }
+    .items-section { margin-bottom: 12px; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    table { width: 100%; border-collapse: collapse; }
 
     thead th {
       background: #4a5e8a;
@@ -147,21 +116,12 @@
     tbody td.text-right { text-align: right; }
     tbody td.text-center { text-align: center; }
 
-    .product-code {
-      font-size: 7.5pt;
-      color: #999;
-    }
+    .product-code { font-size: 7.5pt; color: #999; }
 
     /* ── Totals ── */
-    .totals-wrapper {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 16px;
-    }
+    .totals-wrapper { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 
-    .totals-table {
-      width: 260px;
-    }
+    .totals-table { width: 260px; }
 
     .totals-table .t-row {
       display: flex;
@@ -172,9 +132,7 @@
       border-bottom: 1px solid #eee;
     }
 
-    .totals-table .t-row.discount .t-val {
-      color: #c00;
-    }
+    .totals-table .t-row.downpayment .t-val { color: #c00; }
 
     .totals-table .t-row.grand {
       border-top: 2px solid #4a5e8a;
@@ -186,17 +144,16 @@
       color: #000;
     }
 
-    .totals-table .t-lbl { }
     .totals-table .t-val { text-align: right; }
 
-    /* ── Terms & Conditions ── */
-    .terms-section {
+    /* ── Notes ── */
+    .notes-section {
       margin-bottom: 18px;
       font-size: 8.5pt;
       color: #555;
     }
 
-    .terms-section h4 {
+    .notes-section h4 {
       font-size: 8.5pt;
       font-weight: 700;
       text-transform: uppercase;
@@ -204,48 +161,8 @@
       margin-bottom: 4px;
     }
 
-    .terms-section ol {
-      margin: 0;
-      padding-left: 16px;
-    }
-
-    .terms-section ol li {
-      margin-bottom: 2px;
-    }
-
-    /* ── Signature ── */
-    .signature-section {
-      margin-top: 14px;
-      font-size: 8.5pt;
-      color: #555;
-    }
-
-    .signature-line-text {
-      margin-bottom: 4px;
-    }
-
-    .signature-area {
-      border-bottom: 1px solid #333;
-      width: 280px;
-      height: 50px;
-      margin-bottom: 4px;
-    }
-
-    /* ── Footer ── */
-    .doc-footer {
-      margin-top: 24px;
-      padding-top: 10px;
-      border-top: 1px solid #ccc;
-      text-align: center;
-      font-size: 7.5pt;
-      color: #999;
-    }
-
-    .contact-footer {
-      margin-top: 8px;
-      font-size: 8pt;
-      color: #555;
-    }
+    /* ── Contact & Footer ── */
+    .contact-footer { margin-top: 8px; font-size: 8pt; color: #555; }
 
     .thank-you {
       margin-top: 12px;
@@ -255,6 +172,15 @@
       color: #4a5e8a;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+    }
+
+    .doc-footer {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #ccc;
+      text-align: center;
+      font-size: 7.5pt;
+      color: #999;
     }
 
     /* ── Print Rules ── */
@@ -295,9 +221,8 @@
 </head>
 <body>
 
-  <!-- Screen-only toolbar -->
   <div class="print-toolbar no-print">
-    <span style="font-weight:600;">Sales Quotation &mdash; {{.Code}}</span>
+    <span style="font-weight:600;">Customer Invoice &mdash; {{.Code}}</span>
     <button onclick="window.print()">Print Document</button>
   </div>
 
@@ -305,7 +230,7 @@
 
     <!-- Header -->
     <div class="header">
-      <div class="doc-label">Sales Quotation</div>
+      <div class="doc-label">Customer Invoice</div>
       <div class="company-block">
         <div class="company-name">{{.CompanyName}}</div>
       </div>
@@ -314,7 +239,7 @@
 
     <!-- Meta Information -->
     <div class="meta-grid">
-      <!-- Left: Company + Quotation Details -->
+      <!-- Left: Company details + Invoice meta -->
       <div>
         <div class="meta-block">
           <div class="company-addr">
@@ -324,17 +249,20 @@
           </div>
         </div>
         <div class="meta-block">
-          <div class="meta-row"><span class="lbl">QUOTATION NO:</span> <span class="val"># {{.Code}}</span></div>
-          <div class="meta-row"><span class="lbl">QUOTATION DATE:</span> <span class="val">{{.QuotationDate}}</span></div>
-          {{if .ValidUntil}}<div class="meta-row"><span class="lbl">VALID UNTIL:</span> <span class="val">{{.ValidUntil}}</span></div>{{end}}
+          <div class="meta-row"><span class="lbl">INVOICE NO:</span> <span class="val"># {{.Code}}</span></div>
+          {{if .InvoiceNumber}}<div class="meta-row"><span class="lbl">INVOICE NUMBER:</span> <span class="val">{{.InvoiceNumber}}</span></div>{{end}}
+          <div class="meta-row"><span class="lbl">INVOICE DATE:</span> <span class="val">{{.InvoiceDate}}</span></div>
+          {{if .DueDate}}<div class="meta-row"><span class="lbl">DUE DATE:</span> <span class="val">{{.DueDate}}</span></div>{{end}}
+          <div class="meta-row"><span class="lbl">STATUS:</span> <span class="val">{{.Status}}</span></div>
           {{if .PaymentTerms}}<div class="meta-row"><span class="lbl">PAYMENT TERMS:</span> <span class="val">{{.PaymentTerms}}</span></div>{{end}}
+          {{if .SalesOrderCode}}<div class="meta-row"><span class="lbl">SALES ORDER:</span> <span class="val">{{.SalesOrderCode}}</span></div>{{end}}
         </div>
       </div>
 
       <!-- Right: Customer -->
       <div>
         <div class="meta-block">
-          <div class="meta-title">Customer:</div>
+          <div class="meta-title">Bill To:</div>
           <div class="customer-addr">
             {{if .CustomerName}}<strong>{{.CustomerName}}</strong><br>{{end}}
             {{if .CustomerContact}}{{.CustomerContact}}<br>{{end}}
@@ -350,11 +278,11 @@
       <table>
         <thead>
           <tr>
-            <th style="width:32px" class="text-center">ITEMS</th>
+            <th style="width:32px" class="text-center">NO</th>
             <th>DESCRIPTION</th>
             <th class="text-right" style="width:60px">QUANTITY</th>
             <th class="text-right" style="width:100px">UNIT PRICE</th>
-            <th class="text-right" style="width:100px">TOTAL</th>
+            <th class="text-right" style="width:100px">AMOUNT</th>
           </tr>
         </thead>
         <tbody>
@@ -381,59 +309,47 @@
           <span class="t-lbl">SUB TOTAL</span>
           <span class="t-val">{{formatMoney .Subtotal}}</span>
         </div>
-        {{if gt .DiscountAmount 0.0}}
-        <div class="t-row discount">
-          <span class="t-lbl">DISCOUNT</span>
-          <span class="t-val">-{{formatMoney .DiscountAmount}}</span>
-        </div>
-        {{end}}
         <div class="t-row">
           <span class="t-lbl">TAX {{formatTax .TaxRate}}%</span>
           <span class="t-val">{{formatMoney .TaxAmount}}</span>
         </div>
-        {{if gt .DeliveryCost 0.0}}
+        {{if gt0 .DeliveryCost}}
         <div class="t-row">
           <span class="t-lbl">DELIVERY COST</span>
           <span class="t-val">{{formatMoney .DeliveryCost}}</span>
         </div>
         {{end}}
-        {{if gt .OtherCost 0.0}}
+        {{if gt0 .OtherCost}}
         <div class="t-row">
           <span class="t-lbl">OTHER COST</span>
           <span class="t-val">{{formatMoney .OtherCost}}</span>
         </div>
         {{end}}
+        {{if gt0 .DownPaymentAmount}}
+        <div class="t-row downpayment">
+          <span class="t-lbl">DOWN PAYMENT PAID</span>
+          <span class="t-val">-{{formatMoney .DownPaymentAmount}}</span>
+        </div>
+        {{end}}
         <div class="t-row grand">
-          <span class="t-lbl">GRAND TOTAL</span>
-          <span class="t-val">{{formatMoney .TotalAmount}}</span>
+          <span class="t-lbl">AMOUNT DUE</span>
+          <span class="t-val">{{formatMoney .Amount}}</span>
         </div>
       </div>
     </div>
 
-    <!-- Terms & Conditions -->
-    <div class="terms-section">
-      <h4>Terms and Conditions</h4>
-      {{if .Notes}}
+    <!-- Notes -->
+    {{if .Notes}}
+    <div class="notes-section">
+      <h4>Notes</h4>
       <p>{{.Notes}}</p>
-      {{else}}
-      <ol>
-        <li>Total payment due in 30 days.</li>
-        <li>Please include the quotation number on your cheque.</li>
-      </ol>
-      {{end}}
-    </div>
-
-    {{if .ValidUntil}}
-    <div class="terms-section">
-      <p><em>To accept this quotation please sign here and return: __________________________</em></p>
     </div>
     {{end}}
 
     <!-- Contact & Footer -->
     <div class="contact-footer">
-      If you have any questions about this quotation, please contact<br>
-      {{if .SalesRep}}<strong>{{.SalesRep}}</strong>{{end}}
-      {{if .CompanyPhone}}, {{.CompanyPhone}}{{end}}
+      If you have any questions about this invoice, please contact<br>
+      {{if .CompanyPhone}}{{.CompanyPhone}}{{end}}
       {{if .CompanyEmail}}, {{.CompanyEmail}}{{end}}
     </div>
 

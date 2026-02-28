@@ -7,11 +7,12 @@ import (
 )
 
 // RegisterCustomerInvoiceRoutes registers customer invoice routes
-func RegisterCustomerInvoiceRoutes(rg *gin.RouterGroup, h *handler.CustomerInvoiceHandler) {
+func RegisterCustomerInvoiceRoutes(rg *gin.RouterGroup, h *handler.CustomerInvoiceHandler, printH *handler.CustomerInvoicePrintHandler) {
 	g := rg.Group("/customer-invoices")
 	g.GET("", middleware.RequirePermission("customer_invoice.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("customer_invoice.read"), h.GetByID)
 	g.GET("/:id/items", middleware.RequirePermission("customer_invoice.read"), h.ListItems)
+	g.GET("/:id/print", middleware.RequirePermission("customer_invoice.print"), printH.PrintInvoice)
 	g.POST("", middleware.RequirePermission("customer_invoice.create"), h.Create)
 	g.PUT("/:id", middleware.RequirePermission("customer_invoice.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("customer_invoice.delete"), h.Delete)

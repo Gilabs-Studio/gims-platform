@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Printer,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { SalesPaymentPrintDialog } from "./sales-payment-print-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -60,6 +62,7 @@ export function SalesPaymentsList() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
+  const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("sales_payment.create");
   const canDelete = useUserPermission("sales_payment.delete");
@@ -67,6 +70,7 @@ export function SalesPaymentsList() {
   const canExport = useUserPermission("sales_payment.export");
   const canAuditTrail = useUserPermission("sales_payment.audit_trail");
   const canView = useUserPermission("sales_payment.read");
+  const canPrint = useUserPermission("sales_payment.print");
 
   const { data, isLoading, isError } = useSalesPayments({
     page,
@@ -264,6 +268,15 @@ export function SalesPaymentsList() {
                                 {t("actions.delete")}
                               </DropdownMenuItem>
                             )}
+                            {canPrint && (
+                              <DropdownMenuItem
+                                onClick={() => setPrintingPaymentId(item.id)}
+                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -333,6 +346,14 @@ export function SalesPaymentsList() {
           }
         }}
       />
+
+      {printingPaymentId && (
+        <SalesPaymentPrintDialog
+          open={!!printingPaymentId}
+          onClose={() => setPrintingPaymentId(null)}
+          paymentId={printingPaymentId}
+        />
+      )}
     </div>
   );
 }

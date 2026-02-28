@@ -15,12 +15,13 @@ import { DOStatusBadge } from "./do-status-badge";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt, Printer } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
+import { OrderPrintDialog } from "./order-print-dialog";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
@@ -61,6 +62,7 @@ export function OrderList() {
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
   const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
@@ -68,6 +70,7 @@ export function OrderList() {
   const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
   const [createDOForOrderId, setCreateDOForOrderId] = useState<string | null>(null);
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -414,6 +417,15 @@ export function OrderList() {
                               {t("common.delete")}
                             </DropdownMenuItem>
                           )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingOrderId(order.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -515,6 +527,14 @@ export function OrderList() {
           open={!!createInvoiceForOrderId}
           onClose={() => setCreateInvoiceForOrderId(null)}
           defaultSalesOrderId={createInvoiceForOrderId}
+        />
+      )}
+
+      {printingOrderId && (
+        <OrderPrintDialog
+          open={!!printingOrderId}
+          onClose={() => setPrintingOrderId(null)}
+          orderId={printingOrderId}
         />
       )}
     </div>

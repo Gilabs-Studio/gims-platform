@@ -202,6 +202,7 @@ func SeedPermissions() error {
 		{"/sales/orders", "sales_order.update", "Edit Sales Orders", "EDIT", "sales_order"},
 		{"/sales/orders", "sales_order.delete", "Delete Sales Orders", "DELETE", "sales_order"},
 		{"/sales/orders", "sales_order.approve", "Approve Sales Orders", "APPROVE", "sales_order"},
+		{"/sales/orders", "sales_order.print", "Print Sales Orders", "PRINT", "sales_order"},
 
 		{"/sales/delivery-orders", "delivery_order.read", "View Delivery Orders", "VIEW", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
@@ -216,6 +217,7 @@ func SeedPermissions() error {
 		{"/sales/invoices", "customer_invoice.update", "Edit Customer Invoices", "EDIT", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.approve", "Approve Customer Invoices", "APPROVE", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.print", "Print Customer Invoices", "PRINT", "customer_invoice"},
 
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.read", "View Down Payments", "VIEW", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.create", "Create Down Payments", "CREATE", "customer_invoice_dp"},
@@ -223,6 +225,7 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.delete", "Delete Down Payments", "DELETE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.pending", "Pending Down Payments", "PENDING", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
 
@@ -251,6 +254,7 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.delete", "Delete Sales Payments", "DELETE", "sales_payment"},
 		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
 		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
+		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
 		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
 
 		// Purchase

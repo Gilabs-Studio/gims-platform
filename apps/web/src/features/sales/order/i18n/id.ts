@@ -181,5 +181,14 @@ export const orderId = {
     confirmedAt: "Dikonfirmasi Pada",
     cancelledAt: "Dibatalkan Pada",
     cancellationReason: "Alasan Pembatalan",
+
+    // Print
+    print: "Cetak",
+    printOrder: "Cetak Sales Order",
+    printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+    printCompanyLabel: "Perusahaan",
+    printCompanyPlaceholder: "Pilih perusahaan...",
+    printNoCompanies: "Tidak ada perusahaan tersedia",
+    printConfirm: "Cetak",
   },
 };

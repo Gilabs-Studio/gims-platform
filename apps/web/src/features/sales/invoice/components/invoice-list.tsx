@@ -11,10 +11,10 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, CreditCard } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, CreditCard, Printer } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useUserPermission } from "@/hooks/use-user-permission";
+import { InvoicePrintDialog } from "./invoice-print-dialog";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
@@ -23,6 +23,7 @@ import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -57,8 +58,10 @@ export function InvoiceList() {
   const canApprove = useUserPermission("customer_invoice.approve");
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canCreatePayment = useUserPermission("sales_payment.create");
+  const canPrint = useUserPermission("customer_invoice.print");
 
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
@@ -423,6 +426,15 @@ export function InvoiceList() {
                               {t("common.delete")}
                             </DropdownMenuItem>
                           )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingInvoiceId(invoice.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -497,6 +509,14 @@ export function InvoiceList() {
           open={!!createPaymentForInvoiceId}
           onClose={() => setCreatePaymentForInvoiceId(null)}
           defaultInvoiceId={createPaymentForInvoiceId}
+        />
+      )}
+
+      {printingInvoiceId && (
+        <InvoicePrintDialog
+          open={!!printingInvoiceId}
+          onClose={() => setPrintingInvoiceId(null)}
+          invoiceId={printingInvoiceId}
         />
       )}
     </div>

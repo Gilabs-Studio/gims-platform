@@ -14,34 +14,33 @@ import (
 	"gorm.io/gorm"
 )
 
-// Layout constants for A4 page (210x297mm) — shared across all print handlers in this package.
-const (
-	pdfML = 18.0  // margin left
-	pdfMT = 18.0  // margin top
-	pdfMR = 18.0  // margin right
-	pdfMB = 14.0  // margin bottom
-	pdfPW = 210.0 // page width
-	pdfCW = 174.0 // content width (210 - 18 - 18)
-	pdfRE = 192.0 // right edge (210 - 18)
-)
+// SalesOrderPrintHandler generates enterprise-grade PDF documents for sales orders
+type SalesOrderPrintHandler struct {
+	orderUC usecase.SalesOrderUsecase
+	db      *gorm.DB
+}
 
-// quotationPDFData holds all data required for HTML template rendering
-type quotationPDFData struct {
+// NewSalesOrderPrintHandler creates a new print handler instance
+func NewSalesOrderPrintHandler(orderUC usecase.SalesOrderUsecase, db *gorm.DB) *SalesOrderPrintHandler {
+	return &SalesOrderPrintHandler{orderUC: orderUC, db: db}
+}
+
+// salesOrderPDFData holds all data required for HTML template rendering
+type salesOrderPDFData struct {
 	CompanyName    string
 	CompanyAddress string
 	CompanyPhone   string
 	CompanyEmail   string
 
-	Code          string
-	Status        string
-	StatusLabel   string
-	QuotationDate string
-	ValidUntil    string
-	PaymentTerms  string
-	BusinessUnit  string
-	BusinessType  string
-	SalesRep      string
-	Notes         string
+	Code        string
+	Status      string
+	StatusLabel string
+	OrderDate   string
+	PaymentTerms string
+	BusinessUnit string
+	BusinessType string
+	SalesRep     string
+	Notes        string
 
 	CustomerName    string
 	CustomerContact string
@@ -56,12 +55,12 @@ type quotationPDFData struct {
 	OtherCost      float64
 	TotalAmount    float64
 
-	Items     []quotationPDFItem
+	Items     []salesOrderPDFItem
 	PrintDate string
 }
 
-// quotationPDFItem represents a single line item in the PDF output
-type quotationPDFItem struct {
+// salesOrderPDFItem represents a single line item in the PDF output
+type salesOrderPDFItem struct {
 	ProductName string
 	ProductCode string
 	Quantity    float64
@@ -70,29 +69,17 @@ type quotationPDFItem struct {
 	Subtotal    float64
 }
 
-// SalesQuotationPrintHandler generates enterprise-grade PDF documents for sales quotations
-type SalesQuotationPrintHandler struct {
-	quotationUC usecase.SalesQuotationUsecase
-	db          *gorm.DB
-}
-
-// NewSalesQuotationPrintHandler creates a new print handler instance
-func NewSalesQuotationPrintHandler(quotationUC usecase.SalesQuotationUsecase, db *gorm.DB) *SalesQuotationPrintHandler {
-	return &SalesQuotationPrintHandler{quotationUC: quotationUC, db: db}
-}
-
-// PrintQuotation generates a PDF for the sales quotation and serves it inline.
-// The browser's built-in PDF viewer handles display and printing.
-func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
+// PrintOrder generates a PDF for the sales order and serves it inline.
+func (h *SalesOrderPrintHandler) PrintOrder(c *gin.Context) {
 	id := c.Param("id")
 
-	quotation, err := h.quotationUC.GetByID(c.Request.Context(), id)
+	order, err := h.orderUC.GetByID(c.Request.Context(), id)
 	if err != nil {
-		if err == usecase.ErrSalesQuotationNotFound {
-			c.String(http.StatusNotFound, "Quotation not found")
+		if err == usecase.ErrSalesOrderNotFound {
+			c.String(http.StatusNotFound, "Sales order not found")
 			return
 		}
-		c.String(http.StatusInternalServerError, "Failed to load quotation")
+		c.String(http.StatusInternalServerError, "Failed to load sales order")
 		return
 	}
 
@@ -109,9 +96,9 @@ func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
 	}
 
 	// Map line items
-	items := make([]quotationPDFItem, 0, len(quotation.Items))
-	for _, item := range quotation.Items {
-		pi := quotationPDFItem{
+	items := make([]salesOrderPDFItem, 0, len(order.Items))
+	for _, item := range order.Items {
+		pi := salesOrderPDFItem{
 			ProductName: "Product",
 			Quantity:    item.Quantity,
 			Price:       item.Price,
@@ -125,90 +112,83 @@ func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
 		items = append(items, pi)
 	}
 
-	data := &quotationPDFData{
+	data := &salesOrderPDFData{
 		CompanyName:    company.Name,
 		CompanyAddress: company.Address,
 		CompanyPhone:   company.Phone,
 		CompanyEmail:   company.Email,
 
-		Code:        quotation.Code,
-		Status:      quotation.Status,
-		StatusLabel: strings.ToUpper(quotation.Status[:1]) + quotation.Status[1:],
-		Notes:       quotation.Notes,
+		Code:        order.Code,
+		Status:      order.Status,
+		StatusLabel: strings.ToUpper(order.Status[:1]) + order.Status[1:],
+		Notes:       order.Notes,
 
-		CustomerName:    quotation.CustomerName,
-		CustomerContact: quotation.CustomerContact,
-		CustomerPhone:   quotation.CustomerPhone,
-		CustomerEmail:   quotation.CustomerEmail,
+		CustomerName:    order.CustomerName,
+		CustomerContact: order.CustomerContact,
+		CustomerPhone:   order.CustomerPhone,
+		CustomerEmail:   order.CustomerEmail,
 
-		Subtotal:       quotation.Subtotal,
-		DiscountAmount: quotation.DiscountAmount,
-		TaxRate:        quotation.TaxRate,
-		TaxAmount:      quotation.TaxAmount,
-		DeliveryCost:   quotation.DeliveryCost,
-		OtherCost:      quotation.OtherCost,
-		TotalAmount:    quotation.TotalAmount,
+		Subtotal:       order.Subtotal,
+		DiscountAmount: order.DiscountAmount,
+		TaxRate:        order.TaxRate,
+		TaxAmount:      order.TaxAmount,
+		DeliveryCost:   order.DeliveryCost,
+		OtherCost:      order.OtherCost,
+		TotalAmount:    order.TotalAmount,
 
 		Items:     items,
 		PrintDate: time.Now().Format("02 January 2006"),
 	}
 
-	// Parse formatted dates
-	if quotation.QuotationDate != "" {
-		if t, e := time.Parse("2006-01-02", quotation.QuotationDate); e == nil {
-			data.QuotationDate = t.Format("02 January 2006")
+	// Parse order date
+	if order.OrderDate != "" {
+		if t, e := time.Parse("2006-01-02", order.OrderDate); e == nil {
+			data.OrderDate = t.Format("02 January 2006")
 		} else {
-			data.QuotationDate = quotation.QuotationDate
-		}
-	}
-	if quotation.ValidUntil != nil && *quotation.ValidUntil != "" {
-		if t, e := time.Parse("2006-01-02", *quotation.ValidUntil); e == nil {
-			data.ValidUntil = t.Format("02 January 2006")
-		} else {
-			data.ValidUntil = *quotation.ValidUntil
+			data.OrderDate = order.OrderDate
 		}
 	}
 
 	// Resolve relation names
-	if quotation.PaymentTerms != nil {
-		data.PaymentTerms = quotation.PaymentTerms.Name
+	if order.PaymentTerms != nil {
+		data.PaymentTerms = order.PaymentTerms.Name
 	}
-	if quotation.BusinessUnit != nil {
-		data.BusinessUnit = quotation.BusinessUnit.Name
+	if order.BusinessUnit != nil {
+		data.BusinessUnit = order.BusinessUnit.Name
 	}
-	if quotation.BusinessType != nil {
-		data.BusinessType = quotation.BusinessType.Name
+	if order.BusinessType != nil {
+		data.BusinessType = order.BusinessType.Name
 	}
-	if quotation.SalesRep != nil {
-		data.SalesRep = quotation.SalesRep.Name
+	if order.SalesRep != nil {
+		data.SalesRep = order.SalesRep.Name
 	}
 
 	// Generate PDF and serve it inline — browser opens the built-in PDF viewer directly
-	pdfBytes, err := buildQuotationPDF(data)
+	pdfBytes, err := buildSalesOrderPDF(data)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to generate PDF")
 		return
 	}
 
-	filename := fmt.Sprintf("quotation-%s.pdf", data.Code)
+	filename := fmt.Sprintf("sales-order-%s.pdf", data.Code)
 	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
 // ===== PDF Generation =====
 
-func buildQuotationPDF(d *quotationPDFData) ([]byte, error) {
+func buildSalesOrderPDF(d *salesOrderPDFData) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(pdfML, pdfMT, pdfMR)
 	pdf.SetAutoPageBreak(true, pdfMB)
 	pdf.AddPage()
 
-	pdfDrawHeader(pdf, d)
-	pdfDrawMeta(pdf, d)
-	pdfDrawItems(pdf, d)
-	pdfDrawTotals(pdf, d)
-	pdfDrawTerms(pdf, d)
-	pdfDrawFooter(pdf, d)
+	soDrawHeader(pdf, d)
+	soDrawMeta(pdf, d)
+	soDrawItems(pdf, d)
+	soDrawTotals(pdf, d)
+	soDrawNotes(pdf, d)
+	soDrawFooter(pdf, d)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
@@ -217,15 +197,13 @@ func buildQuotationPDF(d *quotationPDFData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// ----- Header: document title + company name + blue accent bar -----
-
-func pdfDrawHeader(pdf *fpdf.Fpdf, d *quotationPDFData) {
-	// Left: "Sales Quotation" in italic grey
+func soDrawHeader(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
+	// Left: document title in italic grey
 	pdf.SetFont("Helvetica", "I", 22)
 	pdf.SetTextColor(122, 122, 122)
-	pdf.CellFormat(pdfCW/2, 10, "Sales Quotation", "", 0, "L", false, 0, "")
+	pdf.CellFormat(pdfCW/2, 10, "Sales Order", "", 0, "L", false, 0, "")
 
-	// Right: company name in bold uppercase
+	// Right: company name bold uppercase
 	pdf.SetFont("Helvetica", "B", 14)
 	pdf.SetTextColor(51, 51, 51)
 	pdf.CellFormat(pdfCW/2, 10, strings.ToUpper(d.CompanyName), "", 1, "R", false, 0, "")
@@ -237,16 +215,14 @@ func pdfDrawHeader(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	pdf.Ln(5)
 }
 
-// ----- Meta: two-column layout with vertically aligned ":" -----
-
-func pdfDrawMeta(pdf *fpdf.Fpdf, d *quotationPDFData) {
+func soDrawMeta(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
 	startY := pdf.GetY()
 	leftX := pdfML
 	leftW := 82.0
 	rightX := pdfML + leftW + 10
 	rightW := pdfCW - leftW - 10
 
-	// --- Left column: company address then quotation details ---
+	// Left: company address + order details
 	pdf.SetXY(leftX, startY)
 	pdf.SetFont("Helvetica", "", 8.5)
 	pdf.SetTextColor(85, 85, 85)
@@ -264,7 +240,6 @@ func pdfDrawMeta(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	}
 	pdf.Ln(4)
 
-	// Quotation detail rows with aligned ":"
 	const labelW = 38.0
 	const lineH = 5.0
 
@@ -279,18 +254,19 @@ func pdfDrawMeta(pdf *fpdf.Fpdf, d *quotationPDFData) {
 		pdf.CellFormat(leftW-labelW-3, lineH, value, "", 1, "L", false, 0, "")
 	}
 
-	metaRow("QUOTATION NO", "# "+d.Code)
-	metaRow("QUOTATION DATE", d.QuotationDate)
-	if d.ValidUntil != "" {
-		metaRow("VALID UNTIL", d.ValidUntil)
-	}
+	metaRow("ORDER NO", "# "+d.Code)
+	metaRow("ORDER DATE", d.OrderDate)
+	metaRow("STATUS", d.StatusLabel)
 	if d.PaymentTerms != "" {
 		metaRow("PAYMENT TERMS", d.PaymentTerms)
+	}
+	if d.BusinessUnit != "" {
+		metaRow("BUSINESS UNIT", d.BusinessUnit)
 	}
 
 	leftEndY := pdf.GetY()
 
-	// --- Right column: customer info ---
+	// Right: customer info
 	pdf.SetXY(rightX, startY)
 	pdf.SetFont("Helvetica", "B", 8)
 	pdf.SetTextColor(51, 51, 51)
@@ -316,15 +292,10 @@ func pdfDrawMeta(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	writeRight(d.CustomerEmail, false)
 
 	rightEndY := pdf.GetY()
-
-	// Advance past the taller column
 	pdf.SetY(max(leftEndY, rightEndY) + 6)
 }
 
-// ----- Items table with blue header -----
-
-func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
-	// Column widths (sum = 174mm)
+func soDrawItems(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
 	cNo := 12.0
 	cDesc := 72.0
 	cQty := 25.0
@@ -337,7 +308,7 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 		pdf.SetFillColor(74, 94, 138)
 		pdf.SetTextColor(255, 255, 255)
 		pdf.SetFont("Helvetica", "B", 8)
-		pdf.CellFormat(cNo, hdrH, "ITEMS", "", 0, "C", true, 0, "")
+		pdf.CellFormat(cNo, hdrH, "NO", "", 0, "C", true, 0, "")
 		pdf.CellFormat(cDesc, hdrH, "DESCRIPTION", "", 0, "L", true, 0, "")
 		pdf.CellFormat(cQty, hdrH, "QUANTITY", "", 0, "R", true, 0, "")
 		pdf.CellFormat(cPrice, hdrH, "UNIT PRICE", "", 0, "R", true, 0, "")
@@ -348,7 +319,6 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	drawHeader()
 
 	for i, item := range d.Items {
-		// Page-break check: ensure enough space for row + optional code line
 		need := rowH
 		if item.ProductCode != "" {
 			need += 4
@@ -358,7 +328,6 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 			drawHeader()
 		}
 
-		// Item row
 		pdf.SetTextColor(51, 51, 51)
 		pdf.SetFont("Helvetica", "", 9)
 		pdf.CellFormat(cNo, rowH, fmt.Sprintf("%d", i+1), "", 0, "C", false, 0, "")
@@ -368,12 +337,10 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 		pdf.CellFormat(cTotal, rowH, fmtMoney(item.Subtotal), "", 0, "R", false, 0, "")
 		pdf.Ln(-1)
 
-		// Row bottom border
 		pdf.SetDrawColor(221, 221, 221)
 		y := pdf.GetY()
 		pdf.Line(pdfML, y, pdfRE, y)
 
-		// Product code sub-line (smaller, grey)
 		if item.ProductCode != "" {
 			pdf.SetFont("Helvetica", "", 7.5)
 			pdf.SetTextColor(153, 153, 153)
@@ -386,13 +353,11 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	pdf.Ln(4)
 }
 
-// ----- Totals: right-aligned summary with double-border grand total -----
-
-func pdfDrawTotals(pdf *fpdf.Fpdf, d *quotationPDFData) {
-	tx := pdfRE - 80 // totals block starts 80mm from right edge
-	lw := 45.0        // label width
-	vw := 35.0        // value width
-	tw := lw + vw     // total block width
+func soDrawTotals(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
+	tx := pdfRE - 80
+	lw := 45.0
+	vw := 35.0
+	tw := lw + vw
 
 	row := func(label, value string, bold, red bool) {
 		pdf.SetX(tx)
@@ -416,7 +381,6 @@ func pdfDrawTotals(pdf *fpdf.Fpdf, d *quotationPDFData) {
 		pdf.Line(tx, y, tx+tw, y)
 	}
 
-	// Ensure enough vertical space for the totals block (~50mm)
 	if pdf.GetY()+50 > 283 {
 		pdf.AddPage()
 	}
@@ -459,42 +423,26 @@ func pdfDrawTotals(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	y = pdf.GetY()
 	pdf.Line(tx, y, tx+tw, y)
 	pdf.Line(tx, y+0.6, tx+tw, y+0.6)
-	pdf.SetLineWidth(0.2) // reset to default
+	pdf.SetLineWidth(0.2)
 
 	pdf.Ln(8)
 }
 
-// ----- Terms & Conditions + signature line -----
-
-func pdfDrawTerms(pdf *fpdf.Fpdf, d *quotationPDFData) {
+func soDrawNotes(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
+	if d.Notes == "" {
+		return
+	}
 	pdf.SetFont("Helvetica", "B", 8.5)
 	pdf.SetTextColor(51, 51, 51)
-	pdf.CellFormat(0, 4, "TERMS AND CONDITIONS", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 4, "NOTES", "", 1, "L", false, 0, "")
 	pdf.Ln(1)
-
 	pdf.SetFont("Helvetica", "", 8.5)
 	pdf.SetTextColor(85, 85, 85)
-
-	if d.Notes != "" {
-		pdf.MultiCell(pdfCW, 4, d.Notes, "", "L", false)
-	} else {
-		pdf.CellFormat(0, 4, "1. Total payment due in 30 days.", "", 1, "L", false, 0, "")
-		pdf.CellFormat(0, 4, "2. Please include the quotation number on your cheque.", "", 1, "L", false, 0, "")
-	}
-
-	if d.ValidUntil != "" {
-		pdf.Ln(6)
-		pdf.SetFont("Helvetica", "I", 8.5)
-		pdf.CellFormat(0, 4, "To accept this quotation please sign here and return: __________________________", "", 1, "L", false, 0, "")
-	}
-
+	pdf.MultiCell(pdfCW, 4, d.Notes, "", "L", false)
 	pdf.Ln(6)
 }
 
-// ----- Footer: contact info + thank you + generation date -----
-
-func pdfDrawFooter(pdf *fpdf.Fpdf, d *quotationPDFData) {
-	// Contact info
+func soDrawFooter(pdf *fpdf.Fpdf, d *salesOrderPDFData) {
 	parts := make([]string, 0, 3)
 	if d.SalesRep != "" {
 		parts = append(parts, d.SalesRep)
@@ -508,26 +456,21 @@ func pdfDrawFooter(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	if len(parts) > 0 {
 		pdf.SetFont("Helvetica", "", 8)
 		pdf.SetTextColor(85, 85, 85)
-		contact := "If you have any questions about this quotation, please contact " + strings.Join(parts, ", ")
+		contact := "If you have any questions about this order, please contact " + strings.Join(parts, ", ")
 		pdf.MultiCell(pdfCW, 4, contact, "", "C", false)
 		pdf.Ln(4)
 	}
 
-	// "Thank You" banner
 	pdf.SetFont("Helvetica", "B", 10)
 	pdf.SetTextColor(74, 94, 138)
 	pdf.CellFormat(pdfCW, 6, "THANK YOU FOR YOUR BUSINESS!", "", 1, "C", false, 0, "")
 	pdf.Ln(6)
 
-	// Separator line
 	pdf.SetDrawColor(204, 204, 204)
 	pdf.Line(pdfML, pdf.GetY(), pdfRE, pdf.GetY())
 	pdf.Ln(3)
 
-	// Generation date
 	pdf.SetFont("Helvetica", "", 7.5)
 	pdf.SetTextColor(153, 153, 153)
 	pdf.CellFormat(pdfCW, 4, fmt.Sprintf("This document was generated on %s  -  %s", d.PrintDate, d.CompanyName), "", 1, "C", false, 0, "")
 }
-
-// fmtMoney, fmtQty, fmtTax, and moneyFmt are defined in print_template_helpers.go (shared across this package).

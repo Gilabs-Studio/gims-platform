@@ -181,6 +181,15 @@ export const orderEn = {
     confirmedAt: "Confirmed At",
     cancelledAt: "Cancelled At",
     cancellationReason: "Cancellation Reason",
+
+    // Print
+    print: "Print",
+    printOrder: "Print Sales Order",
+    printSelectCompany: "Select the company to display on the document.",
+    printCompanyLabel: "Company",
+    printCompanyPlaceholder: "Select company...",
+    printNoCompanies: "No companies available",
+    printConfirm: "Print",
   },
 };
 
