@@ -35,6 +35,15 @@ type LeaveRequestUsecase interface {
 	Approve(ctx context.Context, id string, req *dto.ApproveLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	Reject(ctx context.Context, id string, req *dto.RejectLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	Cancel(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+
+	// Self-service operations (employee owns their requests)
+	CreateSelf(ctx context.Context, req *dto.CreateMyLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	ListSelf(ctx context.Context, filters *dto.LeaveRequestListFilterDTO, currentUserID string) ([]*dto.LeaveRequestResponseDTO, int64, error)
+	GetSelfByID(ctx context.Context, id string, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	UpdateSelf(ctx context.Context, id string, req *dto.UpdateLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	CancelSelf(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
+	GetSelfBalance(ctx context.Context, currentUserID string) (*dto.LeaveBalanceResponseDTO, error)
+	GetSelfFormData(ctx context.Context, currentUserID string) (*dto.FormDataResponseDTO, error)
 }
 
 type leaveRequestUsecase struct {
@@ -59,6 +68,138 @@ func NewLeaveRequestUsecase(
 		holidayRepo:      holidayRepo,
 		mapper:           mapper.NewLeaveRequestMapper(),
 	}
+}
+
+func (u *leaveRequestUsecase) getCurrentEmployee(ctx context.Context, currentUserID string) (*orgModels.Employee, error) {
+	employee, err := u.employeeRepo.FindByUserID(ctx, currentUserID)
+	if err != nil {
+		return nil, fmt.Errorf("FORBIDDEN: employee profile not found for current user")
+	}
+	return employee, nil
+}
+
+func (u *leaveRequestUsecase) ensureOwnership(ctx context.Context, leaveRequestID, currentUserID string) (*models.LeaveRequest, error) {
+	employee, err := u.getCurrentEmployee(ctx, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, leaveRequestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if leaveRequest.EmployeeID != employee.ID {
+		return nil, fmt.Errorf("FORBIDDEN: you can only access your own leave requests")
+	}
+
+	return leaveRequest, nil
+}
+
+func (u *leaveRequestUsecase) CreateSelf(ctx context.Context, req *dto.CreateMyLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	employee, err := u.getCurrentEmployee(ctx, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	createReq := &dto.CreateLeaveRequestDTO{
+		EmployeeID:    employee.ID,
+		LeaveTypeID:   req.LeaveTypeID,
+		StartDate:     req.StartDate,
+		EndDate:       req.EndDate,
+		Duration:      req.Duration,
+		Reason:        req.Reason,
+		AttachmentURL: req.AttachmentURL,
+	}
+
+	return u.Create(ctx, createReq, currentUserID)
+}
+
+func (u *leaveRequestUsecase) ListSelf(ctx context.Context, filters *dto.LeaveRequestListFilterDTO, currentUserID string) ([]*dto.LeaveRequestResponseDTO, int64, error) {
+	employee, err := u.getCurrentEmployee(ctx, currentUserID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if filters == nil {
+		filters = &dto.LeaveRequestListFilterDTO{}
+	}
+	filters.EmployeeID = &employee.ID
+
+	return u.List(ctx, filters, currentUserID)
+}
+
+func (u *leaveRequestUsecase) GetSelfByID(ctx context.Context, id string, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	if _, err := u.ensureOwnership(ctx, id, currentUserID); err != nil {
+		return nil, err
+	}
+	return u.GetByID(ctx, id, currentUserID)
+}
+
+func (u *leaveRequestUsecase) UpdateSelf(ctx context.Context, id string, req *dto.UpdateLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	if _, err := u.ensureOwnership(ctx, id, currentUserID); err != nil {
+		return nil, err
+	}
+	return u.Update(ctx, id, req, currentUserID)
+}
+
+func (u *leaveRequestUsecase) CancelSelf(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	if _, err := u.ensureOwnership(ctx, id, currentUserID); err != nil {
+		return nil, err
+	}
+	return u.Cancel(ctx, id, req, currentUserID)
+}
+
+func (u *leaveRequestUsecase) GetSelfBalance(ctx context.Context, currentUserID string) (*dto.LeaveBalanceResponseDTO, error) {
+	employee, err := u.getCurrentEmployee(ctx, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	return u.CalculateBalance(ctx, employee.ID, currentUserID)
+}
+
+func (u *leaveRequestUsecase) GetSelfFormData(ctx context.Context, currentUserID string) (*dto.FormDataResponseDTO, error) {
+	employee, err := u.getCurrentEmployee(ctx, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	leaveTypes, err := u.leaveTypeRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch leave types: %w", err)
+	}
+
+	usedDays, err := u.leaveRequestRepo.CalculateUsedLeaveDays(ctx, employee.ID, true)
+	if err != nil {
+		usedDays = 0
+	}
+
+	remainingBalance := float64(employee.TotalLeaveQuota - usedDays)
+	if remainingBalance < 0 {
+		remainingBalance = 0
+	}
+
+	formLeaveTypes := make([]dto.FormLeaveTypeDTO, 0, len(leaveTypes))
+	for _, lt := range leaveTypes {
+		formLeaveTypes = append(formLeaveTypes, dto.FormLeaveTypeDTO{
+			ID:      lt.ID,
+			Name:    lt.Name,
+			Code:    lt.Code,
+			MaxDays: lt.MaxDays,
+		})
+	}
+
+	return &dto.FormDataResponseDTO{
+		Employees: []dto.FormEmployeeDTO{
+			{
+				ID:               employee.ID,
+				Name:             employee.Name,
+				EmployeeCode:     employee.EmployeeCode,
+				RemainingBalance: remainingBalance,
+			},
+		},
+		LeaveTypes: formLeaveTypes,
+	}, nil
 }
 
 // Create creates a new leave request

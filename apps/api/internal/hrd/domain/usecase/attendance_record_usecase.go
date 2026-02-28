@@ -33,6 +33,8 @@ var (
 // AttendanceRecordUsecase defines the interface for attendance record business logic
 type AttendanceRecordUsecase interface {
 	List(ctx context.Context, req *dto.ListAttendanceRecordsRequest) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error)
+	// ListSelf returns attendance history for the authenticated employee, resolving userID → employeeID.
+	ListSelf(ctx context.Context, req *dto.ListAttendanceRecordsRequest, userID string) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.AttendanceRecordResponse, error)
 	GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error)
 	ClockIn(ctx context.Context, employeeID string, req *dto.ClockInRequest) (*dto.AttendanceRecordResponse, error)
@@ -41,6 +43,8 @@ type AttendanceRecordUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateAttendanceRecordRequest) (*dto.AttendanceRecordResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest) ([]dto.MonthlyAttendanceStats, error)
+	// GetSelfMonthlyStats returns monthly stats for the authenticated employee, resolving userID → employeeID.
+	GetSelfMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest, userID string) ([]dto.MonthlyAttendanceStats, error)
 	GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error)
 }
 
@@ -517,6 +521,22 @@ func (u *attendanceRecordUsecase) GetMonthlyStats(ctx context.Context, req *dto.
 	formattedStats := u.mapper.ToMonthlyStats(stats, workingDays)
 
 	return []dto.MonthlyAttendanceStats{*formattedStats}, nil
+}
+
+// ListSelf returns the attendance history for the currently authenticated employee.
+// It resolves the provided userID to the actual employee ID before querying.
+func (u *attendanceRecordUsecase) ListSelf(ctx context.Context, req *dto.ListAttendanceRecordsRequest, userID string) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error) {
+	// Resolve userID → employeeID so the DB filter matches the correct row.
+	req.EmployeeID = u.resolveEmployeeID(ctx, userID)
+	return u.List(ctx, req)
+}
+
+// GetSelfMonthlyStats returns monthly attendance statistics for the currently authenticated employee.
+// It resolves the provided userID to the actual employee ID before querying.
+func (u *attendanceRecordUsecase) GetSelfMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest, userID string) ([]dto.MonthlyAttendanceStats, error) {
+	// Resolve userID → employeeID.
+	req.EmployeeID = u.resolveEmployeeID(ctx, userID)
+	return u.GetMonthlyStats(ctx, req)
 }
 
 // calculateDistance calculates distance between two GPS coordinates in meters using Haversine formula

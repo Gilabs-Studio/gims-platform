@@ -68,6 +68,50 @@ func (h *AttendanceRecordHandler) List(c *gin.Context) {
 	response.SuccessResponse(c, records, meta)
 }
 
+// ListMyAttendance handles self attendance history for authenticated employee.
+// It uses ListSelf which resolves user_id → employee_id internally.
+func (h *AttendanceRecordHandler) ListMyAttendance(c *gin.Context) {
+	var req dto.ListAttendanceRecordsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	// Prefer employee_id from context; fall back to user_id.
+	// ListSelf will resolve whichever value is provided to the actual employee_id.
+	userID, exists := c.Get("employee_id")
+	if !exists {
+		userID, exists = c.Get("user_id")
+		if !exists {
+			errors.UnauthorizedResponse(c, "User not authenticated")
+			return
+		}
+	}
+
+	records, pagination, err := h.attendanceUC.ListSelf(c.Request.Context(), &req, userID.(string))
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+	}
+
+	response.SuccessResponse(c, records, meta)
+}
+
 // GetByID handles get attendance record by ID request
 func (h *AttendanceRecordHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
@@ -283,7 +327,9 @@ func (h *AttendanceRecordHandler) Delete(c *gin.Context) {
 	}, nil)
 }
 
-// GetMonthlyStats handles get monthly attendance statistics request
+// GetMonthlyStats handles get monthly attendance statistics request.
+// When no employee_id is provided in the query (self-service path) it resolves the
+// authenticated user_id → employee_id via GetSelfMonthlyStats.
 func (h *AttendanceRecordHandler) GetMonthlyStats(c *gin.Context) {
 	var req dto.MonthlyReportRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -295,19 +341,26 @@ func (h *AttendanceRecordHandler) GetMonthlyStats(c *gin.Context) {
 		return
 	}
 
-	// If no employee ID provided, use current user
+	// Self-service path: no employee_id in query → resolve from auth context.
 	if req.EmployeeID == "" {
-		employeeID, exists := c.Get("employee_id")
+		userID, exists := c.Get("employee_id")
 		if !exists {
-			employeeID, exists = c.Get("user_id")
+			userID, exists = c.Get("user_id")
 			if !exists {
 				errors.UnauthorizedResponse(c, "User not authenticated")
 				return
 			}
 		}
-		req.EmployeeID = employeeID.(string)
+		stats, err := h.attendanceUC.GetSelfMonthlyStats(c.Request.Context(), &req, userID.(string))
+		if err != nil {
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+		response.SuccessResponse(c, stats, nil)
+		return
 	}
 
+	// Admin path: employee_id explicitly provided.
 	stats, err := h.attendanceUC.GetMonthlyStats(c.Request.Context(), &req)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())

@@ -1730,6 +1730,50 @@
               "response": []
             },
             {
+              "name": "Get My Attendance History",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/attendance/my-history?page=1&per_page=31&date_from=2024-01-01&date_to=2024-01-31",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "attendance", "my-history"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "31"
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "2024-01-01",
+                      "description": "Start date (YYYY-MM-DD) — use first day of displayed month"
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "2024-01-31",
+                      "description": "End date (YYYY-MM-DD) — use last day of displayed month"
+                    }
+                  ]
+                },
+                "description": "Get attendance history for the **authenticated employee** (self-service). No `employee_id` param needed — backend resolves the caller's user_id to employee_id automatically.\n\n**Bug Fix (Sprint 16):** Previously this endpoint returned empty data because the handler was passing `user_id` directly as `employee_id`. Fixed by introducing `ListSelf` usecase method that calls `resolveEmployeeID()` internally.\n\n**Use Case:** Powers the attendance calendar tab on the self-service page — provides date dots (color-coded by status: green=PRESENT, red=ABSENT, yellow=LATE, etc.)\n\n**Recommended Usage:**\n- Set `date_from` = first day of current calendar month\n- Set `date_to` = last day of current calendar month\n- Set `per_page` = 31 to get all days in one call\n\n**Response:** Standard paginated list with `AttendanceRecordResponse` items."
+              },
+              "response": []
+            },
+            {
               "name": "List Attendance Records",
               "request": {
                 "auth": {

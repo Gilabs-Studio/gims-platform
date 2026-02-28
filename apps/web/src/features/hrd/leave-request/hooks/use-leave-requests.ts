@@ -23,6 +23,12 @@ export const leaveRequestKeys = {
   myBalance: () => [...leaveRequestKeys.all, "my-balance"] as const,
   employeeBalance: (employeeId: string) =>
     [...leaveRequestKeys.all, "employee-balance", employeeId] as const,
+  selfLists: () => [...leaveRequestKeys.all, "self-list"] as const,
+  selfList: (filters?: LeaveRequestFilters) =>
+    [...leaveRequestKeys.selfLists(), filters] as const,
+  selfDetails: () => [...leaveRequestKeys.all, "self-detail"] as const,
+  selfDetail: (id: string) => [...leaveRequestKeys.selfDetails(), id] as const,
+  myFormData: () => [...leaveRequestKeys.all, "my-form-data"] as const,
 };
 
 // Query hooks
@@ -60,6 +66,29 @@ export function useEmployeeLeaveBalance(employeeId: string, options?: { enabled?
   return useQuery({
     queryKey: leaveRequestKeys.employeeBalance(employeeId),
     queryFn: () => leaveRequestService.getEmployeeLeaveBalance(employeeId),
+    enabled: options?.enabled,
+  });
+}
+
+export function useMyLeaveRequests(filters?: LeaveRequestFilters) {
+  return useQuery({
+    queryKey: leaveRequestKeys.selfList(filters),
+    queryFn: () => leaveRequestService.getMyLeaveRequests(filters),
+  });
+}
+
+export function useMyLeaveRequest(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: leaveRequestKeys.selfDetail(id),
+    queryFn: () => leaveRequestService.getMyLeaveRequestById(id),
+    enabled: options?.enabled,
+  });
+}
+
+export function useMyLeaveFormData(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: leaveRequestKeys.myFormData(),
+    queryFn: () => leaveRequestService.getMyFormData(),
     enabled: options?.enabled,
   });
 }
@@ -238,6 +267,50 @@ export function useCancelLeaveRequest() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useCreateMyLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Omit<CreateLeaveRequestPayload, "employee_id">) =>
+      leaveRequestService.createMyLeaveRequest(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.selfLists() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+    },
+  });
+}
+
+export function useUpdateMyLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateLeaveRequestPayload }) =>
+      leaveRequestService.updateMyLeaveRequest(id, data),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.selfLists() });
+      queryClient.invalidateQueries({
+        queryKey: leaveRequestKeys.selfDetail(variables.id),
+      });
+    },
+  });
+}
+
+export function useCancelMyLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CancelLeaveRequestPayload }) =>
+      leaveRequestService.cancelMyLeaveRequest(id, data),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.selfLists() });
+      queryClient.invalidateQueries({
+        queryKey: leaveRequestKeys.selfDetail(variables.id),
+      });
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
     },
   });

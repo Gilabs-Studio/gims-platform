@@ -51,6 +51,14 @@ export const attendanceRecordService = {
     return response.data;
   },
 
+  async getMyAttendanceHistory(params?: ListAttendanceRecordsParams): Promise<AttendanceRecordListResponse> {
+    const response = await apiClient.get<AttendanceRecordListResponse>(
+      `${BASE_PATH}/my-history`,
+      { params }
+    );
+    return response.data;
+  },
+
   // Form data for dropdowns
   async getFormData(): Promise<AttendanceFormDataResponse> {
     const response = await apiClient.get<AttendanceFormDataResponse>(

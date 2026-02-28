@@ -19,6 +19,7 @@ export const attendanceKeys = {
   detail: (id: string) => [...attendanceKeys.details(), id] as const,
   today: () => [...attendanceKeys.all, "today"] as const,
   myStats: (params?: Record<string, unknown>) => [...attendanceKeys.all, "my-stats", params] as const,
+  myHistory: (params?: Record<string, unknown>) => [...attendanceKeys.all, "my-history", params] as const,
   employeeStats: (id: string, params?: Record<string, unknown>) => [...attendanceKeys.all, "stats", id, params] as const,
   formData: () => [...attendanceKeys.all, "form-data"] as const,
 } as const;
@@ -63,6 +64,14 @@ export function useMyMonthlyStats(params?: { month?: number; year?: number }) {
     queryKey: attendanceKeys.myStats(params),
     queryFn: () => attendanceRecordService.getMyMonthlyStats(params),
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useMyAttendanceHistory(params?: ListAttendanceRecordsParams) {
+  return useQuery({
+    queryKey: attendanceKeys.myHistory(params),
+    queryFn: () => attendanceRecordService.getMyAttendanceHistory(params),
+    staleTime: 1000 * 60 * 2,
   });
 }
 

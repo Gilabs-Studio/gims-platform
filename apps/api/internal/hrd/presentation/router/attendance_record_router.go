@@ -15,6 +15,7 @@ func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRe
 	g.POST("/clock-in", h.ClockIn)
 	g.POST("/clock-out", h.ClockOut)
 	g.GET("/my-stats", h.GetMonthlyStats)
+	g.GET("/my-history", h.ListMyAttendance)
 
 	// Admin routes
 	g.GET("/form-data", middleware.RequirePermission("attendance.read"), h.GetFormData)

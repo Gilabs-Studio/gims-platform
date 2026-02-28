@@ -20,7 +20,7 @@
 8. [User Flows](#user-flows)
 9. [Permissions](#permissions)
 10. [Configuration](#configuration)
-10. [Integration Points](#integration-points)
+11. [Integration Points](#integration-points)
 
 ---
 
@@ -33,22 +33,23 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 - **Monthly Statistics** and reporting
 
 > **Related Documentation:**
+>
 > - [Work Schedule Management](hrd-work-schedules.md) — Schedule configuration, GPS settings, working days
 > - [Holiday Management](hrd-holidays.md) — National holidays, collective leave, calendar view
 
 ### Key Features
 
-| Feature | Description |
-|---------|-------------|
-| GPS-Based Attendance | Validates employee location during clock in/out |
-| Flexible Schedules | Supports flexible working hours per division |
-| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default |
-| Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule |
-| Multi-Type Holidays | Supports National, Collective, and Company holidays |
-| Real-time Statistics | Monthly attendance statistics with various metrics |
-| Employee Enrichment | Responses include employee name, code, and division (for HRD views) |
-| Detail Enrichment | Get-by-ID returns work schedule name and approver name (not just IDs) |
-| Form Data Endpoint | Single API call for all attendance form dropdown options |
+| Feature                 | Description                                                           |
+| ----------------------- | --------------------------------------------------------------------- |
+| GPS-Based Attendance    | Validates employee location during clock in/out                       |
+| Flexible Schedules      | Supports flexible working hours per division                          |
+| Division-Based Schedule | Auto-resolves schedule by employee's division, falls back to default  |
+| Auto Overtime Detection | Automatically creates overtime requests when working beyond schedule  |
+| Multi-Type Holidays     | Supports National, Collective, and Company holidays                   |
+| Real-time Statistics    | Monthly attendance statistics with various metrics                    |
+| Employee Enrichment     | Responses include employee name, code, and division (for HRD views)   |
+| Detail Enrichment       | Get-by-ID returns work schedule name and approver name (not just IDs) |
+| Form Data Endpoint      | Single API call for all attendance form dropdown options              |
 
 ---
 
@@ -58,24 +59,24 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 
 Employee attendance tracking with support for multiple check-in types:
 
-| Check-In Type | Description |
-|---------------|-------------|
-| `NORMAL` | Regular office attendance (GPS validated) |
-| `WFH` | Work from Home (no GPS validation) |
-| `FIELD_WORK` | Field work/client visit (GPS logged but not validated against office) |
+| Check-In Type | Description                                                           |
+| ------------- | --------------------------------------------------------------------- |
+| `NORMAL`      | Regular office attendance (GPS validated)                             |
+| `WFH`         | Work from Home (no GPS validation)                                    |
+| `FIELD_WORK`  | Field work/client visit (GPS logged but not validated against office) |
 
 #### Attendance Status
 
-| Status | Description |
-|--------|-------------|
-| `PRESENT` | On-time attendance |
-| `LATE` | Arrived after schedule start + tolerance |
-| `ABSENT` | No attendance record for working day |
-| `HALF_DAY` | Partial day attendance |
-| `LEAVE` | On approved leave |
-| `WFH` | Working from home |
-| `OFF_DAY` | Non-working day based on schedule |
-| `HOLIDAY` | Public/company holiday |
+| Status     | Description                              |
+| ---------- | ---------------------------------------- |
+| `PRESENT`  | On-time attendance                       |
+| `LATE`     | Arrived after schedule start + tolerance |
+| `ABSENT`   | No attendance record for working day     |
+| `HALF_DAY` | Partial day attendance                   |
+| `LEAVE`    | On approved leave                        |
+| `WFH`      | Working from home                        |
+| `OFF_DAY`  | Non-working day based on schedule        |
+| `HOLIDAY`  | Public/company holiday                   |
 
 ### 2. Work Schedule
 
@@ -89,28 +90,28 @@ Support for National, Collective, and Company holidays. See [Holiday Management]
 
 Comprehensive overtime tracking with approval workflow:
 
-| Request Type | Description |
-|--------------|-------------|
+| Request Type    | Description                                      |
+| --------------- | ------------------------------------------------ |
 | `AUTO_DETECTED` | System-generated when clock out exceeds schedule |
-| `MANUAL_CLAIM` | Employee-submitted overtime request |
-| `PRE_APPROVED` | Pre-approved overtime (planned) |
+| `MANUAL_CLAIM`  | Employee-submitted overtime request              |
+| `PRE_APPROVED`  | Pre-approved overtime (planned)                  |
 
 #### Approval Status
 
-| Status | Description |
-|--------|-------------|
-| `PENDING` | Awaiting approval |
-| `APPROVED` | Approved by manager |
-| `REJECTED` | Rejected by manager |
+| Status     | Description          |
+| ---------- | -------------------- |
+| `PENDING`  | Awaiting approval    |
+| `APPROVED` | Approved by manager  |
+| `REJECTED` | Rejected by manager  |
 | `CANCELED` | Canceled by employee |
 
 #### Overtime Rates
 
 | Condition | Rate |
-|-----------|------|
-| Weekday | 1.5x |
-| Weekend | 2.0x |
-| Holiday | 2.0x |
+| --------- | ---- |
+| Weekday   | 1.5x |
+| Weekend   | 2.0x |
+| Holiday   | 2.0x |
 
 ---
 
@@ -241,31 +242,31 @@ apps/web/app/[locale]/(dashboard)/hrd/
 
 ### AttendanceRecord
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| employee_id | UUID | Employee reference |
-| date | DATE | Attendance date |
-| check_in_time | TIME | Clock in time |
-| check_in_type | ENUM | NORMAL, WFH, FIELD_WORK |
-| check_in_latitude | FLOAT | GPS latitude at clock in |
-| check_in_longitude | FLOAT | GPS longitude at clock in |
-| check_in_address | STRING | Resolved address |
-| check_in_note | STRING | Optional note |
-| check_out_time | TIME | Clock out time |
-| check_out_latitude | FLOAT | GPS latitude at clock out |
-| check_out_longitude | FLOAT | GPS longitude at clock out |
-| check_out_address | STRING | Resolved address |
-| check_out_note | STRING | Optional note |
-| status | ENUM | Attendance status |
-| working_minutes | INT | Total working time |
-| overtime_minutes | INT | Overtime worked |
-| late_minutes | INT | Minutes late |
-| early_leave_minutes | INT | Minutes left early |
-| work_schedule_id | UUID | Applied schedule |
-| is_manual_entry | BOOL | Manual entry flag |
-| manual_entry_reason | STRING | Reason for manual entry |
-| approved_by | UUID | Admin who approved |
+| Field               | Type   | Description                |
+| ------------------- | ------ | -------------------------- |
+| id                  | UUID   | Primary key                |
+| employee_id         | UUID   | Employee reference         |
+| date                | DATE   | Attendance date            |
+| check_in_time       | TIME   | Clock in time              |
+| check_in_type       | ENUM   | NORMAL, WFH, FIELD_WORK    |
+| check_in_latitude   | FLOAT  | GPS latitude at clock in   |
+| check_in_longitude  | FLOAT  | GPS longitude at clock in  |
+| check_in_address    | STRING | Resolved address           |
+| check_in_note       | STRING | Optional note              |
+| check_out_time      | TIME   | Clock out time             |
+| check_out_latitude  | FLOAT  | GPS latitude at clock out  |
+| check_out_longitude | FLOAT  | GPS longitude at clock out |
+| check_out_address   | STRING | Resolved address           |
+| check_out_note      | STRING | Optional note              |
+| status              | ENUM   | Attendance status          |
+| working_minutes     | INT    | Total working time         |
+| overtime_minutes    | INT    | Overtime worked            |
+| late_minutes        | INT    | Minutes late               |
+| early_leave_minutes | INT    | Minutes left early         |
+| work_schedule_id    | UUID   | Applied schedule           |
+| is_manual_entry     | BOOL   | Manual entry flag          |
+| manual_entry_reason | STRING | Reason for manual entry    |
+| approved_by         | UUID   | Admin who approved         |
 
 ### WorkSchedule
 
@@ -277,29 +278,29 @@ See [Holiday Management](hrd-holidays.md#data-model) for the full Holiday data m
 
 ### OvertimeRequest
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| employee_id | UUID | Employee reference |
-| date | DATE | Overtime date |
-| request_type | ENUM | AUTO_DETECTED, MANUAL_CLAIM, PRE_APPROVED |
-| start_time | TIME | Start time |
-| end_time | TIME | End time |
-| planned_minutes | INT | Requested minutes |
-| actual_minutes | INT | Actual worked |
-| approved_minutes | INT | Approved minutes |
-| reason | STRING | Request reason |
-| description | STRING | Detailed description |
-| task_details | STRING | Tasks performed |
-| status | ENUM | PENDING, APPROVED, REJECTED, CANCELED |
-| approved_by | UUID | Approver |
-| approved_at | TIMESTAMP | Approval time |
-| rejected_by | UUID | Rejecter |
-| rejected_at | TIMESTAMP | Rejection time |
-| reject_reason | STRING | Rejection reason |
-| attendance_record_id | UUID | Linked attendance |
-| overtime_rate | FLOAT | Rate multiplier |
-| compensation_amount | FLOAT | Calculated compensation |
+| Field                | Type      | Description                               |
+| -------------------- | --------- | ----------------------------------------- |
+| id                   | UUID      | Primary key                               |
+| employee_id          | UUID      | Employee reference                        |
+| date                 | DATE      | Overtime date                             |
+| request_type         | ENUM      | AUTO_DETECTED, MANUAL_CLAIM, PRE_APPROVED |
+| start_time           | TIME      | Start time                                |
+| end_time             | TIME      | End time                                  |
+| planned_minutes      | INT       | Requested minutes                         |
+| actual_minutes       | INT       | Actual worked                             |
+| approved_minutes     | INT       | Approved minutes                          |
+| reason               | STRING    | Request reason                            |
+| description          | STRING    | Detailed description                      |
+| task_details         | STRING    | Tasks performed                           |
+| status               | ENUM      | PENDING, APPROVED, REJECTED, CANCELED     |
+| approved_by          | UUID      | Approver                                  |
+| approved_at          | TIMESTAMP | Approval time                             |
+| rejected_by          | UUID      | Rejecter                                  |
+| rejected_at          | TIMESTAMP | Rejection time                            |
+| reject_reason        | STRING    | Rejection reason                          |
+| attendance_record_id | UUID      | Linked attendance                         |
+| overtime_rate        | FLOAT     | Rate multiplier                           |
+| compensation_amount  | FLOAT     | Calculated compensation                   |
 
 ---
 
@@ -312,18 +313,18 @@ The system uses the Haversine formula to calculate the distance between the empl
 ```go
 func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
     const R = 6371000 // Earth's radius in meters
-    
+
     φ1 := lat1 * math.Pi / 180
     φ2 := lat2 * math.Pi / 180
     Δφ := (lat2 - lat1) * math.Pi / 180
     Δλ := (lon2 - lon1) * math.Pi / 180
-    
+
     a := math.Sin(Δφ/2)*math.Sin(Δφ/2) +
          math.Cos(φ1)*math.Cos(φ2)*
          math.Sin(Δλ/2)*math.Sin(Δλ/2)
-    
+
     c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-    
+
     return R * c // Distance in meters
 }
 ```
@@ -358,23 +359,29 @@ working_minutes = check_out_time - check_in_time - break_duration
 
 #### Self-Service (Authenticated User)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/hrd/attendance/today` | Get today's attendance status |
-| POST | `/api/v1/hrd/attendance/clock-in` | Clock in |
-| POST | `/api/v1/hrd/attendance/clock-out` | Clock out |
-| GET | `/api/v1/hrd/attendance/my-stats` | Get monthly statistics |
+| Method | Endpoint                            | Description                                                     |
+| ------ | ----------------------------------- | --------------------------------------------------------------- |
+| GET    | `/api/v1/hrd/attendance/today`      | Get today's attendance status                                   |
+| POST   | `/api/v1/hrd/attendance/clock-in`   | Clock in                                                        |
+| POST   | `/api/v1/hrd/attendance/clock-out`  | Clock out                                                       |
+| GET    | `/api/v1/hrd/attendance/my-stats`   | Get monthly statistics                                          |
+| GET    | `/api/v1/hrd/attendance/my-history` | Get authenticated employee attendance history (calendar source) |
+
+`GET /api/v1/hrd/attendance/my-history` supports:
+
+- `date_from` and `date_to` (recommended for monthly calendar range)
+- `page` and `per_page` (default pagination from attendance list contract)
 
 #### Admin (Permission Required)
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/attendance/form-data` | attendance.read | Get form data (employees, schedules, statuses) |
-| GET | `/api/v1/hrd/attendance` | attendance.read | List all records (enriched with employee names, supports `search` query param) |
-| GET | `/api/v1/hrd/attendance/:id` | attendance.read | Get by ID (enriched with employee, work schedule name, approver name) |
-| POST | `/api/v1/hrd/attendance/manual` | attendance.create | Manual entry (`reason` is optional) |
-| PUT | `/api/v1/hrd/attendance/:id` | attendance.update | Update record |
-| DELETE | `/api/v1/hrd/attendance/:id` | attendance.delete | Delete record |
+| Method | Endpoint                           | Permission        | Description                                                                    |
+| ------ | ---------------------------------- | ----------------- | ------------------------------------------------------------------------------ |
+| GET    | `/api/v1/hrd/attendance/form-data` | attendance.read   | Get form data (employees, schedules, statuses)                                 |
+| GET    | `/api/v1/hrd/attendance`           | attendance.read   | List all records (enriched with employee names, supports `search` query param) |
+| GET    | `/api/v1/hrd/attendance/:id`       | attendance.read   | Get by ID (enriched with employee, work schedule name, approver name)          |
+| POST   | `/api/v1/hrd/attendance/manual`    | attendance.create | Manual entry (`reason` is optional)                                            |
+| PUT    | `/api/v1/hrd/attendance/:id`       | attendance.update | Update record                                                                  |
+| DELETE | `/api/v1/hrd/attendance/:id`       | attendance.delete | Delete record                                                                  |
 
 ### Work Schedule Endpoints
 
@@ -388,24 +395,24 @@ See [Holiday Management](hrd-holidays.md#api-reference) for full endpoint docume
 
 #### Self-Service
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/hrd/overtime` | Submit request |
-| GET | `/api/v1/hrd/overtime/my-summary` | Get own summary |
-| POST | `/api/v1/hrd/overtime/:id/cancel` | Cancel request |
+| Method | Endpoint                          | Description     |
+| ------ | --------------------------------- | --------------- |
+| POST   | `/api/v1/hrd/overtime`            | Submit request  |
+| GET    | `/api/v1/hrd/overtime/my-summary` | Get own summary |
+| POST   | `/api/v1/hrd/overtime/:id/cancel` | Cancel request  |
 
 #### Manager/Admin
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/overtime/pending` | overtime.approve | Get pending |
-| POST | `/api/v1/hrd/overtime/:id/approve` | overtime.approve | Approve |
-| POST | `/api/v1/hrd/overtime/:id/reject` | overtime.approve | Reject |
-| GET | `/api/v1/hrd/overtime` | overtime.read | List all |
-| GET | `/api/v1/hrd/overtime/:id` | overtime.read | Get by ID |
-| PUT | `/api/v1/hrd/overtime/:id` | overtime.update | Update |
-| DELETE | `/api/v1/hrd/overtime/:id` | overtime.delete | Delete |
-| GET | `/api/v1/hrd/overtime/notifications` | overtime.approve | Polling |
+| Method | Endpoint                             | Permission       | Description |
+| ------ | ------------------------------------ | ---------------- | ----------- |
+| GET    | `/api/v1/hrd/overtime/pending`       | overtime.approve | Get pending |
+| POST   | `/api/v1/hrd/overtime/:id/approve`   | overtime.approve | Approve     |
+| POST   | `/api/v1/hrd/overtime/:id/reject`    | overtime.approve | Reject      |
+| GET    | `/api/v1/hrd/overtime`               | overtime.read    | List all    |
+| GET    | `/api/v1/hrd/overtime/:id`           | overtime.read    | Get by ID   |
+| PUT    | `/api/v1/hrd/overtime/:id`           | overtime.update  | Update      |
+| DELETE | `/api/v1/hrd/overtime/:id`           | overtime.delete  | Delete      |
+| GET    | `/api/v1/hrd/overtime/notifications` | overtime.approve | Polling     |
 
 ---
 
@@ -415,13 +422,14 @@ See [Holiday Management](hrd-holidays.md#api-reference) for full endpoint docume
 
 The main HRD dashboard provides an overview of attendance statistics:
 
-| Component | Description |
-|-----------|-------------|
-| `hrd-dashboard-client.tsx` | Main dashboard with stats cards |
+| Component                                                | Description                     |
+| -------------------------------------------------------- | ------------------------------- |
+| `hrd-dashboard-client.tsx`                               | Main dashboard with stats cards |
 | Quick access cards to Work Schedules, Holidays, Overtime |
-| Module navigation with permission guards |
+| Module navigation with permission guards                 |
 
 **Features:**
+
 - Overview statistics (employees, schedules, holidays, overtime)
 - Quick navigation tiles to sub-modules
 - Permission-based visibility
@@ -436,14 +444,15 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 
 ### Overtime (`/hrd/overtime`)
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `OvertimeList` | overtime-list.tsx | Paginated table with status filter |
-| `OvertimeDialog` | overtime-dialog.tsx | Submit overtime request form |
-| `OvertimeApprovalDialog` | overtime-approval-dialog.tsx | Approve/Reject dialog |
-| `OvertimePageClient` | overtime-page-client.tsx | Page wrapper with animations |
+| Component                | File                         | Description                        |
+| ------------------------ | ---------------------------- | ---------------------------------- |
+| `OvertimeList`           | overtime-list.tsx            | Paginated table with status filter |
+| `OvertimeDialog`         | overtime-dialog.tsx          | Submit overtime request form       |
+| `OvertimeApprovalDialog` | overtime-approval-dialog.tsx | Approve/Reject dialog              |
+| `OvertimePageClient`     | overtime-page-client.tsx     | Page wrapper with animations       |
 
 **Features:**
+
 - List all overtime requests with status badges
 - Submit manual overtime request
 - Approval workflow with approved minutes adjustment
@@ -453,15 +462,16 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 
 ### Attendance Records (Shared Components)
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `AttendanceRecordForm` | attendance-record-form.tsx | Manual entry form (Calendar date picker, form-data integration) |
-| `AttendanceList` | attendance-list.tsx | Paginated records table with search + calendar toggle |
-| `AttendanceCalendar` | attendance-calendar.tsx | Monthly calendar view |
-| `AttendanceDayView` | attendance-day-view.tsx | Single day details |
+| Component               | File                        | Description                                                           |
+| ----------------------- | --------------------------- | --------------------------------------------------------------------- |
+| `AttendanceRecordForm`  | attendance-record-form.tsx  | Manual entry form (Calendar date picker, form-data integration)       |
+| `AttendanceList`        | attendance-list.tsx         | Paginated records table with search + calendar toggle                 |
+| `AttendanceCalendar`    | attendance-calendar.tsx     | Monthly calendar view                                                 |
+| `AttendanceDayView`     | attendance-day-view.tsx     | Single day details                                                    |
 | `AttendanceDetailModal` | attendance-detail-modal.tsx | Full detail modal (all API fields, edit action, names instead of IDs) |
 
 **Features:**
+
 - Monthly calendar with attendance events
 - Day view with check-in/out times
 - Status badges (Present, Late, Absent, WFH, Holiday, etc.)
@@ -471,18 +481,19 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 
 ### Hooks (TanStack Query)
 
-| Hook | File | Description |
-|------|------|-------------|
-| `useAttendanceRecords` | use-attendance-records.ts | CRUD operations + stats |
-| `useAttendanceCalendar` | use-attendance-calendar.ts | Calendar data fetching |
-| `useGeolocation` | use-geolocation.ts | Browser GPS access |
-| `useWorkSchedules` | use-work-schedules.ts | Schedule CRUD |
-| `useHolidays` | use-holidays.ts | Holiday CRUD + calendar |
-| `useOvertime` | use-overtime.ts | Overtime CRUD + approval |
+| Hook                    | File                       | Description              |
+| ----------------------- | -------------------------- | ------------------------ |
+| `useAttendanceRecords`  | use-attendance-records.ts  | CRUD operations + stats  |
+| `useAttendanceCalendar` | use-attendance-calendar.ts | Calendar data fetching   |
+| `useGeolocation`        | use-geolocation.ts         | Browser GPS access       |
+| `useWorkSchedules`      | use-work-schedules.ts      | Schedule CRUD            |
+| `useHolidays`           | use-holidays.ts            | Holiday CRUD + calendar  |
+| `useOvertime`           | use-overtime.ts            | Overtime CRUD + approval |
 
 ### i18n Translations
 
 Translations are available in:
+
 - `hrd.dashboard` - Dashboard labels
 - `hrd.modules` - Module names
 - `hrd.workSchedule` - Work schedule form labels
@@ -509,17 +520,17 @@ sequenceDiagram
     API->>DB: Check today's record
     DB-->>API: No record found
     API-->>App: {has_checked_in: false}
-    
+
     E->>App: Tap "Clock In"
     App->>GPS: Request location
     GPS-->>App: {lat, lng}
     App->>API: POST /attendance/clock-in
-    
+
     API->>DB: Get work schedule
     DB-->>API: Schedule with GPS config
-    
+
     API->>API: Calculate distance (Haversine)
-    
+
     alt Distance > GPS Radius
         API-->>App: Error: Outside office range
     else Distance OK
@@ -528,7 +539,7 @@ sequenceDiagram
         DB-->>API: Record created
         API-->>App: Success + record details
     end
-    
+
     App->>E: Show success message
 ```
 
@@ -550,12 +561,12 @@ sequenceDiagram
     Note over M,API: Manager approval
     M->>API: GET /overtime/pending
     API-->>M: List of pending requests
-    
+
     M->>API: POST /overtime/:id/approve
     API->>DB: Update status = APPROVED
     API->>DB: Calculate compensation
     API-->>M: Success
-    
+
     Note over E: Employee sees approved
     E->>API: GET /overtime/my-summary
     API-->>E: Updated summary with approved OT
@@ -589,25 +600,27 @@ sequenceDiagram
 
 ### Required Permissions
 
-| Module | Permission | Description |
-|--------|------------|-------------|
-| Attendance | `attendance.read` | View attendance records |
-| Attendance | `attendance.create` | Create manual entries |
-| Attendance | `attendance.update` | Update records |
-| Attendance | `attendance.delete` | Delete records |
+| Module        | Permission                                                        | Description             |
+| ------------- | ----------------------------------------------------------------- | ----------------------- |
+| Attendance    | `attendance.read`                                                 | View attendance records |
+| Attendance    | `attendance.create`                                               | Create manual entries   |
+| Attendance    | `attendance.update`                                               | Update records          |
+| Attendance    | `attendance.delete`                                               | Delete records          |
 | Work Schedule | See [Work Schedule Management](hrd-work-schedules.md#permissions) |
-| Holiday | See [Holiday Management](hrd-holidays.md#permissions) |
-| Overtime | `overtime.read` | View overtime requests |
-| Overtime | `overtime.approve` | Approve/reject requests |
-| Overtime | `overtime.update` | Update requests |
-| Overtime | `overtime.delete` | Delete requests |
+| Holiday       | See [Holiday Management](hrd-holidays.md#permissions)             |
+| Overtime      | `overtime.read`                                                   | View overtime requests  |
+| Overtime      | `overtime.approve`                                                | Approve/reject requests |
+| Overtime      | `overtime.update`                                                 | Update requests         |
+| Overtime      | `overtime.delete`                                                 | Delete requests         |
 
 ### Self-Service Permissions
 
 Authenticated employees can always:
+
 - View their own today's attendance
 - Clock in/out
 - View their own monthly stats
+- View their own attendance history
 - Submit overtime requests
 - Cancel their own pending overtime requests
 
@@ -648,17 +661,17 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ### Error Codes
 
-| Code | Description |
-|------|-------------|
-| `ATTENDANCE_ALREADY_CLOCKED_IN` | Already clocked in today |
-| `ATTENDANCE_NOT_CLOCKED_IN` | Cannot clock out without clock in |
-| `ATTENDANCE_ALREADY_CLOCKED_OUT` | Already clocked out today |
-| `ATTENDANCE_GPS_OUT_OF_RANGE` | Outside allowed GPS radius |
-| `ATTENDANCE_NOT_WORKING_DAY` | Today is not a working day |
-| `ATTENDANCE_HOLIDAY` | Today is a holiday |
-| `OVERTIME_ALREADY_EXISTS` | Overtime request exists for date |
-| `OVERTIME_CANNOT_CANCEL` | Cannot cancel non-pending request |
-| `OVERTIME_INVALID_STATUS` | Invalid status transition |
+| Code                             | Description                       |
+| -------------------------------- | --------------------------------- |
+| `ATTENDANCE_ALREADY_CLOCKED_IN`  | Already clocked in today          |
+| `ATTENDANCE_NOT_CLOCKED_IN`      | Cannot clock out without clock in |
+| `ATTENDANCE_ALREADY_CLOCKED_OUT` | Already clocked out today         |
+| `ATTENDANCE_GPS_OUT_OF_RANGE`    | Outside allowed GPS radius        |
+| `ATTENDANCE_NOT_WORKING_DAY`     | Today is not a working day        |
+| `ATTENDANCE_HOLIDAY`             | Today is a holiday                |
+| `OVERTIME_ALREADY_EXISTS`        | Overtime request exists for date  |
+| `OVERTIME_CANNOT_CANCEL`         | Cannot cancel non-pending request |
+| `OVERTIME_INVALID_STATUS`        | Invalid status transition         |
 
 ---
 
@@ -700,6 +713,12 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
   - Separated holiday and work schedule documentation into standalone files
   - Updated Postman collection with search param and optional reason
 
+- **Sprint 16 Bug Fix — Self-Service Attendance History:**
+  - **Root Cause:** `ListMyAttendance` and `GetMonthlyStats` handlers were passing `user_id` (from JWT) directly as `employee_id` to the repository query. Because `user_id ≠ employee_id` in the database, the query always returned 0 rows.
+  - **Fix:** Introduced `ListSelf` and `GetSelfMonthlyStats` usecase methods. Both call the existing `resolveEmployeeID()` helper to translate `user_id → employee_id` before querying.
+  - **Impact:** `GET /hrd/attendance/my-history` and `GET /hrd/attendance/my-stats` now return correct data for the authenticated employee.
+  - **Added:** `GET /hrd/attendance/my-history` documented in Postman collection (was missing).
+
 - **Known Limitation**: Attendance records don't link to leave requests yet (planned for integration)
 - **Future Improvement**:
   - Add attendance report export (CSV/Excel)
@@ -709,4 +728,4 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ---
 
-*Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 15+)*
+_Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 15+)_
