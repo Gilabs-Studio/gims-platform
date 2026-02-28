@@ -549,7 +549,6 @@ export function AttendanceList() {
                 handleEdit(calendarEventToAttendanceRecord(event))
               }
               canEdit={canUpdate}
-              onCreateNew={() => setIsFormOpen(true)}
             />
           ) : (
             <AttendanceCalendar
