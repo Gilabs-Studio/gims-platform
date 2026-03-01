@@ -571,7 +571,10 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		if err := tx.Table("goods_receipt_items").
 			Select("product_id, SUM(quantity_received) as qty").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
-			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status = ?", si.PurchaseOrderID, models.GoodsReceiptStatusConfirmed).
+			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
+				string(models.GoodsReceiptStatusConfirmed),
+				string(models.GoodsReceiptStatusClosed),
+			}).
 			Group("product_id").Scan(&receivedSums).Error; err != nil {
 			return err
 		}

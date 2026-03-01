@@ -248,6 +248,161 @@ func (h *GoodsReceiptHandler) Confirm(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Submit handles POST /purchase/goods-receipt/:id/submit
+func (h *GoodsReceiptHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", id)
+			return
+		}
+		if err == usecase.ErrGoodsReceiptConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Approve handles POST /purchase/goods-receipt/:id/approve
+func (h *GoodsReceiptHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", id)
+			return
+		}
+		if err == usecase.ErrGoodsReceiptConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Reject handles POST /purchase/goods-receipt/:id/reject
+func (h *GoodsReceiptHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reject(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", id)
+			return
+		}
+		if err == usecase.ErrGoodsReceiptConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// CloseGR handles POST /purchase/goods-receipt/:id/close
+func (h *GoodsReceiptHandler) CloseGR(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Close(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", id)
+			return
+		}
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrGoodsReceiptConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// ConvertToSupplierInvoice handles POST /purchase/goods-receipt/:id/convert
+func (h *GoodsReceiptHandler) ConvertToSupplierInvoice(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.ConvertToSupplierInvoice(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", id)
+			return
+		}
+		if err == usecase.ErrGoodsReceiptConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /purchase/goods-receipt/:id/audit-trail
 func (h *GoodsReceiptHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

@@ -90,6 +90,66 @@ export function useConfirmGoodsReceipt() {
   });
 }
 
+export function useSubmitGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+    },
+  });
+}
+
+export function useApproveGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+    },
+  });
+}
+
+export function useRejectGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.reject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+    },
+  });
+}
+
+export function useCloseGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.close(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+    },
+  });
+}
+
+export function useConvertGoodsReceiptToSI() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.convertToSupplierInvoice(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+    },
+  });
+}
+
 export function useGoodsReceiptAuditTrail(
   id: string,
   params?: { page?: number; per_page?: number },
