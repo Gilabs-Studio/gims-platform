@@ -69,6 +69,7 @@ export interface SupplierInvoiceListItem {
   paid_amount: number;
   remaining_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  supplier_id: string;
   supplier_name: string;
   created_by: string;
   status: SupplierInvoiceStatus;
@@ -118,6 +119,7 @@ export interface SupplierInvoiceDetail {
   paid_amount: number;
   remaining_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  supplier_id: string;
   supplier_name: string;
   created_by: string;
   status: SupplierInvoiceStatus;

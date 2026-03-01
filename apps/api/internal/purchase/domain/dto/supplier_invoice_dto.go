@@ -32,6 +32,7 @@ type SupplierInvoiceListResponse struct {
 	InvoiceDate   string `json:"invoice_date"`
 	DueDate       string `json:"due_date"`
 
+	SupplierID   string `json:"supplier_id"`
 	SupplierName string `json:"supplier_name"`
 
 	TaxRate           float64 `json:"tax_rate"`
@@ -82,6 +83,7 @@ type SupplierInvoiceDetailResponse struct {
 	InvoiceDate   string `json:"invoice_date"`
 	DueDate       string `json:"due_date"`
 
+	SupplierID   string `json:"supplier_id"`
 	SupplierName string `json:"supplier_name"`
 
 	TaxRate           float64 `json:"tax_rate"`

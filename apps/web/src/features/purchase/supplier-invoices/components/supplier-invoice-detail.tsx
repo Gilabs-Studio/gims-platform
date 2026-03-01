@@ -39,6 +39,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
+import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 import type { SupplierInvoiceDetail as ISupplierInvoiceDetail } from "../types";
 import {
@@ -118,12 +119,15 @@ function SupplierInvoiceDetailView({
   const canPending = useUserPermission("supplier_invoice.pending");
   const canPrint = useUserPermission("supplier_invoice.print");
   const canViewProduct = useUserPermission("product.read");
+  const canViewSupplier = useUserPermission("supplier.read");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isProductOpen, setIsProductOpen] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isSupplierOpen, setIsSupplierOpen] = useState(false);
 
   const submitMutation = useSubmitSupplierInvoice();
   const approveMutation = useApproveSupplierInvoice();
@@ -357,7 +361,22 @@ function SupplierInvoiceDetailView({
                 <h4 className="text-sm font-semibold">Bill From</h4>
               </div>
               <div className="space-y-1.5 text-sm">
-                <div className="font-semibold">{data.supplier_name || "-"}</div>
+                <div className="font-semibold">
+                  {canViewSupplier && data.supplier_id ? (
+                    <button
+                      type="button"
+                      className="text-primary hover:underline cursor-pointer text-left font-semibold"
+                      onClick={() => {
+                        setSelectedSupplierId(data.supplier_id);
+                        setIsSupplierOpen(true);
+                      }}
+                    >
+                      {data.supplier_name || "-"}
+                    </button>
+                  ) : (
+                    <span>{data.supplier_name || "-"}</span>
+                  )}
+                </div>
                 {data.purchase_order && (
                   <div className="text-muted-foreground">
                     {t("fields.purchaseOrder")}:{" "}
@@ -545,6 +564,18 @@ function SupplierInvoiceDetailView({
           open={printOpen}
           onClose={() => setPrintOpen(false)}
           invoiceId={data.id}
+        />
+      )}
+
+      {/* Supplier detail */}
+      {isSupplierOpen && selectedSupplierId && (
+        <SupplierDetailModal
+          open={isSupplierOpen}
+          onOpenChange={(v) => {
+            setIsSupplierOpen(v);
+            if (!v) setSelectedSupplierId(null);
+          }}
+          supplierId={selectedSupplierId}
         />
       )}
 

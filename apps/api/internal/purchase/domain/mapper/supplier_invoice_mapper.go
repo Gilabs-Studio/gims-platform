@@ -28,6 +28,23 @@ func resolveSupplierName(si *models.SupplierInvoice) string {
 	return ""
 }
 
+// resolveSupplierID mirrors the name fallback: prefers the invoice's own SupplierID,
+// then falls back to the referenced PO's supplier identifier.
+func resolveSupplierID(si *models.SupplierInvoice) string {
+	if si.SupplierID != "" {
+		return si.SupplierID
+	}
+	if si.PurchaseOrder != nil {
+		if si.PurchaseOrder.SupplierID != nil && *si.PurchaseOrder.SupplierID != "" {
+			return *si.PurchaseOrder.SupplierID
+		}
+		if si.PurchaseOrder.Supplier != nil {
+			return si.PurchaseOrder.Supplier.ID
+		}
+	}
+	return ""
+}
+
 func NewSupplierInvoiceMapper() *SupplierInvoiceMapper {
 	return &SupplierInvoiceMapper{}
 }
@@ -79,6 +96,7 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierID:         resolveSupplierID(si),
 		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
@@ -184,6 +202,7 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierID:         resolveSupplierID(si),
 		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
