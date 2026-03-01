@@ -6,6 +6,11 @@ export const goodsReceiptEn = {
     created: "Goods receipt created",
     updated: "Goods receipt updated",
     confirmed: "Goods receipt confirmed",
+    submitted: "Goods receipt submitted for approval",
+    approved: "Goods receipt approved",
+    rejected: "Goods receipt rejected",
+    closed: "Goods receipt closed",
+    converted: "Converted to supplier invoice",
     deleted: "Goods receipt deleted",
     failed: "Something went wrong",
   },
@@ -40,9 +45,13 @@ export const goodsReceiptEn = {
   tabs: {
     basic: "Basic Info",
     items: "Items",
+    general: "General",
+    audit_trail: "Audit Trail",
   },
   sections: {
     receiptInfo: "Receipt Info",
+    supplierInfo: "Supplier Info",
+    workflowHistory: "Workflow History",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -50,6 +59,12 @@ export const goodsReceiptEn = {
     supplier: "Supplier",
     notes: "Notes",
     status: "Status",
+    submittedAt: "Submitted At",
+    approvedAt: "Approved At",
+    closedAt: "Closed At",
+    rejectedAt: "Rejected At",
+    convertedAt: "Converted At",
+    supplierInvoice: "Supplier Invoice",
   },
   items: {
     title: "Items",
@@ -67,9 +82,14 @@ export const goodsReceiptEn = {
     receiptDate: "Receipt Date",
     status: "Status",
     createdAt: "Created At",
+    totalItems: "Items",
   },
   status: {
     draft: "Draft",
+    submitted: "Submitted",
+    approved: "Approved",
+    closed: "Closed",
+    rejected: "Rejected",
     confirmed: "Confirmed",
   },
   actions: {
@@ -79,6 +99,11 @@ export const goodsReceiptEn = {
     edit: "Edit",
     delete: "Delete",
     confirm: "Confirm",
+    submit: "Submit",
+    approve: "Approve",
+    reject: "Reject",
+    close: "Close",
+    convert: "Convert to Invoice",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",
@@ -86,6 +111,7 @@ export const goodsReceiptEn = {
     back: "Back",
     print: "Print",
   },
+  convertToSupplierInvoice: "Convert to Supplier Invoice",
   placeholders: {
     select: "Select...",
   },
@@ -100,3 +126,4 @@ export const goodsReceiptEn = {
   printCancel: "Cancel",
   printError: "Something went wrong",
 };
+

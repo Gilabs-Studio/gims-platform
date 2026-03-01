@@ -161,6 +161,8 @@ import { salesOverviewReportEn } from "@/features/reports/sales-overview/i18n/en
 import { salesOverviewReportId } from "@/features/reports/sales-overview/i18n/id";
 import { productAnalysisReportEn } from "@/features/reports/product-analysis/i18n/en";
 import { productAnalysisReportId } from "@/features/reports/product-analysis/i18n/id";
+import { geoPerformanceReportEn } from "@/features/reports/geo-performance/i18n/en";
+import { geoPerformanceReportId } from "@/features/reports/geo-performance/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -240,6 +242,7 @@ const messages = {
     ...areaMappingEn,
     ...salesOverviewReportEn,
     ...productAnalysisReportEn,
+    ...geoPerformanceReportEn,
   },
   id: {
     ...globalIdMessages,
@@ -316,6 +319,7 @@ const messages = {
     ...areaMappingId,
     ...salesOverviewReportId,
     ...productAnalysisReportId,
+    ...geoPerformanceReportId,
   },
 } as const;
 

@@ -48,14 +48,15 @@ export function GRLinkedDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("list.code")}</TableHead>
-                    <TableHead>{t("list.status")}</TableHead>
+                    <TableHead>{t("columns.code")}</TableHead>
+                    <TableHead>{t("columns.totalItems")}</TableHead>
+                    <TableHead>{t("columns.status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
                         {t("notFound")}
                       </TableCell>
                     </TableRow>
@@ -74,8 +75,14 @@ export function GRLinkedDialog({
                             {gr.code}
                           </button>
                         </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {gr.total_items ?? 0}
+                        </TableCell>
                         <TableCell>
-                          <GoodsReceiptStatusBadge status={gr.status} className="text-xs" />
+                          <div className="flex items-center gap-2">
+                            <GoodsReceiptStatusBadge status={gr.status} className="text-xs" />
+                            <span className="text-muted-foreground text-xs">+{gr.total_items_received ?? 0}</span>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

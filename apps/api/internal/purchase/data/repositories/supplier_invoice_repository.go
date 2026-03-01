@@ -53,6 +53,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 
 	q := r.db.WithContext(ctx).Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
+		Preload("PurchaseOrder.Supplier").
 		Preload("PaymentTerms").
 		Preload("DownPaymentInvoice").
 		Preload("RegularInvoices")

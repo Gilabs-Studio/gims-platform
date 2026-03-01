@@ -7,14 +7,19 @@ import (
 )
 
 const (
-	goodsReceiptRead       = "goods_receipt.read"
-	goodsReceiptCreate     = "goods_receipt.create"
-	goodsReceiptUpdate     = "goods_receipt.update"
-	goodsReceiptDelete     = "goods_receipt.delete"
-	goodsReceiptConfirm    = "goods_receipt.confirm"
-	goodsReceiptExport     = "goods_receipt.export"
-	goodsReceiptAuditTrail = "goods_receipt.audit_trail"
-	goodsReceiptPrint      = "goods_receipt.print"
+	goodsReceiptRead                  = "goods_receipt.read"
+	goodsReceiptCreate                = "goods_receipt.create"
+	goodsReceiptUpdate                = "goods_receipt.update"
+	goodsReceiptDelete                = "goods_receipt.delete"
+	goodsReceiptConfirm               = "goods_receipt.confirm"
+	goodsReceiptSubmit                = "goods_receipt.submit"
+	goodsReceiptApprove               = "goods_receipt.approve"
+	goodsReceiptReject                = "goods_receipt.reject"
+	goodsReceiptClose                 = "goods_receipt.close"
+	goodsReceiptConvert               = "goods_receipt.convert"
+	goodsReceiptExport                = "goods_receipt.export"
+	goodsReceiptAuditTrail            = "goods_receipt.audit_trail"
+	goodsReceiptPrint                 = "goods_receipt.print"
 )
 
 func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandler, printH *handler.GoodsReceiptPrintHandler) {
@@ -29,4 +34,9 @@ func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandl
 	g.PUT("/:id", middleware.RequirePermission(goodsReceiptUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(goodsReceiptDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(goodsReceiptConfirm), h.Confirm)
+	g.POST("/:id/submit", middleware.RequirePermission(goodsReceiptSubmit), h.Submit)
+	g.POST("/:id/approve", middleware.RequirePermission(goodsReceiptApprove), h.Approve)
+	g.POST("/:id/reject", middleware.RequirePermission(goodsReceiptReject), h.Reject)
+	g.POST("/:id/close", middleware.RequirePermission(goodsReceiptClose), h.CloseGR)
+	g.POST("/:id/convert", middleware.RequirePermission(goodsReceiptConvert), h.ConvertToSupplierInvoice)
 }

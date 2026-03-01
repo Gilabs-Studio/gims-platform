@@ -58,10 +58,16 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 
 	grSummaries := make([]dto.GoodsReceiptSummary, 0, len(po.GoodsReceipts))
 	for _, gr := range po.GoodsReceipts {
+		var totalReceivedForGR float64
+		for _, gi := range gr.Items {
+			totalReceivedForGR += gi.QuantityReceived
+		}
 		grSummaries = append(grSummaries, dto.GoodsReceiptSummary{
-			ID:     gr.ID,
-			Code:   gr.Code,
-			Status: string(gr.Status),
+			ID:                  gr.ID,
+			Code:                gr.Code,
+			Status:              string(gr.Status),
+			TotalItems:          len(gr.Items),
+			TotalItemsReceived:  totalReceivedForGR,
 		})
 	}
 
@@ -72,6 +78,41 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 			Code:   si.Code,
 			Status: string(si.Status),
 		})
+	}
+
+	// Compute receipt fulfillment for approved POs.
+	var fulfillment *dto.POFulfillmentSummary
+	if po.Status == models.PurchaseOrderStatusApproved && len(po.Items) > 0 {
+		var totalOrdered, totalReceived, totalPending float64
+		for _, item := range po.Items {
+			totalOrdered += item.Quantity
+		}
+		for _, gr := range po.GoodsReceipts {
+			for _, grItem := range gr.Items {
+				switch gr.Status {
+				// Items are physically received once the GR is approved, closed, or confirmed (legacy).
+				case models.GoodsReceiptStatusApproved,
+					models.GoodsReceiptStatusClosed,
+					models.GoodsReceiptStatusConfirmed:
+					totalReceived += grItem.QuantityReceived
+				// Items are in-flight when the GR is still a draft or awaiting approval.
+				case models.GoodsReceiptStatusDraft,
+					models.GoodsReceiptStatusSubmitted:
+					totalPending += grItem.QuantityReceived
+				// REJECTED GRs do not contribute to fulfillment.
+				}
+			}
+		}
+		totalRemaining := totalOrdered - totalReceived - totalPending
+		if totalRemaining < 0 {
+			totalRemaining = 0
+		}
+		fulfillment = &dto.POFulfillmentSummary{
+			TotalOrdered:   totalOrdered,
+			TotalReceived:  totalReceived,
+			TotalPending:   totalPending,
+			TotalRemaining: totalRemaining,
+		}
 	}
 
 	return &dto.PurchaseOrderListResponse{
@@ -85,6 +126,7 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		PurchaseRequisition: prRef,
 		GoodsReceipts:       grSummaries,
 		SupplierInvoices:    siSummaries,
+		Fulfillment:         fulfillment,
 	}
 }
 

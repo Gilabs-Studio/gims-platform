@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, FileText, TrendingUp } from "lucide-react";
+import { CheckCircle2, Clock, FileText, Send, TrendingUp, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SupplierInvoiceDownPaymentStatusBadgeProps {
@@ -38,6 +38,34 @@ export function SupplierInvoiceDownPaymentStatusBadge({ status, className }: Sup
         <Badge variant="secondary" className={className}>
           <FileText className="h-3 w-3 mr-1.5" />
           {t("draft")}
+        </Badge>
+      );
+    case "submitted":
+      return (
+        <Badge variant="info" className={className}>
+          <Send className="h-3 w-3 mr-1.5" />
+          {t("submitted")}
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge variant="success" className={className}>
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
+          {t("approved")}
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("rejected")}
+        </Badge>
+      );
+    case "cancelled":
+      return (
+        <Badge variant="outline" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("cancelled")}
         </Badge>
       );
     default:

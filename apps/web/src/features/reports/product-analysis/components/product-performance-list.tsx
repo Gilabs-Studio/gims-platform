@@ -3,14 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React from "react";
-import {
-  Eye,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Search,
-  ImageOff,
-} from "lucide-react";
+import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
@@ -70,6 +63,13 @@ export function ProductPerformanceList({
 }: ProductPerformanceListProps) {
   const t = useTranslations("productAnalysisReport");
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(Math.round(amount));
+
   const handleSort = (column: SortBy) => {
     if (sortBy === column) {
       setOrder(order === "asc" ? "desc" : "asc");
@@ -94,32 +94,7 @@ export function ProductPerformanceList({
 
   return (
     <div className="space-y-4">
-      {/* Header with Search */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            {t("performance_list")}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t("performance_list_desc")}
-          </p>
-        </div>
-        <div className="relative w-[300px]">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            className="pl-10 h-9"
-            placeholder={t("table.searchPlaceholder")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </div>
+      {/* search is rendered in parent header */}
 
       {/* Table */}
       <div className="rounded-md border">
@@ -300,7 +275,7 @@ export function ProductPerformanceList({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {item.total_revenue_formatted}
+                      {formatCurrency(item.total_revenue)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.total_qty.toLocaleString("id-ID")}

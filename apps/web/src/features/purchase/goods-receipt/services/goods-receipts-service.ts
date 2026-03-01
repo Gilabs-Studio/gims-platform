@@ -4,6 +4,7 @@ import type {
   CreateGoodsReceiptInput,
   GoodsReceiptAddResponse,
   GoodsReceiptAuditTrailEntry,
+  GoodsReceiptConvertResponse,
   GoodsReceiptDetail,
   GoodsReceiptListItem,
   GoodsReceiptListParams,
@@ -47,6 +48,31 @@ export const goodsReceiptsService = {
 
   confirm: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
     const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/confirm`);
+    return response.data;
+  },
+
+  submit: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/reject`);
+    return response.data;
+  },
+
+  close: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/close`);
+    return response.data;
+  },
+
+  convertToSupplierInvoice: async (id: string): Promise<ApiResponse<GoodsReceiptConvertResponse>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptConvertResponse>>(`${BASE_URL}/${id}/convert`);
     return response.data;
   },
 

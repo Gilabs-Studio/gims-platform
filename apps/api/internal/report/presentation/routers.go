@@ -19,14 +19,17 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize repositories
 	salesOverviewRepo := repositories.NewSalesOverviewRepository(db)
 	productAnalysisRepo := repositories.NewProductAnalysisRepository(db)
+	geoPerformanceRepo := repositories.NewGeoPerformanceRepository(db)
 
 	// Initialize usecases
 	salesOverviewUC := usecase.NewSalesOverviewUsecase(salesOverviewRepo)
 	productAnalysisUC := usecase.NewProductAnalysisUsecase(productAnalysisRepo)
+	geoPerformanceUC := usecase.NewGeoPerformanceUsecase(geoPerformanceRepo)
 
 	// Initialize handlers
 	salesOverviewHandler := handler.NewSalesOverviewHandler(salesOverviewUC)
 	productAnalysisHandler := handler.NewProductAnalysisHandler(productAnalysisUC)
+	geoPerformanceHandler := handler.NewGeoPerformanceHandler(geoPerformanceUC)
 
 	// Create reports group under API with auth middleware
 	reportGroup := api.Group("/reports")
@@ -36,4 +39,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Register routes
 	router.RegisterSalesOverviewRoutes(reportGroup, salesOverviewHandler)
 	router.RegisterProductAnalysisRoutes(reportGroup, productAnalysisHandler)
+	router.RegisterGeoPerformanceRoutes(reportGroup, geoPerformanceHandler)
 }

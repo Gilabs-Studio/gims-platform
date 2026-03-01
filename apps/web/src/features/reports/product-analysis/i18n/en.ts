@@ -68,5 +68,36 @@ export const productAnalysisReportEn = {
       position: "Position",
       noData: "No data found for the selected period",
     },
+
+    // Analysis Mode Toggle
+    toggle: {
+      byProduct: "By Product",
+      byCategory: "By Category",
+      bySegment: "By Segment",
+      byType: "By Type",
+      byPackaging: "By Packaging",
+      byProcurementType: "By Procurement Type",
+    },
+
+    // Generic Dimension Performance Table
+    dimensionTable: {
+      segment: "Segment",
+      type: "Product Type",
+      packaging: "Packaging",
+      procurementType: "Procurement Type",
+      productCount: "Products",
+      searchPlaceholder: "Search by name...",
+      noData: "No data found for the selected period",
+    },
+
+    // Category Performance Table
+    categoryTable: {
+      title: "Category Performance",
+      description: "Sales performance aggregated by product category",
+      category: "Category",
+      productCount: "Products",
+      searchPlaceholder: "Search by category name...",
+      noData: "No category performance data found",
+    },
   },
 };

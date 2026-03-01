@@ -9,6 +9,42 @@ import (
 
 type SupplierInvoiceMapper struct{}
 
+// resolveSupplierName returns the best available supplier name, falling back through
+// the snapshot hierarchy to handle legacy records that predate snapshot columns.
+func resolveSupplierName(si *models.SupplierInvoice) string {
+	if sn := strings.TrimSpace(si.SupplierNameSnapshot); sn != "" {
+		return sn
+	}
+	if si.PurchaseOrder != nil {
+		if sns := strings.TrimSpace(si.PurchaseOrder.SupplierNameSnapshot); sns != "" {
+			return sns
+		}
+		if si.PurchaseOrder.Supplier != nil {
+			if name := strings.TrimSpace(si.PurchaseOrder.Supplier.Name); name != "" {
+				return name
+			}
+		}
+	}
+	return ""
+}
+
+// resolveSupplierID mirrors the name fallback: prefers the invoice's own SupplierID,
+// then falls back to the referenced PO's supplier identifier.
+func resolveSupplierID(si *models.SupplierInvoice) string {
+	if si.SupplierID != "" {
+		return si.SupplierID
+	}
+	if si.PurchaseOrder != nil {
+		if si.PurchaseOrder.SupplierID != nil && *si.PurchaseOrder.SupplierID != "" {
+			return *si.PurchaseOrder.SupplierID
+		}
+		if si.PurchaseOrder.Supplier != nil {
+			return si.PurchaseOrder.Supplier.ID
+		}
+	}
+	return ""
+}
+
 func NewSupplierInvoiceMapper() *SupplierInvoiceMapper {
 	return &SupplierInvoiceMapper{}
 }
@@ -60,6 +96,8 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierID:         resolveSupplierID(si),
+		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
 		DeliveryCost:       si.DeliveryCost,
@@ -72,8 +110,11 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		DownPaymentInvoice: dpMini,
 		Status:             string(si.Status),
 		Notes:              si.Notes,
-		CreatedAt:          si.CreatedAt,
-		UpdatedAt:          si.UpdatedAt,
+		CreatedBy:          si.CreatedBy,
+		SubmittedAt:        si.SubmittedAt,
+		ApprovedAt:         si.ApprovedAt,
+		RejectedAt:         si.RejectedAt,
+		CancelledAt:        si.CancelledAt,
 	}
 }
 
@@ -161,6 +202,8 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierID:         resolveSupplierID(si),
+		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
 		DeliveryCost:       si.DeliveryCost,
@@ -174,8 +217,11 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		Status:             string(si.Status),
 		Notes:              si.Notes,
 		Items:              items,
-		CreatedAt:          si.CreatedAt,
-		UpdatedAt:          si.UpdatedAt,
+		CreatedBy:          si.CreatedBy,
+		SubmittedAt:        si.SubmittedAt,
+		ApprovedAt:         si.ApprovedAt,
+		RejectedAt:         si.RejectedAt,
+		CancelledAt:        si.CancelledAt,
 	}
 }
 
@@ -197,14 +243,22 @@ func (m *SupplierInvoiceMapper) ToDownPaymentListResponse(si *models.SupplierInv
 	return &dto.SupplierInvoiceDownPaymentListResponse{
 		ID:              si.ID,
 		PurchaseOrder:   poMini,
+		SupplierID:      resolveSupplierID(si),
+		SupplierName:    resolveSupplierName(si),
 		Code:            si.Code,
 		InvoiceNumber:   si.InvoiceNumber,
 		InvoiceDate:     si.InvoiceDate,
 		DueDate:         si.DueDate,
 		Amount:          si.Amount,
+		PaidAmount:      si.PaidAmount,
+		RemainingAmount: si.RemainingAmount,
 		Status:          string(si.Status),
 		Notes:           si.Notes,
 		RegularInvoices: regulars,
+		SubmittedAt:     si.SubmittedAt,
+		ApprovedAt:      si.ApprovedAt,
+		RejectedAt:      si.RejectedAt,
+		CancelledAt:     si.CancelledAt,
 		CreatedAt:       si.CreatedAt,
 		UpdatedAt:       si.UpdatedAt,
 	}
@@ -236,14 +290,23 @@ func (m *SupplierInvoiceMapper) ToDownPaymentDetailResponse(si *models.SupplierI
 	return &dto.SupplierInvoiceDownPaymentDetailResponse{
 		ID:              si.ID,
 		PurchaseOrder:   poMini,
+		SupplierID:      resolveSupplierID(si),
+		SupplierName:    resolveSupplierName(si),
 		Code:            si.Code,
 		InvoiceNumber:   si.InvoiceNumber,
 		InvoiceDate:     si.InvoiceDate,
 		DueDate:         si.DueDate,
 		Amount:          si.Amount,
+		PaidAmount:      si.PaidAmount,
+		RemainingAmount: si.RemainingAmount,
 		Status:          string(si.Status),
 		Notes:           si.Notes,
 		RegularInvoices: regulars,
+		SubmittedAt:     si.SubmittedAt,
+		ApprovedAt:      si.ApprovedAt,
+		RejectedAt:      si.RejectedAt,
+		CancelledAt:     si.CancelledAt,
+		CreatedBy:       si.CreatedBy,
 		CreatedAt:       si.CreatedAt,
 		UpdatedAt:       si.UpdatedAt,
 	}

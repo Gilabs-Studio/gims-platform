@@ -53,6 +53,26 @@ export const supplierInvoicesService = {
     return response.data;
   },
 
+  submit: async (id: string): Promise<ApiResponse<SupplierInvoiceDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDetail>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<SupplierInvoiceDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDetail>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<SupplierInvoiceDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDetail>>(`${BASE_URL}/${id}/reject`);
+    return response.data;
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<SupplierInvoiceDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDetail>>(`${BASE_URL}/${id}/cancel`);
+    return response.data;
+  },
+
   auditTrail: async (
     id: string,
     params?: { page?: number; per_page?: number },

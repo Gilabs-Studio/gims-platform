@@ -122,9 +122,15 @@ export const purchaseOrderEn = {
     purchaseRequisition: "PR Reference",
     supplier: "Supplier",
     status: "Status",
+    fulfillment: "Fulfillment",
     goodsReceipts: "Goods Receipts",
     supplierInvoices: "Supplier Invoices",
     total: "Total",
+  },
+  fulfillment: {
+    received: "received",
+    pending: "pending",
+    remaining: "remaining",
   },
   status: {
     draft: "Draft",
@@ -144,6 +150,7 @@ export const purchaseOrderEn = {
     approve: "Approve",
     reject: "Reject",
     close: "Close",
+    createGR: "Create Goods Receipt",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",

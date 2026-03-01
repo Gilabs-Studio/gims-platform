@@ -20,10 +20,14 @@ const (
 )
 
 const (
-	SupplierInvoiceStatusDraft   SupplierInvoiceStatus = "DRAFT"
-	SupplierInvoiceStatusUnpaid  SupplierInvoiceStatus = "UNPAID"
-	SupplierInvoiceStatusPartial SupplierInvoiceStatus = "PARTIAL"
-	SupplierInvoiceStatusPaid    SupplierInvoiceStatus = "PAID"
+	SupplierInvoiceStatusDraft     SupplierInvoiceStatus = "DRAFT"
+	SupplierInvoiceStatusSubmitted SupplierInvoiceStatus = "SUBMITTED"
+	SupplierInvoiceStatusApproved  SupplierInvoiceStatus = "APPROVED"
+	SupplierInvoiceStatusRejected  SupplierInvoiceStatus = "REJECTED"
+	SupplierInvoiceStatusCancelled SupplierInvoiceStatus = "CANCELLED"
+	SupplierInvoiceStatusUnpaid    SupplierInvoiceStatus = "UNPAID"
+	SupplierInvoiceStatusPartial   SupplierInvoiceStatus = "PARTIAL"
+	SupplierInvoiceStatusPaid      SupplierInvoiceStatus = "PAID"
 )
 
 type SupplierInvoice struct {
@@ -63,9 +67,13 @@ type SupplierInvoice struct {
 	DownPaymentInvoiceID *string          `gorm:"type:uuid;index" json:"down_payment_invoice_id,omitempty"`
 	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
-	Status    SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
-	PaymentAt *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
-	Notes     *string               `gorm:"type:text" json:"notes,omitempty"`
+	Status      SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	PaymentAt   *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
+	SubmittedAt *time.Time            `gorm:"type:timestamp" json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time            `gorm:"type:timestamp" json:"approved_at,omitempty"`
+	RejectedAt  *time.Time            `gorm:"type:timestamp" json:"rejected_at,omitempty"`
+	CancelledAt *time.Time            `gorm:"type:timestamp" json:"cancelled_at,omitempty"`
+	Notes       *string               `gorm:"type:text" json:"notes,omitempty"`
 
 	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`

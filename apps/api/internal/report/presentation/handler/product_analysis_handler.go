@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/report/domain/dto"
 	"github.com/gilabs/gims/api/internal/report/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -228,4 +229,160 @@ func (h *ProductAnalysisHandler) GetProductMonthlyTrend(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, result, nil)
+}
+
+// ListCategoryPerformance returns paginated category performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListCategoryPerformance(c *gin.Context) {
+	var req dto.ListCategoryPerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListCategoryPerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+		Filters: map[string]interface{}{},
+	}
+
+	if req.Search != "" {
+		meta.Filters["search"] = req.Search
+	}
+	if req.StartDate != "" {
+		meta.Filters["start_date"] = req.StartDate
+	}
+	if req.EndDate != "" {
+		meta.Filters["end_date"] = req.EndDate
+	}
+
+	response.SuccessResponse(c, results, meta)
+}
+
+// ListSegmentPerformance returns paginated segment performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListSegmentPerformance(c *gin.Context) {
+	var req dto.ListSegmentPerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListSegmentPerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := buildDimensionMeta(pagination, req.Search, req.StartDate, req.EndDate)
+	response.SuccessResponse(c, results, meta)
+}
+
+// ListTypePerformance returns paginated product type performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListTypePerformance(c *gin.Context) {
+	var req dto.ListTypePerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListTypePerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := buildDimensionMeta(pagination, req.Search, req.StartDate, req.EndDate)
+	response.SuccessResponse(c, results, meta)
+}
+
+// ListPackagingPerformance returns paginated packaging performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListPackagingPerformance(c *gin.Context) {
+	var req dto.ListPackagingPerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListPackagingPerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := buildDimensionMeta(pagination, req.Search, req.StartDate, req.EndDate)
+	response.SuccessResponse(c, results, meta)
+}
+
+// ListProcurementTypePerformance returns paginated procurement type performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListProcurementTypePerformance(c *gin.Context) {
+	var req dto.ListProcurementTypePerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListProcurementTypePerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := buildDimensionMeta(pagination, req.Search, req.StartDate, req.EndDate)
+	response.SuccessResponse(c, results, meta)
+}
+
+// buildDimensionMeta constructs pagination meta for dimension performance endpoints
+func buildDimensionMeta(pagination utils.PaginationResult, search, startDate, endDate string) *response.Meta {
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+		Filters: map[string]interface{}{},
+	}
+	if search != "" {
+		meta.Filters["search"] = search
+	}
+	if startDate != "" {
+		meta.Filters["start_date"] = startDate
+	}
+	if endDate != "" {
+		meta.Filters["end_date"] = endDate
+	}
+	return meta
 }

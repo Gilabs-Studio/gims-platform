@@ -7,11 +7,13 @@ import {
   Download,
   Eye,
   MoreHorizontal,
+  Package,
   Pencil,
   Plus,
   Printer,
   Search,
   Send,
+  ShoppingCart,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -68,6 +70,8 @@ import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -98,6 +102,14 @@ export function PurchaseOrdersList() {
   // GR linked list dialog
   const [grDialogItem, setGrDialogItem] = useState<PurchaseOrderListItem | null>(null);
 
+  // Create GR shortcut from PO row
+  const [grFormOpen, setGrFormOpen] = useState(false);
+  const [grFormPOId, setGrFormPOId] = useState<string | null>(null);
+
+  // GR detail opened after successful create
+  const [grCreatedId, setGrCreatedId] = useState<string | null>(null);
+  const [grCreatedDetailOpen, setGrCreatedDetailOpen] = useState(false);
+
   // SI linked list dialog
   const [siDialogItem, setSiDialogItem] = useState<PurchaseOrderListItem | null>(null);
 
@@ -115,6 +127,7 @@ export function PurchaseOrdersList() {
   const canViewGR = useUserPermission("goods_receipt.read");
   const canViewSI = useUserPermission("supplier_invoice.read");
   const canViewPR = useUserPermission("purchase_requisition.read");
+  const canCreateGR = useUserPermission("goods_receipt.create");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -168,25 +181,28 @@ export function PurchaseOrdersList() {
     setDetailOpen(true);
   };
 
-  /** Renders first GR status badge; clicking opens the GR linked list dialog. */
+  /** Renders first GR status badge + received items count; clicking opens the GR linked list dialog. */
   const renderGRBadges = (it: PurchaseOrderListItem) => {
-    const items = it.goods_receipts;
-    if (!items?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    const grItems = it.goods_receipts;
+    if (!grItems?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    const totalReceived = it.fulfillment?.total_received ?? 0;
     return (
       <button
         type="button"
         onClick={canViewGR ? () => setGrDialogItem(it) : undefined}
         className={canViewGR ? "cursor-pointer" : "cursor-default"}
-        title={`${items.length} Goods Receipt(s)`}
+        title={`${grItems.length} Goods Receipt(s)`}
       >
-        <span className="flex items-center gap-1">
-          <GoodsReceiptStatusBadge
-            status={items[0].status}
-            className="text-xs font-medium hover:opacity-80 transition-opacity"
-          />
-          {items.length > 1 && (
-            <span className="text-xs text-muted-foreground">+{items.length - 1}</span>
-          )}
+        <span className="flex flex-col gap-0.5 items-start">
+          <span className="flex items-center gap-1">
+        <GoodsReceiptStatusBadge
+          status={grItems[0].status}
+          className="text-xs font-medium hover:opacity-80 transition-opacity"
+        />
+            {grItems.length > 1 && (
+              <span className="text-xs text-muted-foreground">+{grItems.length - 1}</span>
+            )}
+          </span>
         </span>
       </button>
     );
@@ -254,6 +270,7 @@ export function PurchaseOrdersList() {
             <SelectItem value="DRAFT">{t("status.draft")}</SelectItem>
             <SelectItem value="SUBMITTED">{t("status.submitted")}</SelectItem>
             <SelectItem value="APPROVED">{t("status.approved")}</SelectItem>
+            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
             <SelectItem value="CLOSED">{t("status.closed")}</SelectItem>
           </SelectContent>
         </Select>
@@ -291,6 +308,7 @@ export function PurchaseOrdersList() {
               <TableHead>{t("columns.purchaseRequisition")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
+              <TableHead>{t("columns.fulfillment")}</TableHead>
               <TableHead>{t("columns.goodsReceipts")}</TableHead>
               <TableHead>{t("columns.supplierInvoices")}</TableHead>
               <TableHead className="text-right">{t("columns.total")}</TableHead>
@@ -301,7 +319,7 @@ export function PurchaseOrdersList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 10 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -310,7 +328,7 @@ export function PurchaseOrdersList() {
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
@@ -320,7 +338,6 @@ export function PurchaseOrdersList() {
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
                   canReject || canClose || canDelete || canPrint;
-            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
 
                 return (
                   <TableRow key={it.id}>
@@ -381,6 +398,33 @@ export function PurchaseOrdersList() {
                     {/* Status */}
                     <TableCell>
                       <PurchaseOrderStatusBadge status={it.status ?? ""} />
+                    </TableCell>
+
+                    {/* Fulfillment progress — only rendered for APPROVED POs */}
+                    <TableCell>
+                      {it.fulfillment ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1 text-xs">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium">
+                              {it.fulfillment.total_received}/{it.fulfillment.total_ordered}
+                            </span>
+                            <span className="text-muted-foreground">{t("fulfillment.received")}</span>
+                          </div>
+                          {it.fulfillment.total_pending > 0 && (
+                            <span className="text-xs text-warning">
+                              {it.fulfillment.total_pending} {t("fulfillment.pending")}
+                            </span>
+                          )}
+                          {it.fulfillment.total_remaining > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {it.fulfillment.total_remaining} {t("fulfillment.remaining")}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
 
                     {/* Goods Receipts */}
@@ -499,6 +543,19 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canCreateGR && status === "APPROVED" &&
+                              (!it.fulfillment || it.fulfillment.total_remaining > 0) && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                onClick={() => {
+                                  setGrFormPOId(it.id);
+                                  setGrFormOpen(true);
+                                }}
+                              >
+                                <ShoppingCart className="h-4 w-4 mr-2" />
+                                {t("actions.createGR")}
+                              </DropdownMenuItem>
+                            )}
 
                             {canPrint && (
                               <DropdownMenuItem
@@ -564,6 +621,30 @@ export function PurchaseOrdersList() {
           setDetailId(null);
         }}
         purchaseOrderId={detailId}
+      />
+
+      {/* Create GR shortcut — pre-fills the PO from the selected row */}
+      <GoodsReceiptForm
+        open={grFormOpen}
+        onClose={() => {
+          setGrFormOpen(false);
+          setGrFormPOId(null);
+        }}
+        defaultPurchaseOrderId={grFormPOId}
+        onCreated={(id) => {
+          setGrCreatedId(id);
+          setGrCreatedDetailOpen(true);
+        }}
+      />
+
+      {/* GR detail dialog opened immediately after creation */}
+      <GoodsReceiptDetail
+        open={grCreatedDetailOpen}
+        onClose={() => {
+          setGrCreatedDetailOpen(false);
+          setGrCreatedId(null);
+        }}
+        goodsReceiptId={grCreatedId}
       />
 
       {printingId && (

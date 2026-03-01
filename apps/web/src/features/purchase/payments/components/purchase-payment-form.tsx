@@ -41,9 +41,10 @@ function todayISO(): string {
 interface PurchasePaymentFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
+  readonly defaultInvoiceId?: string | null;
 }
 
-export function PurchasePaymentForm({ open, onClose }: PurchasePaymentFormProps) {
+export function PurchasePaymentForm({ open, onClose, defaultInvoiceId }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
 
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
@@ -83,7 +84,7 @@ export function PurchasePaymentForm({ open, onClose }: PurchasePaymentFormProps)
   useEffect(() => {
     if (open) {
       reset({
-        invoice_id: "",
+        invoice_id: defaultInvoiceId ?? "",
         bank_account_id: "",
         payment_date: todayISO(),
         amount: 0,
@@ -92,7 +93,7 @@ export function PurchasePaymentForm({ open, onClose }: PurchasePaymentFormProps)
         notes: null,
       });
     }
-  }, [open, reset]);
+  }, [open, reset, defaultInvoiceId]);
 
   const invoiceId = watch("invoice_id");
   const selectedInvoice = useMemo(() => {

@@ -36,6 +36,10 @@ type SupplierInvoiceUsecase interface {
 	Create(ctx context.Context, req *dto.CreateSupplierInvoiceRequest) (*dto.SupplierInvoiceDetailResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateSupplierInvoiceRequest) (*dto.SupplierInvoiceDetailResponse, error)
 	Delete(ctx context.Context, id string) error
+	Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
 }
@@ -533,8 +537,8 @@ func (uc *supplierInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	if existing.Type != models.SupplierInvoiceTypeNormal {
 		return ErrSupplierInvoiceNotFound
 	}
-	// Allow deletion of draft or unpaid invoices (aligned with Customer Invoice pattern)
-	if existing.Status != models.SupplierInvoiceStatusDraft && existing.Status != models.SupplierInvoiceStatusUnpaid {
+	// Allow deletion of draft invoices only (workflow: use Cancel for others)
+	if existing.Status != models.SupplierInvoiceStatusDraft {
 		return ErrSupplierInvoiceConflict
 	}
 	if err := uc.repo.Delete(ctx, id); err != nil {
@@ -542,6 +546,150 @@ func (uc *supplierInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	}
 	uc.auditService.Log(ctx, "supplier_invoice.delete", id, map[string]interface{}{"before": existing})
 	return nil
+}
+
+func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		// Allow submitting from DRAFT state (DRAFT -> SUBMITTED)
+		if si.Status != models.SupplierInvoiceStatusDraft {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusSubmitted,
+			"submitted_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.submit", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusApproved,
+			"approved_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.approve", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusRejected,
+			"rejected_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.reject", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
+			si.Status == models.SupplierInvoiceStatusSubmitted ||
+			si.Status == models.SupplierInvoiceStatusApproved
+		if !allowed {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusCancelled,
+			"cancelled_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.cancel", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
 }
 
 func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
@@ -557,7 +705,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
-		if si.Status != models.SupplierInvoiceStatusDraft {
+		if si.Status != models.SupplierInvoiceStatusApproved {
 			return ErrSupplierInvoiceConflict
 		}
 
@@ -571,7 +719,10 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		if err := tx.Table("goods_receipt_items").
 			Select("product_id, SUM(quantity_received) as qty").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
-			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status = ?", si.PurchaseOrderID, models.GoodsReceiptStatusConfirmed).
+			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
+				string(models.GoodsReceiptStatusConfirmed),
+				string(models.GoodsReceiptStatusClosed),
+			}).
 			Group("product_id").Scan(&receivedSums).Error; err != nil {
 			return err
 		}
@@ -580,13 +731,18 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			receivedMap[r.ProductID] = r.Qty
 		}
 
-		// 2. Get total Qty already Invoiced for this PO (excluding current one)
+		// 2. Get total Qty already Invoiced for this PO (excluding current one, draft, submitted, rejected, cancelled)
 		var invoicedSums []qtySum
 		if err := tx.Table("supplier_invoice_items").
 			Select("product_id, SUM(quantity) as qty").
 			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
-			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status != ? AND supplier_invoices.id != ?",
-				si.PurchaseOrderID, models.SupplierInvoiceStatusDraft, si.ID).
+			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ? AND supplier_invoices.id != ?",
+				si.PurchaseOrderID, []models.SupplierInvoiceStatus{
+					models.SupplierInvoiceStatusDraft,
+					models.SupplierInvoiceStatusSubmitted,
+					models.SupplierInvoiceStatusRejected,
+					models.SupplierInvoiceStatusCancelled,
+				}, si.ID).
 			Group("product_id").Scan(&invoicedSums).Error; err != nil {
 			return err
 		}

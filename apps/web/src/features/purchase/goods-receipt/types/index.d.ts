@@ -30,7 +30,13 @@ export interface GoodsReceiptListParams {
   limit?: number;
 }
 
-export type GoodsReceiptStatus = "DRAFT" | "CONFIRMED";
+export type GoodsReceiptStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "CLOSED"
+  | "REJECTED"
+  | "CONFIRMED"; // legacy
 
 export interface GoodsReceiptPurchaseOrderMini {
   id: string;
@@ -51,7 +57,13 @@ export interface GoodsReceiptListItem {
   notes?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
-  created_at: string;
+  total_items_received?: number;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  closed_at?: string | null;
+  rejected_at?: string | null;
+  converted_at?: string | null;
+  converted_to_supplier_invoice_id?: string | null;
 }
 
 export interface GoodsReceiptPurchaseOrderDetail {
@@ -83,8 +95,18 @@ export interface GoodsReceiptDetail {
   notes?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
-  created_at: string;
   items: GoodsReceiptItemDetail[];
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  closed_at?: string | null;
+  rejected_at?: string | null;
+  converted_at?: string | null;
+  converted_to_supplier_invoice_id?: string | null;
+}
+
+export interface GoodsReceiptConvertResponse {
+  goods_receipt_id: string;
+  supplier_invoice_id: string;
 }
 
 export interface GoodsReceiptItemInput {

@@ -265,6 +265,12 @@ export const navigationConfig: NavItem[] = [
         icon: "bar-chart-3",
         permission: "report_product_analysis.read",
       },
+      {
+        name: "Geo Performance",
+        url: "/reports/geo-performance",
+        icon: "map",
+        permission: "report_geo_performance.read",
+      },
     ],
   },
   {

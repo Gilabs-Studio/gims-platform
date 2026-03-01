@@ -48,8 +48,8 @@ export function SILinkedDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("list.code")}</TableHead>
-                    <TableHead>{t("list.status")}</TableHead>
+                    <TableHead>{t("columns.code")}</TableHead>
+                    <TableHead>{t("columns.status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

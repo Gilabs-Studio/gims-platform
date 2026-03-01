@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Send, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface PurchaseOrderStatusBadgeProps {
@@ -22,7 +22,7 @@ export function PurchaseOrderStatusBadge({ status, className }: PurchaseOrderSta
     case "submitted":
       return (
         <Badge variant="info" className={className}>
-          <Loader2 className="h-3 w-3 mr-1.5" />
+          <Send className="h-3 w-3 mr-1.5" />
           {t("submitted")}
         </Badge>
       );

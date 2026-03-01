@@ -11,6 +11,16 @@ import type {
   ListProductSalesRepsResponse,
   GetProductMonthlyTrendRequest,
   ProductMonthlyTrendResponse,
+  ListCategoryPerformanceRequest,
+  ListCategoryPerformanceResponse,
+  ListSegmentPerformanceRequest,
+  ListSegmentPerformanceResponse,
+  ListTypePerformanceRequest,
+  ListTypePerformanceResponse,
+  ListPackagingPerformanceRequest,
+  ListPackagingPerformanceResponse,
+  ListProcurementTypePerformanceRequest,
+  ListProcurementTypePerformanceResponse,
 } from "../types";
 
 export const productAnalysisService = {
@@ -86,6 +96,62 @@ export const productAnalysisService = {
       `/reports/product-analysis/product/${productId}/monthly-trend`,
       { params }
     );
+    return response.data;
+  },
+
+  /** List category performance (aggregated from product sales) */
+  async listCategoryPerformance(
+    params?: ListCategoryPerformanceRequest
+  ): Promise<ListCategoryPerformanceResponse> {
+    const response = await apiClient.get<ListCategoryPerformanceResponse>(
+      "/reports/product-analysis/category-performance",
+      { params }
+    );
+    return response.data;
+  },
+
+  /** List segment performance (aggregated from product sales) */
+  async listSegmentPerformance(
+    params?: ListSegmentPerformanceRequest
+  ): Promise<ListSegmentPerformanceResponse> {
+    const response = await apiClient.get<ListSegmentPerformanceResponse>(
+      "/reports/product-analysis/segment-performance",
+      { params }
+    );
+    return response.data;
+  },
+
+  /** List product type performance (aggregated from product sales) */
+  async listTypePerformance(
+    params?: ListTypePerformanceRequest
+  ): Promise<ListTypePerformanceResponse> {
+    const response = await apiClient.get<ListTypePerformanceResponse>(
+      "/reports/product-analysis/type-performance",
+      { params }
+    );
+    return response.data;
+  },
+
+  /** List packaging performance (aggregated from product sales) */
+  async listPackagingPerformance(
+    params?: ListPackagingPerformanceRequest
+  ): Promise<ListPackagingPerformanceResponse> {
+    const response = await apiClient.get<ListPackagingPerformanceResponse>(
+      "/reports/product-analysis/packaging-performance",
+      { params }
+    );
+    return response.data;
+  },
+
+  /** List procurement type performance (aggregated from product sales) */
+  async listProcurementTypePerformance(
+    params?: ListProcurementTypePerformanceRequest
+  ): Promise<ListProcurementTypePerformanceResponse> {
+    const response =
+      await apiClient.get<ListProcurementTypePerformanceResponse>(
+        "/reports/product-analysis/procurement-type-performance",
+        { params }
+      );
     return response.data;
   },
 };

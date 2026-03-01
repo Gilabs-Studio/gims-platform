@@ -200,3 +200,198 @@ export interface GetProductMonthlyTrendRequest {
   start_date?: string;
   end_date?: string;
 }
+
+// --- Segment Performance ---
+
+export interface SegmentPerformance {
+  segment_id: string;
+  segment_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListSegmentPerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListSegmentPerformanceResponse {
+  success: boolean;
+  data: SegmentPerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}
+
+// --- Type Performance ---
+
+export interface TypePerformance {
+  type_id: string;
+  type_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListTypePerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListTypePerformanceResponse {
+  success: boolean;
+  data: TypePerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}
+
+// --- Packaging Performance ---
+
+export interface PackagingPerformance {
+  packaging_id: string;
+  packaging_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListPackagingPerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListPackagingPerformanceResponse {
+  success: boolean;
+  data: PackagingPerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}
+
+// --- Procurement Type Performance ---
+
+export interface ProcurementTypePerformance {
+  procurement_type_id: string;
+  procurement_type_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListProcurementTypePerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListProcurementTypePerformanceResponse {
+  success: boolean;
+  data: ProcurementTypePerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}
+
+// --- Category Performance ---
+
+export interface CategoryPerformance {
+  category_id: string;
+  category_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListCategoryPerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListCategoryPerformanceResponse {
+  success: boolean;
+  data: CategoryPerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}

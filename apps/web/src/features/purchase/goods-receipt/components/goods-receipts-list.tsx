@@ -6,13 +6,15 @@ import {
   CheckCircle2,
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
+  Send,
   Trash2,
   Printer,
+  XCircle,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,6 +29,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
@@ -38,11 +47,18 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
+import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
+import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 
 import {
   useConfirmGoodsReceipt,
   useDeleteGoodsReceipt,
   useGoodsReceipts,
+  useSubmitGoodsReceipt,
+  useApproveGoodsReceipt,
+  useRejectGoodsReceipt,
+  useCloseGoodsReceipt,
+  useConvertGoodsReceiptToSI,
 } from "../hooks/use-goods-receipts";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
@@ -58,6 +74,7 @@ export function GoodsReceiptsList() {
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -69,6 +86,10 @@ export function GoodsReceiptsList() {
   const [auditId, setAuditId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
+  const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -78,11 +99,19 @@ export function GoodsReceiptsList() {
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
+  const canSubmit = useUserPermission("goods_receipt.submit");
+  const canApprove = useUserPermission("goods_receipt.approve");
+  const canReject = useUserPermission("goods_receipt.reject");
+  const canClose = useUserPermission("goods_receipt.close");
+  const canConvert = useUserPermission("goods_receipt.convert");
+  const canViewSupplier = useUserPermission("supplier.read");
+  const canViewPO = useUserPermission("purchase_order.read");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
     sort_by: "created_at",
     sort_dir: "desc",
   });
@@ -92,6 +121,11 @@ export function GoodsReceiptsList() {
 
   const deleteMutation = useDeleteGoodsReceipt();
   const confirmMutation = useConfirmGoodsReceipt();
+  const submitMutation = useSubmitGoodsReceipt();
+  const approveMutation = useApproveGoodsReceipt();
+  const rejectMutation = useRejectGoodsReceipt();
+  const closeMutation = useCloseGoodsReceipt();
+  const convertMutation = useConvertGoodsReceiptToSI();
 
   if (isError) {
     return (
@@ -126,7 +160,8 @@ export function GoodsReceiptsList() {
   };
 
   const canShowActions =
-    canView || canAuditTrail || canConfirm || canUpdate || canDelete;
+    canView || canAuditTrail || canConfirm || canUpdate || canDelete ||
+    canSubmit || canApprove || canReject || canClose || canConvert;
 
   return (
     <div className="space-y-6">
@@ -148,6 +183,28 @@ export function GoodsReceiptsList() {
             className="pl-9"
           />
         </div>
+
+        {/* Status filter */}
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tCommon("all")}</SelectItem>
+            <SelectItem value="DRAFT">{t("status.draft")}</SelectItem>
+            <SelectItem value="SUBMITTED">{t("status.submitted")}</SelectItem>
+            <SelectItem value="APPROVED">{t("status.approved")}</SelectItem>
+            <SelectItem value="CLOSED">{t("status.closed")}</SelectItem>
+            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
+            <SelectItem value="CONFIRMED">{t("status.confirmed")}</SelectItem>
+          </SelectContent>
+        </Select>
 
         <div className="flex-1" />
 
@@ -185,7 +242,6 @@ export function GoodsReceiptsList() {
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead>{t("columns.createdAt")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -198,14 +254,13 @@ export function GoodsReceiptsList() {
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -220,21 +275,43 @@ export function GoodsReceiptsList() {
                   >
                     {it.code}
                   </TableCell>
-                  <TableCell>{it.purchase_order?.code ?? "-"}</TableCell>
-                  <TableCell className="font-medium">
-                    {it.supplier?.name ?? "-"}
+                  <TableCell>
+                    {it.purchase_order ? (
+                      canViewPO ? (
+                        <button
+                          onClick={() => {
+                            setSelectedPurchaseOrderId(it.purchase_order!.id);
+                            setIsPurchaseOrderOpen(true);
+                          }}
+                          className="text-primary hover:underline cursor-pointer text-left text-sm font-mono"
+                        >
+                          {it.purchase_order.code}
+                        </button>
+                      ) : (
+                        <span className="font-mono text-sm">{it.purchase_order.code}</span>
+                      )
+                    ) : "-"}
+                  </TableCell>
+                  <TableCell className="font-small">
+                    {it.supplier ? (
+                      canViewSupplier ? (
+                        <button
+                          onClick={() => {
+                            setSelectedSupplierId(it.supplier!.id);
+                            setIsSupplierOpen(true);
+                          }}
+                          className="text-primary hover:underline cursor-pointer text-left text-sm"
+                        >
+                          {it.supplier.name}
+                        </button>
+                      ) : (
+                        <span>{it.supplier.name}</span>
+                      )
+                    ) : "-"}
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
                     <GoodsReceiptStatusBadge status={it.status ?? ""} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span>{formatDate(it.created_at)}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {it.created_at ? new Date(it.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                      </span>
-                    </div>
                   </TableCell>
                   <TableCell>
                     {canShowActions && (
@@ -255,7 +332,7 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canUpdate && (it.status ?? "").toLowerCase() === "draft" && (
+                          {canUpdate && (it.status ?? "").toUpperCase() === "DRAFT" && (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -268,7 +345,24 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canConfirm && (it.status ?? "").toLowerCase() === "draft" && (
+                          {canSubmit && (it.status ?? "").toUpperCase() === "DRAFT" && (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              onClick={async () => {
+                                try {
+                                  await submitMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.submitted"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              {t("actions.submit")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {canConfirm && (it.status ?? "").toUpperCase() === "DRAFT" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-green-600 focus:text-green-600"
                               onClick={async () => {
@@ -285,22 +379,77 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canAuditTrail && (
+                          {canApprove && (it.status ?? "").toUpperCase() === "SUBMITTED" && (
                             <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setAuditId(it.id);
-                                setAuditOpen(true);
+                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              onClick={async () => {
+                                try {
+                                  await approveMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.approved"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
                               }}
                             >
-                              <History className="h-4 w-4 mr-2" />
-                              {t("actions.auditTrail")}
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.approve")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {canReject && (it.status ?? "").toUpperCase() === "SUBMITTED" && (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await rejectMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.rejected"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              {t("actions.reject")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {canClose && (it.status ?? "").toUpperCase() === "APPROVED" && (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              onClick={async () => {
+                                try {
+                                  await closeMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.closed"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.close")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {canConvert && (it.status ?? "").toUpperCase() === "CLOSED" && (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              onClick={async () => {
+                                try {
+                                  await convertMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.converted"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              {t("actions.convert")}
                             </DropdownMenuItem>
                           )}
 
                           {canPrint && (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
                               onClick={() => setPrintingId(it.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -308,12 +457,10 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canDelete && (it.status ?? "").toLowerCase() === "draft" && (
+                          {canDelete && (it.status ?? "").toUpperCase() === "DRAFT" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
-                              onClick={() => {
-                                setDeletingItem(it);
-                              }}
+                              onClick={() => setDeletingItem(it)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("actions.delete")}
@@ -378,6 +525,21 @@ export function GoodsReceiptsList() {
         />
       )}
 
+      <SupplierDetailModal
+        open={isSupplierOpen}
+        onOpenChange={setIsSupplierOpen}
+        supplierId={selectedSupplierId}
+      />
+
+      <PurchaseOrderDetail
+        open={isPurchaseOrderOpen}
+        onClose={() => {
+          setIsPurchaseOrderOpen(false);
+          setSelectedPurchaseOrderId(null);
+        }}
+        purchaseOrderId={selectedPurchaseOrderId}
+      />
+
       <DeleteDialog
         open={!!deletingItem}
         onOpenChange={(v) => !v && setDeletingItem(null)}
@@ -398,3 +560,4 @@ export function GoodsReceiptsList() {
     </div>
   );
 }
+
