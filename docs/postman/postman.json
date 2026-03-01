@@ -2017,6 +2017,36 @@
               "response": []
             },
             {
+              "name": "Get Employee Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/attendance/employee-schedule/:employeeId",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "attendance", "employee-schedule", ":employeeId"],
+                  "variable": [
+                    {
+                      "key": "employeeId",
+                      "value": "{{employee_id}}"
+                    }
+                  ]
+                },
+                "description": "Get the resolved work schedule for a specific employee. Resolves via Employee → Division → WorkSchedule, with fallback to the default schedule. Requires `attendance.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"uuid\",\n    \"name\": \"Standard Office Hours\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"17:00\",\n    \"is_flexible\": false,\n    \"flexible_start_time\": null,\n    \"flexible_end_time\": null\n  }\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` - Missing attendance.read permission\n- `NOT_FOUND` - Employee or schedule not found\n- `INTERNAL_ERROR` - Server error"
+              },
+              "response": []
+            },
+            {
               "name": "Get Attendance By ID",
               "request": {
                 "auth": {
