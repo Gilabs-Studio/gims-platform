@@ -10,6 +10,7 @@ import type { CalendarEvent } from "../types";
 interface AttendanceCalendarProps {
   readonly currentDate: Date;
   readonly events: readonly CalendarEvent[];
+  readonly holidays?: ReadonlyMap<string, { name: string; type: string }>;
   readonly onPreviousMonth: () => void;
   readonly onNextMonth: () => void;
   readonly onToday: () => void;
@@ -32,6 +33,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
 export function AttendanceCalendar({
   currentDate,
   events,
+  holidays,
   onPreviousMonth,
   onNextMonth,
   onToday,
@@ -125,6 +127,7 @@ export function AttendanceCalendar({
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isToday = isSameDay(day, new Date());
               const hasEvents = dayEvents.length > 0;
+              const holiday = holidays?.get(dateKey);
 
               // Get unique statuses for this day to show different colored dots
               const statusCounts = dayEvents.reduce((acc, event) => {
@@ -159,6 +162,15 @@ export function AttendanceCalendar({
                       </span>
                     )}
                   </div>
+
+                  {/* Holiday Badge */}
+                  {holiday && isCurrentMonth && (
+                    <div className="mt-1">
+                      <span className="inline-block max-w-full truncate rounded-sm bg-red-100 px-1 py-0.5 text-[9px] font-medium leading-none text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                        {holiday.name}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Status Indicators - Colored Dots */}
                   {hasEvents && (

@@ -554,6 +554,7 @@ export function AttendanceList() {
             <AttendanceCalendar
               currentDate={calendar.currentDate}
               events={calendar.events}
+              holidays={calendar.holidays}
               onPreviousMonth={calendar.handlePreviousMonth}
               onNextMonth={calendar.handleNextMonth}
               onToday={calendar.handleToday}
