@@ -3,7 +3,7 @@
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
-import { Clock, User, FileText, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Clock, User, FileText, Loader2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import {
   attendanceRecordSchema,
   type AttendanceRecordFormData,
@@ -28,8 +28,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAttendanceFormData } from "../hooks/use-attendance-records";
+import { useCheckHoliday } from "@/features/hrd/holidays/hooks/use-holidays";
 import type { CalendarEvent } from "../types";
 import { sortOptions, cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ButtonLoading } from "@/components/loading";
 import { useTranslations } from "next-intl";
 
@@ -91,6 +93,12 @@ export function AttendanceRecordForm({
   const employeeIdValue = useWatch({ control, name: "employee_id" });
   const statusValue = useWatch({ control, name: "status" });
   const checkInTypeValue = useWatch({ control, name: "check_in_type" });
+  const dateValue = useWatch({ control, name: "date" });
+
+  // Check if selected date is a holiday
+  const { data: holidayCheck } = useCheckHoliday(dateValue ?? "");
+  const isHoliday = holidayCheck?.data?.is_holiday ?? false;
+  const holidayInfo = holidayCheck?.data?.holiday;
 
   const handleFormSubmit = async (data: AttendanceRecordFormData) => {
     await onSubmit(data);
@@ -176,6 +184,26 @@ export function AttendanceRecordForm({
             {errors.date && <FieldError>{errors.date.message}</FieldError>}
           </Field>
         </div>
+
+        {/* Holiday Warning */}
+        {isHoliday && holidayInfo && (
+          <Alert variant="destructive" className="border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-400">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle className="font-semibold">{t("form.holidayWarningTitle")}</AlertTitle>
+            <AlertDescription className="text-amber-900 dark:text-amber-300">
+              {holidayInfo.type_display
+                ? t("form.holidayWarningDescWithType", {
+                    date: dateValue ? format(parseISO(dateValue), "dd MMMM yyyy") : "",
+                    name: holidayInfo.name,
+                    type: holidayInfo.type_display,
+                  })
+                : t("form.holidayWarningDesc", {
+                    date: dateValue ? format(parseISO(dateValue), "dd MMMM yyyy") : "",
+                    name: holidayInfo.name,
+                  })}
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Attendance Details Section */}

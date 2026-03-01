@@ -164,6 +164,11 @@ export const hrdId = {
         submitting: "Mengirim...",
         update: "Perbarui Rekaman",
         create: "Buat Rekaman",
+        holidayWarningTitle: "Tanggal Libur Dipilih",
+        holidayWarningDesc:
+          "Tanggal yang dipilih ({date}) adalah hari libur: {name}. Apakah Anda yakin ingin membuat catatan kehadiran pada tanggal ini?",
+        holidayWarningDescWithType:
+          "Tanggal yang dipilih ({date}) adalah hari libur: {name} ({type}). Apakah Anda yakin ingin membuat catatan kehadiran pada tanggal ini?",
       },
 
       // Actions

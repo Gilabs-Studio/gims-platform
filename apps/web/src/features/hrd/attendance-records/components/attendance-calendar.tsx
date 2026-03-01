@@ -166,7 +166,7 @@ export function AttendanceCalendar({
                   {/* Holiday Badge */}
                   {holiday && isCurrentMonth && (
                     <div className="mt-1">
-                      <span className="inline-block max-w-full truncate rounded-sm bg-red-100 px-1 py-0.5 text-[9px] font-medium leading-none text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                      <span className="inline-block max-w-full truncate rounded-sm bg-red-200 px-1 py-0.5 text-[9px] font-semibold leading-none text-red-800 dark:bg-red-900/40 dark:text-red-300">
                         {holiday.name}
                       </span>
                     </div>

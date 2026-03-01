@@ -164,6 +164,11 @@ export const hrdEn = {
         submitting: "Submitting...",
         update: "Update Record",
         create: "Create Record",
+        holidayWarningTitle: "Holiday Date Selected",
+        holidayWarningDesc:
+          "The selected date ({date}) is a holiday: {name}. Are you sure you want to create an attendance record on this date?",
+        holidayWarningDescWithType:
+          "The selected date ({date}) is a holiday: {name} ({type}). Are you sure you want to create an attendance record on this date?",
       },
 
       // Actions
