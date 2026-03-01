@@ -96,10 +96,16 @@ export function VisitReportGpsMap({
       {/* Coordinate details */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         {checkIn && (
-          <div className="flex items-start gap-2 p-2 rounded-md bg-green-50 dark:bg-green-950/30">
-            <div className="h-3 w-3 rounded-full bg-green-500 mt-0.5 shrink-0" />
+          <div
+            className="flex items-start gap-2 p-2 rounded-md"
+            style={{ background: "hsl(var(--chart-2) / 0.1)" }}
+          >
+            <div
+              className="h-3 w-3 rounded-full mt-0.5 shrink-0"
+              style={{ background: "hsl(var(--chart-2))" }}
+            />
             <div>
-              <p className="font-medium text-green-700 dark:text-green-400">{t("actions.checkIn")}</p>
+              <p className="font-medium" style={{ color: "hsl(var(--chart-2))" }}>{t("actions.checkIn")}</p>
               <p className="text-muted-foreground">
                 {checkIn.lat?.toFixed(6)}, {checkIn.lng?.toFixed(6)}
               </p>
@@ -112,10 +118,16 @@ export function VisitReportGpsMap({
           </div>
         )}
         {checkOut && (
-          <div className="flex items-start gap-2 p-2 rounded-md bg-red-50 dark:bg-red-950/30">
-            <div className="h-3 w-3 rounded-full bg-red-500 mt-0.5 shrink-0" />
+          <div
+            className="flex items-start gap-2 p-2 rounded-md"
+            style={{ background: "hsl(var(--destructive) / 0.1)" }}
+          >
+            <div
+              className="h-3 w-3 rounded-full mt-0.5 shrink-0"
+              style={{ background: "hsl(var(--destructive))" }}
+            />
             <div>
-              <p className="font-medium text-red-700 dark:text-red-400">{t("actions.checkOut")}</p>
+              <p className="font-medium" style={{ color: "hsl(var(--destructive))" }}>{t("actions.checkOut")}</p>
               <p className="text-muted-foreground">
                 {checkOut.lat?.toFixed(6)}, {checkOut.lng?.toFixed(6)}
               </p>

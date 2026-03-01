@@ -342,3 +342,28 @@ type VisitFormDataOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
+
+// ListByEmployeeRequest defines query parameters for listing visit report summaries grouped by employee
+type ListByEmployeeRequest struct {
+	Page    int    `form:"page" binding:"omitempty,min=1"`
+	PerPage int    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search  string `form:"search"`
+}
+
+// VisitReportStatusCounts contains per-status counts for aggregated views
+type VisitReportStatusCounts struct {
+	Draft     int64 `json:"draft"`
+	Submitted int64 `json:"submitted"`
+	Approved  int64 `json:"approved"`
+	Rejected  int64 `json:"rejected"`
+}
+
+// VisitReportEmployeeSummary represents an employee with their visit report metrics
+type VisitReportEmployeeSummary struct {
+	EmployeeID   string                  `json:"employee_id"`
+	EmployeeCode string                  `json:"employee_code"`
+	EmployeeName string                  `json:"employee_name"`
+	TotalReports int64                   `json:"total_reports"`
+	LatestVisit  string                  `json:"latest_visit,omitempty"`
+	StatusCounts VisitReportStatusCounts `json:"status_counts"`
+}

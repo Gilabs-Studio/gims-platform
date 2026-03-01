@@ -149,5 +149,17 @@ export const crmVisitReportEn = {
       priceMin: "Price cannot be negative",
       rejectionReasonMin: "Rejection reason must be at least 5 characters",
     },
+    tabs: {
+      byDate: "By Date",
+      byEmployee: "By Employee",
+    },
+    employeeView: {
+      searchPlaceholder: "Search employees...",
+      empty: "No employees with visit reports found",
+      loadError: "Failed to load employee summary",
+      lastVisit: "Last visit",
+      viewAll: "View all reports",
+    },
   },
 };
+

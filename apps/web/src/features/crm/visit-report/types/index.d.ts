@@ -327,3 +327,26 @@ export interface ApiResponse<T> {
   meta?: { pagination?: PaginationMeta; filters?: Record<string, unknown> };
   error?: string;
 }
+
+// Employee-level visit report summary (for ALL/DIVISION/AREA scope card view)
+export interface VisitReportStatusCounts {
+  draft: number;
+  submitted: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface VisitReportEmployeeSummary {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  total_reports: number;
+  latest_visit: string;
+  status_counts: VisitReportStatusCounts;
+}
+
+export interface VisitReportEmployeeListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+}

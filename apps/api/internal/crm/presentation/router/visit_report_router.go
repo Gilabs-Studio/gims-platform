@@ -20,6 +20,8 @@ func RegisterVisitReportRoutes(r *gin.RouterGroup, h *handler.VisitReportHandler
 
 	// Static routes first (before parameterized routes)
 	g.GET("/form-data", middleware.RequirePermission(visitRead), h.GetFormData)
+	// Team-level employee summary — for ALL/DIVISION/AREA scope views
+	g.GET("/by-employee", middleware.RequirePermission(visitRead), h.ListByEmployee)
 
 	// CRUD routes
 	g.GET("", middleware.RequirePermission(visitRead), h.List)

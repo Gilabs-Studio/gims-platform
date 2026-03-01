@@ -48,6 +48,8 @@ type VisitReportUsecase interface {
 	UploadPhotos(ctx context.Context, id string, photoURLs []string) (*dto.VisitReportResponse, error)
 	GetFormData(ctx context.Context) (*dto.VisitReportFormDataResponse, error)
 	ListProgressHistory(ctx context.Context, visitReportID string, page, perPage int) ([]dto.VisitReportProgressHistoryResponse, *utils.PaginationResult, error)
+	// ListByEmployee returns per-employee visit report summary metrics for team-level views.
+	ListByEmployee(ctx context.Context, req *dto.ListByEmployeeRequest) ([]dto.VisitReportEmployeeSummary, *utils.PaginationResult, error)
 }
 
 type visitReportUsecase struct {
@@ -649,10 +651,10 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		})
 	}
 
-	// Products (active only)
+	// Products — use "approved" status to match the product lifecycle (draft → pending → approved)
 	products, _, err := u.productRepo.List(ctx, productRepos.ProductListParams{
 		ListParams: productRepos.ListParams{Limit: 500},
-		Status:     "active",
+		Status:     "approved",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
@@ -790,4 +792,52 @@ func buildLocationJSON(lat, lng, accuracy *float64) string {
 		return "{}"
 	}
 	return string(data)
+}
+
+// ListByEmployee returns paginated per-employee visit report metrics for ALL/DIVISION/AREA scope views.
+func (u *visitReportUsecase) ListByEmployee(ctx context.Context, req *dto.ListByEmployeeRequest) ([]dto.VisitReportEmployeeSummary, *utils.PaginationResult, error) {
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	rows, total, err := u.visitRepo.GetEmployeeSummary(ctx, req.Search, perPage, (page-1)*perPage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	summaries := make([]dto.VisitReportEmployeeSummary, 0, len(rows))
+	for _, r := range rows {
+		summaries = append(summaries, dto.VisitReportEmployeeSummary{
+			EmployeeID:   r.EmployeeID,
+			EmployeeCode: r.EmployeeCode,
+			EmployeeName: r.EmployeeName,
+			TotalReports: r.TotalReports,
+			LatestVisit:  r.LatestVisit,
+			StatusCounts: dto.VisitReportStatusCounts{
+				Draft:     r.Draft,
+				Submitted: r.Submitted,
+				Approved:  r.Approved,
+				Rejected:  r.Rejected,
+			},
+		})
+	}
+
+	totalInt := int(total)
+	totalPages := (totalInt + perPage - 1) / perPage
+	pagination := &utils.PaginationResult{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      totalInt,
+		TotalPages: totalPages,
+	}
+
+	return summaries, pagination, nil
 }

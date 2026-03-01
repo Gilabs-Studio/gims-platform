@@ -12,6 +12,8 @@ import type {
   ApproveVisitData,
   RejectVisitData,
   ApiResponse,
+  VisitReportEmployeeSummary,
+  VisitReportEmployeeListParams,
 } from "../types";
 
 const BASE_URL = "/crm/visits";
@@ -96,5 +98,10 @@ export const visitReportService = {
   getPrintUrl: (id: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
     return `${apiBase}/api/v1${BASE_URL}/${id}/print`;
+  },
+
+  listByEmployee: async (params?: VisitReportEmployeeListParams): Promise<ApiResponse<VisitReportEmployeeSummary[]>> => {
+    const response = await apiClient.get<ApiResponse<VisitReportEmployeeSummary[]>>(`${BASE_URL}/by-employee`, { params });
+    return response.data;
   },
 };

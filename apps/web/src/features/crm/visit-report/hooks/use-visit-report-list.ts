@@ -7,6 +7,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useVisitReports, useDeleteVisitReport, useCheckInVisitReport, useCheckOutVisitReport, useSubmitVisitReport } from "./use-visit-reports";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { VisitReport, VisitReportStatus, VisitReportOutcome } from "../types";
 
 export function useVisitReportList() {
@@ -18,6 +19,10 @@ export function useVisitReportList() {
   const canDelete = useUserPermission("crm_visit.delete");
   const canApprove = useUserPermission("crm_visit.approve");
   const readScope = usePermissionScope("crm_visit.read");
+
+  const { user } = useAuthStore();
+  // Returns true when the current user owns a given visit report (created_by matches user.id)
+  const isOwner = (item: VisitReport): boolean => !!user && item.created_by === user.id;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -202,7 +207,7 @@ export function useVisitReportList() {
       metrics,
       hasTeamView,
     },
-    permissions: { canCreate, canUpdate, canDelete, canApprove, readScope },
+    permissions: { canCreate, canUpdate, canDelete, canApprove, canApproveOnly: canApprove && !canUpdate, readScope, isOwner },
     translations: { t, tCommon },
   };
 }
