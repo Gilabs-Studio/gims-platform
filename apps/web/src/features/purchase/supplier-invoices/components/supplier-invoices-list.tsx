@@ -61,6 +61,7 @@ import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
+import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -143,6 +144,9 @@ export function SupplierInvoicesList() {
   const [isDPOpen, setIsDPOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
 
+  const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
 
@@ -178,6 +182,7 @@ export function SupplierInvoicesList() {
   const canExport = useUserPermission("supplier_invoice.export");
   const canView = useUserPermission("supplier_invoice.read");
   const canPrint = useUserPermission("supplier_invoice.print");
+  const canViewSupplier = useUserPermission("supplier.read");
 
   async function handleExport() {
     try {
@@ -371,7 +376,21 @@ export function SupplierInvoicesList() {
                     </TableCell>
                     <TableCell>
                       {row.supplier_name ? (
-                        <span className="text-sm font-medium">{row.supplier_name}</span>
+                        canViewSupplier && row.supplier_id ? (
+                          <button
+                            type="button"
+                            className="text-sm text-primary hover:underline cursor-pointer text-left"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedSupplierId(row.supplier_id);
+                              setIsSupplierOpen(true);
+                            }}
+                          >
+                            {row.supplier_name}
+                          </button>
+                        ) : (
+                          <span className="text-sm">{row.supplier_name}</span>
+                        )
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
                       )}
@@ -607,6 +626,17 @@ export function SupplierInvoicesList() {
             if (!v) setSelectedDPId(null);
           }}
           id={selectedDPId}
+        />
+      )}
+
+      {isSupplierOpen && selectedSupplierId && (
+        <SupplierDetailModal
+          open={isSupplierOpen}
+          onOpenChange={(v) => {
+            setIsSupplierOpen(v);
+            if (!v) setSelectedSupplierId(null);
+          }}
+          supplierId={selectedSupplierId}
         />
       )}
 

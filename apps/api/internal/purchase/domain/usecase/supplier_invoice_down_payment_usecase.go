@@ -29,6 +29,10 @@ type SupplierInvoiceDownPaymentUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateSupplierInvoiceDownPaymentRequest) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
+	Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
+	Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
 }
 
@@ -385,6 +389,149 @@ func (uc *supplierInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "supplier_invoice_dp.pending", id, map[string]interface{}{"after": out})
+	return uc.mapper.ToDownPaymentDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeDownPayment {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusDraft {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusSubmitted,
+			"submitted_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice_dp.submit", id, nil)
+	return uc.mapper.ToDownPaymentDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeDownPayment {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusApproved,
+			"approved_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice_dp.approve", id, nil)
+	return uc.mapper.ToDownPaymentDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeDownPayment {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusRejected,
+			"rejected_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice_dp.reject", id, nil)
+	return uc.mapper.ToDownPaymentDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeDownPayment {
+			return ErrSupplierInvoiceNotFound
+		}
+		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
+			si.Status == models.SupplierInvoiceStatusSubmitted ||
+			si.Status == models.SupplierInvoiceStatusApproved
+		if !allowed {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusCancelled,
+			"cancelled_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice_dp.cancel", id, nil)
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 

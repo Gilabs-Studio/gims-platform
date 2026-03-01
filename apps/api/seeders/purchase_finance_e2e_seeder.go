@@ -592,13 +592,18 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 
 			// Create DP payment record
 			dpRefNum := fmt.Sprintf("PAY-DP-E2E-%s", prefix)
+			// Alternate DP payment status so the seeder shows both PENDING and CONFIRMED records.
+			dpPayStatus := purchaseModels.PurchasePaymentStatusPending
+			if len(prefix)%2 == 0 {
+				dpPayStatus = purchaseModels.PurchasePaymentStatusConfirmed
+			}
 			dpPayment := purchaseModels.PurchasePayment{
 				SupplierInvoiceID: dp.ID,
 				BankAccountID:     in.bankAccount.ID,
 				PaymentDate:       orderDate.AddDate(0, 0, 5).Format("2006-01-02"),
 				Amount:            in.dpAmount,
 				Method:            purchaseModels.PurchasePaymentMethodBank,
-				Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+				Status:            dpPayStatus,
 				ReferenceNumber:   &dpRefNum,
 				CreatedBy:         in.adminID,
 			}
@@ -686,13 +691,18 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	// 5. Purchase Payment (if there is cash payment)
 	if cashPayAmount > 0 {
 		refNum := fmt.Sprintf("PAY-E2E-%s", prefix)
+		// Alternate between PENDING and CONFIRMED for seeder diversity
+		payStatus := purchaseModels.PurchasePaymentStatusConfirmed
+		if len(prefix)%2 != 0 {
+			payStatus = purchaseModels.PurchasePaymentStatusPending
+		}
 		pp := purchaseModels.PurchasePayment{
 			SupplierInvoiceID: si.ID,
 			BankAccountID:     in.bankAccount.ID,
 			PaymentDate:       payDate.Format("2006-01-02"),
 			Amount:            cashPayAmount,
 			Method:            purchaseModels.PurchasePaymentMethodBank,
-			Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+			Status:            payStatus,
 			ReferenceNumber:   &refNum,
 			CreatedBy:         in.adminID,
 		}

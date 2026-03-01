@@ -12,15 +12,25 @@ type SupplierInvoiceDownPaymentListResponse struct {
 
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 
+	SupplierID   string `json:"supplier_id"`
+	SupplierName string `json:"supplier_name"`
+
 	Code          string  `json:"code"`
 	InvoiceNumber string  `json:"invoice_number"`
 	InvoiceDate   string  `json:"invoice_date"`
 	DueDate       string  `json:"due_date"`
 	Amount        float64 `json:"amount"`
+	PaidAmount    float64 `json:"paid_amount"`
+	RemainingAmount float64 `json:"remaining_amount"`
 	Status        string  `json:"status"`
 	Notes         *string `json:"notes"`
 
 	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
+
+	SubmittedAt *time.Time `json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	RejectedAt  *time.Time `json:"rejected_at,omitempty"`
+	CancelledAt *time.Time `json:"cancelled_at,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -31,15 +41,27 @@ type SupplierInvoiceDownPaymentDetailResponse struct {
 
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 
+	SupplierID   string `json:"supplier_id"`
+	SupplierName string `json:"supplier_name"`
+
 	Code          string  `json:"code"`
 	InvoiceNumber string  `json:"invoice_number"`
 	InvoiceDate   string  `json:"invoice_date"`
 	DueDate       string  `json:"due_date"`
 	Amount        float64 `json:"amount"`
+	PaidAmount    float64 `json:"paid_amount"`
+	RemainingAmount float64 `json:"remaining_amount"`
 	Status        string  `json:"status"`
 	Notes         *string `json:"notes"`
 
 	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
+
+	SubmittedAt *time.Time `json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	RejectedAt  *time.Time `json:"rejected_at,omitempty"`
+	CancelledAt *time.Time `json:"cancelled_at,omitempty"`
+
+	CreatedBy string `json:"created_by,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

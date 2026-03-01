@@ -3,6 +3,8 @@ import type {
   ApiResponse,
   CreateSupplierInvoiceDPInput,
   SupplierInvoiceDPAddResponse,
+  SupplierInvoiceDPAuditTrailEntry,
+  SupplierInvoiceDPAuditTrailParams,
   SupplierInvoiceDPDetail,
   SupplierInvoiceDPListItem,
   SupplierInvoiceDPListParams,
@@ -44,6 +46,37 @@ export const supplierInvoiceDPService = {
 
   pending: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
     const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/pending`);
+    return response.data;
+  },
+
+  submit: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/reject`);
+    return response.data;
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/cancel`);
+    return response.data;
+  },
+
+  auditTrail: async (
+    id: string,
+    params?: SupplierInvoiceDPAuditTrailParams,
+  ): Promise<ApiResponse<SupplierInvoiceDPAuditTrailEntry[]>> => {
+    const response = await apiClient.get<ApiResponse<SupplierInvoiceDPAuditTrailEntry[]>>(
+      `${BASE_URL}/${id}/audit-trail`,
+      { params },
+    );
     return response.data;
   },
 

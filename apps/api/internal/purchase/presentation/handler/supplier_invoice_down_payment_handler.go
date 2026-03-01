@@ -240,6 +240,114 @@ func (h *SupplierInvoiceDownPaymentHandler) Pending(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Submit handles POST /purchase/supplier-invoice-down-payments/:id/submit
+func (h *SupplierInvoiceDownPaymentHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice_down_payment", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Approve handles POST /purchase/supplier-invoice-down-payments/:id/approve
+func (h *SupplierInvoiceDownPaymentHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice_down_payment", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Reject handles POST /purchase/supplier-invoice-down-payments/:id/reject
+func (h *SupplierInvoiceDownPaymentHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reject(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice_down_payment", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Cancel handles POST /purchase/supplier-invoice-down-payments/:id/cancel
+func (h *SupplierInvoiceDownPaymentHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Cancel(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice_down_payment", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /purchase/supplier-invoice-down-payments/:id/audit-trail
 func (h *SupplierInvoiceDownPaymentHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

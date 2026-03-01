@@ -560,7 +560,8 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
-		if si.Status != models.SupplierInvoiceStatusApproved {
+		// Allow submitting from DRAFT state (DRAFT -> SUBMITTED)
+		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
 		}
 		now := time.Now()
