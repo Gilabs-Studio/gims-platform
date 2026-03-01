@@ -13,6 +13,11 @@ type GoodsReceiptStatus string
 
 const (
 	GoodsReceiptStatusDraft     GoodsReceiptStatus = "DRAFT"
+	GoodsReceiptStatusSubmitted GoodsReceiptStatus = "SUBMITTED"
+	GoodsReceiptStatusApproved  GoodsReceiptStatus = "APPROVED"
+	GoodsReceiptStatusClosed    GoodsReceiptStatus = "CLOSED"
+	GoodsReceiptStatusRejected  GoodsReceiptStatus = "REJECTED"
+	// Kept for backward compatibility with existing data.
 	GoodsReceiptStatusConfirmed GoodsReceiptStatus = "CONFIRMED"
 )
 
@@ -35,6 +40,14 @@ type GoodsReceipt struct {
 
 	CreatedBy string          `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+
+	SubmittedAt *time.Time `gorm:"index" json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time `gorm:"index" json:"approved_at,omitempty"`
+	ClosedAt    *time.Time `gorm:"index" json:"closed_at,omitempty"`
+	RejectedAt  *time.Time `gorm:"index" json:"rejected_at,omitempty"`
+
+	ConvertedAt                  *time.Time `gorm:"index" json:"converted_at,omitempty"`
+	ConvertedToSupplierInvoiceID *string    `gorm:"type:uuid;index" json:"converted_to_supplier_invoice_id,omitempty"`
 
 	Items []GoodsReceiptItem `gorm:"foreignKey:GoodsReceiptID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
 

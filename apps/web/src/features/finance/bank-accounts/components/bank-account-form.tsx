@@ -24,6 +24,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   id?: string | null;
+  /** Called after successful create with id and name of the new account */
+  onCreated?: (item: { id: string; name: string }) => void;
 };
 
 type CoaOption = { id: string; code: string; name: string };
@@ -40,7 +42,7 @@ function flattenCoa(nodes: ChartOfAccountTreeNode[]): CoaOption[] {
   return out;
 }
 
-export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
+export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Props) {
   const t = useTranslations("financeBankAccounts");
 
   const accountQuery = useFinanceBankAccount(id ?? "", { enabled: mode === "edit" && !!id && open });
@@ -59,6 +61,9 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
       account_holder: initial?.account_holder ?? "",
       currency: initial?.currency ?? "IDR",
       chart_of_account_id: initial?.chart_of_account_id ?? null,
+      village_id: initial?.village_id ?? null,
+      bank_address: initial?.bank_address ?? "",
+      bank_phone: initial?.bank_phone ?? "",
       is_active: initial?.is_active ?? true,
     }),
     [initial],
@@ -85,12 +90,16 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
         account_holder: values.account_holder,
         currency: values.currency,
         chart_of_account_id: values.chart_of_account_id ?? null,
+        village_id: values.village_id ?? null,
+        bank_address: values.bank_address,
+        bank_phone: values.bank_phone,
         is_active: values.is_active ?? true,
       };
 
       if (mode === "create") {
-        await createMutation.mutateAsync(payload);
+        const result = await createMutation.mutateAsync(payload);
         toast.success(t("toast.created"));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       } else {
         const accountId = id ?? "";
         if (!accountId) throw new Error("Missing id");
@@ -105,24 +114,18 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">{t("fields.name")}</Label>
-              <Input id="name" {...form.register("name")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="currency">{t("fields.currency")}</Label>
-              <Input id="currency" {...form.register("currency")} />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="name">{t("fields.name")}</Label>
+            <Input id="name" {...form.register("name")} />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="account_number">{t("fields.accountNumber")}</Label>
               <Input id="account_number" {...form.register("account_number")} />
@@ -131,6 +134,22 @@ export function BankAccountForm({ open, onOpenChange, mode, id }: Props) {
               <Label htmlFor="account_holder">{t("fields.accountHolder")}</Label>
               <Input id="account_holder" {...form.register("account_holder")} />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currency">{t("fields.currency")}</Label>
+              <Input id="currency" {...form.register("currency")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank_phone">{t("fields.bankPhone")}</Label>
+              <Input id="bank_phone" {...form.register("bank_phone")} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bank_address">{t("fields.bankAddress")}</Label>
+            <Input id="bank_address" {...form.register("bank_address")} />
           </div>
 
           <div className="space-y-2">

@@ -27,6 +27,9 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 	warehouseID := c.Query("warehouse_id")
 	productID := c.Query("product_id")
 	lowStock := c.Query("low_stock") == "true"
+	status := c.Query("status")
+	hasExpiring := c.Query("has_expiring") == "true"
+	hasExpired := c.Query("has_expired") == "true"
 
 	req := &dto.GetInventoryListRequest{
 		Page:        page,
@@ -35,6 +38,9 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 		WarehouseID: warehouseID,
 		ProductID:   productID,
 		LowStock:    lowStock,
+		Status:      status,
+		HasExpiring: hasExpiring,
+		HasExpired:  hasExpired,
 	}
 
 	result, err := h.usecase.GetStockList(c.Request.Context(), req)
@@ -91,9 +97,14 @@ func (h *InventoryHandler) GetTreeBatches(c *gin.Context) {
 		return
 	}
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+
 	req := &dto.GetInventoryTreeBatchesRequest{
 		WarehouseID: warehouseID,
 		ProductID:   productID,
+		Page:        page,
+		PerPage:     perPage,
 	}
 
 	result, err := h.usecase.GetTreeBatches(c.Request.Context(), req)
@@ -102,5 +113,14 @@ func (h *InventoryHandler) GetTreeBatches(c *gin.Context) {
 		return
 	}
 
+	response.SuccessResponse(c, result, nil)
+}
+
+func (h *InventoryHandler) GetInventoryMetrics(c *gin.Context) {
+	result, err := h.usecase.GetInventoryMetrics(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil, nil)
+		return
+	}
 	response.SuccessResponse(c, result, nil)
 }

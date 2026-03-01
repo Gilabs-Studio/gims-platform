@@ -21,15 +21,15 @@ import (
 )
 
 var (
-	ErrSalesOrderNotFound      = errors.New("sales order not found")
-	ErrSalesOrderAlreadyExists = errors.New("sales order with this code already exists")
+	ErrSalesOrderNotFound           = errors.New("sales order not found")
+	ErrSalesOrderAlreadyExists      = errors.New("sales order with this code already exists")
 	ErrInvalidOrderStatusTransition = errors.New("invalid order status transition")
 	ErrOrderProductNotFound         = errors.New("product not found in order")
-	ErrInvalidOrderStatus      = errors.New("cannot modify order in current status")
-	ErrQuotationNotFound       = errors.New("sales quotation not found")
-	ErrQuotationNotApproved    = errors.New("quotation must be approved before converting to order")
-	ErrInsufficientStock       = errors.New("insufficient stock available")
-	ErrUnauthorizedAccess      = errors.New("unauthorized access to sales order")
+	ErrInvalidOrderStatus           = errors.New("cannot modify order in current status")
+	ErrQuotationNotFound            = errors.New("sales quotation not found")
+	ErrQuotationNotApproved         = errors.New("quotation must be approved before converting to order")
+	ErrInsufficientStock            = errors.New("insufficient stock available")
+	ErrUnauthorizedAccess           = errors.New("unauthorized access to sales order")
 )
 
 // SalesOrderUsecase defines the interface for sales order business logic
@@ -45,13 +45,13 @@ type SalesOrderUsecase interface {
 }
 
 type salesOrderUsecase struct {
-	db               *gorm.DB
-	orderRepo        salesRepos.SalesOrderRepository
+	db                *gorm.DB
+	orderRepo         salesRepos.SalesOrderRepository
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository
-	quotationRepo    salesQuotationRepos.SalesQuotationRepository
-	productRepo      productRepos.ProductRepository
-	inventoryUC      inventoryUsecase.InventoryUsecase
-	employeeRepo     organizationRepos.EmployeeRepository
+	quotationRepo     salesQuotationRepos.SalesQuotationRepository
+	productRepo       productRepos.ProductRepository
+	inventoryUC       inventoryUsecase.InventoryUsecase
+	employeeRepo      organizationRepos.EmployeeRepository
 }
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
@@ -65,13 +65,13 @@ func NewSalesOrderUsecase(
 	employeeRepo organizationRepos.EmployeeRepository,
 ) SalesOrderUsecase {
 	return &salesOrderUsecase{
-		db:               db,
-		orderRepo:        orderRepo,
+		db:                db,
+		orderRepo:         orderRepo,
 		deliveryOrderRepo: deliveryOrderRepo,
-		quotationRepo:    quotationRepo,
-		productRepo:      productRepo,
-		inventoryUC:      inventoryUC,
-		employeeRepo:     employeeRepo,
+		quotationRepo:     quotationRepo,
+		productRepo:       productRepo,
+		inventoryUC:       inventoryUC,
+		employeeRepo:      employeeRepo,
 	}
 }
 
@@ -205,7 +205,7 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 		if item.Price == 0 {
 			req.Items[i].Price = product.SellingPrice
 		}
-		
+
 		productMap[item.ProductID] = product
 	}
 
@@ -289,7 +289,7 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 			if item.Price == 0 {
 				req.Items[i].Price = product.SellingPrice
 			}
-			
+
 			productMap[item.ProductID] = product
 		}
 	}
@@ -340,7 +340,6 @@ func (u *salesOrderUsecase) Delete(ctx context.Context, id string) error {
 	if err := u.checkAccess(ctx, order); err != nil {
 		return err
 	}
-
 
 	// Only allow deletion of draft orders
 	if order.Status != models.SalesOrderStatusDraft {
@@ -526,11 +525,11 @@ func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.Sales
 		return nil
 	}
 
-	// If no user context, assume internal call or unsecured? 
+	// If no user context, assume internal call or unsecured?
 	if userID == "" {
 		// Secure by default: if we don't know who you are, you can't touch it.
 		// Unless it's a system process (which might not have user_id but should be handled via different context or role)
-		return ErrSalesOrderNotFound 
+		return ErrSalesOrderNotFound
 	}
 
 	// Check if user is the creator
@@ -596,7 +595,11 @@ func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrd
 			models.SalesOrderStatusRejected,
 		},
 		models.SalesOrderStatusApproved: {
+			models.SalesOrderStatusClosed,
 			models.SalesOrderStatusCancelled,
+		},
+		models.SalesOrderStatusClosed: {
+			// Cannot transition from closed
 		},
 		models.SalesOrderStatusRejected: {
 			models.SalesOrderStatusDraft,

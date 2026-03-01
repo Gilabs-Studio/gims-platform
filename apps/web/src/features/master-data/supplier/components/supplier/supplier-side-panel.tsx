@@ -6,7 +6,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -21,14 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
+import { LocationPicker } from "../../../geographic/components/location-picker";
 
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "../../hooks/use-suppliers";
 import { useSupplierTypes } from "../../hooks/use-supplier-types";
-import { useProvinces } from "../../../geographic/hooks/use-provinces";
-import { useCities } from "../../../geographic/hooks/use-cities";
-import { useDistricts } from "../../../geographic/hooks/use-districts";
-import { useVillages } from "../../../geographic/hooks/use-villages";
 import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
 import { SupplierPhoneList } from "./supplier-phone-list";
 import { SupplierBankList } from "./supplier-bank-list";
@@ -45,7 +41,7 @@ const formSchema = z.object({
   province_id: z.string().optional(),
   city_id: z.string().optional(),
   district_id: z.string().optional(),
-  village_id: z.string().optional(),
+  village_name: z.string().optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   is_active: z.boolean(),
@@ -77,7 +73,6 @@ export function SupplierSidePanel({
   const isViewing = mode === "view";
   const createSupplier = useCreateSupplier();
   const updateSupplier = useUpdateSupplier();
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   // Hidden submit button ref — triggers real DOM submit so RHF resolver reads live form state
   const submitBtnRef = useRef<HTMLButtonElement>(null);
@@ -112,7 +107,7 @@ export function SupplierSidePanel({
       province_id: undefined,
       city_id: undefined,
       district_id: undefined,
-      village_id: "",
+      village_name: "",
       latitude: null,
       longitude: null,
       is_active: true,
@@ -121,12 +116,6 @@ export function SupplierSidePanel({
     },
   });
 
-  // useWatch is React Compiler-compatible (unlike watch() from useForm)
-  const provinceId = useWatch({ control, name: "province_id" });
-  const cityId = useWatch({ control, name: "city_id" });
-  const districtId = useWatch({ control, name: "district_id" });
-  const latitude = useWatch({ control, name: "latitude" });
-  const longitude = useWatch({ control, name: "longitude" });
   const formPhones = (useWatch({ control, name: "phone_numbers" }) as CreatePhoneNumberData[]) ?? [];
   const formBanks = (useWatch({ control, name: "bank_accounts" }) as CreateSupplierBankData[]) ?? [];
 
@@ -137,25 +126,6 @@ export function SupplierSidePanel({
   useEffect(() => {
     supplierRef.current = supplier;
   }, [supplier]);
-
-  const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: isOpen });
-  const { data: citiesData } = useCities(
-    provinceId ? { province_id: String(provinceId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!provinceId }
-  );
-  const { data: districtsData } = useDistricts(
-    cityId ? { city_id: String(cityId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!cityId }
-  );
-  const { data: villagesData } = useVillages(
-    districtId ? { district_id: String(districtId), per_page: 100 } : undefined,
-    { enabled: isOpen && !!districtId }
-  );
-
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
 
   // Reset active tab when panel opens — deferred to satisfy react-hooks/set-state-in-effect
   useEffect(() => {
@@ -193,7 +163,7 @@ export function SupplierSidePanel({
           province_id: entity.province_id ?? p?.id ?? undefined,
           city_id: entity.city_id ?? c?.id ?? undefined,
           district_id: entity.district_id ?? d?.id ?? undefined,
-          village_id: entity.village_id ?? "",
+          village_name: entity.village_name ?? "",
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
           is_active: entity.is_active,
@@ -221,7 +191,7 @@ export function SupplierSidePanel({
         npwp: "",
         contact_person: "",
         notes: "",
-        village_id: "",
+        village_name: "",
           latitude: null,
           longitude: null,
         phone_numbers: [],
@@ -244,7 +214,7 @@ export function SupplierSidePanel({
             province_id: data.province_id ?? "",
             city_id: data.city_id ?? "",
             district_id: data.district_id ?? "",
-            village_id: data.village_id ?? "",
+            village_name: data.village_name ?? "",
             email: data.email ?? "",
             website: data.website ?? "",
             npwp: data.npwp ?? "",
@@ -263,7 +233,7 @@ export function SupplierSidePanel({
           province_id: data.province_id || undefined,
           city_id: data.city_id || undefined,
           district_id: data.district_id || undefined,
-          village_id: data.village_id || undefined,
+          village_name: data.village_name || undefined,
           email: data.email || undefined,
           website: data.website || undefined,
           npwp: data.npwp || undefined,
@@ -286,13 +256,6 @@ export function SupplierSidePanel({
       console.error("Failed to save supplier:", error);
     }
   };
-
-  const handleCoordinateSelect = (lat: number, lng: number) => {
-    setValue("latitude", lat, { shouldValidate: true, shouldDirty: true });
-    setValue("longitude", lng, { shouldValidate: true, shouldDirty: true });
-  };
-
-
 
   // Handlers for nested lists (create mode)
   const handleAddPhone = (phone: CreatePhoneNumberData) => {
@@ -328,8 +291,7 @@ export function SupplierSidePanel({
       : t("createTitle");
 
   return (
-    <>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
         <Drawer
           open={isOpen}
           onOpenChange={(open) => !open && onClose()}
@@ -491,202 +453,12 @@ export function SupplierSidePanel({
                   />
                 </Field>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.province")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="province_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={(val) => {
-                            field.onChange(val);
-                            setValue("city_id", undefined, { shouldDirty: true });
-                            setValue("district_id", undefined, { shouldDirty: true });
-                            setValue("village_id", undefined, { shouldDirty: true });
-                          }}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Province" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {provinces.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.city")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="city_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={(val) => {
-                            field.onChange(val);
-                            setValue("district_id", undefined, { shouldDirty: true });
-                            setValue("village_id", undefined, { shouldDirty: true });
-                          }}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select City" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {provinceId ? cities.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            )) : (
-                              <SelectItem value="_" disabled>
-                                Select province first
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.district")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="district_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={(val) => {
-                            field.onChange(val);
-                            setValue("village_id", undefined, { shouldDirty: true });
-                          }}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select District" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cityId ? districts.map((d) => (
-                              <SelectItem key={d.id} value={d.id}>
-                                {d.name}
-                              </SelectItem>
-                            )) : (
-                              <SelectItem value="_" disabled>
-                                Select city first
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.village")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="village_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Village" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {districtId ? villages.map((v) => (
-                              <SelectItem key={v.id} value={v.id}>
-                                {v.name}
-                              </SelectItem>
-                            )) : (
-                              <SelectItem value="_" disabled>
-                                Select district first
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-                </div>
-
-                {/* Coordinates */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center gap-2">
-                      <Navigation className="h-4 w-4" />
-                      <h3 className="text-sm font-medium">{t("sections.coordinates")}</h3>
-                    </div>
-                    {!isViewing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsMapPickerOpen(true)}
-                        className="cursor-pointer"
-                      >
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {t("pickFromMap")}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("form.latitude")}</FieldLabel>
-                      <Controller
-                        control={control}
-                        name="latitude"
-                        render={({ field }) => (
-                          <Input
-                            type="number"
-                            step="any"
-                            placeholder="-6.2088"
-                            disabled={isViewing}
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.valueAsNumber;
-                              field.onChange(isNaN(v) ? null : v);
-                            }}
-                          />
-                        )}
-                      />
-                    </Field>
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("form.longitude")}</FieldLabel>
-                      <Controller
-                        control={control}
-                        name="longitude"
-                        render={({ field }) => (
-                          <Input
-                            type="number"
-                            step="any"
-                            placeholder="106.8456"
-                            disabled={isViewing}
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.valueAsNumber;
-                              field.onChange(isNaN(v) ? null : v);
-                            }}
-                          />
-                        )}
-                      />
-                    </Field>
-                  </div>
-                </div>
+                <LocationPicker
+                  control={control}
+                  setValue={setValue}
+                  disabled={isViewing}
+                  enabled={isOpen}
+                />
               </div>
             </TabsContent>
 
@@ -772,17 +544,5 @@ export function SupplierSidePanel({
           )}
         </Drawer>
       </Tabs>
-
-      <MapPickerModal
-        open={isMapPickerOpen}
-        onOpenChange={setIsMapPickerOpen}
-        latitude={latitude ?? -6.2088}
-        longitude={longitude ?? 106.8456}
-
-        onCoordinateSelect={handleCoordinateSelect}
-        title={t("mapPicker.title")}
-        description={t("mapPicker.description")}
-      />
-    </>
   );
 }

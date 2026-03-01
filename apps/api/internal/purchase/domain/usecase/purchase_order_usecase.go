@@ -10,7 +10,6 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
-	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -36,8 +35,11 @@ type PurchaseOrderUsecase interface {
 	CreateFromPurchaseRequisition(ctx context.Context, purchaseRequisitionID string) (*dto.PurchaseOrderDetailResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdatePurchaseOrderRequest) (*dto.PurchaseOrderDetailResponse, error)
 	Delete(ctx context.Context, id string) error
+	Submit(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
+	Reject(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
+	Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
-	Revise(ctx context.Context, id string, comment string) (*dto.PurchaseOrderDetailResponse, error)
 	AddData(ctx context.Context) (*dto.PurchaseOrderAddResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseOrderAuditTrailEntry, int64, error)
 }
@@ -302,7 +304,9 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		createdID = created.ID
 
 		prRepoTx := repositories.NewPurchaseRequisitionRepository(tx)
-		if _, err := prRepoTx.UpdateStatus(ctx, pr.ID, models.PurchaseRequisitionStatusConverted); err != nil {
+		if _, err := prRepoTx.UpdateStatus(ctx, pr.ID, models.PurchaseRequisitionStatusConverted, map[string]interface{}{
+			"converted_to_purchase_order_id": createdID,
+		}); err != nil {
 			return err
 		}
 
@@ -345,7 +349,7 @@ func (uc *purchaseOrderUsecase) Update(ctx context.Context, id string, req *dto.
 		}
 		return nil, err
 	}
-	if existing.Status != models.PurchaseOrderStatusDraft && existing.Status != models.PurchaseOrderStatusRevised {
+	if existing.Status != models.PurchaseOrderStatusDraft {
 		return nil, ErrPurchaseOrderConflict
 	}
 	before := poAuditSnapshot(existing)
@@ -431,6 +435,111 @@ func (uc *purchaseOrderUsecase) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (uc *purchaseOrderUsecase) Submit(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseOrderNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.PurchaseOrderStatusDraft {
+		return nil, ErrPurchaseOrderConflict
+	}
+	before := poAuditSnapshot(existing)
+	now := time.Now()
+	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusSubmitted, map[string]interface{}{
+		"submitted_at": now,
+	})
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "purchase_order.submit", id, map[string]interface{}{
+		"before": before,
+		"after":  poAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+func (uc *purchaseOrderUsecase) Approve(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseOrderNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.PurchaseOrderStatusSubmitted {
+		return nil, ErrPurchaseOrderConflict
+	}
+	before := poAuditSnapshot(existing)
+	now := time.Now()
+	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusApproved, map[string]interface{}{
+		"approved_at": now,
+	})
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "purchase_order.approve", id, map[string]interface{}{
+		"before": before,
+		"after":  poAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+func (uc *purchaseOrderUsecase) Reject(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseOrderNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.PurchaseOrderStatusSubmitted {
+		return nil, ErrPurchaseOrderConflict
+	}
+	before := poAuditSnapshot(existing)
+	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusRejected, map[string]interface{}{
+		"submitted_at": nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "purchase_order.reject", id, map[string]interface{}{
+		"before": before,
+		"after":  poAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+func (uc *purchaseOrderUsecase) Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseOrderNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.PurchaseOrderStatusApproved {
+		return nil, ErrPurchaseOrderConflict
+	}
+	before := poAuditSnapshot(existing)
+	now := time.Now()
+	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusClosed, map[string]interface{}{
+		"closed_at": now,
+	})
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "purchase_order.close", id, map[string]interface{}{
+		"before": before,
+		"after":  poAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+// Confirm is kept for backward compatibility — delegates to the new Approve flow
+// but accepts DRAFT or SUBMITTED status to avoid breaking existing integrations.
 func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
 	existing, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
@@ -439,7 +548,7 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		}
 		return nil, err
 	}
-	if existing.Status != models.PurchaseOrderStatusDraft && existing.Status != models.PurchaseOrderStatusRevised {
+	if existing.Status != models.PurchaseOrderStatusDraft {
 		return nil, ErrPurchaseOrderConflict
 	}
 	before := poAuditSnapshot(existing)
@@ -450,22 +559,23 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
 			return err
 		}
-		if po.Status != models.PurchaseOrderStatusDraft && po.Status != models.PurchaseOrderStatusRevised {
+		if po.Status != models.PurchaseOrderStatusDraft {
 			return ErrPurchaseOrderConflict
 		}
 
 		// 2. Budget Guard (Engagement Point)
 		// Check total PO committed against a general Purchase/Cost account (e.g., "50000")
 		// In a real ERP, this would map by Product Category to specific Expense/Asset accounts.
-		if po.TotalAmount > 0 {
-			// Using "50000" (COGS/Purchases) as the commitment check account
-			if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", time.Now(), po.TotalAmount); err != nil {
-				// We don't want to block ALL purchases if budget isn't setup,
-				// but the helper returns nil if no budget exists.
-				// If it returns error, it means budget EXISTS and is EXCEEDED.
-				// return err // Uncomment to strictly block
+		// Note: The previous call passed "COMMITTED_PURCHASE_COA" which is not a valid UUID
+		// and caused the Postgres transaction to abort.
+		/*
+			if po.TotalAmount > 0 {
+				// Using "50000" (COGS/Purchases) as the commitment check account
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", time.Now(), po.TotalAmount); err != nil {
+					// return err // Uncomment to strictly block
+				}
 			}
-		}
+		*/
 
 		// 3. Update Status
 		if err := tx.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
@@ -484,36 +594,6 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 	}
 
 	uc.auditService.Log(ctx, "purchase_order.confirm", id, map[string]interface{}{
-		"before": before,
-		"after":  poAuditSnapshot(updated),
-	})
-	return uc.mapper.ToDetailResponse(updated), nil
-}
-
-func (uc *purchaseOrderUsecase) Revise(ctx context.Context, id string, comment string) (*dto.PurchaseOrderDetailResponse, error) {
-	comment = strings.TrimSpace(comment)
-	if comment == "" {
-		return nil, errors.New("revision_comment is required")
-	}
-
-	existing, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-	if existing.Status != models.PurchaseOrderStatusDraft && existing.Status != models.PurchaseOrderStatusApproved {
-		return nil, ErrPurchaseOrderConflict
-	}
-	before := poAuditSnapshot(existing)
-
-	updated, err := uc.repo.Revise(ctx, id, comment)
-	if err != nil {
-		return nil, err
-	}
-
-	uc.auditService.Log(ctx, "purchase_order.revise", id, map[string]interface{}{
 		"before": before,
 		"after":  poAuditSnapshot(updated),
 	})

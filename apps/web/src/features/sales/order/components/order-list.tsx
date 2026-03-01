@@ -15,13 +15,16 @@ import { DOStatusBadge } from "./do-status-badge";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt, Printer } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
+import { OrderPrintDialog } from "./order-print-dialog";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
+import { DeliveryForm } from "../../delivery/components/delivery-form";
+import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
@@ -57,11 +60,17 @@ export function OrderList() {
   const canApprove = useUserPermission("sales_order.approve");
   const canViewEmployee = useUserPermission("employee.read");
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
+  const canCreateDO = useUserPermission("delivery_order.create");
+  const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
   const [isSalesRepOpen, setIsSalesRepOpen] = useState(false);
   const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
   const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
+  const [createDOForOrderId, setCreateDOForOrderId] = useState<string | null>(null);
+  const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -156,6 +165,7 @@ export function OrderList() {
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
             <SelectItem value="submitted">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
+            <SelectItem value="closed">{t("status.closed") || "Closed"}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
           </SelectContent>
@@ -380,6 +390,24 @@ export function OrderList() {
                               {t("actions.cancel")}
                             </DropdownMenuItem>
                           )}
+                          {canCreateDO && order.status === "approved" && (
+                            <DropdownMenuItem
+                              onClick={() => setCreateDOForOrderId(order.id)}
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            >
+                              <Truck className="h-4 w-4 mr-2" />
+                              {t("actions.createDelivery")}
+                            </DropdownMenuItem>
+                          )}
+                          {canCreateInvoice && order.status === "approved" && (
+                            <DropdownMenuItem
+                              onClick={() => setCreateInvoiceForOrderId(order.id)}
+                              className="cursor-pointer text-green-600 focus:text-green-600"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              {t("actions.createInvoice")}
+                            </DropdownMenuItem>
+                          )}
                           {canDelete && order.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(order.id)}
@@ -387,6 +415,15 @@ export function OrderList() {
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingOrderId(order.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -472,6 +509,32 @@ export function OrderList() {
           salesOrderCode={invoiceDialogOrder.code}
           open={!!invoiceDialogOrder}
           onOpenChange={(open) => { if (!open) setInvoiceDialogOrder(null); }}
+        />
+      )}
+
+      {/* Create DO from approved SO */}
+      {createDOForOrderId && (
+        <DeliveryForm
+          open={!!createDOForOrderId}
+          onClose={() => setCreateDOForOrderId(null)}
+          defaultSalesOrderId={createDOForOrderId}
+        />
+      )}
+
+      {/* Create Invoice from approved SO */}
+      {createInvoiceForOrderId && (
+        <InvoiceForm
+          open={!!createInvoiceForOrderId}
+          onClose={() => setCreateInvoiceForOrderId(null)}
+          defaultSalesOrderId={createInvoiceForOrderId}
+        />
+      )}
+
+      {printingOrderId && (
+        <OrderPrintDialog
+          open={!!printingOrderId}
+          onClose={() => setPrintingOrderId(null)}
+          orderId={printingOrderId}
         />
       )}
     </div>

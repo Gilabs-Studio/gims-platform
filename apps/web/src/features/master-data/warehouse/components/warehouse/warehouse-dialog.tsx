@@ -1,11 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ButtonLoading } from "@/components/loading";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { sortOptions } from "@/lib/utils";
+import { LocationPicker } from "../../../geographic/components/location-picker";
 import { useWarehouseForm } from "../../hooks/use-warehouse-form";
 import type { Warehouse } from "../../types";
 
@@ -47,8 +35,6 @@ export function WarehouseDialog({
     isEditing,
     isLoading,
     onSubmit,
-    actions,
-    data,
   } = useWarehouseForm({ open, onOpenChange, editingItem });
 
   const {
@@ -133,86 +119,11 @@ export function WarehouseDialog({
               />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("warehouse.form.province")}</FieldLabel>
-                <Select
-                  value={String(watch("province_id") || "")}
-                  onValueChange={actions.handleProvinceChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.provinces, (p) => p.name).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("warehouse.form.city")}</FieldLabel>
-                <Select
-                  value={String(watch("city_id") || "")}
-                  onValueChange={actions.handleCityChange}
-                  disabled={!watch("province_id")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select City" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.cities, (c) => c.name).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("warehouse.form.district")}</FieldLabel>
-                <Select
-                  value={String(watch("district_id") || "")}
-                  onValueChange={actions.handleDistrictChange}
-                  disabled={!watch("city_id")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.districts, (d) => d.name).map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("warehouse.form.village")}</FieldLabel>
-                <Select
-                  value={String(watch("village_id") || "")}
-                  onValueChange={(val) => setValue("village_id", val)}
-                  disabled={!watch("district_id")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions(data.villages, (v) => v.name).map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            <LocationPicker
+              control={control}
+              setValue={setValue}
+              enabled={open}
+            />
           </div>
 
           <Field

@@ -8,6 +8,7 @@
     "noData": "No data found",
     "search": "Search...",
     "searchPlaceholder": "Search... (Press / or ⌘K)",
+    "select_placeholder": "Select...",
     "actions": "Actions",
     "all": "All",
     "active": "Active",
@@ -37,7 +38,19 @@
     "savedSuccessfully": "Saved successfully",
     "passwordChangedSuccessfully": "Password changed successfully!",
     "avatarUpdatedSuccessfully": "Avatar updated successfully!",
-    "somethingWentWrong": "Something went wrong"
+    "somethingWentWrong": "Something went wrong",
+    "export": "Export",
+    "exportFailed": "Failed to export data",
+    "print": "Print",
+    "filterBy": "Filter by",
+    "status": "Status",
+    "supplierInvoice": "Supplier Invoice",
+    "supplierInvoiceDP": "Supplier Invoice Down Payment",
+    "purchasePayment": "Purchase Payment",
+    "purchaseRequisition": "Purchase Requisition",
+    "purchaseOrder": "Purchase Order",
+    "goodsReceipt": "Goods Receipt",
+    "createdBy": "Created by"
   },
   "notFound": {
     "label": "404",

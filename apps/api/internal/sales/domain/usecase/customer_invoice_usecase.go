@@ -3,8 +3,10 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -20,9 +22,10 @@ const dateFormat = "2006-01-02"
 
 // Errors
 var (
-	ErrCustomerInvoiceNotFound    = errors.New("customer invoice not found")
-	ErrInvalidInvoiceStatus       = errors.New("invalid invoice status for this operation")
-	ErrInvalidPaymentAmount       = errors.New("payment amount exceeds remaining balance")
+	ErrCustomerInvoiceNotFound = errors.New("customer invoice not found")
+	ErrInvalidInvoiceStatus    = errors.New("invalid invoice status for this operation")
+	ErrInvoiceExceedsRemaining = errors.New("invoice quantity exceeds remaining invoiceable quantity")
+	ErrInvoiceDOMismatch       = errors.New("delivery order does not belong to the same sales order")
 )
 
 // CustomerInvoiceUsecase defines the interface for customer invoice business logic
@@ -34,13 +37,13 @@ type CustomerInvoiceUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceRequest) (*dto.CustomerInvoiceResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error)
-	RecordPayment(ctx context.Context, id string, req *dto.RecordPaymentRequest) (*dto.CustomerInvoiceResponse, error)
 }
 
 type customerInvoiceUsecase struct {
-	db          *gorm.DB
-	invoiceRepo repositories.CustomerInvoiceRepository
-	productRepo productRepos.ProductRepository
+	db             *gorm.DB
+	invoiceRepo    repositories.CustomerInvoiceRepository
+	productRepo    productRepos.ProductRepository
+	salesOrderRepo repositories.SalesOrderRepository
 }
 
 // NewCustomerInvoiceUsecase creates a new CustomerInvoiceUsecase
@@ -48,11 +51,13 @@ func NewCustomerInvoiceUsecase(
 	db *gorm.DB,
 	invoiceRepo repositories.CustomerInvoiceRepository,
 	productRepo productRepos.ProductRepository,
+	salesOrderRepo repositories.SalesOrderRepository,
 ) CustomerInvoiceUsecase {
 	return &customerInvoiceUsecase{
-		db:          db,
-		invoiceRepo: invoiceRepo,
-		productRepo: productRepo,
+		db:             db,
+		invoiceRepo:    invoiceRepo,
+		productRepo:    productRepo,
+		salesOrderRepo: salesOrderRepo,
 	}
 }
 
@@ -151,18 +156,43 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		invoiceType = models.CustomerInvoiceType(req.Type)
 	}
 
+	// Fetch sales order for partial invoicing validation
+	var salesOrder *models.SalesOrder
+	if req.SalesOrderID != nil {
+		salesOrder, err = uc.salesOrderRepo.FindByID(ctx, *req.SalesOrderID)
+		if err != nil {
+			return nil, fmt.Errorf("sales order not found: %w", err)
+		}
+	}
+
+	// Validate delivery order belongs to the same sales order (if provided)
+	if req.DeliveryOrderID != nil && salesOrder != nil {
+		doFound := false
+		for _, do := range salesOrder.DeliveryOrders {
+			if do.ID == *req.DeliveryOrderID {
+				doFound = true
+				break
+			}
+		}
+		if !doFound {
+			return nil, ErrInvoiceDOMismatch
+		}
+	}
+
 	invoice := &models.CustomerInvoice{
-		Code:           code,
-		Type:           invoiceType,
-		InvoiceDate:    invoiceDate,
-		SalesOrderID:   req.SalesOrderID,
-		PaymentTermsID: req.PaymentTermsID,
-		TaxRate:        req.TaxRate,
-		DeliveryCost:   req.DeliveryCost,
-		OtherCost:      req.OtherCost,
-		Notes:          req.Notes,
-		Status:         models.CustomerInvoiceStatusDraft,
-		CreatedBy:      createdBy,
+		Code:                 code,
+		Type:                 invoiceType,
+		InvoiceDate:          invoiceDate,
+		SalesOrderID:         req.SalesOrderID,
+		DeliveryOrderID:      req.DeliveryOrderID,
+		PaymentTermsID:       req.PaymentTermsID,
+		DownPaymentInvoiceID: req.DownPaymentInvoiceID,
+		TaxRate:              req.TaxRate,
+		DeliveryCost:         req.DeliveryCost,
+		OtherCost:            req.OtherCost,
+		Notes:                req.Notes,
+		Status:               models.CustomerInvoiceStatusDraft,
+		CreatedBy:            createdBy,
 	}
 
 	// Parse due date
@@ -173,7 +203,15 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		}
 	}
 
-	// Build items
+	// Build SO item lookup for partial invoicing validation
+	soItemMap := make(map[string]*models.SalesOrderItem)
+	if salesOrder != nil {
+		for i := range salesOrder.Items {
+			soItemMap[salesOrder.Items[i].ID] = &salesOrder.Items[i]
+		}
+	}
+
+	// Build items with partial invoicing validation
 	var subtotal float64
 	items := make([]models.CustomerInvoiceItem, len(req.Items))
 	for i, itemReq := range req.Items {
@@ -183,16 +221,31 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 			return nil, ErrProductNotFound
 		}
 
+		// Validate invoiceable quantity against SO item (partial invoicing guard)
+		if itemReq.SalesOrderItemID != nil {
+			soItem, ok := soItemMap[*itemReq.SalesOrderItemID]
+			if !ok {
+				return nil, fmt.Errorf("sales order item %s not found", *itemReq.SalesOrderItemID)
+			}
+			remainingQty := soItem.Quantity - soItem.InvoicedQuantity
+			if itemReq.Quantity > remainingQty {
+				return nil, fmt.Errorf("%w: product %s has %.3f remaining, requested %.3f",
+					ErrInvoiceExceedsRemaining, product.Name, remainingQty, itemReq.Quantity)
+			}
+		}
+
 		itemSubtotal := (itemReq.Price * itemReq.Quantity) - itemReq.Discount
 		subtotal += itemSubtotal
 
 		items[i] = models.CustomerInvoiceItem{
-			ProductID: itemReq.ProductID,
-			Quantity:  itemReq.Quantity,
-			Price:     itemReq.Price,
-			Discount:  itemReq.Discount,
-			Subtotal:  itemSubtotal,
-			HPPAmount: itemReq.HPPAmount,
+			ProductID:           itemReq.ProductID,
+			SalesOrderItemID:    itemReq.SalesOrderItemID,
+			DeliveryOrderItemID: itemReq.DeliveryOrderItemID,
+			Quantity:            itemReq.Quantity,
+			Price:               itemReq.Price,
+			Discount:            itemReq.Discount,
+			Subtotal:            itemSubtotal,
+			HPPAmount:           itemReq.HPPAmount,
 		}
 
 		// Use product's current HPP if not provided
@@ -204,10 +257,58 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	invoice.Items = items
 	invoice.Subtotal = subtotal
 	invoice.TaxAmount = subtotal * (invoice.TaxRate / 100)
+
+	// Default calculation without DP
 	invoice.Amount = subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
+
+	// Deduct paid Down Payments if this is a regular invoice with a sales order
+	if req.SalesOrderID != nil && invoiceType == models.CustomerInvoiceTypeRegular {
+		dpReq := &dto.ListCustomerInvoicesRequest{
+			SalesOrderID: *req.SalesOrderID,
+			Type:         string(models.CustomerInvoiceTypeDownPayment),
+			Status:       string(models.CustomerInvoiceStatusPaid),
+			PerPage:      100,
+		}
+		if dps, _, err := uc.invoiceRepo.List(ctx, dpReq); err == nil {
+			var totalDP float64
+			for _, dp := range dps {
+				totalDP += dp.PaidAmount
+				// Link the first paid DP as the reference
+				if invoice.DownPaymentInvoiceID == nil {
+					dpIDStr := dp.ID
+					invoice.DownPaymentInvoiceID = &dpIDStr
+				}
+			}
+			invoice.DownPaymentAmount = totalDP
+			invoice.Amount = invoice.Amount - totalDP
+			if invoice.Amount < 0 {
+				invoice.Amount = 0
+			}
+		}
+	}
+
 	invoice.RemainingAmount = invoice.Amount
 
-	if err := uc.invoiceRepo.Create(ctx, invoice); err != nil {
+	// Create invoice and update SO item invoiced quantities in a transaction
+	err = uc.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		if err := uc.invoiceRepo.Create(txCtx, invoice); err != nil {
+			return err
+		}
+
+		// Update InvoicedQuantity on each linked SO item
+		for _, item := range invoice.Items {
+			if item.SalesOrderItemID != nil {
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(txCtx, *item.SalesOrderItemID, item.Quantity); err != nil {
+					return fmt.Errorf("failed to update invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -309,6 +410,33 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 	// Recalculate totals
 	invoice.TaxAmount = invoice.Subtotal * (invoice.TaxRate / 100)
 	invoice.Amount = invoice.Subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
+
+	// Deduct paid Down Payments if this is a regular invoice with a sales order
+	if invoice.SalesOrderID != nil && invoice.Type == models.CustomerInvoiceTypeRegular {
+		dpReq := &dto.ListCustomerInvoicesRequest{
+			SalesOrderID: *invoice.SalesOrderID,
+			Type:         string(models.CustomerInvoiceTypeDownPayment),
+			Status:       string(models.CustomerInvoiceStatusPaid),
+			PerPage:      100,
+		}
+		if dps, _, err := uc.invoiceRepo.List(ctx, dpReq); err == nil {
+			var totalDP float64
+			for _, dp := range dps {
+				totalDP += dp.PaidAmount
+				// Link the first paid DP as the reference
+				if invoice.DownPaymentInvoiceID == nil {
+					dpIDStr := dp.ID
+					invoice.DownPaymentInvoiceID = &dpIDStr
+				}
+			}
+			invoice.DownPaymentAmount = totalDP
+			invoice.Amount = invoice.Amount - totalDP
+			if invoice.Amount < 0 {
+				invoice.Amount = 0
+			}
+		}
+	}
+
 	invoice.RemainingAmount = invoice.Amount - invoice.PaidAmount
 
 	if err := uc.invoiceRepo.Update(ctx, invoice); err != nil {
@@ -334,7 +462,21 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 		return ErrInvalidInvoiceStatus
 	}
 
-	return uc.invoiceRepo.Delete(ctx, id)
+	// Rollback InvoicedQuantity on SO items and delete in a transaction
+	return uc.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		for _, item := range invoice.Items {
+			if item.SalesOrderItemID != nil {
+				// Negative qty to decrement InvoicedQuantity
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(txCtx, *item.SalesOrderItemID, -item.Quantity); err != nil {
+					return fmt.Errorf("failed to rollback invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
+
+		return uc.invoiceRepo.Delete(txCtx, id)
+	})
 }
 
 func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error) {
@@ -359,42 +501,6 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 	}
 
 	if err := uc.invoiceRepo.UpdateStatus(ctx, id, newStatus, req.PaidAmount, paymentAt, userID); err != nil {
-		return nil, err
-	}
-
-	updatedInvoice, err := uc.invoiceRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
-}
-
-func (uc *customerInvoiceUsecase) RecordPayment(ctx context.Context, id string, req *dto.RecordPaymentRequest) (*dto.CustomerInvoiceResponse, error) {
-	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, ErrCustomerInvoiceNotFound
-	}
-
-	// Validate status
-	if invoice.Status != models.CustomerInvoiceStatusUnpaid && invoice.Status != models.CustomerInvoiceStatusPartial {
-		return nil, ErrInvalidInvoiceStatus
-	}
-
-	// Validate payment amount
-	if req.PaidAmount > invoice.RemainingAmount {
-		return nil, ErrInvalidPaymentAmount
-	}
-
-	var paymentAt *time.Time
-	if req.PaymentAt != nil && *req.PaymentAt != "" {
-		t, err := time.Parse(time.RFC3339, *req.PaymentAt)
-		if err == nil {
-			paymentAt = &t
-		}
-	}
-
-	if err := uc.invoiceRepo.RecordPayment(ctx, id, req.PaidAmount, paymentAt); err != nil {
 		return nil, err
 	}
 

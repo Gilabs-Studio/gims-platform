@@ -4,6 +4,7 @@ import type {
   CreateGoodsReceiptInput,
   GoodsReceiptAddResponse,
   GoodsReceiptAuditTrailEntry,
+  GoodsReceiptConvertResponse,
   GoodsReceiptDetail,
   GoodsReceiptListItem,
   GoodsReceiptListParams,
@@ -50,6 +51,31 @@ export const goodsReceiptsService = {
     return response.data;
   },
 
+  submit: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/reject`);
+    return response.data;
+  },
+
+  close: async (id: string): Promise<ApiResponse<GoodsReceiptDetail>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptDetail>>(`${BASE_URL}/${id}/close`);
+    return response.data;
+  },
+
+  convertToSupplierInvoice: async (id: string): Promise<ApiResponse<GoodsReceiptConvertResponse>> => {
+    const response = await apiClient.post<ApiResponse<GoodsReceiptConvertResponse>>(`${BASE_URL}/${id}/convert`);
+    return response.data;
+  },
+
   auditTrail: async (
     id: string,
     params?: { page?: number; per_page?: number },
@@ -67,5 +93,21 @@ export const goodsReceiptsService = {
       responseType: "blob",
     });
     return response.data as Blob;
+  },
+
+  /**
+   * Fetches the Goods Receipt PDF from the backend and opens it in a new browser tab.
+   */
+  openPrintWindow: async (id: string, companyId?: string): Promise<void> => {
+    const params = companyId ? { company_id: companyId } : undefined;
+    const response = await apiClient.get(`${BASE_URL}/${id}/print`, {
+      responseType: "blob" as const,
+      params,
+    });
+    const contentType = (response.headers["content-type"] as string) || "application/pdf";
+    const blob = new Blob([response.data as BlobPart], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

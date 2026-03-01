@@ -9,6 +9,8 @@ export const financeBankAccountsEn = {
     currency: "Currency",
     status: "Status",
     coa: "Chart of Account",
+    bankAddress: "Bank Address",
+    bankPhone: "Bank Phone",
   },
   status: {
     active: "Active",

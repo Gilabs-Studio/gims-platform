@@ -38,7 +38,7 @@ type Props = {
   parentOptions: Array<Pick<ChartOfAccount, "id" | "code" | "name">>;
 };
 
-const COA_TYPES: CoaType[] = ["asset", "liability", "equity", "revenue", "expense"];
+const COA_TYPES: CoaType[] = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"];
 
 export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }: Props) {
   const t = useTranslations("financeCoa");
@@ -50,7 +50,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
     () => ({
       code: initialData?.code ?? "",
       name: initialData?.name ?? "",
-      type: initialData?.type ?? "asset",
+      type: initialData?.type ?? "ASSET",
       parent_id: initialData?.parent_id ?? null,
       is_active: initialData?.is_active ?? true,
     }),
@@ -132,7 +132,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 <SelectContent>
                   {COA_TYPES.map((type) => (
                     <SelectItem key={type} value={type} className="cursor-pointer">
-                      {t(`types.${type}`)}
+                      {t(`types.${type.toLowerCase() as any}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>

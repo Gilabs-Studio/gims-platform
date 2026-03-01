@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ type NonTradePayableListParams struct {
 	Search    string
 	StartDate *time.Time
 	EndDate   *time.Time
+	Status    *financeModels.NonTradePayableStatus
 	Limit     int
 	Offset    int
 	SortBy    string
@@ -22,6 +24,7 @@ type NonTradePayableListParams struct {
 type NonTradePayableRepository interface {
 	FindByID(ctx context.Context, id string) (*financeModels.NonTradePayable, error)
 	List(ctx context.Context, params NonTradePayableListParams) ([]financeModels.NonTradePayable, int64, error)
+	GenerateCode(ctx context.Context, now time.Time) (string, error)
 }
 
 type nonTradePayableRepository struct {
@@ -56,7 +59,10 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 	q := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Preload("ChartOfAccount")
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("non_trade_payables.description ILIKE ? OR non_trade_payables.vendor_name ILIKE ? OR non_trade_payables.reference_no ILIKE ?", like, like, like)
+		q = q.Where("non_trade_payables.description ILIKE ? OR non_trade_payables.vendor_name ILIKE ? OR non_trade_payables.reference_no ILIKE ? OR non_trade_payables.code ILIKE ?", like, like, like, like)
+	}
+	if params.Status != nil {
+		q = q.Where("non_trade_payables.status = ?", *params.Status)
 	}
 	if params.StartDate != nil {
 		q = q.Where("non_trade_payables.transaction_date >= ?", *params.StartDate)
@@ -90,4 +96,15 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *nonTradePayableRepository) GenerateCode(ctx context.Context, now time.Time) (string, error) {
+	prefix := "NTP-" + now.Format("200601") + "-"
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).
+		Where("code LIKE ?", prefix+"%").
+		Count(&count).Error; err != nil {
+		return "", err
+	}
+	return prefix + fmt.Sprintf("%04d", count+1), nil
 }

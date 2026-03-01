@@ -6,6 +6,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/customer/data/models"
+	geoModels "github.com/gilabs/gims/api/internal/geographic/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm/clause"
 )
@@ -55,6 +56,48 @@ func SeedCustomers() error {
 	areaJabodetabek := AreaJabodetabekID
 	areaJawaBarat := AreaJawaBaratID
 	areaJawaTimur := AreaJawaTimurID
+
+	// Lookup province IDs by name so customers have province_id set for geo reports.
+	// Province names must match what geographic_seeder inserts from the GeoJSON.
+	provIDByName := map[string]string{}
+	var provinces []geoModels.Province
+	if err := db.Where("name IN ?", []string{"DKI Jakarta", "Jawa Barat", "Jawa Timur"}).Find(&provinces).Error; err != nil {
+		log.Printf("Warning: Could not fetch provinces for customer seeder: %v", err)
+	}
+	for _, p := range provinces {
+		provIDByName[p.Name] = p.ID
+	}
+	provJakarta := provIDByName["DKI Jakarta"]
+	provJabar := provIDByName["Jawa Barat"]
+	provJatim := provIDByName["Jawa Timur"]
+
+	var provJakartaPtr, provJabarPtr, provJatimPtr *string
+	if provJakarta != "" {
+		provJakartaPtr = &provJakarta
+	}
+	if provJabar != "" {
+		provJabarPtr = &provJabar
+	}
+	if provJatim != "" {
+		provJatimPtr = &provJatim
+	}
+
+	// Lookup city IDs by name (WADMKK values from BPS GeoJSON).
+	// City names stored in DB match the Indonesian BPS nomenclature (title-cased by the seeder).
+	lookupCity := func(partial string) *string {
+		var found []geoModels.City
+		if err := db.Where("name ILIKE ?", "%"+partial+"%").Limit(1).Find(&found).Error; err == nil && len(found) > 0 {
+			id := found[0].ID
+			return &id
+		}
+		return nil
+	}
+	cityJakartaSelatanPtr := lookupCity("Jakarta Selatan")
+	cityJakartaBaratPtr := lookupCity("Jakarta Barat")
+	cityJakartaPusatPtr := lookupCity("Jakarta Pusat")
+	cityBandungPtr := lookupCity("Bandung")
+	cityBekasiPtr := lookupCity("Kota Bekasi")
+	citySurabayaPtr := lookupCity("Surabaya")
 
 	// Business types — dynamic query (seeded by SeedOrganization, no fixed UUIDs)
 	var businessTypes []orgModels.BusinessType
@@ -130,6 +173,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btRetailID,
 			DefaultPaymentTermsID: ptNet30,
 			DefaultTaxRate:        &taxRate11,
+			ProvinceID:            provJakartaPtr,
+			CityID:                cityJakartaSelatanPtr,
 		},
 		{
 			ID:                    Customer2ID,
@@ -149,6 +194,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btInstitutionID,
 			DefaultPaymentTermsID: ptNet30,
 			DefaultTaxRate:        &taxRate11,
+			ProvinceID:            provJakartaPtr,
+			CityID:                cityJakartaBaratPtr,
 		},
 		{
 			ID:                    Customer3ID,
@@ -168,6 +215,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btInstitutionID,
 			DefaultPaymentTermsID: ptNet14,
 			DefaultTaxRate:        &taxRate11,
+			ProvinceID:            provJabarPtr,
+			CityID:                cityBandungPtr,
 		},
 		{
 			ID:                    Customer4ID,
@@ -187,6 +236,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btInstitutionID,
 			DefaultPaymentTermsID: ptNet30,
 			DefaultTaxRate:        &taxRate11,
+			ProvinceID:            provJatimPtr,
+			CityID:                citySurabayaPtr,
 		},
 		{
 			ID:                    Customer5ID,
@@ -206,6 +257,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btRetailID,
 			DefaultPaymentTermsID: ptNet14,
 			DefaultTaxRate:        &taxRate11,
+			ProvinceID:            provJabarPtr, // Bekasi is in Jawa Barat province
+			CityID:                cityBekasiPtr,
 		},
 		{
 			ID:                    Customer6ID,
@@ -225,6 +278,8 @@ func SeedCustomers() error {
 			DefaultBusinessTypeID: btInstitutionID,
 			DefaultPaymentTermsID: ptCOD,
 			DefaultTaxRate:        &taxRate0,
+			ProvinceID:            provJakartaPtr,
+			CityID:                cityJakartaPusatPtr,
 		},
 	}
 
@@ -235,6 +290,7 @@ func SeedCustomers() error {
 				"name", "updated_at",
 				"default_area_id", "default_sales_rep_id",
 				"default_business_type_id", "default_payment_terms_id", "default_tax_rate",
+				"province_id", "city_id",
 			}),
 		}).Create(&c).Error; err != nil {
 			log.Printf("Warning: Failed to seed customer %s: %v", c.Name, err)

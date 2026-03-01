@@ -292,13 +292,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Contact CRUD + Customer-Contact relation endpoints
-- [ ] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
+- [x] **API:** Contact CRUD + Customer-Contact relation endpoints
+- [x] **Frontend:** Customer side panel — tambah tab Contacts (bukan page terpisah di CRM)
 
 ### API Tasks
 
 #### Contact
-- [ ] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Contact` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Contact — Person associated with a Customer, child of Customer
@@ -319,44 +319,44 @@ type Contact struct {
 }
 ```
 
-- [ ] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
-- [ ] `GET /api/v1/crm/contacts/:id` — Get contact detail
-- [ ] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
-- [ ] `PUT /api/v1/crm/contacts/:id` — Update contact
-- [ ] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
-- [ ] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
-- [ ] Register model di `migrate.go`
-- [ ] Seeder: sample contacts linked to existing customers
-- [ ] Permission seeder: `crm_contact.read|create|update|delete`
+- [x] `GET /api/v1/crm/contacts` — List contacts (filterable by customer_id, contact_role_id, search)
+- [x] `GET /api/v1/crm/contacts/:id` — Get contact detail
+- [x] `POST /api/v1/crm/contacts` — Create contact (requires valid customer_id)
+- [x] `PUT /api/v1/crm/contacts/:id` — Update contact
+- [x] `DELETE /api/v1/crm/contacts/:id` — Soft delete contact
+- [x] `GET /api/v1/crm/contacts/form-data` — Returns: customers list, contact roles list
+- [x] Register model di `migrate.go`
+- [x] Seeder: sample contacts linked to existing customers
+- [x] Permission seeder: `crm_contact.read|create|update|delete`
 
 #### Customer Module Update
-- [ ] `GET /api/v1/customers/:id/contacts` — List contacts per customer (new endpoint di customer handler)
+- [x] `GET /api/v1/crm/contacts?customer_id=:id` — List contacts per customer (via CRM contacts endpoint with customer_id filter)
 - [ ] Update customer detail response — include `contacts` count
 
 ### Frontend Tasks
 
-- [ ] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
+- [x] **Update Customer side panel** (`/master-data/customers`) — tambah tab "Contacts"
   - Tab shows list of contacts for the customer
   - Quick-add contact button di dalam tab (opens contact side panel form)
   - Click contact → open contact side panel (create/edit/view)
-- [ ] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
-- [ ] i18n: contact translations (en/id)
+- [x] Contact side panel form (create/edit/view) — pola `supplier-side-panel.tsx`, bisa dibuka dari Customer tab, Lead, Deal, atau Visit
+- [x] i18n: contact translations (en/id)
 
 > **Note:** Tidak ada halaman `/crm/contacts` — Contact diakses hanya via tab di Customer side panel.
 
 ### Success Criteria
 
-- [ ] Contact CRUD berfungsi penuh (via API)
-- [ ] Contact wajib memiliki valid Customer reference
-- [ ] Customer side panel menampilkan tab Contacts
-- [ ] Quick-add contact dari Customer tab berfungsi
-- [ ] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
+- [x] Contact CRUD berfungsi penuh (via API)
+- [x] Contact wajib memiliki valid Customer reference
+- [x] Customer side panel menampilkan tab Contacts
+- [x] Quick-add contact dari Customer tab berfungsi
+- [x] Contact form side panel bisa dibuka dari Customer, Lead, Deal, dan Visit
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Customer module dependency — import customer models, no circular dependency
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Customer module dependency — import customer models, no circular dependency
 
 ### Table Relations
 
@@ -391,13 +391,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Lead CRUD + BANT + Analytics + Conversion
-- [ ] **Frontend:** Lead pages + conversion dialog
+- [x] **API:** Lead CRUD + BANT + Analytics + Conversion
+- [x] **Frontend:** Lead pages + conversion dialog
 
 ### API Tasks
 
 #### Lead
-- [ ] `Lead` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Lead` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Lead — Sales prospect with BANT qualification scoring
@@ -447,45 +447,45 @@ type Lead struct {
 }
 ```
 
-- [ ] `GET /api/v1/crm/leads` — List leads (filterable by status, source, assigned_to, score range, date range)
-- [ ] `GET /api/v1/crm/leads/:id` — Get lead detail with relations
-- [ ] `POST /api/v1/crm/leads` — Create lead (auto-assign default LeadStatus)
-- [ ] `PUT /api/v1/crm/leads/:id` — Update lead
-- [ ] `DELETE /api/v1/crm/leads/:id` — Soft delete lead
-- [ ] `GET /api/v1/crm/leads/form-data` — Returns: employees, lead sources, lead statuses, customers
-- [ ] `GET /api/v1/crm/leads/analytics` — Stats by status, source, conversion rate, avg score
-- [ ] `POST /api/v1/crm/leads/:id/convert` — **Lead Conversion** (see Business Logic)
-- [ ] Register model di `migrate.go`
-- [ ] Seeder: sample leads with varied statuses and scores
-- [ ] Permission seeder: `crm_lead.read|create|update|delete|convert`
+- [x] `GET /api/v1/crm/leads` — List leads (filterable by status, source, assigned_to, score range, date range)
+- [x] `GET /api/v1/crm/leads/:id` — Get lead detail with relations
+- [x] `POST /api/v1/crm/leads` — Create lead (auto-assign default LeadStatus)
+- [x] `PUT /api/v1/crm/leads/:id` — Update lead
+- [x] `DELETE /api/v1/crm/leads/:id` — Soft delete lead
+- [x] `GET /api/v1/crm/leads/form-data` — Returns: employees, lead sources, lead statuses, customers
+- [x] `GET /api/v1/crm/leads/analytics` — Stats by status, source, conversion rate, avg score
+- [x] `POST /api/v1/crm/leads/:id/convert` — **Lead Conversion** (see Business Logic)
+- [x] Register model di `migrate.go`
+- [x] Seeder: sample leads with varied statuses and scores
+- [x] Permission seeder: `crm_lead.read|create|update|delete|convert`
 
 ### Frontend Tasks
 
-- [ ] Lead list page `/crm/leads` — DataTable with advanced filters (status, source, assigned, score range)
-- [ ] Lead side panel form (create/edit/view) — includes BANT section
-- [ ] Lead detail page `/crm/leads/[id]` — full detail with activity timeline
-- [ ] Lead conversion dialog — mapping fields ke Customer + Contact + Deal
-- [ ] Lead analytics cards (di atas list atau di dashboard CRM)
-- [ ] i18n: lead translations (en/id)
-- [ ] Route: `app/[locale]/(dashboard)/crm/leads/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx`
+- [x] Lead list page `/crm/leads` — DataTable with advanced filters (status, source, assigned, score range)
+- [x] Lead dialog form (create/edit) — includes BANT section
+- [x] Lead detail page `/crm/leads/[id]` — full detail with activity timeline
+- [x] Lead conversion dialog — mapping fields ke Customer + Contact + Deal
+- [x] Lead analytics cards (di atas list atau di dashboard CRM)
+- [x] i18n: lead translations (en/id)
+- [x] Route: `app/[locale]/(dashboard)/crm/leads/page.tsx` + `loading.tsx`
+- [x] Route: `app/[locale]/(dashboard)/crm/leads/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Lead CRUD berfungsi penuh dengan semua filter
-- [ ] Lead Score dihitung berdasarkan BANT fields + LeadStatus score
-- [ ] Lead conversion membuat Customer (jika baru) + Contact + Deal
-- [ ] Lead yang sudah di-convert tidak bisa di-convert lagi
-- [ ] Analytics endpoint mengembalikan data by status dan source
-- [ ] Default LeadStatus otomatis di-assign saat create
+- [x] Lead CRUD berfungsi penuh dengan semua filter
+- [x] Lead Score dihitung berdasarkan BANT fields + LeadStatus score
+- [x] Lead conversion membuat Customer (jika baru) + Contact + Deal
+- [x] Lead yang sudah di-convert tidak bisa di-convert lagi
+- [x] Analytics endpoint mengembalikan data by status dan source
+- [x] Default LeadStatus otomatis di-assign saat create
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Customer module dependency — create customer saat conversion
-- [ ] Contact dependency — create contact saat conversion
-- [ ] Deal dependency (Sprint 20) — create deal saat conversion (defer jika Sprint 20 belum selesai, buat tanpa deal dulu)
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Customer module dependency — create customer saat conversion
+- [x] Contact dependency — create contact saat conversion
+- [x] Deal dependency (Sprint 20) — create deal saat conversion (Sprint 20 complete, can integrate)
 
 ### Table Relations
 
@@ -552,13 +552,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
-- [ ] **Frontend:** Pipeline Kanban board + Deal form + History timeline
+- [x] **API:** Deal CRUD + Kanban + Stage Move + History + Product Items
+- [x] **Frontend:** Pipeline Kanban board + Deal form + History timeline
 
 ### API Tasks
 
 #### Deal
-- [ ] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Deal` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Deal — Sales opportunity tracked through pipeline stages
@@ -606,7 +606,7 @@ type Deal struct {
 ```
 
 #### Deal Product Item
-- [ ] `DealProductItem` - Model (nested CRUD via Deal)
+- [x] `DealProductItem` - Model (nested CRUD via Deal)
 
 ```go
 // DealProductItem — Product line items in a deal (snapshot pricing)
@@ -628,7 +628,7 @@ type DealProductItem struct {
 ```
 
 #### Deal History
-- [ ] `DealHistory` - Model (auto-created on stage move)
+- [x] `DealHistory` - Model (auto-created on stage move)
 
 ```go
 // DealHistory — Audit trail of pipeline stage transitions
@@ -650,55 +650,55 @@ type DealHistory struct {
 ```
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
-- [ ] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
-- [ ] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
-- [ ] `POST /api/v1/crm/deals` — Create deal (with product items)
-- [ ] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
-- [ ] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
-- [ ] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
-- [ ] `GET /api/v1/crm/deals/:id/history` — Get stage change history
-- [ ] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
-- [ ] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
-- [ ] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample deals with product items across pipeline stages
-- [ ] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
+- [x] `GET /api/v1/crm/deals` — List deals (filterable by stage, status, customer, assigned_to, date range, value range)
+- [x] `GET /api/v1/crm/deals/by-stage` — Deals grouped by pipeline stage (for Kanban)
+- [x] `GET /api/v1/crm/deals/:id` — Get deal detail with items + history
+- [x] `POST /api/v1/crm/deals` — Create deal (with product items)
+- [x] `PUT /api/v1/crm/deals/:id` — Update deal (with product items sync)
+- [x] `DELETE /api/v1/crm/deals/:id` — Soft delete deal
+- [x] `POST /api/v1/crm/deals/:id/move-stage` — Move deal to stage (creates history, updates probability)
+- [x] `GET /api/v1/crm/deals/:id/history` — Get stage change history
+- [x] `GET /api/v1/crm/deals/form-data` — Returns: customers, contacts, pipeline stages, employees, products
+- [x] `GET /api/v1/crm/pipeline/summary` — Value per stage, count, avg days
+- [x] `GET /api/v1/crm/pipeline/forecast` — Revenue forecast (weighted probability)
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample deals with product items across pipeline stages
+- [x] Permission seeder: `crm_deal.read|create|update|delete|move_stage`
 
 ### Frontend Tasks
 
-- [ ] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
+- [x] **Pipeline Kanban board** `/crm/pipeline` — drag-and-drop deals between stages
   - Columns = pipeline stages (ordered)
   - Cards = deals (show title, customer, value, probability, assigned rep)
   - Drag deal card → trigger `move-stage` API
   - Stage summary at column header (total value, deal count)
-- [ ] Deal side panel form (create/edit/view) — with product items table
+- [x] Deal side panel form (create/edit/view) — with product items table
   - Product items: add/remove products, set quantity, price, discount
   - Auto-calculate deal value from items subtotal
   - BANT section (collapsible)
-- [ ] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
-- [ ] Pipeline summary dashboard cards (value funnel, forecast)
-- [ ] i18n: deal/pipeline translations (en/id)
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
-- [ ] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
+- [x] Deal detail page `/crm/pipeline/[id]` — full detail with history timeline
+- [x] Pipeline summary dashboard cards (value funnel, forecast)
+- [x] i18n: deal/pipeline translations (en/id)
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/page.tsx` + `loading.tsx`
+- [x] Route: `app/[locale]/(dashboard)/crm/pipeline/[id]/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Kanban board render stages sebagai kolom, deals sebagai cards
-- [ ] Drag-and-drop memindahkan deal ke stage baru + auto-create history
-- [ ] Deal value auto-calculated dari product items jika ada items
-- [ ] Deal probability auto-sync dari stage probability saat move
-- [ ] History timeline menampilkan semua stage transitions
-- [ ] Product items bisa add/remove/edit di dalam deal form
-- [ ] Pipeline summary dan forecast menampilkan data aggregate yang benar
-- [ ] Won/Lost stage move mengubah deal status + set ActualCloseDate
+- [x] Kanban board render stages sebagai kolom, deals sebagai cards
+- [x] Drag-and-drop memindahkan deal ke stage baru + auto-create history
+- [x] Deal value auto-calculated dari product items jika ada items
+- [x] Deal probability auto-sync dari stage probability saat move
+- [x] History timeline menampilkan semua stage transitions
+- [x] Product items bisa add/remove/edit di dalam deal form
+- [x] Pipeline summary dan forecast menampilkan data aggregate yang benar
+- [x] Won/Lost stage move mengubah deal status + set ActualCloseDate
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Product module dependency — reference `products.id` dari ERP
-- [ ] Customer & Contact dependency — FK relations
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Product module dependency — reference `products.id` dari ERP
+- [x] Customer & Contact dependency — FK relations
 
 ### Table Relations
 
@@ -754,14 +754,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Deal conversion to Sales Quotation + Stock availability check
-- [ ] **Frontend:** Conversion UI + Stock indicator
-- [ ] **Migration:** Deprecate Sales Estimation, data migration script
+- [x] **API:** Deal conversion to Sales Quotation + Stock availability check
+- [x] **Frontend:** Conversion UI + Stock indicator
+- [x] **Migration:** Deprecate Sales Estimation, data migration script
 
 ### API Tasks
 
 #### Deal → Sales Quotation Conversion
-- [ ] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
+- [x] `POST /api/v1/crm/deals/:id/convert-to-quotation` — Auto-create Sales Quotation dari Deal
 
 ```
 Request Body (optional overrides):
@@ -784,7 +784,7 @@ Response:
 ```
 
 #### Stock Availability Check
-- [ ] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
+- [x] `GET /api/v1/crm/deals/:id/stock-check` — Query ERP inventory per deal product items
 
 ```
 Response:
@@ -808,42 +808,42 @@ Response:
 ```
 
 #### Sales Estimation Deprecation
-- [ ] Create migration script: `cmd/tools/migrate-estimations/main.go`
+- [x] Create migration script: `cmd/tools/migrate-estimations/main.go`
   - Convert existing `SalesEstimation` records ke `Deal` records
   - Map fields: CustomerID, Items → DealProductItems, Probability, ExpectedCloseDate
   - Set pipeline stage based on estimation status (draft → Qualification, submitted → Proposal, approved → Negotiation, converted → Closed Won)
   - Preserve original estimation data (soft archive, not delete)
-- [ ] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
-- [ ] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
+- [x] Update `menu_seeder.go` — set Sales Estimation menu IsActive = false
+- [x] Add redirect endpoint: `GET /api/v1/sales/estimations` → returns 301 with redirect info to `/crm/pipeline`
 
 ### Frontend Tasks
 
-- [ ] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
+- [x] "Convert to Quotation" button di Deal detail page (visible saat `status = "won"`)
   - Confirmation dialog with optional overrides (payment terms, business unit, etc.)
   - Success: show link ke quotation yang dibuat
-- [ ] Stock availability indicator di Deal form — per product item
+- [x] Stock availability indicator di Deal form — per product item
   - Green badge: stock sufficient
   - Red badge: stock insufficient with available/requested counts
-- [ ] "Check Stock" button di deal detail yang memanggil stock-check API
-- [ ] **Update Sales menu**: remove/hide "Sales Estimation" link
-- [ ] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
-- [ ] Notification toast saat deal di-convert ke quotation
+- [x] "Check Stock" button di deal detail yang memanggil stock-check API
+- [x] **Update Sales menu**: remove/hide "Sales Estimation" link
+- [x] **Add redirect**: `/sales/estimations` → redirect ke `/crm/pipeline`
+- [x] Notification toast saat deal di-convert ke quotation
 
 ### Success Criteria
 
-- [ ] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
-- [ ] Stock check menampilkan available vs requested per product item
-- [ ] Migration script berhasil convert existing estimations ke deals
-- [ ] Sales Estimation menu tersembunyi
-- [ ] `/sales/estimations` redirect ke `/crm/pipeline`
-- [ ] Quotation yang dibuat dari deal memiliki link balik ke deal
+- [x] Deal won → convert to quotation: creates valid Sales Quotation with correct items, prices, customer data
+- [x] Stock check menampilkan available vs requested per product item
+- [x] Migration script berhasil convert existing estimations ke deals
+- [x] Sales Estimation menu tersembunyi
+- [x] `/sales/estimations` redirect ke `/crm/pipeline`
+- [x] Quotation yang dibuat dari deal memiliki link balik ke deal
 
 ### Integration Requirements
 
-- [ ] Permission integration check: `crm_deal.convert_quotation` permission
-- [ ] Sales module dependency — create SalesQuotation + SalesQuotationItems
-- [ ] Inventory module dependency — query InventoryBatch for stock check
-- [ ] Product module dependency — get current pricing for snapshot
+- [x] Permission integration check: `crm_deal.convert_quotation` permission
+- [x] Sales module dependency — create SalesQuotation + SalesQuotationItems
+- [x] Inventory module dependency — query InventoryBatch for stock check
+- [x] Product module dependency — get current pricing for snapshot
 
 ### Table Relations
 
@@ -899,14 +899,14 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
+- [x] **API:** VisitReport CRUD + Approval + GPS + Photos + Interest Survey
 - [ ] **Frontend:** Visit report pages + approval interface
 - [ ] **Migration:** Deprecate existing SalesVisit
 
 ### API Tasks
 
 #### Visit Report (Merged Entity)
-- [ ] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `VisitReport` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // VisitReport — Merged entity from ERP SalesVisit + CRM VisitReport
@@ -968,7 +968,7 @@ type VisitReport struct {
 ```
 
 #### Visit Report Detail (Product Interest — from ERP SalesVisitDetail)
-- [ ] `VisitReportDetail` - Model
+- [x] `VisitReportDetail` - Model
 
 ```go
 // VisitReportDetail — Product interest tracking per visit (from ERP SalesVisitDetail)
@@ -988,7 +988,7 @@ type VisitReportDetail struct {
 ```
 
 #### Visit Report Progress History
-- [ ] `VisitReportProgressHistory` - Model
+- [x] `VisitReportProgressHistory` - Model
 
 ```go
 type VisitReportProgressHistory struct {
@@ -1003,32 +1003,32 @@ type VisitReportProgressHistory struct {
 ```
 
 #### Interest Survey (reuse dari ERP)
-- [ ] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
-- [ ] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
+- [x] Reuse existing `SalesVisitInterestQuestion`, `SalesVisitInterestOption` models
+- [x] `VisitReportInterestAnswer` — links to survey questions/options per visit detail
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
-- [ ] `GET /api/v1/crm/visits/:id` — Get detail with details + history
-- [ ] `POST /api/v1/crm/visits` — Create visit report
-- [ ] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
-- [ ] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
-- [ ] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
-- [ ] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
-- [ ] `PATCH /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
-- [ ] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
-- [ ] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
-- [ ] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
-- [ ] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample visit reports with varied statuses
-- [ ] Permission seeder: `crm_visit.read|create|update|delete|approve`
+- [x] `GET /api/v1/crm/visits` — List visit reports (filterable by status, customer, employee, date range, outcome)
+- [x] `GET /api/v1/crm/visits/:id` — Get detail with details + history
+- [x] `POST /api/v1/crm/visits` — Create visit report
+- [x] `PUT /api/v1/crm/visits/:id` — Update visit report (only if draft)
+- [x] `DELETE /api/v1/crm/visits/:id` — Soft delete (only if draft)
+- [x] `POST /api/v1/crm/visits/:id/check-in` — GPS check-in (sets CheckInAt + CheckInLocation)
+- [x] `POST /api/v1/crm/visits/:id/check-out` — GPS check-out (sets CheckOutAt + CheckOutLocation)
+- [x] `POST /api/v1/crm/visits/:id/submit` — Submit for approval (draft → submitted)
+- [x] `POST /api/v1/crm/visits/:id/approve` — Approve visit report (submitted → approved)
+- [x] `POST /api/v1/crm/visits/:id/reject` — Reject visit report (submitted → rejected, requires reason)
+- [x] `POST /api/v1/crm/visits/:id/photos` — Upload photos (multipart)
+- [x] `GET /api/v1/crm/visits/form-data` — Returns: customers, contacts, employees, deals, leads, interest questions
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample visit reports with varied statuses
+- [x] Permission seeder: `crm_visit.read|create|update|delete|approve`
 
 #### SalesVisit Deprecation
 - [ ] Create migration script: `cmd/tools/migrate-sales-visits/main.go`
   - Convert existing `SalesVisit` records ke `VisitReport` records
   - Map: CompanyID → CustomerID (lookup company → customer mapping), Details, ProgressHistory
   - Preserve original data (soft archive)
-- [ ] Update `menu_seeder.go` — set Sales Visit menu IsActive = false
+- [x] Update `menu_seeder.go` — set Sales Visit menu IsActive = false (removed from Sales menu, added to CRM)
 - [ ] Add redirect: `GET /api/v1/sales/visits` → 301 redirect info to `/crm/visits`
 
 ### Frontend Tasks
@@ -1060,12 +1060,12 @@ type VisitReportProgressHistory struct {
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
+- [x] Permission integration check (RBAC)
 - [ ] i18n integration check (request.ts)
-- [ ] Customer module — FK reference
-- [ ] Product module — FK reference untuk interest details
+- [x] Customer module — FK reference
+- [x] Product module — FK reference untuk interest details
 - [ ] File upload — photos via existing upload infrastructure
-- [ ] SalesVisitInterestQuestion/Option — reuse existing models atau migrate ke CRM
+- [x] SalesVisitInterestQuestion/Option — reuse existing models (FK reference)
 
 ### Table Relations
 
@@ -1121,13 +1121,13 @@ erDiagram
 
 ### Deliverables
 
-- [ ] **API:** Activity logging + Task CRUD + Schedule CRUD + Reminders
-- [ ] **Frontend:** Activity timeline + Task management + Schedule calendar
+- [x] **API:** Activity logging + Task CRUD + Schedule CRUD + Reminders
+- [x] **Frontend:** Activity timeline + Task management + Schedule calendar
 
 ### API Tasks
 
 #### Activity
-- [ ] `Activity` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Activity` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Activity — Immutable log of all CRM interactions
@@ -1152,7 +1152,7 @@ type Activity struct {
 ```
 
 #### Task
-- [ ] `Task` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Task` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Task — Actionable items with assignment and priority
@@ -1180,7 +1180,7 @@ type Task struct {
 ```
 
 #### Reminder
-- [ ] `Reminder` - Model (nested CRUD via Task)
+- [x] `Reminder` - Model (nested CRUD via Task)
 
 ```go
 // Reminder — Notification triggers for tasks
@@ -1198,7 +1198,7 @@ type Reminder struct {
 ```
 
 #### Schedule
-- [ ] `Schedule` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
+- [x] `Schedule` - Model, Repository, DTO, Mapper, Usecase, Handler, Router
 
 ```go
 // Schedule — Calendar entries for planned activities
@@ -1218,63 +1218,63 @@ type Schedule struct {
 ```
 
 #### Endpoints
-- [ ] `GET /api/v1/crm/activities` — List activities (filterable by type, customer, employee, date range)
-- [ ] `GET /api/v1/crm/activities/:id` — Get activity detail
-- [ ] `POST /api/v1/crm/activities` — Create activity manually (rate-limited: 60/min)
-- [ ] `GET /api/v1/crm/activities/timeline` — Activity timeline (chronological, paginated)
-- [ ] `GET /api/v1/crm/tasks` — List tasks (filterable by status, priority, assigned_to, due_date range)
-- [ ] `GET /api/v1/crm/tasks/:id` — Get task detail with reminders
-- [ ] `POST /api/v1/crm/tasks` — Create task
-- [ ] `PUT /api/v1/crm/tasks/:id` — Update task
-- [ ] `DELETE /api/v1/crm/tasks/:id` — Soft delete task
-- [ ] `POST /api/v1/crm/tasks/:id/assign` — Assign task to employee
-- [ ] `POST /api/v1/crm/tasks/:id/complete` — Mark task as completed
-- [ ] `POST /api/v1/crm/tasks/:id/in-progress` — Mark task as in progress
-- [ ] Task Reminders: nested CRUD (`GET|POST|PUT|DELETE /api/v1/crm/tasks/:id/reminders`)
-- [ ] `GET /api/v1/crm/schedules` — List schedules (filterable by employee, date range, status)
-- [ ] `GET /api/v1/crm/schedules/:id` — Get schedule detail
-- [ ] `POST /api/v1/crm/schedules` — Create schedule
-- [ ] `PUT /api/v1/crm/schedules/:id` — Update schedule
-- [ ] `DELETE /api/v1/crm/schedules/:id` — Soft delete schedule
-- [ ] `GET /api/v1/crm/tasks/form-data` — Returns: employees, customers, contacts, deals
-- [ ] Register models di `migrate.go`
-- [ ] Seeder: sample activities, tasks, schedules
-- [ ] Permission seeder: `crm_activity.read|create`, `crm_task.read|create|update|delete|assign`, `crm_schedule.read|create|update|delete`
+- [x] `GET /api/v1/crm/activities` — List activities (filterable by type, customer, employee, date range)
+- [x] `GET /api/v1/crm/activities/:id` — Get activity detail
+- [x] `POST /api/v1/crm/activities` — Create activity manually (rate-limited: 60/min)
+- [x] `GET /api/v1/crm/activities/timeline` — Activity timeline (chronological, paginated)
+- [x] `GET /api/v1/crm/tasks` — List tasks (filterable by status, priority, assigned_to, due_date range)
+- [x] `GET /api/v1/crm/tasks/:id` — Get task detail with reminders
+- [x] `POST /api/v1/crm/tasks` — Create task
+- [x] `PUT /api/v1/crm/tasks/:id` — Update task
+- [x] `DELETE /api/v1/crm/tasks/:id` — Soft delete task
+- [x] `POST /api/v1/crm/tasks/:id/assign` — Assign task to employee
+- [x] `POST /api/v1/crm/tasks/:id/complete` — Mark task as completed
+- [x] `POST /api/v1/crm/tasks/:id/in-progress` — Mark task as in progress
+- [x] Task Reminders: nested CRUD (`GET|POST|PUT|DELETE /api/v1/crm/tasks/:id/reminders`)
+- [x] `GET /api/v1/crm/schedules` — List schedules (filterable by employee, date range, status)
+- [x] `GET /api/v1/crm/schedules/:id` — Get schedule detail
+- [x] `POST /api/v1/crm/schedules` — Create schedule
+- [x] `PUT /api/v1/crm/schedules/:id` — Update schedule
+- [x] `DELETE /api/v1/crm/schedules/:id` — Soft delete schedule
+- [x] `GET /api/v1/crm/tasks/form-data` — Returns: employees, customers, contacts, deals
+- [x] Register models di `migrate.go`
+- [x] Seeder: sample activities, tasks, schedules
+- [x] Permission seeder: `crm_activity.read|create`, `crm_task.read|create|update|delete|assign`, `crm_schedule.read|create|update|delete`
 
 ### Frontend Tasks
 
-- [ ] Activity timeline page `/crm/activities` — chronological feed with entity filters
+- [x] Activity timeline page `/crm/activities` — chronological feed with entity filters
   - Each activity shows: icon (by type), description, timestamp, linked entities (customer, deal, lead)
   - Filter by type, customer, employee, date range
-- [ ] Task list page `/crm/tasks` — DataTable with status/priority filters
+- [x] Task list page `/crm/tasks` — DataTable with status/priority filters
   - Task status badge (color-coded by priority)
   - Quick actions: assign, complete, in-progress
   - Overdue indicator for past-due tasks
-- [ ] Task form (side panel) — with reminder setup
-- [ ] Schedule calendar page `/crm/schedules` — week/month view
+- [x] Task form (side panel) — with reminder setup
+- [x] Schedule calendar page `/crm/schedules` — week/month view
   - Calendar grid showing scheduled activities
   - Click to create new schedule
   - Color-coded by status
-- [ ] i18n: activity/task/schedule translations (en/id)
-- [ ] Routes: `app/[locale]/(dashboard)/crm/activities/page.tsx` + `loading.tsx`
-- [ ] Routes: `app/[locale]/(dashboard)/crm/tasks/page.tsx` + `loading.tsx`
-- [ ] Routes: `app/[locale]/(dashboard)/crm/schedules/page.tsx` + `loading.tsx`
+- [x] i18n: activity/task/schedule translations (en/id)
+- [x] Routes: `app/[locale]/(dashboard)/crm/activities/page.tsx` + `loading.tsx`
+- [x] Routes: `app/[locale]/(dashboard)/crm/tasks/page.tsx` + `loading.tsx`
+- [x] Routes: `app/[locale]/(dashboard)/crm/schedules/page.tsx` + `loading.tsx`
 
 ### Success Criteria
 
-- [ ] Activity timeline menampilkan semua CRM activities secara kronologis
-- [ ] Task CRUD + assignment berfungsi
-- [ ] Task completion mengubah status dan set CompletedAt
-- [ ] Reminders tersimpan dan terkait ke tasks
-- [ ] Schedule calendar menampilkan jadwal per minggu/bulan
-- [ ] Activities auto-logged dari modul lain (lead, deal, visit) — Sprint sebelumnya
-- [ ] Task overdue indicator tampil untuk tasks melewati due date
+- [x] Activity timeline menampilkan semua CRM activities secara kronologis
+- [x] Task CRUD + assignment berfungsi
+- [x] Task completion mengubah status dan set CompletedAt
+- [x] Reminders tersimpan dan terkait ke tasks
+- [x] Schedule calendar menampilkan jadwal per minggu/bulan
+- [x] Activities auto-logged dari modul lain (lead, deal, visit) — Sprint sebelumnya
+- [x] Task overdue indicator tampil untuk tasks melewati due date
 
 ### Integration Requirements
 
-- [ ] Permission integration check (RBAC)
-- [ ] i18n integration check (request.ts)
-- [ ] Activity auto-logging: dipanggil dari Lead, Deal, Visit usecases
+- [x] Permission integration check (RBAC)
+- [x] i18n integration check (request.ts)
+- [x] Activity auto-logging: dipanggil dari Lead, Deal, Visit usecases
 
 ### Table Relations
 

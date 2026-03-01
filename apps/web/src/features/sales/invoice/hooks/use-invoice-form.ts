@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,9 +24,10 @@ export interface UseInvoiceFormProps {
   invoice?: CustomerInvoice | null;
   open: boolean;
   onClose: () => void;
+  defaultSalesOrderId?: string;
 }
 
-export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) {
+export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: UseInvoiceFormProps) {
   const isEdit = !!invoice;
   const t = useTranslations("invoice");
   const createInvoice = useCreateInvoice();
@@ -34,6 +35,11 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+
+  type QuickCreateType = "paymentTerm" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
+  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
   // Fetch full invoice data with items when editing
   const { data: fullInvoiceData, isLoading: isLoadingInvoice, isFetching: isFetchingInvoice } = useInvoice(
@@ -89,6 +95,7 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
       : {
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
+          sales_order_id: defaultSalesOrderId ?? undefined,
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
@@ -184,7 +191,7 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
     }
 
     // For create mode: load from localStorage or use defaults
-    const cached = localStorage.getItem(STORAGE_KEY);
+    const cached = !defaultSalesOrderId ? localStorage.getItem(STORAGE_KEY) : null;
     if (cached) {
       try {
         const parsedData = JSON.parse(cached);
@@ -194,6 +201,7 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
         reset({
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
+          sales_order_id: defaultSalesOrderId ?? undefined,
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
@@ -204,13 +212,14 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
       reset({
         invoice_date: new Date().toISOString().split("T")[0],
         type: "regular",
+        sales_order_id: defaultSalesOrderId ?? undefined,
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
       });
     }
-  }, [open, isEdit, fullInvoiceData, reset]);
+  }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId]);
 
   const saveToLocalStorage = (data: CreateInvoiceFormData | UpdateInvoiceFormData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -350,6 +359,11 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
     }
   };
 
+  const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
+    form.setValue("payment_terms_id", item.id, { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, form]);
+
   return {
     form,
     t,
@@ -375,5 +389,9 @@ export function useInvoiceForm({ invoice, open, onClose }: UseInvoiceFormProps) 
     handleProductChange,
     handleDialogChange,
     onInvalid,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
   };
 }

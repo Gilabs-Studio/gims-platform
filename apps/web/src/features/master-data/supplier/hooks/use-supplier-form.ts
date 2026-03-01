@@ -19,7 +19,7 @@ export const supplierFormSchema = z.object({
   province_id: z.string().optional(),
   city_id: z.string().optional(),
   district_id: z.string().optional(),
-  village_id: z.string().optional(),
+  village_name: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
   npwp: z.string().max(30, "NPWP cannot exceed 30 characters").optional(),
@@ -37,9 +37,11 @@ export interface UseSupplierFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Supplier | null;
+  /** Called after a successful create with id and name of the new item */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplierFormProps) {
+export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: UseSupplierFormProps) {
   const t = useTranslations("supplier.supplier");
   const tCommon = useTranslations("supplier.common");
   
@@ -69,7 +71,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
       province_id: "",
       city_id: "",
       district_id: "",
-      village_id: "",
+      village_name: "",
       email: "",
       website: "",
       npwp: "",
@@ -91,7 +93,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
           province_id: activeItem.province_id ?? "",
           city_id: activeItem.city_id ?? "",
           district_id: activeItem.district_id ?? "",
-          village_id: activeItem.village_id ?? "",
+          village_name: activeItem.village_name ?? "",
           email: activeItem.email ?? "",
           website: activeItem.website ?? "",
           npwp: activeItem.npwp ?? "",
@@ -109,7 +111,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
           province_id: "",
           city_id: "",
           district_id: "",
-          village_id: "",
+          village_name: "",
           email: "",
           website: "",
           npwp: "",
@@ -132,7 +134,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
         province_id: data.province_id || undefined,
         city_id: data.city_id || undefined,
         district_id: data.district_id || undefined,
-        village_id: data.village_id || undefined,
+        village_name: data.village_name || undefined,
         email: data.email || undefined,
         website: data.website || undefined,
         npwp: data.npwp || undefined,
@@ -151,8 +153,9 @@ export function useSupplierForm({ open, onOpenChange, editingItem }: UseSupplier
         toast.success(t("updateSuccess", { fallback: "Supplier updated successfully" }));
       } else {
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        await createMutation.mutateAsync(payload as any);
+        const result = await createMutation.mutateAsync(payload as any);
         toast.success(t("createSuccess", { fallback: "Supplier created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
     } catch {

@@ -119,15 +119,10 @@ func SeedPurchaseRequisition() error {
 		notes   string
 	}{
 		{purchaseModels.PurchaseRequisitionStatusDraft, 1, 3, 11, "Draft PR for restock"},
-		{purchaseModels.PurchaseRequisitionStatusDraft, 2, 2, 0, "Urgent PR"},
 		{purchaseModels.PurchaseRequisitionStatusApproved, 3, 4, 11, "Approved PR"},
-		{purchaseModels.PurchaseRequisitionStatusRejected, 4, 2, 11, "Rejected PR sample"},
-		{purchaseModels.PurchaseRequisitionStatusConverted, 5, 5, 11, "Converted PR sample"},
-		{purchaseModels.PurchaseRequisitionStatusApproved, 6, 2, 0, "Equipment PR"},
-		{purchaseModels.PurchaseRequisitionStatusDraft, 7, 3, 11, "Monthly supply PR"},
-		{purchaseModels.PurchaseRequisitionStatusDraft, 8, 1, 11, "Ad-hoc parts PR"},
-		{purchaseModels.PurchaseRequisitionStatusApproved, 9, 2, 0, "Software license PR"},
-		{purchaseModels.PurchaseRequisitionStatusConverted, 10, 3, 11, "Bulk order PR"},
+		{purchaseModels.PurchaseRequisitionStatusRejected, 5, 2, 11, "Rejected PR sample"},
+		{purchaseModels.PurchaseRequisitionStatusConverted, 7, 3, 11, "Converted PR sample"},
+		{purchaseModels.PurchaseRequisitionStatusDraft, 9, 2, 0, "Equipment PR"},
 	}
 
 	for i, def := range seedDefs {

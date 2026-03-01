@@ -48,12 +48,13 @@ function AvatarImage({
     }
   }, [src, setImageLoaded]);
 
+  // Avoid calling setState during render — effects handle notifying parent
   if (hasError || !src) {
-    setImageLoaded(false);
     return null;
   }
 
   return (
+    /* eslint-disable-next-line @next/next/no-img-element */
     <img
       src={src}
       alt={alt}
@@ -68,21 +69,29 @@ function AvatarImage({
   );
 }
 
-function AvatarFallback({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarFallback({ className, children, dataSeed, ...props }: React.PropsWithChildren<React.ComponentProps<"div"> & { dataSeed?: string }>) {
   const { imageLoaded } = React.useContext(AvatarContext);
 
   if (imageLoaded) {
     return null;
   }
 
+  const seedText = dataSeed ?? (typeof children === "string" && children.trim().length > 0 ? children.trim() : "user");
+  const seed = encodeURIComponent(seedText);
+  // Use DiceBear 'lorelei' style (consistent with user module)
+  const dicebearUrl = `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}`;
+
   return (
     <div
       className={cn(
-        "absolute flex h-full w-full items-center justify-center rounded-full bg-muted",
+        "absolute flex h-full w-full items-center justify-center rounded-full bg-muted overflow-hidden",
         className,
       )}
       {...props}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={dicebearUrl} alt={seedText} className="h-full w-full object-cover" />
+    </div>
   );
 }
 

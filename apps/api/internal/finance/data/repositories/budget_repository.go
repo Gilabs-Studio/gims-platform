@@ -23,6 +23,7 @@ type BudgetListParams struct {
 type BudgetRepository interface {
 	FindByID(ctx context.Context, id string, withItems bool) (*financeModels.Budget, error)
 	List(ctx context.Context, params BudgetListParams) ([]financeModels.Budget, int64, error)
+	SyncActuals(ctx context.Context, budgetID string) error
 }
 
 type budgetRepository struct {
@@ -98,4 +99,31 @@ func (r *budgetRepository) List(ctx context.Context, params BudgetListParams) ([
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *budgetRepository) SyncActuals(ctx context.Context, budgetID string) error {
+	// Query to update actual_amount based on journal lines
+	// For simplicity and correctness across account types, we join chart_of_accounts
+	query := `
+		UPDATE budget_items bi
+		SET actual_amount = (
+			SELECT COALESCE(SUM(
+				CASE 
+					WHEN coa.type IN ('expense', 'asset') THEN jl.debit - jl.credit
+					ELSE jl.credit - jl.debit
+				END
+			), 0)
+			FROM journal_lines jl
+			JOIN journal_entries je ON je.id = jl.journal_entry_id
+			JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
+			WHERE jl.chart_of_account_id = bi.chart_of_account_id
+			  AND je.entry_date >= b.start_date
+			  AND je.entry_date <= b.end_date
+			  AND je.status = 'posted'
+		)
+		FROM budgets b
+		WHERE bi.budget_id = b.id
+		  AND b.id = ?
+	`
+	return r.db.WithContext(ctx).Exec(query, budgetID).Error
 }

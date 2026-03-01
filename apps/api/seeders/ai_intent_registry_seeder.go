@@ -403,14 +403,7 @@ func SeedAIIntentRegistry() error {
 			ParameterSchema: strPtr(`{"delivery_order_id":"uuid","customer_name":"string"}`),
 			IsActive: true,
 		},
-		{
-			ID: IntentListSalesVisitsID, IntentCode: "LIST_SALES_VISITS", DisplayName: "List Sales Visits",
-			Description: "Query sales visit records",
-			Module: "sales", ActionType: "QUERY", RequiredPermission: "sales_visit.read", RequiresConfirmation: false,
-			EndpointPath: "/api/v1/sales/visits",
-			ParameterSchema: strPtr(`{"search":"string","date_from":"string(YYYY-MM-DD)","date_to":"string(YYYY-MM-DD)"}`),
-			IsActive: true,
-		},
+		// LIST_SALES_VISITS intent removed because sales visit reports were disabled in seeders
 		{
 			ID: IntentListSalesEstimationsID, IntentCode: "LIST_SALES_ESTIMATIONS", DisplayName: "List Sales Estimations",
 			Description: "Query sales estimations",
@@ -750,7 +743,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListProvincesID, IntentCode: "LIST_PROVINCES", DisplayName: "List Provinces",
 			Description: "Query provinces",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "province.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/provinces",
 			ParameterSchema: strPtr(`{"search":"string","country_id":"uuid"}`),
 			IsActive: true,
@@ -758,7 +751,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListCitiesID, IntentCode: "LIST_CITIES", DisplayName: "List Cities",
 			Description: "Query cities/regencies",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "city.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/cities",
 			ParameterSchema: strPtr(`{"search":"string","province_id":"uuid"}`),
 			IsActive: true,
@@ -766,7 +759,7 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListDistrictsID, IntentCode: "LIST_DISTRICTS", DisplayName: "List Districts",
 			Description: "Query districts",
-			Module: "geographic", ActionType: "QUERY", RequiredPermission: "district.read", RequiresConfirmation: false,
+			Module: "geographic", ActionType: "QUERY", RequiredPermission: "geographic.read", RequiresConfirmation: false,
 			EndpointPath: "/api/v1/geographic/districts",
 			ParameterSchema: strPtr(`{"search":"string","city_id":"uuid"}`),
 			IsActive: true,

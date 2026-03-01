@@ -23,7 +23,6 @@ type CustomerInvoiceRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetNextInvoiceNumber(ctx context.Context, prefix string) (string, error)
 	UpdateStatus(ctx context.Context, id string, status models.CustomerInvoiceStatus, paidAmount *float64, paymentAt *time.Time, userID *string) error
-	RecordPayment(ctx context.Context, id string, paidAmount float64, paymentAt *time.Time) error
 }
 
 type customerInvoiceRepository struct {
@@ -44,6 +43,8 @@ func (r *customerInvoiceRepository) FindByID(ctx context.Context, id string) (*m
 	err := r.getDB(ctx).
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
+		Preload("DeliveryOrder").
+		Preload("DownPaymentInvoice").
 		Preload("Items.Product").
 		Where("id = ?", id).
 		First(&invoice).Error
@@ -58,6 +59,7 @@ func (r *customerInvoiceRepository) FindByCode(ctx context.Context, code string)
 	err := r.getDB(ctx).
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
+		Preload("DeliveryOrder").
 		Preload("Items.Product").
 		Where("code = ?", code).
 		First(&invoice).Error
@@ -147,6 +149,7 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	err := query.
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
+		Preload("DownPaymentInvoice").
 		Limit(perPage).
 		Offset(offset).
 		Find(&invoices).Error
@@ -277,42 +280,6 @@ func (r *customerInvoiceRepository) UpdateStatus(ctx context.Context, id string,
 	case models.CustomerInvoiceStatusCancelled:
 		updates["cancelled_by"] = userID
 		updates["cancelled_at"] = database.GetDB(ctx, r.db).NowFunc()
-	}
-
-	return r.getDB(ctx).Model(&models.CustomerInvoice{}).
-		Where("id = ?", id).
-		Updates(updates).Error
-}
-
-func (r *customerInvoiceRepository) RecordPayment(ctx context.Context, id string, paidAmount float64, paymentAt *time.Time) error {
-	var invoice models.CustomerInvoice
-	if err := r.getDB(ctx).First(&invoice, "id = ?", id).Error; err != nil {
-		return err
-	}
-
-	newPaidAmount := invoice.PaidAmount + paidAmount
-	remaining := invoice.Amount - newPaidAmount
-
-	var newStatus models.CustomerInvoiceStatus
-	if remaining <= 0 {
-		newStatus = models.CustomerInvoiceStatusPaid
-		remaining = 0
-	} else {
-		newStatus = models.CustomerInvoiceStatusPartial
-	}
-
-	updates := map[string]interface{}{
-		"paid_amount":      newPaidAmount,
-		"remaining_amount": remaining,
-		"status":           newStatus,
-	}
-
-	if newStatus == models.CustomerInvoiceStatusPaid {
-		if paymentAt != nil {
-			updates["payment_at"] = *paymentAt
-		} else {
-			updates["payment_at"] = database.GetDB(ctx, r.db).NowFunc()
-		}
 	}
 
 	return r.getDB(ctx).Model(&models.CustomerInvoice{}).

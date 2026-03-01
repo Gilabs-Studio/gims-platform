@@ -78,6 +78,7 @@ export const invoiceEn = {
     title: "Customer Invoices",
     subtitle: "Manage customer invoices and track payments",
     code: "Invoice Code",
+    dpCode: "DP Code",
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
@@ -148,6 +149,7 @@ export const invoiceEn = {
       markPaid: "Mark as Paid",
       markAsPaid: "Mark as Paid",
       viewOrder: "View Sales Order",
+      createPayment: "Create Payment",
     },
 
     // Payment
@@ -184,6 +186,15 @@ export const invoiceEn = {
     // Workflow timestamps
     paidAt: "Paid At",
     cancelledAt: "Cancelled At",
+
+    // Print
+    print: "Print",
+    printInvoice: "Print Invoice",
+    printSelectCompany: "Select the company to display on the document.",
+    printCompanyLabel: "Company",
+    printCompanyPlaceholder: "Select company...",
+    printNoCompanies: "No companies available",
+    printConfirm: "Print",
   },
 };
 

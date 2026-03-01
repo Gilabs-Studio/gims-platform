@@ -11,9 +11,11 @@ export interface UseBusinessTypeFormProps {
   open: boolean;
   onClose: () => void;
   businessType?: BusinessType | null;
+  /** Called after a successful create with the newly created item's id and name */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useBusinessTypeForm({ open, onClose, businessType }: UseBusinessTypeFormProps) {
+export function useBusinessTypeForm({ open, onClose, businessType, onCreated }: UseBusinessTypeFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!businessType;
 
@@ -53,8 +55,9 @@ export function useBusinessTypeForm({ open, onClose, businessType }: UseBusiness
         await updateBusinessType.mutateAsync({ id: businessType.id, data });
         toast.success(t("businessType.updateSuccess", { fallback: "Business Type updated successfully" }));
       } else {
-        await createBusinessType.mutateAsync(data);
+        const result = await createBusinessType.mutateAsync(data);
         toast.success(t("businessType.createSuccess", { fallback: "Business Type created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onClose();
     } catch (error) {

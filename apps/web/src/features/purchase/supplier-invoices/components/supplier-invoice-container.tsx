@@ -1,12 +1,21 @@
-"use client";
-
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { PageMotion } from "@/components/motion";
-import { SupplierInvoicesList } from "./supplier-invoices-list";
+
+export const SupplierInvoicesList = dynamic(
+  () =>
+    import("./supplier-invoices-list").then((mod) => ({
+      default: mod.SupplierInvoicesList,
+    })),
+  { loading: () => null },
+);
 
 export function SupplierInvoiceContainer() {
   return (
     <PageMotion>
-      <SupplierInvoicesList />
+      <Suspense fallback={null}>
+        <SupplierInvoicesList />
+      </Suspense>
     </PageMotion>
   );
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	stderrors "errors"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -108,6 +110,18 @@ func (h *CustomerInvoiceHandler) Create(c *gin.Context) {
 		if err == usecase.ErrProductNotFound {
 			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"message": "One or more products not found",
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrInvoiceExceedsRemaining) {
+			errors.ErrorResponse(c, "INVOICE_EXCEEDS_REMAINING", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
+		if err == usecase.ErrInvoiceDOMismatch {
+			errors.ErrorResponse(c, "DELIVERY_ORDER_MISMATCH", map[string]interface{}{
+				"message": "Delivery order does not belong to the same sales order",
 			}, nil)
 			return
 		}
@@ -281,53 +295,6 @@ func (h *CustomerInvoiceHandler) Approve(c *gin.Context) {
 	meta := &response.Meta{}
 	if userID != nil {
 		meta.UpdatedBy = *userID
-	}
-
-	response.SuccessResponse(c, invoice, meta)
-}
-
-// RecordPayment handles record payment request
-func (h *CustomerInvoiceHandler) RecordPayment(c *gin.Context) {
-	id := c.Param("id")
-	var req dto.RecordPaymentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
-		return
-	}
-
-	invoice, err := h.invoiceUC.RecordPayment(c.Request.Context(), id, &req)
-	if err != nil {
-		if err == usecase.ErrCustomerInvoiceNotFound {
-			errors.ErrorResponse(c, "CUSTOMER_INVOICE_NOT_FOUND", map[string]interface{}{
-				"invoice_id": id,
-			}, nil)
-			return
-		}
-		if err == usecase.ErrInvalidInvoiceStatus {
-			errors.ErrorResponse(c, "INVALID_INVOICE_STATUS", map[string]interface{}{
-				"message": "Cannot record payment for invoice in current status",
-			}, nil)
-			return
-		}
-		if err == usecase.ErrInvalidPaymentAmount {
-			errors.ErrorResponse(c, "INVALID_PAYMENT_AMOUNT", map[string]interface{}{
-				"message": "Payment amount exceeds remaining balance",
-			}, nil)
-			return
-		}
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-
-	meta := &response.Meta{}
-	if userID, exists := c.Get("user_id"); exists {
-		if uid, ok := userID.(string); ok {
-			meta.UpdatedBy = uid
-		}
 	}
 
 	response.SuccessResponse(c, invoice, meta)

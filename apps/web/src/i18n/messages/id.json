@@ -8,6 +8,7 @@
     "noData": "Data tidak ditemukan",
     "search": "Cari...",
     "searchPlaceholder": "Cari... (Tekan / atau ⌘K)",
+    "select_placeholder": "Pilih...",
     "actions": "Aksi",
     "all": "Semua",
     "active": "Aktif",
@@ -32,7 +33,19 @@
     "saved": "Berhasil disimpan",
     "showing": "Menampilkan",
     "entries": "kumpulan data",
-    "rowsPerPage": "Baris per halaman"
+    "rowsPerPage": "Baris per halaman",
+    "export": "Ekspor",
+    "exportFailed": "Gagal mengekspor data",
+    "print": "Cetak",
+    "filterBy": "Filter berdasarkan",
+    "status": "Status",
+    "supplierInvoice": "Invoice Supplier",
+    "supplierInvoiceDP": "DP Invoice Supplier",
+    "purchasePayment": "Pembayaran Pembelian",
+    "purchaseRequisition": "Permintaan Pembelian",
+    "purchaseOrder": "Pesanan Pembelian",
+    "goodsReceipt": "Penerimaan Barang",
+    "createdBy": "Dibuat oleh"
   },
   "notFound": {
     "label": "404",

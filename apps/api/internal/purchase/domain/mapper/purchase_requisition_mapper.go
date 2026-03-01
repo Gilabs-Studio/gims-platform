@@ -19,23 +19,41 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 	}
 
 	resp := &dto.PurchaseRequisitionListResponse{
-		ID:             pr.ID,
-		Code:           pr.Code,
-		SupplierID:     pr.SupplierID,
-		PaymentTermsID: pr.PaymentTermsID,
-		BusinessUnitID: pr.BusinessUnitID,
-		RequestedBy:    pr.EmployeeID,
-		RequestDate:    pr.RequestDate,
-		Status:         string(pr.Status),
-		Subtotal:       pr.Subtotal,
-		TaxRate:        pr.TaxRate,
-		TaxAmount:      pr.TaxAmount,
-		DeliveryCost:   pr.DeliveryCost,
-		OtherCost:      pr.OtherCost,
-		TotalAmount:    pr.TotalAmount,
-		Notes:          pr.Notes,
-		CreatedAt:      pr.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:      pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		ID:                         pr.ID,
+		Code:                       pr.Code,
+		SupplierID:                 pr.SupplierID,
+		PaymentTermsID:             pr.PaymentTermsID,
+		BusinessUnitID:             pr.BusinessUnitID,
+		RequestedBy:                pr.EmployeeID,
+		RequestDate:                pr.RequestDate,
+		Status:                     string(pr.Status),
+		Subtotal:                   pr.Subtotal,
+		TaxRate:                    pr.TaxRate,
+		TaxAmount:                  pr.TaxAmount,
+		DeliveryCost:               pr.DeliveryCost,
+		OtherCost:                  pr.OtherCost,
+		TotalAmount:                pr.TotalAmount,
+		Notes:                      pr.Notes,
+		ConvertedToPurchaseOrderID: pr.ConvertedToPurchaseOrderID,
+		CreatedAt:                  pr.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt:                  pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
+	}
+
+	if pr.SubmittedAt != nil {
+		s := pr.SubmittedAt.In(time.Local).Format(time.RFC3339)
+		resp.SubmittedAt = &s
+	}
+	if pr.ApprovedAt != nil {
+		s := pr.ApprovedAt.In(time.Local).Format(time.RFC3339)
+		resp.ApprovedAt = &s
+	}
+	if pr.RejectedAt != nil {
+		s := pr.RejectedAt.In(time.Local).Format(time.RFC3339)
+		resp.RejectedAt = &s
+	}
+	if pr.ConvertedAt != nil {
+		s := pr.ConvertedAt.In(time.Local).Format(time.RFC3339)
+		resp.ConvertedAt = &s
 	}
 
 	if pr.SupplierID != nil && *pr.SupplierID != "" && (pr.SupplierCodeSnapshot != "" || pr.SupplierNameSnapshot != "") {
@@ -97,6 +115,16 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 		}
 	}
 
+	if pr.Employee != nil {
+		resp.Employee = &struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   pr.Employee.ID,
+			Name: pr.Employee.Name,
+		}
+	}
+
 	return resp
 }
 
@@ -114,25 +142,43 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 	}
 
 	resp := &dto.PurchaseRequisitionDetailResponse{
-		ID:             pr.ID,
-		Code:           pr.Code,
-		SupplierID:     pr.SupplierID,
-		PaymentTermsID: pr.PaymentTermsID,
-		BusinessUnitID: pr.BusinessUnitID,
-		EmployeeID:     pr.EmployeeID,
-		RequestDate:    pr.RequestDate,
-		Address:        pr.Address,
-		Notes:          pr.Notes,
-		Status:         string(pr.Status),
-		Subtotal:       pr.Subtotal,
-		TaxRate:        pr.TaxRate,
-		TaxAmount:      pr.TaxAmount,
-		DeliveryCost:   pr.DeliveryCost,
-		OtherCost:      pr.OtherCost,
-		TotalAmount:    pr.TotalAmount,
-		CreatedAt:      pr.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:      pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
-		Items:          make([]dto.PurchaseRequisitionItemResponse, 0, len(pr.Items)),
+		ID:                         pr.ID,
+		Code:                       pr.Code,
+		SupplierID:                 pr.SupplierID,
+		PaymentTermsID:             pr.PaymentTermsID,
+		BusinessUnitID:             pr.BusinessUnitID,
+		EmployeeID:                 pr.EmployeeID,
+		RequestDate:                pr.RequestDate,
+		Address:                    pr.Address,
+		Notes:                      pr.Notes,
+		Status:                     string(pr.Status),
+		Subtotal:                   pr.Subtotal,
+		TaxRate:                    pr.TaxRate,
+		TaxAmount:                  pr.TaxAmount,
+		DeliveryCost:               pr.DeliveryCost,
+		OtherCost:                  pr.OtherCost,
+		TotalAmount:                pr.TotalAmount,
+		ConvertedToPurchaseOrderID: pr.ConvertedToPurchaseOrderID,
+		CreatedAt:                  pr.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt:                  pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		Items:                      make([]dto.PurchaseRequisitionItemResponse, 0, len(pr.Items)),
+	}
+
+	if pr.SubmittedAt != nil {
+		s := pr.SubmittedAt.In(time.Local).Format(time.RFC3339)
+		resp.SubmittedAt = &s
+	}
+	if pr.ApprovedAt != nil {
+		s := pr.ApprovedAt.In(time.Local).Format(time.RFC3339)
+		resp.ApprovedAt = &s
+	}
+	if pr.RejectedAt != nil {
+		s := pr.RejectedAt.In(time.Local).Format(time.RFC3339)
+		resp.RejectedAt = &s
+	}
+	if pr.ConvertedAt != nil {
+		s := pr.ConvertedAt.In(time.Local).Format(time.RFC3339)
+		resp.ConvertedAt = &s
 	}
 
 	if pr.SupplierID != nil && *pr.SupplierID != "" && (pr.SupplierCodeSnapshot != "" || pr.SupplierNameSnapshot != "") {

@@ -11,9 +11,11 @@ export interface UseBusinessUnitFormProps {
   open: boolean;
   onClose: () => void;
   businessUnit?: BusinessUnit | null;
+  /** Called after a successful create with the newly created item's id and name */
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useBusinessUnitForm({ open, onClose, businessUnit }: UseBusinessUnitFormProps) {
+export function useBusinessUnitForm({ open, onClose, businessUnit, onCreated }: UseBusinessUnitFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!businessUnit;
 
@@ -53,8 +55,9 @@ export function useBusinessUnitForm({ open, onClose, businessUnit }: UseBusiness
         await updateBusinessUnit.mutateAsync({ id: businessUnit.id, data });
         toast.success(t("businessUnit.updateSuccess", { fallback: "Business Unit updated successfully" }));
       } else {
-        await createBusinessUnit.mutateAsync(data);
+        const result = await createBusinessUnit.mutateAsync(data);
         toast.success(t("businessUnit.createSuccess", { fallback: "Business Unit created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onClose();
     } catch (error) {

@@ -18,6 +18,7 @@ type CreateCustomerRequest struct {
 	CityID         *string                     `json:"city_id" binding:"omitempty,uuid"`
 	DistrictID     *string                     `json:"district_id" binding:"omitempty,uuid"`
 	VillageID      *string                     `json:"village_id" binding:"omitempty,uuid"`
+	VillageName    *string                     `json:"village_name" binding:"omitempty,max=255"`
 	Email          string                      `json:"email" binding:"omitempty,email,max=100"`
 	Website        string                      `json:"website" binding:"max=200"`
 	NPWP           string                      `json:"npwp" binding:"max=30"`
@@ -46,6 +47,7 @@ type UpdateCustomerRequest struct {
 	CityID         *string  `json:"city_id" binding:"omitempty,uuid"`
 	DistrictID     *string  `json:"district_id" binding:"omitempty,uuid"`
 	VillageID      *string  `json:"village_id" binding:"omitempty,uuid"`
+	VillageName    *string  `json:"village_name" binding:"omitempty,max=255"`
 	Email          *string  `json:"email" binding:"omitempty,email,max=100"`
 	Website        *string  `json:"website" binding:"omitempty,max=200"`
 	NPWP           *string  `json:"npwp" binding:"omitempty,max=30"`
@@ -77,6 +79,7 @@ type CustomerResponse struct {
 	DistrictID     *string                    `json:"district_id"`
 	District       *DistrictResponse          `json:"district,omitempty"`
 	VillageID      *string                    `json:"village_id"`
+	VillageName    *string                    `json:"village_name,omitempty"`
 	Village        *VillageResponse           `json:"village,omitempty"`
 	Email          string                     `json:"email"`
 	Website        string                     `json:"website"`
@@ -101,6 +104,8 @@ type CustomerResponse struct {
 	DefaultPaymentTermsID  *string                   `json:"default_payment_terms_id"`
 	DefaultPaymentTerms    *SalesDefaultOptionBrief  `json:"default_payment_terms,omitempty"`
 	DefaultTaxRate         *float64                  `json:"default_tax_rate"`
+	// CRM enrichment
+	ContactsCount          int64                     `json:"contacts_count"`
 }
 
 // SalesDefaultOptionBrief is a lightweight reference for business type / area / payment terms

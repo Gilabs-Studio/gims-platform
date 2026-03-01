@@ -36,6 +36,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingRepo := repositories.NewFinancialClosingRepository(db)
 	taxInvoiceRepo := repositories.NewTaxInvoiceRepository(db)
 	nonTradePayableRepo := repositories.NewNonTradePayableRepository(db)
+	salaryRepo := repositories.NewSalaryStructureRepository(db)
+	upCountryRepo := repositories.NewUpCountryCostRepository(db)
+	reportRepo := repositories.NewFinanceReportRepository(db)
 
 	coaMapper := mapper.NewChartOfAccountMapper()
 	journalMapper := mapper.NewJournalEntryMapper(coaMapper)
@@ -49,19 +52,24 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingMapper := mapper.NewFinancialClosingMapper()
 	taxInvoiceMapper := mapper.NewTaxInvoiceMapper()
 	nonTradePayableMapper := mapper.NewNonTradePayableMapper()
+	salaryMapper := mapper.NewSalaryStructureMapper()
+	upCountryMapper := mapper.NewUpCountryCostMapper()
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
-	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, cashBankMapper)
+	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper)
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper)
 	financialClosingUC := usecase.NewFinancialClosingUsecase(db, financialClosingRepo, financialClosingMapper)
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
-	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, nonTradePayableMapper)
+	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper)
+	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
+	upCountryUC := usecase.NewUpCountryCostUsecase(db, upCountryRepo, journalUC, upCountryMapper)
+	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC)
@@ -75,6 +83,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingH := handler.NewFinancialClosingHandler(financialClosingUC)
 	taxInvoiceH := handler.NewTaxInvoiceHandler(taxInvoiceUC)
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
+	salaryH := handler.NewSalaryStructureHandler(salaryUC)
+	upCountryH := handler.NewUpCountryCostHandler(upCountryUC)
+	reportH := handler.NewFinanceReportHandler(reportUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -93,6 +104,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterTaxInvoiceRoutes(group, taxInvoiceH)
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
+	router.RegisterSalaryStructureRoutes(group, salaryH)
+	router.RegisterUpCountryCostRoutes(group, upCountryH)
+	router.RegisterFinanceReportExRoutes(group, reportH)
 
 	return &FinanceDeps{
 		JournalUC: journalUC,

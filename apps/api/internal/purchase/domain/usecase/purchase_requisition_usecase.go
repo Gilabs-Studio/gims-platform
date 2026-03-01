@@ -33,6 +33,7 @@ type PurchaseRequisitionUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdatePurchaseRequisitionRequest) (*dto.PurchaseRequisitionDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	AddData(ctx context.Context) (*dto.PurchaseRequisitionAddResponse, error)
+	Submit(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error)
 	Reject(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error)
 	Convert(ctx context.Context, id string) error
@@ -360,7 +361,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	}, nil
 }
 
-func (uc *purchaseRequisitionUsecase) Approve(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
+func (uc *purchaseRequisitionUsecase) Submit(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
 	existing, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -369,6 +370,31 @@ func (uc *purchaseRequisitionUsecase) Approve(ctx context.Context, id string) (*
 		return nil, err
 	}
 	if existing.Status != models.PurchaseRequisitionStatusDraft {
+		return nil, ErrInvalidStatus
+	}
+	before := prAuditSnapshot(existing)
+
+	updated, err := uc.repo.UpdateStatus(ctx, id, models.PurchaseRequisitionStatusSubmitted)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "purchase_requisition.submit", id, map[string]interface{}{
+		"before": before,
+		"after":  prAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+func (uc *purchaseRequisitionUsecase) Approve(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseRequisitionNotFound
+		}
+		return nil, err
+	}
+	// Only SUBMITTED PRs can be approved (mirrors quotation "sent" -> "approved").
+	if existing.Status != models.PurchaseRequisitionStatusSubmitted {
 		return nil, ErrInvalidStatus
 	}
 	before := prAuditSnapshot(existing)
@@ -392,7 +418,8 @@ func (uc *purchaseRequisitionUsecase) Reject(ctx context.Context, id string) (*d
 		}
 		return nil, err
 	}
-	if existing.Status != models.PurchaseRequisitionStatusDraft {
+	// Only SUBMITTED PRs can be rejected.
+	if existing.Status != models.PurchaseRequisitionStatusSubmitted {
 		return nil, ErrInvalidStatus
 	}
 	before := prAuditSnapshot(existing)

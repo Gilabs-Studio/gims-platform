@@ -21,17 +21,21 @@ export interface PaymentTermsDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly editingItem?: PaymentTerms | null;
+  /** Called after a successful create with id and name of the new item */
+  readonly onCreated?: (item: { id: string; name: string }) => void;
 }
 
 export function PaymentTermsDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: PaymentTermsDialogProps) {
   const { form, t, tCommon, isLoading, onSubmit } = usePaymentTermsForm({
     open,
     onOpenChange,
     editingItem,
+    onCreated,
   });
 
   const {
@@ -46,7 +50,7 @@ export function PaymentTermsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>

@@ -15,6 +15,12 @@ export const purchasePaymentEn = {
     view: "View",
     auditTrail: "Audit Trail",
     delete: "Delete",
+    createNew: "Create New",
+    print: "Print",
+  },
+  sections: {
+    invoiceInfo: "Invoice Information",
+    paymentDetails: "Payment Details",
   },
   status: {
     pending: "Pending",
@@ -49,6 +55,8 @@ export const purchasePaymentEn = {
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     amount: "Invoice Amount",
+    paidAmount: "Paid Amount",
+    remainingAmount: "Remaining Amount",
     status: "Status",
   },
   auditTrail: {
@@ -69,4 +77,14 @@ export const purchasePaymentEn = {
       auditTrail: "Audit Trail",
     },
   },
+  // Print dialog
+  print: "Print",
+  printPurchasePayment: "Print Purchase Payment",
+  printSelectCompany: "Select the company to display on the document.",
+  printCompanyLabel: "Company",
+  printCompanyPlaceholder: "Select company...",
+  printNoCompanies: "No companies available",
+  printConfirm: "Print",
+  printCancel: "Cancel",
+  printError: "Something went wrong",
 };

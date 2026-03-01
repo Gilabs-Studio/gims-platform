@@ -35,7 +35,15 @@ type GoodsReceiptUsecase interface {
 	Create(ctx context.Context, req *dto.CreateGoodsReceiptRequest) (*dto.GoodsReceiptDetailResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateGoodsReceiptRequest) (*dto.GoodsReceiptDetailResponse, error)
 	Delete(ctx context.Context, id string) error
+	// Legacy confirm: DRAFT → CONFIRMED (kept for backward compatibility).
 	Confirm(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
+	// New workflow: DRAFT → SUBMITTED → APPROVED → CLOSED.
+	Submit(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
+	Reject(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
+	Close(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
+	// ConvertToSupplierInvoice creates a draft Supplier Invoice from a CLOSED GR.
+	ConvertToSupplierInvoice(ctx context.Context, id string) (*dto.GoodsReceiptConvertResponse, error)
 	AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.GoodsReceiptAuditTrailEntry, int64, error)
 }
@@ -624,46 +632,100 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error) {
 	// Eligible: purchase orders in APPROVED status
 	items, _, err := uc.poRepo.List(ctx, repositories.PurchaseOrderListParams{
-		Status:  string(models.PurchaseOrderStatusApproved),
-		SortBy:  "created_at",
-		SortDir: "desc",
-		Limit:   100,
-		Offset:  0,
+		Status:    string(models.PurchaseOrderStatusApproved),
+		SortBy:    "created_at",
+		SortDir:   "desc",
+		Limit:     100,
+		Offset:    0,
+		WithItems: true,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Exclude POs that already have a DRAFT goods receipt.
+	if uc.db == nil || len(items) == 0 {
+		return &dto.GoodsReceiptAddResponse{EligiblePurchaseOrders: []dto.GoodsReceiptPurchaseOrderOption{}}, nil
+	}
+
 	poIDs := make([]string, 0, len(items))
 	for _, po := range items {
 		poIDs = append(poIDs, po.ID)
 	}
-	draftByPO := map[string]bool{}
-	if uc.db != nil && len(poIDs) > 0 {
-		type row struct {
-			PurchaseOrderID string `gorm:"column:purchase_order_id"`
+
+	// Exclude POs that already have a pending (DRAFT/SUBMITTED/APPROVED) goods receipt.
+	type poStatusRow struct {
+		PurchaseOrderID string `gorm:"column:purchase_order_id"`
+	}
+	pendingGRRows := make([]poStatusRow, 0)
+	if err := uc.db.WithContext(ctx).
+		Model(&models.GoodsReceipt{}).
+		Select("purchase_order_id").
+		Where("purchase_order_id IN ?", poIDs).
+		Where("status IN ?", []string{
+			string(models.GoodsReceiptStatusDraft),
+			string(models.GoodsReceiptStatusSubmitted),
+			string(models.GoodsReceiptStatusApproved),
+		}).
+		Group("purchase_order_id").
+		Scan(&pendingGRRows).Error; err != nil {
+		return nil, err
+	}
+	pendingByPO := make(map[string]bool, len(pendingGRRows))
+	for _, r := range pendingGRRows {
+		pendingByPO[r.PurchaseOrderID] = true
+	}
+
+	// Compute total received qty per PO item for CONFIRMED/CLOSED GRs.
+	type receivedRow struct {
+		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
+		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
+		TotalReceived       float64 `gorm:"column:total_received"`
+	}
+	receivedRows := make([]receivedRow, 0)
+	if err := uc.db.WithContext(ctx).
+		Table("goods_receipt_items").
+		Select("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received),0) AS total_received").
+		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
+		Where("gr.purchase_order_id IN ?", poIDs).
+		Where("gr.status IN ?", []string{
+			string(models.GoodsReceiptStatusConfirmed),
+			string(models.GoodsReceiptStatusClosed),
+		}).
+		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
+		Scan(&receivedRows).Error; err != nil {
+		return nil, err
+	}
+	// receivedMap[poID][itemID] = totalReceived
+	receivedMap := make(map[string]map[string]float64, len(poIDs))
+	for _, r := range receivedRows {
+		if receivedMap[r.PurchaseOrderID] == nil {
+			receivedMap[r.PurchaseOrderID] = make(map[string]float64)
 		}
-		rows := make([]row, 0)
-		if err := uc.db.WithContext(ctx).
-			Model(&models.GoodsReceipt{}).
-			Select("purchase_order_id").
-			Where("purchase_order_id IN ?", poIDs).
-			Where("status = ?", models.GoodsReceiptStatusDraft).
-			Group("purchase_order_id").
-			Scan(&rows).Error; err != nil {
-			return nil, err
-		}
-		for _, r := range rows {
-			draftByPO[r.PurchaseOrderID] = true
-		}
+		receivedMap[r.PurchaseOrderID][r.PurchaseOrderItemID] += r.TotalReceived
 	}
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		if draftByPO[po.ID] {
+		// Skip POs with an active (pending) GR.
+		if pendingByPO[po.ID] {
 			continue
 		}
+
+		// Skip POs that are 100% fulfilled (all items fully received).
+		if len(po.Items) > 0 {
+			fullyFulfilled := true
+			for _, poIt := range po.Items {
+				received := receivedMap[po.ID][poIt.ID]
+				if received+0.0001 < poIt.Quantity {
+					fullyFulfilled = false
+					break
+				}
+			}
+			if fullyFulfilled {
+				continue
+			}
+		}
+
 		opt := dto.GoodsReceiptPurchaseOrderOption{ID: po.ID, Code: po.Code, Status: string(po.Status)}
 		if po.Supplier != nil {
 			opt.Supplier = &dto.GoodsReceiptSupplierMini{ID: po.Supplier.ID, Name: po.Supplier.Name}
@@ -672,6 +734,426 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 	}
 
 	return &dto.GoodsReceiptAddResponse{EligiblePurchaseOrders: res}, nil
+}
+
+// Submit transitions a GR from DRAFT to SUBMITTED.
+func (uc *goodsReceiptUsecase) Submit(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.GoodsReceiptStatusDraft {
+		return nil, ErrGoodsReceiptConflict
+	}
+	before := grAuditSnapshot(existing)
+
+	now := time.Now()
+	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":       models.GoodsReceiptStatusSubmitted,
+			"submitted_at": now,
+		}).Error; err != nil {
+		return nil, err
+	}
+
+	updated, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "goods_receipt.submit", id, map[string]interface{}{
+		"before": before,
+		"after":  grAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+// Approve transitions a GR from SUBMITTED to APPROVED.
+func (uc *goodsReceiptUsecase) Approve(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.GoodsReceiptStatusSubmitted {
+		return nil, ErrGoodsReceiptConflict
+	}
+	before := grAuditSnapshot(existing)
+
+	now := time.Now()
+	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":      models.GoodsReceiptStatusApproved,
+			"approved_at": now,
+		}).Error; err != nil {
+		return nil, err
+	}
+
+	updated, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "goods_receipt.approve", id, map[string]interface{}{
+		"before": before,
+		"after":  grAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+// Reject transitions a GR from SUBMITTED to REJECTED.
+func (uc *goodsReceiptUsecase) Reject(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	existing, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
+		return nil, err
+	}
+	if existing.Status != models.GoodsReceiptStatusSubmitted {
+		return nil, ErrGoodsReceiptConflict
+	}
+	before := grAuditSnapshot(existing)
+
+	now := time.Now()
+	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":      models.GoodsReceiptStatusRejected,
+			"rejected_at": now,
+		}).Error; err != nil {
+		return nil, err
+	}
+
+	updated, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "goods_receipt.reject", id, map[string]interface{}{
+		"before": before,
+		"after":  grAuditSnapshot(updated),
+	})
+	return uc.mapper.ToDetailResponse(updated), nil
+}
+
+// Close transitions a GR from APPROVED to CLOSED, triggering stock/journal/asset side effects.
+func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	var out *models.GoodsReceipt
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var gr models.GoodsReceipt
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Items").
+			First(&gr, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if gr.Status != models.GoodsReceiptStatusApproved {
+			return ErrGoodsReceiptConflict
+		}
+
+		var po models.PurchaseOrder
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Items").
+			First(&po, "id = ?", gr.PurchaseOrderID).Error; err != nil {
+			return err
+		}
+
+		// Validate quantities do not exceed ordered qty (sum of CONFIRMED/CLOSED GRs + this GR).
+		for _, it := range gr.Items {
+			ordered := 0.0
+			for _, poIt := range po.Items {
+				if poIt.ID == it.PurchaseOrderItemID {
+					ordered = poIt.Quantity
+					break
+				}
+			}
+
+			var alreadyReceived float64
+			if err := tx.
+				Table("goods_receipt_items").
+				Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
+				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+				Where("goods_receipts.purchase_order_id = ?", po.ID).
+				Where("goods_receipts.status IN ?", []string{
+					string(models.GoodsReceiptStatusConfirmed),
+					string(models.GoodsReceiptStatusClosed),
+				}).
+				Where("goods_receipt_items.purchase_order_item_id = ?", it.PurchaseOrderItemID).
+				Scan(&alreadyReceived).Error; err != nil {
+				return err
+			}
+
+			receiving := math.Max(0, it.QuantityReceived)
+			if alreadyReceived+receiving > ordered+0.0001 {
+				return ErrGoodsReceiptConflict
+			}
+		}
+
+		now := time.Now()
+		if err := tx.Model(&gr).Updates(map[string]interface{}{
+			"status":    models.GoodsReceiptStatusClosed,
+			"closed_at": now,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Close PO if all items are fully received.
+		fullyReceived := true
+		for _, poIt := range po.Items {
+			var totalReceived float64
+			if err := tx.
+				Table("goods_receipt_items").
+				Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
+				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+				Where("goods_receipts.purchase_order_id = ?", po.ID).
+				Where("goods_receipts.status IN ?", []string{
+					string(models.GoodsReceiptStatusConfirmed),
+					string(models.GoodsReceiptStatusClosed),
+				}).
+				Where("goods_receipt_items.purchase_order_item_id = ?", poIt.ID).
+				Scan(&totalReceived).Error; err != nil {
+				return err
+			}
+			if totalReceived+0.0001 < poIt.Quantity {
+				fullyReceived = false
+				break
+			}
+		}
+		if fullyReceived {
+			_ = tx.Model(&po).Update("status", models.PurchaseOrderStatusClosed).Error
+		}
+
+		loaded, err := uc.repo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		out = loaded
+
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.triggerStockUpdate(txCtx, out); err != nil {
+			return fmt.Errorf("failed to update stock: %w", err)
+		}
+		if err := uc.triggerJournalEntry(txCtx, out); err != nil {
+			return fmt.Errorf("failed to create journal: %w", err)
+		}
+		if err := uc.triggerAssetCreation(txCtx, out); err != nil {
+			return fmt.Errorf("failed to create asset: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
+		return nil, err
+	}
+
+	uc.auditService.Log(ctx, "goods_receipt.close", id, map[string]interface{}{
+		"after": grAuditSnapshot(out),
+	})
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+// ConvertToSupplierInvoice creates a draft Supplier Invoice from a CLOSED Goods Receipt.
+// Supplier data is taken from the GR (not the PO) to ensure accuracy.
+func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id string) (*dto.GoodsReceiptConvertResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	gr, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
+		return nil, err
+	}
+	if gr.Status != models.GoodsReceiptStatusClosed {
+		return nil, ErrGoodsReceiptConflict
+	}
+
+	// Build PO item price map for populating SI item prices.
+	var poItems []models.PurchaseOrderItem
+	if err := uc.db.WithContext(ctx).
+		Where("purchase_order_id = ?", gr.PurchaseOrderID).
+		Find(&poItems).Error; err != nil {
+		return nil, err
+	}
+	priceMap := make(map[string]float64, len(poItems))
+	for _, p := range poItems {
+		priceMap[p.ID] = p.Price
+	}
+
+	var siID string
+	today := time.Now().Format("2006-01-02")
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Generate unique SI code using advisory lock.
+		code, err := getNextSupplierInvoiceCodeLockedInGR(ctx, tx, "SI")
+		if err != nil {
+			return fmt.Errorf("failed to generate SI code: %w", err)
+		}
+
+		supplierCode := ""
+		supplierName := ""
+		if gr.Supplier != nil {
+			supplierCode = gr.Supplier.Code
+			supplierName = gr.Supplier.Name
+		} else if gr.SupplierCodeSnapshot != "" || gr.SupplierNameSnapshot != "" {
+			supplierCode = gr.SupplierCodeSnapshot
+			supplierName = gr.SupplierNameSnapshot
+		}
+
+		si := &models.SupplierInvoice{
+			Type:                 models.SupplierInvoiceTypeNormal,
+			PurchaseOrderID:      gr.PurchaseOrderID,
+			SupplierID:           gr.SupplierID,
+			SupplierCodeSnapshot: supplierCode,
+			SupplierNameSnapshot: supplierName,
+			Code:                 code,
+			// Placeholder invoice number; user can update in SI edit form.
+			InvoiceNumber: "DRAFT-" + gr.Code,
+			InvoiceDate:   today,
+			DueDate:       today,
+			Status:        models.SupplierInvoiceStatusDraft,
+			CreatedBy:     actorID,
+		}
+
+		siItems := make([]models.SupplierInvoiceItem, 0, len(gr.Items))
+		subTotal := 0.0
+		for _, it := range gr.Items {
+			price := priceMap[it.PurchaseOrderItemID]
+			lineTotal := it.QuantityReceived * price
+			subTotal += lineTotal
+
+			productCodeSnap := ""
+			productNameSnap := ""
+			if it.Product != nil {
+				productCodeSnap = it.Product.Code
+				productNameSnap = it.Product.Name
+			} else {
+				productCodeSnap = it.ProductCodeSnapshot
+				productNameSnap = it.ProductNameSnapshot
+			}
+
+			siItems = append(siItems, models.SupplierInvoiceItem{
+				ProductID:           it.ProductID,
+				PurchaseOrderItemID: &it.PurchaseOrderItemID,
+				Quantity:            it.QuantityReceived,
+				Price:               price,
+				SubTotal:            lineTotal,
+				ProductCodeSnapshot: productCodeSnap,
+				ProductNameSnapshot: productNameSnap,
+			})
+		}
+		si.SubTotal = subTotal
+		si.Amount = subTotal
+		si.RemainingAmount = subTotal
+		si.Items = siItems
+
+		if err := tx.Create(si).Error; err != nil {
+			return fmt.Errorf("failed to create supplier invoice: %w", err)
+		}
+		siID = si.ID
+
+		// Update GR with latest convert timestamp (multiple conversions allowed).
+		now := time.Now()
+		if err := tx.Model(&models.GoodsReceipt{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"converted_at": now,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	uc.auditService.Log(ctx, "goods_receipt.convert", id, map[string]interface{}{
+		"supplier_invoice_id": siID,
+	})
+
+	return &dto.GoodsReceiptConvertResponse{
+		GoodsReceiptID:    id,
+		SupplierInvoiceID: siID,
+	}, nil
+}
+
+// getNextSupplierInvoiceCodeLockedInGR generates a unique SI code within a DB transaction.
+func getNextSupplierInvoiceCodeLockedInGR(ctx context.Context, tx *gorm.DB, prefix string) (string, error) {
+	now := database.GetDB(ctx, tx).NowFunc()
+	dateStr := now.Format("20060102")
+	codePrefix := prefix + "-" + dateStr + "-"
+
+	lockKey := "supplier_invoice_code:" + dateStr
+	if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+		return "", err
+	}
+
+	var last models.SupplierInvoice
+	err := tx.WithContext(ctx).
+		Unscoped().
+		Model(&models.SupplierInvoice{}).
+		Select("code").
+		Where("code LIKE ?", codePrefix+"%").
+		Order("code DESC").
+		First(&last).Error
+
+	seq := 1
+	if err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return "", err
+		}
+	} else if len(last.Code) >= len(codePrefix)+4 {
+		lastSeqStr := last.Code[len(last.Code)-4:]
+		var n int
+		if _, convErr := fmt.Sscanf(strings.TrimSpace(lastSeqStr), "%d", &n); convErr == nil && n > 0 {
+			seq = n + 1
+		}
+	}
+
+	return fmt.Sprintf("%s%04d", codePrefix, seq), nil
 }
 
 func (uc *goodsReceiptUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.GoodsReceiptAuditTrailEntry, int64, error) {

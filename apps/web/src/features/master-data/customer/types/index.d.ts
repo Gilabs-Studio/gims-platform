@@ -118,6 +118,7 @@ export interface Customer {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   province?: { id: string; name: string } | null;
   city?: { id: string; name: string } | null;
   district?: { id: string; name: string } | null;
@@ -145,6 +146,8 @@ export interface Customer {
   default_payment_terms_id?: string | null;
   default_payment_terms?: SalesDefaultOptionBrief | null;
   default_tax_rate?: number | null;
+  // CRM enrichment
+  contacts_count?: number;
 }
 
 // Lightweight brief types used for sales defaults
@@ -168,6 +171,7 @@ export interface CreateCustomerData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   email?: string;
   website?: string;
   npwp?: string;
@@ -195,6 +199,7 @@ export interface UpdateCustomerData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   email?: string | null;
   website?: string | null;
   npwp?: string | null;

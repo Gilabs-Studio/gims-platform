@@ -53,6 +53,7 @@ export interface PurchaseRequisitionUser {
 
 export type PurchaseRequisitionStatus =
   | "DRAFT"
+  | "SUBMITTED"
   | "APPROVED"
   | "REJECTED"
   | "CONVERTED";
@@ -74,9 +75,19 @@ export interface PurchaseRequisitionListItem {
   total_amount: number;
   notes?: string;
 
+  // Workflow timestamps
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  converted_at?: string | null;
+
+  // ID of Purchase Order created on conversion
+  converted_to_purchase_order_id?: string | null;
+
   supplier?: PurchaseRequisitionParty;
   payment_terms?: PurchaseRequisitionPaymentTerms;
   business_unit?: PurchaseRequisitionBusinessUnit;
+  employee?: { id: string; name: string } | null;
   user?: PurchaseRequisitionUser;
 
   created_at: string;
@@ -174,6 +185,7 @@ export interface PurchaseRequisitionDetail {
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   employee_id?: string | null;
+  requested_by?: string | null;
   request_date: string;
   address?: string | null;
   notes?: string;
@@ -186,9 +198,19 @@ export interface PurchaseRequisitionDetail {
   other_cost: number;
   total_amount: number;
 
+  // Workflow timestamps
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  converted_at?: string | null;
+
+  // ID of Purchase Order created on conversion
+  converted_to_purchase_order_id?: string | null;
+
   supplier?: PurchaseRequisitionParty;
   payment_terms?: PurchaseRequisitionPaymentTerms;
   business_unit?: PurchaseRequisitionBusinessUnit;
+  employee?: { id: string; name: string } | null;
   user?: PurchaseRequisitionUser;
 
   items: PurchaseRequisitionItem[];

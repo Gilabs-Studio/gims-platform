@@ -14,7 +14,7 @@ export const financePaymentsId = {
   },
   status: {
     draft: "Draft",
-    posted: "Posted",
+    posted: "Diposting",
   },
   actions: {
     create: "Buat",

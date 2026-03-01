@@ -8,7 +8,6 @@ import type {
   CreateCustomerInvoiceData,
   UpdateCustomerInvoiceData,
   UpdateCustomerInvoiceStatusData,
-  RecordPaymentData,
 } from "../types";
 
 const BASE_PATH = "/sales/customer-invoices";
@@ -89,14 +88,19 @@ export const invoiceService = {
     return response.data;
   },
 
-  async recordPayment(
-    id: string,
-    data: RecordPaymentData
-  ): Promise<CustomerInvoiceSingleResponse> {
-    const response = await apiClient.post<CustomerInvoiceSingleResponse>(
-      `${BASE_PATH}/${id}/payments`,
-      data
+  /**
+   * Fetches the Customer Invoice PDF from the backend and opens it in a new browser tab.
+   */
+  async openPrintWindow(id: string, companyId?: string): Promise<void> {
+    const params = companyId ? { company_id: companyId } : undefined;
+    const response = await apiClient.get(
+      `${BASE_PATH}/${id}/print`,
+      { responseType: "blob" as const, params }
     );
-    return response.data;
+    const contentType = (response.headers["content-type"] as string) || "text/html; charset=utf-8";
+    const blob = new Blob([response.data as BlobPart], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

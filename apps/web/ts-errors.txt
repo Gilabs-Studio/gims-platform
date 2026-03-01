@@ -1,0 +1,13 @@
+.next/types/validator.ts(258,39): error TS2307: Cannot find module '../../app/[locale]/(dashboard)/hrd/contracts/page.js' or its corresponding type declarations.
+.next/types/validator.ts(681,39): error TS2307: Cannot find module '../../app/[locale]/(dashboard)/sales/estimations/page.js' or its corresponding type declarations.
+src/features/crm/deal/components/kanban-board.tsx(14,8): error TS2307: Cannot find module '@dnd-kit/core' or its corresponding type declarations.
+src/features/crm/deal/components/kanban-board.tsx(15,44): error TS2307: Cannot find module '@dnd-kit/core' or its corresponding type declarations.
+src/features/master-data/employee/hooks/use-employee-form.ts(21,59): error TS2322: Type '"permanent"' is not assignable to type 'ContractStatus'.
+src/features/master-data/employee/hooks/use-employee-form.ts(21,72): error TS2322: Type '"contract"' is not assignable to type 'ContractStatus'.
+src/features/master-data/employee/hooks/use-employee-form.ts(21,84): error TS2322: Type '"probation"' is not assignable to type 'ContractStatus'.
+src/features/master-data/employee/hooks/use-employee-form.ts(21,97): error TS2322: Type '"intern"' is not assignable to type 'ContractStatus'.
+src/features/master-data/employee/hooks/use-employee-form.ts(166,39): error TS2339: Property 'contract_status' does not exist on type 'Employee'.
+src/features/master-data/employee/hooks/use-employee-form.ts(167,43): error TS2339: Property 'contract_start_date' does not exist on type 'Employee'.
+src/features/master-data/employee/hooks/use-employee-form.ts(167,87): error TS2339: Property 'contract_start_date' does not exist on type 'Employee'.
+src/features/master-data/employee/hooks/use-employee-form.ts(168,41): error TS2339: Property 'contract_end_date' does not exist on type 'Employee'.
+src/features/master-data/employee/hooks/use-employee-form.ts(168,83): error TS2339: Property 'contract_end_date' does not exist on type 'Employee'.

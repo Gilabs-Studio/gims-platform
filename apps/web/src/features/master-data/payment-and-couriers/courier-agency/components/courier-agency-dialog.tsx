@@ -21,17 +21,21 @@ export interface CourierAgencyDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly editingItem?: CourierAgency | null;
+  /** Called after a successful create with id and name of the new item */
+  readonly onCreated?: (item: { id: string; name: string }) => void;
 }
 
 export function CourierAgencyDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: CourierAgencyDialogProps) {
   const { form, t, tCommon, isLoading, onSubmit } = useCourierAgencyForm({
     open,
     onOpenChange,
     editingItem,
+    onCreated,
   });
 
   const {
@@ -47,7 +51,7 @@ export function CourierAgencyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>

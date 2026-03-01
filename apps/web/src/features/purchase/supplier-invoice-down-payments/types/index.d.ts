@@ -30,9 +30,22 @@ export interface SupplierInvoiceDPListParams {
   limit?: number;
 }
 
-export type SupplierInvoiceDPStatus = "DRAFT" | "UNPAID" | "PARTIAL" | "PAID";
+export type SupplierInvoiceDPStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "UNPAID"
+  | "PARTIAL"
+  | "PAID";
 
 export interface SupplierInvoiceDPPurchaseOrderMini {
+  id: string;
+  code: string;
+}
+
+export interface SupplierInvoiceDPRegularInvoiceMini {
   id: string;
   code: string;
 }
@@ -40,18 +53,29 @@ export interface SupplierInvoiceDPPurchaseOrderMini {
 export interface SupplierInvoiceDPListItem {
   id: string;
   purchase_order?: SupplierInvoiceDPPurchaseOrderMini | null;
+  supplier_id: string;
+  supplier_name: string;
   code: string;
   invoice_number: string;
   invoice_date: string;
   due_date: string;
   amount: number;
+  paid_amount: number;
+  remaining_amount: number;
   status: SupplierInvoiceDPStatus;
   notes?: string | null;
+  regular_invoices?: SupplierInvoiceDPRegularInvoiceMini[] | null;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  cancelled_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type SupplierInvoiceDPDetail = SupplierInvoiceDPListItem;
+export interface SupplierInvoiceDPDetail extends SupplierInvoiceDPListItem {
+  created_by?: string;
+}
 
 export interface SupplierInvoiceDPAddPurchaseOrder {
   id: string;
@@ -71,3 +95,24 @@ export interface CreateSupplierInvoiceDPInput {
 }
 
 export type UpdateSupplierInvoiceDPInput = CreateSupplierInvoiceDPInput;
+
+export interface SupplierInvoiceDPAuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface SupplierInvoiceDPAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata?: Record<string, unknown>;
+  user?: SupplierInvoiceDPAuditTrailUser | null;
+  created_at: string;
+}
+
+export interface SupplierInvoiceDPAuditTrailParams {
+  page?: number;
+  per_page?: number;
+}

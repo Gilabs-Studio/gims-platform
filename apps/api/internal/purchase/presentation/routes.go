@@ -29,30 +29,36 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	poUc := usecase.NewPurchaseOrderUsecase(db, poRepo, prRepo, auditService)
 	poH := handler.NewPurchaseOrderHandler(poUc)
+	poPrintH := handler.NewPurchaseOrderPrintHandler(poUc, db)
 
 	prUc := usecase.NewPurchaseRequisitionUsecase(db, prRepo, auditService)
 	prH := handler.NewPurchaseRequisitionHandler(prUc, poUc)
+	prPrintH := handler.NewPurchaseRequisitionPrintHandler(prUc, db)
 
 	grUc := usecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, invUC, journalUC, coaUC, assetUC)
 	grH := handler.NewGoodsReceiptHandler(grUc)
+	grPrintH := handler.NewGoodsReceiptPrintHandler(grUc, db)
 
 	siUc := usecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC)
 	siH := handler.NewSupplierInvoiceHandler(siUc)
+	siPrintH := handler.NewSupplierInvoicePrintHandler(siUc, db)
 
-	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService)
+	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC)
 	siDpH := handler.NewSupplierInvoiceDownPaymentHandler(siDpUc)
+	siDpPrintH := handler.NewSupplierInvoiceDPPrintHandler(siDpUc, db)
 
 	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC)
 	payH := handler.NewPurchasePaymentHandler(payUc)
+	payPrintH := handler.NewPurchasePaymentPrintHandler(payUc, db)
 
 	group := api.Group("/purchase")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 	group.Use(middleware.ScopeMiddleware(db))
 
-	router.RegisterPurchaseRequisitionRoutes(group, prH)
-	router.RegisterPurchaseOrderRoutes(group, poH)
-	router.RegisterGoodsReceiptRoutes(group, grH)
-	router.RegisterSupplierInvoiceRoutes(group, siH)
-	router.RegisterSupplierInvoiceDownPaymentRoutes(group, siDpH)
-	router.RegisterPurchasePaymentRoutes(group, payH)
+	router.RegisterPurchaseRequisitionRoutes(group, prH, prPrintH)
+	router.RegisterPurchaseOrderRoutes(group, poH, poPrintH)
+	router.RegisterGoodsReceiptRoutes(group, grH, grPrintH)
+	router.RegisterSupplierInvoiceRoutes(group, siH, siPrintH)
+	router.RegisterSupplierInvoiceDownPaymentRoutes(group, siDpH, siDpPrintH)
+	router.RegisterPurchasePaymentRoutes(group, payH, payPrintH)
 }

@@ -24,14 +24,26 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		receiptDate = &s
 	}
 
+	var totalItemsReceived float64
+	for _, item := range gr.Items {
+		totalItemsReceived += item.QuantityReceived
+	}
+
 	resp := &dto.GoodsReceiptListResponse{
-		ID:        gr.ID,
-		Code:      gr.Code,
-		ReceiptDate: receiptDate,
-		Notes:     gr.Notes,
-		Status:    string(gr.Status),
-		CreatedBy: gr.CreatedBy,
-		CreatedAt: gr.CreatedAt,
+		ID:                 gr.ID,
+		Code:               gr.Code,
+		ReceiptDate:        receiptDate,
+		Notes:              gr.Notes,
+		Status:             string(gr.Status),
+		CreatedBy:          gr.CreatedBy,
+		TotalItemsReceived: totalItemsReceived,
+
+		SubmittedAt:                  gr.SubmittedAt,
+		ApprovedAt:                   gr.ApprovedAt,
+		ClosedAt:                     gr.ClosedAt,
+		RejectedAt:                   gr.RejectedAt,
+		ConvertedAt:                  gr.ConvertedAt,
+		ConvertedToSupplierInvoiceID: gr.ConvertedToSupplierInvoiceID,
 	}
 
 	if gr.PurchaseOrder != nil {
@@ -65,14 +77,20 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	}
 
 	resp := &dto.GoodsReceiptDetailResponse{
-		ID:        gr.ID,
-		Code:      gr.Code,
+		ID:          gr.ID,
+		Code:        gr.Code,
 		ReceiptDate: receiptDate,
-		Notes:     gr.Notes,
-		Status:    string(gr.Status),
-		CreatedBy: gr.CreatedBy,
-		CreatedAt: gr.CreatedAt,
-		Items:     make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
+		Notes:       gr.Notes,
+		Status:      string(gr.Status),
+		CreatedBy:   gr.CreatedBy,
+		Items:       make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
+
+		SubmittedAt:                  gr.SubmittedAt,
+		ApprovedAt:                   gr.ApprovedAt,
+		ClosedAt:                     gr.ClosedAt,
+		RejectedAt:                   gr.RejectedAt,
+		ConvertedAt:                  gr.ConvertedAt,
+		ConvertedToSupplierInvoiceID: gr.ConvertedToSupplierInvoiceID,
 	}
 
 	if gr.PurchaseOrder != nil {

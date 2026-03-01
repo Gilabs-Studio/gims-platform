@@ -15,6 +15,12 @@ export const purchasePaymentId = {
     view: "Lihat",
     auditTrail: "Audit Trail",
     delete: "Hapus",
+    createNew: "Buat Baru",
+    print: "Cetak",
+  },
+  sections: {
+    invoiceInfo: "Informasi Invoice",
+    paymentDetails: "Detail Pembayaran",
   },
   status: {
     pending: "Menunggu",
@@ -49,6 +55,8 @@ export const purchasePaymentId = {
     invoiceDate: "Tanggal Invoice",
     dueDate: "Jatuh Tempo",
     amount: "Jumlah Tagihan",
+    paidAmount: "Jumlah Dibayar",
+    remainingAmount: "Sisa Tagihan",
     status: "Status",
   },
   auditTrail: {
@@ -69,4 +77,14 @@ export const purchasePaymentId = {
       auditTrail: "Audit Trail",
     },
   },
+  // Dialog cetak
+  print: "Cetak",
+  printPurchasePayment: "Cetak Pembayaran Pembelian",
+  printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+  printCompanyLabel: "Perusahaan",
+  printCompanyPlaceholder: "Pilih perusahaan...",
+  printNoCompanies: "Tidak ada perusahaan tersedia",
+  printConfirm: "Cetak",
+  printCancel: "Batal",
+  printError: "Terjadi kesalahan",
 };

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, ChevronDown, Package, Box, AlertTriangle, CheckCircle2, XCircle, Layers } from "lucide-react";
+import { ChevronRight, ChevronDown, Package, AlertTriangle, CheckCircle2, XCircle, Layers, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,7 +33,8 @@ function StatusBadge({ count, type }: { count: number; type: "ok" | "low" | "out
 }
 
 function BatchList({ warehouseId, productId }: { warehouseId: string; productId: string }) {
-  const { batches, isLoading } = useInventoryTreeBatches(warehouseId, productId, true);
+  const PAGE_SIZE = 5;
+  const { batches, meta, isLoading, page, setPage } = useInventoryTreeBatches(warehouseId, productId, true, PAGE_SIZE);
 
   if (isLoading) {
     return <Skeleton className="h-8 w-full my-1" />;
@@ -44,15 +45,61 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
   }
 
   return (
-    <div className="pl-6 space-y-1 py-1">
+    <div className="pl-6 py-1 space-y-1">
+      {/* Column headers for alignment */}
+      <div className="grid text-[10px] font-medium text-muted-foreground/60 px-1 mb-0.5"
+           style={{ gridTemplateColumns: "1.5rem 1fr 9rem 5rem 6rem" }}>
+        <span />
+        <span>Batch</span>
+        <span>Expiry</span>
+        <span className="text-right">Qty</span>
+        <span className="text-right">Reserved</span>
+      </div>
+
       {batches.map((batch) => (
-        <div key={batch.id} className="flex items-center text-xs text-muted-foreground gap-4 bg-muted/30 p-1 rounded-sm border-l-2 border-primary/20">
-            <span className="font-mono min-w-[120px]">▶ {batch.batch_number}</span>
-            <span className="min-w-[100px]">Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "-"}</span>
-            <span className="font-medium">Qty: {batch.current_quantity}</span>
-            <span>Reserved: {batch.reserved_quantity}</span>
+        <div
+          key={batch.id}
+          className="grid items-center text-xs text-muted-foreground gap-x-2 bg-muted/30 px-1 py-1.5 rounded-sm border-l-2 border-primary/20"
+          style={{ gridTemplateColumns: "1.5rem 1fr 9rem 5rem 6rem" }}
+        >
+          <span className="text-muted-foreground/50">▶</span>
+          <span className="font-mono truncate">{batch.batch_number}</span>
+          <span className="tabular-nums">
+            {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "—"}
+          </span>
+          <span className="font-medium tabular-nums text-right">{batch.current_quantity}</span>
+          <span className="tabular-nums text-right">{batch.reserved_quantity}</span>
         </div>
       ))}
+
+      {/* Pagination controls */}
+      {meta && meta.total_pages > 1 && (
+        <div className="flex items-center justify-between pt-1 px-1">
+          <span className="text-[10px] text-muted-foreground">
+            Page {meta.page} of {meta.total_pages} ({meta.total} batches)
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              disabled={!meta.has_prev}
+              onClick={(e) => { e.stopPropagation(); setPage(page - 1); }}
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              disabled={!meta.has_next}
+              onClick={(e) => { e.stopPropagation(); setPage(page + 1); }}
+            >
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -110,7 +157,7 @@ function ProductNode({ product, warehouseId, isOpen, onToggle }: { product: Inve
                 <span className="text-muted-foreground">Available</span>
                 <span className="font-bold text-sm">{product.available}</span>
             </div>
-            <div className={`min-w-[80px] text-right ${getStatusColor(product.status)}`}>
+            <div className={`min-w-20 text-right ${getStatusColor(product.status)}`}>
                 {product.status.replace("_", " ")}
             </div>
         </div>

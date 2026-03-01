@@ -5,7 +5,6 @@ import { purchaseOrdersService } from "../services/purchase-orders-service";
 import type {
   CreatePurchaseOrderInput,
   PurchaseOrderListParams,
-  RevisePurchaseOrderInput,
   UpdatePurchaseOrderInput,
 } from "../types";
 
@@ -83,16 +82,54 @@ export function useConfirmPurchaseOrder() {
   });
 }
 
-export function useRevisePurchaseOrder() {
+export function useSubmitPurchaseOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RevisePurchaseOrderInput }) =>
-      purchaseOrdersService.revise(id, data),
-    onSuccess: (_, variables) => {
+    mutationFn: (id: string) => purchaseOrdersService.submit(id),
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useApprovePurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useRejectPurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.reject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    },
+  });
+}
+
+export function useClosePurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseOrdersService.close(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
     },
   });
 }

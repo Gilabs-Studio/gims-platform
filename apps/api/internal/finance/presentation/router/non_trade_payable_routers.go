@@ -22,4 +22,6 @@ func RegisterNonTradePayableRoutes(r *gin.RouterGroup, h *handler.NonTradePayabl
 	g.GET("/:id", middleware.RequirePermission(nonTradePayableRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(nonTradePayableUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(nonTradePayableDelete), h.Delete)
+	g.POST("/:id/approve", middleware.RequirePermission(nonTradePayableUpdate), h.Approve)
+	g.POST("/:id/pay", middleware.RequirePermission(nonTradePayableUpdate), h.Pay)
 }

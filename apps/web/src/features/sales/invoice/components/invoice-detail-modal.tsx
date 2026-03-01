@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, Send, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,6 +31,7 @@ import { useInvoiceDetail } from "../hooks/use-invoice-detail";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -58,6 +59,8 @@ export function InvoiceDetailModal({
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
+  const canCreatePayment = useUserPermission("sales_payment.create");
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
 
   const {
     canViewProduct,
@@ -193,6 +196,17 @@ export function InvoiceDetailModal({
                     title={t("actions.markAsPaid")}
                   >
                     <DollarSign className="h-4 w-4" />
+                  </Button>
+                )}
+                {canCreatePayment && (invoice?.status === "unpaid" || invoice?.status === "partial") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreatePaymentOpen(true)}
+                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={t("actions.createPayment")}
+                  >
+                    <CreditCard className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -451,6 +465,14 @@ export function InvoiceDetailModal({
         onOpenChange={setIsProductOpen}
         productId={selectedProductId}
       />
+
+      {invoice && (
+        <SalesPaymentForm
+          open={isCreatePaymentOpen}
+          onClose={() => setIsCreatePaymentOpen(false)}
+          defaultInvoiceId={invoice.id}
+        />
+      )}
     </>
   );
 }

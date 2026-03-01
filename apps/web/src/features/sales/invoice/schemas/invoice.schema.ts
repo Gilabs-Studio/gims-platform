@@ -59,17 +59,8 @@ export const getUpdateInvoiceStatusSchema = () => z.object({
   payment_at: z.string().optional(),
 });
 
-export const getRecordPaymentSchema = (t?: TranslationFn) => z.object({
-  paid_amount: z.number()
-    .positive(getMsg(t, "validation.amountPositive", "Payment amount must be greater than 0"))
-    .min(0.01, getMsg(t, "validation.amountMin", "Payment amount must be at least 0.01")),
-  payment_at: z.string().optional(),
-  notes: z.string().optional(),
-});
-
 // Inferred types
 export type CreateInvoiceFormData = z.infer<ReturnType<typeof getInvoiceSchema>>;
 export type UpdateInvoiceFormData = z.infer<ReturnType<typeof getUpdateInvoiceSchema>>;
 export type UpdateInvoiceStatusFormData = z.infer<ReturnType<typeof getUpdateInvoiceStatusSchema>>;
 export type InvoiceItemFormData = z.infer<ReturnType<typeof getInvoiceItemSchema>>;
-export type RecordPaymentFormData = z.infer<ReturnType<typeof getRecordPaymentSchema>>;

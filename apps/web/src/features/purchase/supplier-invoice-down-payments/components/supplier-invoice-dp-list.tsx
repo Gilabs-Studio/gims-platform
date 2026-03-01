@@ -3,21 +3,23 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Printer,
+  Search,
+  Send,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -28,59 +30,142 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
+  useApproveSupplierInvoiceDP,
+  useCancelSupplierInvoiceDP,
   useDeleteSupplierInvoiceDP,
   usePendingSupplierInvoiceDP,
-  useSupplierInvoiceDP,
+  useRejectSupplierInvoiceDP,
+  useSubmitSupplierInvoiceDP,
   useSupplierInvoiceDPs,
 } from "../hooks/use-supplier-invoice-dp";
+import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
+import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
 import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
-import type { SupplierInvoiceDPListItem, SupplierInvoiceDPStatus } from "../types";
+import type { SupplierInvoiceDPListItem } from "../types";
+import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
+import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
+import { SupplierInvoiceDPDetailModal } from "./supplier-invoice-dp-detail-modal";
 
 const SupplierInvoiceDPFormDialog = dynamic(
   () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
   { ssr: false },
 );
 
-function statusLabel(t: ReturnType<typeof useTranslations>, status: SupplierInvoiceDPStatus) {
-  return t(`status.${status.toLowerCase()}`);
-}
+// ─── Due Date Cell ────────────────────────────────────────────────────────────
 
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
+  const st = (status ?? "").toLowerCase();
+  const isSettled = st === "paid" || st === "cancelled" || st === "rejected";
+  const formatted = formatDate(dueDate);
+
+  if (!dueDate) return <span className="text-sm text-muted-foreground">—</span>;
+  if (isSettled) return <span className="text-sm text-muted-foreground">{formatted}</span>;
+
+  const due = new Date(dueDate);
+  const now = new Date();
+  due.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return (
+      <div className="space-y-0.5">
+        <span className="text-xs text-muted-foreground">{formatted}</span>
+        <div className="flex items-center gap-1 text-destructive">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span className="text-xs font-semibold">{Math.abs(diffDays)}d overdue</span>
+        </div>
+      </div>
+    );
+  }
+  if (diffDays === 0) {
+    return (
+      <div className="space-y-0.5">
+        <span className="text-xs text-muted-foreground">{formatted}</span>
+        <span className="text-xs font-semibold text-amber-500">Due today</span>
+      </div>
+    );
+  }
+  if (diffDays <= 7) {
+    return (
+      <div className="space-y-0.5">
+        <span className="text-xs text-muted-foreground">{formatted}</span>
+        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+      </div>
+    );
+  }
+  return <span className="text-sm">{formatted}</span>;
 }
 
 export function SupplierInvoiceDPList() {
   const t = useTranslations("supplierInvoiceDP");
+  const tCommon = useTranslations("common");
 
   const [search, setSearch] = useState<string>("");
+  const debouncedSearch = useDebounce(search, 500);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
-  const listParams = useMemo(() => ({ page: 1, per_page: 10, search }), [search]);
+  const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
+  const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
+
+  const [isPOOpen, setIsPOOpen] = useState(false);
+  const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
+
+  const listParams = useMemo(
+    () => ({
+      page,
+      per_page: pageSize,
+      search: debouncedSearch || undefined,
+      sort_by: "created_at",
+      sort_dir: "desc",
+    }),
+    [page, pageSize, debouncedSearch],
+  );
+
   const { data, isLoading, isError } = useSupplierInvoiceDPs(listParams);
 
   const deleteMutation = useDeleteSupplierInvoiceDP();
   const pendingMutation = usePendingSupplierInvoiceDP();
+  const submitMutation = useSubmitSupplierInvoiceDP();
+  const approveMutation = useApproveSupplierInvoiceDP();
+  const rejectMutation = useRejectSupplierInvoiceDP();
+  const cancelMutation = useCancelSupplierInvoiceDP();
 
   const canCreate = useUserPermission("supplier_invoice_dp.create");
   const canUpdate = useUserPermission("supplier_invoice_dp.update");
   const canDelete = useUserPermission("supplier_invoice_dp.delete");
   const canPending = useUserPermission("supplier_invoice_dp.pending");
+  const canSubmit = useUserPermission("supplier_invoice_dp.submit");
+  const canApprove = useUserPermission("supplier_invoice_dp.approve");
+  const canReject = useUserPermission("supplier_invoice_dp.reject");
+  const canCancel = useUserPermission("supplier_invoice_dp.cancel");
   const canExport = useUserPermission("supplier_invoice_dp.export");
+  const canView = useUserPermission("supplier_invoice_dp.read");
+  const canPrint = useUserPermission("supplier_invoice_dp.print");
+  const canViewPO = useUserPermission("purchase_order.read");
 
   async function handleExport() {
     try {
@@ -89,249 +174,394 @@ export function SupplierInvoiceDPList() {
       const a = document.createElement("a");
       a.href = url;
       a.download = "supplier-invoice-down-payments.csv";
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
   }
 
-  async function handleDelete() {
-    if (!deleteId) return;
-    try {
-      const response = await deleteMutation.mutateAsync(deleteId);
-      if (!response.success) throw new Error(response.error ?? "delete_failed");
-      toast.success(t("toast.deleted"));
-      setDeleteOpen(false);
-      setDeleteId(null);
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  }
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
 
-  async function handlePending(id: string) {
-    try {
-      const response = await pendingMutation.mutateAsync(id);
-      if (!response.success) throw new Error(response.error ?? "pending_failed");
-      toast.success(t("toast.pending"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  }
+  const rows = data?.data ?? [];
+  const pagination = data?.meta?.pagination;
 
-  const rows = data?.success ? data.data : [];
+  const canShowActions =
+    canUpdate || canPending || canSubmit || canApprove || canReject || canCancel || canDelete || canView || canPrint;
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </div>
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("description")}</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("search")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="md:w-[320px]"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="pl-9"
           />
-          <div className="flex gap-2">
-            {canExport ? (
-              <Button variant="outline" onClick={handleExport} className="cursor-pointer">
-                {t("actions.export")}
-              </Button>
-            ) : null}
-            {canCreate ? (
-              <Button
-                onClick={() => {
-                  setEditId(undefined);
-                  setFormOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                {t("actions.create")}
-              </Button>
-            ) : null}
-          </div>
         </div>
-      </CardHeader>
 
-      <CardContent>
-        {isLoading ? <Skeleton className="h-40 w-full" /> : null}
-        {isError ? <div className="text-sm text-destructive">{t("toast.failed")}</div> : null}
+        <div className="flex-1" />
 
-        {!isLoading ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("columns.code")}</TableHead>
-                <TableHead>{t("columns.invoiceNumber")}</TableHead>
-                <TableHead>{t("columns.invoiceDate")}</TableHead>
-                <TableHead>{t("columns.dueDate")}</TableHead>
-                <TableHead>{t("columns.purchaseOrder")}</TableHead>
-                <TableHead className="text-right">{t("columns.amount")}</TableHead>
-                <TableHead>{t("columns.status")}</TableHead>
-                <TableHead>{t("columns.createdAt")}</TableHead>
-                <TableHead className="text-right">{t("actions.view")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.code}</TableCell>
-                  <TableCell>{row.invoice_number}</TableCell>
-                  <TableCell>{safeDate(row.invoice_date)}</TableCell>
-                  <TableCell>{safeDate(row.due_date)}</TableCell>
-                  <TableCell>{row.purchase_order?.code ?? "-"}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                  <TableCell>{statusLabel(t, row.status)}</TableCell>
-                  <TableCell>{safeDate(row.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => {
-                          setDetailId(row.id);
-                          setDetailOpen(true);
-                        }}
-                      >
-                        {t("actions.view")}
-                      </Button>
-                      {canUpdate ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setEditId(row.id);
-                            setFormOpen(true);
-                          }}
-                        >
-                          {t("actions.edit")}
-                        </Button>
-                      ) : null}
-                      {canPending ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => handlePending(row.id)}
-                        >
-                          {t("actions.pending")}
-                        </Button>
-                      ) : null}
-                      {canDelete ? (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setDeleteId(row.id);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          {t("actions.delete")}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!rows.length ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground">
-                    -
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        ) : null}
-      </CardContent>
+        {canExport && (
+          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+            <Download className="h-4 w-4 mr-2" />
+            {t("actions.export")}
+          </Button>
+        )}
 
-      <SupplierInvoiceDPFormDialog open={formOpen} onOpenChange={setFormOpen} invoiceId={editId} />
-
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{t("actions.view")}</DialogTitle>
-          </DialogHeader>
-          {detailId ? <SupplierInvoiceDPDetailWithFetch id={detailId} /> : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("actions.delete")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">Delete this down payment invoice?</div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
-                {t("actions.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteMutation.isPending}
-                className="cursor-pointer"
-              >
-                {t("actions.delete")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
-}
-
-function SupplierInvoiceDPDetailWithFetch({ id }: { id: string }) {
-  const t = useTranslations("supplierInvoiceDP");
-  const { data, isLoading, isError } = useSupplierInvoiceDP(id, { enabled: !!id });
-
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
-  if (isError || !data?.success) return <div className="text-sm text-destructive">{t("toast.failed")}</div>;
-
-  const row = data.data;
-
-  return (
-    <div className="space-y-2">
-      <div className="text-sm text-muted-foreground">{t("columns.code")}</div>
-      <div className="font-medium">{row.code}</div>
-
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.purchaseOrder")}</div>
-          <div className="font-medium">{row.purchase_order?.code ?? "-"}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.amount")}</div>
-          <div className="font-medium">{formatCurrency(row.amount)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.invoiceDate")}</div>
-          <div className="font-medium">{safeDate(row.invoice_date)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.dueDate")}</div>
-          <div className="font-medium">{safeDate(row.due_date)}</div>
-        </div>
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.status")}</div>
-          <div className="font-medium">{statusLabel(t, row.status)}</div>
-        </div>
+        {canCreate && (
+          <Button
+            onClick={() => {
+              setEditId(undefined);
+              setFormOpen(true);
+            }}
+            className="cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.create")}
+          </Button>
+        )}
       </div>
 
-      {row.notes ? (
-        <div>
-          <div className="text-sm text-muted-foreground">{t("fields.notes")}</div>
-          <div className="whitespace-pre-wrap">{row.notes}</div>
-        </div>
-      ) : null}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
+              <TableHead>{t("columns.regularInvoice")}</TableHead>
+              <TableHead>{t("columns.invoiceDate")}</TableHead>
+              <TableHead>{t("columns.dueDate")}</TableHead>
+              <TableHead>{t("columns.purchaseOrder")}</TableHead>
+              <TableHead className="text-right">{t("columns.amount")}</TableHead>
+              <TableHead>{t("columns.status")}</TableHead>
+              {canShowActions && <TableHead className="w-[70px]" />}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                  {canShowActions && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
+                </TableRow>
+              ))
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={canShowActions ? 8 : 7}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {tCommon("empty")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => {
+                const st = (row.status ?? "").toLowerCase();
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell
+                      className="font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => canView && handleView(row.id)}
+                    >
+                      {row.code}
+                    </TableCell>
+                    <TableCell>
+                      {row.regular_invoices && row.regular_invoices.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {row.regular_invoices.map((reg) => (
+                            <span
+                              key={reg.id}
+                              className="text-xs font-mono font-medium text-primary hover:underline cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRegularInvoiceId(reg.id);
+                                setIsRegularInvoiceOpen(true);
+                              }}
+                            >
+                              {reg.code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatDate(row.invoice_date)}</TableCell>
+                    <TableCell>
+                      <DueDateCell dueDate={row.due_date} status={row.status} />
+                    </TableCell>
+                    <TableCell>
+                      {row.purchase_order ? (
+                        canViewPO ? (
+                          <span
+                            className="font-medium text-primary hover:underline cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPOId(row.purchase_order!.id);
+                              setIsPOOpen(true);
+                            }}
+                          >
+                            {row.purchase_order.code}
+                          </span>
+                        ) : (
+                          <span className="font-medium">{row.purchase_order.code}</span>
+                        )
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(row.amount)}</TableCell>
+                    <TableCell>
+                      <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                    </TableCell>
+                    {canShowActions && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="cursor-pointer">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canView && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => handleView(row.id)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                {t("actions.view")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canUpdate && st === "draft" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  setEditId(row.id);
+                                  setFormOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {t("actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canSubmit && st === "draft" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                onClick={async () => {
+                                  try {
+                                    await submitMutation.mutateAsync(row.id);
+                                    toast.success(t("toast.submitted"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                {t("actions.submit")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canApprove && st === "submitted" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                onClick={async () => {
+                                  try {
+                                    await approveMutation.mutateAsync(row.id);
+                                    toast.success(t("toast.approved"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.approve")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canReject && st === "submitted" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={async () => {
+                                  try {
+                                    await rejectMutation.mutateAsync(row.id);
+                                    toast.success(t("toast.rejected"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {t("actions.reject")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canPending && st === "approved" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                onClick={async () => {
+                                  try {
+                                    await pendingMutation.mutateAsync(row.id);
+                                    toast.success(t("toast.pending"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.pending")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={async () => {
+                                  try {
+                                    await cancelMutation.mutateAsync(row.id);
+                                    toast.success(t("toast.cancelled"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {t("actions.cancel")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canPrint && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                onClick={() => setPrintingId(row.id)}
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canDelete && st === "draft" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={() => setDeletingRow(row)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {tCommon("delete")}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      )}
+
+      <SupplierInvoiceDPFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        invoiceId={editId}
+      />
+
+      {detailId && (
+        <SupplierInvoiceDPDetailModal
+          open={detailOpen}
+          onOpenChange={(v) => {
+            setDetailOpen(v);
+            if (!v) setDetailId(null);
+          }}
+          id={detailId}
+        />
+      )}
+
+      <SupplierInvoiceDetail
+        open={isRegularInvoiceOpen}
+        invoiceId={selectedRegularInvoiceId}
+        onClose={() => {
+          setIsRegularInvoiceOpen(false);
+          setSelectedRegularInvoiceId(null);
+        }}
+      />
+
+      <PurchaseOrderDetail
+        open={isPOOpen}
+        onClose={() => {
+          setIsPOOpen(false);
+          setSelectedPOId(null);
+        }}
+        purchaseOrderId={selectedPOId}
+      />
+
+      {printingId && (
+        <SupplierInvoiceDPPrintDialog
+          open={!!printingId}
+          onClose={() => setPrintingId(null)}
+          invoiceId={printingId}
+        />
+      )}
+
+      <DeleteDialog
+        open={!!deletingRow}
+        onOpenChange={(v) => !v && setDeletingRow(null)}
+        itemName={tCommon("supplierInvoiceDP") || "supplier invoice down payment"}
+        onConfirm={async () => {
+          if (!deletingRow) return;
+          try {
+            await deleteMutation.mutateAsync(deletingRow.id);
+            toast.success(t("toast.deleted"));
+          } catch {
+            toast.error(t("toast.failed"));
+          } finally {
+            setDeletingRow(null);
+          }
+        }}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

@@ -14,27 +14,36 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 	}
 
 	resp := &dto.CustomerInvoiceResponse{
-		ID:              invoice.ID,
-		Code:            invoice.Code,
-		InvoiceNumber:   invoice.InvoiceNumber,
-		Type:            string(invoice.Type),
-		InvoiceDate:     invoice.InvoiceDate.Format("2006-01-02"),
-		SalesOrderID:    invoice.SalesOrderID,
-		PaymentTermsID:  invoice.PaymentTermsID,
-		Subtotal:        invoice.Subtotal,
-		TaxRate:         invoice.TaxRate,
-		TaxAmount:       invoice.TaxAmount,
-		DeliveryCost:    invoice.DeliveryCost,
-		OtherCost:       invoice.OtherCost,
-		Amount:          invoice.Amount,
-		PaidAmount:      invoice.PaidAmount,
-		RemainingAmount: invoice.RemainingAmount,
-		Status:          string(invoice.Status),
-		Notes:           invoice.Notes,
-		CreatedBy:       invoice.CreatedBy,
-		CancelledBy:     invoice.CancelledBy,
-		CreatedAt:       invoice.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       invoice.UpdatedAt.Format(time.RFC3339),
+		ID:                invoice.ID,
+		Code:              invoice.Code,
+		InvoiceNumber:     invoice.InvoiceNumber,
+		Type:              string(invoice.Type),
+		InvoiceDate:       invoice.InvoiceDate.Format("2006-01-02"),
+		SalesOrderID:      invoice.SalesOrderID,
+		DeliveryOrderID:   invoice.DeliveryOrderID,
+		PaymentTermsID:    invoice.PaymentTermsID,
+		Subtotal:          invoice.Subtotal,
+		TaxRate:           invoice.TaxRate,
+		TaxAmount:         invoice.TaxAmount,
+		DeliveryCost:      invoice.DeliveryCost,
+		OtherCost:         invoice.OtherCost,
+		DownPaymentAmount: invoice.DownPaymentAmount,
+		Amount:            invoice.Amount,
+		PaidAmount:        invoice.PaidAmount,
+		RemainingAmount:   invoice.RemainingAmount,
+		Status:            string(invoice.Status),
+		Notes:             invoice.Notes,
+		CreatedBy:         invoice.CreatedBy,
+		CancelledBy:       invoice.CancelledBy,
+		CreatedAt:         invoice.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         invoice.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if invoice.DownPaymentInvoiceID != nil {
+		resp.DownPaymentInvoiceID = invoice.DownPaymentInvoiceID
+	}
+	if invoice.DownPaymentInvoice != nil {
+		resp.DownPaymentInvoiceCode = &invoice.DownPaymentInvoice.Code
 	}
 
 	// Map optional date fields
@@ -72,6 +81,14 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 		}
 	}
 
+	// Map DeliveryOrder
+	if invoice.DeliveryOrder != nil {
+		resp.DeliveryOrder = &dto.DeliveryOrderBriefResponse{
+			ID:   invoice.DeliveryOrder.ID,
+			Code: invoice.DeliveryOrder.Code,
+		}
+	}
+
 	// Map Items
 	if len(invoice.Items) > 0 {
 		resp.Items = make([]dto.CustomerInvoiceItemResponse, len(invoice.Items))
@@ -90,10 +107,12 @@ func MapCustomerInvoiceItemToResponse(item *models.CustomerInvoiceItem) *dto.Cus
 	}
 
 	resp := &dto.CustomerInvoiceItemResponse{
-		ID:                item.ID,
-		CustomerInvoiceID: item.CustomerInvoiceID,
-		ProductID:         item.ProductID,
-		Quantity:          item.Quantity,
+		ID:                  item.ID,
+		CustomerInvoiceID:   item.CustomerInvoiceID,
+		ProductID:           item.ProductID,
+		SalesOrderItemID:    item.SalesOrderItemID,
+		DeliveryOrderItemID: item.DeliveryOrderItemID,
+		Quantity:            item.Quantity,
 		Price:             item.Price,
 		Discount:          item.Discount,
 		Subtotal:          item.Subtotal,

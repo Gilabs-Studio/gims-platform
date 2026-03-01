@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
+	"gorm.io/gorm"
 )
 
 // permissionDef defines a permission with its menu URL, code, name, action, and resource
@@ -29,32 +30,8 @@ func SeedPermissions() error {
 		// Dashboard
 		{"/dashboard", "dashboard.view", "View Dashboard", "VIEW", "dashboard"},
 
-		// Master Data - Geographic
-		// Master Data - Geographic
-		{"/master-data/geographic/countries", "country.read", "View Countries", "VIEW", "country"},
-		{"/master-data/geographic/countries", "country.create", "Create Countries", "CREATE", "country"},
-		{"/master-data/geographic/countries", "country.update", "Edit Countries", "EDIT", "country"},
-		{"/master-data/geographic/countries", "country.delete", "Delete Countries", "DELETE", "country"},
-
-		{"/master-data/geographic/provinces", "province.read", "View Provinces", "VIEW", "province"},
-		{"/master-data/geographic/provinces", "province.create", "Create Provinces", "CREATE", "province"},
-		{"/master-data/geographic/provinces", "province.update", "Edit Provinces", "EDIT", "province"},
-		{"/master-data/geographic/provinces", "province.delete", "Delete Provinces", "DELETE", "province"},
-
-		{"/master-data/geographic/cities", "city.read", "View Cities", "VIEW", "city"},
-		{"/master-data/geographic/cities", "city.create", "Create Cities", "CREATE", "city"},
-		{"/master-data/geographic/cities", "city.update", "Edit Cities", "EDIT", "city"},
-		{"/master-data/geographic/cities", "city.delete", "Delete Cities", "DELETE", "city"},
-
-		{"/master-data/geographic/districts", "district.read", "View Districts", "VIEW", "district"},
-		{"/master-data/geographic/districts", "district.create", "Create Districts", "CREATE", "district"},
-		{"/master-data/geographic/districts", "district.update", "Edit Districts", "EDIT", "district"},
-		{"/master-data/geographic/districts", "district.delete", "Delete Districts", "DELETE", "district"},
-
-		{"/master-data/geographic/villages", "village.read", "View Villages", "VIEW", "village"},
-		{"/master-data/geographic/villages", "village.create", "Create Villages", "CREATE", "village"},
-		{"/master-data/geographic/villages", "village.update", "Edit Villages", "EDIT", "village"},
-		{"/master-data/geographic/villages", "village.delete", "Delete Villages", "DELETE", "village"},
+		// Master Data - Geographic (read-only map page)
+		{"/master-data/geographic", "geographic.read", "View Geographic Map", "VIEW", "geographic"},
 
 		// Master Data - Organization
 		{"/master-data/company", "company.read", "View Company", "VIEW", "company"},
@@ -225,6 +202,7 @@ func SeedPermissions() error {
 		{"/sales/orders", "sales_order.update", "Edit Sales Orders", "EDIT", "sales_order"},
 		{"/sales/orders", "sales_order.delete", "Delete Sales Orders", "DELETE", "sales_order"},
 		{"/sales/orders", "sales_order.approve", "Approve Sales Orders", "APPROVE", "sales_order"},
+		{"/sales/orders", "sales_order.print", "Print Sales Orders", "PRINT", "sales_order"},
 
 		{"/sales/delivery-orders", "delivery_order.read", "View Delivery Orders", "VIEW", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
@@ -239,12 +217,18 @@ func SeedPermissions() error {
 		{"/sales/invoices", "customer_invoice.update", "Edit Customer Invoices", "EDIT", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.delete", "Delete Customer Invoices", "DELETE", "customer_invoice"},
 		{"/sales/invoices", "customer_invoice.approve", "Approve Customer Invoices", "APPROVE", "customer_invoice"},
+		{"/sales/invoices", "customer_invoice.print", "Print Customer Invoices", "PRINT", "customer_invoice"},
 
-		{"/sales/visits", "sales_visit.read", "View Sales Visits", "VIEW", "sales_visit"},
-		{"/sales/visits", "sales_visit.create", "Create Sales Visits", "CREATE", "sales_visit"},
-		{"/sales/visits", "sales_visit.update", "Edit Sales Visits", "EDIT", "sales_visit"},
-		{"/sales/visits", "sales_visit.delete", "Delete Sales Visits", "DELETE", "sales_visit"},
-		{"/sales/visits", "sales_visit.approve", "Approve Sales Visits", "APPROVE", "sales_visit"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.read", "View Down Payments", "VIEW", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.create", "Create Down Payments", "CREATE", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.update", "Edit Down Payments", "EDIT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.delete", "Delete Down Payments", "DELETE", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.pending", "Pending Down Payments", "PENDING", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
+
+
 
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
@@ -264,49 +248,81 @@ func SeedPermissions() error {
 		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
 		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
+		// Sales Payments
+		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
+		{"/sales/payments", "sales_payment.create", "Create Sales Payments", "CREATE", "sales_payment"},
+		{"/sales/payments", "sales_payment.delete", "Delete Sales Payments", "DELETE", "sales_payment"},
+		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
+		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
+		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
+		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
+
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.update", "Edit Purchase Requisitions", "EDIT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.delete", "Delete Purchase Requisitions", "DELETE", "purchase_requisition"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.submit", "Submit Purchase Requisitions", "SUBMIT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.approve", "Approve Purchase Requisitions", "APPROVE", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
+		{"/purchase/purchase-requisitions", "purchase_requisition.print", "Print Purchase Requisitions", "PRINT", "purchase_requisition"},
 
 		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.create", "Create Purchase Orders", "CREATE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.update", "Edit Purchase Orders", "EDIT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.delete", "Delete Purchase Orders", "DELETE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.confirm", "Confirm Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.submit", "Submit Purchase Orders", "SUBMIT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.approve", "Approve Purchase Orders", "APPROVE", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.reject", "Reject Purchase Orders", "REJECT", "purchase_order"},
+		{"/purchase/purchase-orders", "purchase_order.close", "Close Purchase Orders", "CLOSE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
+		{"/purchase/purchase-orders", "purchase_order.print", "Print Purchase Orders", "PRINT", "purchase_order"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.create", "Create Goods Receipts", "CREATE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.update", "Edit Goods Receipts", "EDIT", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.delete", "Delete Goods Receipts", "DELETE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.confirm", "Confirm Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.submit", "Submit Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.approve", "Approve Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.reject", "Reject Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.close", "Close Goods Receipts", "APPROVE", "goods_receipt"},
+		{"/purchase/goods-receipt", "goods_receipt.convert", "Convert Goods Receipts to Supplier Invoice", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
+		{"/purchase/goods-receipt", "goods_receipt.print", "Print Goods Receipts", "PRINT", "goods_receipt"},
 
 		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.create", "Create Supplier Invoices", "CREATE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.update", "Edit Supplier Invoices", "EDIT", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.delete", "Delete Supplier Invoices", "DELETE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.pending", "Pending Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.submit", "Submit Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.approve", "Approve Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.reject", "Reject Supplier Invoices", "APPROVE", "supplier_invoice"},
+		{"/purchase/supplier-invoices", "supplier_invoice.cancel", "Cancel Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
+		{"/purchase/supplier-invoices", "supplier_invoice.print", "Print Supplier Invoices", "PRINT", "supplier_invoice"},
 
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.create", "Create Supplier Invoice Down Payments", "CREATE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.update", "Edit Supplier Invoice Down Payments", "EDIT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.delete", "Delete Supplier Invoice Down Payments", "DELETE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.pending", "Pending Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.submit", "Submit Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.approve", "Approve Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.reject", "Reject Supplier Invoice Down Payments", "REJECT", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.cancel", "Cancel Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
+		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
@@ -314,6 +330,7 @@ func SeedPermissions() error {
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
+		{"/purchase/payments", "purchase_payment.print", "Print Purchase Payments", "PRINT", "purchase_payment"},
 
 		// Stock
 		{"/stock/inventory", "inventory.read", "View Inventory", "VIEW", "inventory"},
@@ -397,6 +414,27 @@ func SeedPermissions() error {
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
 		{"/finance/salary", "salary.update", "Edit Salary", "EDIT", "salary"},
 		{"/finance/salary", "salary.delete", "Delete Salary", "DELETE", "salary"},
+		{"/finance/salary", "salary.approve", "Approve Salary", "APPROVE", "salary"},
+
+		// Finance Reports
+		{"/finance/reports/general-ledger", "finance_report.gl", "View General Ledger Report", "VIEW", "finance_report"},
+		{"/finance/reports/balance-sheet", "finance_report.bs", "View Balance Sheet Report", "VIEW", "finance_report"},
+		{"/finance/reports/profit-loss", "finance_report.pl", "View Profit & Loss Report", "VIEW", "finance_report"},
+		{"/finance/reports/general-ledger", "finance_report.export_gl", "Export General Ledger", "EXPORT", "finance_report"},
+		{"/finance/reports/balance-sheet", "finance_report.export_bs", "Export Balance Sheet", "EXPORT", "finance_report"},
+		{"/finance/reports/profit-loss", "finance_report.export_pl", "Export Profit & Loss", "EXPORT", "finance_report"},
+
+		// Asset Categories
+		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
+		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
+		{"/finance/asset-categories", "asset_category.update", "Edit Asset Categories", "EDIT", "asset_category"},
+		{"/finance/asset-categories", "asset_category.delete", "Delete Asset Categories", "DELETE", "asset_category"},
+
+		// Asset Locations
+		{"/finance/asset-locations", "asset_location.read", "View Asset Locations", "VIEW", "asset_location"},
+		{"/finance/asset-locations", "asset_location.create", "Create Asset Locations", "CREATE", "asset_location"},
+		{"/finance/asset-locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
+		{"/finance/asset-locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -445,6 +483,18 @@ func SeedPermissions() error {
 		{"/reports", "report.generate", "Generate Reports", "CREATE", "report"},
 		{"/reports", "report.export", "Export Reports", "EXPORT", "report"},
 
+		// Reports - Sales Overview
+		{"/reports/sales-overview", "report_sales_overview.read", "View Sales Overview Report", "VIEW", "report_sales_overview"},
+		{"/reports/sales-overview", "report_sales_overview.export", "Export Sales Overview Report", "EXPORT", "report_sales_overview"},
+
+		// Reports - Product Analysis
+		{"/reports/product-analysis", "report_product_analysis.read", "View Product Analysis Report", "VIEW", "report_product_analysis"},
+		{"/reports/product-analysis", "report_product_analysis.export", "Export Product Analysis Report", "EXPORT", "report_product_analysis"},
+
+		// Reports - Geo Performance
+		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
+		{"/reports/geo-performance", "report_geo_performance.export", "Export Geo Performance Report", "EXPORT", "report_geo_performance"},
+
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
@@ -479,6 +529,49 @@ func SeedPermissions() error {
 		{"/crm/settings/activity-types", "crm_activity_type.create", "Create Activity Types", "CREATE", "crm_activity_type"},
 		{"/crm/settings/activity-types", "crm_activity_type.update", "Edit Activity Types", "EDIT", "crm_activity_type"},
 		{"/crm/settings/activity-types", "crm_activity_type.delete", "Delete Activity Types", "DELETE", "crm_activity_type"},
+
+		// CRM Leads (Sprint 19)
+		{"/crm/leads", "crm_lead.read", "View Leads", "VIEW", "crm_lead"},
+		{"/crm/leads", "crm_lead.create", "Create Leads", "CREATE", "crm_lead"},
+		{"/crm/leads", "crm_lead.update", "Edit Leads", "EDIT", "crm_lead"},
+		{"/crm/leads", "crm_lead.delete", "Delete Leads", "DELETE", "crm_lead"},
+		{"/crm/leads", "crm_lead.convert", "Convert Leads", "CONVERT", "crm_lead"},
+
+		// CRM Deals (Sprint 20)
+		{"/crm/pipeline", "crm_deal.read", "View Deals", "VIEW", "crm_deal"},
+		{"/crm/pipeline", "crm_deal.create", "Create Deals", "CREATE", "crm_deal"},
+		{"/crm/pipeline", "crm_deal.update", "Edit Deals", "EDIT", "crm_deal"},
+		{"/crm/pipeline", "crm_deal.delete", "Delete Deals", "DELETE", "crm_deal"},
+		{"/crm/pipeline", "crm_deal.move_stage", "Move Deal Stage", "MOVE_STAGE", "crm_deal"},
+
+		// CRM Visit Reports (Sprint 22)
+		{"/crm/visits", "crm_visit.read", "View Visit Reports", "VIEW", "crm_visit"},
+		{"/crm/visits", "crm_visit.create", "Create Visit Reports", "CREATE", "crm_visit"},
+		{"/crm/visits", "crm_visit.update", "Edit Visit Reports", "EDIT", "crm_visit"},
+		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
+		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
+
+		// CRM Activities (Sprint 23)
+		{"/crm/activities", "crm_activity.read", "View Activities", "VIEW", "crm_activity"},
+		{"/crm/activities", "crm_activity.create", "Create Activities", "CREATE", "crm_activity"},
+
+		// CRM Tasks (Sprint 23)
+		{"/crm/tasks", "crm_task.read", "View Tasks", "VIEW", "crm_task"},
+		{"/crm/tasks", "crm_task.create", "Create Tasks", "CREATE", "crm_task"},
+		{"/crm/tasks", "crm_task.update", "Edit Tasks", "EDIT", "crm_task"},
+		{"/crm/tasks", "crm_task.delete", "Delete Tasks", "DELETE", "crm_task"},
+		{"/crm/tasks", "crm_task.assign", "Assign Tasks", "ASSIGN", "crm_task"},
+
+		// CRM Schedules (Sprint 23)
+		{"/crm/schedules", "crm_schedule.read", "View Schedules", "VIEW", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.create", "Create Schedules", "CREATE", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.update", "Edit Schedules", "EDIT", "crm_schedule"},
+		{"/crm/schedules", "crm_schedule.delete", "Delete Schedules", "DELETE", "crm_schedule"},
+
+		// CRM Area Mapping (Sprint 24)
+		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
+		{"/crm/area-mapping", "crm_area_mapping.create", "Capture Area Location", "CREATE", "crm_area_mapping"},
+
 	}
 
 	// Build menu URL to ID map
@@ -491,46 +584,49 @@ func SeedPermissions() error {
 		menuMap[m.URL] = m.ID
 	}
 
-	// Create permissions
+	// Create permissions in a transaction to speed up seeding
 	var permissionIDs []string
-	for _, p := range permissions {
-		menuID, exists := menuMap[p.menuURL]
-		if !exists {
-			log.Printf("Warning: Menu not found for URL %s, skipping permission %s", p.menuURL, p.code)
-			continue
-		}
-
-		// Check if permission already exists
-		var existingPerm permission.Permission
-		if err := database.DB.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
-			// Permission exists: ensure it matches the latest definition.
-			updates := map[string]interface{}{
-				"name":     p.name,
-				"action":   p.action,
-				"resource": p.resource,
-				"menu_id":  &menuID,
-			}
-			if err := database.DB.Model(&existingPerm).Updates(updates).Error; err != nil {
-				log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, p := range permissions {
+			menuID, exists := menuMap[p.menuURL]
+			if !exists {
+				log.Printf("Warning: Menu not found for URL %s, skipping permission %s", p.menuURL, p.code)
+				continue
 			}
 
-			// Add ID to list and continue
-			permissionIDs = append(permissionIDs, existingPerm.ID)
-			continue
-		}
+			// Check if permission already exists
+			var existingPerm permission.Permission
+			if err := tx.Where("code = ?", p.code).First(&existingPerm).Error; err == nil {
+				// Permission exists: ensure it matches the latest definition.
+				updates := map[string]interface{}{
+					"name":     p.name,
+					"action":   p.action,
+					"resource": p.resource,
+					"menu_id":  &menuID,
+				}
+				if err := tx.Model(&existingPerm).Updates(updates).Error; err != nil {
+					log.Printf("Warning: Failed to update permission %s: %v", p.code, err)
+				}
+				permissionIDs = append(permissionIDs, existingPerm.ID)
+				continue
+			}
 
-		perm := permission.Permission{
-			Name:     p.name,
-			Code:     p.code,
-			MenuID:   &menuID,
-			Action:   p.action,
-			Resource: p.resource,
+			perm := permission.Permission{
+				Name:     p.name,
+				Code:     p.code,
+				MenuID:   &menuID,
+				Action:   p.action,
+				Resource: p.resource,
+			}
+			if err := tx.Create(&perm).Error; err != nil {
+				log.Printf("Warning: Failed to create permission %s: %v", p.code, err)
+				continue
+			}
+			permissionIDs = append(permissionIDs, perm.ID)
 		}
-		if err := database.DB.Create(&perm).Error; err != nil {
-			log.Printf("Warning: Failed to create permission %s: %v", p.code, err)
-			continue
-		}
-		permissionIDs = append(permissionIDs, perm.ID)
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
@@ -540,14 +636,17 @@ func SeedPermissions() error {
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
 		log.Printf("Warning: Admin role not found: %v", err)
 	} else {
-		for _, permID := range permissionIDs {
-			if err := database.DB.Exec(
-				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
-				adminRole.ID, permID,
-			).Error; err != nil {
-				log.Printf("Warning: Failed to assign permission to admin: %v", err)
+		database.DB.Transaction(func(tx *gorm.DB) error {
+			for _, permID := range permissionIDs {
+				if err := tx.Exec(
+					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
+					adminRole.ID, permID,
+				).Error; err != nil {
+					log.Printf("Warning: Failed to assign permission to admin: %v", err)
+				}
 			}
-		}
+			return nil
+		})
 		log.Printf("Assigned %d permissions to admin role (scope=ALL)", len(permissionIDs))
 	}
 
@@ -562,16 +661,19 @@ func SeedPermissions() error {
 		var viewPermissions []permission.Permission
 		if err := database.DB.Where("action = ?", "VIEW").Find(&viewPermissions).Error; err == nil {
 			viewerCount := 0
-			for _, perm := range viewPermissions {
-				if err := database.DB.Exec(
-					"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
-					viewerRole.ID, perm.ID,
-				).Error; err != nil {
-					log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
-				} else {
-					viewerCount++
+			database.DB.Transaction(func(tx *gorm.DB) error {
+				for _, perm := range viewPermissions {
+					if err := tx.Exec(
+						"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'OWN') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'OWN'",
+						viewerRole.ID, perm.ID,
+					).Error; err != nil {
+						log.Printf("Warning: Failed to assign permission %s to viewer: %v", perm.Code, err)
+					} else {
+						viewerCount++
+					}
 				}
-			}
+				return nil
+			})
 			log.Printf("Assigned %d VIEW permissions to viewer role (scope=OWN)", viewerCount)
 		}
 	}
@@ -672,24 +774,27 @@ func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]stri
 	}
 
 	count := 0
-	for _, perm := range allPerms {
-		scope := defaultScope
-		for module, moduleScope := range moduleScopes {
-			if matchesModule(perm.Resource, module) {
-				scope = moduleScope
-				break
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range allPerms {
+			scope := defaultScope
+			for module, moduleScope := range moduleScopes {
+				if matchesModule(perm.Resource, module) {
+					scope = moduleScope
+					break
+				}
+			}
+
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+				r.ID, perm.ID, scope,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+			} else {
+				count++
 			}
 		}
-
-		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
-			r.ID, perm.ID, scope,
-		).Error; err != nil {
-			log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
-		} else {
-			count++
-		}
-	}
+		return nil
+	})
 	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
 }
 
@@ -716,16 +821,19 @@ func SyncAdminPermissions() error {
 	}
 
 	assignedCount := 0
-	for _, perm := range allPermissions {
-		if err := database.DB.Exec(
-			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
-			adminRole.ID, perm.ID,
-		).Error; err != nil {
-			log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
-		} else {
-			assignedCount++
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range allPermissions {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
+				adminRole.ID, perm.ID,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign permission %s to admin: %v", perm.Code, err)
+			} else {
+				assignedCount++
+			}
 		}
-	}
+		return nil
+	})
 
 	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
 	return nil

@@ -28,8 +28,12 @@ type AssetUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.AssetResponse, error)
 	List(ctx context.Context, req *dto.ListAssetsRequest) ([]dto.AssetResponse, int64, error)
 	Depreciate(ctx context.Context, id string, req *dto.DepreciateAssetRequest) (*dto.AssetResponse, error)
+	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
 	Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error)
+	Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error)
+	Adjust(ctx context.Context, id string, req *dto.AdjustAssetRequest) (*dto.AssetResponse, error)
+	ApproveTransaction(ctx context.Context, txID string) (*dto.AssetResponse, error)
 	CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error
 }
 
@@ -89,8 +93,13 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		return nil, err
 	}
 
+	code := strings.TrimSpace(req.Code)
+	if code == "" {
+		code, _ = uc.repo.GenerateCode(ctx)
+	}
+
 	item := &financeModels.Asset{
-		Code:                    strings.TrimSpace(req.Code),
+		Code:                    code,
 		Name:                    strings.TrimSpace(req.Name),
 		CategoryID:              strings.TrimSpace(req.CategoryID),
 		LocationID:              strings.TrimSpace(req.LocationID),
@@ -414,43 +423,6 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 			amount = round2(remainingFloor)
 		}
 
-		now := time.Now()
-		refType := "asset_depreciation"
-
-		je := &financeModels.JournalEntry{
-			EntryDate:     asOfDate,
-			Description:   fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, period),
-			ReferenceType: &refType,
-			Status:        financeModels.JournalStatusPosted,
-			PostedAt:      &now,
-			PostedBy:      &actorID,
-			CreatedBy:     &actorID,
-		}
-		if err := tx.Create(je).Error; err != nil {
-			return err
-		}
-
-		debit := &financeModels.JournalLine{
-			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.DepreciationExpenseAccountID,
-			Debit:            amount,
-			Credit:           0,
-			Memo:             "Depreciation expense",
-		}
-		if err := tx.Create(debit).Error; err != nil {
-			return err
-		}
-		credit := &financeModels.JournalLine{
-			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.AccumulatedDepreciationAccountID,
-			Debit:            0,
-			Credit:           amount,
-			Memo:             "Accumulated depreciation",
-		}
-		if err := tx.Create(credit).Error; err != nil {
-			return err
-		}
-
 		newAccum := round2(accumulated + amount)
 		newBook := round2(asset.AcquisitionCost - newAccum)
 
@@ -462,7 +434,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 			Amount:           amount,
 			Accumulated:      newAccum,
 			BookValue:        newBook,
-			JournalEntryID:   &je.ID,
+			Status:           financeModels.AssetDepreciationStatusPending,
 			CreatedBy:        &actorID,
 			CreatedAt:        time.Now(),
 		}
@@ -470,27 +442,11 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 			return err
 		}
 
-		// set reference id now that depreciation exists
-		if err := tx.Model(&financeModels.JournalEntry{}).Where("id = ?", je.ID).Updates(map[string]interface{}{
-			"reference_id": d.ID,
-		}).Error; err != nil {
-			return err
-		}
-
-		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
-			"accumulated_depreciation": newAccum,
-			"book_value":               newBook,
-		}).Error; err != nil {
-			return err
-		}
-
 		txRec := &financeModels.AssetTransaction{
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeDepreciate,
 			TransactionDate: asOfDate,
-			Description:     fmt.Sprintf("Depreciated for %s", period),
-			ReferenceType:   &refType,
-			ReferenceID:     &d.ID,
+			Description:     fmt.Sprintf("Depreciation pending for %s", period),
 			CreatedBy:       &actorID,
 			CreatedAt:       time.Now(),
 		}
@@ -511,6 +467,105 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 	}
 	res := uc.mapper.ToResponse(full, true)
 	return &res, nil
+}
+
+func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	var dep financeModels.AssetDepreciation
+	if err := uc.db.WithContext(ctx).Preload("Asset").First(&dep, "id = ?", id).Error; err != nil {
+		return nil, errors.New("depreciation record not found")
+	}
+
+	if dep.Status != financeModels.AssetDepreciationStatusPending {
+		return nil, errors.New("only pending depreciations can be approved")
+	}
+
+	asset := dep.Asset
+	cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureNotClosed(ctx, tx, dep.DepreciationDate); err != nil {
+			return err
+		}
+
+		now := time.Now()
+		refType := "asset_depreciation"
+
+		je := &financeModels.JournalEntry{
+			EntryDate:     dep.DepreciationDate,
+			Description:   fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, dep.Period),
+			ReferenceType: &refType,
+			ReferenceID:   &dep.ID,
+			Status:        financeModels.JournalStatusPosted,
+			PostedAt:      &now,
+			PostedBy:      &actorID,
+			CreatedBy:     &actorID,
+		}
+		if err := tx.Create(je).Error; err != nil {
+			return err
+		}
+
+		debit := &financeModels.JournalLine{
+			JournalEntryID:   je.ID,
+			ChartOfAccountID: cat.DepreciationExpenseAccountID,
+			Debit:            dep.Amount,
+			Memo:             "Depreciation expense",
+		}
+		tx.Create(debit)
+		credit := &financeModels.JournalLine{
+			JournalEntryID:   je.ID,
+			ChartOfAccountID: cat.AccumulatedDepreciationAccountID,
+			Credit:           dep.Amount,
+			Memo:             "Accumulated depreciation",
+		}
+		tx.Create(credit)
+
+		if err := tx.Model(&financeModels.AssetDepreciation{}).Where("id = ?", dep.ID).Updates(map[string]interface{}{
+			"status":           financeModels.AssetDepreciationStatusApproved,
+			"journal_entry_id": je.ID,
+		}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
+			"accumulated_depreciation": dep.Accumulated,
+			"book_value":               dep.BookValue,
+		}).Error; err != nil {
+			return err
+		}
+
+		txRec := &financeModels.AssetTransaction{
+			AssetID:         asset.ID,
+			Type:            financeModels.AssetTransactionTypeDepreciate,
+			TransactionDate: time.Now(),
+			Description:     fmt.Sprintf("Depreciation approved for %s", dep.Period),
+			ReferenceType:   &refType,
+			ReferenceID:     &dep.ID,
+			CreatedBy:       &actorID,
+		}
+		return tx.Create(txRec).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	full, _ := uc.repo.FindByID(ctx, asset.ID, true)
+	resp := uc.mapper.ToResponse(full, true)
+	return &resp, nil
 }
 
 func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error) {
@@ -557,25 +612,19 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 			return err
 		}
 
-		if err := tx.Model(&financeModels.Asset{}).
-			Where("id = ?", asset.ID).
-			Updates(map[string]interface{}{
-				"location_id": newLocationID,
-				"updated_at":  time.Now(),
-			}).Error; err != nil {
-			return err
-		}
-
 		desc := strings.TrimSpace(req.Description)
 		if desc == "" {
-			desc = "Asset transferred"
+			desc = "Asset transfer request"
 		}
 		tr := &financeModels.AssetTransaction{
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeTransfer,
 			TransactionDate: transferDate,
 			Description:     desc,
+			Status:          financeModels.AssetTransactionStatusDraft,
+			ReferenceID:     &newLocationID, // Store target location ID in reference for approval
 			CreatedBy:       &actorID,
+			CreatedAt:       time.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -632,27 +681,18 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			return err
 		}
 
-		now := time.Now()
-		if err := tx.Model(&financeModels.Asset{}).
-			Where("id = ?", asset.ID).
-			Updates(map[string]interface{}{
-				"status":      financeModels.AssetStatusDisposed,
-				"disposed_at": &disposalDate,
-				"updated_at":  now,
-			}).Error; err != nil {
-			return err
-		}
-
 		desc := strings.TrimSpace(req.Description)
 		if desc == "" {
-			desc = "Asset disposed"
+			desc = "Asset disposal request"
 		}
 		tr := &financeModels.AssetTransaction{
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeDispose,
 			TransactionDate: disposalDate,
 			Description:     desc,
+			Status:          financeModels.AssetTransactionStatusDraft,
 			CreatedBy:       &actorID,
+			CreatedAt:       time.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -723,4 +763,181 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 	}
 
 	return tx.Create(&tLog).Error
+}
+
+func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	actorID, _ := ctx.Value("user_id").(string)
+	date, err := parseAssetDateStrict(req.RevaluationDate)
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		return nil, err
+	}
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureNotClosed(ctx, tx, date); err != nil {
+			return err
+		}
+		tr := &financeModels.AssetTransaction{
+			AssetID:         asset.ID,
+			Type:            financeModels.AssetTransactionTypeRevalue,
+			TransactionDate: date,
+			Amount:          req.NewValue, // New total value
+			Description:     req.Description,
+			Status:          financeModels.AssetTransactionStatusDraft,
+			CreatedBy:       &actorID,
+			CreatedAt:       time.Now(),
+		}
+		return tx.Create(tr).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	full, _ := uc.repo.FindByID(ctx, asset.ID, true)
+	resp := uc.mapper.ToResponse(full, true)
+	return &resp, nil
+}
+
+func (uc *assetUsecase) Adjust(ctx context.Context, id string, req *dto.AdjustAssetRequest) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	actorID, _ := ctx.Value("user_id").(string)
+	date, err := parseAssetDateStrict(req.AdjustmentDate)
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		return nil, err
+	}
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureNotClosed(ctx, tx, date); err != nil {
+			return err
+		}
+		tr := &financeModels.AssetTransaction{
+			AssetID:         asset.ID,
+			Type:            financeModels.AssetTransactionTypeAdjust,
+			TransactionDate: date,
+			Amount:          req.AdjustmentAmount, // Delta amount
+			Description:     req.Description,
+			Status:          financeModels.AssetTransactionStatusDraft,
+			CreatedBy:       &actorID,
+			CreatedAt:       time.Now(),
+		}
+		return tx.Create(tr).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	full, _ := uc.repo.FindByID(ctx, asset.ID, true)
+	resp := uc.mapper.ToResponse(full, true)
+	return &resp, nil
+}
+
+func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*dto.AssetResponse, error) {
+	var tr financeModels.AssetTransaction
+	if err := uc.db.WithContext(ctx).Preload("Asset").First(&tr, "id = ?", txID).Error; err != nil {
+		return nil, errors.New("transaction not found")
+	}
+
+	if tr.Status != financeModels.AssetTransactionStatusDraft {
+		return nil, errors.New("only draft transactions can be approved")
+	}
+
+	asset := tr.Asset
+	actorID, _ := ctx.Value("user_id").(string)
+
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureNotClosed(ctx, tx, tr.TransactionDate); err != nil {
+			return err
+		}
+
+		cat, _ := uc.catRepo.FindByID(ctx, asset.CategoryID)
+
+		switch tr.Type {
+		case financeModels.AssetTransactionTypeTransfer:
+			if tr.ReferenceID != nil {
+				tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("location_id", *tr.ReferenceID)
+			}
+		case financeModels.AssetTransactionTypeDispose:
+			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
+				"status":      financeModels.AssetStatusDisposed,
+				"disposed_at": tr.TransactionDate,
+			})
+			// Journal: Debit Cash(100), Credit Asset(Ref: AcquisitionAccountID)
+			// For simplicity, we just use the Asset Account
+			uc.createAssetJournal(tx, asset, &tr, cat.AssetAccountID, "Asset Disposal", tr.Amount, false)
+
+		case financeModels.AssetTransactionTypeRevalue:
+			oldVal := asset.AcquisitionCost - asset.AccumulatedDepreciation
+			diff := tr.Amount - oldVal
+			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("acquisition_cost", asset.AcquisitionCost+diff)
+			// Journal: Debit Asset, Credit Revaluation Reserve
+			var revalCoA financeModels.ChartOfAccount
+			if err := tx.Where("name ILIKE ?", "%Cadangan Revaluasi%").First(&revalCoA).Error; err == nil {
+				uc.createAssetJournal(tx, asset, &tr, revalCoA.ID, "Asset Revaluation", diff, true)
+			} else {
+				// Fallback to expense if no revaluation reserve found
+				uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Revaluation", diff, true)
+			}
+
+		case financeModels.AssetTransactionTypeAdjust:
+			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("acquisition_cost", asset.AcquisitionCost+tr.Amount)
+			// Journal: Debit Asset, Credit Expense
+			uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Adjustment", tr.Amount, true)
+		}
+
+		return tx.Model(&financeModels.AssetTransaction{}).Where("id = ?", tr.ID).Updates(map[string]interface{}{
+			"status":    financeModels.AssetTransactionStatusApproved,
+			"posted_by": &actorID,
+		}).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	full, _ := uc.repo.FindByID(ctx, asset.ID, true)
+	resp := uc.mapper.ToResponse(full, true)
+	return &resp, nil
+}
+
+func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, contraAccountID string, desc string, amount float64, isDebitAsset bool) {
+	if amount == 0 {
+		return
+	}
+	refType := "asset_transaction"
+	now := time.Now()
+	actorID, _ := tx.Statement.Context.Value("user_id").(string)
+
+	je := &financeModels.JournalEntry{
+		EntryDate:     tr.TransactionDate,
+		Description:   desc + ": " + asset.Code,
+		ReferenceType: &refType,
+		ReferenceID:   &tr.ID,
+		Status:        financeModels.JournalStatusPosted,
+		PostedAt:      &now,
+		PostedBy:      &actorID,
+		CreatedBy:     &actorID,
+	}
+	tx.Create(je)
+
+	cat, _ := uc.catRepo.FindByID(tx.Statement.Context, asset.CategoryID)
+
+	assetAccount := cat.AssetAccountID
+
+	if isDebitAsset {
+		// Debit Asset, Credit Contra
+		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Debit: math.Abs(amount), Memo: desc})
+		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Credit: math.Abs(amount), Memo: desc})
+	} else {
+		// Debit Contra, Credit Asset
+		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Debit: math.Abs(amount), Memo: desc})
+		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Credit: math.Abs(amount), Memo: desc})
+	}
 }

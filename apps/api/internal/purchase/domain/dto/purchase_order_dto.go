@@ -2,6 +2,44 @@ package dto
 
 import "time"
 
+// PurchaseOrderPartySummary is a minimal supplier snapshot used in list responses.
+type PurchaseOrderPartySummary struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// PurchaseOrderRequsitionRef is a minimal PR reference.
+type PurchaseOrderRequisitionRef struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+}
+
+// GoodsReceiptSummary is a minimal GR view used in list responses.
+type GoodsReceiptSummary struct {
+	ID         string `json:"id"`
+	Code       string `json:"code"`
+	Status     string `json:"status"`
+	TotalItems int    `json:"total_items"`
+	// TotalItemsReceived is the sum of QuantityReceived across the GR items
+	TotalItemsReceived float64 `json:"total_items_received"`
+}
+
+// POFulfillmentSummary tracks how much of the ordered qty has been received via confirmed GRs.
+type POFulfillmentSummary struct {
+	TotalOrdered  float64 `json:"total_ordered"`
+	TotalReceived float64 `json:"total_received"`
+	TotalPending  float64 `json:"total_pending"`
+	TotalRemaining float64 `json:"total_remaining"`
+}
+
+// SupplierInvoiceSummary is a minimal Supplier Invoice view used in list responses.
+type SupplierInvoiceSummary struct {
+	ID     string `json:"id"`
+	Code   string `json:"code"`
+	Status string `json:"status"`
+}
+
 type PurchaseOrderItemRequest struct {
 	ProductID string   `json:"product_id" binding:"required,uuid"`
 	Quantity  float64  `json:"quantity" binding:"required,gt=0"`
@@ -64,14 +102,17 @@ type PurchaseOrderItemResponse struct {
 }
 
 type PurchaseOrderListResponse struct {
-	ID         string      `json:"id"`
-	Code       string      `json:"code"`
-	OrderDate  string      `json:"order_date"`
-	DueDate    *string     `json:"due_date"`
-	Status     string      `json:"status"`
-	TotalAmount float64    `json:"total_amount"`
-	Supplier   interface{} `json:"supplier,omitempty"`
-	CreatedAt  time.Time   `json:"created_at"`
+	ID                  string                       `json:"id"`
+	Code                string                       `json:"code"`
+	OrderDate           string                       `json:"order_date"`
+	DueDate             *string                      `json:"due_date"`
+	Status              string                       `json:"status"`
+	TotalAmount         float64                      `json:"total_amount"`
+	Supplier            *PurchaseOrderPartySummary   `json:"supplier,omitempty"`
+	PurchaseRequisition *PurchaseOrderRequisitionRef `json:"purchase_requisition,omitempty"`
+	GoodsReceipts       []GoodsReceiptSummary        `json:"goods_receipts,omitempty"`
+	SupplierInvoices    []SupplierInvoiceSummary     `json:"supplier_invoices,omitempty"`
+	Fulfillment         *POFulfillmentSummary        `json:"fulfillment,omitempty"`
 }
 
 type PurchaseOrderDetailResponse struct {
@@ -94,11 +135,15 @@ type PurchaseOrderDetailResponse struct {
 	OtherCost    float64   `json:"other_cost"`
 	SubTotal     float64   `json:"sub_total"`
 	TotalAmount  float64   `json:"total_amount"`
-	Supplier   interface{} `json:"supplier,omitempty"`
-	PaymentTerms interface{} `json:"payment_terms,omitempty"`
-	BusinessUnit interface{} `json:"business_unit,omitempty"`
-	Creator     interface{} `json:"creator,omitempty"`
-	Items      []PurchaseOrderItemResponse `json:"items"`
-	CreatedAt  time.Time   `json:"created_at"`
-	UpdatedAt  time.Time   `json:"updated_at"`
+	Supplier            interface{}                 `json:"supplier,omitempty"`
+	PaymentTerms        interface{}                 `json:"payment_terms,omitempty"`
+	BusinessUnit        interface{}                 `json:"business_unit,omitempty"`
+	Creator             interface{}                 `json:"creator,omitempty"`
+	PurchaseRequisition interface{}                 `json:"purchase_requisition,omitempty"`
+	Items               []PurchaseOrderItemResponse `json:"items"`
+	CreatedAt           time.Time                   `json:"created_at"`
+	UpdatedAt           time.Time                   `json:"updated_at"`
+	SubmittedAt         *time.Time                  `json:"submitted_at"`
+	ApprovedAt          *time.Time                  `json:"approved_at"`
+	ClosedAt            *time.Time                  `json:"closed_at"`
 }

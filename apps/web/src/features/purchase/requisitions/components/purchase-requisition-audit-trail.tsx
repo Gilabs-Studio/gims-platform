@@ -98,11 +98,15 @@ function extractChanges(metadata: Record<string, unknown> | null | undefined): A
     });
 }
 
-export function PurchaseRequisitionAuditTrail({
-  open,
-  onClose,
+interface PurchaseRequisitionAuditTrailContentProps {
+  readonly enabled: boolean;
+  readonly requisitionId?: string | null;
+}
+
+export function PurchaseRequisitionAuditTrailContent({
+  enabled,
   requisitionId,
-}: PurchaseRequisitionAuditTrailProps) {
+}: PurchaseRequisitionAuditTrailContentProps) {
   const t = useTranslations("purchaseRequisition");
   const tCommon = useTranslations("common");
 
@@ -112,28 +116,18 @@ export function PurchaseRequisitionAuditTrail({
   const { data, isLoading, isError } = usePurchaseRequisitionAuditTrail(
     requisitionId ?? "",
     { page, per_page: pageSize },
-    { enabled: open && !!requisitionId },
+    { enabled: enabled && !!requisitionId },
   );
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) onClose();
-      }}
-    >
-      <DialogContent size="xl">
-        <DialogHeader>
-          <DialogTitle>{t("auditTrail.title")}</DialogTitle>
-        </DialogHeader>
+  if (isError) {
+    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+  }
 
-        {isError ? (
-          <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
-        ) : (
-          <div className="space-y-4">
+  return (
+    <div className="space-y-4">
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -222,20 +216,35 @@ export function PurchaseRequisitionAuditTrail({
               </Table>
             </div>
 
-            {pagination && (
-              <DataTablePagination
-                pageIndex={pagination.page}
-                pageSize={pagination.per_page}
-                rowCount={pagination.total}
-                onPageChange={(p) => setPage(p)}
-                onPageSizeChange={(ps) => {
-                  setPageSize(ps);
-                  setPage(1);
-                }}
-              />
-            )}
-          </div>
-        )}
+      {pagination && (
+        <DataTablePagination
+          pageIndex={pagination.page}
+          pageSize={pagination.per_page}
+          rowCount={pagination.total}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(ps) => {
+            setPageSize(ps);
+            setPage(1);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+export function PurchaseRequisitionAuditTrail({
+  open,
+  onClose,
+  requisitionId,
+}: PurchaseRequisitionAuditTrailProps) {
+  const t = useTranslations("purchaseRequisition");
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent size="xl">
+        <DialogHeader>
+          <DialogTitle>{t("auditTrail.title")}</DialogTitle>
+        </DialogHeader>
+        <PurchaseRequisitionAuditTrailContent enabled={open} requisitionId={requisitionId} />
       </DialogContent>
     </Dialog>
   );

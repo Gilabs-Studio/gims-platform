@@ -221,6 +221,114 @@ func (h *SupplierInvoiceHandler) Delete(c *gin.Context) {
 	response.SuccessResponse(c, map[string]interface{}{"id": id}, nil)
 }
 
+// Submit handles POST /purchase/supplier-invoices/:id/submit
+func (h *SupplierInvoiceHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Approve handles POST /purchase/supplier-invoices/:id/approve
+func (h *SupplierInvoiceHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Reject handles POST /purchase/supplier-invoices/:id/reject
+func (h *SupplierInvoiceHandler) Reject(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reject(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// Cancel handles POST /purchase/supplier-invoices/:id/cancel
+func (h *SupplierInvoiceHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Cancel(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		if err == usecase.ErrSupplierInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // Pending handles POST /purchase/supplier-invoices/:id/pending
 func (h *SupplierInvoiceHandler) Pending(c *gin.Context) {
 	id := c.Param("id")
@@ -323,7 +431,7 @@ func (h *SupplierInvoiceHandler) Export(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	var b strings.Builder
-	b.WriteString("code,invoice_number,invoice_date,due_date,purchase_order_code,amount,status,created_at\n")
+	b.WriteString("code,invoice_number,invoice_date,due_date,purchase_order_code,supplier_name,amount,status\n")
 	for _, it := range items {
 		poCode := ""
 		if it.PurchaseOrder != nil {
@@ -335,9 +443,9 @@ func (h *SupplierInvoiceHandler) Export(c *gin.Context) {
 			csvEscape(it.InvoiceDate),
 			csvEscape(it.DueDate),
 			csvEscape(poCode),
+			csvEscape(it.SupplierName),
 			csvEscape(fmt.Sprintf("%v", it.Amount)),
 			csvEscape(it.Status),
-			csvEscape(it.CreatedAt.String()),
 		}
 		b.WriteString(strings.Join(row, ","))
 		b.WriteString("\n")

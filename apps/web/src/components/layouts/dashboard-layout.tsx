@@ -768,7 +768,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, []);
 
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
-  const isFullScreenMapPage = pathname?.includes("/master-data/company") || pathname?.includes("/master-data/suppliers") || pathname?.includes("/master-data/warehouses") || pathname?.includes("/master-data/customers");
+  const isFullScreenMapPage = pathname?.includes("/master-data/company") || pathname?.includes("/master-data/suppliers") || pathname?.includes("/master-data/warehouses") || pathname?.includes("/master-data/customers") || pathname?.includes("/master-data/areas") || pathname?.includes("/master-data/geographic");
 
   const handleOpenAttendanceDrawer = useCallback(
     (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {

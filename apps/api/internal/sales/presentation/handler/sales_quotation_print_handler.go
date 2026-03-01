@@ -11,12 +11,10 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-pdf/fpdf"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"gorm.io/gorm"
 )
 
-// Layout constants for A4 page (210x297mm)
+// Layout constants for A4 page (210x297mm) — shared across all print handlers in this package.
 const (
 	pdfML = 18.0  // margin left
 	pdfMT = 18.0  // margin top
@@ -27,10 +25,7 @@ const (
 	pdfRE = 192.0 // right edge (210 - 18)
 )
 
-// CLDR number formatter (English locale: 1,234.56)
-var moneyFmt = message.NewPrinter(language.English)
-
-// quotationPDFData holds all data required for PDF generation
+// quotationPDFData holds all data required for HTML template rendering
 type quotationPDFData struct {
 	CompanyName    string
 	CompanyAddress string
@@ -188,18 +183,15 @@ func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
 		data.SalesRep = quotation.SalesRep.Name
 	}
 
-	// Generate PDF
+	// Generate PDF and serve it inline — browser opens the built-in PDF viewer directly
 	pdfBytes, err := buildQuotationPDF(data)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "PDF generation failed: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to generate PDF")
 		return
 	}
 
-	// Serve PDF inline so the browser's PDF viewer opens it
-	filename := fmt.Sprintf("SalesQuotation-%s.pdf", data.Code)
-	c.Header("Content-Type", "application/pdf")
-	c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
-	c.Header("Content-Length", fmt.Sprintf("%d", len(pdfBytes)))
+	filename := fmt.Sprintf("quotation-%s.pdf", data.Code)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
@@ -538,22 +530,4 @@ func pdfDrawFooter(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	pdf.CellFormat(pdfCW, 4, fmt.Sprintf("This document was generated on %s  -  %s", d.PrintDate, d.CompanyName), "", 1, "C", false, 0, "")
 }
 
-// ===== Formatting Helpers =====
-
-func fmtMoney(v float64) string {
-	return moneyFmt.Sprintf("%.2f", v)
-}
-
-func fmtQty(v float64) string {
-	s := fmt.Sprintf("%.3f", v)
-	s = strings.TrimRight(s, "0")
-	s = strings.TrimRight(s, ".")
-	return s
-}
-
-func fmtTax(v float64) string {
-	s := fmt.Sprintf("%.2f", v)
-	s = strings.TrimRight(s, "0")
-	s = strings.TrimRight(s, ".")
-	return s
-}
+// fmtMoney, fmtQty, fmtTax, and moneyFmt are defined in print_template_helpers.go (shared across this package).

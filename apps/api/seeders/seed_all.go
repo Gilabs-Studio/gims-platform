@@ -98,11 +98,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Estimation seeder (Sprint 8)
-	if err := SeedSalesEstimation(); err != nil {
-		return err
-	}
-
 	// Sales Quotation seeder (Sprint 5)
 	if err := SeedSalesQuotation(); err != nil {
 		return err
@@ -123,8 +118,18 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales → Finance Integration Flow (SQ → SO → DO → INV → PAY)
+	if err := SeedSalesIntegrationFlow(); err != nil {
+		return err
+	}
+
 	// Finance - Asset & Closing seeder (Sprint 12)
 	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
+	// Purchase → Finance E2E data (2025-2026) with correct business flows
+	if err := SeedPurchaseFinanceE2E(); err != nil {
 		return err
 	}
 
@@ -230,6 +235,31 @@ func SeedAll() error {
 
 	// CRM Settings seeder (Sprint 17)
 	if err := SeedCRMSettings(); err != nil {
+		return err
+	}
+
+	// CRM Contacts seeder (Sprint 18 - depends on customers + contact roles)
+	if err := SeedCRMContacts(); err != nil {
+		return err
+	}
+
+	// CRM Leads seeder (Sprint 19 - depends on lead sources, statuses, employees, customers)
+	if err := SeedCRMLeads(); err != nil {
+		return err
+	}
+
+	// CRM Deals seeder (Sprint 20 - depends on pipeline stages, customers, contacts, employees, products)
+	if err := SeedCRMDeals(); err != nil {
+		return err
+	}
+
+	// CRM Visit Reports seeder (Sprint 22 - depends on employees, customers, contacts, deals, leads)
+	if err := SeedCRMVisitReports(); err != nil {
+		return err
+	}
+
+	// CRM Activities, Tasks & Schedules seeder (Sprint 23 - depends on employees, customers, contacts, activity types)
+	if err := SeedCRMActivitiesTasksSchedules(); err != nil {
 		return err
 	}
 

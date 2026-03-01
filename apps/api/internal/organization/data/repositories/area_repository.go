@@ -48,6 +48,7 @@ func (r *areaRepository) FindByID(ctx context.Context, id string) (*models.Area,
 func (r *areaRepository) FindByIDWithMembers(ctx context.Context, id string) (*models.Area, error) {
 	var area models.Area
 	err := r.getDB(ctx).
+		Preload("Manager").
 		Preload("EmployeeAreas").
 		Preload("EmployeeAreas.Employee").
 		Preload("EmployeeAreas.Employee.Division").
@@ -87,7 +88,12 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 	// Apply search filter
 	if req.Search != "" {
 		search := "%" + req.Search + "%"
-		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
+		query = query.Where("name ILIKE ? OR description ILIKE ? OR code ILIKE ? OR province ILIKE ?", search, search, search, search)
+	}
+
+	// Filter by province
+	if req.Province != "" {
+		query = query.Where("province ILIKE ?", "%"+req.Province+"%")
 	}
 
 	// Filter by supervisor presence using subquery on employee_areas
@@ -146,6 +152,7 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).
 		Offset(offset).
 		Limit(perPage).
+		Preload("Manager").
 		Preload("EmployeeAreas.Employee").
 		Find(&areas).Error
 	if err != nil {

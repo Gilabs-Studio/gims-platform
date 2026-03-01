@@ -18,9 +18,10 @@ export interface UseProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Product | null;
+  onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useProductForm({ open, onOpenChange, editingItem }: UseProductFormProps) {
+export function useProductForm({ open, onOpenChange, editingItem, onCreated }: UseProductFormProps) {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
 
@@ -157,8 +158,9 @@ export function useProductForm({ open, onOpenChange, editingItem }: UseProductFo
         });
         toast.success(t("updated", { fallback: "Product updated successfully" }));
       } else {
-        await createMutation.mutateAsync(payload);
+        const result = await createMutation.mutateAsync(payload);
         toast.success(t("created", { fallback: "Product created successfully" }));
+        onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
     } catch (error) {

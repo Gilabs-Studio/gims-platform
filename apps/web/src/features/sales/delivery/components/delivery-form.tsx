@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -36,14 +37,17 @@ import { useProductBatches } from "@/features/stock/inventory/hooks/use-product-
 import type { DeliveryOrder } from "../types";
 import { useDeliveryForm } from "../hooks/use-delivery-form";
 import type { InventoryBatchItem } from "@/features/stock/inventory/types";
+import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
+import { CourierAgencyDialog } from "@/features/master-data/payment-and-couriers/courier-agency/components/courier-agency-dialog";
 
 interface DeliveryFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly delivery?: DeliveryOrder | null;
+  readonly defaultSalesOrderId?: string;
 }
 
-export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
+export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: DeliveryFormProps) {
   const {
     form,
     t,
@@ -65,7 +69,12 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
     handleDialogChange,
     onInvalid,
     watchedSalesOrderId,
-  } = useDeliveryForm({ delivery, open, onClose });
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handleDeliveredByCreated,
+    handleCourierAgencyCreated,
+  } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
   const { register, handleSubmit, control, formState: { errors }, getValues, setValue } = form;
 
@@ -179,18 +188,14 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                         name="delivered_by_id"
                         control={control}
                         render={({ field }) => (
-                          <Select value={field.value || undefined} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("deliveredBy")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {employees.map((emp) => (
-                                <SelectItem key={emp.id} value={emp.id}>
-                                  {emp.employee_code} - {emp.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <CreatableCombobox
+                            options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                            placeholder={t("deliveredBy")}
+                            createPermission="employee.create"
+                            onCreateClick={() => openQuickCreate("employee")}
+                          />
                         )}
                       />
                       {errors.delivered_by_id && (
@@ -204,18 +209,14 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
                         name="courier_agency_id"
                         control={control}
                         render={({ field }) => (
-                          <Select value={field.value || undefined} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("courierAgency")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {courierAgencies.map((agency) => (
-                                <SelectItem key={agency.id} value={agency.id}>
-                                  {agency.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <CreatableCombobox
+                            options={courierAgencies.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name }))}
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                            placeholder={t("courierAgency")}
+                            createPermission="courier_agency.create"
+                            onCreateClick={() => openQuickCreate("courierAgency")}
+                          />
                         )}
                       />
                       {errors.courier_agency_id && (
@@ -448,6 +449,17 @@ export function DeliveryForm({ open, onClose, delivery }: DeliveryFormProps) {
           </Tabs>
         )}
       </DialogContent>
+
+      <EmployeeForm
+        open={quickCreate.type === "employee"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={handleDeliveredByCreated}
+      />
+      <CourierAgencyDialog
+        open={quickCreate.type === "courierAgency"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={handleCourierAgencyCreated}
+      />
     </Dialog>
   );
 }

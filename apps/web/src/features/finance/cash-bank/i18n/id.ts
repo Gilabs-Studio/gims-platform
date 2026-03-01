@@ -19,7 +19,7 @@ export const financeCashBankId = {
   },
   status: {
     draft: "Draft",
-    posted: "Posted",
+    posted: "Diposting",
   },
   actions: {
     create: "Buat",

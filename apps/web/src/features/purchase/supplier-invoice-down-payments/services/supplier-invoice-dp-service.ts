@@ -3,6 +3,8 @@ import type {
   ApiResponse,
   CreateSupplierInvoiceDPInput,
   SupplierInvoiceDPAddResponse,
+  SupplierInvoiceDPAuditTrailEntry,
+  SupplierInvoiceDPAuditTrailParams,
   SupplierInvoiceDPDetail,
   SupplierInvoiceDPListItem,
   SupplierInvoiceDPListParams,
@@ -47,11 +49,58 @@ export const supplierInvoiceDPService = {
     return response.data;
   },
 
+  submit: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
+
+  approve: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  reject: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/reject`);
+    return response.data;
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<SupplierInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceDPDetail>>(`${BASE_URL}/${id}/cancel`);
+    return response.data;
+  },
+
+  auditTrail: async (
+    id: string,
+    params?: SupplierInvoiceDPAuditTrailParams,
+  ): Promise<ApiResponse<SupplierInvoiceDPAuditTrailEntry[]>> => {
+    const response = await apiClient.get<ApiResponse<SupplierInvoiceDPAuditTrailEntry[]>>(
+      `${BASE_URL}/${id}/audit-trail`,
+      { params },
+    );
+    return response.data;
+  },
+
   exportCsv: async (params?: SupplierInvoiceDPListParams): Promise<Blob> => {
     const response = await apiClient.get(`${BASE_URL}/export`, {
       params,
       responseType: "blob",
     });
     return response.data as Blob;
+  },
+
+  /**
+   * Fetches the Supplier Invoice Down Payment PDF from the backend and opens it in a new browser tab.
+   */
+  openPrintWindow: async (id: string, companyId?: string): Promise<void> => {
+    const params = companyId ? { company_id: companyId } : undefined;
+    const response = await apiClient.get(`${BASE_URL}/${id}/print`, {
+      responseType: "blob" as const,
+      params,
+    });
+    const contentType = (response.headers["content-type"] as string) || "application/pdf";
+    const blob = new Blob([response.data as BlobPart], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

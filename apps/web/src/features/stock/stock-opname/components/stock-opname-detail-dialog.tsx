@@ -99,7 +99,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
       if (!opnameId) return;
 
       // Prepare new items list
-      let newItemsRequests: StockOpnameItemRequest[] = items.map(i => ({
+      const newItemsRequests: StockOpnameItemRequest[] = items.map(i => ({
           product_id: i.product_id,
           system_qty: i.system_qty,
           physical_qty: i.physical_qty,
@@ -299,7 +299,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                         </div>
                          <div className="p-3 border rounded-lg text-center space-y-1 bg-muted/20">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.totalVariance")}</p>
-                            <p className={`text-2xl font-bold ${opname.total_variance_qty < 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                            <p className="text-2xl font-bold" style={{ color: opname.total_variance_qty < 0 ? 'hsl(var(--chart-4))' : 'hsl(var(--chart-2))' }}>
                                 {opname.total_variance_qty > 0 ? '+' : ''}{opname.total_variance_qty}
                             </p>
                         </div>
@@ -384,15 +384,11 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 {item.variance_qty === 0 ? (
-                                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                                        Match
-                                                                    </Badge>
+                                                                    <span className="text-muted-foreground">-</span>
+                                                                ) : item.variance_qty > 0 ? (
+                                                                    <span className="font-medium" style={{ color: 'hsl(var(--chart-2))' }}>+{item.variance_qty}</span>
                                                                 ) : (
-                                                                    <Badge variant="outline" className={`
-                                                                        ${item.variance_qty > 0 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}
-                                                                    `}>
-                                                                        {item.variance_qty > 0 ? '+' : ''}{item.variance_qty}
-                                                                    </Badge>
+                                                                    <span className="font-medium" style={{ color: 'hsl(var(--chart-4))' }}>{item.variance_qty}</span>
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="text-sm text-muted-foreground italic">

@@ -13,6 +13,7 @@ type CreateWarehouseRequest struct {
 	CityID      *string  `json:"city_id,omitempty"`
 	DistrictID  *string  `json:"district_id,omitempty"`
 	VillageID   *string  `json:"village_id,omitempty"`
+	VillageName *string  `json:"village_name,omitempty"`
 	Latitude    *float64 `json:"latitude,omitempty"`
 	Longitude   *float64 `json:"longitude,omitempty"`
 	IsActive    *bool    `json:"is_active,omitempty"`
@@ -29,6 +30,7 @@ type UpdateWarehouseRequest struct {
 	CityID      *string  `json:"city_id,omitempty"`
 	DistrictID  *string  `json:"district_id,omitempty"`
 	VillageID   *string  `json:"village_id,omitempty"`
+	VillageName *string  `json:"village_name,omitempty"`
 	Latitude    *float64 `json:"latitude,omitempty"`
 	Longitude   *float64 `json:"longitude,omitempty"`
 	IsActive    *bool    `json:"is_active,omitempty"`
@@ -49,6 +51,7 @@ type WarehouseResponse struct {
 	DistrictID  *string                 `json:"district_id,omitempty"`
 	District    *geographic.DistrictResponse `json:"district,omitempty"`
 	VillageID   *string                 `json:"village_id,omitempty"`
+	VillageName *string                 `json:"village_name,omitempty"`
 	Village     *geographic.VillageResponse  `json:"village,omitempty"`
 	Latitude    *float64                `json:"latitude,omitempty"`
 	Longitude   *float64                `json:"longitude,omitempty"`

@@ -35,6 +35,7 @@ export interface Warehouse {
   district_id?: string;
   district?: { id: string; name: string };
   village_id?: string;
+  village_name?: string;
   village?: Village;
   latitude?: number | null;
   longitude?: number | null;
@@ -52,6 +53,7 @@ export interface CreateWarehouseData {
   city_id?: string;
   district_id?: string;
   village_id?: string;
+  village_name?: string;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
@@ -68,6 +70,7 @@ export interface UpdateWarehouseData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
+  village_name?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;

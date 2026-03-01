@@ -23,6 +23,7 @@ export const organizationEn = {
     view: "View",
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
+    none: "None",
   },
   division: {
     title: "Divisions",
@@ -122,6 +123,7 @@ export const organizationEn = {
     updateSuccess: "Area updated successfully",
     deleteSuccess: "Area deleted successfully",
     deleteError: "Cannot delete area with assigned employees",
+    saveError: "Failed to save area",
     detail: {
       title: "Area Detail",
       info: "Info",
@@ -173,6 +175,13 @@ export const organizationEn = {
       description: "Description",
       descriptionPlaceholder: "Enter description (optional)",
       isActive: "Active",
+      code: "Area Code",
+      color: "Map Color",
+      province: "Province",
+      regency: "Regency/City",
+      district: "District",
+      manager: "Area Manager",
+      selectManager: "Select manager",
     },
   },
   company: {
@@ -256,6 +265,7 @@ export const organizationEn = {
     nibMaxLength: "NIB cannot exceed 30 characters",
     addressMaxLength: "Address cannot exceed 500 characters",
     atLeastOneArea: "At least one area must be selected",
+    codeMaxLength: "Code cannot exceed 50 characters",
   },
 };
 

@@ -96,3 +96,29 @@ func (h *NonTradePayableHandler) List(c *gin.Context) {
 	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
 	response.SuccessResponse(c, items, meta)
 }
+
+func (h *NonTradePayableHandler) Approve(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *NonTradePayableHandler) Pay(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.PayNonTradePayableRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.Pay(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_PAY_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}

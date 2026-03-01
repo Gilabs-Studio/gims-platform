@@ -6,6 +6,7 @@ export const employeeId: EmployeeTranslations = {
   plural: "Karyawan",
   description: "Kelola data karyawan perusahaan",
   createTitle: "Tambah Karyawan",
+  create: "Buat Karyawan",
   editTitle: "Edit Karyawan",
   deleteTitle: "Hapus Karyawan",
   deleteConfirm: "Apakah Anda yakin ingin menghapus karyawan ini?",

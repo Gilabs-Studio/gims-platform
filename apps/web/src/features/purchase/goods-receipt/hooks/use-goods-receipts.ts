@@ -50,6 +50,8 @@ export function useCreateGoodsReceipt() {
     mutationFn: (data: CreateGoodsReceiptInput) => goodsReceiptsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      // Invalidate PO list so fulfillment + GR column reflects the new GR immediately.
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -83,6 +85,71 @@ export function useConfirmGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.confirm(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+  });
+}
+
+export function useSubmitGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+  });
+}
+
+export function useApproveGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+  });
+}
+
+export function useRejectGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.reject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+  });
+}
+
+export function useCloseGoodsReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.close(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+  });
+}
+
+export function useConvertGoodsReceiptToSI() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => goodsReceiptsService.convertToSupplierInvoice(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });

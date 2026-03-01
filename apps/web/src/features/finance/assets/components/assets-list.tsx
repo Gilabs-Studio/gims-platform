@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { Archive, CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -21,7 +23,41 @@ import { useDeleteFinanceAsset, useFinanceAssets } from "../hooks/use-finance-as
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
-type ActionMode = "depreciate" | "transfer" | "dispose";
+type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
+
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "active":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "disposed":
+    case "closed":
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
+}
 
 export function AssetsList() {
   const t = useTranslations("financeAssets");
@@ -146,11 +182,13 @@ export function AssetsList() {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.category?.name ?? "-"}</TableCell>
                   <TableCell>{item.location?.name ?? "-"}</TableCell>
-                  <TableCell>{item.book_value?.toLocaleString?.() ?? item.book_value}</TableCell>
-                  <TableCell>
-                    {item.accumulated_depreciation?.toLocaleString?.() ?? item.accumulated_depreciation}
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.book_value)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCurrency(item.accumulated_depreciation)}
                   </TableCell>
-                  <TableCell>{t(`status.${item.status}`)}</TableCell>
+                  <TableCell>
+                    {getStatusBadge(item.status, t)}
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -168,18 +206,20 @@ export function AssetsList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canDepreciate && item.status === "active" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-blue-600 focus:text-blue-600"
                             onClick={() => {
                               setActionMode("depreciate");
                               setActionAsset(item);
                               setActionOpen(true);
                             }}
                           >
+                            <TrendingDown className="h-4 w-4 mr-2" />
                             {t("actions.depreciate")}
                           </DropdownMenuItem>
                         )}
@@ -199,16 +239,45 @@ export function AssetsList() {
                           <DropdownMenuItem
                             className="cursor-pointer"
                             onClick={() => {
+                              setActionMode("revalue");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            {t("actions.revalue")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setActionMode("adjust");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            {t("actions.adjust")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => {
                               setActionMode("dispose");
                               setActionAsset(item);
                               setActionOpen(true);
                             }}
                           >
+                            <Archive className="h-4 w-4 mr-2" />
                             {t("actions.dispose")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setDeleting(item)}>
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

@@ -23,6 +23,15 @@ type PurchaseRequisitionListResponse struct {
 	TotalAmount    float64 `json:"total_amount"`
 	Notes          string  `json:"notes"`
 
+	// Workflow timestamps
+	SubmittedAt *string `json:"submitted_at"`
+	ApprovedAt  *string `json:"approved_at"`
+	RejectedAt  *string `json:"rejected_at"`
+	ConvertedAt *string `json:"converted_at"`
+
+	// ID of the Purchase Order created on conversion
+	ConvertedToPurchaseOrderID *string `json:"converted_to_purchase_order_id"`
+
 	Supplier *struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
@@ -36,10 +45,15 @@ type PurchaseRequisitionListResponse struct {
 		Name string `json:"name"`
 	} `json:"business_unit,omitempty"`
 
+	Employee *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"employee,omitempty"`
+
 	User *struct {
-		ID       string `json:"id"`
-		Email    string `json:"email"`
-		Name     string `json:"name"`
+		ID    string `json:"id"`
+		Email string `json:"email"`
+		Name  string `json:"name"`
 	} `json:"user,omitempty"`
 
 	CreatedAt string `json:"created_at"`

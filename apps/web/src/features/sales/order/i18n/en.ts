@@ -56,6 +56,7 @@ export const orderEn = {
       pending: "Submitted",
       approved: "Approved",
       rejected: "Rejected",
+      closed: "Closed",
       confirmed: "Confirmed",
       processing: "Processing",
       shipped: "Shipped",
@@ -155,6 +156,7 @@ export const orderEn = {
       cancel: "Cancel Order",
       convert: "Convert from Quotation",
       createDelivery: "Create Delivery Order",
+      createInvoice: "Create Invoice",
     },
 
     // Validation
@@ -179,6 +181,15 @@ export const orderEn = {
     confirmedAt: "Confirmed At",
     cancelledAt: "Cancelled At",
     cancellationReason: "Cancellation Reason",
+
+    // Print
+    print: "Print",
+    printOrder: "Print Sales Order",
+    printSelectCompany: "Select the company to display on the document.",
+    printCompanyLabel: "Company",
+    printCompanyPlaceholder: "Select company...",
+    printNoCompanies: "No companies available",
+    printConfirm: "Print",
   },
 };
 

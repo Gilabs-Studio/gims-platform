@@ -103,6 +103,44 @@ func SeedInventory() error {
 		}
 	}
 
+	// --- Use-case demo batches: Expiring (30d) and Expired ---
+	// These ensure the metrics dashboard always has visible data for the two edge-case states.
+	// We attach them to the first product in the first warehouse.
+	firstProduct := products[0]
+	firstWarehouse := warehouses[0]
+
+	// Expiring within 30 days: expires in 10 days, still has healthy quantity
+	expiringAt := time.Now().AddDate(0, 0, 10)
+	expiringBatch := inventoryModels.InventoryBatch{
+		BatchNumber:      fmt.Sprintf("BCH-EXPIRING-%s", firstProduct.Code),
+		ProductID:        firstProduct.ID,
+		WarehouseID:      firstWarehouse.ID,
+		InitialQuantity:  50,
+		CurrentQuantity:  50,
+		ReservedQuantity: 0,
+		ExpiryDate:       &expiringAt,
+		IsActive:         true,
+	}
+
+	// Expired: expired 60 days ago, still has remaining quantity (needs write-off)
+	expiredAt := time.Now().AddDate(0, 0, -60)
+	expiredBatch := inventoryModels.InventoryBatch{
+		BatchNumber:      fmt.Sprintf("BCH-EXPIRED-%s", firstProduct.Code),
+		ProductID:        firstProduct.ID,
+		WarehouseID:      firstWarehouse.ID,
+		InitialQuantity:  30,
+		CurrentQuantity:  30,
+		ReservedQuantity: 0,
+		ExpiryDate:       &expiredAt,
+		IsActive:         true,
+	}
+
+	for _, specialBatch := range []inventoryModels.InventoryBatch{expiringBatch, expiredBatch} {
+		if err := db.Create(&specialBatch).Error; err != nil {
+			log.Printf("Failed to create special batch %s: %v", specialBatch.BatchNumber, err)
+		}
+	}
+
 	log.Println("Inventory batches seeded successfully!")
 	return nil
 }

@@ -87,3 +87,36 @@ export function useDisposeFinanceAsset() {
     },
   });
 }
+
+export function useRevalueFinanceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => financeAssetsService.revalue(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
+    },
+  });
+}
+
+export function useAdjustFinanceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => financeAssetsService.adjust(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
+    },
+  });
+}
+
+export function useApproveFinanceAssetTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (txId: string) => financeAssetsService.approveTransaction(txId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.all });
+    },
+  });
+}

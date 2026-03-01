@@ -59,6 +59,7 @@ func (m *BudgetMapper) ToResponse(item *financeModels.Budget) dto.BudgetResponse
 				ChartOfAccountID: it.ChartOfAccountID,
 				ChartOfAccount:   coaResp,
 				Amount:           it.Amount,
+				ActualAmount:     it.ActualAmount,
 				Memo:             it.Memo,
 				CreatedAt:        it.CreatedAt,
 				UpdatedAt:        it.UpdatedAt,

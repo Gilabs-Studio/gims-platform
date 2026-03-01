@@ -121,7 +121,10 @@ func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID strin
 
 func (r *stockOpnameRepository) ListItems(ctx context.Context, opnameID string) ([]models.StockOpnameItem, error) {
 	var items []models.StockOpnameItem
-	err := r.db.WithContext(ctx).Where("stock_opname_id = ?", opnameID).Find(&items).Error
+	err := r.db.WithContext(ctx).
+		Where("stock_opname_id = ?", opnameID).
+		Preload("Product").
+		Find(&items).Error
 	return items, err
 }
 

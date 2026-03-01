@@ -53,18 +53,23 @@ export function useInventoryTreeProducts(warehouseId: string, enabled: boolean) 
   };
 }
 
-// Hook for fetching batches of a product
-export function useInventoryTreeBatches(warehouseId: string, productId: string, enabled: boolean) {
+// Hook for fetching paginated batches of a product in a warehouse (server-side pagination)
+export function useInventoryTreeBatches(warehouseId: string, productId: string, enabled: boolean, perPage = 10) {
+  const [page, setPage] = useState(1);
+
   const query = useQuery({
-    queryKey: ["inventory", "tree", "batches", warehouseId, productId],
-    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId),
-    enabled: enabled,
+    queryKey: ["inventory", "tree", "batches", warehouseId, productId, page, perPage],
+    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId, { page, per_page: perPage }),
+    enabled: enabled && !!warehouseId && !!productId,
     staleTime: 60000,
   });
 
   return {
-    batches: query.data?.data?.data ?? [], // Access nested data array from GetInventoryTreeBatchesResponse
+    batches: query.data?.data?.data ?? [],
+    meta: query.data?.data?.meta,
     isLoading: query.isLoading,
     isError: query.isError,
+    page,
+    setPage,
   };
 }

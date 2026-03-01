@@ -141,3 +141,53 @@ func (h *AssetHandler) Dispose(c *gin.Context) {
 	}
 	response.SuccessResponse(c, res, nil)
 }
+
+func (h *AssetHandler) ApproveDepreciation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("dep_id"))
+	res, err := h.uc.ApproveDepreciation(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSET_DEPRECIATE_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) Revalue(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.RevalueAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.Revalue(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSET_REVALUE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) Adjust(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.AdjustAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.Adjust(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSET_ADJUST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) ApproveTransaction(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("tx_id"))
+	res, err := h.uc.ApproveTransaction(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSET_TRANSACTION_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}

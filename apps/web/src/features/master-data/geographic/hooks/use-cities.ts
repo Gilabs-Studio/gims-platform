@@ -1,14 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { cityService } from "../services/geographic-service";
-import type {
-  ListCitiesParams,
-  CreateCityData,
-  UpdateCityData,
-  City,
-  GeographicListResponse,
-} from "../types";
+import type { ListCitiesParams } from "../types";
 
 // Query keys
 export const cityKeys = {
@@ -34,67 +28,5 @@ export function useCity(id: string) {
     queryKey: cityKeys.detail(id),
     queryFn: () => cityService.getById(id),
     enabled: !!id,
-  });
-}
-
-// Create city mutation
-export function useCreateCity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateCityData) => cityService.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cityKeys.lists() });
-    },
-  });
-}
-
-// Update city mutation
-export function useUpdateCity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateCityData }) =>
-      cityService.update(id, data),
-    onMutate: async ({ id, data }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: cityKeys.lists() });
-
-      // Update all list caches optimistically
-      queryClient.setQueriesData(
-        { queryKey: cityKeys.lists() },
-        (old: GeographicListResponse<City> | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((city: City) =>
-              city.id === id ? { ...city, ...data } : city
-            ),
-          };
-        }
-      );
-    },
-    onSuccess: (_, variables) => {
-      // Only invalidate detail query if exists
-      queryClient.invalidateQueries({
-        queryKey: cityKeys.detail(variables.id),
-      });
-    },
-    onError: () => {
-      // Refetch on error to revert optimistic update
-      queryClient.invalidateQueries({ queryKey: cityKeys.lists() });
-    },
-  });
-}
-
-// Delete city mutation
-export function useDeleteCity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => cityService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cityKeys.lists() });
-    },
   });
 }

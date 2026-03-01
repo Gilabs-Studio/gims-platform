@@ -5,21 +5,25 @@ import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, CreditCard, Printer } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useUserPermission } from "@/hooks/use-user-permission";
+import { InvoicePrintDialog } from "./invoice-print-dialog";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
+import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -35,6 +39,8 @@ export function InvoiceList() {
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(null);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
   const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
+  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isDPOpen, setIsDPOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -42,6 +48,7 @@ export function InvoiceList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    type: "regular", // ONLY fetch regular invoices
   });
 
   const canCreate = useUserPermission("customer_invoice.create");
@@ -50,6 +57,11 @@ export function InvoiceList() {
   const canView = useUserPermission("customer_invoice.read");
   const canApprove = useUserPermission("customer_invoice.approve");
   const canViewSalesOrder = useUserPermission("sales_order.read");
+  const canCreatePayment = useUserPermission("sales_payment.create");
+  const canPrint = useUserPermission("customer_invoice.print");
+
+  const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
@@ -120,62 +132,62 @@ export function InvoiceList() {
     switch (status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge variant="secondary">
+          <Badge variant="outline" className="text-xs font-medium">
             <Clock className="h-3 w-3 mr-1" />
             {t("status.unpaid")}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="warning">
+          <Badge variant="warning" className="text-xs font-medium">
             <DollarSign className="h-3 w-3 mr-1" />
             {t("status.partial")}
           </Badge>
         );
       case "paid":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.paid")}
           </Badge>
         );
       case "cancelled":
         return (
-          <Badge variant="destructive">
+          <Badge variant="secondary" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.cancelled")}
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
     }
   };
 
@@ -231,7 +243,7 @@ export function InvoiceList() {
         </Select>
         <div className="flex-1" />
         {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             {t("add")}
           </Button>
@@ -246,15 +258,33 @@ export function InvoiceList() {
               <TableHead>{t("invoiceDate")}</TableHead>
               <TableHead>{t("dueDate")}</TableHead>
               <TableHead>{t("salesOrder")}</TableHead>
+              <TableHead>{t("dpCode")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("totalAmount")}</TableHead>
+              <TableHead className="text-right">{t("totalAmount")}</TableHead>
+              <TableHead className="text-right">{t("paidAmount")}</TableHead>
+              <TableHead className="text-right">{t("remainingAmount")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell />
+                </TableRow>
+              ))
+            ) : invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -289,8 +319,25 @@ export function InvoiceList() {
                       <span>{invoice.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {invoice.down_payment_invoice_code && invoice.down_payment_invoice_id ? (
+                      <button
+                        onClick={() => {
+                          setSelectedDPId(invoice.down_payment_invoice_id!);
+                          setIsDPOpen(true);
+                        }}
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                      >
+                        {invoice.down_payment_invoice_code}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(invoice)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
@@ -352,6 +399,15 @@ export function InvoiceList() {
                               {t("actions.pay")}
                             </DropdownMenuItem>
                           )}
+                          {canCreatePayment && (invoice.status === "unpaid" || invoice.status === "partial") && (
+                            <DropdownMenuItem
+                              onClick={() => setCreatePaymentForInvoiceId(invoice.id)}
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              {t("actions.createPayment")}
+                            </DropdownMenuItem>
+                          )}
                           {canUpdate && invoice.status === "unpaid" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(invoice.id, "cancelled")}
@@ -368,6 +424,15 @@ export function InvoiceList() {
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
+                          {canPrint && (
+                            <DropdownMenuItem
+                              onClick={() => setPrintingInvoiceId(invoice.id)}
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              {t("print")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -418,6 +483,14 @@ export function InvoiceList() {
         />
       )}
 
+      {selectedDPId && (
+        <CustomerInvoiceDPDetailModal
+          open={isDPOpen}
+          onOpenChange={setIsDPOpen}
+          id={selectedDPId}
+        />
+      )}
+
       {canDelete && (
         <DeleteDialog
           open={!!deletingId}
@@ -427,6 +500,23 @@ export function InvoiceList() {
           description={t("deleteDesc")}
           itemName={t("common.invoice")}
           isLoading={deleteInvoice.isPending}
+        />
+      )}
+
+      {/* Create Payment from unpaid/partial invoice */}
+      {createPaymentForInvoiceId && (
+        <SalesPaymentForm
+          open={!!createPaymentForInvoiceId}
+          onClose={() => setCreatePaymentForInvoiceId(null)}
+          defaultInvoiceId={createPaymentForInvoiceId}
+        />
+      )}
+
+      {printingInvoiceId && (
+        <InvoicePrintDialog
+          open={!!printingInvoiceId}
+          onClose={() => setPrintingInvoiceId(null)}
+          invoiceId={printingInvoiceId}
         />
       )}
     </div>

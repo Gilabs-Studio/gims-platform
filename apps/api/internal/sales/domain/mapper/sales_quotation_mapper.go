@@ -117,6 +117,10 @@ func ToSalesQuotationResponse(m *salesModels.SalesQuotation) dto.SalesQuotationR
 		response.RejectionReason = m.RejectionReason
 	}
 
+	if m.SourceDealID != nil {
+		response.SourceDealID = m.SourceDealID
+	}
+
 	if m.ConvertedToSalesOrderID != nil {
 		response.ConvertedToSalesOrderID = m.ConvertedToSalesOrderID
 		if m.ConvertedAt != nil {

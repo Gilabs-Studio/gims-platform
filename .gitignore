@@ -48,3 +48,7 @@ pnpm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+# Ignored apps
+apps/erp-api/
+apps/erp-front-end/

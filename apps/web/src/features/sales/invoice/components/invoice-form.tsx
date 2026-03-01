@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
@@ -23,14 +22,17 @@ import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import type { CustomerInvoice } from "../types";
 import { useInvoiceForm } from "../hooks/use-invoice-form";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
+import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 
 interface InvoiceFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly invoice?: CustomerInvoice | null;
+  readonly defaultSalesOrderId?: string;
 }
 
-export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
+export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: InvoiceFormProps) {
   const {
     form,
     t,
@@ -56,7 +58,11 @@ export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
     handleProductChange,
     handleDialogChange,
     onInvalid,
-  } = useInvoiceForm({ invoice, open, onClose });
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
+  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
 
@@ -192,18 +198,14 @@ export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
                   name="payment_terms_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("paymentTerms")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {paymentTerms.map((term) => (
-                          <SelectItem key={term.id} value={term.id}>
-                            {term.code ? `${term.code} - ${term.name}` : term.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder={t("paymentTerms")}
+                      createPermission="payment_term.create"
+                      onCreateClick={() => openQuickCreate("paymentTerm")}
+                    />
                   )}
                 />
                 {errors.payment_terms_id && (
@@ -588,6 +590,13 @@ export function InvoiceForm({ open, onClose, invoice }: InvoiceFormProps) {
         </Tabs>
         )}
       </DialogContent>
+
+      <PaymentTermsDialog
+        open={quickCreate.type === "paymentTerm"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={handlePaymentTermCreated}
+      />
     </Dialog>
   );
 }

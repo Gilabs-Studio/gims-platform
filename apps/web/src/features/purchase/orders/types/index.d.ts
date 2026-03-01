@@ -30,7 +30,33 @@ export interface PurchaseOrderListParams {
   limit?: number;
 }
 
-export type PurchaseOrderStatus = "DRAFT" | "REVISED" | "APPROVED" | "CLOSED";
+export type PurchaseOrderStatus = "DRAFT" | "SUBMITTED" | "REJECTED" | "APPROVED" | "CLOSED";
+
+export interface PurchaseOrderRequisitionRef {
+  id: string;
+  code: string;
+}
+
+export interface PurchaseOrderGRSummary {
+  id: string;
+  code: string;
+  status: string;
+  total_items?: number;
+  total_items_received?: number;
+}
+
+export interface PurchaseOrderSISummary {
+  id: string;
+  code: string;
+  status: string;
+}
+
+export interface POFulfillmentSummary {
+  total_ordered: number;
+  total_received: number;
+  total_pending: number;
+  total_remaining: number;
+}
 
 export interface PurchaseOrderParty {
   id: string;
@@ -142,9 +168,13 @@ export interface PurchaseOrderDetail {
   supplier?: unknown;
   payment_terms?: unknown;
   business_unit?: unknown;
+  purchase_requisition?: PurchaseOrderRequisitionRef | null;
   items: PurchaseOrderItemDetail[];
   created_at: string;
   updated_at: string;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  closed_at?: string | null;
 }
 
 export interface PurchaseOrderAuditTrailUser {
@@ -163,10 +193,6 @@ export interface PurchaseOrderAuditTrailEntry {
   created_at: string;
 }
 
-export interface RevisePurchaseOrderInput {
-  revision_comment: string;
-}
-
 export interface PurchaseOrderListItem {
   id: string;
   code: string;
@@ -175,5 +201,8 @@ export interface PurchaseOrderListItem {
   status: PurchaseOrderStatus;
   total_amount: number;
   supplier?: PurchaseOrderParty | null;
-  created_at: string;
+  purchase_requisition?: PurchaseOrderRequisitionRef | null;
+  goods_receipts?: PurchaseOrderGRSummary[];
+  supplier_invoices?: PurchaseOrderSISummary[];
+  fulfillment?: POFulfillmentSummary | null;
 }

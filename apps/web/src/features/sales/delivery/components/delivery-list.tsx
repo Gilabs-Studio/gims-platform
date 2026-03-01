@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send, Receipt } from "lucide-react";
 import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useApproveDeliveryOrder, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -21,6 +21,7 @@ import { DeliveryDetailModal } from "./delivery-detail-modal";
 import { ShipDialog } from "./ship-dialog";
 import { DeliverDialog } from "./deliver-dialog";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
+import { InvoiceForm } from "../../invoice/components/invoice-form";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
 import { formatCurrency } from "@/lib/utils";
@@ -87,6 +88,9 @@ export function DeliveryList() {
   const pagination = data?.meta?.pagination;
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
+  const canCreateInvoice = useUserPermission("customer_invoice.create");
+
+  const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
 
   const handleEdit = (delivery: DeliveryOrder) => {
     setEditingDelivery(delivery);
@@ -153,7 +157,7 @@ export function DeliveryList() {
     try {
       await deliverDelivery.mutateAsync({
         id: deliverDeliveryId,
-        data: { 
+        data: {
           receiver_signature: signatureUrl,
           receiver_name: receiverName,
         },
@@ -169,28 +173,28 @@ export function DeliveryList() {
     switch (status) {
       case "draft":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs font-medium">
             <FileText className="h-3 w-3 mr-1" />
             {t("status.draft")}
           </Badge>
         );
       case "sent":
         return (
-          <Badge variant="info">
+          <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1" />
             {t("status.pending")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.approved")}
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.rejected")}
           </Badge>
@@ -211,20 +215,20 @@ export function DeliveryList() {
         );
       case "delivered":
         return (
-          <Badge variant="success">
+          <Badge variant="success" className="text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             {t("status.delivered")}
           </Badge>
         );
       case "cancelled":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs font-medium">
             <XCircle className="h-3 w-3 mr-1" />
             {t("status.cancelled")}
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
     }
   };
 
@@ -266,7 +270,7 @@ export function DeliveryList() {
           <SelectTrigger className="w-48">
             <SelectValue placeholder={t("common.filterBy")} />
           </SelectTrigger>
-            <SelectContent>
+          <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
             <SelectItem value="sent">{t("status.pending")}</SelectItem>
@@ -415,6 +419,15 @@ export function DeliveryList() {
                               {t("actions.deliver")}
                             </DropdownMenuItem>
                           )}
+                          {canCreateInvoice && delivery.status === "delivered" && delivery.sales_order_id && delivery.sales_order?.status !== "closed" && (
+                            <DropdownMenuItem
+                              onClick={() => setCreateInvoiceForOrderId(delivery.sales_order_id)}
+                              className="cursor-pointer text-green-600 focus:text-green-600"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              {t("actions.createInvoice")}
+                            </DropdownMenuItem>
+                          )}
                           {canDelete && delivery.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(delivery.id)}
@@ -499,6 +512,15 @@ export function DeliveryList() {
         isLoading={deliverDelivery.isPending}
         initialReceiverName={deliveries.find(d => d.id === deliverDeliveryId)?.receiver_name}
       />
+
+      {/* Create Invoice from delivered DO's sales order */}
+      {createInvoiceForOrderId && (
+        <InvoiceForm
+          open={!!createInvoiceForOrderId}
+          onClose={() => setCreateInvoiceForOrderId(null)}
+          defaultSalesOrderId={createInvoiceForOrderId}
+        />
+      )}
     </div>
   );
 }

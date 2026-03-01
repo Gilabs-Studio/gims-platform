@@ -3,6 +3,7 @@ package presentation
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/domain/usecase"
 	"github.com/gilabs/gims/api/internal/customer/presentation/handler"
@@ -19,10 +20,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize repositories
 	customerTypeRepo := repositories.NewCustomerTypeRepository(db)
 	customerRepo := repositories.NewCustomerRepository(db)
+	contactRepo := crmRepos.NewContactRepository(db)
 
 	// Initialize usecases
 	customerTypeUC := usecase.NewCustomerTypeUsecase(customerTypeRepo)
-	customerUC := usecase.NewCustomerUsecase(customerRepo, customerTypeRepo, db)
+	customerUC := usecase.NewCustomerUsecase(customerRepo, customerTypeRepo, contactRepo, db)
 
 	// Initialize handlers
 	customerTypeH := handler.NewCustomerTypeHandler(customerTypeUC)

@@ -20,12 +20,16 @@ import {
   Building2,
   Edit,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Supplier } from "../../types";
+import { useSupplier } from "../../hooks/use-suppliers";
 
 interface SupplierDetailModalProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly supplier: Supplier | null;
+  /** Pass full object (from a list) or use supplierId to auto-fetch. */
+  readonly supplier?: Supplier | null;
+  readonly supplierId?: string | null;
   readonly onEdit?: (supplier: Supplier) => void;
 }
 
@@ -69,13 +73,37 @@ function GroupBox({
 export function SupplierDetailModal({
   open,
   onOpenChange,
-  supplier,
+  supplier: supplierProp,
+  supplierId,
   onEdit,
 }: SupplierDetailModalProps) {
   const t = useTranslations("supplier.supplier");
   const tCommon = useTranslations("supplier.common");
   const tPhone = useTranslations("supplier.phoneNumber");
   const tBank = useTranslations("supplier.bankAccount");
+
+  const { data, isLoading } = useSupplier(supplierId ?? "", {
+    enabled: open && !!supplierId && !supplierProp,
+  });
+
+  const supplier = supplierProp ?? data?.data ?? null;
+
+  if (open && isLoading && !supplierProp) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          size="xl"
+          className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+        >
+          <div className="p-5 space-y-4">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-[400px] w-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+ }
 
   if (!supplier) return null;
 

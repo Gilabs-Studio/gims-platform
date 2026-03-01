@@ -65,6 +65,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	reportPresentation "github.com/gilabs/gims/api/internal/report/presentation"
 
 	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
@@ -298,7 +299,7 @@ func main() {
 		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
 
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -309,11 +310,14 @@ func main() {
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
-		// Stock Opname module (Sprint 9)
-		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		// Stock Opname module (Sprint 9) — depends on inventory for stock movement on Post
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Reports module (Sales Overview)
+		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)

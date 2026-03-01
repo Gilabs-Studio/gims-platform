@@ -39,7 +39,12 @@ func SeedSalesTargets() error {
 			areaVariation := float64(rand.Intn(3000000000)) // +0-3B variation
 			totalTarget := baseTarget + areaVariation
 
-			code := fmt.Sprintf("YT-%d-%04d", year, rand.Intn(9999))
+			// Use first 8 chars of area UUID to guarantee uniqueness across areas
+			areaPrefix := area.ID
+			if len(areaPrefix) > 8 {
+				areaPrefix = areaPrefix[:8]
+			}
+			code := fmt.Sprintf("YT-%d-%s", year, areaPrefix)
 
 			status := models.YearlyTargetStatusApproved
 			var approvedAt *time.Time

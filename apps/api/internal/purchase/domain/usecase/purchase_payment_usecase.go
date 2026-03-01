@@ -95,14 +95,19 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 				Code string `json:"code"`
 			}{ID: inv.PurchaseOrder.ID, Code: inv.PurchaseOrder.Code}
 		}
+
 		invItems = append(invItems, &dto.PurchasePaymentAddInvoiceItem{
-			ID:            inv.ID,
-			PurchaseOrder: poObj,
-			InvoiceNumber: inv.InvoiceNumber,
-			InvoiceDate:   inv.InvoiceDate,
-			DueDate:       inv.DueDate,
-			Amount:        inv.Amount,
-			Status:        string(inv.Status),
+			ID:              inv.ID,
+			PurchaseOrder:   poObj,
+			Code:            inv.Code,
+			InvoiceNumber:   inv.InvoiceNumber,
+			Type:            string(inv.Type),
+			InvoiceDate:     inv.InvoiceDate,
+			DueDate:         inv.DueDate,
+			Amount:          inv.Amount,
+			PaidAmount:      inv.PaidAmount,
+			RemainingAmount: inv.RemainingAmount,
+			Status:          string(inv.Status),
 		})
 	}
 
@@ -255,7 +260,7 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			return ErrPurchasePaymentConflict
 		}
 
-		// Sum already confirmed payments to avoid over-paying
+		// Sum already confirmed cash payments
 		type sumRow struct{ Total float64 }
 		var row sumRow
 		if err := tx.Model(&models.PurchasePayment{}).
@@ -265,7 +270,10 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			Scan(&row).Error; err != nil {
 			return err
 		}
-		if row.Total+pay.Amount > inv.Amount+0.0001 {
+
+		// Total settled amount = Cash Payments + Down Payment
+		totalSettled := row.Total + pay.Amount + inv.DownPaymentAmount
+		if totalSettled > inv.Amount+0.0001 {
 			return ErrPurchasePaymentConflict
 		}
 
@@ -273,13 +281,89 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			return err
 		}
 
-		newTotal := row.Total + pay.Amount
 		newStatus := models.SupplierInvoiceStatusPartial
-		if newTotal >= inv.Amount-0.0001 {
+		if totalSettled >= inv.Amount-0.0001 {
 			newStatus = models.SupplierInvoiceStatusPaid
 		}
-		if err := tx.Model(&inv).Updates(map[string]interface{}{"status": newStatus, "updated_at": time.Now()}).Error; err != nil {
+
+		updateData := map[string]interface{}{
+			"status":           newStatus,
+			"paid_amount":      row.Total + pay.Amount, // Track cash payments only (DP tracked separately in down_payment_amount)
+			"remaining_amount": math.Max(0, inv.Amount-totalSettled),
+			"updated_at":       time.Now(),
+		}
+		if newStatus == models.SupplierInvoiceStatusPaid {
+			now := time.Now()
+			updateData["payment_at"] = &now
+		}
+
+		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
 			return err
+		}
+
+		// If regular invoice is fully paid and it has a PurchaseOrder, close the PO
+		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeNormal && inv.PurchaseOrderID != "" {
+			var po models.PurchaseOrder
+			if err := tx.First(&po, "id = ?", inv.PurchaseOrderID).Error; err == nil {
+				_ = tx.Model(&po).Update("status", "closed").Error
+			}
+		}
+
+		// When a DP Invoice becomes paid, update existing Regular Invoices on the same PO
+		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeDownPayment && inv.PurchaseOrderID != "" {
+			// Sum all paid DP amounts for this PO
+			type dpSumRow struct{ Total float64 }
+			var dpSum dpSumRow
+			if err := tx.Model(&models.SupplierInvoice{}).
+				Select("COALESCE(SUM(paid_amount),0) as total").
+				Where("purchase_order_id = ?", inv.PurchaseOrderID).
+				Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+				Where("status = ?", models.SupplierInvoiceStatusPaid).
+				Where("deleted_at IS NULL").
+				Scan(&dpSum).Error; err != nil {
+				return err
+			}
+
+			// Find all Regular Invoices on the same PO and update them
+			var regularInvoices []models.SupplierInvoice
+			if err := tx.Where("purchase_order_id = ?", inv.PurchaseOrderID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
+				Where("deleted_at IS NULL").
+				Find(&regularInvoices).Error; err != nil {
+				return err
+			}
+
+			for _, regInv := range regularInvoices {
+				// We keep regInv.Amount as Gross Amount
+				// Calculate total deductions: PaidAmount (cash) + dpSum.Total (DP)
+				totalDeductions := regInv.PaidAmount + dpSum.Total
+				newRemaining := math.Max(0, regInv.Amount-totalDeductions)
+
+				regStatus := models.SupplierInvoiceStatusUnpaid
+				if newRemaining <= 0.0001 && regInv.Amount > 0 {
+					regStatus = models.SupplierInvoiceStatusPaid
+				} else if totalDeductions > 0 {
+					regStatus = models.SupplierInvoiceStatusPartial
+				}
+
+				dpInvID := inv.ID
+				regUpdates := map[string]interface{}{
+					"status":                  regStatus,
+					"down_payment_invoice_id": &dpInvID,
+					"down_payment_amount":     dpSum.Total,
+					"remaining_amount":        newRemaining,
+					"updated_at":              time.Now(),
+				}
+				if regStatus == models.SupplierInvoiceStatusPaid && regInv.PaymentAt == nil {
+					now := time.Now()
+					regUpdates["payment_at"] = &now
+				}
+
+				if err := tx.Model(&models.SupplierInvoice{}).Where("id = ?", regInv.ID).Updates(regUpdates).Error; err != nil {
+					return err
+				}
+				fmt.Printf("✅ Updated Regular Invoice %s: Status %s, DP deducted %.2f, remaining %.2f\n", regInv.Code, regStatus, dpSum.Total, newRemaining)
+			}
 		}
 
 		confirmedID = pay.ID
@@ -297,9 +381,10 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 		return nil, err
 	}
 
-	// Trigger Journal
+	// Trigger journal entry for this payment
 	if err := uc.triggerJournalEntry(ctx, out); err != nil {
-		// Log error
+		// Log error but don't fail the confirm
+		fmt.Printf("⚠️ Failed to create journal entry for purchase payment %s: %v\n", id, err)
 	}
 
 	uc.auditService.Log(ctx, "purchase_payment.confirm", id, map[string]interface{}{"after": out})
@@ -308,7 +393,8 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 
 func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
 	// Credit: Bank/Cash (From BankAccount.ChartOfAccountID)
-	// Debit: AP (21000)
+	// Debit: AP (21000) for normal invoices
+	//        OR Purchase Advances/DP (11900) for down payment invoices
 
 	// Need to fetch BankAccount if not preloaded with COA ID
 	var ba coreModels.BankAccount
@@ -324,9 +410,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 	if ba.ChartOfAccountID != nil {
 		creditAccountID = *ba.ChartOfAccountID
 	} else {
-		// Fallback or Error?
-		// Try to find "11100" (Cash) as default if method is cash, or error.
-		// For now, let's assume default cash account if missing.
+		// Fallback to cash account
 		def, err := uc.coaUC.GetByCode(ctx, "11100")
 		if err != nil {
 			return errors.New("bank account has no linked COA and default cash account 11100 not found")
@@ -334,7 +418,18 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		creditAccountID = def.ID
 	}
 
-	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
+	// Determine debit account based on invoice type
+	var debitAccountCode string
+	var description string
+	if pay.SupplierInvoice != nil && pay.SupplierInvoice.Type == models.SupplierInvoiceTypeDownPayment {
+		debitAccountCode = "11900" // Purchase Advances / Uang Muka Pembelian
+		description = "Supplier Down Payment"
+	} else {
+		debitAccountCode = "21000" // Accounts Payable / Hutang Usaha
+		description = "Supplier Payment"
+	}
+
+	debitAcct, err := uc.coaUC.GetByCode(ctx, debitAccountCode)
 	if err != nil {
 		return err
 	}
@@ -346,10 +441,10 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 
 	lines := []finDto.JournalLineRequest{
 		{
-			ChartOfAccountID: apAcct.ID,
+			ChartOfAccountID: debitAcct.ID,
 			Debit:            pay.Amount,
 			Credit:           0,
-			Memo:             fmt.Sprintf("Payment for %s", refNum),
+			Memo:             fmt.Sprintf("%s %s", description, refNum),
 		},
 		{
 			ChartOfAccountID: creditAccountID,
@@ -364,7 +459,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 
 	req := &finDto.CreateJournalEntryRequest{
 		EntryDate:     pay.PaymentDate,
-		Description:   fmt.Sprintf("Payment %s", refNum),
+		Description:   fmt.Sprintf("%s %s", description, refNum),
 		ReferenceID:   &refID,
 		ReferenceType: &refType,
 		Lines:         lines,

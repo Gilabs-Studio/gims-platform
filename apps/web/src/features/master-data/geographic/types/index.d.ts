@@ -1,4 +1,4 @@
-// Geographic entity types for Sprint 1
+// Geographic entity types (read-only, no CRUD)
 
 export interface Country {
   id: string;
@@ -118,79 +118,57 @@ export interface GeographicSingleResponse<T> {
   request_id: string;
 }
 
-// Form data types for create/update
-export interface CreateCountryData {
-  name: string;
-  code: string;
-  phone_code?: string;
-  is_active?: boolean;
-}
+// Map data types
+export type MapDataLevel = "province" | "city" | "district";
 
-export interface UpdateCountryData {
-  name?: string;
-  code?: string;
-  phone_code?: string;
-  is_active?: boolean;
-}
-
-export interface CreateProvinceData {
-  country_id: string;
-  name: string;
-  code: string;
-  is_active?: boolean;
-}
-
-export interface UpdateProvinceData {
-  country_id?: string;
-  name?: string;
-  code?: string;
-  is_active?: boolean;
-}
-
-export interface CreateCityData {
-  province_id: string;
-  name: string;
-  code: string;
-  type?: "city" | "regency";
-  is_active?: boolean;
-}
-
-export interface UpdateCityData {
+export interface MapDataParams {
+  level: MapDataLevel;
   province_id?: string;
-  name?: string;
-  code?: string;
-  type?: "city" | "regency";
-  is_active?: boolean;
-}
-
-export interface CreateDistrictData {
-  city_id: string;
-  name: string;
-  code: string;
-  is_active?: boolean;
-}
-
-export interface UpdateDistrictData {
   city_id?: string;
-  name?: string;
-  code?: string;
-  is_active?: boolean;
 }
 
-export interface CreateVillageData {
+export interface GeoJSONGeometry {
+  type: string;
+  coordinates: unknown;
+}
+
+export interface GeoJSONFeature {
+  type: "Feature";
+  properties: Record<string, unknown>;
+  geometry: GeoJSONGeometry;
+}
+
+export interface GeoJSONFeatureCollection {
+  type: "FeatureCollection";
+  features: GeoJSONFeature[];
+}
+
+export interface MapDataResponse {
+  success: boolean;
+  data: GeoJSONFeatureCollection;
+  timestamp: string;
+  request_id: string;
+}
+
+// Reverse geocode types
+export interface ReverseGeocodeParams {
+  lat: number;
+  lng: number;
+}
+
+export interface ReverseGeocodeResult {
+  province_id: string;
+  province_name: string;
+  city_id: string;
+  city_name: string;
+  city_type: string;
   district_id: string;
-  name: string;
-  code: string;
-  postal_code?: string;
-  type?: "village" | "kelurahan";
-  is_active?: boolean;
+  district_name: string;
 }
 
-export interface UpdateVillageData {
-  district_id?: string;
-  name?: string;
-  code?: string;
-  postal_code?: string;
-  type?: "village" | "kelurahan";
-  is_active?: boolean;
+export interface ReverseGeocodeResponse {
+  success: boolean;
+  data: ReverseGeocodeResult;
+  timestamp: string;
+  request_id: string;
 }

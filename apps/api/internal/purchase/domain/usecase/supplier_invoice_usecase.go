@@ -36,6 +36,10 @@ type SupplierInvoiceUsecase interface {
 	Create(ctx context.Context, req *dto.CreateSupplierInvoiceRequest) (*dto.SupplierInvoiceDetailResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateSupplierInvoiceRequest) (*dto.SupplierInvoiceDetailResponse, error)
 	Delete(ctx context.Context, id string) error
+	Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
 }
@@ -225,28 +229,54 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 
 		taxRate := math.Max(0, math.Min(100, req.TaxRate))
 		tax := round2dp(subTotal * taxRate / 100)
-		amount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		// Calculate Gross Amount (before DP deduction)
+		grossAmount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		amount := grossAmount
+
+		// Deduct paid Down Payments if this is a normal invoice (aligned with Customer Invoice pattern)
+		// Find any Down Payment for this PO to establish the link
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			po.ID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+		remainingAmount := math.Max(0, amount-dpAmount)
 
 		creatorID, _ := ctx.Value("user_id").(string)
 		si := models.SupplierInvoice{
-			Type:            models.SupplierInvoiceTypeNormal,
-			PurchaseOrderID: po.ID,
-			SupplierID:      *po.SupplierID,
-			PaymentTermsID:  &pt.ID,
-			Code:            code,
-			InvoiceNumber:   req.InvoiceNumber,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
-			TaxRate:         req.TaxRate,
-			TaxAmount:       tax,
-			DeliveryCost:    req.DeliveryCost,
-			OtherCost:       req.OtherCost,
-			SubTotal:        subTotal,
-			Amount:          amount,
-			Status:          models.SupplierInvoiceStatusDraft,
-			Notes:           req.Notes,
-			CreatedBy:       creatorID,
-			Items:           items,
+			Type:                 models.SupplierInvoiceTypeNormal,
+			PurchaseOrderID:      po.ID,
+			SupplierID:           *po.SupplierID,
+			PaymentTermsID:       &pt.ID,
+			Code:                 code,
+			InvoiceNumber:        req.InvoiceNumber,
+			InvoiceDate:          req.InvoiceDate,
+			DueDate:              req.DueDate,
+			TaxRate:              req.TaxRate,
+			TaxAmount:            tax,
+			DeliveryCost:         req.DeliveryCost,
+			OtherCost:            req.OtherCost,
+			SubTotal:             subTotal,
+			DownPaymentAmount:    dpAmount,
+			Amount:               grossAmount,
+			RemainingAmount:      remainingAmount,
+			DownPaymentInvoiceID: dpInvoiceID,
+			Status:               models.SupplierInvoiceStatusDraft,
+			Notes:                req.Notes,
+			CreatedBy:            creatorID,
+			Items:                items,
 		}
 
 		if err := snapshotSupplierInvoice(ctx, tx, &si, nil); err != nil {
@@ -384,29 +414,50 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		}
 
 		taxRate := math.Max(0, math.Min(100, req.TaxRate))
-		tax := subTotal * taxRate / 100
-		amount := subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost)
+		tax := round2dp(subTotal * taxRate / 100)
+		grossAmount := round2dp(subTotal + tax + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+		amount := grossAmount
+
+		// Deduct paid Down Payments (aligned with Customer Invoice pattern)
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND status = ? AND deleted_at IS NULL",
+			po.ID, models.SupplierInvoiceTypeDownPayment, models.SupplierInvoiceStatusPaid).
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				dpAmount += dp.PaidAmount
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+
+		remainingAmount := math.Max(0, amount-dpAmount)
 
 		updatedDraft := &models.SupplierInvoice{
-			ID:              si.ID,
-			Type:            si.Type,
-			PurchaseOrderID: po.ID,
-			SupplierID:      *po.SupplierID,
-			PaymentTermsID:  &pt.ID,
-			Code:            si.Code,
-			InvoiceNumber:   req.InvoiceNumber,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
-			TaxRate:         req.TaxRate,
-			TaxAmount:       tax,
-			DeliveryCost:    req.DeliveryCost,
-			OtherCost:       req.OtherCost,
-			SubTotal:        subTotal,
-			Amount:          amount,
-			Status:          si.Status,
-			Notes:           req.Notes,
-			CreatedBy:       si.CreatedBy,
-			Items:           newItems,
+			ID:                si.ID,
+			Type:              si.Type,
+			PurchaseOrderID:   po.ID,
+			SupplierID:        *po.SupplierID,
+			PaymentTermsID:    &pt.ID,
+			Code:              si.Code,
+			InvoiceNumber:     req.InvoiceNumber,
+			InvoiceDate:       req.InvoiceDate,
+			DueDate:           req.DueDate,
+			TaxRate:           req.TaxRate,
+			TaxAmount:         tax,
+			DeliveryCost:      req.DeliveryCost,
+			OtherCost:         req.OtherCost,
+			SubTotal:          subTotal,
+			DownPaymentAmount: dpAmount,
+			Amount:            grossAmount,
+			RemainingAmount:   math.Max(0, remainingAmount-si.PaidAmount),
+			Status:            si.Status,
+			Notes:             req.Notes,
+			CreatedBy:         si.CreatedBy,
+			Items:             newItems,
 		}
 		if err := snapshotSupplierInvoice(ctx, tx, updatedDraft, &si); err != nil {
 			return err
@@ -425,17 +476,20 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 				}
 				return *updatedDraft.PaymentTermsDaysSnapshot
 			}(),
-			"invoice_number": req.InvoiceNumber,
-			"invoice_date":   req.InvoiceDate,
-			"due_date":       req.DueDate,
-			"tax_rate":       req.TaxRate,
-			"tax_amount":     tax,
-			"delivery_cost":  req.DeliveryCost,
-			"other_cost":     req.OtherCost,
-			"sub_total":      subTotal,
-			"amount":         amount,
-			"notes":          req.Notes,
-			"updated_at":     time.Now(),
+			"invoice_number":          req.InvoiceNumber,
+			"invoice_date":            req.InvoiceDate,
+			"due_date":                req.DueDate,
+			"tax_rate":                req.TaxRate,
+			"tax_amount":              tax,
+			"delivery_cost":           req.DeliveryCost,
+			"other_cost":              req.OtherCost,
+			"sub_total":               subTotal,
+			"down_payment_amount":     dpAmount,
+			"amount":                  grossAmount,
+			"remaining_amount":        math.Max(0, remainingAmount-si.PaidAmount),
+			"down_payment_invoice_id": dpInvoiceID,
+			"notes":                   req.Notes,
+			"updated_at":              time.Now(),
 		}
 		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
@@ -483,6 +537,7 @@ func (uc *supplierInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	if existing.Type != models.SupplierInvoiceTypeNormal {
 		return ErrSupplierInvoiceNotFound
 	}
+	// Allow deletion of draft invoices only (workflow: use Cancel for others)
 	if existing.Status != models.SupplierInvoiceStatusDraft {
 		return ErrSupplierInvoiceConflict
 	}
@@ -491,6 +546,150 @@ func (uc *supplierInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	}
 	uc.auditService.Log(ctx, "supplier_invoice.delete", id, map[string]interface{}{"before": existing})
 	return nil
+}
+
+func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		// Allow submitting from DRAFT state (DRAFT -> SUBMITTED)
+		if si.Status != models.SupplierInvoiceStatusDraft {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusSubmitted,
+			"submitted_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.submit", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusApproved,
+			"approved_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.approve", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		if si.Status != models.SupplierInvoiceStatusSubmitted {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":      models.SupplierInvoiceStatusRejected,
+			"rejected_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.reject", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
+			si.Status == models.SupplierInvoiceStatusSubmitted ||
+			si.Status == models.SupplierInvoiceStatusApproved
+		if !allowed {
+			return ErrSupplierInvoiceConflict
+		}
+		now := time.Now()
+		return tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusCancelled,
+			"cancelled_at": &now,
+		}).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSupplierInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "supplier_invoice.cancel", id, nil)
+	return uc.mapper.ToDetailResponse(out), nil
 }
 
 func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
@@ -506,7 +705,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
-		if si.Status != models.SupplierInvoiceStatusDraft {
+		if si.Status != models.SupplierInvoiceStatusApproved {
 			return ErrSupplierInvoiceConflict
 		}
 
@@ -520,7 +719,10 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		if err := tx.Table("goods_receipt_items").
 			Select("product_id, SUM(quantity_received) as qty").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
-			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status = ?", si.PurchaseOrderID, models.GoodsReceiptStatusConfirmed).
+			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
+				string(models.GoodsReceiptStatusConfirmed),
+				string(models.GoodsReceiptStatusClosed),
+			}).
 			Group("product_id").Scan(&receivedSums).Error; err != nil {
 			return err
 		}
@@ -529,13 +731,18 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			receivedMap[r.ProductID] = r.Qty
 		}
 
-		// 2. Get total Qty already Invoiced for this PO (excluding current one)
+		// 2. Get total Qty already Invoiced for this PO (excluding current one, draft, submitted, rejected, cancelled)
 		var invoicedSums []qtySum
 		if err := tx.Table("supplier_invoice_items").
 			Select("product_id, SUM(quantity) as qty").
 			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
-			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status != ? AND supplier_invoices.id != ?",
-				si.PurchaseOrderID, models.SupplierInvoiceStatusDraft, si.ID).
+			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ? AND supplier_invoices.id != ?",
+				si.PurchaseOrderID, []models.SupplierInvoiceStatus{
+					models.SupplierInvoiceStatusDraft,
+					models.SupplierInvoiceStatusSubmitted,
+					models.SupplierInvoiceStatusRejected,
+					models.SupplierInvoiceStatusCancelled,
+				}, si.ID).
 			Group("product_id").Scan(&invoicedSums).Error; err != nil {
 			return err
 		}
@@ -565,7 +772,47 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			}
 		}
 
-		if err := tx.Model(&si).Update("status", models.SupplierInvoiceStatusUnpaid).Error; err != nil {
+		// Recalculate DP deduction before approving and ensure link is made
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			si.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+
+		status := models.SupplierInvoiceStatusUnpaid
+		remainingAmount := math.Max(0, si.Amount-dpAmount)
+		if dpAmount > 0 {
+			if remainingAmount <= 0.0001 {
+				status = models.SupplierInvoiceStatusPaid
+			} else {
+				status = models.SupplierInvoiceStatusPartial
+			}
+		}
+
+		updates := map[string]interface{}{
+			"status":                  status,
+			"down_payment_amount":     dpAmount,
+			"remaining_amount":        remainingAmount,
+			"down_payment_invoice_id": dpInvoiceID,
+		}
+		if status == models.SupplierInvoiceStatusPaid {
+			now := time.Now()
+			updates["payment_at"] = &now
+		}
+
+		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
 		}
 

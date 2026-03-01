@@ -56,6 +56,7 @@ export const orderId = {
       pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",
+      closed: "Tertutup",
       confirmed: "Dikonfirmasi",
       processing: "Diproses",
       shipped: "Dikirim",
@@ -79,8 +80,6 @@ export const orderId = {
     code: "Kode Pesanan",
     orderDate: "Tanggal Pesanan",
     salesQuotation: "Penawaran Penjualan",
-    salesQuotations: "Penawaran Penjualan",
-    invoice: "Faktur",
     quotation: "Penawaran",
     paymentTerms: "Syarat Pembayaran",
     salesRep: "Sales Representative",
@@ -97,6 +96,11 @@ export const orderId = {
     otherCost: "Biaya Lainnya",
     totalAmount: "Total",
     reservedStock: "Stok Dipesan",
+    salesQuotations: "Penawaran Penjualan",
+    invoice: "Faktur",
+    quotationSummary: "Ringkasan Penawaran",
+    noQuotation: "Tidak ada penawaran penjualan tertaut",
+    customer: "Pelanggan",
     customerName: "Nama Pelanggan",
     customerContact: "Kontak Person",
     customerPhone: "Telepon",
@@ -152,6 +156,7 @@ export const orderId = {
       cancel: "Batalkan Pesanan",
       convert: "Konversi dari Penawaran",
       createDelivery: "Buat Surat Jalan",
+      createInvoice: "Buat Faktur",
     },
 
     // Validation
@@ -176,5 +181,14 @@ export const orderId = {
     confirmedAt: "Dikonfirmasi Pada",
     cancelledAt: "Dibatalkan Pada",
     cancellationReason: "Alasan Pembatalan",
+
+    // Print
+    print: "Cetak",
+    printOrder: "Cetak Sales Order",
+    printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
+    printCompanyLabel: "Perusahaan",
+    printCompanyPlaceholder: "Pilih perusahaan...",
+    printNoCompanies: "Tidak ada perusahaan tersedia",
+    printConfirm: "Cetak",
   },
 };

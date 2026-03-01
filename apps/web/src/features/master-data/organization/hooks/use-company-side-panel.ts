@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateCompany, useUpdateCompany, useCompany } from "./use-companies";
-import { useProvinces } from "../../geographic/hooks/use-provinces";
-import { useCities } from "../../geographic/hooks/use-cities";
-import { useDistricts } from "../../geographic/hooks/use-districts";
-import { useVillages } from "../../geographic/hooks/use-villages";
 import { getCompanySchema, type CompanyFormData } from "../schemas/organization.schema";
 import type { Company } from "../types";
 
@@ -30,7 +26,6 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
   
   const createCompany = useCreateCompany();
   const updateCompany = useUpdateCompany();
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 
   const { data: detailRes, isLoading: isLoadingDetail, refetch: refetchDetail } = useCompany(
     company?.id ?? "",
@@ -55,7 +50,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
       phone: "",
       npwp: "",
       nib: "",
-      village_id: "",
+      village_name: "",
       province_id: undefined,
       city_id: undefined,
       district_id: undefined,
@@ -66,31 +61,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
     },
   });
 
-  const provinceId = watch("province_id");
-  const cityId = watch("city_id");
-  const districtId = watch("district_id");
-  const latitude = watch("latitude");
-  const longitude = watch("longitude");
   const isActive = watch("is_active");
-
-  const { data: provincesData } = useProvinces({ per_page: 100 }, { enabled: isOpen });
-  const { data: citiesData } = useCities(
-    { province_id: String(provinceId), per_page: 100 },
-    { enabled: isOpen && !!provinceId }
-  );
-  const { data: districtsData } = useDistricts(
-    { city_id: String(cityId), per_page: 100 },
-    { enabled: isOpen && !!cityId }
-  );
-  const { data: villagesData } = useVillages(
-    { district_id: String(districtId), per_page: 100 },
-    { enabled: isOpen && !!districtId }
-  );
-
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
-  const villages = villagesData?.data ?? [];
 
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
@@ -110,7 +81,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
           phone: entity.phone ?? "",
           npwp: entity.npwp ?? "",
           nib: entity.nib ?? "",
-          village_id: entity.village_id ?? "",
+          village_name: entity.village_name ?? "",
           // Prefer direct IDs from API, fallback to nested village relation
           province_id: entity.province_id ?? entity.village?.district?.city?.province?.id,
           city_id: entity.city_id ?? entity.village?.district?.city?.id,
@@ -129,7 +100,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         phone: "",
         npwp: "",
         nib: "",
-        village_id: "",
+        village_name: "",
         province_id: undefined,
         city_id: undefined,
         district_id: undefined,
@@ -154,7 +125,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         province_id: (data.province_id as string) || null,
         city_id: (data.city_id as string) || null,
         district_id: (data.district_id as string) || null,
-        village_id: (data.village_id as string) || null,
+        village_name: data.village_name || undefined,
         director_id: data.director_id || null,
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
@@ -173,29 +144,6 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
     }
   };
 
-  const handleCoordinateSelect = (lat: number, lng: number) => {
-    setValue("latitude", lat, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    setValue("longitude", lng, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-  };
-
-  const handleProvinceChange = (val: string) => {
-    setValue("province_id", val);
-    setValue("city_id", undefined);
-    setValue("district_id", undefined);
-    setValue("village_id", undefined);
-  };
-
-  const handleCityChange = (val: string) => {
-    setValue("city_id", val);
-    setValue("district_id", undefined);
-    setValue("village_id", undefined);
-  };
-
-  const handleDistrictChange = (val: string) => {
-    setValue("district_id", val);
-    setValue("village_id", undefined);
-  };
-
   const isLoading = createCompany.isPending || updateCompany.isPending || isLoadingDetail;
 
   const panelTitle = isViewing
@@ -206,12 +154,6 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
 
   return {
     state: {
-      isMapPickerOpen,
-      provinceId,
-      cityId,
-      districtId,
-      latitude,
-      longitude,
       isActive,
       isLoading,
       panelTitle,
@@ -219,11 +161,6 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
       isEditing,
     },
     actions: {
-      setIsMapPickerOpen,
-      handleCoordinateSelect,
-      handleProvinceChange,
-      handleCityChange,
-      handleDistrictChange,
       setValue,
       onSubmit,
     },
@@ -233,12 +170,6 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
       control,
       errors,
       watch,
-    },
-    data: {
-      provinces,
-      cities,
-      districts,
-      villages,
     },
     translations: {
       t,

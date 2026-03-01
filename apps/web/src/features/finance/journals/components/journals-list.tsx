@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -33,6 +35,36 @@ function safeDate(value?: string | null): string {
   return d.toLocaleDateString();
 }
 
+function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
+  const normalized = status?.toLowerCase() ?? "draft";
+  switch (normalized) {
+    case "posted":
+    case "approved":
+    case "confirmed":
+    case "active":
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "draft":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-xs font-medium">
+          {t(`status.${status}`)}
+        </Badge>
+      );
+  }
+}
+
 export function JournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
@@ -47,6 +79,13 @@ export function JournalsList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const now = new Date();
+  const firstDayOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -60,6 +99,8 @@ export function JournalsList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
     sort_by: "entry_date",
     sort_dir: "desc",
   });
@@ -106,9 +147,10 @@ export function JournalsList() {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-end gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Label className="mb-2 block">{t("search")}</Label>
+          <Search className="absolute left-3 top-[34px] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("search")}
             value={search}
@@ -117,6 +159,28 @@ export function JournalsList() {
               setPage(1);
             }}
             className="pl-9"
+          />
+        </div>
+        <div className="w-full sm:w-auto space-y-2">
+          <Label>{t("fields.startDate")}</Label>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className="w-full sm:w-auto space-y-2">
+          <Label>{t("fields.endDate")}</Label>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <div className="flex-1" />
@@ -152,15 +216,13 @@ export function JournalsList() {
             ) : (
               items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{safeDate(item.entry_date)}</TableCell>
-                  <TableCell>{item.description ?? "-"}</TableCell>
+                  <TableCell className="tabular-nums">{safeDate(item.entry_date)}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{item.description ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={item.status === "posted" ? "default" : "secondary"}>
-                      {t(`status.${item.status}`)}
-                    </Badge>
+                    {getStatusBadge(item.status, t)}
                   </TableCell>
-                  <TableCell className="text-right">{item.debit_total ?? 0}</TableCell>
-                  <TableCell className="text-right">{item.credit_total ?? 0}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.debit_total)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.credit_total)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -176,6 +238,7 @@ export function JournalsList() {
                             setViewOpen(true);
                           }}
                         >
+                          <Eye className="h-4 w-4 mr-2" />
                           {t("actions.view")}
                         </DropdownMenuItem>
                         {canUpdate && item.status === "draft" && (
@@ -187,12 +250,13 @@ export function JournalsList() {
                               setFormOpen(true);
                             }}
                           >
+                            <Pencil className="h-4 w-4 mr-2" />
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
                         {canPost && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-green-600 focus:text-green-600"
                             onClick={async () => {
                               try {
                                 await postMutation.mutateAsync(item.id);
@@ -202,14 +266,16 @@ export function JournalsList() {
                               }
                             }}
                           >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.post")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer"
+                            className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setDeletingItem(item)}
                           >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
                           </DropdownMenuItem>
                         )}

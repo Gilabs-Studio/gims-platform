@@ -46,18 +46,16 @@ import { invoiceEn } from "@/features/sales/invoice/i18n/en";
 import { invoiceId } from "@/features/sales/invoice/i18n/id";
 import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
-import { estimationEn } from "@/features/sales/estimation/i18n/en";
-import { estimationId } from "@/features/sales/estimation/i18n/id";
 import { targetsEn } from "@/features/sales/targets/i18n/en";
 import { targetsId } from "@/features/sales/targets/i18n/id";
-import { visitI18nEn } from "@/features/sales/visit/i18n/en";
-import { visitI18nId } from "@/features/sales/visit/i18n/id";
 import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
 import { inventoryEn } from "@/features/stock/inventory/i18n/en";
 import { inventoryId } from "@/features/stock/inventory/i18n/id";
 import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
 import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
+import { stockMovementEn } from "@/features/stock/stock-movement/i18n/en";
+import { stockMovementId } from "@/features/stock/stock-movement/i18n/id";
 import { settingsEn } from "@/features/settings/i18n/en";
 import { settingsId } from "@/features/settings/i18n/id";
 import { evaluationEn } from "@/features/hrd/evaluation/i18n/en";
@@ -80,8 +78,17 @@ import { supplierInvoiceId } from "@/features/purchase/supplier-invoices/i18n/id
 import { supplierInvoiceDPEn } from "@/features/purchase/supplier-invoice-down-payments/i18n/en";
 import { supplierInvoiceDPId } from "@/features/purchase/supplier-invoice-down-payments/i18n/id";
 
+import { customerInvoiceDPEn } from "@/features/sales/customer-invoice-down-payments/i18n/en";
+import { customerInvoiceDPId } from "@/features/sales/customer-invoice-down-payments/i18n/id";
+
 import { purchasePaymentEn } from "@/features/purchase/payments/i18n/en";
 import { purchasePaymentId } from "@/features/purchase/payments/i18n/id";
+
+import { salesPaymentEn } from "@/features/sales/payments/i18n/en";
+import { salesPaymentId } from "@/features/sales/payments/i18n/id";
+
+import { receivablesRecapEn } from "@/features/sales/receivables-recap/i18n/en";
+import { receivablesRecapId } from "@/features/sales/receivables-recap/i18n/id";
 
 import { financeCoaEn } from "@/features/finance/coa/i18n/en";
 import { financeCoaId } from "@/features/finance/coa/i18n/id";
@@ -126,6 +133,30 @@ import { contactRoleEn } from "@/features/crm/contact-role/i18n/en";
 import { contactRoleId } from "@/features/crm/contact-role/i18n/id";
 import { activityTypeEn } from "@/features/crm/activity-type/i18n/en";
 import { activityTypeId } from "@/features/crm/activity-type/i18n/id";
+import { financeReportsEn } from "@/features/finance/reports/i18n/en";
+import { financeReportsId } from "@/features/finance/reports/i18n/id";
+import { crmContactEn } from "@/features/crm/contact/i18n/en";
+import { crmContactId } from "@/features/crm/contact/i18n/id";
+import { crmLeadEn } from "@/features/crm/lead/i18n/en";
+import { crmLeadId } from "@/features/crm/lead/i18n/id";
+import { crmDealEn } from "@/features/crm/deal/i18n/en";
+import { crmDealId } from "@/features/crm/deal/i18n/id";
+import { crmVisitReportEn } from "@/features/crm/visit-report/i18n/en";
+import { crmVisitReportId } from "@/features/crm/visit-report/i18n/id";
+import { crmActivityEn } from "@/features/crm/activity/i18n/en";
+import { crmActivityId } from "@/features/crm/activity/i18n/id";
+import { crmTaskEn } from "@/features/crm/task/i18n/en";
+import { crmTaskId } from "@/features/crm/task/i18n/id";
+import { crmScheduleEn } from "@/features/crm/schedule/i18n/en";
+import { crmScheduleId } from "@/features/crm/schedule/i18n/id";
+import { areaMappingEn } from "@/features/crm/area-mapping/i18n/en";
+import { areaMappingId } from "@/features/crm/area-mapping/i18n/id";
+import { salesOverviewReportEn } from "@/features/reports/sales-overview/i18n/en";
+import { salesOverviewReportId } from "@/features/reports/sales-overview/i18n/id";
+import { productAnalysisReportEn } from "@/features/reports/product-analysis/i18n/en";
+import { productAnalysisReportId } from "@/features/reports/product-analysis/i18n/id";
+import { geoPerformanceReportEn } from "@/features/reports/geo-performance/i18n/en";
+import { geoPerformanceReportId } from "@/features/reports/geo-performance/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -150,15 +181,15 @@ const messages = {
     ...orderEn,
     ...deliveryEn,
     ...invoiceEn,
+    customerInvoiceDP: customerInvoiceDPEn,
     ...commandPaletteEn,
-    ...estimationEn,
     ...targetsEn,
     ...targetsEn,
     ...targetsEn,
-    ...visitI18nEn,
     ...hrdEn,
     ...inventoryEn,
     stock_opname: stockOpnameEn,
+    ...stockMovementEn,
     ...settingsEn,
     ...evaluationEn,
     ...recruitmentEn,
@@ -168,6 +199,8 @@ const messages = {
     supplierInvoice: supplierInvoiceEn,
     supplierInvoiceDP: supplierInvoiceDPEn,
     purchasePayment: purchasePaymentEn,
+    salesPayment: salesPaymentEn,
+    receivablesRecap: receivablesRecapEn,
     financeCoa: financeCoaEn,
     financeJournals: financeJournalsEn,
     financeBankAccounts: financeBankAccountsEn,
@@ -189,6 +222,18 @@ const messages = {
     leadStatus: leadStatusEn,
     contactRole: contactRoleEn,
     activityType: activityTypeEn,
+    financeReports: financeReportsEn,
+    ...crmContactEn,
+    ...crmLeadEn,
+    ...crmDealEn,
+    ...crmVisitReportEn,
+    ...crmActivityEn,
+    ...crmTaskEn,
+    ...crmScheduleEn,
+    ...areaMappingEn,
+    ...salesOverviewReportEn,
+    ...productAnalysisReportEn,
+    ...geoPerformanceReportEn,
   },
   id: {
     ...globalIdMessages,
@@ -211,14 +256,14 @@ const messages = {
     ...orderId,
     ...deliveryId,
     ...invoiceId,
+    customerInvoiceDP: customerInvoiceDPId,
     ...commandPaletteId,
-    ...estimationId,
     ...targetsId,
     ...targetsId,
-    ...visitI18nId,
     ...hrdId,
     ...inventoryId,
     stock_opname: stockOpnameId,
+    ...stockMovementId,
     ...settingsId,
     ...evaluationId,
     ...recruitmentId,
@@ -228,6 +273,8 @@ const messages = {
     supplierInvoice: supplierInvoiceId,
     supplierInvoiceDP: supplierInvoiceDPId,
     purchasePayment: purchasePaymentId,
+    salesPayment: salesPaymentId,
+    receivablesRecap: receivablesRecapId,
     financeCoa: financeCoaId,
     financeJournals: financeJournalsId,
     financeBankAccounts: financeBankAccountsId,
@@ -249,6 +296,18 @@ const messages = {
     leadStatus: leadStatusId,
     contactRole: contactRoleId,
     activityType: activityTypeId,
+    financeReports: financeReportsId,
+    ...crmContactId,
+    ...crmLeadId,
+    ...crmDealId,
+    ...crmVisitReportId,
+    ...crmActivityId,
+    ...crmTaskId,
+    ...crmScheduleId,
+    ...areaMappingId,
+    ...salesOverviewReportId,
+    ...productAnalysisReportId,
+    ...geoPerformanceReportId,
   },
 } as const;
 

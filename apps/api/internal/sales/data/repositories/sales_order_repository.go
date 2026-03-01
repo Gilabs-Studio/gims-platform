@@ -26,6 +26,7 @@ type SalesOrderRepository interface {
 	ReserveStock(ctx context.Context, orderID string) error
 	ReleaseStock(ctx context.Context, orderID string) error
 	UpdateItemDeliveredQty(ctx context.Context, itemID string, qty float64) error
+	UpdateItemInvoicedQty(ctx context.Context, itemID string, qty float64) error
 }
 
 type salesOrderRepository struct {
@@ -417,5 +418,11 @@ func (r *salesOrderRepository) UpdateItemDeliveredQty(ctx context.Context, itemI
 	return r.getDB(ctx).Model(&models.SalesOrderItem{}).
 		Where("id = ?", itemID).
 		Update("delivered_quantity", gorm.Expr("COALESCE(delivered_quantity, 0) + ?", qty)).Error
+}
+
+func (r *salesOrderRepository) UpdateItemInvoicedQty(ctx context.Context, itemID string, qty float64) error {
+	return r.getDB(ctx).Model(&models.SalesOrderItem{}).
+		Where("id = ?", itemID).
+		Update("invoiced_quantity", gorm.Expr("COALESCE(invoiced_quantity, 0) + ?", qty)).Error
 }
 

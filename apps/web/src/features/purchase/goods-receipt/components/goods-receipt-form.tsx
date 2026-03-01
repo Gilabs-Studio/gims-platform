@@ -5,13 +5,16 @@ import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { FileText, ShoppingCart } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
+import { ButtonLoading } from "@/components/loading";
 import {
   Select,
   SelectContent,
@@ -58,28 +61,26 @@ interface GoodsReceiptFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly goodsReceiptId?: string | null;
+  /** Pre-select a PO when opening a blank create form from the PO list shortcut. */
+  readonly defaultPurchaseOrderId?: string | null;
+  /** Called with the new GR id after a successful create. */
+  readonly onCreated?: (id: string) => void;
 }
 
-export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceiptFormProps) {
+export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchaseOrderId, onCreated }: GoodsReceiptFormProps) {
   const t = useTranslations("goodsReceipt");
   const tCommon = useTranslations("common");
 
   const isEdit = !!goodsReceiptId;
+  const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
-    defaultValues: {
-      purchase_order_id: "",
-      notes: null,
-      items: [],
-    },
+    defaultValues: { purchase_order_id: "", notes: null, items: [] },
     mode: "onSubmit",
   });
 
-  const itemsArray = useFieldArray({
-    control: form.control,
-    name: "items",
-  });
+  const itemsArray = useFieldArray({ control: form.control, name: "items" });
 
   const addDataQuery = useGoodsReceiptAddData({ enabled: open && !isEdit });
   const detailQuery = useGoodsReceipt(goodsReceiptId ?? "", { enabled: open && isEdit });
@@ -92,31 +93,24 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
 
   const eligiblePOs = addDataQuery.data?.data?.eligible_purchase_orders ?? [];
   const grDetail = detailQuery.data?.data;
-  const grDetailUpdatedAt = detailQuery.dataUpdatedAt;
-
-  const grDetailSnapshot = useMemo(() => grDetail ?? null, [grDetailUpdatedAt]);
+  const grDetailSnapshot = useMemo(() => grDetail ?? null, [grDetail]);
 
   const selectedPOId = form.watch("purchase_order_id");
-
   const resetForm = form.reset;
   const replaceItems = itemsArray.replace;
-
-  const poItems = useMemo(() => {
-    return poDetail?.items ?? [];
-  }, [poDetail]);
+  const poItems = useMemo(() => poDetail?.items ?? [], [poDetail]);
 
   useEffect(() => {
     if (!open) return;
-
+    setActiveTab("basic");
     if (!isEdit) {
-      resetForm({ purchase_order_id: "", notes: null, items: [] });
+      resetForm({ purchase_order_id: defaultPurchaseOrderId ?? "", notes: null, items: [] });
       replaceItems([]);
-      setPoDetail(null);
+      // Do not clear poDetail here — the PO-watch effect will load it when defaultPurchaseOrderId is set.
+      if (!defaultPurchaseOrderId) setPoDetail(null);
       return;
     }
-
     if (!grDetailSnapshot) return;
-
     resetForm({
       purchase_order_id: grDetailSnapshot.purchase_order?.id ?? "",
       notes: grDetailSnapshot.notes ?? null,
@@ -127,7 +121,6 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
         notes: it.notes ?? null,
       })),
     });
-
     replaceItems(
       grDetailSnapshot.items.map((it) => ({
         purchase_order_item_id: it.purchase_order_item_id,
@@ -136,7 +129,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
         notes: it.notes ?? null,
       })),
     );
-  }, [open, isEdit, grDetailSnapshot, resetForm, replaceItems]);
+  }, [open, isEdit, grDetailSnapshot, resetForm, replaceItems, defaultPurchaseOrderId]);
 
   useEffect(() => {
     const loadPO = async (poId: string) => {
@@ -160,21 +153,11 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
         setPoLoading(false);
       }
     };
-
-    if (!open) return;
-    if (isEdit) return;
-
+    if (!open || isEdit) return;
     const poId = selectedPOId;
-    if (!poId) {
-      setPoDetail(null);
-      replaceItems([]);
-      return;
-    }
-
+    if (!poId) { setPoDetail(null); replaceItems([]); return; }
     void loadPO(poId);
   }, [open, isEdit, selectedPOId, replaceItems]);
-
-  const title = isEdit ? t("form.editTitle") : t("form.createTitle");
 
   const onSubmit = async (values: GoodsReceiptFormData) => {
     try {
@@ -192,187 +175,221 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
           },
         });
         toast.success(t("toast.updated"));
+      } else {
+        const result = await createMutation.mutateAsync({
+          purchase_order_id: values.purchase_order_id,
+          notes: values.notes ?? null,
+          items: values.items.map((it) => ({
+            purchase_order_item_id: it.purchase_order_item_id,
+            product_id: it.product_id,
+            quantity_received: it.quantity_received,
+            notes: it.notes ?? null,
+          })),
+        });
+        toast.success(t("toast.created"));
         onClose();
+        if (result?.data?.id) {
+          onCreated?.(result.data.id);
+        }
         return;
       }
-
-      await createMutation.mutateAsync({
-        purchase_order_id: values.purchase_order_id,
-        notes: values.notes ?? null,
-        items: values.items.map((it) => ({
-          purchase_order_item_id: it.purchase_order_item_id,
-          product_id: it.product_id,
-          quantity_received: it.quantity_received,
-          notes: it.notes ?? null,
-        })),
-      });
-
-      toast.success(t("toast.created"));
       onClose();
     } catch {
       toast.error(t("toast.failed"));
     }
   };
 
-  const canSubmit = !createMutation.isPending && !updateMutation.isPending;
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent size="2xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-primary text-base font-medium">
+            {isEdit ? t("form.editTitle") : t("form.createTitle")}
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {!isEdit ? (
-            <Field data-invalid={!!form.formState.errors.purchase_order_id}>
-              <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "basic" | "items")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="basic">{t("tabs.basic") || "Basic Info"}</TabsTrigger>
+            <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
+          </TabsList>
 
-              <Controller
-                name="purchase_order_id"
-                control={form.control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("placeholders.select")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {addDataQuery.isLoading ? (
-                        <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
-                      ) : eligiblePOs.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
-                      ) : (
-                        eligiblePOs.map((po) => (
-                          <SelectItem key={po.id} value={po.id} className="cursor-pointer">
-                            {po.code} — {po.supplier?.name ?? "-"}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-
-              {form.formState.errors.purchase_order_id?.message ? (
-                <FieldError>{String(form.formState.errors.purchase_order_id.message)}</FieldError>
-              ) : null}
-            </Field>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium">{t("fields.purchaseOrder")}</div>
-                <Input value={grDetail?.purchase_order?.code ?? "-"} readOnly />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
+            <TabsContent value="basic" className="space-y-4 mt-0">
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
+                <FileText className="h-3.5 w-3.5 text-primary/60" />
+                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("sections.receiptInfo") || "Receipt Info"}</h3>
               </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">{t("fields.status")}</div>
-                <Input value={grDetail?.status ?? "-"} readOnly />
-              </div>
-            </div>
-          )}
 
-          <Field data-invalid={!!form.formState.errors.notes}>
-            <FieldLabel>{t("fields.notes")}</FieldLabel>
-            <Controller
-              name="notes"
-              control={form.control}
-              render={({ field }) => (
-                <Textarea
-                  value={field.value ?? ""}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  placeholder={t("fields.notes")}
-                />
-              )}
-            />
-            {form.formState.errors.notes?.message ? (
-              <FieldError>{String(form.formState.errors.notes.message)}</FieldError>
-            ) : null}
-          </Field>
-
-          <div className="space-y-2">
-            <div className="text-sm font-medium">{t("items.title")}</div>
-
-            {poLoading ? (
-              <Skeleton className="h-48 w-full" />
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("items.fields.product")}</TableHead>
-                      <TableHead className="text-right">{t("items.fields.orderedQty")}</TableHead>
-                      <TableHead className="text-right">{t("items.fields.receivedQty")}</TableHead>
-                      <TableHead>{t("items.fields.notes")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {itemsArray.fields.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                          {selectedPOId ? tCommon("empty") : t("placeholders.select")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      itemsArray.fields.map((field, idx) => {
-                        const productName =
-                          (!isEdit ? getNameFromUnknown(poItems[idx]?.product) : null) ??
-                          grDetail?.items?.[idx]?.product?.name ??
-                          "-";
-
-                        const orderedQty = !isEdit ? poItems[idx]?.quantity ?? 0 : 0;
-
-                        return (
-                          <TableRow key={field.id}>
-                            <TableCell className="max-w-[240px] truncate">{productName}</TableCell>
-                            <TableCell className="text-right">{orderedQty}</TableCell>
-                            <TableCell className="text-right w-[140px]">
-                              <Controller
-                                name={`items.${idx}.quantity_received`}
-                                control={form.control}
-                                render={({ field: qtyField }) => (
-                                  <NumericInput
-                                    value={qtyField.value}
-                                    onChange={(v) => qtyField.onChange(toSafeNumber(v))}
-                                  />
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell className="w-[240px]">
-                              <Controller
-                                name={`items.${idx}.notes`}
-                                control={form.control}
-                                render={({ field: noteField }) => (
-                                  <Input
-                                    value={noteField.value ?? ""}
-                                    onChange={(e) => noteField.onChange(e.target.value)}
-                                    placeholder={t("items.fields.notes")}
-                                  />
-                                )}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
+              {!isEdit ? (
+                <Field data-invalid={!!form.formState.errors.purchase_order_id} orientation="vertical">
+                  <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                  <Controller
+                    name="purchase_order_id"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue placeholder={t("placeholders.select")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {addDataQuery.isLoading ? (
+                            <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
+                          ) : eligiblePOs.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
+                          ) : (
+                            eligiblePOs.map((po) => (
+                              <SelectItem key={po.id} value={po.id} className="cursor-pointer">
+                                {po.code} — {po.supplier?.name ?? "-"}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     )}
-                  </TableBody>
-                </Table>
+                  />
+                  {form.formState.errors.purchase_order_id?.message ? (
+                    <FieldError>{String(form.formState.errors.purchase_order_id.message)}</FieldError>
+                  ) : null}
+                </Field>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                    <Input value={grDetail?.purchase_order?.code ?? "-"} readOnly />
+                  </Field>
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("fields.status")}</FieldLabel>
+                    <Input value={grDetail?.status ?? "-"} readOnly />
+                  </Field>
+                </div>
+              )}
+
+              <Field data-invalid={!!form.formState.errors.notes} orientation="vertical">
+                <FieldLabel>{t("fields.notes")}</FieldLabel>
+                <Controller
+                  name="notes"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Textarea
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      placeholder={t("fields.notes")}
+                    />
+                  )}
+                />
+                {form.formState.errors.notes?.message ? (
+                  <FieldError>{String(form.formState.errors.notes.message)}</FieldError>
+                ) : null}
+              </Field>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
+                  {t("actions.cancel")}
+                </Button>
+                <Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+                  {t("actions.next") || "Next"}
+                </Button>
               </div>
-            )}
+            </TabsContent>
 
-            {form.formState.errors.items ? (
-              <div className="text-sm text-destructive">{t("form.invalid")}</div>
-            ) : null}
-          </div>
+            <TabsContent value="items" className="space-y-4 mt-0">
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
+                <ShoppingCart className="h-3.5 w-3.5 text-primary/60" />
+                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("items.title")}</h3>
+              </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
-              {t("actions.cancel")}
-            </Button>
-            <Button type="submit" disabled={!canSubmit} className="cursor-pointer">
-              {t("actions.save")}
-            </Button>
-          </div>
-        </form>
+              {poLoading ? (
+                <Skeleton className="h-48 w-full" />
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("items.fields.product")}</TableHead>
+                        <TableHead className="text-right">{t("items.fields.orderedQty")}</TableHead>
+                        <TableHead className="text-right">{t("items.fields.receivedQty")}</TableHead>
+                        <TableHead>{t("items.fields.notes")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itemsArray.fields.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                            {selectedPOId ? tCommon("empty") : t("placeholders.select")}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        itemsArray.fields.map((field, idx) => {
+                          const productName =
+                            (!isEdit ? getNameFromUnknown(poItems[idx]?.product) : null) ??
+                            grDetail?.items?.[idx]?.product?.name ??
+                            "-";
+                          const orderedQty = !isEdit ? poItems[idx]?.quantity ?? 0 : 0;
+                          return (
+                            <TableRow key={field.id}>
+                              <TableCell className="max-w-60 truncate">{productName}</TableCell>
+                              <TableCell className="text-right">{orderedQty}</TableCell>
+                              <TableCell className="text-right w-[140px]">
+                                <Controller
+                                  name={`items.${idx}.quantity_received`}
+                                  control={form.control}
+                                  render={({ field: qtyField }) => (
+                                    <NumericInput
+                                      value={qtyField.value}
+                                      onChange={(v) => qtyField.onChange(toSafeNumber(v))}
+                                    />
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="w-60">
+                                <Controller
+                                  name={`items.${idx}.notes`}
+                                  control={form.control}
+                                  render={({ field: noteField }) => (
+                                    <Input
+                                      value={noteField.value ?? ""}
+                                      onChange={(e) => noteField.onChange(e.target.value)}
+                                      placeholder={t("items.fields.notes")}
+                                    />
+                                  )}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {form.formState.errors.items ? (
+                <div className="text-sm text-destructive">{t("form.invalid")}</div>
+              ) : null}
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
+                  {t("actions.back") || "Back"}
+                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
+                    {t("actions.cancel")}
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
+                    <ButtonLoading loading={isSubmitting}>
+                      {t("actions.save")}
+                    </ButtonLoading>
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </form>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
+

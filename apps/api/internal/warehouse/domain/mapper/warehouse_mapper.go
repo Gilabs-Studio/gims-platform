@@ -31,6 +31,7 @@ func (m *WarehouseMapper) ToResponse(warehouse *models.Warehouse) *dto.Warehouse
 		CityID:      warehouse.CityID,
 		DistrictID:  warehouse.DistrictID,
 		VillageID:   warehouse.VillageID,
+		VillageName: warehouse.VillageName,
 		Latitude:    warehouse.Latitude,
 		Longitude:   warehouse.Longitude,
 		IsActive:    warehouse.IsActive,
@@ -105,6 +106,7 @@ func (m *WarehouseMapper) FromCreateRequest(req dto.CreateWarehouseRequest) *mod
 		CityID:      req.CityID,
 		DistrictID:  req.DistrictID,
 		VillageID:   req.VillageID,
+		VillageName: req.VillageName,
 		Latitude:    req.Latitude,
 		Longitude:   req.Longitude,
 		IsActive:    true, // Default to active
@@ -150,6 +152,7 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 	warehouse.CityID = req.CityID
 	warehouse.DistrictID = req.DistrictID
 	warehouse.VillageID = req.VillageID
+	warehouse.VillageName = req.VillageName
 
 	if req.Latitude != nil {
 		warehouse.Latitude = req.Latitude

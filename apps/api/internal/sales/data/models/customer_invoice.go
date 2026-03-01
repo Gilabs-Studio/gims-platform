@@ -27,60 +27,69 @@ const (
 type CustomerInvoiceType string
 
 const (
-	CustomerInvoiceTypeRegular  CustomerInvoiceType = "regular"
-	CustomerInvoiceTypeProforma CustomerInvoiceType = "proforma"
+	CustomerInvoiceTypeRegular     CustomerInvoiceType = "regular"
+	CustomerInvoiceTypeProforma    CustomerInvoiceType = "proforma"
+	CustomerInvoiceTypeDownPayment CustomerInvoiceType = "down_payment"
 )
 
 // CustomerInvoice represents a customer invoice document
 type CustomerInvoice struct {
-	ID            string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Code          string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	InvoiceNumber *string   `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
+	ID            string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Code          string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	InvoiceNumber *string             `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
 	Type          CustomerInvoiceType `gorm:"type:varchar(20);default:'regular'" json:"type"`
-	InvoiceDate   time.Time `gorm:"type:date;not null;index" json:"invoice_date"`
-	DueDate       *time.Time `gorm:"type:date;index" json:"due_date"`
-	
+	InvoiceDate   time.Time           `gorm:"type:date;not null;index" json:"invoice_date"`
+	DueDate       *time.Time          `gorm:"type:date;index" json:"due_date"`
+
 	// Relations
-	SalesOrderID   *string       `gorm:"type:uuid;index" json:"sales_order_id"`
-	SalesOrder     *SalesOrder   `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
-	
+	SalesOrderID *string     `gorm:"type:uuid;index" json:"sales_order_id"`
+	SalesOrder   *SalesOrder `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
+
+	// Optional link to Delivery Order (invoice-on-delivery pattern)
+	DeliveryOrderID *string        `gorm:"type:uuid;index" json:"delivery_order_id"`
+	DeliveryOrder   *DeliveryOrder `gorm:"foreignKey:DeliveryOrderID" json:"delivery_order,omitempty"`
+
 	PaymentTermsID *string              `gorm:"type:uuid;index" json:"payment_terms_id"`
 	PaymentTerms   *models.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
-	
+
 	// Financial calculations
-	Subtotal       float64   `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
-	TaxRate        float64   `gorm:"type:decimal(5,2);default:11.00" json:"tax_rate"` // Default 11% PPN
-	TaxAmount      float64   `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
-	DeliveryCost   float64   `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
-	OtherCost      float64   `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
-	Amount         float64   `gorm:"type:decimal(15,2);default:0" json:"amount"` // Total invoice amount
-	
-	// Payment tracking
-	PaidAmount      float64   `gorm:"type:decimal(15,2);default:0" json:"paid_amount"`
-	RemainingAmount float64   `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
-	
+	Subtotal          float64 `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
+	TaxRate           float64 `gorm:"type:decimal(5,2);default:11.00" json:"tax_rate"` // Default 11% PPN
+	TaxAmount         float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`
+	DeliveryCost      float64 `gorm:"type:decimal(15,2);default:0" json:"delivery_cost"`
+	OtherCost         float64 `gorm:"type:decimal(15,2);default:0" json:"other_cost"`
+	DownPaymentAmount float64 `gorm:"type:decimal(15,2);default:0" json:"down_payment_amount"`
+	Amount            float64 `gorm:"type:decimal(15,2);default:0" json:"amount"` // Total invoice amount
+
+	PaidAmount      float64 `gorm:"type:decimal(15,2);default:0" json:"paid_amount"`
+	RemainingAmount float64 `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
+
+	// Track linked DP invoice
+	DownPaymentInvoiceID *string          `gorm:"type:uuid;index" json:"down_payment_invoice_id"`
+	DownPaymentInvoice   *CustomerInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
+
 	// Status and workflow
-	Status         CustomerInvoiceStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	Notes          string                `gorm:"type:text" json:"notes"`
-	
+	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
+	Notes  string                `gorm:"type:text" json:"notes"`
+
 	// Payment timestamp
-	PaymentAt      *time.Time `json:"payment_at"`
-	
+	PaymentAt *time.Time `json:"payment_at"`
+
 	// Tax Invoice relation (optional)
-	TaxInvoiceID   *string    `gorm:"type:uuid;index" json:"tax_invoice_id"`
-	
+	TaxInvoiceID *string `gorm:"type:uuid;index" json:"tax_invoice_id"`
+
 	// Audit fields
-	CreatedBy      *string    `gorm:"type:uuid" json:"created_by"`
-	CancelledBy    *string    `gorm:"type:uuid" json:"cancelled_by"`
-	CancelledAt    *time.Time `json:"cancelled_at"`
-	
+	CreatedBy   *string    `gorm:"type:uuid" json:"created_by"`
+	CancelledBy *string    `gorm:"type:uuid" json:"cancelled_by"`
+	CancelledAt *time.Time `json:"cancelled_at"`
+
 	// Timestamps
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-	
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
 	// Relations
-	Items          []CustomerInvoiceItem `gorm:"foreignKey:CustomerInvoiceID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	Items []CustomerInvoiceItem `gorm:"foreignKey:CustomerInvoiceID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
 }
 
 // TableName specifies the table name for CustomerInvoice
@@ -98,23 +107,29 @@ func (ci *CustomerInvoice) BeforeCreate(tx *gorm.DB) error {
 
 // CustomerInvoiceItem represents an item in a customer invoice
 type CustomerInvoiceItem struct {
-	ID                 string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	CustomerInvoiceID  string    `gorm:"type:uuid;not null;index" json:"customer_invoice_id"`
-	CustomerInvoice    *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"customer_invoice,omitempty"`
-	
-	ProductID          string    `gorm:"type:uuid;not null;index" json:"product_id"`
-	Product            *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-	
-	Quantity           float64   `gorm:"type:decimal(15,3);not null" json:"quantity"`
-	Price              float64   `gorm:"type:decimal(15,2);not null" json:"price"`
-	Discount           float64   `gorm:"type:decimal(15,2);default:0" json:"discount"` // Discount amount
-	Subtotal           float64   `gorm:"type:decimal(15,2);not null" json:"subtotal"`
-	HPPAmount          float64   `gorm:"type:decimal(15,2);default:0" json:"hpp_amount"` // Cost of goods sold per unit
-	
+	ID                string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CustomerInvoiceID string           `gorm:"type:uuid;not null;index" json:"customer_invoice_id"`
+	CustomerInvoice   *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"customer_invoice,omitempty"`
+
+	ProductID string                 `gorm:"type:uuid;not null;index" json:"product_id"`
+	Product   *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+
+	// Link to SO/DO items for partial invoicing tracking
+	SalesOrderItemID    *string            `gorm:"type:uuid;index" json:"sales_order_item_id"`
+	SalesOrderItem      *SalesOrderItem    `gorm:"foreignKey:SalesOrderItemID" json:"sales_order_item,omitempty"`
+	DeliveryOrderItemID *string            `gorm:"type:uuid;index" json:"delivery_order_item_id"`
+	DeliveryOrderItem   *DeliveryOrderItem `gorm:"foreignKey:DeliveryOrderItemID" json:"delivery_order_item,omitempty"`
+
+	Quantity  float64 `gorm:"type:decimal(15,3);not null" json:"quantity"`
+	Price     float64 `gorm:"type:decimal(15,2);not null" json:"price"`
+	Discount  float64 `gorm:"type:decimal(15,2);default:0" json:"discount"` // Discount amount
+	Subtotal  float64 `gorm:"type:decimal(15,2);not null" json:"subtotal"`
+	HPPAmount float64 `gorm:"type:decimal(15,2);default:0" json:"hpp_amount"` // Cost of goods sold per unit
+
 	// Timestamps
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName specifies the table name for CustomerInvoiceItem

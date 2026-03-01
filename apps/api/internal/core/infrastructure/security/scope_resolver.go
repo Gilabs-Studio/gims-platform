@@ -55,7 +55,7 @@ func HRDScopeQueryOptions() ScopeQueryOptions {
 
 // ScopeFilter holds the resolved scope context for query filtering
 type ScopeFilter struct {
-	Scope      string   // OWN, DIVISION, AREA, ALL
+	Scope      string // OWN, DIVISION, AREA, ALL
 	UserID     string
 	EmployeeID string
 	DivisionID string
@@ -186,6 +186,14 @@ func StockMovementScopeQueryOptions() ScopeQueryOptions {
 
 // FinanceScopeQueryOptions returns options for finance module
 func FinanceScopeQueryOptions() ScopeQueryOptions {
+	return ScopeQueryOptions{
+		OwnerUserIDColumn: "created_by",
+		DivisionJoinSQL:   "created_by IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)",
+	}
+}
+
+// SalesPaymentScopeQueryOptions returns options for sales payment module
+func SalesPaymentScopeQueryOptions() ScopeQueryOptions {
 	return ScopeQueryOptions{
 		OwnerUserIDColumn: "created_by",
 		DivisionJoinSQL:   "created_by IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)",

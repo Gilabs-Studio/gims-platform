@@ -26,6 +26,11 @@ export const financeJournalsEn = {
     credit: "Credit",
     memo: "Memo",
     account: "Account",
+    startDate: "Start Date",
+    endDate: "End Date",
+    code: "Code",
+    name: "Name",
+    balance: "Balance",
   },
   status: {
     draft: "Draft",

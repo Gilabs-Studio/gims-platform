@@ -38,6 +38,8 @@ export interface AssetTransaction {
   type: string;
   transaction_date: string;
   description: string;
+  amount: number;
+  status: "DRAFT" | "APPROVED" | "CANCELLED";
   reference_type?: string | null;
   reference_id?: string | null;
   created_at: string;
@@ -112,5 +114,17 @@ export interface TransferAssetInput {
 
 export interface DisposeAssetInput {
   disposal_date: string;
+  description?: string;
+}
+
+export interface RevalueAssetInput {
+  new_cost: number;
+  transaction_date: string;
+  description?: string;
+}
+
+export interface AdjustAssetInput {
+  amount: number;
+  transaction_date: string;
   description?: string;
 }

@@ -1,19 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
-import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, User } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import { StockWarningInline } from "@/features/sales/components/stock-warning";
+import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
+import { BusinessUnitForm } from "@/features/master-data/organization/components/business-unit/business-unit-form";
+import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
+import { CustomerSidePanel } from "@/features/master-data/customer/components/customer/customer-side-panel";
+import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
+import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
 import type { SalesQuotation } from "../types";
 import { useQuotationForm } from "../hooks/use-quotation-form";
 
@@ -63,6 +62,15 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     handleCustomerChange,
     handleDialogChange,
     onInvalid,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handlePaymentTermCreated,
+    handleBusinessUnitCreated,
+    handleBusinessTypeCreated,
+    handleCustomerCreated,
+    handleProductCreated,
+    handleEmployeeCreated,
   } = useQuotationForm({ quotation, open, onClose });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
@@ -180,18 +188,18 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   name="payment_terms_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("paymentTerms")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {paymentTerms.map((term) => (
-                          <SelectItem key={term.id} value={term.id}>
-                            {term.code ? `${term.code} - ${term.name}` : term.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={paymentTerms.map((term) => ({
+                        value: term.id,
+                        label: term.code ? `${term.code} - ${term.name}` : term.name,
+                      }))}
+                      placeholder={t("paymentTerms")}
+                      createPermission="payment_term.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("paymentTerm", q)}
+                    />
                   )}
                 />
                 {errors.payment_terms_id && (
@@ -205,18 +213,18 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   name="sales_rep_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("salesRep")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.employee_code} - {emp.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={employees.map((emp) => ({
+                        value: emp.id,
+                        label: `${emp.employee_code} - ${emp.name}`,
+                      }))}
+                      placeholder={t("salesRep")}
+                      createPermission="employee.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("employee", q)}
+                    />
                   )}
                 />
                 {errors.sales_rep_id && (
@@ -230,18 +238,18 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   name="business_unit_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("businessUnit")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {businessUnits.map((unit) => (
-                          <SelectItem key={unit.id} value={unit.id}>
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={businessUnits.map((unit) => ({
+                        value: unit.id,
+                        label: unit.name,
+                      }))}
+                      placeholder={t("businessUnit")}
+                      createPermission="business_unit.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("businessUnit", q)}
+                    />
                   )}
                 />
                 {errors.business_unit_id && (
@@ -255,18 +263,18 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   name="business_type_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={(value) => field.onChange(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("common.select")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {businessTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value ?? undefined}
+                      onValueChange={field.onChange}
+                      options={businessTypes.map((type) => ({
+                        value: type.id,
+                        label: type.name,
+                      }))}
+                      placeholder={t("common.select")}
+                      createPermission="business_type.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("businessType", q)}
+                    />
                   )}
                 />
                 {errors.business_type_id && (
@@ -280,18 +288,18 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   name="customer_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={handleCustomerChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("common.selectCustomer") || "Select customer"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id} className="cursor-pointer">
-                            {customer.code} - {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value ?? undefined}
+                      onValueChange={handleCustomerChange}
+                      options={customers.map((customer) => ({
+                        value: customer.id,
+                        label: `${customer.code} - ${customer.name}`,
+                      }))}
+                      placeholder={t("common.selectCustomer") || "Select customer"}
+                      createPermission="customer.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("customer", q)}
+                    />
                   )}
                 />
               </Field>
@@ -485,24 +493,21 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                             name={`items.${index}.product_id`}
                             control={control}
                             render={({ field }) => (
-                              <Select
-                                value={field.value?.toString() || ""}
+                              <CreatableCombobox
+                                value={field.value?.toString() || undefined}
                                 onValueChange={(value) => {
                                   field.onChange(value);
                                   handleProductChange(index, value);
                                 }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("item.selectProduct")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {products.map((product) => (
-                                    <SelectItem key={product.id} value={product.id}>
-                                      {product.code} - {product.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                options={products.map((product) => ({
+                                  value: product.id,
+                                  label: `${product.code} - ${product.name}`,
+                                }))}
+                                placeholder={t("item.selectProduct")}
+                                createPermission="product.create"
+                                createLabel={`${t("common.create")} "{query}"`}
+                                onCreateClick={(q) => openQuickCreate("product", q, index)}
+                              />
                             )}
                           />
                           {errors.items?.[index]?.product_id && (
@@ -686,6 +691,40 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     </Tabs>
         )}
       </DialogContent>
+
+      {/* Full module forms — rendered outside DialogContent to avoid Dialog nesting */}
+      <PaymentTermsDialog
+        open={quickCreate.type === "paymentTerm"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={handlePaymentTermCreated}
+      />
+      <BusinessUnitForm
+        open={quickCreate.type === "businessUnit"}
+        onClose={closeQuickCreate}
+        onCreated={handleBusinessUnitCreated}
+      />
+      <BusinessTypeForm
+        open={quickCreate.type === "businessType"}
+        onClose={closeQuickCreate}
+        onCreated={handleBusinessTypeCreated}
+      />
+      <CustomerSidePanel
+        isOpen={quickCreate.type === "customer"}
+        onClose={closeQuickCreate}
+        mode="create"
+        onCreated={handleCustomerCreated}
+      />
+      <ProductDialog
+        open={quickCreate.type === "product"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={handleProductCreated}
+      />
+      <EmployeeForm
+        open={quickCreate.type === "employee"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={handleEmployeeCreated}
+      />
     </Dialog>
   );
 }
