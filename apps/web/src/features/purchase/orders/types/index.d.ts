@@ -41,6 +41,8 @@ export interface PurchaseOrderGRSummary {
   id: string;
   code: string;
   status: string;
+  total_items?: number;
+  total_items_received?: number;
 }
 
 export interface PurchaseOrderSISummary {

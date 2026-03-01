@@ -3,14 +3,15 @@ package dto
 import "time"
 
 type GoodsReceiptListResponse struct {
-	ID            string                         `json:"id"`
-	Code          string                         `json:"code"`
-	PurchaseOrder *GoodsReceiptPurchaseOrderMini `json:"purchase_order,omitempty"`
-	Supplier      *GoodsReceiptSupplierMini      `json:"supplier,omitempty"`
-	ReceiptDate   *string                        `json:"receipt_date,omitempty"`
-	Notes         *string                        `json:"notes,omitempty"`
-	Status        string                         `json:"status"`
-	CreatedBy     string                         `json:"created_by"`
+	ID                 string                         `json:"id"`
+	Code               string                         `json:"code"`
+	PurchaseOrder      *GoodsReceiptPurchaseOrderMini `json:"purchase_order,omitempty"`
+	Supplier           *GoodsReceiptSupplierMini      `json:"supplier,omitempty"`
+	ReceiptDate        *string                        `json:"receipt_date,omitempty"`
+	Notes              *string                        `json:"notes,omitempty"`
+	Status             string                         `json:"status"`
+	CreatedBy          string                         `json:"created_by"`
+	TotalItemsReceived float64                       `json:"total_items_received"`
 
 	SubmittedAt                  *time.Time `json:"submitted_at,omitempty"`
 	ApprovedAt                   *time.Time `json:"approved_at,omitempty"`

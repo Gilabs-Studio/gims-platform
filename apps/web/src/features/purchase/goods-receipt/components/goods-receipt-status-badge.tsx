@@ -21,7 +21,7 @@ export function GoodsReceiptStatusBadge({ status, className }: GoodsReceiptStatu
       );
     case "submitted":
       return (
-        <Badge variant="default" className={`bg-blue-500 hover:bg-blue-600 ${className ?? ""}`}>
+        <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
           {t("submitted")}
         </Badge>
@@ -35,7 +35,7 @@ export function GoodsReceiptStatusBadge({ status, className }: GoodsReceiptStatu
       );
     case "closed":
       return (
-        <Badge variant="default" className={`bg-violet-500 hover:bg-violet-600 ${className ?? ""}`}>
+        <Badge variant="outline" className={`border-violet-500 text-violet-700 ${className ?? ""}`}>
           <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("closed")}
         </Badge>

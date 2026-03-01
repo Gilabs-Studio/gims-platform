@@ -82,6 +82,7 @@ export const goodsReceiptEn = {
     receiptDate: "Receipt Date",
     status: "Status",
     createdAt: "Created At",
+    totalItems: "Items",
   },
   status: {
     draft: "Draft",

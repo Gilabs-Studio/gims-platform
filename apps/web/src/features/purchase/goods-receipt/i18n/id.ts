@@ -82,6 +82,7 @@ export const goodsReceiptId = {
     receiptDate: "Tanggal Terima",
     status: "Status",
     createdAt: "Dibuat",
+    totalItems: "Item",
   },
   status: {
     draft: "Draft",

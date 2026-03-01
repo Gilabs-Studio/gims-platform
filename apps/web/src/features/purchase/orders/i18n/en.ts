@@ -150,6 +150,7 @@ export const purchaseOrderEn = {
     approve: "Approve",
     reject: "Reject",
     close: "Close",
+    createGR: "Create Goods Receipt",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",

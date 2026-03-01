@@ -13,6 +13,7 @@ import {
   Printer,
   Search,
   Send,
+  ShoppingCart,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -69,6 +70,8 @@ import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -99,6 +102,14 @@ export function PurchaseOrdersList() {
   // GR linked list dialog
   const [grDialogItem, setGrDialogItem] = useState<PurchaseOrderListItem | null>(null);
 
+  // Create GR shortcut from PO row
+  const [grFormOpen, setGrFormOpen] = useState(false);
+  const [grFormPOId, setGrFormPOId] = useState<string | null>(null);
+
+  // GR detail opened after successful create
+  const [grCreatedId, setGrCreatedId] = useState<string | null>(null);
+  const [grCreatedDetailOpen, setGrCreatedDetailOpen] = useState(false);
+
   // SI linked list dialog
   const [siDialogItem, setSiDialogItem] = useState<PurchaseOrderListItem | null>(null);
 
@@ -116,6 +127,7 @@ export function PurchaseOrdersList() {
   const canViewGR = useUserPermission("goods_receipt.read");
   const canViewSI = useUserPermission("supplier_invoice.read");
   const canViewPR = useUserPermission("purchase_requisition.read");
+  const canCreateGR = useUserPermission("goods_receipt.create");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -169,25 +181,28 @@ export function PurchaseOrdersList() {
     setDetailOpen(true);
   };
 
-  /** Renders first GR status badge; clicking opens the GR linked list dialog. */
+  /** Renders first GR status badge + received items count; clicking opens the GR linked list dialog. */
   const renderGRBadges = (it: PurchaseOrderListItem) => {
-    const items = it.goods_receipts;
-    if (!items?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    const grItems = it.goods_receipts;
+    if (!grItems?.length) return <span className="text-muted-foreground text-xs">—</span>;
+    const totalReceived = it.fulfillment?.total_received ?? 0;
     return (
       <button
         type="button"
         onClick={canViewGR ? () => setGrDialogItem(it) : undefined}
         className={canViewGR ? "cursor-pointer" : "cursor-default"}
-        title={`${items.length} Goods Receipt(s)`}
+        title={`${grItems.length} Goods Receipt(s)`}
       >
-        <span className="flex items-center gap-1">
-          <GoodsReceiptStatusBadge
-            status={items[0].status}
-            className="text-xs font-medium hover:opacity-80 transition-opacity"
-          />
-          {items.length > 1 && (
-            <span className="text-xs text-muted-foreground">+{items.length - 1}</span>
-          )}
+        <span className="flex flex-col gap-0.5 items-start">
+          <span className="flex items-center gap-1">
+        <GoodsReceiptStatusBadge
+          status={grItems[0].status}
+          className="text-xs font-medium hover:opacity-80 transition-opacity"
+        />
+            {grItems.length > 1 && (
+              <span className="text-xs text-muted-foreground">+{grItems.length - 1}</span>
+            )}
+          </span>
         </span>
       </button>
     );
@@ -528,6 +543,19 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canCreateGR && status === "APPROVED" &&
+                              (!it.fulfillment || it.fulfillment.total_remaining > 0) && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                onClick={() => {
+                                  setGrFormPOId(it.id);
+                                  setGrFormOpen(true);
+                                }}
+                              >
+                                <ShoppingCart className="h-4 w-4 mr-2" />
+                                {t("actions.createGR")}
+                              </DropdownMenuItem>
+                            )}
 
                             {canPrint && (
                               <DropdownMenuItem
@@ -593,6 +621,30 @@ export function PurchaseOrdersList() {
           setDetailId(null);
         }}
         purchaseOrderId={detailId}
+      />
+
+      {/* Create GR shortcut — pre-fills the PO from the selected row */}
+      <GoodsReceiptForm
+        open={grFormOpen}
+        onClose={() => {
+          setGrFormOpen(false);
+          setGrFormPOId(null);
+        }}
+        defaultPurchaseOrderId={grFormPOId}
+        onCreated={(id) => {
+          setGrCreatedId(id);
+          setGrCreatedDetailOpen(true);
+        }}
+      />
+
+      {/* GR detail dialog opened immediately after creation */}
+      <GoodsReceiptDetail
+        open={grCreatedDetailOpen}
+        onClose={() => {
+          setGrCreatedDetailOpen(false);
+          setGrCreatedId(null);
+        }}
+        goodsReceiptId={grCreatedId}
       />
 
       {printingId && (

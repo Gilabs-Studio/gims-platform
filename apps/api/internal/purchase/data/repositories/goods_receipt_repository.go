@@ -85,7 +85,8 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	query = query.
 		Preload("Supplier").
 		Preload("Creator").
-		Preload("PurchaseOrder")
+		Preload("PurchaseOrder").
+		Preload("Items")
 
 	if err := query.Find(&results).Error; err != nil {
 		return nil, 0, err

@@ -58,10 +58,16 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 
 	grSummaries := make([]dto.GoodsReceiptSummary, 0, len(po.GoodsReceipts))
 	for _, gr := range po.GoodsReceipts {
+		var totalReceivedForGR float64
+		for _, gi := range gr.Items {
+			totalReceivedForGR += gi.QuantityReceived
+		}
 		grSummaries = append(grSummaries, dto.GoodsReceiptSummary{
-			ID:     gr.ID,
-			Code:   gr.Code,
-			Status: string(gr.Status),
+			ID:                  gr.ID,
+			Code:                gr.Code,
+			Status:              string(gr.Status),
+			TotalItems:          len(gr.Items),
+			TotalItemsReceived:  totalReceivedForGR,
 		})
 	}
 
@@ -84,10 +90,16 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		for _, gr := range po.GoodsReceipts {
 			for _, grItem := range gr.Items {
 				switch gr.Status {
-				case models.GoodsReceiptStatusConfirmed:
+				// Items are physically received once the GR is approved, closed, or confirmed (legacy).
+				case models.GoodsReceiptStatusApproved,
+					models.GoodsReceiptStatusClosed,
+					models.GoodsReceiptStatusConfirmed:
 					totalReceived += grItem.QuantityReceived
-				case models.GoodsReceiptStatusDraft:
+				// Items are in-flight when the GR is still a draft or awaiting approval.
+				case models.GoodsReceiptStatusDraft,
+					models.GoodsReceiptStatusSubmitted:
 					totalPending += grItem.QuantityReceived
+				// REJECTED GRs do not contribute to fulfillment.
 				}
 			}
 		}

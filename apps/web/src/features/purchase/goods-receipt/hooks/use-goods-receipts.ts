@@ -50,6 +50,8 @@ export function useCreateGoodsReceipt() {
     mutationFn: (data: CreateGoodsReceiptInput) => goodsReceiptsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      // Invalidate PO list so fulfillment + GR column reflects the new GR immediately.
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -86,6 +88,7 @@ export function useConfirmGoodsReceipt() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -98,6 +101,7 @@ export function useSubmitGoodsReceipt() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -110,6 +114,7 @@ export function useApproveGoodsReceipt() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -122,6 +127,7 @@ export function useRejectGoodsReceipt() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }
@@ -134,6 +140,7 @@ export function useCloseGoodsReceipt() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }

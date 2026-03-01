@@ -61,9 +61,13 @@ interface GoodsReceiptFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly goodsReceiptId?: string | null;
+  /** Pre-select a PO when opening a blank create form from the PO list shortcut. */
+  readonly defaultPurchaseOrderId?: string | null;
+  /** Called with the new GR id after a successful create. */
+  readonly onCreated?: (id: string) => void;
 }
 
-export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceiptFormProps) {
+export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchaseOrderId, onCreated }: GoodsReceiptFormProps) {
   const t = useTranslations("goodsReceipt");
   const tCommon = useTranslations("common");
 
@@ -100,9 +104,10 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
     if (!open) return;
     setActiveTab("basic");
     if (!isEdit) {
-      resetForm({ purchase_order_id: "", notes: null, items: [] });
+      resetForm({ purchase_order_id: defaultPurchaseOrderId ?? "", notes: null, items: [] });
       replaceItems([]);
-      setPoDetail(null);
+      // Do not clear poDetail here — the PO-watch effect will load it when defaultPurchaseOrderId is set.
+      if (!defaultPurchaseOrderId) setPoDetail(null);
       return;
     }
     if (!grDetailSnapshot) return;
@@ -124,7 +129,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
         notes: it.notes ?? null,
       })),
     );
-  }, [open, isEdit, grDetailSnapshot, resetForm, replaceItems]);
+  }, [open, isEdit, grDetailSnapshot, resetForm, replaceItems, defaultPurchaseOrderId]);
 
   useEffect(() => {
     const loadPO = async (poId: string) => {
@@ -171,7 +176,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
         });
         toast.success(t("toast.updated"));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           purchase_order_id: values.purchase_order_id,
           notes: values.notes ?? null,
           items: values.items.map((it) => ({
@@ -182,6 +187,11 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
           })),
         });
         toast.success(t("toast.created"));
+        onClose();
+        if (result?.data?.id) {
+          onCreated?.(result.data.id);
+        }
+        return;
       }
       onClose();
     } catch {
@@ -195,7 +205,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
+          <DialogTitle className="text-primary text-base font-medium">
+            {isEdit ? t("form.editTitle") : t("form.createTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "basic" | "items")} className="w-full">
@@ -206,9 +218,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
             <TabsContent value="basic" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                <FileText className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-medium">{t("sections.receiptInfo") || "Receipt Info"}</h3>
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
+                <FileText className="h-3.5 w-3.5 text-primary/60" />
+                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("sections.receiptInfo") || "Receipt Info"}</h3>
               </div>
 
               {!isEdit ? (
@@ -284,9 +296,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId }: GoodsReceipt
             </TabsContent>
 
             <TabsContent value="items" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                <ShoppingCart className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-medium">{t("items.title")}</h3>
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
+                <ShoppingCart className="h-3.5 w-3.5 text-primary/60" />
+                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("items.title")}</h3>
               </div>
 
               {poLoading ? (

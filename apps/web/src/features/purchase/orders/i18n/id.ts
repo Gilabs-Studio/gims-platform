@@ -150,6 +150,7 @@ export const purchaseOrderId = {
     approve: "Setujui",
     reject: "Tolak",
     close: "Tutup",
+    createGR: "Buat Penerimaan Barang",
     auditTrail: "Audit Trail",
     save: "Simpan",
     cancel: "Batal",

@@ -24,13 +24,19 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		receiptDate = &s
 	}
 
+	var totalItemsReceived float64
+	for _, item := range gr.Items {
+		totalItemsReceived += item.QuantityReceived
+	}
+
 	resp := &dto.GoodsReceiptListResponse{
-		ID:          gr.ID,
-		Code:        gr.Code,
-		ReceiptDate: receiptDate,
-		Notes:       gr.Notes,
-		Status:      string(gr.Status),
-		CreatedBy:   gr.CreatedBy,
+		ID:                 gr.ID,
+		Code:               gr.Code,
+		ReceiptDate:        receiptDate,
+		Notes:              gr.Notes,
+		Status:             string(gr.Status),
+		CreatedBy:          gr.CreatedBy,
+		TotalItemsReceived: totalItemsReceived,
 
 		SubmittedAt:                  gr.SubmittedAt,
 		ApprovedAt:                   gr.ApprovedAt,

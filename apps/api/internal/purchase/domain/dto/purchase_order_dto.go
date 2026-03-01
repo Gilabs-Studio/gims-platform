@@ -17,9 +17,12 @@ type PurchaseOrderRequisitionRef struct {
 
 // GoodsReceiptSummary is a minimal GR view used in list responses.
 type GoodsReceiptSummary struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Status string `json:"status"`
+	ID         string `json:"id"`
+	Code       string `json:"code"`
+	Status     string `json:"status"`
+	TotalItems int    `json:"total_items"`
+	// TotalItemsReceived is the sum of QuantityReceived across the GR items
+	TotalItemsReceived float64 `json:"total_items_received"`
 }
 
 // POFulfillmentSummary tracks how much of the ordered qty has been received via confirmed GRs.
