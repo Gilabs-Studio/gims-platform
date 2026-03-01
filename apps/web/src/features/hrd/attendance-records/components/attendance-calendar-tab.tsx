@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { addMonths, endOfMonth, format, parseISO, startOfMonth, startOfToday } from "date-fns";
-import { ChevronLeft, ChevronRight, Clock4 } from "lucide-react";
+import { CalendarOff, ChevronLeft, ChevronRight, Clock4, TreePalm } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyAttendanceHistory } from "../hooks/use-attendance-records";
+import { useHolidaysByYear } from "../../holidays/hooks/use-holidays";
 import type { AttendanceRecord } from "../types";
 
 function getStatusVariant(
@@ -39,6 +40,7 @@ function getCheckInTypeLabel(t: ReturnType<typeof useTranslations>, type?: strin
 
 export function AttendanceCalendarTab() {
   const t = useTranslations("hrd.attendance");
+  const tHoliday = useTranslations("hrd.holiday");
   const locale = useLocale();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [month, setMonth] = useState<Date>(new Date());
@@ -52,6 +54,28 @@ export function AttendanceCalendarTab() {
     per_page: 100,
     page: 1,
   });
+
+  // Fetch holidays for the current calendar year
+  const currentYear = month.getFullYear();
+  const { data: holidaysData } = useHolidaysByYear(currentYear);
+
+  // Build a Map<dateKey, { name, type }> for quick holiday lookup
+  const holidayMap = useMemo(() => {
+    const map = new Map<string, { name: string; type: string }>();
+    if (holidaysData?.data) {
+      for (const holiday of holidaysData.data) {
+        map.set(holiday.date, { name: holiday.name, type: holiday.type });
+      }
+    }
+    return map;
+  }, [holidaysData]);
+
+  // Holiday dates for current month (for calendar modifiers)
+  const holidayDates = useMemo(() => {
+    return Array.from(holidayMap.entries())
+      .filter(([dateStr]) => dateStr >= monthFrom && dateStr <= monthTo)
+      .map(([dateStr]) => parseISO(dateStr));
+  }, [holidayMap, monthFrom, monthTo]);
 
   const records = useMemo(() => data?.data ?? [], [data?.data]);
   const selectedKey = format(selectedDate, "yyyy-MM-dd");
@@ -71,8 +95,10 @@ export function AttendanceCalendarTab() {
   }, [records]);
 
   const selectedRecord: AttendanceRecord | undefined = dayRecords[0];
+  const selectedHoliday = holidayMap.get(selectedKey);
+
   const currentMonthStats = useMemo(() => {
-    return records.reduce(
+    const stats = records.reduce(
       (acc, record) => {
         if (record.status === "PRESENT" || record.status === "WFH") {
           acc.present += 1;
@@ -82,12 +108,21 @@ export function AttendanceCalendarTab() {
           acc.late += 1;
         } else if (record.status === "HALF_DAY") {
           acc.halfDay += 1;
+        } else if (record.status === "LEAVE") {
+          acc.leave += 1;
         }
         return acc;
       },
-      { present: 0, absent: 0, late: 0, halfDay: 0 }
+      { present: 0, absent: 0, late: 0, halfDay: 0, leave: 0 }
     );
-  }, [records]);
+
+    // Count holidays for the current month from the holiday map
+    const holidayCount = Array.from(holidayMap.entries()).filter(
+      ([dateStr]) => dateStr >= monthFrom && dateStr <= monthTo
+    ).length;
+
+    return { ...stats, holiday: holidayCount };
+  }, [records, holidayMap, monthFrom, monthTo]);
 
   return (
     <div className="space-y-4 p-1">
@@ -150,7 +185,7 @@ export function AttendanceCalendarTab() {
             day_button:
               "relative w-full h-10 px-1 items-center justify-center rounded-lg text-sm transition-colors data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-accent",
             today:
-              "border border-primary/60 bg-primary/10 text-primary data-[selected=true]:border-primary data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground",
+              "[&>button]:border [&>button]:border-primary/60 [&>button]:bg-primary/10 [&>button]:text-primary [&>button]:data-[selected=true]:border-primary [&>button]:data-[selected=true]:bg-primary [&>button]:data-[selected=true]:text-primary-foreground",
           }}
           modifiers={{
             present: Array.from(recordsByDate.values())
@@ -165,6 +200,10 @@ export function AttendanceCalendarTab() {
             halfDay: Array.from(recordsByDate.values())
               .filter((r) => r.status === "HALF_DAY")
               .map((r) => parseISO(r.date)),
+            holiday: holidayDates,
+            leave: Array.from(recordsByDate.values())
+              .filter((r) => r.status === "LEAVE")
+              .map((r) => parseISO(r.date)),
           }}
           modifiersClassNames={{
             present:
@@ -175,6 +214,10 @@ export function AttendanceCalendarTab() {
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-yellow-500 [&>button]:after:content-['']",
             halfDay:
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-orange-500 [&>button]:after:content-['']",
+            holiday:
+              "[&>button]:bg-rose-500/10 [&>button]:text-rose-600 dark:[&>button]:text-rose-400 [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-rose-500 [&>button]:after:content-['']",
+            leave:
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-sky-500 [&>button]:after:content-['']",
           }}
         />
       </div>
@@ -185,6 +228,10 @@ export function AttendanceCalendarTab() {
           {selectedRecord ? (
             <Badge variant={getStatusVariant(selectedRecord.status)}>
               {t(`status.${selectedRecord.status}`)}
+            </Badge>
+          ) : selectedHoliday ? (
+            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400">
+              {t("status.HOLIDAY")}
             </Badge>
           ) : null}
         </div>
@@ -197,9 +244,7 @@ export function AttendanceCalendarTab() {
           </div>
         ) : isError ? (
           <p className="text-sm text-destructive">{t("errors.fetchFailed")}</p>
-        ) : !selectedRecord ? (
-          <p className="text-sm text-muted-foreground">{t("noRecords")}</p>
-        ) : (
+        ) : selectedRecord ? (
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               <span className="text-muted-foreground">{t("fields.date")}</span>
@@ -239,6 +284,36 @@ export function AttendanceCalendarTab() {
               </span>
             </div>
           </div>
+        ) : selectedHoliday ? (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <span className="text-muted-foreground">{t("fields.date")}</span>
+              <span className="text-right font-medium">
+                {new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }).format(selectedDate)}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-rose-100 bg-rose-50/50 p-3 dark:border-rose-500/20 dark:bg-rose-500/5">
+              <CalendarOff className="h-4 w-4 shrink-0 text-rose-500" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                  {selectedHoliday.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tHoliday(`types.${selectedHoliday.type}`)}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <TreePalm className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">{t("noRecords")}</p>
+          </div>
         )}
       </div>
 
@@ -264,6 +339,16 @@ export function AttendanceCalendarTab() {
             <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
             <span>{t("status.HALF_DAY")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.halfDay}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <span>{t("status.HOLIDAY")}</span>
+            <span className="ml-auto text-muted-foreground">{currentMonthStats.holiday}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+            <span>{t("status.LEAVE")}</span>
+            <span className="ml-auto text-muted-foreground">{currentMonthStats.leave}</span>
           </div>
         </div>
       </div>
