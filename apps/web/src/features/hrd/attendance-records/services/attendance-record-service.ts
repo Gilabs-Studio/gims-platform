@@ -6,6 +6,7 @@ import type {
   MonthlyStatsResponse,
   ClockActionResponse,
   AttendanceFormDataResponse,
+  EmployeeScheduleResponse,
   ClockInRequest,
   ClockOutRequest,
   ManualAttendanceRequest,
@@ -116,6 +117,15 @@ export const attendanceRecordService = {
     const response = await apiClient.get<MonthlyStatsResponse>(
       `${BASE_PATH}/stats/${employeeId}`,
       { params }
+    );
+    return response.data;
+  },
+
+  async getEmployeeSchedule(
+    employeeId: string
+  ): Promise<EmployeeScheduleResponse> {
+    const response = await apiClient.get<EmployeeScheduleResponse>(
+      `${BASE_PATH}/employee-schedule/${employeeId}`
     );
     return response.data;
   },

@@ -383,6 +383,23 @@ func (h *AttendanceRecordHandler) GetFormData(c *gin.Context) {
 	response.SuccessResponse(c, formData, nil)
 }
 
+// GetEmployeeSchedule handles get employee work schedule request
+func (h *AttendanceRecordHandler) GetEmployeeSchedule(c *gin.Context) {
+	employeeID := c.Param("employeeId")
+	if employeeID == "" {
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	schedule, err := h.attendanceUC.GetEmployeeSchedule(c.Request.Context(), employeeID)
+	if err != nil {
+		errors.NotFoundResponse(c, "EMPLOYEE_SCHEDULE_NOT_FOUND", "No work schedule found for this employee")
+		return
+	}
+
+	response.SuccessResponse(c, schedule, nil)
+}
+
 // ProcessAutoAbsent handles manual trigger of auto-absent processing
 func (h *AttendanceRecordHandler) ProcessAutoAbsent(c *gin.Context) {
 	var req dto.ProcessAutoAbsentRequest

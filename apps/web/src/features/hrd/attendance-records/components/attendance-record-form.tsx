@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
@@ -27,7 +28,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useAttendanceFormData } from "../hooks/use-attendance-records";
+import { useAttendanceFormData, useEmployeeSchedule } from "../hooks/use-attendance-records";
 import { useCheckHoliday } from "@/features/hrd/holidays/hooks/use-holidays";
 import type { CalendarEvent } from "../types";
 import { sortOptions, cn } from "@/lib/utils";
@@ -94,6 +95,41 @@ export function AttendanceRecordForm({
   const statusValue = useWatch({ control, name: "status" });
   const checkInTypeValue = useWatch({ control, name: "check_in_type" });
   const dateValue = useWatch({ control, name: "date" });
+
+  // Determine if time fields should be disabled
+  const isTimeDisabled = statusValue === "ABSENT" || statusValue === "LEAVE";
+
+  // Fetch employee's work schedule for auto-fill
+  const { data: scheduleResponse } = useEmployeeSchedule(employeeIdValue ?? "");
+  const schedule = scheduleResponse?.data;
+
+  // Track previous status and employee to detect changes for auto-fill
+  const prevStatusRef = useRef(statusValue);
+  const prevEmployeeRef = useRef(employeeIdValue);
+
+  // Effect: Clear time fields when status changes to ABSENT or LEAVE
+  useEffect(() => {
+    if (isTimeDisabled) {
+      setValue("check_in_time", undefined);
+      setValue("check_out_time", undefined);
+    }
+  }, [isTimeDisabled, setValue]);
+
+  // Effect: Auto-fill time fields from work schedule when status is PRESENT
+  useEffect(() => {
+    if (!schedule) return;
+
+    const statusChangedToPresent = statusValue === "PRESENT" && prevStatusRef.current !== "PRESENT";
+    const employeeChanged = employeeIdValue !== prevEmployeeRef.current && statusValue === "PRESENT";
+
+    if (statusChangedToPresent || employeeChanged) {
+      setValue("check_in_time", schedule.start_time);
+      setValue("check_out_time", schedule.end_time);
+    }
+
+    prevStatusRef.current = statusValue;
+    prevEmployeeRef.current = employeeIdValue;
+  }, [statusValue, employeeIdValue, schedule, setValue]);
 
   // Check if selected date is a holiday
   const { data: holidayCheck } = useCheckHoliday(dateValue ?? "");
@@ -261,22 +297,36 @@ export function AttendanceRecordForm({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("form.checkInTime")}</FieldLabel>
+            <FieldLabel className={cn(isTimeDisabled && "text-muted-foreground")}>{t("form.checkInTime")}</FieldLabel>
             <Input
               type="time"
               {...register("check_in_time")}
+              disabled={isTimeDisabled}
+              className={cn(isTimeDisabled && "opacity-50 cursor-not-allowed")}
             />
-            <FieldDescription>{t("form.checkInTimeDesc")}</FieldDescription>
+            <FieldDescription>
+              {isTimeDisabled
+                ? t("form.checkInTimeDisabled")
+                : schedule && statusValue === "PRESENT"
+                  ? t("form.scheduleHint", { name: schedule.name, startTime: schedule.start_time, endTime: schedule.end_time })
+                  : t("form.checkInTimeDesc")}
+            </FieldDescription>
             {errors.check_in_time && <FieldError>{errors.check_in_time.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("form.checkOutTime")}</FieldLabel>
+            <FieldLabel className={cn(isTimeDisabled && "text-muted-foreground")}>{t("form.checkOutTime")}</FieldLabel>
             <Input
               type="time"
               {...register("check_out_time")}
+              disabled={isTimeDisabled}
+              className={cn(isTimeDisabled && "opacity-50 cursor-not-allowed")}
             />
-            <FieldDescription>{t("form.checkOutTimeDesc")}</FieldDescription>
+            <FieldDescription>
+              {isTimeDisabled
+                ? t("form.checkOutTimeDisabled")
+                : t("form.checkOutTimeDesc")}
+            </FieldDescription>
             {errors.check_out_time && <FieldError>{errors.check_out_time.message}</FieldError>}
           </Field>
         </div>

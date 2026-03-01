@@ -2,9 +2,9 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.2.0  
-> **Status:** ✅ Complete (API + Frontend) — Auto-absent added in Sprint 17  
-> **Last Updated:** February 2026
+> **Version:** 1.3.0  
+> **Status:** ✅ Complete (API + Frontend) — Smart form features added in Sprint 18  
+> **Last Updated:** March 2026
 
 ---
 
@@ -52,6 +52,10 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 | Form Data Endpoint      | Single API call for all attendance form dropdown options                            |
 | Auto Absent             | Daily background worker marks absent employees (respects holidays, leave, off-days) |
 | Manual Absent Trigger   | Admin endpoint to manually trigger auto-absent processing for a specific date       |
+| Holiday Date Warning    | Manual entry form warns when selected date is a holiday (with holiday name & type)  |
+| Schedule-Aware Form     | Auto-fills check-in/out times from employee's work schedule when status is PRESENT  |
+| Smart Time Fields       | Disables check-in/out fields for ABSENT and LEAVE statuses (not applicable)         |
+| Employee Schedule API   | Endpoint to fetch an employee's resolved work schedule (division → default fallback)|
 
 ---
 
@@ -422,6 +426,7 @@ For a given date, the system processes all active employees:
 | Method | Endpoint                                | Permission        | Description                                                                    |
 | ------ | --------------------------------------- | ----------------- | ------------------------------------------------------------------------------ |
 | GET    | `/api/v1/hrd/attendance/form-data`      | attendance.read   | Get form data (employees, schedules, statuses)                                 |
+| GET    | `/api/v1/hrd/attendance/employee-schedule/:employeeId` | attendance.read | Get employee's resolved work schedule (start/end times, flexible info) |
 | GET    | `/api/v1/hrd/attendance`                | attendance.read   | List all records (enriched with employee names, supports `search` query param) |
 | GET    | `/api/v1/hrd/attendance/:id`            | attendance.read   | Get by ID (enriched with employee, work schedule name, approver name)          |
 | POST   | `/api/v1/hrd/attendance/manual`         | attendance.create | Manual entry (`reason` is optional)                                            |
@@ -510,7 +515,7 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 
 | Component               | File                        | Description                                                           |
 | ----------------------- | --------------------------- | --------------------------------------------------------------------- |
-| `AttendanceRecordForm`  | attendance-record-form.tsx  | Manual entry form (Calendar date picker, form-data integration)       |
+| `AttendanceRecordForm`  | attendance-record-form.tsx  | Manual entry form with holiday warning, schedule auto-fill, smart time fields |
 | `AttendanceList`        | attendance-list.tsx         | Paginated records table with search + calendar toggle                 |
 | `AttendanceCalendar`    | attendance-calendar.tsx     | Monthly calendar view                                                 |
 | `AttendanceDayView`     | attendance-day-view.tsx     | Single day details                                                    |
@@ -524,13 +529,18 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 - GPS coordinates display
 - Manual entry form for admins
 - Date range filtering
+- **Holiday date warning** — Amber alert when selected date is a holiday (shows name and type)
+- **Schedule-aware auto-fill** — Check-in/out times auto-fill from employee's work schedule when status is PRESENT
+- **Smart time field disabling** — Check-in/out fields disabled with explanation for ABSENT and LEAVE statuses
+- **Holiday badge on calendar** — Red badge on calendar dates that are holidays
 
 ### Hooks (TanStack Query)
 
-| Hook                    | File                       | Description              |
-| ----------------------- | -------------------------- | ------------------------ |
-| `useAttendanceRecords`  | use-attendance-records.ts  | CRUD operations + stats  |
-| `useAttendanceCalendar` | use-attendance-calendar.ts | Calendar data fetching   |
+| Hook                    | File                       | Description                  |
+| ----------------------- | -------------------------- | ---------------------------- |
+| `useAttendanceRecords`  | use-attendance-records.ts  | CRUD operations + stats      |
+| `useEmployeeSchedule`   | use-attendance-records.ts  | Fetch employee work schedule |
+| `useAttendanceCalendar` | use-attendance-calendar.ts | Calendar data fetching       |
 | `useGeolocation`        | use-geolocation.ts         | Browser GPS access       |
 | `useWorkSchedules`      | use-work-schedules.ts      | Schedule CRUD            |
 | `useHolidays`           | use-holidays.ts            | Holiday CRUD + calendar  |

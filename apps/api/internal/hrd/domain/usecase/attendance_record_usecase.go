@@ -46,6 +46,8 @@ type AttendanceRecordUsecase interface {
 	// GetSelfMonthlyStats returns monthly stats for the authenticated employee, resolving userID → employeeID.
 	GetSelfMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest, userID string) ([]dto.MonthlyAttendanceStats, error)
 	GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error)
+	// GetEmployeeSchedule returns the work schedule assigned to an employee (via division or default fallback).
+	GetEmployeeSchedule(ctx context.Context, employeeID string) (*dto.EmployeeScheduleResponse, error)
 	// ProcessAutoAbsent creates ABSENT/LEAVE records for employees who didn't clock in on the given date.
 	ProcessAutoAbsent(ctx context.Context, date time.Time) (*dto.AutoAbsentResult, error)
 }
@@ -622,6 +624,32 @@ func (u *attendanceRecordUsecase) getScheduleForEmployee(ctx context.Context, em
 
 	// Fallback to default schedule
 	return u.workScheduleRepo.FindDefault(ctx)
+}
+
+// GetEmployeeSchedule returns the work schedule for a specific employee
+func (u *attendanceRecordUsecase) GetEmployeeSchedule(ctx context.Context, employeeID string) (*dto.EmployeeScheduleResponse, error) {
+	ws, err := u.getScheduleForEmployee(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("no work schedule found for employee: %w", err)
+	}
+
+	result := &dto.EmployeeScheduleResponse{
+		ID:         ws.ID,
+		Name:       ws.Name,
+		StartTime:  ws.StartTime,
+		EndTime:    ws.EndTime,
+		IsFlexible: ws.IsFlexible,
+	}
+	if ws.FlexibleStartTime != "" {
+		flexStart := ws.FlexibleStartTime
+		result.FlexibleStartTime = &flexStart
+	}
+	if ws.FlexibleEndTime != "" {
+		flexEnd := ws.FlexibleEndTime
+		result.FlexibleEndTime = &flexEnd
+	}
+
+	return result, nil
 }
 
 // GetFormData returns form data for attendance management (manual entry)

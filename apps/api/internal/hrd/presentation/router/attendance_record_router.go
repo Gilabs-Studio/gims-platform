@@ -19,6 +19,7 @@ func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRe
 
 	// Admin routes
 	g.GET("/form-data", middleware.RequirePermission("attendance.read"), h.GetFormData)
+	g.GET("/employee-schedule/:employeeId", middleware.RequirePermission("attendance.read"), h.GetEmployeeSchedule)
 	g.GET("", middleware.RequirePermission("attendance.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("attendance.read"), h.GetByID)
 	g.POST("/manual", middleware.RequirePermission("attendance.create"), h.CreateManualEntry)

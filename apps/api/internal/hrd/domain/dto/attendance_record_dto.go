@@ -162,6 +162,17 @@ type AttendanceStatusFormOption struct {
 	Label string `json:"label"`
 }
 
+// EmployeeScheduleResponse represents the work schedule for a specific employee
+type EmployeeScheduleResponse struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	StartTime         string  `json:"start_time"`
+	EndTime           string  `json:"end_time"`
+	IsFlexible        bool    `json:"is_flexible"`
+	FlexibleStartTime *string `json:"flexible_start_time,omitempty"`
+	FlexibleEndTime   *string `json:"flexible_end_time,omitempty"`
+}
+
 // ProcessAutoAbsentRequest represents the request to manually trigger auto-absent processing
 type ProcessAutoAbsentRequest struct {
 	Date string `json:"date" form:"date"` // Optional: YYYY-MM-DD, defaults to yesterday
