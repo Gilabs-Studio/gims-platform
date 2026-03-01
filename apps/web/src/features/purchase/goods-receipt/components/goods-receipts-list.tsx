@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -49,6 +48,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
+import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 
 import {
   useConfirmGoodsReceipt,
@@ -88,6 +88,8 @@ export function GoodsReceiptsList() {
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
+  const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -103,6 +105,7 @@ export function GoodsReceiptsList() {
   const canClose = useUserPermission("goods_receipt.close");
   const canConvert = useUserPermission("goods_receipt.convert");
   const canViewSupplier = useUserPermission("supplier.read");
+  const canViewPO = useUserPermission("purchase_order.read");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
@@ -239,7 +242,6 @@ export function GoodsReceiptsList() {
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead>{t("columns.createdAt")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -252,14 +254,13 @@ export function GoodsReceiptsList() {
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -274,7 +275,23 @@ export function GoodsReceiptsList() {
                   >
                     {it.code}
                   </TableCell>
-                  <TableCell>{it.purchase_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    {it.purchase_order ? (
+                      canViewPO ? (
+                        <button
+                          onClick={() => {
+                            setSelectedPurchaseOrderId(it.purchase_order!.id);
+                            setIsPurchaseOrderOpen(true);
+                          }}
+                          className="text-primary hover:underline cursor-pointer text-left text-sm font-mono"
+                        >
+                          {it.purchase_order.code}
+                        </button>
+                      ) : (
+                        <span className="font-mono text-sm">{it.purchase_order.code}</span>
+                      )
+                    ) : "-"}
+                  </TableCell>
                   <TableCell className="font-small">
                     {it.supplier ? (
                       canViewSupplier ? (
@@ -295,14 +312,6 @@ export function GoodsReceiptsList() {
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
                     <GoodsReceiptStatusBadge status={it.status ?? ""} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span>{formatDate(it.created_at)}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {it.created_at ? new Date(it.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
-                      </span>
-                    </div>
                   </TableCell>
                   <TableCell>
                     {canShowActions && (
@@ -438,22 +447,9 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canAuditTrail && (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setAuditId(it.id);
-                                setAuditOpen(true);
-                              }}
-                            >
-                              <History className="h-4 w-4 mr-2" />
-                              {t("actions.auditTrail")}
-                            </DropdownMenuItem>
-                          )}
-
                           {canPrint && (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-violet-600 focus:text-violet-600"
                               onClick={() => setPrintingId(it.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -533,6 +529,15 @@ export function GoodsReceiptsList() {
         open={isSupplierOpen}
         onOpenChange={setIsSupplierOpen}
         supplierId={selectedSupplierId}
+      />
+
+      <PurchaseOrderDetail
+        open={isPurchaseOrderOpen}
+        onClose={() => {
+          setIsPurchaseOrderOpen(false);
+          setSelectedPurchaseOrderId(null);
+        }}
+        purchaseOrderId={selectedPurchaseOrderId}
       />
 
       <DeleteDialog

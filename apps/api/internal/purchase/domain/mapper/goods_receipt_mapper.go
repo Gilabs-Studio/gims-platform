@@ -31,7 +31,6 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		Notes:       gr.Notes,
 		Status:      string(gr.Status),
 		CreatedBy:   gr.CreatedBy,
-		CreatedAt:   gr.CreatedAt,
 
 		SubmittedAt:                  gr.SubmittedAt,
 		ApprovedAt:                   gr.ApprovedAt,
@@ -78,7 +77,6 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 		Notes:       gr.Notes,
 		Status:      string(gr.Status),
 		CreatedBy:   gr.CreatedBy,
-		CreatedAt:   gr.CreatedAt,
 		Items:       make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
 
 		SubmittedAt:                  gr.SubmittedAt,

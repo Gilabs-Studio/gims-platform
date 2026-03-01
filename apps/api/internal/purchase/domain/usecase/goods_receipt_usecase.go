@@ -1012,13 +1012,6 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 	if gr.Status != models.GoodsReceiptStatusClosed {
 		return nil, ErrGoodsReceiptConflict
 	}
-	if gr.ConvertedToSupplierInvoiceID != nil {
-		// Already converted — return existing SI id.
-		return &dto.GoodsReceiptConvertResponse{
-			GoodsReceiptID:    gr.ID,
-			SupplierInvoiceID: *gr.ConvertedToSupplierInvoiceID,
-		}, nil
-	}
 
 	// Build PO item price map for populating SI item prices.
 	var poItems []models.PurchaseOrderItem
@@ -1104,11 +1097,10 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		}
 		siID = si.ID
 
-		// Mark GR as converted.
+		// Update GR with latest convert timestamp (multiple conversions allowed).
 		now := time.Now()
 		if err := tx.Model(&models.GoodsReceipt{}).Where("id = ?", id).Updates(map[string]interface{}{
-			"converted_at":                    now,
-			"converted_to_supplier_invoice_id": siID,
+			"converted_at": now,
 		}).Error; err != nil {
 			return err
 		}

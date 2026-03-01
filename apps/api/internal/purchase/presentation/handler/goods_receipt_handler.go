@@ -478,7 +478,7 @@ func (h *GoodsReceiptHandler) Export(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	var b strings.Builder
-	b.WriteString("code,purchase_order_code,receipt_date,status,created_at\n")
+	b.WriteString("code,purchase_order_code,receipt_date,status\n")
 	for _, it := range items {
 		poCode := ""
 		if it.PurchaseOrder != nil {
@@ -493,7 +493,6 @@ func (h *GoodsReceiptHandler) Export(c *gin.Context) {
 			csvEscape(poCode),
 			csvEscape(rd),
 			csvEscape(it.Status),
-			csvEscape(it.CreatedAt.String()),
 		}
 		b.WriteString(strings.Join(row, ","))
 		b.WriteString("\n")

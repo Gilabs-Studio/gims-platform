@@ -11,7 +11,6 @@ type GoodsReceiptListResponse struct {
 	Notes         *string                        `json:"notes,omitempty"`
 	Status        string                         `json:"status"`
 	CreatedBy     string                         `json:"created_by"`
-	CreatedAt     time.Time                      `json:"created_at"`
 
 	SubmittedAt                  *time.Time `json:"submitted_at,omitempty"`
 	ApprovedAt                   *time.Time `json:"approved_at,omitempty"`
@@ -40,7 +39,6 @@ type GoodsReceiptDetailResponse struct {
 	Notes         *string                      `json:"notes,omitempty"`
 	Status        string                       `json:"status"`
 	CreatedBy     string                       `json:"created_by"`
-	CreatedAt     time.Time                    `json:"created_at"`
 	Items         []GoodsReceiptItemResponse   `json:"items"`
 
 	SubmittedAt                  *time.Time `json:"submitted_at,omitempty"`

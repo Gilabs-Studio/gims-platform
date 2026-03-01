@@ -35,6 +35,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
+import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 
 import {
   useGoodsReceipt,
@@ -65,6 +66,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
+  const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
@@ -77,6 +80,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const canConvert = useUserPermission("goods_receipt.convert");
   const canPrint = useUserPermission("goods_receipt.print");
   const canViewSupplier = useUserPermission("supplier.read");
+  const canViewPO = useUserPermission("purchase_order.read");
   const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
 
   const id = goodsReceiptId ?? "";
@@ -307,8 +311,22 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                           <GoodsReceiptStatusBadge status={gr.status} />
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.purchaseOrder")}</TableCell>
-                        <TableCell className="font-mono font-medium text-primary">
-                          {gr.purchase_order?.code ?? "-"}
+                        <TableCell>
+                          {gr.purchase_order ? (
+                            canViewPO ? (
+                              <button
+                                onClick={() => {
+                                  setSelectedPurchaseOrderId(gr.purchase_order!.id);
+                                  setIsPurchaseOrderOpen(true);
+                                }}
+                                className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                              >
+                                {gr.purchase_order.code}
+                              </button>
+                            ) : (
+                              <span className="font-mono font-medium text-primary">{gr.purchase_order.code}</span>
+                            )
+                          ) : "-"}
                         </TableCell>
                       </TableRow>
                       {gr.notes && (
@@ -499,6 +517,15 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
           receiptId={goodsReceiptId}
         />
       )}
+
+      <PurchaseOrderDetail
+        open={isPurchaseOrderOpen}
+        onClose={() => {
+          setIsPurchaseOrderOpen(false);
+          setSelectedPurchaseOrderId(null);
+        }}
+        purchaseOrderId={selectedPurchaseOrderId}
+      />
     </>
   );
 }

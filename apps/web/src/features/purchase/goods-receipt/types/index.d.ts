@@ -57,7 +57,6 @@ export interface GoodsReceiptListItem {
   notes?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
-  created_at: string;
   submitted_at?: string | null;
   approved_at?: string | null;
   closed_at?: string | null;
@@ -95,7 +94,6 @@ export interface GoodsReceiptDetail {
   notes?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
-  created_at: string;
   items: GoodsReceiptItemDetail[];
   submitted_at?: string | null;
   approved_at?: string | null;
