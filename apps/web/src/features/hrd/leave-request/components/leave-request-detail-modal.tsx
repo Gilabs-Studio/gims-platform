@@ -461,8 +461,8 @@ export function LeaveRequestDetailModal({
                   </div>
                 )}
 
-                {/* Rejection Information */}
-                {isDetailedData && "rejection_note" in displayLeaveRequest && displayLeaveRequest.rejection_note && (
+                {/* Rejection Information - only for REJECTED status */}
+                {isDetailedData && "rejection_note" in displayLeaveRequest && displayLeaveRequest.rejection_note && displayLeaveRequest.status === "REJECTED" && (
                   <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-red-500/10 via-red-500/5 to-background border border-red-500/20 shadow-sm">
                     <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
@@ -475,6 +475,26 @@ export function LeaveRequestDetailModal({
                       <Separator className="mb-4" />
                       <div>
                         <span className="text-sm text-muted-foreground block mb-2">{t("rejectionNote")}</span>
+                        <p className="text-sm leading-relaxed">{displayLeaveRequest.rejection_note}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancellation Information - only for CANCELLED status */}
+                {isDetailedData && "rejection_note" in displayLeaveRequest && displayLeaveRequest.rejection_note && displayLeaveRequest.status === "CANCELLED" && (
+                  <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-orange-500/10 via-orange-500/5 to-background border border-orange-500/20 shadow-sm">
+                    <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+                    <div className="relative p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 rounded-lg bg-orange-500/10">
+                          <XCircle className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <h3 className="font-semibold text-lg">{t("cancellationInfo")}</h3>
+                      </div>
+                      <Separator className="mb-4" />
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t("cancellationNote")}</span>
                         <p className="text-sm leading-relaxed">{displayLeaveRequest.rejection_note}</p>
                       </div>
                     </div>

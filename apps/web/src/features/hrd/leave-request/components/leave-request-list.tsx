@@ -414,7 +414,7 @@ export function LeaveRequestList() {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {canApprove && leave.status === "APPROVED" && (
+                        {canApprove && (leave.status === "APPROVED" || leave.status === "PENDING") && (
                           <DropdownMenuItem
                             onClick={() => setCancellingLeave(leave)}
                             className="cursor-pointer text-orange-600"

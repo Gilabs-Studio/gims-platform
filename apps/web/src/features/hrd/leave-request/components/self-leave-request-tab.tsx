@@ -40,17 +40,21 @@ import {
   useUpdateMyLeaveRequest,
   useCancelMyLeaveRequest,
   useMyLeaveRequest,
+  useMyLeaveBalance,
 } from "../hooks/use-leave-requests";
 import type { LeaveRequestStatus, LeaveDuration } from "../types";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 const formSchema = z
   .object({
-    leave_type_id: z.string().min(1),
+    leave_type_id: z.string().min(1, { message: "Leave type is required" }),
     start_date: z.date(),
     end_date: z.date(),
     duration: z.enum(["FULL_DAY", "HALF_DAY", "MULTI_DAY"]),
-    reason: z.string().min(10).max(500),
+    reason: z
+      .string()
+      .min(10, { message: "Reason must be at least 10 characters" })
+      .max(500, { message: "Reason must be at most 500 characters" }),
   })
   .refine((data) => data.end_date >= data.start_date, {
     message: "Invalid date range",
@@ -109,6 +113,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
   const createMutation = useCreateMyLeaveRequest();
   const updateMutation = useUpdateMyLeaveRequest();
   const cancelMutation = useCancelMyLeaveRequest();
+  const { data: balanceData } = useMyLeaveBalance();
 
   const leaveTypes = useMemo(() => formData?.data?.leave_types ?? [], [formData?.data?.leave_types]);
   const requests = useMemo(() => listData?.data ?? [], [listData?.data]);
@@ -174,6 +179,18 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
     }
   }, [startDate, endDate, duration, form]);
 
+  // Auto-fill end date when start date changes and start_date > end_date
+  const prevStartDateRef = useRef<Date | null>(null);
+  useEffect(() => {
+    if (!startDate || !endDate) return;
+    const prevStart = prevStartDateRef.current;
+    prevStartDateRef.current = startDate;
+    // Only auto-fill if start date actually changed (not on initial render)
+    if (prevStart && prevStart.getTime() !== startDate.getTime() && startDate > endDate) {
+      form.setValue("end_date", startDate);
+    }
+  }, [startDate, endDate, form]);
+
   const onSubmit = async (values: SelfLeaveFormData) => {
     const payload = {
       leave_type_id: values.leave_type_id,
@@ -232,6 +249,40 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
         </Button>
       </div>
 
+      {balanceData?.data && (
+        <div className="rounded-lg border bg-muted/50 p-3">
+          <div className="text-xs font-medium text-muted-foreground mb-2">{t("balance.title")}</div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <div className="text-lg font-semibold">{balanceData.data.total_quota ?? 0}</div>
+              <div className="text-xs text-muted-foreground">{t("balance.totalQuota")}</div>
+            </div>
+            <div>
+              <div className="text-lg font-semibold">{balanceData.data.used_days ?? 0}</div>
+              <div className="text-xs text-muted-foreground">{t("balance.used")}</div>
+            </div>
+            <div>
+              <div className={cn(
+                "text-lg font-semibold",
+                (balanceData.data.remaining_balance ?? 0) <= 3 && (balanceData.data.remaining_balance ?? 0) > 0
+                  ? "text-yellow-600"
+                  : (balanceData.data.remaining_balance ?? 0) <= 0
+                    ? "text-destructive"
+                    : "text-emerald-600"
+              )}>
+                {balanceData.data.remaining_balance ?? 0}
+              </div>
+              <div className="text-xs text-muted-foreground">{t("balance.remaining")}</div>
+            </div>
+          </div>
+          {(balanceData.data.pending_requests_days ?? 0) > 0 && (
+            <div className="mt-2 text-xs text-muted-foreground text-center">
+              {t("balance.pending")}: {balanceData.data.pending_requests_days} {t("days")}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         {isListLoading ? (
           Array.from({ length: 3 }).map((_, idx) => <Skeleton key={idx} className="h-20 w-full" />)
@@ -247,7 +298,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
                 <Badge variant={statusVariant(item.status)}>{t(`status.${item.status.toLowerCase()}`)}</Badge>
               </div>
               <div className="text-xs text-muted-foreground">
-                {item.start_date} - {item.end_date} ({item.total_days} {t("days")})
+                {formatDate(item.start_date)} - {formatDate(item.end_date)} ({item.total_days} {t("days")})
               </div>
               <div className="mt-2 line-clamp-2 text-sm">{item.reason}</div>
               <div className="mt-3 flex items-center gap-2">
@@ -338,7 +389,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="w-full cursor-pointer justify-start text-left">
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {format(field.value, "yyyy-MM-dd")}
+                            {formatDate(field.value.toISOString())}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -362,7 +413,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="w-full cursor-pointer justify-start text-left">
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {format(field.value, "yyyy-MM-dd")}
+                            {formatDate(field.value.toISOString())}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">

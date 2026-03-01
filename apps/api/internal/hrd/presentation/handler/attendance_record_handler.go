@@ -242,6 +242,14 @@ func (h *AttendanceRecordHandler) ClockOut(c *gin.Context) {
 			errors.ErrorResponse(c, "ALREADY_CHECKED_OUT", map[string]interface{}{
 				"message": "You have already checked out for today",
 			}, nil)
+		case usecase.ErrHolidayNoCheckOut:
+			errors.ErrorResponse(c, "HOLIDAY_NO_CHECK_OUT", map[string]interface{}{
+				"message": "Cannot check out on a holiday",
+			}, nil)
+		case usecase.ErrOffDayNoCheckOut:
+			errors.ErrorResponse(c, "OFF_DAY_NO_CHECK_OUT", map[string]interface{}{
+				"message": "Cannot check out on an off day",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}

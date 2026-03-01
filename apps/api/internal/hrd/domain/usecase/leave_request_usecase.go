@@ -795,14 +795,18 @@ func (u *leaveRequestUsecase) Reject(ctx context.Context, id string, req *dto.Re
 func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
 	var employee *orgModels.Employee
 	var leaveType *coreModels.LeaveType
+	wasApproved := false
 
 	// Use UpdateWithLock to ensure row-level locking (FOR UPDATE)
 	err := u.leaveRequestRepo.UpdateWithLock(ctx, id, func(leaveRequest *models.LeaveRequest) error {
 		// 1. Check if leave request can be cancelled
-		// WHY: Only APPROVED status can be cancelled (PENDING has delete action instead)
-		if leaveRequest.Status != models.LeaveStatusApproved {
-			return fmt.Errorf("INVALID_STATUS: only APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
+		// WHY: PENDING and APPROVED statuses can be cancelled
+		if leaveRequest.Status != models.LeaveStatusApproved && leaveRequest.Status != models.LeaveStatusPending {
+			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
 		}
+
+		// Track original status for conditional attendance record deletion
+		wasApproved = leaveRequest.Status == models.LeaveStatusApproved
 
 		// 2. Permission enforcement via router middleware (leave.approve)
 		// WHY: Business rule - only HR/approvers can cancel leave requests
@@ -847,9 +851,12 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 		return nil, err
 	}
 
-	// 6. Delete attendance records linked to this leave request
-	if err := u.attendanceRecordRepo.DeleteByLeaveRequestID(ctx, id); err != nil {
-		fmt.Printf("WARNING: failed to delete attendance records for cancelled leave %s: %v\n", id, err)
+	// 6. Delete attendance records linked to this leave request (only for APPROVED → CANCELLED)
+	// WHY: PENDING leave requests have no associated attendance records yet
+	if wasApproved {
+		if err := u.attendanceRecordRepo.DeleteByLeaveRequestID(ctx, id); err != nil {
+			fmt.Printf("WARNING: failed to delete attendance records for cancelled leave %s: %v\n", id, err)
+		}
 	}
 
 	// 7. Fetch updated leave request to return

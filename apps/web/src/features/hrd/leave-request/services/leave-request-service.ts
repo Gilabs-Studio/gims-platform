@@ -4,6 +4,7 @@ import type {
   LeaveRequestsResponse,
   LeaveFormDataResponse,
   LeaveBalancesResponse,
+  MyLeaveBalanceResponse,
   CreateLeaveRequestPayload,
   UpdateLeaveRequestPayload,
   ApproveLeaveRequestPayload,
@@ -33,8 +34,8 @@ export const leaveRequestService = {
     return response.data;
   },
 
-  async getMyLeaveBalance(): Promise<LeaveBalancesResponse> {
-    const response = await apiClient.get<LeaveBalancesResponse>(`${BASE_PATH}/my-balance`);
+  async getMyLeaveBalance(): Promise<MyLeaveBalanceResponse> {
+    const response = await apiClient.get<MyLeaveBalanceResponse>(`${BASE_PATH}/my-balance`);
     return response.data;
   },
 

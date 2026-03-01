@@ -28,6 +28,8 @@ var (
 	ErrOutsideGPSRadius   = errors.New("you are outside the allowed GPS radius")
 	ErrNotWorkingDay      = errors.New("today is not a working day")
 	ErrHolidayNoCheckIn   = errors.New("cannot check in on holiday")
+	ErrHolidayNoCheckOut  = errors.New("cannot check out on holiday")
+	ErrOffDayNoCheckOut   = errors.New("cannot check out on off day")
 )
 
 // AttendanceRecordUsecase defines the interface for attendance record business logic
@@ -307,6 +309,23 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 
 	if ar.CheckOutTime != nil {
 		return nil, ErrAlreadyCheckedOut
+	}
+
+	// Check if today is a holiday (block clock-out on holidays for normal check-in)
+	if ar.CheckInType == models.CheckInTypeNormal {
+		isHoliday, _, err := u.holidayRepo.IsHoliday(ctx, today)
+		if err != nil {
+			return nil, err
+		}
+		if isHoliday {
+			return nil, ErrHolidayNoCheckOut
+		}
+
+		// Check if today is a working day via schedule
+		ws, _ := u.getScheduleForEmployee(ctx, employeeID)
+		if ws != nil && !ws.IsWorkingDay(int(today.Weekday())) {
+			return nil, ErrOffDayNoCheckOut
+		}
 	}
 
 	// Get work schedule

@@ -2,8 +2,8 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.3.0  
-> **Status:** ✅ Complete (API + Frontend) — Smart form features added in Sprint 18  
+> **Version:** 1.4.0  
+> **Status:** ✅ Complete (API + Frontend) — Self-service blocking & smart form features  
 > **Last Updated:** March 2026
 
 ---
@@ -56,6 +56,8 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 | Schedule-Aware Form     | Auto-fills check-in/out times from employee's work schedule when status is PRESENT  |
 | Smart Time Fields       | Disables check-in/out fields for ABSENT and LEAVE statuses (not applicable)         |
 | Employee Schedule API   | Endpoint to fetch an employee's resolved work schedule (division → default fallback)|
+| Self-Service Blocking   | Clock-in/clock-out buttons disabled on holidays and off-days with reason displayed     |
+| ClockOut Validation      | Backend validates holidays and off-days before allowing clock-out (NORMAL type only)  |
 
 ---
 
@@ -102,7 +104,24 @@ Automatic attendance marking for employees who don't clock in on working days:
 - Creates `ABSENT` records for employees who missed clock-in
 - Creates `LEAVE` records for employees on approved leave (with `leave_request_id` linked)
 
-### 5. Overtime Management
+### 5. Self-Service Attendance Blocking
+
+The header attendance button (pill) intelligently blocks clock-in and clock-out on holidays and off-days:
+
+- **Holiday Detection**: Checks today against the holidays table
+- **Off-Day Detection**: Checks the employee's work schedule for working day configuration
+- **Clock-In Blocking**: Button renders as disabled item (not submenu) with reason text
+- **Clock-Out Blocking**: Button disabled with reason text appended
+- **NORMAL Type Only**: Blocking applies only to `NORMAL` check-in type (WFH and FIELD_WORK are not blocked)
+- **Backend Validation**: Even if frontend blocking is bypassed, backend validates and returns appropriate error codes
+
+| Scenario  | Clock-In | Clock-Out | Error Code |
+|-----------|----------|-----------|------------|
+| Holiday   | Blocked  | Blocked   | `HOLIDAY_NO_CHECK_OUT` |
+| Off-Day   | Blocked  | Blocked   | `OFF_DAY_NO_CHECK_OUT` |
+| Working Day | Allowed | Allowed  | — |
+
+### 6. Overtime Management
 
 Comprehensive overtime tracking with approval workflow:
 
@@ -707,22 +726,25 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 | Leave Action | Attendance Effect                                    | Backend Method                   |
 | ------------ | ---------------------------------------------------- | -------------------------------- |
-| Approve      | Creates `LEAVE` records for each working day         | `createLeaveAttendanceRecords()` |
-| Cancel       | Deletes all attendance records for the leave request | `DeleteByLeaveRequestID()`       |
-| Reject       | No attendance change                                 | —                                |
-| Re-approve   | Deletes old + creates new `LEAVE` records            | `createLeaveAttendanceRecords()` |
+| Approve      | Creates `LEAVE` records for each working day                        | `createLeaveAttendanceRecords()` |
+| Cancel (was APPROVED) | Deletes all attendance records for the leave request       | `DeleteByLeaveRequestID()`       |
+| Cancel (was PENDING)  | No attendance change (none existed)                        | —                                |
+| Reject       | No attendance change                                                | —                                |
+| Re-approve   | Deletes old + creates new `LEAVE` records                           | `createLeaveAttendanceRecords()` |
 
 #### Leave Request API (Relevant Endpoints)
 
 | Method | Endpoint                                   | Permission              | Description                                       |
 | ------ | ------------------------------------------ | ----------------------- | ------------------------------------------------- |
 | POST   | `/api/v1/hrd/leave-requests/:id/approve`   | `leave_request.approve` | Approve + auto-create attendance records          |
-| POST   | `/api/v1/hrd/leave-requests/:id/cancel`    | `leave_request.approve` | Cancel (APPROVED only) + delete attendance        |
-| POST   | `/api/v1/hrd/leave-requests/:id/reapprove` | `leave_request.approve` | Re-approve CANCELLED/REJECTED + create attendance |
+| POST   | `/api/v1/hrd/leave-requests/:id/cancel`    | `leave_request.approve` | Cancel (PENDING or APPROVED) + delete attendance if was approved |
+| POST   | `/api/v1/hrd/leave-requests/:id/reapprove` | `leave_request.approve` | Re-approve CANCELLED/REJECTED + create attendance               |
 
 #### Business Rules
 
-- Cancel action is restricted to `APPROVED` leave requests only (PENDING uses delete)
+- Cancel action accepts both `PENDING` and `APPROVED` leave requests
+- For PENDING cancellations, attendance records are NOT deleted (none were created)
+- For APPROVED cancellations, linked attendance records are deleted
 - Re-approve is available for `CANCELLED` and `REJECTED` leave requests
 - Attendance records are created only for working days (weekends and holidays excluded)
 - Each attendance record is linked via `leave_request_id` for traceability
@@ -755,6 +777,8 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 | `ATTENDANCE_NOT_WORKING_DAY`     | Today is not a working day        |
 | `ATTENDANCE_HOLIDAY`             | Today is a holiday                |
 | `OVERTIME_ALREADY_EXISTS`        | Overtime request exists for date  |
+| `HOLIDAY_NO_CHECK_OUT`           | Cannot clock out on a holiday (NORMAL type)   |
+| `OFF_DAY_NO_CHECK_OUT`           | Cannot clock out on an off-day (NORMAL type)  |
 | `OVERTIME_CANNOT_CANCEL`         | Cannot cancel non-pending request |
 | `OVERTIME_INVALID_STATUS`        | Invalid status transition         |
 
@@ -817,12 +841,21 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
   - Approving a leave request now automatically creates `LEAVE` attendance records for each working day in the leave period
   - Cancelling an approved leave request deletes associated attendance records
   - Added `Reapprove` action: re-approves `CANCELLED`/`REJECTED` leave requests (recreates attendance records)
-  - Cancel action restricted to `APPROVED` status only (PENDING uses delete action instead)
+  - Cancel action now accepts both `PENDING` and `APPROVED` status (was: APPROVED only, PENDING used delete)
+  - For PENDING cancellations, skip attendance record deletion (none were created)
+  - For APPROVED cancellations, delete linked attendance records
   - Added `CreateBatch` and `DeleteByLeaveRequestID` to `AttendanceRecordRepository`
   - Added `POST /hrd/leave-requests/:id/reapprove` endpoint
   - Frontend: Added reapprove button in dropdown for CANCELLED/REJECTED items
   - Frontend: Removed cancel action from dropdown for PENDING items
   - i18n: Added `reapprove` / `Setujui Ulang` translations
+
+- **Self-Service Attendance Blocking (Sprint 19)**:
+  - Backend: Added `HOLIDAY_NO_CHECK_OUT` and `OFF_DAY_NO_CHECK_OUT` error codes to ClockOut validation
+  - ClockOut now validates holidays and off-days for `NORMAL` check-in type (mirrors ClockIn logic)
+  - Frontend: Header attendance button (pill) disables clock-in/clock-out on holidays and off-days
+  - Clock-in renders as disabled `DropdownMenuItem` with block reason text
+  - Clock-out button disabled with reason text appended when on holiday/off-day
 
 - **Future Improvement**:
   - Add attendance report export (CSV/Excel)
@@ -832,4 +865,4 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ---
 
-_Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 15+)_
+_Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 19)_

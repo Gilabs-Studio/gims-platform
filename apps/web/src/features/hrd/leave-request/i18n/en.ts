@@ -57,6 +57,8 @@ export const leaveRequestEn = {
     approvedAt: "Approved At",
     rejectedAt: "Rejected At",
     rejectionNote: "Rejection Note",
+    cancellationInfo: "Cancellation Information",
+    cancellationNote: "Cancellation Note",
     actions: {
       label: "Actions",
       view: "View",
@@ -134,6 +136,7 @@ export const leaveRequestEn = {
       totalQuota: "Total Quota",
       used: "Used",
       remaining: "Remaining",
+      pending: "Pending requests",
       lowQuota: "Low quota",
       noBalance: "No leave balance data available",
     },

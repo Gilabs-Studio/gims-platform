@@ -57,6 +57,8 @@ export const leaveRequestId = {
     approvedAt: "Disetujui Pada",
     rejectedAt: "Ditolak Pada",
     rejectionNote: "Catatan Penolakan",
+    cancellationInfo: "Informasi Pembatalan",
+    cancellationNote: "Catatan Pembatalan",
     actions: {
       label: "Aksi",
       view: "Lihat",
@@ -134,6 +136,7 @@ export const leaveRequestId = {
       totalQuota: "Total Kuota",
       used: "Terpakai",
       remaining: "Sisa",
+      pending: "Permintaan tertunda",
       lowQuota: "Kuota rendah",
       noBalance: "Tidak ada data saldo cuti",
     },

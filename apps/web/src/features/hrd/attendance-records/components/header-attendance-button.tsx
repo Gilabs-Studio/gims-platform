@@ -152,6 +152,14 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
   const record = today?.attendance_record as AttendanceRecord | null | undefined;
   const isPending = clockInMutation.isPending || clockOutMutation.isPending;
 
+  // WHY: Block attendance actions on holidays and off-days to prevent invalid records
+  const isHolidayOrOffDay = today?.is_holiday || !today?.is_working_day;
+  const blockReason = today?.is_holiday
+    ? (today.holiday_info?.name ?? t("holiday"))
+    : !today?.is_working_day
+      ? t("offDay")
+      : null;
+
   const visual = getAttendanceVisual(today, isLoading, t);
   const Icon = visual.icon;
 
@@ -213,6 +221,12 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
         <DropdownMenuSeparator />
 
         {!hasCheckedIn ? (
+          isHolidayOrOffDay ? (
+            <DropdownMenuItem disabled className="opacity-50">
+              <LogIn className="h-4 w-4" />
+              <span>{t("clockIn")} — {blockReason}</span>
+            </DropdownMenuItem>
+          ) : (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer" disabled={isPending}>
               {isPending ? (
@@ -236,10 +250,11 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          )
         ) : (
           <DropdownMenuItem
             className="cursor-pointer"
-            disabled={hasCheckedOut || isPending}
+            disabled={hasCheckedOut || isPending || !!isHolidayOrOffDay}
             onClick={handleClockOut}
           >
             {isPending ? (
@@ -247,7 +262,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
             ) : (
               <LogOut className="h-4 w-4" />
             )}
-            <span>{t("clockOut")}</span>
+            <span>{t("clockOut")}{isHolidayOrOffDay && hasCheckedIn ? ` — ${blockReason}` : ""}</span>
           </DropdownMenuItem>
         )}
 
