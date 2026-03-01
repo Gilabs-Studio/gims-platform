@@ -44,7 +44,8 @@
     "purchasePayment": "Pembayaran Pembelian",
     "purchaseRequisition": "Permintaan Pembelian",
     "purchaseOrder": "Pesanan Pembelian",
-    "goodsReceipt": "Penerimaan Barang"
+    "goodsReceipt": "Penerimaan Barang",
+    "createdBy": "Dibuat oleh"
   },
   "notFound": {
     "label": "404",

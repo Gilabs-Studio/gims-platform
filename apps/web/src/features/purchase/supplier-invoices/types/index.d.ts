@@ -30,7 +30,15 @@ export interface SupplierInvoiceListParams {
   limit?: number;
 }
 
-export type SupplierInvoiceStatus = "DRAFT" | "UNPAID" | "PARTIAL" | "PAID";
+export type SupplierInvoiceStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "UNPAID"
+  | "PARTIAL"
+  | "PAID";
 export type SupplierInvoiceType = "NORMAL" | "DOWN_PAYMENT";
 
 export interface SupplierInvoicePurchaseOrderMini {
@@ -61,10 +69,21 @@ export interface SupplierInvoiceListItem {
   paid_amount: number;
   remaining_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  supplier_name: string;
+  created_by: string;
   status: SupplierInvoiceStatus;
   notes?: string | null;
-  created_at: string;
-  updated_at: string;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  cancelled_at?: string | null;
+}
+
+export interface SupplierInvoiceItemProduct {
+  id: string;
+  name: string;
+  code?: string | null;
+  image_url?: string | null;
 }
 
 export interface SupplierInvoiceItemDetail {
@@ -72,7 +91,7 @@ export interface SupplierInvoiceItemDetail {
   supplier_invoice_id: string;
   purchase_order_item_id?: string | null;
   product_id: string;
-  product?: unknown;
+  product?: SupplierInvoiceItemProduct | null;
   quantity: number;
   price: number;
   discount: number;
@@ -99,11 +118,15 @@ export interface SupplierInvoiceDetail {
   paid_amount: number;
   remaining_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  supplier_name: string;
+  created_by: string;
   status: SupplierInvoiceStatus;
   notes?: string | null;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  cancelled_at?: string | null;
   items: SupplierInvoiceItemDetail[];
-  created_at: string;
-  updated_at: string;
 }
 
 export interface SupplierInvoiceAddPaymentTerms {

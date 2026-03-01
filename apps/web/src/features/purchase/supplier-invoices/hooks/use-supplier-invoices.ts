@@ -90,6 +90,54 @@ export function usePendingSupplierInvoice() {
   });
 }
 
+export function useSubmitSupplierInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => supplierInvoicesService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.detail(id) });
+    },
+  });
+}
+
+export function useApproveSupplierInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => supplierInvoicesService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.detail(id) });
+    },
+  });
+}
+
+export function useRejectSupplierInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => supplierInvoicesService.reject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.detail(id) });
+    },
+  });
+}
+
+export function useCancelSupplierInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => supplierInvoicesService.cancel(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.detail(id) });
+    },
+  });
+}
+
 export function useSupplierInvoiceAuditTrail(
   id: string,
   params?: { page?: number; per_page?: number },

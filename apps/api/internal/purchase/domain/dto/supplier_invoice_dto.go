@@ -32,6 +32,8 @@ type SupplierInvoiceListResponse struct {
 	InvoiceDate   string `json:"invoice_date"`
 	DueDate       string `json:"due_date"`
 
+	SupplierName string `json:"supplier_name"`
+
 	TaxRate           float64 `json:"tax_rate"`
 	TaxAmount         float64 `json:"tax_amount"`
 	DeliveryCost      float64 `json:"delivery_cost"`
@@ -47,8 +49,11 @@ type SupplierInvoiceListResponse struct {
 	Status string  `json:"status"`
 	Notes  *string `json:"notes"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedBy   string     `json:"created_by"`
+	SubmittedAt *time.Time `json:"submitted_at"`
+	ApprovedAt  *time.Time `json:"approved_at"`
+	RejectedAt  *time.Time `json:"rejected_at"`
+	CancelledAt *time.Time `json:"cancelled_at"`
 }
 
 type SupplierInvoiceItemResponse struct {
@@ -77,6 +82,8 @@ type SupplierInvoiceDetailResponse struct {
 	InvoiceDate   string `json:"invoice_date"`
 	DueDate       string `json:"due_date"`
 
+	SupplierName string `json:"supplier_name"`
+
 	TaxRate           float64 `json:"tax_rate"`
 	TaxAmount         float64 `json:"tax_amount"`
 	DeliveryCost      float64 `json:"delivery_cost"`
@@ -94,8 +101,11 @@ type SupplierInvoiceDetailResponse struct {
 
 	Items []SupplierInvoiceItemResponse `json:"items"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedBy   string     `json:"created_by"`
+	SubmittedAt *time.Time `json:"submitted_at"`
+	ApprovedAt  *time.Time `json:"approved_at"`
+	RejectedAt  *time.Time `json:"rejected_at"`
+	CancelledAt *time.Time `json:"cancelled_at"`
 }
 
 type CreateSupplierInvoiceItemRequest struct {

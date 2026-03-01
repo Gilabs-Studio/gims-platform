@@ -9,6 +9,25 @@ import (
 
 type SupplierInvoiceMapper struct{}
 
+// resolveSupplierName returns the best available supplier name, falling back through
+// the snapshot hierarchy to handle legacy records that predate snapshot columns.
+func resolveSupplierName(si *models.SupplierInvoice) string {
+	if sn := strings.TrimSpace(si.SupplierNameSnapshot); sn != "" {
+		return sn
+	}
+	if si.PurchaseOrder != nil {
+		if sns := strings.TrimSpace(si.PurchaseOrder.SupplierNameSnapshot); sns != "" {
+			return sns
+		}
+		if si.PurchaseOrder.Supplier != nil {
+			if name := strings.TrimSpace(si.PurchaseOrder.Supplier.Name); name != "" {
+				return name
+			}
+		}
+	}
+	return ""
+}
+
 func NewSupplierInvoiceMapper() *SupplierInvoiceMapper {
 	return &SupplierInvoiceMapper{}
 }
@@ -60,6 +79,7 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
 		DeliveryCost:       si.DeliveryCost,
@@ -72,8 +92,11 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		DownPaymentInvoice: dpMini,
 		Status:             string(si.Status),
 		Notes:              si.Notes,
-		CreatedAt:          si.CreatedAt,
-		UpdatedAt:          si.UpdatedAt,
+		CreatedBy:          si.CreatedBy,
+		SubmittedAt:        si.SubmittedAt,
+		ApprovedAt:         si.ApprovedAt,
+		RejectedAt:         si.RejectedAt,
+		CancelledAt:        si.CancelledAt,
 	}
 }
 
@@ -161,6 +184,7 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		InvoiceNumber:      si.InvoiceNumber,
 		InvoiceDate:        si.InvoiceDate,
 		DueDate:            si.DueDate,
+		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
 		TaxAmount:          si.TaxAmount,
 		DeliveryCost:       si.DeliveryCost,
@@ -174,8 +198,11 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		Status:             string(si.Status),
 		Notes:              si.Notes,
 		Items:              items,
-		CreatedAt:          si.CreatedAt,
-		UpdatedAt:          si.UpdatedAt,
+		CreatedBy:          si.CreatedBy,
+		SubmittedAt:        si.SubmittedAt,
+		ApprovedAt:         si.ApprovedAt,
+		RejectedAt:         si.RejectedAt,
+		CancelledAt:        si.CancelledAt,
 	}
 }
 
