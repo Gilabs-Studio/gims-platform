@@ -11,6 +11,8 @@ import type {
   ListProductSalesRepsResponse,
   GetProductMonthlyTrendRequest,
   ProductMonthlyTrendResponse,
+  ListCategoryPerformanceRequest,
+  ListCategoryPerformanceResponse,
 } from "../types";
 
 export const productAnalysisService = {
@@ -84,6 +86,17 @@ export const productAnalysisService = {
   ): Promise<ProductMonthlyTrendResponse> {
     const response = await apiClient.get<ProductMonthlyTrendResponse>(
       `/reports/product-analysis/product/${productId}/monthly-trend`,
+      { params }
+    );
+    return response.data;
+  },
+
+  /** List category performance (aggregated from product sales) */
+  async listCategoryPerformance(
+    params?: ListCategoryPerformanceRequest
+  ): Promise<ListCategoryPerformanceResponse> {
+    const response = await apiClient.get<ListCategoryPerformanceResponse>(
+      "/reports/product-analysis/category-performance",
       { params }
     );
     return response.data;

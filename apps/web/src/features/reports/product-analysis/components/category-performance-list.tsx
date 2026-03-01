@@ -1,22 +1,18 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import React from "react";
 import {
-  Eye,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Search,
-  ImageOff,
-  LayoutList,
   Layers,
+  LayoutList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
-import type { ProductPerformance } from "../types";
+import type { CategoryPerformance } from "../types";
 import {
   Table,
   TableBody,
@@ -28,18 +24,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { resolveImageUrl } from "@/lib/utils";
 
-type SortBy = "revenue" | "qty" | "orders" | "name";
+type SortBy = "revenue" | "qty" | "orders" | "name" | "products";
 
-interface ProductPerformanceListProps {
+interface CategoryPerformanceListProps {
   page: number;
   setPage: (page: number) => void;
   perPage: number;
   setPerPage: (perPage: number) => void;
   search: string;
   setSearch: (search: string) => void;
-  performanceList: ProductPerformance[];
+  categoryList: CategoryPerformance[];
   pagination?: {
     page: number;
     per_page: number;
@@ -53,36 +48,33 @@ interface ProductPerformanceListProps {
   setSortBy: (sortBy: SortBy) => void;
   order: "asc" | "desc";
   setOrder: (order: "asc" | "desc") => void;
-  onViewDetail: (productId: string) => void;
 }
 
-export function ProductPerformanceList({
+export function CategoryPerformanceList({
   setPage,
   setPerPage,
   search,
   setSearch,
-  performanceList,
+  categoryList,
   pagination,
   isLoading,
   sortBy,
   setSortBy,
   order,
   setOrder,
-  onViewDetail,
   analysisMode,
   setAnalysisMode,
-}: ProductPerformanceListProps & {
+}: CategoryPerformanceListProps & {
   analysisMode?: "product" | "category";
   setAnalysisMode?: (m: "product" | "category") => void;
 }) {
-  const t = useTranslations("productAnalysisReport");
-
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       maximumFractionDigits: 0,
     }).format(Math.round(amount));
+  const t = useTranslations("productAnalysisReport");
 
   const handleSort = (column: SortBy) => {
     if (sortBy === column) {
@@ -136,14 +128,14 @@ export function ProductPerformanceList({
             </button>
           </div>
         </div>
-        <div className="relative w-[300px]">
+        <div className="relative w-[280px]">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
             className="pl-10 h-9"
-            placeholder={t("table.searchPlaceholder")}
+            placeholder={t("categoryTable.searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -166,11 +158,21 @@ export function ProductPerformanceList({
                   className="h-8 px-2 -ml-2 hover:bg-transparent hover:text-primary cursor-pointer"
                   onClick={() => handleSort("name")}
                 >
-                  {t("table.product")}
+                  {t("categoryTable.category")}
                   {getSortIcon("name")}
                 </Button>
               </TableHead>
-              <TableHead>{t("table.category")}</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 -ml-2 hover:bg-transparent hover:text-primary cursor-pointer"
+                  onClick={() => handleSort("products")}
+                >
+                  {t("categoryTable.productCount")}
+                  {getSortIcon("products")}
+                </Button>
+              </TableHead>
               <TableHead className="text-right">
                 <Button
                   variant="ghost"
@@ -207,9 +209,6 @@ export function ProductPerformanceList({
               <TableHead className="text-right">
                 {t("table.avgPrice")}
               </TableHead>
-              <TableHead className="text-right">
-                {t("table.actions")}
-              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,10 +219,10 @@ export function ProductPerformanceList({
                     <Skeleton className="h-4 w-8" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-36" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-12" />
                   </TableCell>
                   <TableCell className="text-right">
                     <Skeleton className="h-4 w-24 ml-auto" />
@@ -237,27 +236,25 @@ export function ProductPerformanceList({
                   <TableCell className="text-right">
                     <Skeleton className="h-4 w-20 ml-auto" />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-8 ml-auto" />
-                  </TableCell>
                 </TableRow>
               ))
-            ) : performanceList.length === 0 ? (
+            ) : categoryList.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground py-12"
                 >
-                  <div className="text-sm">{t("table.noData")}</div>
+                  <div className="text-sm">{t("categoryTable.noData")}</div>
                 </TableCell>
               </TableRow>
             ) : (
-              performanceList.map((item, index) => {
+              categoryList.map((item, index) => {
                 const rank =
                   ((pagination?.page || 1) - 1) *
                     (pagination?.per_page || 10) +
                   index +
                   1;
+
                 let rankDisplay: React.ReactNode = (
                   <span className="text-muted-foreground font-medium">
                     #{rank}
@@ -294,42 +291,20 @@ export function ProductPerformanceList({
                 }
 
                 return (
-                  <TableRow key={item.product_id}>
+                  <TableRow key={item.category_id || `uncategorized-${index}`}>
                     <TableCell>{rankDisplay}</TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => onViewDetail(item.product_id)}
-                        className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer text-left"
-                      >
-                        <div className="h-10 w-10 rounded-md border overflow-hidden shrink-0 bg-muted">
-                          {item.product_image ? (
-                            <img
-                              src={resolveImageUrl(item.product_image)}
-                              alt={item.product_name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center w-full h-full">
-                              <ImageOff className="h-4 w-4 text-muted-foreground/40" />
-                            </div>
-                          )}
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-md border bg-muted flex items-center justify-center shrink-0">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div>
-                          <span className="block">{item.product_name}</span>
-                          <span className="block text-xs text-muted-foreground font-normal">
-                            {item.product_code}
-                          </span>
-                        </div>
-                      </button>
+                        <span className="font-medium">{item.category_name}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {item.category_name ? (
-                        <Badge variant="secondary">
-                          {item.category_name}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
+                      <Badge variant="secondary" className="tabular-nums">
+                        {item.product_count}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.total_revenue)}
@@ -342,19 +317,6 @@ export function ProductPerformanceList({
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.avg_price_formatted}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-primary"
-                          title="View Details"
-                          onClick={() => onViewDetail(item.product_id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
                     </TableCell>
                   </TableRow>
                 );

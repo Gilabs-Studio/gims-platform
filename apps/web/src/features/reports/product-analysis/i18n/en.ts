@@ -68,5 +68,21 @@ export const productAnalysisReportEn = {
       position: "Position",
       noData: "No data found for the selected period",
     },
+
+    // Analysis Mode Toggle
+    toggle: {
+      byProduct: "By Product",
+      byCategory: "By Category",
+    },
+
+    // Category Performance Table
+    categoryTable: {
+      title: "Category Performance",
+      description: "Sales performance aggregated by product category",
+      category: "Category",
+      productCount: "Products",
+      searchPlaceholder: "Search by category name...",
+      noData: "No category performance data found",
+    },
   },
 };

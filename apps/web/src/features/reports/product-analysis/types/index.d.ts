@@ -200,3 +200,42 @@ export interface GetProductMonthlyTrendRequest {
   start_date?: string;
   end_date?: string;
 }
+
+// --- Category Performance ---
+
+export interface CategoryPerformance {
+  category_id: string;
+  category_name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+export interface ListCategoryPerformanceRequest {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+  sort_by?: "revenue" | "qty" | "orders" | "name" | "products";
+  order?: "asc" | "desc";
+}
+
+export interface ListCategoryPerformanceResponse {
+  success: boolean;
+  data: CategoryPerformance[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+}

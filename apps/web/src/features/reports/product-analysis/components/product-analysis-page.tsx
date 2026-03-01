@@ -5,16 +5,22 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { useMonthlyProductSales } from "../hooks/use-monthly-product-sales";
 import { useProductPerformanceList } from "../hooks/use-product-performance-list";
+import { useCategoryPerformanceList } from "../hooks/use-category-performance-list";
 import { ProductAnalysisChart } from "./product-analysis-chart";
 import { ProductPerformanceList } from "./product-performance-list";
+import { CategoryPerformanceList } from "./category-performance-list";
 import { PageMotion } from "@/components/motion";
 import { format, startOfYear, subYears } from "date-fns";
 import type { DateRange } from "react-day-picker";
+import { LayoutList, Layers } from "lucide-react";
 
 export function ProductAnalysisPage() {
   const t = useTranslations("productAnalysisReport");
   const router = useRouter();
 
+  const [analysisMode, setAnalysisMode] = useState<"product" | "category">(
+    "product"
+  );
   const [filterMode, setFilterMode] = useState<"year" | "range">("year");
   const [selectedYear, setSelectedYear] = useState<number>(
     new Date().getFullYear()
@@ -58,11 +64,18 @@ export function ProductAnalysisPage() {
   );
 
   const listProps = useProductPerformanceList();
+  const categoryListProps = useCategoryPerformanceList();
 
-  // Sync chart date filter to list
+  // Sync chart date filter to both lists
   useMemo(() => {
-    if (chartStartDate) listProps.setStartDate(chartStartDate);
-    if (chartEndDate) listProps.setEndDate(chartEndDate);
+    if (chartStartDate) {
+      listProps.setStartDate(chartStartDate);
+      categoryListProps.setStartDate(chartStartDate);
+    }
+    if (chartEndDate) {
+      listProps.setEndDate(chartEndDate);
+      categoryListProps.setEndDate(chartEndDate);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartStartDate, chartEndDate]);
 
@@ -95,12 +108,21 @@ export function ProductAnalysisPage() {
         totalOrders={monthlyData?.total_orders ?? 0}
       />
 
-      {/* Performance List */}
       <div className="space-y-4">
-        <ProductPerformanceList
-          {...listProps}
-          onViewDetail={handleViewDetail}
-        />
+        {analysisMode === "product" ? (
+          <ProductPerformanceList
+            {...listProps}
+            onViewDetail={handleViewDetail}
+            analysisMode={analysisMode}
+            setAnalysisMode={setAnalysisMode}
+          />
+        ) : (
+          <CategoryPerformanceList
+            {...categoryListProps}
+            analysisMode={analysisMode}
+            setAnalysisMode={setAnalysisMode}
+          />
+        )}
       </div>
     </PageMotion>
   );

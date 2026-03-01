@@ -147,6 +147,32 @@ type ProductSalesRepResponse struct {
 	TotalOrders           int     `json:"total_orders"`
 }
 
+// --- Category Performance ---
+
+// ListCategoryPerformanceRequest filters the category performance list
+type ListCategoryPerformanceRequest struct {
+	Search    string `form:"search"`
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+	Page      int    `form:"page,default=1"`
+	PerPage   int    `form:"per_page,default=20"`
+	SortBy    string `form:"sort_by,default=revenue"`
+	Order     string `form:"order,default=desc"`
+}
+
+// CategoryPerformanceResponse represents a product category's aggregated sales performance
+type CategoryPerformanceResponse struct {
+	CategoryID            string  `json:"category_id"`
+	CategoryName          string  `json:"category_name"`
+	ProductCount          int     `json:"product_count"`
+	TotalQty              float64 `json:"total_qty"`
+	TotalRevenue          float64 `json:"total_revenue"`
+	TotalRevenueFormatted string  `json:"total_revenue_formatted"`
+	TotalOrders           int     `json:"total_orders"`
+	AvgPrice              float64 `json:"avg_price"`
+	AvgPriceFormatted     string  `json:"avg_price_formatted"`
+}
+
 // --- Product Monthly Trend ---
 
 // GetProductMonthlyTrendRequest filters monthly trend for a specific product

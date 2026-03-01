@@ -68,5 +68,21 @@ export const productAnalysisReportId = {
       position: "Jabatan",
       noData: "Tidak ada data untuk periode yang dipilih",
     },
+
+    // Analysis Mode Toggle
+    toggle: {
+      byProduct: "Per Produk",
+      byCategory: "Per Kategori",
+    },
+
+    // Category Performance Table
+    categoryTable: {
+      title: "Performa Kategori",
+      description: "Performa penjualan dirangkum berdasarkan kategori produk",
+      category: "Kategori",
+      productCount: "Produk",
+      searchPlaceholder: "Cari berdasarkan nama kategori...",
+      noData: "Data performa kategori tidak ditemukan",
+    },
   },
 };

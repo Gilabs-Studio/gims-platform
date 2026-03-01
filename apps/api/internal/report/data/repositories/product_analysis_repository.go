@@ -32,6 +32,9 @@ type ProductAnalysisRepository interface {
 
 	// GetProductMonthlyTrend returns monthly sales trend for a specific product
 	GetProductMonthlyTrend(ctx context.Context, productID string, startDate, endDate time.Time) ([]MonthlyProductTrendRow, error)
+
+	// ListCategoryPerformance returns paginated category performance aggregated from product sales
+	ListCategoryPerformance(ctx context.Context, params ListCategoryPerformanceParams) ([]CategoryPerformanceRow, utils.PaginationResult, error)
 }
 
 // --- Parameter structs ---
@@ -60,6 +63,17 @@ type ProductCustomerParams struct {
 
 // ProductSalesRepParams filters top sales reps for a product
 type ProductSalesRepParams struct {
+	StartDate time.Time
+	EndDate   time.Time
+	Page      int
+	PerPage   int
+	SortBy    string
+	Order     string
+}
+
+// ListCategoryPerformanceParams filters the category performance list
+type ListCategoryPerformanceParams struct {
+	Search    string
 	StartDate time.Time
 	EndDate   time.Time
 	Page      int
@@ -146,6 +160,17 @@ type MonthlyProductTrendRow struct {
 	TotalRevenue float64
 	TotalQty     float64
 	TotalOrders  int
+}
+
+// CategoryPerformanceRow is the raw query result for category performance list
+type CategoryPerformanceRow struct {
+	CategoryID   string
+	CategoryName string
+	ProductCount int
+	TotalQty     float64
+	TotalRevenue float64
+	TotalOrders  int
+	AvgPrice     float64
 }
 
 // --- Implementation ---
@@ -571,4 +596,109 @@ func (r *productAnalysisRepository) GetProductMonthlyTrend(ctx context.Context, 
 	}
 
 	return rows, nil
+}
+
+func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context, params ListCategoryPerformanceParams) ([]CategoryPerformanceRow, utils.PaginationResult, error) {
+	if params.PerPage <= 0 || params.PerPage > 100 {
+		params.PerPage = 20
+	}
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+
+	// Base FROM clause — aggregate sales at product level first, then group by category
+	baseQuery := `
+		FROM products p
+		LEFT JOIN product_categories pc ON pc.id = p.category_id AND pc.deleted_at IS NULL
+		LEFT JOIN (
+			SELECT soi.product_id,
+				COALESCE(SUM(soi.quantity), 0)              AS total_qty,
+				COALESCE(SUM(soi.subtotal), 0)              AS total_revenue,
+				COUNT(DISTINCT soi.sales_order_id)          AS total_orders
+			FROM sales_order_items soi
+			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
+				AND so.deleted_at IS NULL
+				AND so.status NOT IN ('draft', 'cancelled')
+				AND so.order_date BETWEEN @startDate AND @endDate
+			WHERE soi.deleted_at IS NULL
+			GROUP BY soi.product_id
+		) soi_agg ON soi_agg.product_id = p.id
+		WHERE p.deleted_at IS NULL
+			AND p.is_active = true
+	`
+
+	queryParams := map[string]interface{}{
+		"startDate": params.StartDate,
+		"endDate":   params.EndDate,
+	}
+
+	if params.Search != "" {
+		baseQuery += ` AND pc.name ILIKE @search`
+		queryParams["search"] = params.Search + "%"
+	}
+
+	// Count distinct categories
+	countSQL := "SELECT COUNT(DISTINCT COALESCE(pc.id::text, 'uncategorized')) " + baseQuery
+	var total int64
+	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count category performance: %w", err)
+	}
+
+	// Sort mapping
+	sortColumn := "total_revenue"
+	switch params.SortBy {
+	case "name":
+		sortColumn = "category_name"
+	case "qty":
+		sortColumn = "total_qty"
+	case "orders":
+		sortColumn = "total_orders"
+	case "products":
+		sortColumn = "product_count"
+	default:
+		sortColumn = "total_revenue"
+	}
+	sortOrder := "DESC"
+	if strings.EqualFold(params.Order, "asc") {
+		sortOrder = "ASC"
+	}
+
+	offset := (params.Page - 1) * params.PerPage
+
+	selectSQL := fmt.Sprintf(`
+		SELECT
+			COALESCE(pc.id::text, '')                                AS category_id,
+			COALESCE(pc.name, 'Uncategorized')                       AS category_name,
+			COUNT(DISTINCT p.id)::int                                AS product_count,
+			COALESCE(SUM(soi_agg.total_qty), 0)                     AS total_qty,
+			COALESCE(SUM(soi_agg.total_revenue), 0)                 AS total_revenue,
+			COALESCE(SUM(soi_agg.total_orders), 0)::int             AS total_orders,
+			CASE
+				WHEN COALESCE(SUM(soi_agg.total_qty), 0) > 0
+				THEN COALESCE(SUM(soi_agg.total_revenue), 0) / SUM(soi_agg.total_qty)
+				ELSE 0
+			END                                                       AS avg_price
+		%s
+		GROUP BY pc.id, pc.name
+		ORDER BY %s %s, category_name ASC
+		LIMIT @limit OFFSET @offset
+	`, baseQuery, sortColumn, sortOrder)
+
+	queryParams["limit"] = params.PerPage
+	queryParams["offset"] = offset
+
+	var rows []CategoryPerformanceRow
+	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list category performance: %w", err)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(params.PerPage)))
+	pagination := utils.PaginationResult{
+		Page:       params.Page,
+		PerPage:    params.PerPage,
+		Total:      int(total),
+		TotalPages: totalPages,
+	}
+
+	return rows, pagination, nil
 }

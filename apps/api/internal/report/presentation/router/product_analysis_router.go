@@ -11,6 +11,7 @@ func RegisterProductAnalysisRoutes(rg *gin.RouterGroup, h *handler.ProductAnalys
 	g := rg.Group("/product-analysis")
 
 	g.GET("/performance", middleware.RequirePermission("report_product_analysis.read"), h.ListPerformance)
+	g.GET("/category-performance", middleware.RequirePermission("report_product_analysis.read"), h.ListCategoryPerformance)
 	g.GET("/monthly-overview", middleware.RequirePermission("report_product_analysis.read"), h.GetMonthlyOverview)
 	g.GET("/product/:productId", middleware.RequirePermission("report_product_analysis.read"), h.GetProductDetail)
 	g.GET("/product/:productId/customers", middleware.RequirePermission("report_product_analysis.read"), h.GetProductCustomers)

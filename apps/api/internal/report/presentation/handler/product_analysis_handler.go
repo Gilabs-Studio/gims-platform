@@ -229,3 +229,46 @@ func (h *ProductAnalysisHandler) GetProductMonthlyTrend(c *gin.Context) {
 
 	response.SuccessResponse(c, result, nil)
 }
+
+// ListCategoryPerformance returns paginated category performance aggregated from product sales
+func (h *ProductAnalysisHandler) ListCategoryPerformance(c *gin.Context) {
+	var req dto.ListCategoryPerformanceRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	results, pagination, err := h.uc.ListCategoryPerformance(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+		Filters: map[string]interface{}{},
+	}
+
+	if req.Search != "" {
+		meta.Filters["search"] = req.Search
+	}
+	if req.StartDate != "" {
+		meta.Filters["start_date"] = req.StartDate
+	}
+	if req.EndDate != "" {
+		meta.Filters["end_date"] = req.EndDate
+	}
+
+	response.SuccessResponse(c, results, meta)
+}

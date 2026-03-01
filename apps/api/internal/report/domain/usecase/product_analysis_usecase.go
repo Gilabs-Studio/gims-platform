@@ -19,6 +19,7 @@ type ProductAnalysisUsecase interface {
 	GetProductCustomers(ctx context.Context, productID string, req dto.ListProductCustomersRequest) ([]dto.ProductCustomerResponse, utils.PaginationResult, error)
 	GetProductSalesReps(ctx context.Context, productID string, req dto.ListProductSalesRepsRequest) ([]dto.ProductSalesRepResponse, utils.PaginationResult, error)
 	GetProductMonthlyTrend(ctx context.Context, productID string, req dto.GetProductMonthlyTrendRequest) (*dto.ProductMonthlyTrendResponse, error)
+	ListCategoryPerformance(ctx context.Context, req dto.ListCategoryPerformanceRequest) ([]dto.CategoryPerformanceResponse, utils.PaginationResult, error)
 }
 
 type productAnalysisUsecase struct {
@@ -273,6 +274,42 @@ func (uc *productAnalysisUsecase) GetProductMonthlyTrend(ctx context.Context, pr
 		ProductName: productName,
 		MonthlyData: monthlyData,
 	}, nil
+}
+
+func (uc *productAnalysisUsecase) ListCategoryPerformance(ctx context.Context, req dto.ListCategoryPerformanceRequest) ([]dto.CategoryPerformanceResponse, utils.PaginationResult, error) {
+	startDate, endDate := parseProductDateRange(req.StartDate, req.EndDate)
+
+	params := repositories.ListCategoryPerformanceParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		SortBy:    req.SortBy,
+		Order:     req.Order,
+	}
+
+	rows, pagination, err := uc.repo.ListCategoryPerformance(ctx, params)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	results := make([]dto.CategoryPerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, dto.CategoryPerformanceResponse{
+			CategoryID:            row.CategoryID,
+			CategoryName:          row.CategoryName,
+			ProductCount:          row.ProductCount,
+			TotalQty:              row.TotalQty,
+			TotalRevenue:          row.TotalRevenue,
+			TotalRevenueFormatted: formatProductCurrencyIDR(row.TotalRevenue),
+			TotalOrders:           row.TotalOrders,
+			AvgPrice:              row.AvgPrice,
+			AvgPriceFormatted:     formatProductCurrencyIDR(row.AvgPrice),
+		})
+	}
+
+	return results, pagination, nil
 }
 
 // --- Helpers (scoped to product analysis) ---
