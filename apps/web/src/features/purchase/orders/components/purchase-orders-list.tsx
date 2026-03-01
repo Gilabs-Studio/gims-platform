@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   MoreHorizontal,
+  Package,
   Pencil,
   Plus,
   Printer,
@@ -254,6 +255,7 @@ export function PurchaseOrdersList() {
             <SelectItem value="DRAFT">{t("status.draft")}</SelectItem>
             <SelectItem value="SUBMITTED">{t("status.submitted")}</SelectItem>
             <SelectItem value="APPROVED">{t("status.approved")}</SelectItem>
+            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
             <SelectItem value="CLOSED">{t("status.closed")}</SelectItem>
           </SelectContent>
         </Select>
@@ -291,6 +293,7 @@ export function PurchaseOrdersList() {
               <TableHead>{t("columns.purchaseRequisition")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
+              <TableHead>{t("columns.fulfillment")}</TableHead>
               <TableHead>{t("columns.goodsReceipts")}</TableHead>
               <TableHead>{t("columns.supplierInvoices")}</TableHead>
               <TableHead className="text-right">{t("columns.total")}</TableHead>
@@ -301,7 +304,7 @@ export function PurchaseOrdersList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 10 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -310,7 +313,7 @@ export function PurchaseOrdersList() {
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
@@ -320,7 +323,6 @@ export function PurchaseOrdersList() {
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
                   canReject || canClose || canDelete || canPrint;
-            <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
 
                 return (
                   <TableRow key={it.id}>
@@ -381,6 +383,33 @@ export function PurchaseOrdersList() {
                     {/* Status */}
                     <TableCell>
                       <PurchaseOrderStatusBadge status={it.status ?? ""} />
+                    </TableCell>
+
+                    {/* Fulfillment progress — only rendered for APPROVED POs */}
+                    <TableCell>
+                      {it.fulfillment ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1 text-xs">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium">
+                              {it.fulfillment.total_received}/{it.fulfillment.total_ordered}
+                            </span>
+                            <span className="text-muted-foreground">{t("fulfillment.received")}</span>
+                          </div>
+                          {it.fulfillment.total_pending > 0 && (
+                            <span className="text-xs text-warning">
+                              {it.fulfillment.total_pending} {t("fulfillment.pending")}
+                            </span>
+                          )}
+                          {it.fulfillment.total_remaining > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {it.fulfillment.total_remaining} {t("fulfillment.remaining")}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
 
                     {/* Goods Receipts */}

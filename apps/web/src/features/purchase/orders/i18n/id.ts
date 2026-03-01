@@ -122,9 +122,15 @@ export const purchaseOrderId = {
     purchaseRequisition: "Referensi PR",
     supplier: "Supplier",
     status: "Status",
-    goodsReceipts: "Penerimaan Barang",
+    fulfillment: "Pemenuhan",
+    goodsReceipts: "Goods Receipts",
     supplierInvoices: "Invoice Supplier",
     total: "Total",
+  },
+  fulfillment: {
+    received: "diterima",
+    pending: "pending",
+    remaining: "tersisa",
   },
   status: {
     draft: "Draft",

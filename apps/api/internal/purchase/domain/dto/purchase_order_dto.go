@@ -22,6 +22,14 @@ type GoodsReceiptSummary struct {
 	Status string `json:"status"`
 }
 
+// POFulfillmentSummary tracks how much of the ordered qty has been received via confirmed GRs.
+type POFulfillmentSummary struct {
+	TotalOrdered  float64 `json:"total_ordered"`
+	TotalReceived float64 `json:"total_received"`
+	TotalPending  float64 `json:"total_pending"`
+	TotalRemaining float64 `json:"total_remaining"`
+}
+
 // SupplierInvoiceSummary is a minimal Supplier Invoice view used in list responses.
 type SupplierInvoiceSummary struct {
 	ID     string `json:"id"`
@@ -101,6 +109,7 @@ type PurchaseOrderListResponse struct {
 	PurchaseRequisition *PurchaseOrderRequisitionRef `json:"purchase_requisition,omitempty"`
 	GoodsReceipts       []GoodsReceiptSummary        `json:"goods_receipts,omitempty"`
 	SupplierInvoices    []SupplierInvoiceSummary     `json:"supplier_invoices,omitempty"`
+	Fulfillment         *POFulfillmentSummary        `json:"fulfillment,omitempty"`
 }
 
 type PurchaseOrderDetailResponse struct {

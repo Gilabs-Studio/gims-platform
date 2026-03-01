@@ -49,6 +49,13 @@ export interface PurchaseOrderSISummary {
   status: string;
 }
 
+export interface POFulfillmentSummary {
+  total_ordered: number;
+  total_received: number;
+  total_pending: number;
+  total_remaining: number;
+}
+
 export interface PurchaseOrderParty {
   id: string;
   name: string;
@@ -195,4 +202,5 @@ export interface PurchaseOrderListItem {
   purchase_requisition?: PurchaseOrderRequisitionRef | null;
   goods_receipts?: PurchaseOrderGRSummary[];
   supplier_invoices?: PurchaseOrderSISummary[];
+  fulfillment?: POFulfillmentSummary | null;
 }

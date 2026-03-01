@@ -101,12 +101,13 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		Preload("BusinessUnit").
 		Preload("Creator").
 		Preload("GoodsReceipts").
+		Preload("GoodsReceipts.Items").
 		Preload("SupplierInvoices").
-		Preload("PurchaseRequisition")
+		Preload("PurchaseRequisition").
+		Preload("Items")
 
 	if params.WithItems {
 		query = query.
-			Preload("Items").
 			Preload("Items.Product")
 	}
 

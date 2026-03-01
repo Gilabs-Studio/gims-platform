@@ -74,6 +74,35 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		})
 	}
 
+	// Compute receipt fulfillment for approved POs.
+	var fulfillment *dto.POFulfillmentSummary
+	if po.Status == models.PurchaseOrderStatusApproved && len(po.Items) > 0 {
+		var totalOrdered, totalReceived, totalPending float64
+		for _, item := range po.Items {
+			totalOrdered += item.Quantity
+		}
+		for _, gr := range po.GoodsReceipts {
+			for _, grItem := range gr.Items {
+				switch gr.Status {
+				case models.GoodsReceiptStatusConfirmed:
+					totalReceived += grItem.QuantityReceived
+				case models.GoodsReceiptStatusDraft:
+					totalPending += grItem.QuantityReceived
+				}
+			}
+		}
+		totalRemaining := totalOrdered - totalReceived - totalPending
+		if totalRemaining < 0 {
+			totalRemaining = 0
+		}
+		fulfillment = &dto.POFulfillmentSummary{
+			TotalOrdered:   totalOrdered,
+			TotalReceived:  totalReceived,
+			TotalPending:   totalPending,
+			TotalRemaining: totalRemaining,
+		}
+	}
+
 	return &dto.PurchaseOrderListResponse{
 		ID:                  po.ID,
 		Code:                po.Code,
@@ -85,6 +114,7 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		PurchaseRequisition: prRef,
 		GoodsReceipts:       grSummaries,
 		SupplierInvoices:    siSummaries,
+		Fulfillment:         fulfillment,
 	}
 }
 

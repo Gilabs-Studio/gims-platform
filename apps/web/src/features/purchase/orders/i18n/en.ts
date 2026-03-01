@@ -122,9 +122,15 @@ export const purchaseOrderEn = {
     purchaseRequisition: "PR Reference",
     supplier: "Supplier",
     status: "Status",
+    fulfillment: "Fulfillment",
     goodsReceipts: "Goods Receipts",
     supplierInvoices: "Supplier Invoices",
     total: "Total",
+  },
+  fulfillment: {
+    received: "received",
+    pending: "pending",
+    remaining: "remaining",
   },
   status: {
     draft: "Draft",
