@@ -73,6 +73,21 @@ export const productAnalysisReportId = {
     toggle: {
       byProduct: "Per Produk",
       byCategory: "Per Kategori",
+      bySegment: "Per Segmen",
+      byType: "Per Tipe",
+      byPackaging: "Per Kemasan",
+      byProcurementType: "Per Tipe Pengadaan",
+    },
+
+    // Generic Dimension Performance Table
+    dimensionTable: {
+      segment: "Segmen",
+      type: "Tipe Produk",
+      packaging: "Kemasan",
+      procurementType: "Tipe Pengadaan",
+      productCount: "Produk",
+      searchPlaceholder: "Cari berdasarkan nama...",
+      noData: "Data tidak ditemukan untuk periode yang dipilih",
     },
 
     // Category Performance Table

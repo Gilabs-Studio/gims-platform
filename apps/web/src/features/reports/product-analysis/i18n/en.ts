@@ -73,6 +73,21 @@ export const productAnalysisReportEn = {
     toggle: {
       byProduct: "By Product",
       byCategory: "By Category",
+      bySegment: "By Segment",
+      byType: "By Type",
+      byPackaging: "By Packaging",
+      byProcurementType: "By Procurement Type",
+    },
+
+    // Generic Dimension Performance Table
+    dimensionTable: {
+      segment: "Segment",
+      type: "Product Type",
+      packaging: "Packaging",
+      procurementType: "Procurement Type",
+      productCount: "Products",
+      searchPlaceholder: "Search by name...",
+      noData: "No data found for the selected period",
     },
 
     // Category Performance Table

@@ -35,6 +35,18 @@ type ProductAnalysisRepository interface {
 
 	// ListCategoryPerformance returns paginated category performance aggregated from product sales
 	ListCategoryPerformance(ctx context.Context, params ListCategoryPerformanceParams) ([]CategoryPerformanceRow, utils.PaginationResult, error)
+
+	// ListSegmentPerformance returns paginated performance aggregated by product segment
+	ListSegmentPerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error)
+
+	// ListTypePerformance returns paginated performance aggregated by product type
+	ListTypePerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error)
+
+	// ListPackagingPerformance returns paginated performance aggregated by packaging
+	ListPackagingPerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error)
+
+	// ListProcurementTypePerformance returns paginated performance aggregated by procurement type
+	ListProcurementTypePerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error)
 }
 
 // --- Parameter structs ---
@@ -171,6 +183,28 @@ type CategoryPerformanceRow struct {
 	TotalRevenue float64
 	TotalOrders  int
 	AvgPrice     float64
+}
+
+// ListDimensionPerformanceParams is a generic params struct for segment/type/packaging/procurement-type performance
+type ListDimensionPerformanceParams struct {
+	Search    string
+	StartDate time.Time
+	EndDate   time.Time
+	Page      int
+	PerPage   int
+	SortBy    string
+	Order     string
+}
+
+// DimensionPerformanceRow is a generic result row for any product dimension performance query
+type DimensionPerformanceRow struct {
+	DimensionID   string
+	DimensionName string
+	ProductCount  int
+	TotalQty      float64
+	TotalRevenue  float64
+	TotalOrders   int
+	AvgPrice      float64
 }
 
 // --- Implementation ---
@@ -701,4 +735,130 @@ func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context,
 	}
 
 	return rows, pagination, nil
+}
+
+// listDimensionPerformance is a generic helper that aggregates product sales by any FK dimension table.
+// dimensionTable is the join table name, fkColumn is the product's FK column.
+func (r *productAnalysisRepository) listDimensionPerformance(
+	ctx context.Context,
+	params ListDimensionPerformanceParams,
+	dimensionTable,
+	fkColumn,
+	dimNameCol string,
+) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	if params.PerPage <= 0 || params.PerPage > 100 {
+		params.PerPage = 20
+	}
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+
+	baseQuery := fmt.Sprintf(`
+		FROM products p
+		LEFT JOIN %s dim ON dim.id = p.%s AND dim.deleted_at IS NULL
+		LEFT JOIN (
+			SELECT soi.product_id,
+				COALESCE(SUM(soi.quantity), 0)             AS total_qty,
+				COALESCE(SUM(soi.subtotal), 0)             AS total_revenue,
+				COUNT(DISTINCT soi.sales_order_id)         AS total_orders
+			FROM sales_order_items soi
+			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
+				AND so.deleted_at IS NULL
+				AND so.status NOT IN ('draft', 'cancelled')
+				AND so.order_date BETWEEN @startDate AND @endDate
+			WHERE soi.deleted_at IS NULL
+			GROUP BY soi.product_id
+		) soi_agg ON soi_agg.product_id = p.id
+		WHERE p.deleted_at IS NULL
+			AND p.is_active = true
+	`, dimensionTable, fkColumn)
+
+	queryParams := map[string]interface{}{
+		"startDate": params.StartDate,
+		"endDate":   params.EndDate,
+	}
+
+	if params.Search != "" {
+		baseQuery += fmt.Sprintf(` AND dim.%s ILIKE @search`, dimNameCol)
+		queryParams["search"] = params.Search + "%"
+	}
+
+	countSQL := fmt.Sprintf("SELECT COUNT(DISTINCT COALESCE(dim.id::text, 'uncategorized')) %s", baseQuery)
+	var total int64
+	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count %s performance: %w", dimensionTable, err)
+	}
+
+	sortColumn := "total_revenue"
+	switch params.SortBy {
+	case "name":
+		sortColumn = "dimension_name"
+	case "qty":
+		sortColumn = "total_qty"
+	case "orders":
+		sortColumn = "total_orders"
+	case "products":
+		sortColumn = "product_count"
+	default:
+		sortColumn = "total_revenue"
+	}
+	sortOrder := "DESC"
+	if strings.EqualFold(params.Order, "asc") {
+		sortOrder = "ASC"
+	}
+
+	offset := (params.Page - 1) * params.PerPage
+
+	selectSQL := fmt.Sprintf(`
+		SELECT
+			COALESCE(dim.id::text, '')                               AS dimension_id,
+			COALESCE(dim.%s, 'Uncategorized')                        AS dimension_name,
+			COUNT(DISTINCT p.id)::int                                AS product_count,
+			COALESCE(SUM(soi_agg.total_qty), 0)                     AS total_qty,
+			COALESCE(SUM(soi_agg.total_revenue), 0)                 AS total_revenue,
+			COALESCE(SUM(soi_agg.total_orders), 0)::int             AS total_orders,
+			CASE
+				WHEN COALESCE(SUM(soi_agg.total_qty), 0) > 0
+				THEN COALESCE(SUM(soi_agg.total_revenue), 0) / SUM(soi_agg.total_qty)
+				ELSE 0
+			END                                                       AS avg_price
+		%s
+		GROUP BY dim.id, dim.%s
+		ORDER BY %s %s, dimension_name ASC
+		LIMIT @limit OFFSET @offset
+	`, dimNameCol, baseQuery, dimNameCol, sortColumn, sortOrder)
+
+	queryParams["limit"] = params.PerPage
+	queryParams["offset"] = offset
+
+	var rows []DimensionPerformanceRow
+	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list %s performance: %w", dimensionTable, err)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(params.PerPage)))
+	pagination := utils.PaginationResult{
+		Page:       params.Page,
+		PerPage:    params.PerPage,
+		Total:      int(total),
+		TotalPages: totalPages,
+	}
+
+	return rows, pagination, nil
+}
+
+func (r *productAnalysisRepository) ListSegmentPerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	return r.listDimensionPerformance(ctx, params, "product_segments", "segment_id", "name")
+}
+
+func (r *productAnalysisRepository) ListTypePerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	return r.listDimensionPerformance(ctx, params, "product_types", "type_id", "name")
+}
+
+func (r *productAnalysisRepository) ListPackagingPerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	return r.listDimensionPerformance(ctx, params, "packagings", "packaging_id", "name")
+}
+
+func (r *productAnalysisRepository) ListProcurementTypePerformance(ctx context.Context, params ListDimensionPerformanceParams) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	return r.listDimensionPerformance(ctx, params, "procurement_types", "procurement_type_id", "name")
 }

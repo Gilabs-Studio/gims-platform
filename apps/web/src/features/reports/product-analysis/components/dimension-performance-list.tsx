@@ -1,13 +1,10 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import React from "react";
-import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ImageOff } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
-import type { ProductPerformance } from "../types";
 import {
   Table,
   TableBody,
@@ -19,18 +16,36 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { resolveImageUrl } from "@/lib/utils";
 
-type SortBy = "revenue" | "qty" | "orders" | "name";
+type SortBy = "revenue" | "qty" | "orders" | "name" | "products";
 
-interface ProductPerformanceListProps {
+/** Normalized shape used by all dimension performance tables */
+export interface NormalizedDimensionItem {
+  id: string;
+  name: string;
+  product_count: number;
+  total_qty: number;
+  total_revenue: number;
+  total_revenue_formatted: string;
+  total_orders: number;
+  avg_price: number;
+  avg_price_formatted: string;
+}
+
+interface DimensionPerformanceListProps {
+  /** Translated label for the dimension column header (e.g. "Category", "Segment") */
+  dimensionLabel: string;
+  /** Translated search placeholder */
+  searchPlaceholder: string;
+  /** Translated empty-state message */
+  noDataMessage: string;
   page: number;
   setPage: (page: number) => void;
   perPage: number;
   setPerPage: (perPage: number) => void;
   search: string;
   setSearch: (search: string) => void;
-  performanceList: ProductPerformance[];
+  items: NormalizedDimensionItem[];
   pagination?: {
     page: number;
     per_page: number;
@@ -44,23 +59,24 @@ interface ProductPerformanceListProps {
   setSortBy: (sortBy: SortBy) => void;
   order: "asc" | "desc";
   setOrder: (order: "asc" | "desc") => void;
-  onViewDetail: (productId: string) => void;
 }
 
-export function ProductPerformanceList({
+export function DimensionPerformanceList({
+  dimensionLabel,
+  searchPlaceholder,
+  noDataMessage,
   setPage,
   setPerPage,
   search,
   setSearch,
-  performanceList,
+  items,
   pagination,
   isLoading,
   sortBy,
   setSortBy,
   order,
   setOrder,
-  onViewDetail,
-}: ProductPerformanceListProps) {
+}: DimensionPerformanceListProps) {
   const t = useTranslations("productAnalysisReport");
 
   const formatCurrency = (amount: number) =>
@@ -90,8 +106,6 @@ export function ProductPerformanceList({
     );
   };
 
-  const perPageOptions = [10, 20, 50, 100];
-
   return (
     <div className="space-y-4">
       {/* search is rendered in parent header */}
@@ -109,11 +123,21 @@ export function ProductPerformanceList({
                   className="h-8 px-2 -ml-2 hover:bg-transparent hover:text-primary cursor-pointer"
                   onClick={() => handleSort("name")}
                 >
-                  {t("table.product")}
+                  {dimensionLabel}
                   {getSortIcon("name")}
                 </Button>
               </TableHead>
-              <TableHead>{t("table.category")}</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 -ml-2 hover:bg-transparent hover:text-primary cursor-pointer"
+                  onClick={() => handleSort("products")}
+                >
+                  {t("categoryTable.productCount")}
+                  {getSortIcon("products")}
+                </Button>
+              </TableHead>
               <TableHead className="text-right">
                 <Button
                   variant="ghost"
@@ -147,66 +171,41 @@ export function ProductPerformanceList({
                   {getSortIcon("orders")}
                 </Button>
               </TableHead>
-              <TableHead className="text-right">
-                {t("table.avgPrice")}
-              </TableHead>
-              <TableHead className="text-right">
-                {t("table.actions")}
-              </TableHead>
+              <TableHead className="text-right">{t("table.avgPrice")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-8" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-24 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-20 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-4 w-8 ml-auto" />
-                  </TableCell>
+                  {Array.from({ length: 7 }).map((__, colIdx) => (
+                    <TableCell key={colIdx}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
-            ) : performanceList.length === 0 ? (
+            ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground py-12"
                 >
-                  <div className="text-sm">{t("table.noData")}</div>
+                  <div className="text-sm">{noDataMessage}</div>
                 </TableCell>
               </TableRow>
             ) : (
-              performanceList.map((item, index) => {
+              items.map((item, index) => {
                 const rank =
-                  ((pagination?.page || 1) - 1) *
-                    (pagination?.per_page || 10) +
+                  ((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 10) +
                   index +
                   1;
+
                 let rankDisplay: React.ReactNode = (
                   <span className="text-muted-foreground font-medium">
                     #{rank}
                   </span>
                 );
-
                 if (rank === 1) {
                   rankDisplay = (
                     <Badge
@@ -237,42 +236,13 @@ export function ProductPerformanceList({
                 }
 
                 return (
-                  <TableRow key={item.product_id}>
+                  <TableRow key={item.id || index}>
                     <TableCell>{rankDisplay}</TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => onViewDetail(item.product_id)}
-                        className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer text-left"
-                      >
-                        <div className="h-10 w-10 rounded-md border overflow-hidden shrink-0 bg-muted">
-                          {item.product_image ? (
-                            <img
-                              src={resolveImageUrl(item.product_image)}
-                              alt={item.product_name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center w-full h-full">
-                              <ImageOff className="h-4 w-4 text-muted-foreground/40" />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <span className="block">{item.product_name}</span>
-                          <span className="block text-xs text-muted-foreground font-normal">
-                            {item.product_code}
-                          </span>
-                        </div>
-                      </button>
+                      <span className="font-medium">{item.name}</span>
                     </TableCell>
                     <TableCell>
-                      {item.category_name ? (
-                        <Badge variant="secondary">
-                          {item.category_name}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
+                      <Badge variant="secondary">{item.product_count}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.total_revenue)}
@@ -286,19 +256,6 @@ export function ProductPerformanceList({
                     <TableCell className="text-right font-medium">
                       {item.avg_price_formatted}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-primary"
-                          title="View Details"
-                          onClick={() => onViewDetail(item.product_id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
                   </TableRow>
                 );
               })
@@ -307,7 +264,7 @@ export function ProductPerformanceList({
         </Table>
       </div>
 
-      {/* Pagination Controls */}
+      {/* Pagination */}
       {pagination && (
         <DataTablePagination
           pageIndex={pagination.page}
@@ -318,7 +275,7 @@ export function ProductPerformanceList({
             setPerPage(size);
             setPage(1);
           }}
-          pageSizeOptions={perPageOptions}
+          pageSizeOptions={[10, 20, 50, 100]}
         />
       )}
     </div>

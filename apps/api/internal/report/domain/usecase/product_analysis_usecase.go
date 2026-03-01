@@ -20,6 +20,10 @@ type ProductAnalysisUsecase interface {
 	GetProductSalesReps(ctx context.Context, productID string, req dto.ListProductSalesRepsRequest) ([]dto.ProductSalesRepResponse, utils.PaginationResult, error)
 	GetProductMonthlyTrend(ctx context.Context, productID string, req dto.GetProductMonthlyTrendRequest) (*dto.ProductMonthlyTrendResponse, error)
 	ListCategoryPerformance(ctx context.Context, req dto.ListCategoryPerformanceRequest) ([]dto.CategoryPerformanceResponse, utils.PaginationResult, error)
+	ListSegmentPerformance(ctx context.Context, req dto.ListSegmentPerformanceRequest) ([]dto.SegmentPerformanceResponse, utils.PaginationResult, error)
+	ListTypePerformance(ctx context.Context, req dto.ListTypePerformanceRequest) ([]dto.TypePerformanceResponse, utils.PaginationResult, error)
+	ListPackagingPerformance(ctx context.Context, req dto.ListPackagingPerformanceRequest) ([]dto.PackagingPerformanceResponse, utils.PaginationResult, error)
+	ListProcurementTypePerformance(ctx context.Context, req dto.ListProcurementTypePerformanceRequest) ([]dto.ProcurementTypePerformanceResponse, utils.PaginationResult, error)
 }
 
 type productAnalysisUsecase struct {
@@ -299,6 +303,150 @@ func (uc *productAnalysisUsecase) ListCategoryPerformance(ctx context.Context, r
 		results = append(results, dto.CategoryPerformanceResponse{
 			CategoryID:            row.CategoryID,
 			CategoryName:          row.CategoryName,
+			ProductCount:          row.ProductCount,
+			TotalQty:              row.TotalQty,
+			TotalRevenue:          row.TotalRevenue,
+			TotalRevenueFormatted: formatProductCurrencyIDR(row.TotalRevenue),
+			TotalOrders:           row.TotalOrders,
+			AvgPrice:              row.AvgPrice,
+			AvgPriceFormatted:     formatProductCurrencyIDR(row.AvgPrice),
+		})
+	}
+
+	return results, pagination, nil
+}
+
+func (uc *productAnalysisUsecase) ListSegmentPerformance(ctx context.Context, req dto.ListSegmentPerformanceRequest) ([]dto.SegmentPerformanceResponse, utils.PaginationResult, error) {
+	startDate, endDate := parseProductDateRange(req.StartDate, req.EndDate)
+
+	params := repositories.ListDimensionPerformanceParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		SortBy:    req.SortBy,
+		Order:     req.Order,
+	}
+
+	rows, pagination, err := uc.repo.ListSegmentPerformance(ctx, params)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	results := make([]dto.SegmentPerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, dto.SegmentPerformanceResponse{
+			SegmentID:             row.DimensionID,
+			SegmentName:           row.DimensionName,
+			ProductCount:          row.ProductCount,
+			TotalQty:              row.TotalQty,
+			TotalRevenue:          row.TotalRevenue,
+			TotalRevenueFormatted: formatProductCurrencyIDR(row.TotalRevenue),
+			TotalOrders:           row.TotalOrders,
+			AvgPrice:              row.AvgPrice,
+			AvgPriceFormatted:     formatProductCurrencyIDR(row.AvgPrice),
+		})
+	}
+
+	return results, pagination, nil
+}
+
+func (uc *productAnalysisUsecase) ListTypePerformance(ctx context.Context, req dto.ListTypePerformanceRequest) ([]dto.TypePerformanceResponse, utils.PaginationResult, error) {
+	startDate, endDate := parseProductDateRange(req.StartDate, req.EndDate)
+
+	params := repositories.ListDimensionPerformanceParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		SortBy:    req.SortBy,
+		Order:     req.Order,
+	}
+
+	rows, pagination, err := uc.repo.ListTypePerformance(ctx, params)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	results := make([]dto.TypePerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, dto.TypePerformanceResponse{
+			TypeID:                row.DimensionID,
+			TypeName:              row.DimensionName,
+			ProductCount:          row.ProductCount,
+			TotalQty:              row.TotalQty,
+			TotalRevenue:          row.TotalRevenue,
+			TotalRevenueFormatted: formatProductCurrencyIDR(row.TotalRevenue),
+			TotalOrders:           row.TotalOrders,
+			AvgPrice:              row.AvgPrice,
+			AvgPriceFormatted:     formatProductCurrencyIDR(row.AvgPrice),
+		})
+	}
+
+	return results, pagination, nil
+}
+
+func (uc *productAnalysisUsecase) ListPackagingPerformance(ctx context.Context, req dto.ListPackagingPerformanceRequest) ([]dto.PackagingPerformanceResponse, utils.PaginationResult, error) {
+	startDate, endDate := parseProductDateRange(req.StartDate, req.EndDate)
+
+	params := repositories.ListDimensionPerformanceParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		SortBy:    req.SortBy,
+		Order:     req.Order,
+	}
+
+	rows, pagination, err := uc.repo.ListPackagingPerformance(ctx, params)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	results := make([]dto.PackagingPerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, dto.PackagingPerformanceResponse{
+			PackagingID:           row.DimensionID,
+			PackagingName:         row.DimensionName,
+			ProductCount:          row.ProductCount,
+			TotalQty:              row.TotalQty,
+			TotalRevenue:          row.TotalRevenue,
+			TotalRevenueFormatted: formatProductCurrencyIDR(row.TotalRevenue),
+			TotalOrders:           row.TotalOrders,
+			AvgPrice:              row.AvgPrice,
+			AvgPriceFormatted:     formatProductCurrencyIDR(row.AvgPrice),
+		})
+	}
+
+	return results, pagination, nil
+}
+
+func (uc *productAnalysisUsecase) ListProcurementTypePerformance(ctx context.Context, req dto.ListProcurementTypePerformanceRequest) ([]dto.ProcurementTypePerformanceResponse, utils.PaginationResult, error) {
+	startDate, endDate := parseProductDateRange(req.StartDate, req.EndDate)
+
+	params := repositories.ListDimensionPerformanceParams{
+		Search:    req.Search,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		SortBy:    req.SortBy,
+		Order:     req.Order,
+	}
+
+	rows, pagination, err := uc.repo.ListProcurementTypePerformance(ctx, params)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	results := make([]dto.ProcurementTypePerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, dto.ProcurementTypePerformanceResponse{
+			ProcurementTypeID:     row.DimensionID,
+			ProcurementTypeName:   row.DimensionName,
 			ProductCount:          row.ProductCount,
 			TotalQty:              row.TotalQty,
 			TotalRevenue:          row.TotalRevenue,
