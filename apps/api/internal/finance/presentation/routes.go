@@ -26,6 +26,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
+	journalLineRepo := repositories.NewJournalLineRepository(db)
 	paymentRepo := repositories.NewPaymentRepository(db)
 	budgetRepo := repositories.NewBudgetRepository(db)
 	cashBankRepo := repositories.NewCashBankJournalRepository(db)
@@ -57,6 +58,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper)
@@ -73,6 +75,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC)
+	journalLineH := handler.NewJournalLineHandler(journalLineUC)
 	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)
 	cashBankH := handler.NewCashBankJournalHandler(cashBankUC)
@@ -92,6 +95,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	group.Use(middleware.ScopeMiddleware(db))
 
 	router.RegisterChartOfAccountRoutes(group, coaH)
+	router.RegisterJournalLineRoutes(group, journalLineH)
 	router.RegisterJournalEntryRoutes(group, journalH)
 	router.RegisterFinanceReportRoutes(group, journalH)
 	router.RegisterPaymentRoutes(group, paymentH)

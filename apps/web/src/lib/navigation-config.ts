@@ -137,7 +137,15 @@ export const navigationConfig: NavItem[] = [
         icon: "book-open",
         children: [
           { name: "Chart of Accounts", url: "/finance/coa", icon: "book-open", permission: "coa.read" },
-          { name: "Journal Entries", url: "/finance/journals", icon: "file-text", permission: "journal.read" },
+          {
+            name: "Journal",
+            url: "/finance/journal",
+            icon: "book-open",
+            children: [
+              { name: "Journal Entries", url: "/finance/journals", icon: "file-text", permission: "journal.read" },
+              { name: "Journal Lines", url: "/finance/journal-lines", icon: "table", permission: "journal_line.read" },
+            ],
+          },
           { name: "Financial Closing", url: "/finance/closing", icon: "shield-check", permission: "financial_closing.read" },
         ],
       },
@@ -186,9 +194,9 @@ export const navigationConfig: NavItem[] = [
         url: "/finance/statements",
         icon: "bar-chart-3",
         children: [
-          { name: "General Ledger", url: "/finance/reports/general-ledger", icon: "book-open", permission: "finance_report.gl" },
-          { name: "Balance Sheet", url: "/finance/reports/balance-sheet", icon: "scale", permission: "finance_report.bs" },
-          { name: "Profit & Loss", url: "/finance/reports/profit-loss", icon: "trending-up", permission: "finance_report.pl" },
+          { name: "General Ledger", url: "/finance/reports/general-ledger", icon: "book-open", permission: "general_ledger_report.read" },
+          { name: "Balance Sheet", url: "/finance/reports/balance-sheet", icon: "scale", permission: "balance_sheet_report.read" },
+          { name: "Profit & Loss", url: "/finance/reports/profit-loss", icon: "trending-up", permission: "profit_loss_report.read" },
         ],
       },
     ],

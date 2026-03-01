@@ -118,12 +118,14 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		}
 
 		entry := &financeModels.JournalEntry{
-			EntryDate:     entryDate,
-			Description:   strings.TrimSpace(req.Description),
-			ReferenceType: req.ReferenceType,
-			ReferenceID:   req.ReferenceID,
-			Status:        financeModels.JournalStatusDraft,
-			CreatedBy:     &actorID,
+			EntryDate:         entryDate,
+			Description:       strings.TrimSpace(req.Description),
+			ReferenceType:     req.ReferenceType,
+			ReferenceID:       req.ReferenceID,
+			Status:            financeModels.JournalStatusDraft,
+			CreatedBy:         &actorID,
+			IsSystemGenerated: req.IsSystemGenerated,
+			SourceDocumentURL: req.SourceDocumentURL,
 		}
 		if err := tx.Create(entry).Error; err != nil {
 			return err

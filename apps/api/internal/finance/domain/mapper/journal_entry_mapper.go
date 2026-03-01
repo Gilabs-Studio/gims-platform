@@ -55,19 +55,21 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 	}
 
 	return dto.JournalEntryResponse{
-		ID:            item.ID,
-		EntryDate:     item.EntryDate,
-		Description:   item.Description,
-		ReferenceType: item.ReferenceType,
-		ReferenceID:   item.ReferenceID,
-		Status:        item.Status,
-		PostedAt:      item.PostedAt,
-		PostedBy:      item.PostedBy,
-		Lines:         lines,
-		DebitTotal:    debitTotal,
-		CreditTotal:   creditTotal,
-		CreatedAt:     item.CreatedAt,
-		UpdatedAt:     item.UpdatedAt,
+		ID:                item.ID,
+		EntryDate:         item.EntryDate,
+		Description:       item.Description,
+		ReferenceType:     item.ReferenceType,
+		ReferenceID:       item.ReferenceID,
+		Status:            item.Status,
+		PostedAt:          item.PostedAt,
+		PostedBy:          item.PostedBy,
+		IsSystemGenerated: item.IsSystemGenerated,
+		SourceDocumentURL: item.SourceDocumentURL,
+		Lines:             lines,
+		DebitTotal:        debitTotal,
+		CreditTotal:       creditTotal,
+		CreatedAt:         item.CreatedAt,
+		UpdatedAt:         item.UpdatedAt,
 	}
 }
 
@@ -84,18 +86,20 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 	}
 
 	return dto.JournalEntryResponse{
-		ID:            item.ID,
-		EntryDate:     item.EntryDate,
-		Description:   item.Description,
-		ReferenceType: item.ReferenceType,
-		ReferenceID:   item.ReferenceID,
-		Status:        item.Status,
-		PostedAt:      item.PostedAt,
-		PostedBy:      item.PostedBy,
-		Lines:         []dto.JournalLineResponse{},
-		DebitTotal:    debitTotal,
-		CreditTotal:   creditTotal,
-		CreatedAt:     item.CreatedAt,
-		UpdatedAt:     item.UpdatedAt,
+		ID:                item.ID,
+		EntryDate:         item.EntryDate,
+		Description:       item.Description,
+		ReferenceType:     item.ReferenceType,
+		ReferenceID:       item.ReferenceID,
+		Status:            item.Status,
+		PostedAt:          item.PostedAt,
+		PostedBy:          item.PostedBy,
+		IsSystemGenerated: item.IsSystemGenerated,
+		SourceDocumentURL: item.SourceDocumentURL,
+		Lines:             []dto.JournalLineResponse{},
+		DebitTotal:        debitTotal,
+		CreditTotal:       creditTotal,
+		CreatedAt:         item.CreatedAt,
+		UpdatedAt:         item.UpdatedAt,
 	}
 }

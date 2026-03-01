@@ -51,6 +51,7 @@ const VALID_DASHBOARD_ROUTES = [
   // Finance routes
   "/finance/coa",
   "/finance/journals",
+  "/finance/journal-lines",
   "/finance/bank-accounts",
   "/finance/payments",
   "/finance/tax-invoices",
