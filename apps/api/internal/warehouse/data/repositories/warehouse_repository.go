@@ -17,6 +17,9 @@ type WarehouseRepository interface {
 	List(ctx context.Context, params WarehouseListParams) ([]*models.Warehouse, int64, error)
 	Update(ctx context.Context, warehouse *models.Warehouse) error
 	Delete(ctx context.Context, id string) error
+	// HasActiveStock returns true when the warehouse has any inventory_batches
+	// with current_quantity > 0. Used to block deletes that would orphan stock.
+	HasActiveStock(ctx context.Context, warehouseID string) (bool, error)
 }
 
 // WarehouseListParams defines parameters for listing warehouses
@@ -141,4 +144,17 @@ func (r *warehouseRepository) Update(ctx context.Context, warehouse *models.Ware
 // Delete soft deletes a warehouse
 func (r *warehouseRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.Warehouse{}, "id = ?", id).Error
+}
+
+// HasActiveStock checks whether any active inventory batches exist for the given warehouse.
+func (r *warehouseRepository) HasActiveStock(ctx context.Context, warehouseID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Table("inventory_batches").
+		Where("warehouse_id = ? AND current_quantity > 0 AND deleted_at IS NULL", warehouseID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

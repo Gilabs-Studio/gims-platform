@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isAxiosError } from "axios";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -25,12 +26,15 @@ export function useWarehouseList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Warehouse | null>(null);
   const [detailItem, setDetailItem] = useState<Warehouse | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Set when BE rejects delete with WAREHOUSE_HAS_STOCK (422)
+  const [blockedDeleteId, setBlockedDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useWarehouses({
     page,
@@ -59,14 +63,24 @@ export function useWarehouseList() {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-
+    // Capture immediately so the value is stable even after async state changes
+    const idToDelete = deleteId;
+    if (!idToDelete) return;
     try {
-      await deleteMutation.mutateAsync(deleteId);
+      await deleteMutation.mutateAsync(idToDelete);
       toast.success(t("warehouse.deleteSuccess"));
       setDeleteId(null);
-    } catch {
-      toast.error("Failed to delete warehouse");
+    } catch (error: unknown) {
+      // BE returns 422 WAREHOUSE_HAS_STOCK when inventory still exists
+      const code = isAxiosError(error)
+        ? error.response?.data?.error?.code
+        : undefined;
+      if (code === "WAREHOUSE_HAS_STOCK") {
+        setDeleteId(null);
+        setBlockedDeleteId(idToDelete);
+      } else {
+        toast.error(t("warehouse.deleteError"));
+      }
     }
   };
 
@@ -85,6 +99,7 @@ export function useWarehouseList() {
       editingItem,
       detailItem,
       deleteId,
+      blockedDeleteId,
     },
     actions: {
       setSearch,
@@ -92,6 +107,7 @@ export function useWarehouseList() {
       setPageSize,
       setDetailOpen,
       setDeleteId,
+      setBlockedDeleteId,
       handleCreate,
       handleEdit,
       handleViewDetail,

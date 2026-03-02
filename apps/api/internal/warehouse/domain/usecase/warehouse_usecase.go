@@ -112,12 +112,24 @@ func (uc *warehouseUsecase) Update(ctx context.Context, id string, req dto.Updat
 	return uc.mapper.ToResponse(warehouse), nil
 }
 
-// Delete deletes a warehouse
+// ErrWarehouseHasStock is returned when a delete is attempted on a warehouse
+// that still contains active inventory batches.
+var ErrWarehouseHasStock = errors.New("WAREHOUSE_HAS_STOCK")
+
+// Delete deletes a warehouse after ensuring it has no active stock.
 func (uc *warehouseUsecase) Delete(ctx context.Context, id string) error {
 	// Check if warehouse exists
-	_, err := uc.repo.GetByID(ctx, id)
+	if _, err := uc.repo.GetByID(ctx, id); err != nil {
+		return err
+	}
+
+	// Block delete when active inventory batches still exist
+	hasStock, err := uc.repo.HasActiveStock(ctx, id)
 	if err != nil {
 		return err
+	}
+	if hasStock {
+		return ErrWarehouseHasStock
 	}
 
 	return uc.repo.Delete(ctx, id)

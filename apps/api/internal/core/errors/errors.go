@@ -311,6 +311,12 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusServiceUnavailable,
 		Message:    "AI service is not configured. Please configure Cerebras API key",
 	},
+
+	// Warehouse Business Rules
+	"WAREHOUSE_HAS_STOCK": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Warehouse cannot be deleted because it still has active stock. Transfer all inventory to another warehouse first.",
+	},
 }
 
 // ErrorResponse creates an error response

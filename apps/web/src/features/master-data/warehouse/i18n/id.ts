@@ -22,6 +22,9 @@ export const warehouseId = {
     updatedAt: "Diperbarui Pada",
     success_update: "Berhasil memperbarui {name}",
     error_update: "Gagal memperbarui",
+    retry: "Coba Lagi",
+    view: "Lihat",
+    saving: "Menyimpan...",
   },
   warehouse: {
     title: "Gudang",
@@ -36,11 +39,21 @@ export const warehouseId = {
     createSuccess: "Gudang berhasil dibuat",
     updateSuccess: "Gudang berhasil diperbarui",
     deleteSuccess: "Gudang berhasil dihapus",
+    deleteError: "Gagal menghapus gudang. Silakan coba lagi.",
+    deleteBlocked: {
+      title: "Gudang Tidak Dapat Dihapus",
+      description: "Gudang ini masih memiliki stok aktif. Semua stok harus dipindahkan ke gudang lain sebelum menghapus.",
+      hasStock: "Gudang memiliki {count} item stok aktif.",
+      transferFirst: "Harap pindahkan semua inventori ke gudang lain terlebih dahulu.",
+      goToInventory: "Ke Inventori",
+      close: "Tutup",
+    },
     sections: {
       general: "Umum",
       basicInfo: "Informasi Dasar",
       location: "Lokasi",
       coordinates: "Koordinat",
+      status: "Status & Pengaturan",
     },
     form: {
       code: "Kode Gudang",
