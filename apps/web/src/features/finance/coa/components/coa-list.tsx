@@ -168,7 +168,7 @@ export function CoaList() {
                   <TableCell>
                     <div style={{ paddingLeft: row.depth * 16 }}>{row.name}</div>
                   </TableCell>
-                  <TableCell className="capitalize">{t(`types.${row.type}`)}</TableCell>
+                  <TableCell className="capitalize">{t(`types.${row.type?.toLowerCase() ?? row.type}`)}</TableCell>
                   <TableCell>{row.is_active ? (
                     <Badge variant="success" className="text-xs font-medium">
                       <CheckCircle2 className="h-3 w-3 mr-1" />

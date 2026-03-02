@@ -100,6 +100,8 @@ import { financeCoaEn } from "@/features/finance/coa/i18n/en";
 import { financeCoaId } from "@/features/finance/coa/i18n/id";
 import { financeJournalsEn } from "@/features/finance/journals/i18n/en";
 import { financeJournalsId } from "@/features/finance/journals/i18n/id";
+import { journalLinesEn } from "@/features/finance/journal-lines/i18n/en";
+import { journalLinesId } from "@/features/finance/journal-lines/i18n/id";
 import { financeBankAccountsEn } from "@/features/finance/bank-accounts/i18n/en";
 import { financeBankAccountsId } from "@/features/finance/bank-accounts/i18n/id";
 import { financePaymentsEn } from "@/features/finance/payments/i18n/en";
@@ -212,6 +214,7 @@ const messages = {
     receivablesRecap: receivablesRecapEn,
     financeCoa: financeCoaEn,
     financeJournals: financeJournalsEn,
+    ...journalLinesEn,
     financeBankAccounts: financeBankAccountsEn,
     financePayments: financePaymentsEn,
     financeBudget: financeBudgetEn,
@@ -289,6 +292,7 @@ const messages = {
     receivablesRecap: receivablesRecapId,
     financeCoa: financeCoaId,
     financeJournals: financeJournalsId,
+    ...journalLinesId,
     financeBankAccounts: financeBankAccountsId,
     financePayments: financePaymentsId,
     financeBudget: financeBudgetId,

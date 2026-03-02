@@ -8486,6 +8486,185 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Finance",
+      "description": "Finance management endpoints for journal entries, chart of accounts, and accounting operations",
+      "item": [
+        {
+          "name": "Journal Lines",
+          "description": "Journal line entries endpoints with filtering, search, and export",
+          "item": [
+            {
+              "name": "List Journal Lines",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/journal-lines?page=1&per_page=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "journal-lines"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by COA code, name, or memo",
+                      "disabled": true
+                    },
+                    {
+                      "key": "chart_of_account_id",
+                      "value": "",
+                      "description": "Filter by specific Chart of Account UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "account_type",
+                      "value": "",
+                      "description": "Filter by account type: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, CASH_BANK, CURRENT_ASSET, FIXED_ASSET, TRADE_PAYABLE, COST_OF_GOODS_SOLD, SALARY_WAGES, OPERATIONAL",
+                      "disabled": true
+                    },
+                    {
+                      "key": "journal_status",
+                      "value": "",
+                      "description": "Filter by journal status: DRAFT or POSTED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "reference_type",
+                      "value": "",
+                      "description": "Filter by reference type: GENERAL, SALES, PURCHASE, PAYMENT, RECEIPT, ADJUSTMENT",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "",
+                      "description": "Filter from date (YYYY-MM-DD)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "",
+                      "description": "Filter to date (YYYY-MM-DD)",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "List all journal line entries with optional filters. When chart_of_account_id is provided, running balance is calculated. Requires `finance.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Export Journal Lines CSV",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/journal-lines/export",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "journal-lines",
+                    "export"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by COA code, name, or memo",
+                      "disabled": true
+                    },
+                    {
+                      "key": "chart_of_account_id",
+                      "value": "",
+                      "description": "Filter by specific Chart of Account UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "account_type",
+                      "value": "",
+                      "description": "Filter by account type: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, CASH_BANK, CURRENT_ASSET, FIXED_ASSET, TRADE_PAYABLE, COST_OF_GOODS_SOLD, SALARY_WAGES, OPERATIONAL",
+                      "disabled": true
+                    },
+                    {
+                      "key": "journal_status",
+                      "value": "",
+                      "description": "Filter by journal status: DRAFT or POSTED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "reference_type",
+                      "value": "",
+                      "description": "Filter by reference type: GENERAL, SALES, PURCHASE, PAYMENT, RECEIPT, ADJUSTMENT",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "",
+                      "description": "Filter from date (YYYY-MM-DD)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "",
+                      "description": "Filter to date (YYYY-MM-DD)",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Export journal lines as CSV file. Max 10000 rows. Supports the same filters as the list endpoint. Requires `finance.read` permission."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [

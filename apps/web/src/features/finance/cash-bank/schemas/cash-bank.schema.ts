@@ -8,7 +8,7 @@ export const cashBankLineSchema = z.object({
 
 export const cashBankFormSchema = z.object({
   transaction_date: z.string().min(1),
-  type: z.enum(["cash_in", "cash_out"]),
+  type: z.enum(["cash_in", "cash_out", "transfer"]),
   description: z.string(),
   bank_account_id: z.string().min(1),
   lines: z.array(cashBankLineSchema).min(1),

@@ -6,6 +6,7 @@ export const financeClosingId = {
     status: "Status",
     notes: "Catatan",
     approvedAt: "Disetujui pada",
+    fiscalYear: "Tahun Fiskal",
   },
   status: {
     draft: "Draf",
@@ -14,6 +15,8 @@ export const financeClosingId = {
   actions: {
     create: "Buat",
     approve: "Setujui",
+    reopen: "Buka Kembali",
+    yearEndClose: "Tutup Akhir Tahun",
     view: "Lihat Detail",
   },
   detail_title: "Detail Analisis Penutupan",
@@ -31,6 +34,8 @@ export const financeClosingId = {
   toast: {
     created: "Tutup buku dibuat",
     approved: "Tutup buku disetujui",
+    reopened: "Tutup buku dibuka kembali",
+    yearEndClosed: "Penutupan akhir tahun selesai",
     failed: "Aksi gagal",
   },
 };

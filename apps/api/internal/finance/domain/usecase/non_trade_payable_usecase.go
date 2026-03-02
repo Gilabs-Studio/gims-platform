@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type NonTradePayableUsecase interface {
 	List(ctx context.Context, req *dto.ListNonTradePayablesRequest) ([]dto.NonTradePayableResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
 	Pay(ctx context.Context, id string, req *dto.PayNonTradePayableRequest) (*dto.NonTradePayableResponse, error)
+	GetFormData(ctx context.Context) (*dto.NonTradePayableFormDataResponse, error)
 }
 
 type nonTradePayableUsecase struct {
@@ -303,11 +305,10 @@ func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.
 	// Revisiting logic doc:
 	// "Debit Expense CoA, Credit NTP CoA"
 
-	// I'll search for NTP Account in CoA.
-	var ntpCoA financeModels.ChartOfAccount
-	if err := uc.db.WithContext(ctx).Where("name ILIKE ?", "%Hutang Non-Dagang%").First(&ntpCoA).Error; err != nil {
-		// If not found, we might have an issue. For this demo/task I'll use a dummy or skip if not found.
-		return nil, errors.New("non-trade payable (Hutang Non-Dagang) account not found in Chart of Accounts")
+	// Look up NTP liability account by well-known COA code (stable, unlike name-based ILIKE).
+	ntpCoA, err := uc.coaRepo.FindByCode(ctx, COACodeNonTradePayable)
+	if err != nil {
+		return nil, fmt.Errorf("non-trade payable account (code %s) not found in Chart of Accounts: %w", COACodeNonTradePayable, err)
 	}
 
 	refType := "ntp"
@@ -374,10 +375,10 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 		return nil, errors.New("only approved non-trade payable can be paid")
 	}
 
-	// Find the NTP Liability Account (same as used in Approve)
-	var ntpCoA financeModels.ChartOfAccount
-	if err := uc.db.WithContext(ctx).Where("name ILIKE ?", "%Hutang Non-Dagang%").First(&ntpCoA).Error; err != nil {
-		return nil, errors.New("non-trade payable (Hutang Non-Dagang) account not found in Chart of Accounts")
+	// Look up NTP liability account by well-known COA code (stable, unlike name-based ILIKE).
+	ntpCoA, err := uc.coaRepo.FindByCode(ctx, COACodeNonTradePayable)
+	if err != nil {
+		return nil, fmt.Errorf("non-trade payable account (code %s) not found in Chart of Accounts: %w", COACodeNonTradePayable, err)
 	}
 
 	refType := "ntp_payment"

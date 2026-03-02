@@ -7,6 +7,7 @@ export const financeJournalsEn = {
     updated: "Journal updated",
     deleted: "Journal deleted",
     posted: "Journal posted",
+    reversed: "Journal reversed",
     failed: "Something went wrong",
     unbalanced: "Journal must be balanced (debit = credit)",
   },
@@ -15,6 +16,7 @@ export const financeJournalsEn = {
     edit: "Edit",
     delete: "Delete",
     post: "Post",
+    reverse: "Reverse",
     view: "View",
     trialBalance: "Trial Balance",
   },
@@ -35,6 +37,7 @@ export const financeJournalsEn = {
   status: {
     draft: "Draft",
     posted: "Posted",
+    reversed: "Reversed",
   },
   form: {
     createTitle: "Create Journal",

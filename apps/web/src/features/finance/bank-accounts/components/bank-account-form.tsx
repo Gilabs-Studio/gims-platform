@@ -155,14 +155,14 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
           <div className="space-y-2">
             <Label>{t("fields.coa")}</Label>
             <Select
-              value={form.watch("chart_of_account_id") ?? ""}
-              onValueChange={(v) => form.setValue("chart_of_account_id", v ? v : null, { shouldDirty: true })}
+              value={form.watch("chart_of_account_id") ?? "__none__"}
+              onValueChange={(v) => form.setValue("chart_of_account_id", v === "__none__" ? null : v, { shouldDirty: true })}
             >
               <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder={t("placeholders.select")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" className="cursor-pointer">
+                <SelectItem value="__none__" className="cursor-pointer">
                   -
                 </SelectItem>
                 {coaOptions.map((opt) => (

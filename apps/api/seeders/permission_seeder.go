@@ -228,8 +228,6 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
-
-
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
@@ -361,6 +359,9 @@ func SeedPermissions() error {
 		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
 		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
 		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
+		{"/finance/journals", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
+
+		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
 
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
@@ -397,6 +398,8 @@ func SeedPermissions() error {
 		{"/finance/closing", "financial_closing.read", "View Financial Closing", "VIEW", "financial_closing"},
 		{"/finance/closing", "financial_closing.create", "Create Financial Closing", "CREATE", "financial_closing"},
 		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
+		{"/finance/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
+		{"/finance/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
 
 		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
 		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
@@ -417,12 +420,12 @@ func SeedPermissions() error {
 		{"/finance/salary", "salary.approve", "Approve Salary", "APPROVE", "salary"},
 
 		// Finance Reports
-		{"/finance/reports/general-ledger", "finance_report.gl", "View General Ledger Report", "VIEW", "finance_report"},
-		{"/finance/reports/balance-sheet", "finance_report.bs", "View Balance Sheet Report", "VIEW", "finance_report"},
-		{"/finance/reports/profit-loss", "finance_report.pl", "View Profit & Loss Report", "VIEW", "finance_report"},
-		{"/finance/reports/general-ledger", "finance_report.export_gl", "Export General Ledger", "EXPORT", "finance_report"},
-		{"/finance/reports/balance-sheet", "finance_report.export_bs", "Export Balance Sheet", "EXPORT", "finance_report"},
-		{"/finance/reports/profit-loss", "finance_report.export_pl", "Export Profit & Loss", "EXPORT", "finance_report"},
+		{"/finance/reports/general-ledger", "general_ledger_report.read", "View General Ledger Report", "VIEW", "general_ledger_report"},
+		{"/finance/reports/general-ledger", "general_ledger_report.export", "Export General Ledger Report", "EXPORT", "general_ledger_report"},
+		{"/finance/reports/balance-sheet", "balance_sheet_report.read", "View Balance Sheet Report", "VIEW", "balance_sheet_report"},
+		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
+		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
+		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
 
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
@@ -590,7 +593,6 @@ func SeedPermissions() error {
 		// CRM Area Mapping (Sprint 24)
 		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
 		{"/crm/area-mapping", "crm_area_mapping.create", "Capture Area Location", "CREATE", "crm_area_mapping"},
-
 	}
 
 	// Build menu URL to ID map
@@ -855,5 +857,9 @@ func SyncAdminPermissions() error {
 	})
 
 	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
+
+	// Invalidate cache so admin gets fresh permissions on next request
+	invalidatePermissionCache()
+
 	return nil
 }

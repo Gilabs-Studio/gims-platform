@@ -46,7 +46,7 @@ function ReportSkeleton() {
 
 export default function GeneralLedgerPage() {
   return (
-    <PermissionGuard requiredPermission="finance_report.gl">
+    <PermissionGuard requiredPermission="general_ledger_report.read">
       <PageMotion>
         <Suspense fallback={<ReportSkeleton />}>
           <GeneralLedgerView />

@@ -51,6 +51,7 @@ const VALID_DASHBOARD_ROUTES = [
   // Finance routes
   "/finance/coa",
   "/finance/journals",
+  "/finance/journal-lines",
   "/finance/bank-accounts",
   "/finance/payments",
   "/finance/tax-invoices",
@@ -59,8 +60,13 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/cash-bank",
   "/finance/closing",
   "/finance/assets",
+  "/finance/asset-categories",
+  "/finance/asset-locations",
   "/finance/up-country-cost",
   "/finance/salary",
+  "/finance/reports/general-ledger",
+  "/finance/reports/balance-sheet",
+  "/finance/reports/profit-loss",
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",

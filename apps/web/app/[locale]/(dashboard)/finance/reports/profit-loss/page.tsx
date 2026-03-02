@@ -46,7 +46,7 @@ function ReportSkeleton() {
 
 export default function ProfitLossPage() {
   return (
-    <PermissionGuard requiredPermission="finance_report.pl">
+    <PermissionGuard requiredPermission="profit_loss_report.read">
       <PageMotion>
         <Suspense fallback={<ReportSkeleton />}>
           <ProfitLossView />
