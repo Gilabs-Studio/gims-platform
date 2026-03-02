@@ -62,6 +62,7 @@ import { PurchaseOrderDetail } from "../../orders/components/purchase-order-deta
 import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
+import { GoodsReceiptDetail } from "../../goods-receipt/components/goods-receipt-detail";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -143,6 +144,9 @@ export function SupplierInvoicesList() {
 
   const [isDPOpen, setIsDPOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+
+  const [isGROpen, setIsGROpen] = useState(false);
+  const [selectedGRId, setSelectedGRId] = useState<string | null>(null);
 
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -292,6 +296,7 @@ export function SupplierInvoicesList() {
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
+              <TableHead>{t("columns.goodsReceipt") || "Goods Receipt"}</TableHead>
               <TableHead>{t("columns.downPayment")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
@@ -309,6 +314,7 @@ export function SupplierInvoicesList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
@@ -321,7 +327,7 @@ export function SupplierInvoicesList() {
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={canShowActions ? 11 : 10}
+                  colSpan={canShowActions ? 12 : 11}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -353,6 +359,22 @@ export function SupplierInvoicesList() {
                           }}
                         >
                           {row.purchase_order.code}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.goods_receipt ? (
+                        <span
+                          className="font-medium text-primary hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedGRId(row.goods_receipt!.id);
+                            setIsGROpen(true);
+                          }}
+                        >
+                          {row.goods_receipt.code}
                         </span>
                       ) : (
                         "-"
@@ -616,6 +638,15 @@ export function SupplierInvoicesList() {
           setSelectedPOId(null);
         }}
         purchaseOrderId={selectedPOId}
+      />
+
+      <GoodsReceiptDetail
+        open={isGROpen}
+        onClose={() => {
+          setIsGROpen(false);
+          setSelectedGRId(null);
+        }}
+        goodsReceiptId={selectedGRId}
       />
 
       {selectedDPId && (

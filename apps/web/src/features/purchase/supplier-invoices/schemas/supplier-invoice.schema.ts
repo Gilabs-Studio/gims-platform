@@ -8,7 +8,7 @@ export const supplierInvoiceItemSchema = z.object({
 });
 
 export const supplierInvoiceSchema = z.object({
-  purchase_order_id: z.string().uuid(),
+  goods_receipt_id: z.string().uuid(),
   payment_terms_id: z.string().uuid(),
   invoice_number: z.string().min(1),
   invoice_date: z.string().min(1),

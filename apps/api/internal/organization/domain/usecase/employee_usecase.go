@@ -15,11 +15,9 @@ import (
 )
 
 var (
-	ErrEmployeeNotFound              = errors.New("employee not found")
-	ErrEmployeeCodeExists            = errors.New("employee code already exists")
-	ErrEmployeeInvalidApprovalAction = errors.New("invalid approval action")
-	ErrCannotApproveNonPending       = errors.New("can only approve/reject pending employees")
-	ErrReplacementNotFound           = errors.New("replacement employee not found")
+	ErrEmployeeNotFound    = errors.New("employee not found")
+	ErrEmployeeCodeExists  = errors.New("employee code already exists")
+	ErrReplacementNotFound = errors.New("replacement employee not found")
 	ErrContractNotFound              = errors.New("contract not found")
 	ErrEducationNotFound             = errors.New("education history not found")
 	ErrInvalidDegreeLevel            = errors.New("invalid degree level")
@@ -491,55 +489,6 @@ func (u *employeeUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	return u.employeeRepo.Delete(ctx, id)
-}
-
-func (u *employeeUsecase) SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error) {
-	employee, err := u.employeeRepo.FindByID(ctx, id)
-	if err != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeNotFound
-	}
-
-	employee.Status = models.EmployeeStatusPending
-
-	if err := u.employeeRepo.Update(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
-	}
-
-	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
-}
-
-func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error) {
-	employee, err := u.employeeRepo.FindByID(ctx, id)
-	if err != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeNotFound
-	}
-
-	if employee.Status != models.EmployeeStatusPending {
-		return dto.EmployeeResponse{}, ErrCannotApproveNonPending
-	}
-
-	now := apptime.Now()
-
-	switch req.Action {
-	case "approve":
-		employee.Status = models.EmployeeStatusApproved
-		employee.IsApproved = true
-		employee.ApprovedBy = &approvedBy
-		employee.ApprovedAt = &now
-	case "reject":
-		employee.Status = models.EmployeeStatusRejected
-		employee.IsApproved = false
-		employee.ApprovedBy = &approvedBy
-		employee.ApprovedAt = &now
-	default:
-		return dto.EmployeeResponse{}, ErrEmployeeInvalidApprovalAction
-	}
-
-	if err := u.employeeRepo.Update(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
-	}
-
-	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
 }
 
 func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error) {

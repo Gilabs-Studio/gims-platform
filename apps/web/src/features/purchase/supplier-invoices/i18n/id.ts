@@ -1,6 +1,6 @@
 export const supplierInvoiceId = {
   title: "Faktur Supplier",
-  description: "Buat faktur untuk purchase order yang sudah disetujui.",
+  description: "Buat faktur dari goods receipt yang sudah ditutup.",
   search: "Cari berdasarkan kode, nomor faktur...",
   toast: {
     created: "Faktur supplier berhasil dibuat",
@@ -52,6 +52,7 @@ export const supplierInvoiceId = {
   },
   fields: {
     purchaseOrder: "Purchase Order",
+    goodsReceipt: "Goods Receipt",
     paymentTerms: "Termin Pembayaran",
     invoiceNumber: "Nomor Faktur",
     invoiceDate: "Tanggal Faktur",
@@ -82,6 +83,7 @@ export const supplierInvoiceId = {
     invoiceDate: "Tanggal",
     dueDate: "Jatuh Tempo",
     purchaseOrder: "PO",
+    goodsReceipt: "GR",
     downPayment: "Ref DP",
     supplier: "Supplier",
     amount: "Total",

@@ -441,7 +441,7 @@ export function SupplierInvoiceDPList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
+                            {canCancel && (st === "draft" || st === "submitted" || st === "approved" || st === "unpaid") && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-destructive focus:text-destructive"
                                 onClick={async () => {

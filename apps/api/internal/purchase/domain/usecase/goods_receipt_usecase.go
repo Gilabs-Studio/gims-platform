@@ -1046,9 +1046,11 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 			supplierName = gr.SupplierNameSnapshot
 		}
 
+		grID := gr.ID
 		si := &models.SupplierInvoice{
 			Type:                 models.SupplierInvoiceTypeNormal,
 			PurchaseOrderID:      gr.PurchaseOrderID,
+			GoodsReceiptID:       &grID,
 			SupplierID:           gr.SupplierID,
 			SupplierCodeSnapshot: supplierCode,
 			SupplierNameSnapshot: supplierName,
@@ -1091,6 +1093,31 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		si.SubTotal = subTotal
 		si.Amount = subTotal
 		si.RemainingAmount = subTotal
+
+		// Auto-apply paid Down Payments by tracing GR → PO → SIDP
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			gr.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+		if dpAmount > 0 || dpInvoiceID != nil {
+			si.DownPaymentAmount = dpAmount
+			si.DownPaymentInvoiceID = dpInvoiceID
+			si.RemainingAmount = math.Max(0, subTotal-dpAmount)
+		}
+
 		si.Items = siItems
 
 		if err := tx.Create(si).Error; err != nil {
@@ -1098,10 +1125,11 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		}
 		siID = si.ID
 
-		// Update GR with latest convert timestamp (multiple conversions allowed).
+		// Update GR with convert timestamp and link to SI
 		now := apptime.Now()
 		if err := tx.Model(&models.GoodsReceipt{}).Where("id = ?", id).Updates(map[string]interface{}{
-			"converted_at": now,
+			"converted_at":                     now,
+			"converted_to_supplier_invoice_id": siID,
 		}).Error; err != nil {
 			return err
 		}

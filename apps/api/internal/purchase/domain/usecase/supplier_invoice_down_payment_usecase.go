@@ -52,7 +52,24 @@ func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.Supplie
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceDownPaymentAddResponse, error) {
-	pos, _, err := uc.poRepo.List(ctx, repositories.PurchaseOrderListParams{Status: string(models.PurchaseOrderStatusApproved), SortBy: "created_at", SortDir: "desc", Limit: 100, Offset: 0, WithItems: true})
+	// Fetch APPROVED POs that have at least one UNPAID or PARTIAL normal supplier invoice
+	var pos []*models.PurchaseOrder
+	err := uc.db.WithContext(ctx).
+		Where("status = ?", models.PurchaseOrderStatusApproved).
+		Where("id IN (?)",
+			uc.db.Model(&models.SupplierInvoice{}).
+				Select("purchase_order_id").
+				Where("type = ? AND status IN (?) AND deleted_at IS NULL",
+					models.SupplierInvoiceTypeNormal,
+					[]string{string(models.SupplierInvoiceStatusUnpaid), string(models.SupplierInvoiceStatusPartial)},
+				),
+		).
+		Preload("Items").
+		Preload("Items.Product").
+		Preload("Supplier").
+		Order("created_at DESC").
+		Limit(100).
+		Find(&pos).Error
 	if err != nil {
 		return nil, err
 	}
@@ -166,66 +183,9 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 			return err
 		}
 
-		// LOGIC: Automatically create a Draft Regular Invoice if none exists
-		// This follows the user requirement: when creating a DP invoice,
-		// if no regular invoice exists for this PO, create a draft one and link it.
-		var existingReg models.SupplierInvoice
-		err = tx.Where("purchase_order_id = ? AND type = ?", po.ID, models.SupplierInvoiceTypeNormal).First(&existingReg).Error
-		if err == gorm.ErrRecordNotFound {
-			regCode, err := getNextSupplierInvoiceCodeLocked(tx, "SI")
-			if err != nil {
-				return err
-			}
-
-			// Create items from PO
-			regItems := make([]models.SupplierInvoiceItem, 0, len(po.Items))
-			subTotal := 0.0
-			for _, poIt := range po.Items {
-				itemSub := round2dp(poIt.Quantity * poIt.Price * (1 - poIt.Discount/100))
-				regItems = append(regItems, models.SupplierInvoiceItem{
-					PurchaseOrderItemID: &poIt.ID,
-					ProductID:           poIt.ProductID,
-					Quantity:            poIt.Quantity,
-					Price:               poIt.Price,
-					Discount:            poIt.Discount,
-					SubTotal:            itemSub,
-				})
-				subTotal += itemSub
-			}
-
-			tax := round2dp(subTotal * po.TaxRate / 100)
-			grossAmount := round2dp(subTotal + tax + po.DeliveryCost + po.OtherCost)
-
-			regSi := models.SupplierInvoice{
-				Type:                 models.SupplierInvoiceTypeNormal,
-				PurchaseOrderID:      po.ID,
-				SupplierID:           *po.SupplierID,
-				PaymentTermsID:       po.PaymentTermsID,
-				Code:                 regCode,
-				InvoiceNumber:        fmt.Sprintf("TEMP-%s", regCode),
-				InvoiceDate:          si.InvoiceDate,
-				DueDate:              si.DueDate,
-				TaxRate:              po.TaxRate,
-				TaxAmount:            tax,
-				DeliveryCost:         po.DeliveryCost,
-				OtherCost:            po.OtherCost,
-				SubTotal:             subTotal,
-				Amount:               grossAmount,
-				RemainingAmount:      grossAmount, // DP deduction happens later when Paid
-				DownPaymentInvoiceID: &si.ID,
-				Status:               models.SupplierInvoiceStatusDraft,
-				CreatedBy:            creatorID,
-				Items:                regItems,
-			}
-			if err := tx.Create(&regSi).Error; err != nil {
-				return err
-			}
-		} else if err == nil {
-			// Link to existing draft if it doesn't have a DP yet
-			if existingReg.Status == models.SupplierInvoiceStatusDraft && existingReg.DownPaymentInvoiceID == nil {
-				tx.Model(&existingReg).Update("down_payment_invoice_id", si.ID)
-			}
-		}
+		// NOTE: Auto-create of regular SI has been removed.
+		// Regular Supplier Invoices are now created from Goods Receipts, not from PO/DP.
+		// The DP will be auto-applied when creating an SI from a GR that shares the same PO.
 
 		// Fix reloading using the current transaction
 		var s models.SupplierInvoice
@@ -444,10 +404,22 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 			return ErrSupplierInvoiceConflict
 		}
 		now := apptime.Now()
-		return tx.Model(&si).Updates(map[string]interface{}{
-			"status":      models.SupplierInvoiceStatusApproved,
-			"approved_at": &now,
-		}).Error
+		// Approve and immediately transition to UNPAID so it appears in the payment form
+		if err := tx.Model(&si).Updates(map[string]interface{}{
+			"status":           models.SupplierInvoiceStatusUnpaid,
+			"approved_at":      &now,
+			"remaining_amount": si.Amount,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Trigger Journal Entry for DP recognition (Debit: Purchase Advances, Credit: AP)
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.triggerDPJournalEntry(txCtx, &si); err != nil {
+			fmt.Printf("⚠️ Failed to create journal entry for supplier invoice DP %s: %v\n", id, err)
+		}
+
+		return nil
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -512,7 +484,8 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 		}
 		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
 			si.Status == models.SupplierInvoiceStatusSubmitted ||
-			si.Status == models.SupplierInvoiceStatusApproved
+			si.Status == models.SupplierInvoiceStatusApproved ||
+			si.Status == models.SupplierInvoiceStatusUnpaid
 		if !allowed {
 			return ErrSupplierInvoiceConflict
 		}

@@ -59,6 +59,11 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		poMini = &dto.SupplierInvoicePurchaseOrderMini{ID: si.PurchaseOrder.ID, Code: si.PurchaseOrder.Code}
 	}
 
+	var grMini *dto.SupplierInvoiceGoodsReceiptMini
+	if si.GoodsReceipt != nil {
+		grMini = &dto.SupplierInvoiceGoodsReceiptMini{ID: si.GoodsReceipt.ID, Code: si.GoodsReceipt.Code}
+	}
+
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
 	if strings.TrimSpace(si.PaymentTermsNameSnapshot) != "" || si.PaymentTermsDaysSnapshot != nil {
 		id := ""
@@ -90,6 +95,7 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 	return &dto.SupplierInvoiceListResponse{
 		ID:                 si.ID,
 		PurchaseOrder:      poMini,
+		GoodsReceipt:       grMini,
 		PaymentTerms:       ptMini,
 		Type:               string(si.Type),
 		Code:               si.Code,
@@ -134,6 +140,11 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 	var poMini *dto.SupplierInvoicePurchaseOrderMini
 	if si.PurchaseOrder != nil {
 		poMini = &dto.SupplierInvoicePurchaseOrderMini{ID: si.PurchaseOrder.ID, Code: si.PurchaseOrder.Code}
+	}
+
+	var grMini *dto.SupplierInvoiceGoodsReceiptMini
+	if si.GoodsReceipt != nil {
+		grMini = &dto.SupplierInvoiceGoodsReceiptMini{ID: si.GoodsReceipt.ID, Code: si.GoodsReceipt.Code}
 	}
 
 	var ptMini *dto.SupplierInvoicePaymentTermsMini
@@ -196,6 +207,7 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 	return &dto.SupplierInvoiceDetailResponse{
 		ID:                 si.ID,
 		PurchaseOrder:      poMini,
+		GoodsReceipt:       grMini,
 		PaymentTerms:       ptMini,
 		Type:               string(si.Type),
 		Code:               si.Code,

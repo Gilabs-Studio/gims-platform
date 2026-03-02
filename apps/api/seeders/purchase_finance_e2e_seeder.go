@@ -513,8 +513,9 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		PurchaseOrderID: po.ID,
 		SupplierID:      in.supplier.ID,
 		ReceiptDate:     &receiptDate,
-		Status:          purchaseModels.GoodsReceiptStatusConfirmed,
+		Status:          purchaseModels.GoodsReceiptStatusClosed, // CLOSED — required for SI creation
 		CreatedBy:       in.adminID,
+		ClosedAt:        &receiptDate,
 		Items: []purchaseModels.GoodsReceiptItem{
 			{
 				PurchaseOrderItemID: po.Items[0].ID,
@@ -641,6 +642,7 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	si := purchaseModels.SupplierInvoice{
 		Type:                 purchaseModels.SupplierInvoiceTypeNormal,
 		PurchaseOrderID:      po.ID,
+		GoodsReceiptID:       &gr.ID, // NEW: SI sourced from GR
 		SupplierID:           in.supplier.ID,
 		PaymentTermsID:       &in.pt.ID,
 		Code:                 fmt.Sprintf("SI-E2E-%s", prefix),
@@ -675,6 +677,15 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 
 	if err := tx.Create(&si).Error; err != nil {
 		return fmt.Errorf("create SI %s: %w", si.Code, err)
+	}
+
+	// 4a-pre. Update GR with ConvertedToSupplierInvoiceID link
+	now := time.Now()
+	if err := tx.Model(&purchaseModels.GoodsReceipt{}).Where("id = ?", gr.ID).Updates(map[string]interface{}{
+		"converted_to_supplier_invoice_id": si.ID,
+		"converted_at":                     now,
+	}).Error; err != nil {
+		log.Printf("Warning: Failed to update GR %s with SI link: %v", gr.Code, err)
 	}
 
 	// 4a. Journal: Dr GR/IR + Dr VAT / Cr AP

@@ -64,6 +64,9 @@ type SupplierInvoice struct {
 	PaidAmount        float64 `gorm:"type:decimal(15,2);default:0" json:"paid_amount"`
 	RemainingAmount   float64 `gorm:"type:decimal(15,2);default:0" json:"remaining_amount"`
 
+	GoodsReceiptID *string       `gorm:"type:uuid;index" json:"goods_receipt_id,omitempty"`
+	GoodsReceipt   *GoodsReceipt `gorm:"foreignKey:GoodsReceiptID" json:"goods_receipt,omitempty"`
+
 	DownPaymentInvoiceID *string          `gorm:"type:uuid;index" json:"down_payment_invoice_id,omitempty"`
 	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 

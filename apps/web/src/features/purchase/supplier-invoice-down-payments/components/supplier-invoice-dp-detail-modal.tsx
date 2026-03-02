@@ -270,7 +270,7 @@ function SupplierInvoiceDPDetailView({
               </Button>
             )}
 
-            {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
+            {canCancel && (st === "draft" || st === "submitted" || st === "approved" || st === "unpaid") && (
               <Button
                 size="sm"
                 variant="outline"

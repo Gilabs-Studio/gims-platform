@@ -77,9 +77,34 @@ export interface SupplierInvoiceDPDetail extends SupplierInvoiceDPListItem {
   created_by?: string;
 }
 
+export interface SupplierInvoiceDPAddProductMini {
+  id: string;
+  name: string;
+  code?: string | null;
+  image_url?: string | null;
+}
+
+export interface SupplierInvoiceDPAddSupplierMini {
+  id: string;
+  name: string;
+}
+
+export interface SupplierInvoiceDPAddPurchaseOrderItem {
+  id: string;
+  product?: SupplierInvoiceDPAddProductMini | null;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
 export interface SupplierInvoiceDPAddPurchaseOrder {
   id: string;
   code: string;
+  supplier?: SupplierInvoiceDPAddSupplierMini | null;
+  order_date: string;
+  status: string;
+  total_amount: number;
+  items: SupplierInvoiceDPAddPurchaseOrderItem[];
 }
 
 export interface SupplierInvoiceDPAddResponse {

@@ -32,6 +32,10 @@ export const supplierInvoiceDPId = {
     editTitle: "Ubah DP Faktur",
     invalid: "Periksa kembali kolom yang wajib diisi",
   },
+  sections: {
+    invoiceInfo: "Info Faktur",
+    poDetail: "Detail Purchase Order",
+  },
   fields: {
     purchaseOrder: "Purchase Order",
     invoiceDate: "Tanggal Faktur",
@@ -39,6 +43,14 @@ export const supplierInvoiceDPId = {
     amount: "Nominal",
     notes: "Catatan",
     status: "Status",
+    supplier: "Supplier",
+    orderDate: "Tanggal Order",
+    totalAmount: "Total Nilai",
+    product: "Produk",
+    quantity: "Qty",
+    price: "Harga",
+    subtotal: "Subtotal",
+    items: "Item",
   },
   columns: {
     code: "Kode",

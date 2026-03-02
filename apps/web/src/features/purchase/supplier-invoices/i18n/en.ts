@@ -1,6 +1,6 @@
 export const supplierInvoiceEn = {
   title: "Supplier Invoices",
-  description: "Create invoices for approved purchase orders.",
+  description: "Create invoices from closed goods receipts.",
   search: "Search by code, invoice number...",
   toast: {
     created: "Supplier invoice created",
@@ -52,6 +52,7 @@ export const supplierInvoiceEn = {
   },
   fields: {
     purchaseOrder: "Purchase Order",
+    goodsReceipt: "Goods Receipt",
     paymentTerms: "Payment Terms",
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
@@ -82,6 +83,7 @@ export const supplierInvoiceEn = {
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     purchaseOrder: "PO",
+    goodsReceipt: "GR",
     downPayment: "DP Ref",
     supplier: "Supplier",
     amount: "Amount",

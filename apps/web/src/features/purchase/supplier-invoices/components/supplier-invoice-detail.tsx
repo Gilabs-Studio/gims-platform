@@ -55,6 +55,24 @@ import {
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
 
+const PurchaseOrderDetail = dynamic(
+  () =>
+    import("../../orders/components/purchase-order-detail").then((m) => m.PurchaseOrderDetail),
+  { ssr: false },
+);
+
+const GoodsReceiptDetailModal = dynamic(
+  () =>
+    import("../../goods-receipt/components/goods-receipt-detail").then((m) => m.GoodsReceiptDetail),
+  { ssr: false },
+);
+
+const SupplierInvoiceDPDetailModal = dynamic(
+  () =>
+    import("../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal").then((m) => m.SupplierInvoiceDPDetailModal),
+  { ssr: false },
+);
+
 const PurchasePaymentForm = dynamic(
   () =>
     import("../../payments/components/purchase-payment-form").then((m) => m.PurchasePaymentForm),
@@ -128,6 +146,12 @@ function SupplierInvoiceDetailView({
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
+  const [isPOOpen, setIsPOOpen] = useState(false);
+  const [selectedGRId, setSelectedGRId] = useState<string | null>(null);
+  const [isGROpen, setIsGROpen] = useState(false);
+  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isDPOpen, setIsDPOpen] = useState(false);
 
   const submitMutation = useSubmitSupplierInvoice();
   const approveMutation = useApproveSupplierInvoice();
@@ -138,7 +162,8 @@ function SupplierInvoiceDetailView({
 
   const st = (data.status ?? "").toLowerCase();
 
-  const dpDeduction = data.down_payment_invoice?.amount ?? 0;
+  // Use the auto-calculated down_payment_amount (sum of all PAID DPs) from backend
+  const dpDeduction = data.down_payment_amount ?? 0;
 
   return (
     <>
@@ -380,13 +405,46 @@ function SupplierInvoiceDetailView({
                 {data.purchase_order && (
                   <div className="text-muted-foreground">
                     {t("fields.purchaseOrder")}:{" "}
-                    <span className="font-mono font-medium text-foreground">{data.purchase_order.code}</span>
+                    <button
+                      type="button"
+                      className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => {
+                        setSelectedPOId(data.purchase_order!.id);
+                        setIsPOOpen(true);
+                      }}
+                    >
+                      {data.purchase_order.code}
+                    </button>
+                  </div>
+                )}
+                {data.goods_receipt && (
+                  <div className="text-muted-foreground">
+                    {t("fields.goodsReceipt") || "Goods Receipt"}:{" "}
+                    <button
+                      type="button"
+                      className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => {
+                        setSelectedGRId(data.goods_receipt!.id);
+                        setIsGROpen(true);
+                      }}
+                    >
+                      {data.goods_receipt.code}
+                    </button>
                   </div>
                 )}
                 {data.down_payment_invoice && (
                   <div className="text-muted-foreground">
                     DP Ref:{" "}
-                    <span className="font-mono font-medium text-foreground">{data.down_payment_invoice.code}</span>
+                    <button
+                      type="button"
+                      className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => {
+                        setSelectedDPId(data.down_payment_invoice!.id);
+                        setIsDPOpen(true);
+                      }}
+                    >
+                      {data.down_payment_invoice.code}
+                    </button>
                   </div>
                 )}
               </div>
@@ -597,6 +655,42 @@ function SupplierInvoiceDetailView({
           open={paymentOpen}
           onClose={() => setPaymentOpen(false)}
           defaultInvoiceId={data.id}
+        />
+      )}
+
+      {/* PO detail */}
+      {isPOOpen && selectedPOId && (
+        <PurchaseOrderDetail
+          open={isPOOpen}
+          onClose={() => {
+            setIsPOOpen(false);
+            setSelectedPOId(null);
+          }}
+          purchaseOrderId={selectedPOId}
+        />
+      )}
+
+      {/* GR detail */}
+      {isGROpen && selectedGRId && (
+        <GoodsReceiptDetailModal
+          open={isGROpen}
+          onClose={() => {
+            setIsGROpen(false);
+            setSelectedGRId(null);
+          }}
+          goodsReceiptId={selectedGRId}
+        />
+      )}
+
+      {/* DP detail */}
+      {isDPOpen && selectedDPId && (
+        <SupplierInvoiceDPDetailModal
+          open={isDPOpen}
+          onOpenChange={(v) => {
+            setIsDPOpen(v);
+            if (!v) setSelectedDPId(null);
+          }}
+          id={selectedDPId}
         />
       )}
 

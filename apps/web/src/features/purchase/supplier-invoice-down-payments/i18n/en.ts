@@ -34,6 +34,7 @@ export const supplierInvoiceDPEn = {
   },
   sections: {
     invoiceInfo: "Invoice Info",
+    poDetail: "Purchase Order Detail",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -42,6 +43,14 @@ export const supplierInvoiceDPEn = {
     amount: "Amount",
     notes: "Notes",
     status: "Status",
+    supplier: "Supplier",
+    orderDate: "Order Date",
+    totalAmount: "Total Amount",
+    product: "Product",
+    quantity: "Qty",
+    price: "Price",
+    subtotal: "Subtotal",
+    items: "Items",
   },
   columns: {
     code: "Code",

@@ -9009,6 +9009,366 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Purchase",
+      "description": "Purchase module endpoints: Supplier Invoices, DP Invoices, Goods Receipts, Purchase Orders, Purchase Payments",
+      "item": [
+        {
+          "name": "Supplier Invoices",
+          "description": "Supplier Invoice (Regular) CRUD and workflow endpoints. Source data comes from Goods Receipts (not directly from PO).",
+          "item": [
+            {
+              "name": "Get Add Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/add",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", "add"]
+                },
+                "description": "Fetch form data for creating a Supplier Invoice. Returns list of CLOSED Goods Receipts (with PO, Supplier, Items, and auto-detected DP info) and Payment Terms. Requires `supplier-invoice.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "List Supplier Invoices",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices?page=1&per_page=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "per_page", "value": "20" },
+                    { "key": "search", "value": "", "disabled": true },
+                    { "key": "status", "value": "", "disabled": true }
+                  ]
+                },
+                "description": "List Supplier Invoices with pagination, search, and status filter. Response includes goods_receipt and purchase_order mini objects. Requires `supplier-invoice.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 0,\n  \"other_cost\": 0,\n  \"notes\": \"Supplier invoice from goods receipt\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 10,\n      \"price\": 50000,\n      \"discount\": 0\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices"]
+                },
+                "description": "Create a new Supplier Invoice sourced from a Goods Receipt. The GR must be CLOSED. PurchaseOrderID is auto-derived from the GR. If the GR's PO has PAID Down Payment Invoices, they are auto-applied (DownPaymentAmount set, RemainingAmount calculated). Requires `supplier-invoice.create` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Get Supplier Invoice detail by ID. Includes goods_receipt, purchase_order, payment_terms, items, and down_payment_invoice. Requires `supplier-invoice.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json", "type": "text" },
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001-R\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 50000,\n  \"other_cost\": 0,\n  \"notes\": \"Updated supplier invoice\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 8,\n      \"price\": 50000,\n      \"discount\": 5\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Update a DRAFT Supplier Invoice. Only draft invoices can be updated. GR must be CLOSED. DP is auto-reapplied on update. Requires `supplier-invoice.update` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Delete a DRAFT Supplier Invoice. Only draft status allowed. Requires `supplier-invoice.delete` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Submit Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/submit",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "submit"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Submit a DRAFT Supplier Invoice for approval. Changes status to SUBMITTED. Requires `supplier-invoice.submit` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Approve Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/approve",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "approve"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Approve a SUBMITTED Supplier Invoice. Changes status to APPROVED. Requires `supplier-invoice.approve` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Reject Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/reject",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "reject"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Reject a SUBMITTED Supplier Invoice. Changes status to REJECTED and reverts to DRAFT. Requires `supplier-invoice.reject` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/cancel",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "cancel"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Cancel a Supplier Invoice. Changes status to CANCELLED. Requires `supplier-invoice.cancel` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Set Pending Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/pending",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "pending"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Set an APPROVED Supplier Invoice to PENDING status. Performs three-way matching validation (PO qty vs GR received qty vs SI invoiced qty). Creates journal entries. Requires `supplier-invoice.pending` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Export Supplier Invoices",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/export",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", "export"],
+                  "query": [
+                    { "key": "search", "value": "", "disabled": true },
+                    { "key": "status", "value": "", "disabled": true }
+                  ]
+                },
+                "description": "Export Supplier Invoices as CSV. Supports same filters as list endpoint. Requires `supplier-invoice.export` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Audit Trail Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/audit-trail",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "audit-trail"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Get audit trail for a Supplier Invoice. Requires `supplier-invoice.audit-trail` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Print Supplier Invoice",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{token}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/print",
+                  "host": ["{{base_url}}"],
+                  "path": ["purchase", "supplier-invoices", ":id", "print"],
+                  "variable": [
+                    { "key": "id", "value": "{{supplier_invoice_id}}" }
+                  ]
+                },
+                "description": "Generate printable view of a Supplier Invoice. Requires `supplier-invoice.print` permission."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
