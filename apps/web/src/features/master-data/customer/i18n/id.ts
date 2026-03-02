@@ -186,6 +186,7 @@ export const customerId: CustomerTranslations = {
   },
   validation: {
     nameRequired: "Nama wajib diisi",
+    phoneNumberRequired: "Nomor telepon wajib diisi",
     nameMinLength: "Nama minimal 2 karakter",
     nameMaxLength: "Nama maksimal 200 karakter",
     codeRequired: "Kode wajib diisi",
