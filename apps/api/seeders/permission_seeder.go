@@ -359,6 +359,7 @@ func SeedPermissions() error {
 		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
 		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
 		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
+		{"/finance/journals", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
 
 		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
 
@@ -397,6 +398,8 @@ func SeedPermissions() error {
 		{"/finance/closing", "financial_closing.read", "View Financial Closing", "VIEW", "financial_closing"},
 		{"/finance/closing", "financial_closing.create", "Create Financial Closing", "CREATE", "financial_closing"},
 		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
+		{"/finance/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
+		{"/finance/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
 
 		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
 		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
@@ -854,5 +857,9 @@ func SyncAdminPermissions() error {
 	})
 
 	log.Printf("Synced %d permissions to admin role (scope=ALL, total: %d)", assignedCount, len(allPermissions))
+
+	// Invalidate cache so admin gets fresh permissions on next request
+	invalidatePermissionCache()
+
 	return nil
 }

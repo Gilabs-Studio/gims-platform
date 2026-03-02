@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type CashBankType = "cash_in" | "cash_out";
+export type CashBankType = "cash_in" | "cash_out" | "transfer";
 export type CashBankStatus = "draft" | "posted";
 
 export interface CashBankJournalLine {

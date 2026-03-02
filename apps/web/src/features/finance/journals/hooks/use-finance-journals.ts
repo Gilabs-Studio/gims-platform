@@ -77,6 +77,18 @@ export function usePostFinanceJournal() {
   });
 }
 
+export function useReverseFinanceJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.reverse(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+    },
+  });
+}
+
 export function useTrialBalance(params?: { start_date?: string; end_date?: string }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: financeJournalKeys.trialBalance(params),

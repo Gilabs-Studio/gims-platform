@@ -6,12 +6,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Permission codes must match the seeder (permission_seeder.go) exactly.
+const (
+	generalLedgerReportRead   = "general_ledger_report.read"
+	generalLedgerReportExport = "general_ledger_report.export"
+	balanceSheetReportRead    = "balance_sheet_report.read"
+	balanceSheetReportExport  = "balance_sheet_report.export"
+	profitLossReportRead      = "profit_loss_report.read"
+	profitLossReportExport    = "profit_loss_report.export"
+)
+
 func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReportHandler) {
 	g := rg.Group("/reports")
-	g.GET("/general-ledger", middleware.RequirePermission("finance_report.gl"), h.GeneralLedger)
-	g.GET("/balance-sheet", middleware.RequirePermission("finance_report.bs"), h.BalanceSheet)
-	g.GET("/profit-loss", middleware.RequirePermission("finance_report.pl"), h.ProfitAndLoss)
-	g.GET("/export/general-ledger", middleware.RequirePermission("finance_report.export_gl"), h.ExportGeneralLedger)
-	g.GET("/export/balance-sheet", middleware.RequirePermission("finance_report.export_bs"), h.ExportBalanceSheet)
-	g.GET("/export/profit-loss", middleware.RequirePermission("finance_report.export_pl"), h.ExportProfitAndLoss)
+	g.GET("/general-ledger", middleware.RequirePermission(generalLedgerReportRead), h.GeneralLedger)
+	g.GET("/balance-sheet", middleware.RequirePermission(balanceSheetReportRead), h.BalanceSheet)
+	g.GET("/profit-loss", middleware.RequirePermission(profitLossReportRead), h.ProfitAndLoss)
+	g.GET("/export/general-ledger", middleware.RequirePermission(generalLedgerReportExport), h.ExportGeneralLedger)
+	g.GET("/export/balance-sheet", middleware.RequirePermission(balanceSheetReportExport), h.ExportBalanceSheet)
+	g.GET("/export/profit-loss", middleware.RequirePermission(profitLossReportExport), h.ExportProfitAndLoss)
 }

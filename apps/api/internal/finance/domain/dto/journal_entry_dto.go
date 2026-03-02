@@ -129,3 +129,28 @@ type ListJournalLinesResponse struct {
 	TotalDebit  float64                     `json:"total_debit"`
 	TotalCredit float64                     `json:"total_credit"`
 }
+
+// ===== Form Data DTOs =====
+
+// COAFormOption represents a Chart of Account option for dropdowns.
+type COAFormOption struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// BankAccountFormOption represents a Bank Account option for dropdowns.
+type BankAccountFormOption struct {
+	ID            string  `json:"id"`
+	AccountName   string  `json:"account_name"`
+	AccountNumber string  `json:"account_number"`
+	BankName      string  `json:"bank_name"`
+	Currency      string  `json:"currency"`
+	COAId         *string `json:"coa_id,omitempty"`
+}
+
+// JournalEntryFormDataResponse for journal entry form options.
+type JournalEntryFormDataResponse struct {
+	ChartOfAccounts []COAFormOption `json:"chart_of_accounts"`
+}

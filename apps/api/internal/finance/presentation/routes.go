@@ -66,11 +66,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper)
-	financialClosingUC := usecase.NewFinancialClosingUsecase(db, financialClosingRepo, financialClosingMapper)
+	financialClosingUC := usecase.NewFinancialClosingUsecase(db, coaRepo, financialClosingRepo, journalUC, financialClosingMapper)
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
-	upCountryUC := usecase.NewUpCountryCostUsecase(db, upCountryRepo, journalUC, upCountryMapper)
+	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)

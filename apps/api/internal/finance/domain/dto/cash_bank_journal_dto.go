@@ -16,7 +16,7 @@ type CashBankJournalLineRequest struct {
 
 type CreateCashBankJournalRequest struct {
 	TransactionDate string                       `json:"transaction_date" binding:"required"`
-	Type            financeModels.CashBankType   `json:"type" binding:"required,oneof=cash_in cash_out"`
+	Type            financeModels.CashBankType   `json:"type" binding:"required,oneof=cash_in cash_out transfer"`
 	Description     string                       `json:"description"`
 	BankAccountID   string                       `json:"bank_account_id" binding:"required,uuid"`
 	Lines           []CashBankJournalLineRequest `json:"lines" binding:"required,min=1,dive"`
@@ -24,7 +24,7 @@ type CreateCashBankJournalRequest struct {
 
 type UpdateCashBankJournalRequest struct {
 	TransactionDate string                       `json:"transaction_date" binding:"required"`
-	Type            financeModels.CashBankType   `json:"type" binding:"required,oneof=cash_in cash_out"`
+	Type            financeModels.CashBankType   `json:"type" binding:"required,oneof=cash_in cash_out transfer"`
 	Description     string                       `json:"description"`
 	BankAccountID   string                       `json:"bank_account_id" binding:"required,uuid"`
 	Lines           []CashBankJournalLineRequest `json:"lines" binding:"required,min=1,dive"`
@@ -34,7 +34,7 @@ type ListCashBankJournalsRequest struct {
 	Page     int                        `form:"page" binding:"omitempty,min=1"`
 	PerPage  int                        `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search   string                     `form:"search"`
-	Type     *financeModels.CashBankType `form:"type" binding:"omitempty,oneof=cash_in cash_out"`
+	Type     *financeModels.CashBankType `form:"type" binding:"omitempty,oneof=cash_in cash_out transfer"`
 	Status   *financeModels.CashBankStatus `form:"status" binding:"omitempty,oneof=draft posted"`
 	StartDate *string                   `form:"start_date"`
 	EndDate   *string                   `form:"end_date"`

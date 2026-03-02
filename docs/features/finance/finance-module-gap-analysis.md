@@ -2,6 +2,7 @@
 
 > **Document Type**: Gap Analysis + Best Practice Reference
 > **Created**: 2026-03-02
+> **Last Updated**: 2026-03-02 (Sprint 1 — 8 gaps fixed)
 > **Module**: Finance (Distribution ERP)
 > **Scope**: Semua menu Finance yang tampil di sidebar
 
@@ -21,7 +22,9 @@
 
 ## 1. Ringkasan Eksekutif
 
-Modul Finance saat ini mencakup **16 sub-modul** dengan ~100 file backend. Secara fungsional, core accounting (COA, Journal, Payment, Closing) sudah solid. Namun ada **29 gap** yang teridentifikasi — mulai dari permission mismatch kritis hingga fitur accounting profesional yang belum diimplementasi.
+Modul Finance saat ini mencakup **16 sub-modul** dengan ~100 file backend. Secara fungsional, core accounting (COA, Journal, Payment, Closing) sudah solid. Awalnya ada **29 gap** yang teridentifikasi — **8 gap sudah diselesaikan di Sprint 1** (GAP-001, 002, 003, 005, 008, 009, 011, 019), menyisakan **21 gap terbuka** untuk sprint berikutnya.
+
+> ✅ **Sprint 1 Fixes (2026-03-02):** Permission mismatch, hardcoded COA lookup, budget guard blocking, year-end closing, reversing entry, financial closing reopen, inter-bank transfer, form-data endpoints (8 modul).
 
 ### Skor Kematangan Modul
 
@@ -29,11 +32,11 @@ Modul Finance saat ini mencakup **16 sub-modul** dengan ~100 file backend. Secar
 |------|------|------------|
 | Chart of Accounts | ⭐⭐⭐⭐⭐ | Lengkap: CRUD + tree + type-aware |
 | Journal Entry/Lines | ⭐⭐⭐⭐⭐ | Lengkap: balanced validation, posting, sub-ledger |
-| Payments | ⭐⭐⭐⭐ | Baik: multi-allocation, auto-journal. Kurang: bank reconciliation |
-| Financial Closing | ⭐⭐⭐⭐ | Baik: period lock + analysis. Kurang: reopen, year-end closing |
-| Asset Management | ⭐⭐⭐⭐⭐ | Sangat lengkap: depreciation, dispose, revalue, transfer |
-| Budget | ⭐⭐⭐⭐ | Baik: CRUD + sync actuals. Kurang: budget guard non-blocking |
-| Cash Bank Journal | ⭐⭐⭐⭐ | Baik: cash in/out + auto-journal |
+| Payments | ⭐⭐⭐⭐ | Baik: multi-allocation, auto-journal, form-data. Kurang: bank reconciliation |
+| Financial Closing | ⭐⭐⭐⭐⭐ | Lengkap: period lock, reopen, year-end closing ke Retained Earnings |
+| Asset Management | ⭐⭐⭐⭐⭐ | Sangat lengkap: depreciation, dispose, revalue, transfer, form-data |
+| Budget | ⭐⭐⭐⭐⭐ | Lengkap: CRUD + sync actuals + budget guard blocking |
+| Cash Bank Journal | ⭐⭐⭐⭐ | Baik: cash in/out/transfer + auto-journal + form-data. Kurang: reconciliation |
 | Tax Invoices | ⭐⭐⭐ | Cukup: CRUD saja. Kurang: PPN/PPh calculation, e-Faktur |
 | Salary | ⭐⭐ | Minimal: hanya basic salary. Kurang: komponen, payroll, PPh 21 |
 | Financial Reports | ⭐⭐⭐⭐ | Baik: GL + BS + P&L + Excel export |
@@ -83,7 +86,7 @@ Catatan utama dari setiap transaksi keuangan. Setiap event bisnis (penjualan, pe
 ```
 Draft → Review → Post (irreversible)
                    ↓
-            Koreksi? → Buat Reversing Entry baru
+            Koreksi? → POST /:id/reverse (auto-creates reversed journal, auto-posted)
 ```
 
 **Jenis Journal berdasarkan sumber (Reference Type):**
@@ -139,7 +142,11 @@ Proses mengunci periode akuntansi agar tidak ada perubahan data di periode yang 
 3. Tidak bisa membuat transaksi pada periode yang sudah ditutup
 4. Analysis endpoint menampilkan saldo per-akun (opening vs closing)
 
-**Status Implementasi:** ⭐⭐⭐⭐ — Kurang: Year-End Closing, Reopen Period
+**Status Implementasi:** ✅ Lengkap — Year-End Closing + Reopen Period sudah diimplementasi
+
+**Endpoint Baru (Sprint 1):**
+- `POST /finance/financial-closings/year-end-close` — tutup buku tahunan (Revenue/Expense → Retained Earnings)
+- `POST /finance/financial-closings/:id/reopen` — buka kembali periode (approved → draft)
 
 ---
 
@@ -183,6 +190,8 @@ Buat Payment (Draft)
 
 **Status Implementasi:** ⭐⭐⭐⭐ — Kurang: Bank Reconciliation
 
+**Endpoint Baru (Sprint 1):** `GET /finance/payments/form-data`
+
 ---
 
 #### 2.2.3 Cash Bank Journal (Jurnal Kas/Bank)
@@ -197,19 +206,22 @@ Buat Cash Bank Journal (Draft)
   → Tambah Line Items (COA + amount + referensi)
   → Post
      → Auto-create Journal Entry:
-        cash_in:  Dr Bank COA, Cr Masing-masing line COA
-        cash_out: Dr Masing-masing line COA, Cr Bank COA
+        cash_in:   Dr Bank COA, Cr Masing-masing line COA
+        cash_out:  Dr Masing-masing line COA, Cr Bank COA
+        transfer:  Cr Source Bank COA, Dr Destination COA(s)
 ```
 
 **Standar Profesional:**
 - Di perusahaan distribusi, jurnal kas/bank digunakan untuk:
   - Penerimaan dari customer (jika tidak via sales payment)
   - Pengeluaran operasional harian (pembelian ATK, bensin, dll)
-  - Transfer antar bank
+  - Transfer antar bank ✅ (tipe `transfer` sudah diimplementasi)
   - Setoran/penarikan kas
 - Harus di-reconcile dengan mutasi bank (bank statement)
 
-**Status Implementasi:** ⭐⭐⭐⭐ — Kurang: Bank Reconciliation, Transfer antar bank
+**Status Implementasi:** ⭐⭐⭐⭐ — Kurang: Bank Reconciliation
+
+**Endpoint Baru (Sprint 1):** `GET /finance/cash-bank/form-data`
 
 ---
 
@@ -230,10 +242,11 @@ Buat NTP (Draft)
      → Auto-journal: Dr "Hutang Non-Dagang" COA, Cr Bank COA
 ```
 
-**⚠️ Gap Kritis: Hardcoded COA Lookup**
-Saat ini implementasi mencari COA dengan `name ILIKE '%Hutang Non-Dagang%'`. Jika nama akun diubah, fitur ini akan **error**. Seharusnya menggunakan kode akun yang dikonfigurasi.
+**✅ Sprint 1 Fix:** COA lookup sekarang menggunakan `FindByCode("21200")` — tidak lagi bergantung pada nama akun yang bisa berubah.
 
-**Status Implementasi:** ⭐⭐⭐ — Kurang: COA lookup by code, partial payment
+**Status Implementasi:** ⭐⭐⭐⭐ — COA lookup by code sudah diperbaiki. Kurang: partial payment
+
+**Endpoint Baru (Sprint 1):** `GET /finance/non-trade-payables/form-data`
 
 ---
 
@@ -298,15 +311,16 @@ Buat Budget (Draft)
   → Bandingkan: Budget vs Actual → Variance Analysis
 ```
 
-**⚠️ Gap: Budget Guard Non-Blocking**
-Saat ini `EnsureWithinBudget()` dipanggil saat approve payment, tapi errornya **dibuang** (`_ = EnsureWithinBudget(...)`). Artinya pengeluaran melebihi budget tetap bisa diproses tanpa warning.
+**✅ Sprint 1 Fix:** `EnsureWithinBudget()` sekarang **blocking** — payment yang melebihi budget akan gagal dengan error deskriptif (`"payment would exceed approved budget"`). Error tidak lagi di-ignore.
 
 **Standar Profesional:**
 - Budget harus bisa dipecah per: divisi, departemen, bulan
 - Variance analysis: `Actual - Budget = Favorable/Unfavorable`
 - Threshold alert: notifikasi saat realisasi mendekati/melebihi budget (80%, 100%)
 
-**Status Implementasi:** ⭐⭐⭐ — Kurang: budget enforcement, variance report, threshold alerts
+**Status Implementasi:** ⭐⭐⭐⭐ — Budget guard sudah blocking. Kurang: variance report, threshold alerts
+
+**Endpoint Baru (Sprint 1):** `GET /finance/budget/form-data`
 
 ---
 
@@ -353,9 +367,11 @@ Buat UCC (Draft)
      → Auto-journal: Dr "Perjalanan Dinas" COA, Cr "Hutang Biaya" COA
 ```
 
-**⚠️ Gap: Hardcoded COA Lookup** — sama seperti NTP, mencari COA by name `'%Perjalanan Dinas%'` dan `'%Hutang Biaya%'`
+**✅ Sprint 1 Fix:** COA lookup sekarang menggunakan `FindByCode("62000")` untuk Travel Expense dan `FindByCode("21300")` untuk Accrued Expense — tidak lagi bergantung pada nama akun.
 
-**Status Implementasi:** ⭐⭐⭐ — Kurang: settlement/reimbursement flow, per diem calculation
+**Status Implementasi:** ⭐⭐⭐⭐ — COA lookup by code sudah diperbaiki. Kurang: settlement/reimbursement flow, per diem calculation
+
+**Endpoint Baru (Sprint 1):** `GET /finance/up-country-costs/form-data`
 
 ---
 
@@ -534,11 +550,15 @@ Awal Bulan:
   ✅ Review Trial Balance (Dr = Cr)
   ✅ Create Adjustment Entries jika perlu
   ✅ Financial Closing → Approve (kunci periode)
+  ✅ Reopen Period jika ada koreksi (POST /:id/reopen)
 
-Akhir Tahun (belum diimplementasi):
-  ❌ Close Revenue & Expense accounts ke Retained Earnings
-  ❌ Generate Annual Financial Statements
-  ❌ Tax reporting (SPT Tahunan)
+Akhir Tahun:
+  ✅ POST /finance/financial-closings/year-end-close
+     → Kalkulasi Revenue - Expense = Net Income
+     → Buat journal entry: Dr Revenue, Cr Expense, Dr/Cr Retained Earnings
+     → Buat FinancialClosing record untuk 31 Des (auto-approved)
+  ❌ Generate Annual Financial Statements (belum)
+  ❌ Tax reporting / SPT Tahunan (belum)
 ```
 
 ### 3.4 Cash Flow Daily Operations
@@ -643,83 +663,31 @@ Mingguan/Bulanan:
 
 ## 6. Gap Analysis: Current vs Professional Standard
 
-### 🔴 CRITICAL (Harus Segera Diperbaiki)
+### ✅ FIXED in Sprint 1 (2026-03-02)
 
-#### GAP-001: Permission Code Mismatch pada Finance Reports
+> Semua item berikut sudah diimplementasi dan build Go sudah diverifikasi clean.
 
-**Masalah:** Tiga layer menggunakan kode permission berbeda untuk fitur yang sama:
+#### ~~GAP-001~~: ✅ FIXED — Permission Code Mismatch pada Finance Reports
 
-| Layer | General Ledger | Balance Sheet | Profit & Loss |
-|-------|---------------|---------------|---------------|
-| **Router** (middleware) | `finance_report.gl` | `finance_report.bs` | `finance_report.pl` |
-| **Seeder** (permission) | `general_ledger_report.read` | `balance_sheet_report.read` | `profit_loss_report.read` |
-| **Navigation** (frontend) | `general_ledger_report.read` ¹ | `balance_sheet_report.read` ¹ | `profit_loss_report.read` ¹ |
+**Masalah sebelumnya:** Router menggunakan `finance_report.gl/bs/pl` tapi seeder menggunakan `general_ledger_report.read/balance_sheet_report.read/profit_loss_report.read` — semua user mendapat 403.
 
-¹ Baru diperbaiki dari `finance_report.gl/bs/pl`
-
-**Dampak:** 
-- Router mengecek permission `finance_report.gl`, tapi seeder tidak pernah membuat permission dengan kode tersebut
-- Artinya **semua user akan mendapat 403 Forbidden** saat mengakses finance reports API
-- Menu muncul di sidebar (karena navigation config sekarang cocok dengan seeder), tapi klik akan error
-
-**Solusi:** Sinkronkan permission code. Opsi terbaik — ubah **seeder** agar cocok dengan router:
-```go
-// Ganti di permission_seeder.go:
-{"/finance/reports/general-ledger", "finance_report.gl", "View General Ledger", "VIEW", "finance_report"},
-{"/finance/reports/balance-sheet", "finance_report.bs", "View Balance Sheet", "VIEW", "finance_report"},
-{"/finance/reports/profit-loss", "finance_report.pl", "View Profit & Loss", "VIEW", "finance_report"},
-// + export permissions
-{"/finance/reports/general-ledger", "finance_report.export_gl", "Export General Ledger", "EXPORT", "finance_report"},
-{"/finance/reports/balance-sheet", "finance_report.export_bs", "Export Balance Sheet", "EXPORT", "finance_report"},
-{"/finance/reports/profit-loss", "finance_report.export_pl", "Export Profit & Loss", "EXPORT", "finance_report"},
-```
-
-Dan update **navigation-config.ts**:
-```typescript
-{ name: "General Ledger", permission: "finance_report.gl" },
-{ name: "Balance Sheet", permission: "finance_report.bs" },
-{ name: "Profit & Loss", permission: "finance_report.pl" },
-```
+**Solusi yang diimplementasi:** Router dan navigation-config.ts disesuaikan untuk menggunakan permission code yang sama dengan seeder (`finance_report.gl`, `finance_report.bs`, `finance_report.pl` + export variants).
 
 ---
 
-#### GAP-002: Hardcoded COA Lookup by Name (Fragile)
+#### ~~GAP-002~~: ✅ FIXED — Hardcoded COA Lookup by Name
 
-**Masalah:** Tiga fitur mencari COA berdasarkan nama menggunakan `ILIKE`:
-- `NonTradePayable.Approve`: `name ILIKE '%Hutang Non-Dagang%'`
-- `NonTradePayable.Pay`: `name ILIKE '%Hutang Non-Dagang%'`
-- `UpCountryCost.Approve`: `name ILIKE '%Perjalanan Dinas%'` dan `name ILIKE '%Hutang Biaya%'`
+**Masalah sebelumnya:** `NonTradePayable` dan `UpCountryCost` mencari COA dengan `name ILIKE '%...'` — rapuh jika nama akun diubah.
 
-**Dampak:** Jika user mengubah nama akun di COA, fitur NTP dan Up Country Cost akan **gagal total**.
-
-**Solusi:** Gunakan **COA code** yang tetap, atau buat tabel konfigurasi `finance_settings`:
-```go
-// Contoh configurasi
-type FinanceSetting struct {
-    Key   string // "ntp_liability_coa_code"
-    Value string // "21500"
-}
-```
+**Solusi yang diimplementasi:** Dibuat file konstanta `finance_coa_codes.go` dengan kode akun tetap (`COACodeNonTradePayable="21200"`, `COACodeTravelExpense="62000"`, `COACodeAccruedExpense="21300"`). Semua lookup sekarang menggunakan `coaRepo.FindByCode(ctx, code)`. COA seed baru juga ditambahkan.
 
 ---
 
-#### GAP-003: Budget Guard Non-Blocking
+#### ~~GAP-003~~: ✅ FIXED — Budget Guard Non-Blocking
 
-**Masalah:** Di `payment_usecase.go`, budget check dipanggil tapi error dibuang:
-```go
-_ = EnsureWithinBudget(...)  // error silently ignored
-```
+**Masalah sebelumnya:** `_ = EnsureWithinBudget(...)` — error dibuang, pengeluaran melebihi budget tetap lolos.
 
-**Dampak:** Pengeluaran yang melebihi budget tetap diproses tanpa blocking maupun warning.
-
-**Solusi:** Minimal implementasi **soft warning** yang dicatat di response:
-```json
-{
-  "success": true,
-  "data": {...},
-  "warnings": ["Budget exceeded by Rp 5.000.000 for account 6200"]
-}
-```
+**Solusi yang diimplementasi:** Diganti dengan `if err := EnsureWithinBudget(...); err != nil { return fmt.Errorf("payment would exceed approved budget: %w", err) }` — sekarang **blocking** di payment approval.
 
 ---
 
@@ -745,20 +713,18 @@ Upload Bank Statement (CSV/Excel)
 
 ---
 
-#### GAP-005: Year-End Closing Belum Ada
+---
 
-**Masalah:** Financial closing hanya mengunci periode (monthly). Tidak ada proses **year-end closing** yang menutup akun pendapatan/beban ke Retained Earnings.
+#### ~~GAP-005~~: ✅ FIXED — Year-End Closing
 
-**Standar Profesional:**
-```
-Year-End Closing Process:
-1. Close all Revenue accounts → Cr Income Summary
-2. Close all Expense accounts → Dr Income Summary
-3. Close Income Summary → Dr/Cr Retained Earnings
-4. Close Dividend (if any) → Dr Retained Earnings
-```
+**Masalah sebelumnya:** Financial closing hanya mengunci periode bulanan. Tidak ada year-end closing.
 
-**Dampak:** Saat awal tahun baru, akun pendapatan dan beban masih membawa saldo tahun lalu.
+**Solusi yang diimplementasi:**
+- Endpoint `POST /finance/financial-closings/year-end-close` — menerima `{"fiscal_year": 2025}`
+- Menghitung total Revenue - Expense dari semua journal entries tahun tersebut
+- Membuat closing journal entry: `Dr Revenue accounts, Cr Expense accounts, Dr/Cr Retained Earnings (COA 32000)`
+- Membuat FinancialClosing record untuk 31 Desember (auto-approved)
+- Seed COA baru: `31000 Paid-in Capital`, `32000 Retained Earnings`
 
 ---
 
@@ -788,31 +754,40 @@ Year-End Closing Process:
 
 ---
 
-#### GAP-008: Tidak Ada Form-Data Endpoint
+---
 
-**Masalah:** Sesuai konvensi project, setiap fitur dengan foreign key harus memiliki `GET /form-data` endpoint. **Tidak satupun** entitas finance memiliki ini.
+#### ~~GAP-008~~: ✅ FIXED — Form-Data Endpoints
 
-**Entitas yang membutuhkan:**
-| Entity | Dropdown yang dibutuhkan |
-|--------|------------------------|
-| Payment | Bank accounts + COA list |
-| Cash Bank Journal | Bank accounts + COA list |
-| Budget | COA list |
-| Journal Entry | COA list |
-| Non-Trade Payable | COA list |
-| Asset | Categories + Locations |
-| Asset Category | COA (3 akun) |
-| Salary Structure | Employee list |
-| Up Country Cost | Employee list |
-| Tax Invoice | Customer/Supplier invoices |
+**Masalah sebelumnya:** Tidak ada `GET /form-data` endpoint di satupun entitas finance.
+
+**Solusi yang diimplementasi:** `GetFormData` ditambahkan ke interface, usecase, handler, dan router untuk semua modul yang membutuhkan:
+
+| Endpoint | Response |
+|----------|----------|
+| `GET /finance/payments/form-data` | COA list + bank accounts |
+| `GET /finance/cash-bank/form-data` | COA list + bank accounts + type enums |
+| `GET /finance/budget/form-data` | COA list |
+| `GET /finance/journal-entries/form-data` | COA list |
+| `GET /finance/non-trade-payables/form-data` | COA list |
+| `GET /finance/assets/form-data` | Categories + locations |
+| `GET /finance/asset-categories/form-data` | COA list + depreciation method enums |
+| `GET /finance/up-country-costs/form-data` | Cost type enums |
+
+Files baru: `form_data_dto.go`, `form_data.go` (usecases), `form_data_handlers.go`.
 
 ---
 
 ### 🟢 MEDIUM (Nice to Have)
 
-#### GAP-009: Tidak Ada Reversing Entry
+#### ~~GAP-009~~: ✅ FIXED — Reversing Entry
 
-**Masalah:** Tidak ada fitur untuk membuat jurnal pembalik otomatis dari journal yang sudah posted. Saat ini harus buat manual journal baru.
+**Masalah sebelumnya:** Tidak ada fitur untuk membuat jurnal pembalik dari journal yang sudah posted.
+
+**Solusi yang diimplementasi:** Endpoint `POST /finance/journal-entries/:id/reverse`:
+- Membuat journal entry baru dengan debit/credit dibalik
+- Auto-posts journal baru
+- `reference_type = "reversal"`, `reference_id` menunjuk ke journal asli
+- Permission: `journal.reverse` (ditambahkan ke seeder)
 
 ---
 
@@ -822,9 +797,14 @@ Year-End Closing Process:
 
 ---
 
-#### GAP-011: Tidak Ada Financial Closing Reopen
+#### ~~GAP-011~~: ✅ FIXED — Financial Closing Reopen
 
-**Masalah:** Period yang sudah dihapprove tidak bisa dibuka kembali. Jika ada kesalahan, tidak ada cara untuk koreksi.
+**Masalah sebelumnya:** Period yang sudah approved tidak bisa dibuka kembali.
+
+**Solusi yang diimplementasi:** Endpoint `POST /finance/financial-closings/:id/reopen`:
+- Mengubah status approved → draft
+- Validasi: tidak bisa reopen jika ada periode yang lebih baru sudah di-close (menjaga urutan kronologis)
+- Permission: `financial_closing.reopen` (ditambahkan ke seeder)
 
 ---
 
@@ -872,9 +852,15 @@ Year-End Closing Process:
 
 ---
 
-#### GAP-019: Inter-Bank Transfer
+#### ~~GAP-019~~: ✅ FIXED — Inter-Bank Transfer
 
-**Masalah:** Cash Bank Journal tidak memiliki tipe khusus "transfer" untuk perpindahan dana antar bank. Saat ini harus dibuat 2 jurnal terpisah (cash_out dari bank A + cash_in ke bank B).
+**Masalah sebelumnya:** Cash Bank Journal tidak punya tipe "transfer", perlu 2 jurnal terpisah.
+
+**Solusi yang diimplementasi:**
+- Konstanta `CashBankTypeTransfer = "transfer"` ditambahkan ke model
+- Validasi type di Create/Update usecase diperluas menerima `transfer`
+- Post method menangani transfer: `Cr Source Bank COA, Dr Destination COA(s)`
+- Form-data endpoint mengembalikan type enums termasuk `transfer`
 
 ---
 
@@ -886,23 +872,24 @@ Year-End Closing Process:
 
 ## 7. Rekomendasi Prioritas Perbaikan
 
-### Phase 1: Critical Fixes (Segera)
-| # | Item | Effort | Impact |
-|---|------|--------|--------|
-| 1 | GAP-001: Fix permission mismatch finance reports | 1 jam | 🔴 Menu broken tanpa ini |
-| 2 | GAP-002: Replace hardcoded COA name lookup | 2 jam | 🔴 NTP & UCC bisa gagal |
-| 3 | GAP-003: Enable budget guard (min. soft warning) | 1 jam | 🔴 Budget control tidak berfungsi |
-| 4 | GAP-008: Add form-data endpoints | 4 jam | 🟡 UX improvement |
+### ~~Phase 1: Critical Fixes~~ ✅ SELESAI (Sprint 1 — 2026-03-02)
+| # | Item | Status |
+|---|------|--------|
+| 1 | GAP-001: Fix permission mismatch finance reports | ✅ Done |
+| 2 | GAP-002: Replace hardcoded COA name lookup | ✅ Done |
+| 3 | GAP-003: Enable budget guard (blocking) | ✅ Done |
+| 4 | GAP-008: Add form-data endpoints (8 modul) | ✅ Done |
+| 5 | GAP-005: Year-end closing | ✅ Done |
+| 6 | GAP-009: Reversing entry | ✅ Done |
+| 7 | GAP-011: Financial closing reopen | ✅ Done |
+| 8 | GAP-019: Inter-bank transfer | ✅ Done |
 
-### Phase 2: Accounting Compliance (1-2 Sprint)
+### Phase 2: Accounting Compliance (Sprint 2)
 | # | Item | Effort | Impact |
 |---|------|--------|--------|
-| 5 | GAP-005: Year-end closing | 3 hari | 🟡 Accounting standard |
-| 6 | GAP-004: Bank reconciliation | 5 hari | 🟡 Internal control |
-| 7 | GAP-009: Reversing entry | 1 hari | 🟡 Operational efficiency |
-| 8 | GAP-016: Cash flow statement | 3 hari | 🟡 Required statement |
-| 9 | GAP-011: Financial closing reopen | 1 hari | 🟡 Error correction |
-| 10 | GAP-017: Allowance for doubtful accounts | 2 hari | 🟡 PSAK 71 compliance |
+| 5 | GAP-004: Bank reconciliation | 5 hari | 🟡 Internal control |
+| 6 | GAP-016: Cash flow statement | 3 hari | 🟡 Laporan keuangan wajib ke-3 |
+| 7 | GAP-017: Allowance for doubtful accounts | 2 hari | 🟡 PSAK 71 compliance |
 
 ### Phase 3: Distribution ERP Enhancement (3-4 Sprint)
 | # | Item | Effort | Impact |
@@ -911,8 +898,10 @@ Year-End Closing Process:
 | 12 | GAP-007: Tax management (PPN, PPh) | 10 hari | 🟡 Tax compliance |
 | 13 | GAP-015: 3-way matching automation | 5 hari | 🟢 Process improvement |
 | 14 | GAP-010: Multi-currency | 5 hari | 🟢 Import/Export support |
-| 15 | GAP-019: Inter-bank transfer | 1 hari | 🟢 Operational |
+| 15 | ~~GAP-019: Inter-bank transfer~~ | ✅ Done | — |
 | 16 | GAP-014: Unit tests | 5 hari | 🟢 Code quality |
+| 17 | GAP-013: Scope filtering di semua repository | 3 hari | 🟢 Data security |
+| 18 | GAP-020: Audit log untuk finance | 5 hari | 🟢 Compliance & forensics |
 
 ---
 
@@ -923,21 +912,21 @@ Year-End Closing Process:
 | 1 | Accounting > Chart of Accounts | ✅ | `coa.read` | - |
 | 2 | Accounting > Journal > Journal Entries | ✅ | `journal.read` | - |
 | 3 | Accounting > Journal > Journal Lines | ✅ | `journal_line.read` | - |
-| 4 | Accounting > Financial Closing | ✅ | `financial_closing.read` | GAP-005, GAP-011 |
+| 4 | Accounting > Financial Closing | ✅ | `financial_closing.read` | — *(GAP-005 ✅, GAP-011 ✅)* |
 | 5 | Banking > Bank Accounts | ✅ | `bank_account.read` | - |
 | 6 | Banking > Payments | ✅ | `payment.read` | GAP-004 |
-| 7 | Banking > Cash Bank Journal | ✅ | `cash_bank.read` | GAP-019 |
-| 8 | Receivables > Non-Trade Payables | ✅ | `non_trade_payable.read` | GAP-002 |
+| 7 | Banking > Cash Bank Journal | ✅ | `cash_bank.read` | — *(GAP-019 ✅)* |
+| 8 | Receivables > Non-Trade Payables | ✅ | `non_trade_payable.read` | — *(GAP-002 ✅)* |
 | 9 | Receivables > Tax Invoices | ✅ | `tax_invoice.read` | GAP-007 |
 | 10 | Receivables > Aging Reports | ✅ | `journal.read` | GAP-017 |
-| 11 | Budgeting > Budget | ✅ | `budget.read` | GAP-003 |
+| 11 | Budgeting > Budget | ✅ | `budget.read` | — *(GAP-003 ✅)* |
 | 12 | Budgeting > Salary | ✅ | `salary.read` | GAP-006 |
-| 13 | Budgeting > Up Country Cost | ✅ | `up_country_cost.read` | GAP-002 |
+| 13 | Budgeting > Up Country Cost | ✅ | `up_country_cost.read` | — *(GAP-002 ✅)* |
 | 14 | Asset Management > Assets | ✅ | `asset.read` | - |
 | 15 | Asset Management > Asset Categories | ✅ | `asset_category.read` | - |
 | 16 | Asset Management > Asset Locations | ✅ | `asset_location.read` | - |
-| 17 | Statements > General Ledger | ✅ | `finance_report.gl` ² | GAP-001 |
-| 18 | Statements > Balance Sheet | ✅ | `finance_report.bs` ² | GAP-001 |
-| 19 | Statements > Profit & Loss | ✅ | `finance_report.pl` ² | GAP-001 |
+| 17 | Statements > General Ledger | ✅ | `finance_report.gl` | — *(GAP-001 ✅)* |
+| 18 | Statements > Balance Sheet | ✅ | `finance_report.bs` | — *(GAP-001 ✅)* |
+| 19 | Statements > Profit & Loss | ✅ | `finance_report.pl` | — *(GAP-001 ✅)* |
 
-² Permission mismatch antara router dan seeder — lihat GAP-001
+> ² Permission sudah diselaraskan di Sprint 1 — router dan navigation config kini menggunakan kode yang sama.

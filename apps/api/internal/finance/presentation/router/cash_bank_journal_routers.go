@@ -19,6 +19,8 @@ func RegisterCashBankJournalRoutes(r *gin.RouterGroup, h *handler.CashBankJourna
 	g.GET("/", middleware.RequirePermission(cashBankRead), h.List)
 	g.POST("", middleware.RequirePermission(cashBankCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(cashBankCreate), h.Create)
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(cashBankRead), h.GetFormData)
 	g.GET("/:id", middleware.RequirePermission(cashBankRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(cashBankUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(cashBankDelete), h.Delete)

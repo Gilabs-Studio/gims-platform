@@ -7,15 +7,18 @@ import (
 )
 
 const (
-	journalRead   = "journal.read"
-	journalCreate = "journal.create"
-	journalUpdate = "journal.update"
-	journalDelete = "journal.delete"
-	journalPost   = "journal.post"
+	journalRead    = "journal.read"
+	journalCreate  = "journal.create"
+	journalUpdate  = "journal.update"
+	journalDelete  = "journal.delete"
+	journalPost    = "journal.post"
+	journalReverse = "journal.reverse"
 )
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
 	g := rg.Group("/journal-entries")
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(journalRead), h.GetFormData)
 	g.GET("", middleware.RequirePermission(journalRead), h.List)
 	g.GET("/", middleware.RequirePermission(journalRead), h.List)
 	g.POST("", middleware.RequirePermission(journalCreate), h.Create)
@@ -24,6 +27,7 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.PUT("/:id", middleware.RequirePermission(journalUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(journalDelete), h.Delete)
 	g.POST("/:id/post", middleware.RequirePermission(journalPost), h.Post)
+	g.POST("/:id/reverse", middleware.RequirePermission(journalReverse), h.Reverse)
 }
 
 func RegisterFinanceReportRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {

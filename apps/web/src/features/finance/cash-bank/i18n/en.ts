@@ -16,6 +16,7 @@ export const financeCashBankEn = {
   type: {
     cash_in: "Cash In",
     cash_out: "Cash Out",
+    transfer: "Transfer",
   },
   status: {
     draft: "Draft",
