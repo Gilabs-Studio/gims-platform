@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -287,7 +288,9 @@ func (u *overtimeRequestUsecase) CreateAutoDetectedOvertime(ctx context.Context,
 
 func (u *overtimeRequestUsecase) GetEmployeeMonthlySummary(ctx context.Context, employeeID string, year, month int) (*dto.OvertimeSummaryResponse, error) {
 	// Get all requests for the month
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	// WHY: Use per-employee timezone so "month" boundaries match the employee's local time
+	empLoc := apptime.LocationForEmployee(employeeID)
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, empLoc)
 	lastDay := firstDay.AddDate(0, 1, -1)
 
 	req := &dto.ListOvertimeRequestsRequest{

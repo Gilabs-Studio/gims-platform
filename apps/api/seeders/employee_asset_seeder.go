@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/hrd/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 )
 
@@ -17,7 +17,7 @@ func SeedEmployeeAssets() error {
 
 	// Check if data already exists
 	var count int64
-	if err := db.Model(&models.EmployeeAsset{}).Count(&count).Error; err != nil {
+	if err := db.Model(&orgModels.EmployeeAsset{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to count employee assets: %w", err)
 	}
 
@@ -44,16 +44,16 @@ func SeedEmployeeAssets() error {
 		Name            string
 		Code            string
 		Category        string
-		BorrowCondition models.AssetCondition
-		ReturnCondition *models.AssetCondition
+		BorrowCondition orgModels.AssetCondition
+		ReturnCondition *orgModels.AssetCondition
 		DaysAgoBorrowed int
 		DaysAgoReturned *int
 		Notes           string
 	}
 
-	goodCondition := models.AssetConditionGood
-	fairCondition := models.AssetConditionFair
-	newCondition := models.AssetConditionNew
+	goodCondition := orgModels.AssetConditionGood
+	fairCondition := orgModels.AssetConditionFair
+	newCondition := orgModels.AssetConditionNew
 
 	days30 := 30
 	days90 := 90
@@ -66,7 +66,7 @@ func SeedEmployeeAssets() error {
 			Name:            "MacBook Pro 16\" M3 Max",
 			Code:            "LAP-001",
 			Category:        "Laptop",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: nil,
 			DaysAgoBorrowed: 45,
 			DaysAgoReturned: nil,
@@ -76,7 +76,7 @@ func SeedEmployeeAssets() error {
 			Name:            "iPhone 15 Pro 256GB",
 			Code:            "PHN-042",
 			Category:        "Mobile Phone",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: nil,
 			DaysAgoBorrowed: 30,
 			DaysAgoReturned: nil,
@@ -86,7 +86,7 @@ func SeedEmployeeAssets() error {
 			Name:            "Dell Monitor 27\" 4K",
 			Code:            "MON-015",
 			Category:        "Monitor",
-			BorrowCondition: models.AssetConditionGood,
+			BorrowCondition: orgModels.AssetConditionGood,
 			ReturnCondition: nil,
 			DaysAgoBorrowed: 60,
 			DaysAgoReturned: nil,
@@ -96,7 +96,7 @@ func SeedEmployeeAssets() error {
 			Name:            "Standing Desk",
 			Code:            "FUR-023",
 			Category:        "Furniture",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: nil,
 			DaysAgoBorrowed: 90,
 			DaysAgoReturned: nil,
@@ -107,7 +107,7 @@ func SeedEmployeeAssets() error {
 			Name:            "MacBook Air M2",
 			Code:            "LAP-008",
 			Category:        "Laptop",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: &goodCondition,
 			DaysAgoBorrowed: 180,
 			DaysAgoReturned: &days30,
@@ -117,7 +117,7 @@ func SeedEmployeeAssets() error {
 			Name:            "iPhone 13 128GB",
 			Code:            "PHN-025",
 			Category:        "Mobile Phone",
-			BorrowCondition: models.AssetConditionGood,
+			BorrowCondition: orgModels.AssetConditionGood,
 			ReturnCondition: &fairCondition,
 			DaysAgoBorrowed: 365,
 			DaysAgoReturned: &days90,
@@ -127,7 +127,7 @@ func SeedEmployeeAssets() error {
 			Name:            "Logitech MX Master 3",
 			Code:            "ACC-056",
 			Category:        "Accessories",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: &goodCondition,
 			DaysAgoBorrowed: 200,
 			DaysAgoReturned: &days120,
@@ -137,7 +137,7 @@ func SeedEmployeeAssets() error {
 			Name:            "Sony WH-1000XM5 Headphones",
 			Code:            "ACC-071",
 			Category:        "Accessories",
-			BorrowCondition: models.AssetConditionNew,
+			BorrowCondition: orgModels.AssetConditionNew,
 			ReturnCondition: &newCondition,
 			DaysAgoBorrowed: 150,
 			DaysAgoReturned: &days180,
@@ -147,7 +147,7 @@ func SeedEmployeeAssets() error {
 			Name:            "HP LaserJet Printer",
 			Code:            "PRT-005",
 			Category:        "Office Equipment",
-			BorrowCondition: models.AssetConditionGood,
+			BorrowCondition: orgModels.AssetConditionGood,
 			ReturnCondition: &fairCondition,
 			DaysAgoBorrowed: 100,
 			DaysAgoReturned: &days30,
@@ -156,7 +156,7 @@ func SeedEmployeeAssets() error {
 	}
 
 	// Create employee assets
-	assets := make([]models.EmployeeAsset, 0, len(assetSeeds))
+	assets := make([]orgModels.EmployeeAsset, 0, len(assetSeeds))
 	for i, seed := range assetSeeds {
 		// Cycle through employees
 		employeeID := employees[i%len(employees)].ID
@@ -169,7 +169,7 @@ func SeedEmployeeAssets() error {
 			returnDate = &rd
 		}
 
-		asset := models.EmployeeAsset{
+		asset := orgModels.EmployeeAsset{
 			ID:              uuid.New().String(),
 			EmployeeID:      employeeID,
 			AssetName:       seed.Name,

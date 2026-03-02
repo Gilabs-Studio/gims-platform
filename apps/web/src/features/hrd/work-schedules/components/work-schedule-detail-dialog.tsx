@@ -90,6 +90,22 @@ export function WorkScheduleDetailDialog({
             )}
           </div>
 
+          {/* Assignment Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-primary" />
+              {t("sections.assignment")}
+            </h3>
+            <div>
+              <Label className="text-muted-foreground text-xs">
+                {t("fields.division")}
+              </Label>
+              <p className="mt-1">
+                {item.division_name || t("placeholders.allDivisions")}
+              </p>
+            </div>
+          </div>
+
           <Separator />
 
           {/* Work Hours Section */}

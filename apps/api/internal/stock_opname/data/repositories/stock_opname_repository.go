@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
@@ -129,7 +129,7 @@ func (r *stockOpnameRepository) ListItems(ctx context.Context, opnameID string) 
 }
 
 func (r *stockOpnameRepository) UpdateStatus(ctx context.Context, id string, status models.StockOpnameStatus, userID *string) error {
-	updates := map[string]interface{}{"status": status, "updated_at": time.Now()}
+	updates := map[string]interface{}{"status": status, "updated_at": apptime.Now()}
 	if userID != nil {
 		updates["updated_by"] = *userID
 	}
@@ -137,7 +137,7 @@ func (r *stockOpnameRepository) UpdateStatus(ctx context.Context, id string, sta
 }
 
 func (r *stockOpnameRepository) GetNextOpnameNumber(ctx context.Context) (string, error) {
-	prefix := fmt.Sprintf("OP-%s-", time.Now().Format("200601"))
+	prefix := fmt.Sprintf("OP-%s-", apptime.Now().Format("200601"))
 	var lastOpname models.StockOpname
 	err := r.db.WithContext(ctx).
 		Where("opname_number LIKE ?", prefix+"%").

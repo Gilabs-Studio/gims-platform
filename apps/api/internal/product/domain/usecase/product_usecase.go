@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/product/domain/dto"
@@ -66,7 +66,7 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 	}
 
 	// Format: PREFIX-YYYYMMDD-RAND4 (e.g., MED-20231023-A1B2)
-	timestamp := time.Now().Format("20060102")
+	timestamp := apptime.Now().Format("20060102")
 	randomSuffix := strings.ToUpper(uuid.New().String()[:4])
 	generatedCode := fmt.Sprintf("%s-%s-%s", prefix, timestamp, randomSuffix)
 
@@ -140,7 +140,6 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
-
 
 	if req.Code != "" {
 		product.Code = req.Code
@@ -297,7 +296,7 @@ func (u *productUsecase) Approve(ctx context.Context, id string, userID string, 
 		return dto.ProductResponse{}, errors.New("can only approve/reject pending products")
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 
 	if req.Action == "approve" {
 		product.Status = models.ProductStatusApproved

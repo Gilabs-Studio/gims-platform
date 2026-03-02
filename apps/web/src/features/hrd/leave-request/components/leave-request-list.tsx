@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Clock, CalendarIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useLeaveRequests, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest, useCancelLeaveRequest } from "../hooks/use-leave-requests";
+import { useLeaveRequests, useDeleteLeaveRequest, useApproveLeaveRequest, useRejectLeaveRequest, useCancelLeaveRequest, useReapproveLeaveRequest } from "../hooks/use-leave-requests";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { LeaveRequestForm } from "./leave-request-form";
@@ -74,6 +74,7 @@ export function LeaveRequestList() {
   const approveMutation = useApproveLeaveRequest();
   const rejectMutation = useRejectLeaveRequest();
   const cancelMutation = useCancelLeaveRequest();
+  const reapproveMutation = useReapproveLeaveRequest();
   
   const leaves = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -152,6 +153,15 @@ export function LeaveRequestList() {
       cancelForm.reset();
     } catch {
       toast.error(t("messages.cancelError"));
+    }
+  };
+
+  const handleReapprove = async (id: string) => {
+    try {
+      await reapproveMutation.mutateAsync({ id, data: {} });
+      toast.success(t("messages.approveSuccess"));
+    } catch {
+      toast.error(t("messages.approveError"));
     }
   };
 
@@ -404,13 +414,22 @@ export function LeaveRequestList() {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {canApprove && (leave.status === "PENDING" || leave.status === "APPROVED") && (
+                        {canApprove && (leave.status === "APPROVED" || leave.status === "PENDING") && (
                           <DropdownMenuItem
                             onClick={() => setCancellingLeave(leave)}
                             className="cursor-pointer text-orange-600"
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             {t("actions.cancel")}
+                          </DropdownMenuItem>
+                        )}
+                        {canApprove && (leave.status === "CANCELLED" || leave.status === "REJECTED") && (
+                          <DropdownMenuItem
+                            onClick={() => handleReapprove(leave.id)}
+                            className="cursor-pointer text-green-600"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            {t("actions.reapprove")}
                           </DropdownMenuItem>
                         )}
                         {canDelete && leave.status === "PENDING" && (

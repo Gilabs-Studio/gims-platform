@@ -14,6 +14,8 @@ import type {
   TerminateEmployeeContractData,
   RenewEmployeeContractData,
   CorrectEmployeeContractData,
+  CreateEmployeeEducationHistoryData,
+  UpdateEmployeeEducationHistoryData,
 } from "../types";
 
 export const employeeKeys = {
@@ -329,6 +331,302 @@ export function useCorrectActiveEmployeeContract() {
       });
       queryClient.invalidateQueries({
         queryKey: contractKeys.active(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+// Education history query keys
+export const educationKeys = {
+  all: ["employee-education"] as const,
+  lists: (employeeId: string) =>
+    [...educationKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeEducationHistories(
+  employeeId: string | undefined,
+) {
+  return useQuery({
+    queryKey: educationKeys.lists(employeeId ?? ""),
+    queryFn: () =>
+      employeeService.getEmployeeEducationHistories(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: CreateEmployeeEducationHistoryData;
+    }) =>
+      employeeService.createEmployeeEducationHistory(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      educationId,
+      data,
+    }: {
+      employeeId: string;
+      educationId: string;
+      data: UpdateEmployeeEducationHistoryData;
+    }) =>
+      employeeService.updateEmployeeEducationHistory(
+        employeeId,
+        educationId,
+        data,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeEducationHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      educationId,
+    }: {
+      employeeId: string;
+      educationId: string;
+    }) =>
+      employeeService.deleteEmployeeEducationHistory(
+        employeeId,
+        educationId,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: educationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+// Certification query keys
+export const certificationKeys = {
+  all: ["employee-certification"] as const,
+  lists: (employeeId: string) =>
+    [...certificationKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeCertifications(
+  employeeId: string | undefined,
+) {
+  return useQuery({
+    queryKey: certificationKeys.lists(employeeId ?? ""),
+    queryFn: () =>
+      employeeService.getEmployeeCertifications(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: import("../types").CreateEmployeeCertificationData;
+    }) => employeeService.createEmployeeCertification(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      certId,
+      data,
+    }: {
+      employeeId: string;
+      certId: string;
+      data: import("../types").UpdateEmployeeCertificationData;
+    }) =>
+      employeeService.updateEmployeeCertification(
+        employeeId,
+        certId,
+        data,
+      ),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      certId,
+    }: {
+      employeeId: string;
+      certId: string;
+    }) =>
+      employeeService.deleteEmployeeCertification(employeeId, certId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: certificationKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+// --- Employee Asset Hooks ---
+
+export const assetKeys = {
+  all: ["employee-asset"] as const,
+  lists: (employeeId: string) =>
+    [...assetKeys.all, "list", employeeId] as const,
+};
+
+export function useEmployeeAssets(employeeId: string | undefined) {
+  return useQuery({
+    queryKey: assetKeys.lists(employeeId ?? ""),
+    queryFn: () => employeeService.getEmployeeAssets(employeeId!),
+    enabled: !!employeeId,
+  });
+}
+
+export function useCreateEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: import("../types").CreateEmployeeAssetData;
+    }) => employeeService.createEmployeeAsset(employeeId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useUpdateEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+      data,
+    }: {
+      employeeId: string;
+      assetId: string;
+      data: import("../types").UpdateEmployeeAssetData;
+    }) => employeeService.updateEmployeeAsset(employeeId, assetId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useReturnEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+      data,
+    }: {
+      employeeId: string;
+      assetId: string;
+      data: import("../types").ReturnEmployeeAssetData;
+    }) => employeeService.returnEmployeeAsset(employeeId, assetId, data),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      assetId,
+    }: {
+      employeeId: string;
+      assetId: string;
+    }) => employeeService.deleteEmployeeAsset(employeeId, assetId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: assetKeys.lists(employeeId),
       });
       queryClient.invalidateQueries({
         queryKey: employeeKeys.detail(employeeId),

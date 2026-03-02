@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	"gorm.io/gorm"
 )
@@ -48,7 +49,7 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 	// 1. Check L1 Cache (Memory)
 	if item, ok := s.l1Cache.Load(roleCode); ok {
 		cached := item.(l1CacheItem)
-		if time.Now().Before(cached.expiresAt) {
+		if apptime.Now().Before(cached.expiresAt) {
 			return cached.permissions, nil
 		}
 		s.l1Cache.Delete(roleCode)
@@ -66,7 +67,7 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 				// Populate L1
 				s.l1Cache.Store(roleCode, l1CacheItem{
 					permissions: perms,
-					expiresAt:   time.Now().Add(s.l1TTL),
+					expiresAt:   apptime.Now().Add(s.l1TTL),
 				})
 				return perms, nil
 			}
@@ -96,7 +97,7 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 	// Update L1
 	s.l1Cache.Store(roleCode, l1CacheItem{
 		permissions: perms,
-		expiresAt:   time.Now().Add(s.l1TTL),
+		expiresAt:   apptime.Now().Add(s.l1TTL),
 	})
 
 	return perms, nil
@@ -107,7 +108,7 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 	// 1. Check L1 Scope Cache (Memory)
 	if item, ok := s.l1ScopeCache.Load(roleCode); ok {
 		cached := item.(l1ScopeCacheItem)
-		if time.Now().Before(cached.expiresAt) {
+		if apptime.Now().Before(cached.expiresAt) {
 			return cached.permissions, nil
 		}
 		s.l1ScopeCache.Delete(roleCode)
@@ -125,7 +126,7 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 				// Populate L1
 				s.l1ScopeCache.Store(roleCode, l1ScopeCacheItem{
 					permissions: perms,
-					expiresAt:   time.Now().Add(s.l1TTL),
+					expiresAt:   apptime.Now().Add(s.l1TTL),
 				})
 				return perms, nil
 			}
@@ -181,7 +182,7 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 
 	s.l1ScopeCache.Store(roleCode, l1ScopeCacheItem{
 		permissions: perms,
-		expiresAt:   time.Now().Add(s.l1TTL),
+		expiresAt:   apptime.Now().Add(s.l1TTL),
 	})
 
 	return perms, nil

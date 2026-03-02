@@ -26,6 +26,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeRepo := repositories.NewEmployeeRepository(db)
 	employeeAreaRepo := repositories.NewEmployeeAreaRepository(db)
 	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
+	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
+	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
+	assetRepo := repositories.NewEmployeeAssetRepository(db)
 
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
@@ -36,7 +39,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeRepo for GetFormData endpoint.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)

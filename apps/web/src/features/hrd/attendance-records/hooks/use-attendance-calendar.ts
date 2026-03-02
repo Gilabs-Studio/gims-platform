@@ -7,6 +7,7 @@ import {
   useUpdateAttendanceRecord,
   useDeleteAttendanceRecord,
 } from "./use-attendance-records";
+import { useHolidaysByYear } from "../../holidays/hooks/use-holidays";
 import { toast } from "sonner";
 import type { AttendanceRecordFormData } from "../schemas/attendance.schema";
 import type { CalendarEvent } from "../types";
@@ -43,6 +44,21 @@ export function useAttendanceCalendar() {
     date_to: format(endDate, "yyyy-MM-dd"),
     per_page: 100, // Get all records for the month
   });
+
+  // Fetch holidays for the current calendar year
+  const currentYear = currentDate.getFullYear();
+  const { data: holidaysData } = useHolidaysByYear(currentYear);
+
+  // Build a Map<dateKey, { name, type }> for quick holiday lookup
+  const holidays = useMemo(() => {
+    const map = new Map<string, { name: string; type: string }>();
+    if (holidaysData?.data) {
+      for (const holiday of holidaysData.data) {
+        map.set(holiday.date, { name: holiday.name, type: holiday.type });
+      }
+    }
+    return map;
+  }, [holidaysData]);
 
   const createAttendanceRecord = useCreateAttendanceRecord();
   const updateAttendanceRecord = useUpdateAttendanceRecord();
@@ -197,6 +213,7 @@ export function useAttendanceCalendar() {
     selectedDate,
     selectedDateEvents,
     events,
+    holidays,
     isLoading,
     selectedEvent,
     editingEvent,

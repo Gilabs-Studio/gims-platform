@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -30,8 +31,8 @@ func parseDateOrDefault(c *gin.Context, key string, def time.Time) time.Time {
 }
 
 func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate)
 	if err != nil {
@@ -42,8 +43,8 @@ func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate)
 	if err != nil {
@@ -54,8 +55,8 @@ func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	res, err := h.uc.GetProfitAndLoss(c.Request.Context(), startDate, endDate)
 	if err != nil {
@@ -66,8 +67,8 @@ func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	bytes, err := h.uc.ExportGeneralLedger(c.Request.Context(), startDate, endDate)
 	if err != nil {
@@ -81,8 +82,8 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate)
 	if err != nil {
@@ -96,8 +97,8 @@ func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) ExportProfitAndLoss(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", time.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", time.Now())
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 
 	bytes, err := h.uc.ExportProfitAndLoss(c.Request.Context(), startDate, endDate)
 	if err != nil {

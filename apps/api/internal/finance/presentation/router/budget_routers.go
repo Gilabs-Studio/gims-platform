@@ -20,6 +20,8 @@ func RegisterBudgetRoutes(r *gin.RouterGroup, h *handler.BudgetHandler) {
 	g.GET("/", middleware.RequirePermission(budgetRead), h.List)
 	g.POST("", middleware.RequirePermission(budgetCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(budgetCreate), h.Create)
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(budgetRead), h.GetFormData)
 	g.GET("/:id", middleware.RequirePermission(budgetRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(budgetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(budgetDelete), h.Delete)

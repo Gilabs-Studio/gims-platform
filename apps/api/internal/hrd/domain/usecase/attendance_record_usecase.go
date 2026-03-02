@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -28,11 +29,15 @@ var (
 	ErrOutsideGPSRadius   = errors.New("you are outside the allowed GPS radius")
 	ErrNotWorkingDay      = errors.New("today is not a working day")
 	ErrHolidayNoCheckIn   = errors.New("cannot check in on holiday")
+	ErrHolidayNoCheckOut  = errors.New("cannot check out on holiday")
+	ErrOffDayNoCheckOut   = errors.New("cannot check out on off day")
 )
 
 // AttendanceRecordUsecase defines the interface for attendance record business logic
 type AttendanceRecordUsecase interface {
 	List(ctx context.Context, req *dto.ListAttendanceRecordsRequest) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error)
+	// ListSelf returns attendance history for the authenticated employee, resolving userID → employeeID.
+	ListSelf(ctx context.Context, req *dto.ListAttendanceRecordsRequest, userID string) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.AttendanceRecordResponse, error)
 	GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error)
 	ClockIn(ctx context.Context, employeeID string, req *dto.ClockInRequest) (*dto.AttendanceRecordResponse, error)
@@ -41,13 +46,21 @@ type AttendanceRecordUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateAttendanceRecordRequest) (*dto.AttendanceRecordResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest) ([]dto.MonthlyAttendanceStats, error)
+	// GetSelfMonthlyStats returns monthly stats for the authenticated employee, resolving userID → employeeID.
+	GetSelfMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest, userID string) ([]dto.MonthlyAttendanceStats, error)
 	GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error)
+	// GetEmployeeSchedule returns the work schedule assigned to an employee (via division or default fallback).
+	GetEmployeeSchedule(ctx context.Context, employeeID string) (*dto.EmployeeScheduleResponse, error)
+	// ProcessAutoAbsent creates ABSENT/LEAVE records for employees who didn't clock in on the given date.
+	// companyID scopes the processing to a single company's timezone and holidays ("" = all employees, global holidays).
+	ProcessAutoAbsent(ctx context.Context, date time.Time, companyID string) (*dto.AutoAbsentResult, error)
 }
 
 type attendanceRecordUsecase struct {
 	attendanceRepo   repositories.AttendanceRecordRepository
 	workScheduleRepo repositories.WorkScheduleRepository
 	holidayRepo      repositories.HolidayRepository
+	leaveRequestRepo repositories.LeaveRequestRepository
 	employeeRepo     orgRepos.EmployeeRepository
 	divisionRepo     orgRepos.DivisionRepository
 	mapper           *mapper.AttendanceRecordMapper
@@ -60,6 +73,7 @@ func NewAttendanceRecordUsecase(
 	attendanceRepo repositories.AttendanceRecordRepository,
 	workScheduleRepo repositories.WorkScheduleRepository,
 	holidayRepo repositories.HolidayRepository,
+	leaveRequestRepo repositories.LeaveRequestRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 	divisionRepo orgRepos.DivisionRepository,
 ) AttendanceRecordUsecase {
@@ -67,6 +81,7 @@ func NewAttendanceRecordUsecase(
 		attendanceRepo:   attendanceRepo,
 		workScheduleRepo: workScheduleRepo,
 		holidayRepo:      holidayRepo,
+		leaveRequestRepo: leaveRequestRepo,
 		employeeRepo:     employeeRepo,
 		divisionRepo:     divisionRepo,
 		mapper:           mapper.NewAttendanceRecordMapper(),
@@ -148,7 +163,7 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 
 func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Get today's attendance record
 	ar, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -162,18 +177,20 @@ func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employ
 		return nil, err
 	}
 
-	// Check if today is a holiday
-	isHoliday, holiday, err := u.holidayRepo.IsHoliday(ctx, today)
+	// Check if today is a holiday (company-scoped)
+	companyID := u.resolveCompanyID(ctx, employeeID)
+	isHoliday, holiday, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
 	if err != nil {
 		return nil, err
 	}
 
-	return u.mapper.ToTodayResponse(ar, ws, isHoliday, holiday, u.wsMapper, u.holidayMapper), nil
+	empLoc := apptime.LocationForEmployee(employeeID)
+	return u.mapper.ToTodayResponse(ar, ws, isHoliday, holiday, u.wsMapper, u.holidayMapper, empLoc), nil
 }
 
 func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string, req *dto.ClockInRequest) (*dto.AttendanceRecordResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Check if already checked in
 	existing, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -198,8 +215,9 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		}
 	}
 
-	// Check if holiday
-	isHoliday, _, err := u.holidayRepo.IsHoliday(ctx, today)
+	// Check if holiday (company-scoped)
+	companyID := u.resolveCompanyID(ctx, employeeID)
+	isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -221,13 +239,14 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 	}
 
 	// Calculate late minutes
-	now := time.Now()
+	empLoc := apptime.LocationForEmployee(employeeID)
+	now := time.Now().In(empLoc)
 	lateMinutes := 0
 
 	// Parse schedule start time
 	scheduleStart, _ := time.Parse("15:04", ws.StartTime)
 	scheduleStartToday := time.Date(today.Year(), today.Month(), today.Day(),
-		scheduleStart.Hour(), scheduleStart.Minute(), 0, 0, today.Location())
+		scheduleStart.Hour(), scheduleStart.Minute(), 0, 0, empLoc)
 
 	// Add tolerance
 	scheduleStartToday = scheduleStartToday.Add(time.Duration(ws.LateToleranceMinutes) * time.Minute)
@@ -279,7 +298,7 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 
 func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID string, req *dto.ClockOutRequest) (*dto.AttendanceRecordResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Get today's attendance
 	ar, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -298,10 +317,29 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 		return nil, ErrAlreadyCheckedOut
 	}
 
+	// Check if today is a holiday (block clock-out on holidays for normal check-in)
+	if ar.CheckInType == models.CheckInTypeNormal {
+		companyID := u.resolveCompanyID(ctx, employeeID)
+		isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
+		if err != nil {
+			return nil, err
+		}
+		if isHoliday {
+			return nil, ErrHolidayNoCheckOut
+		}
+
+		// Check if today is a working day via schedule
+		ws, _ := u.getScheduleForEmployee(ctx, employeeID)
+		if ws != nil && !ws.IsWorkingDay(int(today.Weekday())) {
+			return nil, ErrOffDayNoCheckOut
+		}
+	}
+
 	// Get work schedule
 	ws, _ := u.workScheduleRepo.FindByID(ctx, ar.WorkScheduleID)
 
-	now := time.Now()
+	empLoc := apptime.LocationForEmployee(employeeID)
+	now := time.Now().In(empLoc)
 	ar.CheckOutTime = &now
 	ar.CheckOutLatitude = req.Latitude
 	ar.CheckOutLongitude = req.Longitude
@@ -315,7 +353,7 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 	if ws != nil {
 		scheduleEnd, _ := time.Parse("15:04", ws.EndTime)
 		scheduleEndToday := time.Date(today.Year(), today.Month(), today.Day(),
-			scheduleEnd.Hour(), scheduleEnd.Minute(), 0, 0, today.Location())
+			scheduleEnd.Hour(), scheduleEnd.Minute(), 0, 0, empLoc)
 
 		// Subtract tolerance
 		scheduleEndToday = scheduleEndToday.Add(-time.Duration(ws.EarlyLeaveToleranceMinutes) * time.Minute)
@@ -504,8 +542,9 @@ func (u *attendanceRecordUsecase) GetMonthlyStats(ctx context.Context, req *dto.
 		return nil, err
 	}
 
-	// Calculate working days in month
-	firstDay := time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, time.Local)
+	// Calculate working days in month (using employee's timezone)
+	empLoc := apptime.LocationForEmployee(req.EmployeeID)
+	firstDay := time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, empLoc)
 	lastDay := firstDay.AddDate(0, 1, -1)
 	workingDays := 0
 	for d := firstDay; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
@@ -517,6 +556,22 @@ func (u *attendanceRecordUsecase) GetMonthlyStats(ctx context.Context, req *dto.
 	formattedStats := u.mapper.ToMonthlyStats(stats, workingDays)
 
 	return []dto.MonthlyAttendanceStats{*formattedStats}, nil
+}
+
+// ListSelf returns the attendance history for the currently authenticated employee.
+// It resolves the provided userID to the actual employee ID before querying.
+func (u *attendanceRecordUsecase) ListSelf(ctx context.Context, req *dto.ListAttendanceRecordsRequest, userID string) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error) {
+	// Resolve userID → employeeID so the DB filter matches the correct row.
+	req.EmployeeID = u.resolveEmployeeID(ctx, userID)
+	return u.List(ctx, req)
+}
+
+// GetSelfMonthlyStats returns monthly attendance statistics for the currently authenticated employee.
+// It resolves the provided userID to the actual employee ID before querying.
+func (u *attendanceRecordUsecase) GetSelfMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest, userID string) ([]dto.MonthlyAttendanceStats, error) {
+	// Resolve userID → employeeID.
+	req.EmployeeID = u.resolveEmployeeID(ctx, userID)
+	return u.GetMonthlyStats(ctx, req)
 }
 
 // calculateDistance calculates distance between two GPS coordinates in meters using Haversine formula
@@ -545,6 +600,16 @@ func (u *attendanceRecordUsecase) resolveEmployeeID(ctx context.Context, userIDO
 		return emp.ID
 	}
 	return userIDOrEmployeeID
+}
+
+// resolveCompanyID returns the company ID for the given employee.
+// Returns "" if the employee has no company assigned (falls back to global).
+func (u *attendanceRecordUsecase) resolveCompanyID(ctx context.Context, employeeID string) string {
+	emp, err := u.employeeRepo.FindByID(ctx, employeeID)
+	if err != nil || emp == nil || emp.CompanyID == nil {
+		return ""
+	}
+	return *emp.CompanyID
 }
 
 // buildEmployeeMap batch-fetches employees by IDs and builds a lookup map
@@ -597,6 +662,32 @@ func (u *attendanceRecordUsecase) getScheduleForEmployee(ctx context.Context, em
 
 	// Fallback to default schedule
 	return u.workScheduleRepo.FindDefault(ctx)
+}
+
+// GetEmployeeSchedule returns the work schedule for a specific employee
+func (u *attendanceRecordUsecase) GetEmployeeSchedule(ctx context.Context, employeeID string) (*dto.EmployeeScheduleResponse, error) {
+	ws, err := u.getScheduleForEmployee(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("no work schedule found for employee: %w", err)
+	}
+
+	result := &dto.EmployeeScheduleResponse{
+		ID:         ws.ID,
+		Name:       ws.Name,
+		StartTime:  ws.StartTime,
+		EndTime:    ws.EndTime,
+		IsFlexible: ws.IsFlexible,
+	}
+	if ws.FlexibleStartTime != "" {
+		flexStart := ws.FlexibleStartTime
+		result.FlexibleStartTime = &flexStart
+	}
+	if ws.FlexibleEndTime != "" {
+		flexEnd := ws.FlexibleEndTime
+		result.FlexibleEndTime = &flexEnd
+	}
+
+	return result, nil
 }
 
 // GetFormData returns form data for attendance management (manual entry)
@@ -675,4 +766,152 @@ func (u *attendanceRecordUsecase) GetFormData(ctx context.Context) (*dto.Attenda
 		CheckInTypes: checkInTypes,
 		Statuses:     statuses,
 	}, nil
+}
+
+// ProcessAutoAbsent creates ABSENT/LEAVE attendance records for employees who didn't clock in
+// on the given date. It respects holidays, approved leaves, off-days, and existing records.
+// When companyID is non-empty, only employees of that company are processed and holiday checks
+// are company-scoped. When empty, all employees are processed with global holiday checks.
+func (u *attendanceRecordUsecase) ProcessAutoAbsent(ctx context.Context, date time.Time, companyID string) (*dto.AutoAbsentResult, error) {
+	empLoc := apptime.LocationForCompany(companyID)
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, empLoc)
+	result := &dto.AutoAbsentResult{
+		Date: dateOnly.Format("2006-01-02"),
+	}
+
+	// 1. Check if the date is a holiday — skip entirely (company-scoped)
+	isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, dateOnly, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check holiday: %w", err)
+	}
+	if isHoliday {
+		result.HolidaySkipped = true
+		return result, nil
+	}
+
+	// 2. Get all active employees
+	employees, err := u.employeeRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch employees: %w", err)
+	}
+	result.TotalEmployees = len(employees)
+
+	if len(employees) == 0 {
+		return result, nil
+	}
+
+	// 3. Collect employee IDs for batch queries
+	employeeIDs := make([]string, len(employees))
+	employeeMap := make(map[string]*orgModels.Employee, len(employees))
+	for i, emp := range employees {
+		employeeIDs[i] = emp.ID
+		e := emp // copy to avoid pointer reuse
+		employeeMap[emp.ID] = &e
+	}
+
+	// 4. Batch: find which employees already have attendance records
+	existingIDs, err := u.attendanceRepo.GetAbsentEmployeesForDate(ctx, dateOnly, employeeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing records: %w", err)
+	}
+	// GetAbsentEmployeesForDate returns employees WITHOUT records, so we need the inverse
+	// Actually, it returns IDs of absent employees (those NOT in attendance records).
+	// We need to know who DOES have a record. Let's build a set of those who DON'T.
+	absentSet := make(map[string]bool, len(existingIDs))
+	for _, id := range existingIDs {
+		absentSet[id] = true
+	}
+
+	// 5. Batch: find approved leaves for this date
+	leaveMap, err := u.leaveRequestRepo.FindApprovedByDateForEmployees(ctx, dateOnly, employeeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check leave requests: %w", err)
+	}
+
+	// 6. Cache work schedules by division to avoid repeated lookups
+	scheduleCache := make(map[string]*models.WorkSchedule)
+	var defaultSchedule *models.WorkSchedule
+
+	getSchedule := func(emp *orgModels.Employee) *models.WorkSchedule {
+		if emp.DivisionID != nil && *emp.DivisionID != "" {
+			if ws, ok := scheduleCache[*emp.DivisionID]; ok {
+				return ws
+			}
+			ws, err := u.workScheduleRepo.FindByDivisionID(ctx, *emp.DivisionID)
+			if err == nil {
+				scheduleCache[*emp.DivisionID] = ws
+				return ws
+			}
+		}
+		// Fallback to default
+		if defaultSchedule == nil {
+			ws, err := u.workScheduleRepo.FindDefault(ctx)
+			if err == nil {
+				defaultSchedule = ws
+			}
+		}
+		return defaultSchedule
+	}
+
+	// 7. Process each employee
+	for _, empID := range employeeIDs {
+		// Skip if employee already has a record for this date
+		if !absentSet[empID] {
+			result.Skipped++
+			continue
+		}
+
+		emp := employeeMap[empID]
+
+		// Check work schedule — skip if not a working day
+		ws := getSchedule(emp)
+		if ws == nil {
+			result.Skipped++
+			continue
+		}
+		if !ws.IsWorkingDay(int(dateOnly.Weekday())) {
+			result.Skipped++
+			continue
+		}
+
+		// Check if employee has approved leave
+		if lr, hasLeave := leaveMap[empID]; hasLeave {
+			// Create LEAVE record
+			leaveID := lr.ID
+			ar := &models.AttendanceRecord{
+				ID:             uuid.New().String(),
+				EmployeeID:     empID,
+				Date:           dateOnly,
+				Status:         models.AttendanceStatusLeave,
+				WorkScheduleID: ws.ID,
+				LeaveRequestID: &leaveID,
+				IsManualEntry:  true,
+				Notes:          "Auto-generated: employee on approved leave",
+			}
+			if err := u.attendanceRepo.Create(ctx, ar); err != nil {
+				result.Errors++
+				continue
+			}
+			result.LeaveCreated++
+			continue
+		}
+
+		// Create ABSENT record
+		ar := &models.AttendanceRecord{
+			ID:             uuid.New().String(),
+			EmployeeID:     empID,
+			Date:           dateOnly,
+			Status:         models.AttendanceStatusAbsent,
+			WorkScheduleID: ws.ID,
+			IsManualEntry:  true,
+			Notes:          "Auto-generated: no clock-in recorded",
+		}
+		if err := u.attendanceRepo.Create(ctx, ar); err != nil {
+			result.Errors++
+			continue
+		}
+		result.AbsentCreated++
+	}
+
+	return result, nil
 }

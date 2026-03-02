@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"gorm.io/gorm"
 )
@@ -130,7 +131,7 @@ func (r *recruitmentRequestRepositoryImpl) GenerateRequestCode(ctx context.Conte
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	now := time.Now()
+	now := apptime.Now()
 	prefix := fmt.Sprintf("RR-%s", now.Format("200601"))
 
 	var count int64

@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -161,8 +161,8 @@ func (r *yearlyTargetRepository) Update(ctx context.Context, yt *models.YearlyTa
 		if len(yt.MonthlyTargets) > 0 {
 			for i := range yt.MonthlyTargets {
 				yt.MonthlyTargets[i].YearlyTargetID = yt.ID
-				yt.MonthlyTargets[i].CreatedAt = time.Now()
-				yt.MonthlyTargets[i].UpdatedAt = time.Now()
+				yt.MonthlyTargets[i].CreatedAt = apptime.Now()
+				yt.MonthlyTargets[i].UpdatedAt = apptime.Now()
 				if err := tx.Create(&yt.MonthlyTargets[i]).Error; err != nil {
 					return err
 				}

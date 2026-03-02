@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/data/models"
 	"gorm.io/gorm"
 )
@@ -59,7 +59,7 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 		UserAgent:      userAgent,
 		Metadata:       string(metaJSON),
 		ResultStatus:   "success", // Default to success if logged after action
-		CreatedAt:      time.Now(),
+		CreatedAt:      apptime.Now(),
 	}
 
 	// Synchronous write to ensure audit trail consistency.

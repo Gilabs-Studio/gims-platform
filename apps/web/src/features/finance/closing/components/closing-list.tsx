@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus, RotateCcw, CalendarCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import type { FinancialClosing } from "../types";
-import { useApproveFinanceClosing, useFinanceClosings } from "../hooks/use-finance-closing";
+import { useApproveFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
 import { ClosingForm } from "./closing-form";
 import { ClosingDetail } from "./closing-detail";
 
@@ -59,6 +61,8 @@ export function ClosingList() {
 
   const canCreate = useUserPermission("financial_closing.create");
   const canApprove = useUserPermission("financial_closing.approve");
+  const canReopen = useUserPermission("financial_closing.reopen");
+  const canYearEnd = useUserPermission("financial_closing.year_end");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -67,6 +71,8 @@ export function ClosingList() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
+  const [reopening, setReopening] = useState<FinancialClosing | null>(null);
+  const [yearEndOpen, setYearEndOpen] = useState(false);
 
   const { data, isLoading, isError } = useFinanceClosings({
     page,
@@ -79,6 +85,8 @@ export function ClosingList() {
   const pagination = data?.meta?.pagination;
 
   const approveMutation = useApproveFinanceClosing();
+  const reopenMutation = useReopenFinanceClosing();
+  const yearEndMutation = useYearEndClose();
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
@@ -93,10 +101,18 @@ export function ClosingList() {
         </div>
 
         {canCreate && (
-          <Button onClick={() => setFormOpen(true)} className="cursor-pointer">
-            <Plus className="h-4 w-4 mr-2" />
-            {t("actions.create")}
-          </Button>
+          <div className="flex items-center gap-2">
+            {canYearEnd && (
+              <Button variant="outline" onClick={() => setYearEndOpen(true)} className="cursor-pointer">
+                <CalendarCheck className="h-4 w-4 mr-2" />
+                {t("actions.yearEndClose")}
+              </Button>
+            )}
+            <Button onClick={() => setFormOpen(true)} className="cursor-pointer">
+              <Plus className="h-4 w-4 mr-2" />
+              {t("actions.create")}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -160,6 +176,15 @@ export function ClosingList() {
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
+                        {canReopen && item.status === "approved" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            onClick={() => setReopening(item)}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            {t("actions.reopen")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -209,6 +234,41 @@ export function ClosingList() {
         }}
         isLoading={approveMutation.isPending}
       />
+
+      <DialogConfirm
+        open={!!reopening}
+        onOpenChange={(open) => {
+          if (!open) setReopening(null);
+        }}
+        title={t("actions.reopen")}
+        onConfirm={async () => {
+          const id = reopening?.id ?? "";
+          if (!id) return;
+          try {
+            await reopenMutation.mutateAsync(id);
+            toast.success(t("toast.reopened"));
+            setReopening(null);
+          } catch {
+            toast.error(t("toast.failed"));
+          }
+        }}
+        isLoading={reopenMutation.isPending}
+      />
+
+      <DialogYearEndClose
+        open={yearEndOpen}
+        onOpenChange={setYearEndOpen}
+        onConfirm={async (fiscalYear: number) => {
+          try {
+            await yearEndMutation.mutateAsync(fiscalYear);
+            toast.success(t("toast.yearEndClosed"));
+            setYearEndOpen(false);
+          } catch {
+            toast.error(t("toast.failed"));
+          }
+        }}
+        isLoading={yearEndMutation.isPending}
+      />
     </div>
   );
 }
@@ -237,6 +297,81 @@ function DialogApprove({
           </Button>
           <Button type="button" onClick={onConfirm} className="cursor-pointer" disabled={isLoading}>
             {t("actions.approve")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogConfirm({
+  open,
+  onOpenChange,
+  title,
+  onConfirm,
+  isLoading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  onConfirm: () => Promise<void>;
+  isLoading: boolean;
+}) {
+  const t = useTranslations("financeClosing");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
+            {t("form.cancel")}
+          </Button>
+          <Button type="button" onClick={onConfirm} className="cursor-pointer" disabled={isLoading}>
+            {title}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogYearEndClose({
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (fiscalYear: number) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const t = useTranslations("financeClosing");
+  const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("actions.yearEndClose")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          <Label>{t("fields.fiscalYear")}</Label>
+          <Input
+            type="number"
+            min={2000}
+            max={2100}
+            value={fiscalYear}
+            onChange={(e) => setFiscalYear(Number(e.target.value))}
+          />
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
+            {t("form.cancel")}
+          </Button>
+          <Button type="button" onClick={() => onConfirm(fiscalYear)} className="cursor-pointer" disabled={isLoading}>
+            {t("actions.yearEndClose")}
           </Button>
         </DialogFooter>
       </DialogContent>

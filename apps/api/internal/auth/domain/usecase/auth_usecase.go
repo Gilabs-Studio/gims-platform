@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/auth/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -130,7 +130,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		refreshTokenEntity := &refreshTokenModels.RefreshToken{
 			UserID:    user.ID,
 			TokenID:   tokenID,
-			ExpiresAt: time.Now().Add(u.jwtManager.RefreshTokenTTL()),
+			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
 			Revoked:   false,
 		}
 
@@ -193,7 +193,7 @@ func (u *authUsecase) publishLoginEvent(ctx context.Context, userID, email, role
 		RoleCode:   roleCode,
 		IPAddress:  ipAddress,
 		UserAgent:  userAgent,
-		LoggedInAt: time.Now(),
+		LoggedInAt: apptime.Now(),
 	}))
 }
 
@@ -297,7 +297,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 		newRefreshTokenEntity := &refreshTokenModels.RefreshToken{
 			UserID:    user.ID,
 			TokenID:   newTokenID,
-			ExpiresAt: time.Now().Add(u.jwtManager.RefreshTokenTTL()),
+			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
 			Revoked:   false,
 		}
 
@@ -333,7 +333,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			UserID:      user.ID,
 			OldTokenID:  tokenID,
 			NewTokenID:  newTokenID,
-			RefreshedAt: time.Now(),
+			RefreshedAt: apptime.Now(),
 		}))
 
 		return nil
@@ -366,7 +366,7 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 		
 		// Publish logout event (async, fire-and-forget)
 		u.eventPublisher.PublishAsync(ctx, events.NewUserLoggedOutEvent(ctx, events.UserLoggedOutPayload{
-			LoggedOutAt: time.Now(),
+			LoggedOutAt: apptime.Now(),
 		}))
 		
 		return nil

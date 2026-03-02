@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -115,7 +116,7 @@ func ToRecruitmentRequestModel(req *dto.CreateRecruitmentRequestDTO, id, request
 		ID:                id,
 		RequestCode:       requestCode,
 		RequestedByID:     requestedByID,
-		RequestDate:       time.Now(),
+		RequestDate:       apptime.Now(),
 		DivisionID:        req.DivisionID,
 		PositionID:        req.PositionID,
 		RequiredCount:     req.RequiredCount,

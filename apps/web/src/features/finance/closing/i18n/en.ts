@@ -6,6 +6,7 @@ export const financeClosingEn = {
     status: "Status",
     notes: "Notes",
     approvedAt: "Approved at",
+    fiscalYear: "Fiscal Year",
   },
   status: {
     draft: "Draft",
@@ -14,6 +15,8 @@ export const financeClosingEn = {
   actions: {
     create: "Create",
     approve: "Approve",
+    reopen: "Reopen",
+    yearEndClose: "Year-End Close",
     view: "View Detail",
   },
   detail_title: "Closing Analysis Detail",
@@ -31,6 +34,8 @@ export const financeClosingEn = {
   toast: {
     created: "Closing created",
     approved: "Closing approved",
+    reopened: "Closing reopened",
+    yearEndClosed: "Year-end closing completed",
     failed: "Action failed",
   },
 };

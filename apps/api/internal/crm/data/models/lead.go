@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
@@ -82,7 +83,7 @@ func (l *Lead) BeforeCreate(tx *gorm.DB) error {
 
 // generateLeadCode creates auto-generated code: LEAD-YYYYMM-XXXXX
 func generateLeadCode(tx *gorm.DB) string {
-	now := time.Now()
+	now := apptime.Now()
 	prefix := fmt.Sprintf("LEAD-%s", now.Format("200601"))
 
 	var count int64

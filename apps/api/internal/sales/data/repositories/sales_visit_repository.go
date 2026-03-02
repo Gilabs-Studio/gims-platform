@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -278,7 +279,7 @@ func (r *salesVisitRepository) Create(ctx context.Context, visit *models.SalesVi
 			ToStatus:     visit.Status,
 			Notes:        "Visit created",
 			ChangedBy:    visit.CreatedBy,
-			CreatedAt:    time.Now(),
+			CreatedAt:    apptime.Now(),
 		}
 		if err := tx.Create(&initialHistory).Error; err != nil {
 			return err
@@ -304,8 +305,8 @@ func (r *salesVisitRepository) Update(ctx context.Context, visit *models.SalesVi
 		if len(visit.Details) > 0 {
 			for i := range visit.Details {
 				visit.Details[i].SalesVisitID = visit.ID
-				visit.Details[i].CreatedAt = time.Now()
-				visit.Details[i].UpdatedAt = time.Now()
+				visit.Details[i].CreatedAt = apptime.Now()
+				visit.Details[i].UpdatedAt = apptime.Now()
 				if err := tx.Create(&visit.Details[i]).Error; err != nil {
 					return err
 				}

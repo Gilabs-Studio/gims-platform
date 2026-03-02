@@ -18,6 +18,7 @@ type CreateCompanyRequest struct {
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
+	Timezone   string   `json:"timezone" binding:"omitempty,max=50"`
 	IsActive   *bool    `json:"is_active"`
 }
 
@@ -37,6 +38,7 @@ type UpdateCompanyRequest struct {
 	Latitude   *float64 `json:"latitude" binding:"omitempty"`
 	Longitude  *float64 `json:"longitude" binding:"omitempty"`
 	DirectorID *string  `json:"director_id" binding:"omitempty,uuid"`
+	Timezone   string   `json:"timezone" binding:"omitempty,max=50"`
 	IsActive   *bool    `json:"is_active"`
 }
 
@@ -84,6 +86,7 @@ type CompanyResponse struct {
 	Longitude  *float64                       `json:"longitude"`
 	Village    *geographicDto.VillageResponse `json:"village,omitempty"`
 	DirectorID *string                        `json:"director_id"`
+	Timezone   string                         `json:"timezone"`
 	Status     string                      `json:"status"`
 	IsApproved bool                        `json:"is_approved"`
 	CreatedBy  *string                     `json:"created_by"`

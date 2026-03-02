@@ -190,6 +190,22 @@ export interface FormOption {
   readonly label: string;
 }
 
+// Employee work schedule response
+export interface EmployeeScheduleData {
+  readonly id: string;
+  readonly name: string;
+  readonly start_time: string;
+  readonly end_time: string;
+  readonly is_flexible: boolean;
+  readonly flexible_start_time?: string;
+  readonly flexible_end_time?: string;
+}
+
+export interface EmployeeScheduleResponse {
+  readonly success: boolean;
+  readonly data: EmployeeScheduleData;
+}
+
 // API response wrappers
 export interface AttendanceRecordListResponse {
   readonly success: boolean;

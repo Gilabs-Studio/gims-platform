@@ -55,6 +55,12 @@ export const hrdEn = {
     attendance: {
       title: "Attendance",
       description: "Manage employee attendance records",
+      historyTitle: "Attendance History",
+      historySubtitle: "View your attendance calendar and leave requests",
+      historyAction: "Attendance History",
+      requestLeaveAction: "Request Leave",
+      calendarTab: "Calendar",
+      leaveTab: "Leave Request",
       clockIn: "Clock In",
       clockOut: "Clock Out",
       clockedIn: "Clocked In",
@@ -62,6 +68,8 @@ export const hrdEn = {
       today: "Today's Attendance",
       notClockedIn: "Not clocked in yet",
       alreadyClockedOut: "Already clocked out",
+      holiday: "Holiday",
+      offDay: "Day Off",
       myStats: "My Attendance Statistics",
       monthlyStats: "Monthly Statistics",
       loading: "Loading...",
@@ -144,8 +152,11 @@ export const hrdEn = {
         selectCheckInType: "Select check-in type",
         checkInTime: "Check In Time",
         checkInTimeDesc: "Time when employee checked in",
+        checkInTimeDisabled: "Not applicable for this status",
         checkOutTime: "Check Out Time",
         checkOutTimeDesc: "Time when employee checked out",
+        checkOutTimeDisabled: "Not applicable for this status",
+        scheduleHint: "Based on schedule: {name} ({startTime} - {endTime})",
         reason: "Reason",
         reasonPlaceholder: "Explain the reason for this manual entry...",
         reasonDesc: "Optional reason for manual attendance entries",
@@ -156,6 +167,11 @@ export const hrdEn = {
         submitting: "Submitting...",
         update: "Update Record",
         create: "Create Record",
+        holidayWarningTitle: "Holiday Date Selected",
+        holidayWarningDesc:
+          "The selected date ({date}) is a holiday: {name}. Are you sure you want to create an attendance record on this date?",
+        holidayWarningDescWithType:
+          "The selected date ({date}) is a holiday: {name} ({type}). Are you sure you want to create an attendance record on this date?",
       },
 
       // Actions
@@ -243,6 +259,8 @@ export const hrdEn = {
         officeLatitude: "Office Latitude",
         officeLongitude: "Office Longitude",
         division: "Division",
+        officeLocation: "Office Location",
+        coordinates: "Coordinates",
         isActive: "Active",
         isDefault: "Default",
       },
@@ -259,11 +277,21 @@ export const hrdEn = {
         workingDays: "Working Days",
         tolerance: "Tolerance",
         gpsSettings: "GPS Settings",
+        assignment: "Assignment",
       },
 
       descriptions: {
         flexible: "Enable flexible working hours with a range of allowed start and end times",
         gps: "Require employees to clock in/out within the specified GPS radius of the office",
+        division: "Assign this schedule to a specific division, or leave empty for a general schedule",
+        officeLocation: "Select a company to use its GPS coordinates for attendance verification",
+      },
+
+      placeholders: {
+        selectDivision: "Select division",
+        allDivisions: "All Divisions (General)",
+        selectCompany: "Select company location",
+        manualCoordinates: "Enter coordinates manually",
       },
 
       days: {

@@ -74,6 +74,38 @@ if err != nil {
 }
 ```
 
+### Timezone & `apptime` (CRITICAL)
+
+**NEVER use bare `time.Now()` in business logic.** Always use the `apptime` package.
+
+```go
+// ❌ WRONG — timezone depends on OS/container
+now := time.Now()
+
+// ✅ CORRECT — uses configured application timezone
+now := apptime.Now()
+
+// ✅ CORRECT — per-employee timezone (HRD module)
+now := apptime.NowForEmployee(employeeID)
+loc := apptime.LocationForEmployee(employeeID)
+
+// ✅ CORRECT — per-company timezone
+now := apptime.NowForCompany(companyID)
+```
+
+**Rules:**
+- Import: `"github.com/gilabs/gims/api/internal/core/apptime"`
+- Global helpers: `Now()`, `Today()`, `StartOfMonth()`, `Location()`
+- Per-company: `NowForCompany()`, `LocationForCompany()`, `TodayForCompany()`
+- Per-employee: `NowForEmployee()`, `LocationForEmployee()`, `TodayForEmployee()`, `StartOfMonthForEmployee()`
+- HRD module **must** use per-employee/company functions for attendance, leave, overtime
+- Holiday queries **must** use company-scoped methods: `IsHolidayForCompany()`, `FindByDateRangeForCompany()`
+- DB timestamp columns in HRD use `timestamptz` (not `timestamp`)
+- DSN includes `TimeZone=UTC` for consistent storage
+- Company model has `Timezone` field (IANA string, default `Asia/Jakarta`)
+- Holiday model has `CompanyID` (nullable UUID): NULL = global, non-NULL = company-specific
+- Docs: `docs/features/core/apptime-timezone-support.md`
+
 ### Architecture (Vertical Slice)
 
 ```
@@ -218,3 +250,4 @@ Required:
 - Standards: `.cursor/rules/standart.mdc`
 - Copilot: `.github/copilot-instructions.md`
 - API Standards: `docs/api-standart/README.md`
+- Timezone/apptime: `docs/features/core/apptime-timezone-support.md`

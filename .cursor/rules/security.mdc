@@ -742,3 +742,13 @@ router.Use(
 - [ ] HTTPS enforced
 - [ ] Database not publicly accessible
 - [ ] Secrets stored in secure vault (not code)
+
+### **Timezone Security**
+- [ ] Never use bare `time.Now()` — always use `apptime.Now()` / `apptime.NowForCompany()` / `apptime.NowForEmployee()`
+- [ ] HRD timestamp columns use `timestamptz` (not `timestamp`) for timezone-aware storage
+- [ ] DSN includes `TimeZone=UTC` for consistent storage across all connections
+- [ ] `APP_TIMEZONE` environment variable set to valid IANA timezone (default `Asia/Jakarta`)
+- [ ] Company `Timezone` field validated as valid IANA timezone string on create/update
+- [ ] Holiday scoping uses `(company_id IS NULL OR company_id = ?)` — never skip company filter
+- [ ] Per-employee timezone resolved via employee → company chain (never hardcoded)
+- [ ] Docs: `docs/features/core/apptime-timezone-support.md`

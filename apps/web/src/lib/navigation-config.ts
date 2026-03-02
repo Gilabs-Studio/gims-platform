@@ -137,7 +137,15 @@ export const navigationConfig: NavItem[] = [
         icon: "book-open",
         children: [
           { name: "Chart of Accounts", url: "/finance/coa", icon: "book-open", permission: "coa.read" },
-          { name: "Journal Entries", url: "/finance/journals", icon: "file-text", permission: "journal.read" },
+          {
+            name: "Journal",
+            url: "/finance/journal",
+            icon: "book-open",
+            children: [
+              { name: "Journal Entries", url: "/finance/journals", icon: "file-text", permission: "journal.read" },
+              { name: "Journal Lines", url: "/finance/journal-lines", icon: "table", permission: "journal_line.read" },
+            ],
+          },
           { name: "Financial Closing", url: "/finance/closing", icon: "shield-check", permission: "financial_closing.read" },
         ],
       },
@@ -186,9 +194,9 @@ export const navigationConfig: NavItem[] = [
         url: "/finance/statements",
         icon: "bar-chart-3",
         children: [
-          { name: "General Ledger", url: "/finance/reports/general-ledger", icon: "book-open", permission: "finance_report.gl" },
-          { name: "Balance Sheet", url: "/finance/reports/balance-sheet", icon: "scale", permission: "finance_report.bs" },
-          { name: "Profit & Loss", url: "/finance/reports/profit-loss", icon: "trending-up", permission: "finance_report.pl" },
+          { name: "General Ledger", url: "/finance/reports/general-ledger", icon: "book-open", permission: "general_ledger_report.read" },
+          { name: "Balance Sheet", url: "/finance/reports/balance-sheet", icon: "scale", permission: "balance_sheet_report.read" },
+          { name: "Profit & Loss", url: "/finance/reports/profit-loss", icon: "trending-up", permission: "profit_loss_report.read" },
         ],
       },
     ],
@@ -200,17 +208,6 @@ export const navigationConfig: NavItem[] = [
     children: [
       { name: "Attendance", url: "/hrd/attendance", icon: "clock", permission: "attendance.read" },
       { name: "Leave Requests", url: "/hrd/leave-requests", icon: "calendar", permission: "leave_request.read" },
-      {
-        name: "Employee Documents",
-        url: "/hrd/documents",
-        icon: "folder",
-        children: [
-          { name: "Contracts", url: "/hrd/contracts", icon: "file-text", permission: "employee_contract.read" },
-          { name: "Education History", url: "/hrd/education", icon: "graduation-cap", permission: "education_history.read" },
-          { name: "Certifications", url: "/hrd/certifications", icon: "file-check", permission: "certification.read" },
-          { name: "Employee Assets", url: "/hrd/employee-assets", icon: "box", permission: "employee_asset.read" },
-        ],
-      },
       { name: "Evaluation", url: "/hrd/evaluation", icon: "check-square", permission: "evaluation.read" },
       { name: "Recruitment", url: "/hrd/recruitment", icon: "user-plus", permission: "recruitment.read" },
       { name: "Work Schedule", url: "/hrd/work-schedule", icon: "calendar-check", permission: "work_schedule.read" },

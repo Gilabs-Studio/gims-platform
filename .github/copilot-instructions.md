@@ -60,6 +60,49 @@ Each feature in `apps/web/src/features/<feature>/` follows:
   - Business: `INSUFFICIENT_STOCK`, custom per domain
 - **Timestamps**: ISO 8601 with WIB timezone (UTC+7)
 
+### Timezone & `apptime` Rules (CRITICAL — NO EXCEPTIONS)
+
+**NEVER use bare `time.Now()` in Go backend business logic.** Always use the `apptime` package.
+
+```go
+// ❌ WRONG — timezone depends on OS/container
+now := time.Now()
+
+// ✅ CORRECT — uses configured application timezone (global)
+now := apptime.Now()
+
+// ✅ CORRECT — per-company timezone
+now := apptime.NowForCompany(companyID)
+loc := apptime.LocationForCompany(companyID)
+
+// ✅ CORRECT — per-employee timezone (resolves via employee → company)
+now := apptime.NowForEmployee(employeeID)
+loc := apptime.LocationForEmployee(employeeID)
+```
+
+**Import**: `"github.com/gilabs/gims/api/internal/core/apptime"`
+
+**Per-Company Timezone Architecture**:
+- Company model has `Timezone` field (IANA string, default `Asia/Jakarta`)
+- `CompanyTimezoneProvider` interface in `core/apptime/resolver.go`, implementation in `organization/data/repositories/timezone_provider.go`
+- In-memory cache with 5-min TTL for timezone lookups
+- Holiday model has `CompanyID` (nullable UUID): NULL = global, non-NULL = company-specific
+
+**When to use which function**:
+| Function | Use Case |
+|---|---|
+| `apptime.Now()` | Non-HRD global logic, logging, generic timestamps |
+| `apptime.NowForCompany(id)` | Company-specific business rules |
+| `apptime.NowForEmployee(id)` | HRD: attendance, leave, overtime |
+| `apptime.LocationForEmployee(id)` | When you need the `*time.Location` for date math |
+| `apptime.TodayForEmployee(id)` | Date-only comparisons in HRD |
+
+**Holiday Scoping**: Always use `IsHolidayForCompany()` / `FindByDateRangeForCompany()` with `(company_id IS NULL OR company_id = ?)`
+
+**DB Column Rules**: HRD timestamp columns use `timestamptz` (not `timestamp`), DSN includes `TimeZone=UTC`
+
+**Docs**: `docs/features/core/apptime-timezone-support.md`
+
 ### Frontend Component Rules (NON-NEGOTIABLE)
 1. **NEVER** put business logic in components - extract to hooks
 2. **ALWAYS** use optional chaining (`?.`) and nullish coalescing (`??`)
@@ -398,6 +441,7 @@ STORAGE_MAX_UPLOAD_SIZE=10485760  # 10MB default
 - **Migration Guidelines**: `docs/MIGRATION_GUIDELINES.md` - Database model registration (CRITICAL for new models)
 - **Project Structure**: `TEMPLATE_STRUCTURE.md` - File organization
 - **Database Relations**: `docs/erp-database-relations.mmd` - ERD for all modules
+- **Timezone Support**: `docs/features/core/apptime-timezone-support.md` - Per-company timezone architecture & apptime usage
 
 ## Development Workflow (Step-by-Step)
 
@@ -628,6 +672,7 @@ if err := SeedMyEntities(); err != nil {
 - Template Structure: `TEMPLATE_STRUCTURE.md`
 - Security Rules: `.cursor/rules/security.mdc`
 - Project Standards: `.cursor/rules/standart.mdc`
+- Timezone/apptime: `docs/features/core/apptime-timezone-support.md`
 
 ## TypeScript/Styling Rules
 - **NEVER** use `any` type - use `unknown` with type guards

@@ -2,12 +2,20 @@ import apiClient from "@/lib/api-client";
 import type {
   WorkScheduleListResponse,
   WorkScheduleResponse,
+  WorkScheduleFormDataResponse,
   CreateWorkScheduleRequest,
   UpdateWorkScheduleRequest,
   DeleteResponse,
 } from "../types";
 
 export const workScheduleService = {
+  async getFormData(): Promise<WorkScheduleFormDataResponse> {
+    const response = await apiClient.get<WorkScheduleFormDataResponse>(
+      "/hrd/work-schedules/form-data",
+    );
+    return response.data;
+  },
+
   async list(params?: {
     page?: number;
     per_page?: number;

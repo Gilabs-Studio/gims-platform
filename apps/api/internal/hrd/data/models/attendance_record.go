@@ -37,7 +37,7 @@ type AttendanceRecord struct {
 	Date       time.Time `gorm:"type:date;not null;index" json:"date"`
 
 	// Check-in details
-	CheckInTime      *time.Time  `gorm:"type:timestamp" json:"check_in_time"`
+	CheckInTime      *time.Time  `gorm:"type:timestamptz" json:"check_in_time"`
 	CheckInType      CheckInType `gorm:"size:20;default:'NORMAL'" json:"check_in_type"`
 	CheckInLatitude  *float64    `gorm:"type:decimal(10,8)" json:"check_in_latitude"`
 	CheckInLongitude *float64    `gorm:"type:decimal(11,8)" json:"check_in_longitude"`
@@ -45,7 +45,7 @@ type AttendanceRecord struct {
 	CheckInNote      string      `gorm:"size:500" json:"check_in_note"`
 
 	// Check-out details
-	CheckOutTime      *time.Time `gorm:"type:timestamp" json:"check_out_time"`
+	CheckOutTime      *time.Time `gorm:"type:timestamptz" json:"check_out_time"`
 	CheckOutLatitude  *float64   `gorm:"type:decimal(10,8)" json:"check_out_latitude"`
 	CheckOutLongitude *float64   `gorm:"type:decimal(11,8)" json:"check_out_longitude"`
 	CheckOutAddress   string     `gorm:"size:500" json:"check_out_address"`

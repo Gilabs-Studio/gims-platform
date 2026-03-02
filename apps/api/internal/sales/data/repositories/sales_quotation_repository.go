@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -199,8 +199,8 @@ func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQ
 		if len(sq.Items) > 0 {
 			for i := range sq.Items {
 				sq.Items[i].SalesQuotationID = sq.ID
-				sq.Items[i].CreatedAt = time.Now()
-				sq.Items[i].UpdatedAt = time.Now()
+				sq.Items[i].CreatedAt = apptime.Now()
+				sq.Items[i].UpdatedAt = apptime.Now()
 				if err := tx.Create(&sq.Items[i]).Error; err != nil {
 					return err
 				}

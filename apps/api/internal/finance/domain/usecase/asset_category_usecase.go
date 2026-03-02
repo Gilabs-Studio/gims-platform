@@ -22,13 +22,14 @@ type AssetCategoryUsecase interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.AssetCategoryResponse, error)
 	List(ctx context.Context, req *dto.ListAssetCategoriesRequest) ([]dto.AssetCategoryResponse, int64, error)
+	GetFormData(ctx context.Context) (*dto.AssetCategoryFormDataResponse, error)
 }
 
 type assetCategoryUsecase struct {
-	db     *gorm.DB
+	db      *gorm.DB
 	coaRepo repositories.ChartOfAccountRepository
-	repo   repositories.AssetCategoryRepository
-	mapper *mapper.AssetCategoryMapper
+	repo    repositories.AssetCategoryRepository
+	mapper  *mapper.AssetCategoryMapper
 }
 
 func NewAssetCategoryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.AssetCategoryRepository, mapper *mapper.AssetCategoryMapper) AssetCategoryUsecase {
@@ -106,11 +107,11 @@ func (uc *assetCategoryUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	updates := map[string]interface{}{
-		"name":                               strings.TrimSpace(req.Name),
-		"depreciation_method":               req.DepreciationMethod,
-		"useful_life_months":                 req.UsefulLifeMonths,
-		"depreciation_rate":                 req.DepreciationRate,
-		"asset_account_id":                   strings.TrimSpace(req.AssetAccountID),
+		"name":                                strings.TrimSpace(req.Name),
+		"depreciation_method":                 req.DepreciationMethod,
+		"useful_life_months":                  req.UsefulLifeMonths,
+		"depreciation_rate":                   req.DepreciationRate,
+		"asset_account_id":                    strings.TrimSpace(req.AssetAccountID),
 		"accumulated_depreciation_account_id": strings.TrimSpace(req.AccumulatedDepreciationAccountID),
 		"depreciation_expense_account_id":     strings.TrimSpace(req.DepreciationExpenseAccountID),
 	}

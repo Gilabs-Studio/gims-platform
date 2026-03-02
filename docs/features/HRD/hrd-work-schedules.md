@@ -2,7 +2,7 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.1.0  
+> **Version:** 1.3.0  
 > **Status:** ✅ Complete (API + Frontend)  
 > **Last Updated:** February 2026
 
@@ -32,17 +32,19 @@ The Work Schedule Management sub-module allows administrators to create and mana
 
 ### Key Features
 
-| Feature                   | Description                                                          |
-| ------------------------- | -------------------------------------------------------------------- |
-| Fixed & Flexible Hours    | Supports standard 9-to-5 and flexible start/end time schedules       |
-| Division-Based Assignment | Assign schedules to specific divisions or set a company-wide default |
-| GPS Validation            | Configurable office coordinates and radius for clock-in validation   |
-| Working Days Bitmask      | Flexible working day selection (Mon-Fri, Mon-Sat, custom)            |
-| Tolerance Settings        | Grace periods for late arrival and early departure                   |
-| Multiple Break Times      | Support for multiple break periods throughout the day                |
-| Auto-Calculated Hours     | Working hours per day automatically calculated from start/end times  |
-| Default Schedule          | One schedule can be marked as the company-wide default               |
-| Detail Modal              | Click on schedule name to view detailed information                  |
+| Feature                   | Description                                                            |
+| ------------------------- | ---------------------------------------------------------------------- |
+| Fixed & Flexible Hours    | Supports standard 9-to-5 and flexible start/end time schedules         |
+| Division-Based Assignment | Assign schedules to specific divisions via division dropdown           |
+| Company-Based GPS         | Select a company to auto-populate GPS coordinates from company data    |
+| GPS Validation            | Configurable office coordinates and radius for clock-in validation     |
+| Working Days Bitmask      | Flexible working day selection (Mon-Fri, Mon-Sat, custom)              |
+| Tolerance Settings        | Grace periods for late arrival and early departure                     |
+| Multiple Break Times      | Support for multiple break periods throughout the day                  |
+| Auto-Calculated Hours     | Working hours per day automatically calculated from start/end times    |
+| Default Schedule          | One general (non-division) schedule can be marked as default           |
+| Form Data Endpoint        | Dedicated endpoint to fetch divisions and companies for form dropdowns |
+| Detail Modal              | Click on schedule name to view detailed information                    |
 
 ---
 
@@ -76,7 +78,8 @@ Working days are stored as a bitmask integer for efficient storage and querying:
 
 - **Require GPS**: Toggle GPS validation on/off per schedule (default: false)
 - **GPS Radius**: Allowed distance (meters) from office coordinates
-- **Office Location**: Latitude/longitude of the office for distance calculation
+- **Office Location**: Select a company to auto-populate latitude/longitude from company data, or enter coordinates manually
+- **Company-Based Coordinates**: When a company is selected, its GPS coordinates are used automatically for attendance validation
 
 ### Multiple Break Times
 
@@ -176,8 +179,10 @@ type BreakTime struct {
 ## Business Rules
 
 - **Only one default schedule** allowed across the entire system — setting a new default automatically unsets the previous one
+- **Default schedule restriction**: Only general (non-division) schedules can be set as default. Division-specific schedules cannot be set as default — the "Set as Default" button is hidden in the UI and the backend returns `CANNOT_SET_DIVISION_SCHEDULE_AS_DEFAULT` error if attempted via API
 - **Division-based lookup**: When an employee clocks in, the system first looks for a schedule assigned to their division; if none found, falls back to the default schedule
 - **GPS validation**: Only enforced for `NORMAL` check-in type (not for WFH or FIELD_WORK)
+- **Company-based GPS**: When GPS is required, coordinates can be auto-populated from a selected company's data instead of manual entry
 - **Late calculation**: `late_minutes = max(0, check_in_time - (start_time + late_tolerance_minutes))`
 - **Early leave calculation**: `early_leave_minutes = max(0, (end_time - early_leave_tolerance_minutes) - check_out_time)`
 - **Working minutes**: `working_minutes = check_out_time - check_in_time - total_break_minutes`
@@ -195,12 +200,13 @@ type BreakTime struct {
 | Method | Endpoint                                     | Permission           | Description                            |
 | ------ | -------------------------------------------- | -------------------- | -------------------------------------- |
 | GET    | `/api/v1/hrd/work-schedules`                 | work_schedule.read   | List schedules (paginated, filterable) |
+| GET    | `/api/v1/hrd/work-schedules/form-data`       | work_schedule.read   | Get form data (divisions + companies)  |
 | GET    | `/api/v1/hrd/work-schedules/default`         | work_schedule.read   | Get the default schedule               |
 | GET    | `/api/v1/hrd/work-schedules/:id`             | work_schedule.read   | Get schedule by ID                     |
 | POST   | `/api/v1/hrd/work-schedules`                 | work_schedule.create | Create a new schedule                  |
 | PUT    | `/api/v1/hrd/work-schedules/:id`             | work_schedule.update | Update a schedule                      |
 | DELETE | `/api/v1/hrd/work-schedules/:id`             | work_schedule.delete | Delete a schedule                      |
-| POST   | `/api/v1/hrd/work-schedules/:id/set-default` | work_schedule.update | Set a schedule as default              |
+| POST   | `/api/v1/hrd/work-schedules/:id/set-default` | work_schedule.update | Set a general schedule as default      |
 
 ### Request Body (Create/Update)
 
@@ -219,11 +225,35 @@ type BreakTime struct {
   "gps_radius_meter": 100,
   "office_latitude": -6.2088,
   "office_longitude": 106.8456,
-  "division_id": null
+  "division_id": null,
+  "company_id": null
 }
 ```
 
-**Note**: `working_hours_per_day` is auto-calculated from `start_time` and `end_time` and should not be sent in the request.
+**Notes**:
+
+- `working_hours_per_day` is auto-calculated from `start_time` and `end_time` and should not be sent in the request.
+- `company_id` is optional — if provided, the company's GPS coordinates are used for `office_latitude` and `office_longitude`.
+- The API response includes `division_name` (resolved from `division_id`), which is used for display in the list and detail views.
+
+### Response Body (Form Data)
+
+```json
+{
+  "success": true,
+  "data": {
+    "divisions": [{ "id": "uuid", "name": "Engineering" }],
+    "companies": [
+      {
+        "id": "uuid",
+        "name": "PT Example",
+        "latitude": -6.2088,
+        "longitude": 106.8456
+      }
+    ]
+  }
+}
+```
 
 ### Query Parameters (List)
 
@@ -242,12 +272,12 @@ type BreakTime struct {
 
 ### Work Schedules (`/hrd/work-schedules`)
 
-| Component                  | File                            | Description                                                       |
-| -------------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `WorkScheduleList`         | work-schedule-list.tsx          | Paginated table with CRUD actions, default badge, clickable names |
-| `WorkScheduleDialog`       | work-schedule-dialog.tsx        | Create/Edit form dialog with all config fields                    |
-| `WorkScheduleDetailDialog` | work-schedule-detail-dialog.tsx | Read-only detail modal showing all schedule information           |
-| `WorkSchedulePageClient`   | work-schedule-page-client.tsx   | Page wrapper with animations                                      |
+| Component                  | File                            | Description                                                                            |
+| -------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `WorkScheduleList`         | work-schedule-list.tsx          | Paginated table with CRUD actions, default badge, **division column**, clickable names |
+| `WorkScheduleDialog`       | work-schedule-dialog.tsx        | Create/Edit form dialog with all config fields                                         |
+| `WorkScheduleDetailDialog` | work-schedule-detail-dialog.tsx | Read-only detail modal showing all schedule information                                |
+| `WorkSchedulePageClient`   | work-schedule-page-client.tsx   | Page wrapper with animations                                                           |
 
 **Features:**
 
@@ -255,12 +285,14 @@ type BreakTime struct {
 - Default schedule badge indicator
 - **Clickable schedule names** — opens detail modal
 - Create new schedule with flexible hours configuration
+- **Division selection dropdown** — assign schedule to a specific division or leave as general
+- **Company-based GPS** — select a company to auto-populate GPS coordinates, with manual fallback
 - Working days bitmask selector (Mon-Sun checkboxes)
 - **Multiple break times** — add/remove break periods dynamically
 - **Auto-calculated working hours** displayed in form
 - GPS location and radius configuration
 - Late/Early tolerance configuration
-- Set default schedule action (from dropdown menu)
+- Set default schedule action (only shown for general/non-division schedules)
 - Active/Inactive status toggle
 - View detail action in dropdown menu
 
@@ -270,6 +302,7 @@ The detail modal (`WorkScheduleDetailDialog`) displays:
 
 - Schedule name with default badge
 - Status badges (Active/Inactive, Flexible, GPS, Division)
+- **Assignment section** — displays division name or "All Divisions (General)"
 - Work hours (start/end times)
 - Flexible hours range (if enabled)
 - All break times listed
@@ -280,16 +313,20 @@ The detail modal (`WorkScheduleDetailDialog`) displays:
 
 ### Hooks (TanStack Query)
 
-| Hook               | File                  | Description              |
-| ------------------ | --------------------- | ------------------------ |
-| `useWorkSchedules` | use-work-schedules.ts | Schedule CRUD operations |
+| Hook                      | File                  | Description                                      |
+| ------------------------- | --------------------- | ------------------------------------------------ |
+| `useWorkSchedules`        | use-work-schedules.ts | Schedule CRUD operations                         |
+| `useWorkScheduleFormData` | use-work-schedules.ts | Fetch divisions and companies for form dropdowns |
 
 ### i18n Keys
 
 Translations under `hrd.workSchedule`:
 
 - `title`, `description` — Page headers
-- `fields.*` — Form field labels (name, startTime, endTime, etc.)
+- `fields.*` — Form field labels (name, startTime, division, officeLocation, coordinates, etc.)
+- `placeholders.*` — Form placeholders (selectDivision, allDivisions, selectCompany, manualCoordinates)
+- `sections.*` — Section headers (workHours, breakTime, workingDays, tolerance, gpsSettings, assignment)
+- `descriptions.*` — Field descriptions (flexible, gps, division, officeLocation)
 - `workingDaysOptions.*` — Preset working day labels
 - `days.*` — Day abbreviations (Mon, Tue, etc.)
 - `actions.*` — Action buttons (create, edit, delete, view)
@@ -375,6 +412,12 @@ Flexible Hours:
 ### With Form Data Endpoint
 
 - Active schedules are returned in the `GET /hrd/attendance/form-data` response for dropdown selection
+- `GET /hrd/work-schedules/form-data` returns active divisions and active companies (with coordinates) for the schedule form
+
+### With Company Module
+
+- Companies with GPS coordinates are available in the work schedule form for auto-populating office location
+- When a company is selected, its `latitude` and `longitude` are used as the schedule's GPS reference point
 
 ---
 
@@ -390,11 +433,15 @@ Flexible Hours:
 8. Verify **working hours per day** is auto-calculated and displayed
 9. Select working days via checkboxes
 10. Submit → should show success toast, schedule appears in list
-11. Test "Set as Default" from dropdown menu on a non-default schedule
-12. Verify the old default lost its badge
-13. Test GPS settings: enable GPS and set coordinates/radius
-14. Test "View" from dropdown menu → detail modal should open
-15. Verify schedule is used during attendance clock-in for associated division
+11. **Select a Division** from the dropdown → verify it saves correctly
+12. **Select a Company** for GPS → verify latitude/longitude auto-populate
+13. Test "Manual Coordinates" option → verify manual lat/lng fields appear
+14. Test "Set as Default" from dropdown menu on a **general** (non-division) schedule
+15. Verify the old default lost its badge
+16. Verify "Set as Default" button is **hidden** for division-assigned schedules
+17. Test GPS settings: enable GPS and set coordinates/radius
+18. Test "View" from dropdown menu → detail modal should open
+19. Verify schedule is used during attendance clock-in for associated division
 
 ---
 
@@ -421,6 +468,12 @@ Flexible Hours:
 - **Mengapa custom Breaks type dengan Value/Scan methods**:
   PostgreSQL JSONB tidak bisa langsung di-scan ke slice struct. Dengan implementasi driver.Valuer dan sql.Scanner, GORM bisa handle konversi JSONB ↔ Go struct secara otomatis.
 
+- **Mengapa company-based GPS (bukan manual input)**:
+  Koordinat kantor sudah ada di data company. Dengan menggunakan data company, mengurangi human error dari salah input koordinat manual, dan memastikan konsistensi antara lokasi kantor dan GPS validation.
+
+- **Mengapa set-default dibatasi untuk jadwal tanpa divisi**:
+  Default schedule berfungsi sebagai fallback untuk seluruh karyawan. Schedule yang sudah di-assign ke divisi spesifik tidak seharusnya menjadi fallback general. Ini mencegah konflik logika lookup schedule.
+
 ---
 
 ## Notes & Improvements
@@ -434,14 +487,19 @@ Flexible Hours:
   - ✅ Added detail modal for viewing schedule information
   - ✅ Made schedule names clickable in list view
   - ✅ Fixed division_id null handling in edit form
+  - ✅ Added division selection dropdown in form (fetched via form-data endpoint)
+  - ✅ Added company-based GPS coordinates (auto-populate from company data)
+  - ✅ Created `GET /hrd/work-schedules/form-data` endpoint (returns divisions + companies)
+  - ✅ Restricted "Set as Default" to general (non-division) schedules only
+  - ✅ Added backend validation `ErrCannotSetDivisionScheduleAsDefault`
+  - ✅ Added i18n keys for new form fields (placeholders, descriptions)
 - **Future Improvement**:
   - Add shift schedule support (morning/afternoon/night shifts)
   - Add schedule calendar view to visualize division assignments
-  - Support multiple office locations per schedule
   - Add schedule effective date range (start/end date for schedule validity)
   - Add schedule override for specific dates (e.g., half-day on certain dates)
 
 ---
 
 _Document generated for GIMS Platform - Sprint 13: HRD Work Schedule Management_  
-_Updated: February 2026 - Version 1.1.0_
+_Updated: February 2026 - Version 1.2.0_

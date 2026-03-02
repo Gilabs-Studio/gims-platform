@@ -92,3 +92,26 @@ export const WORKING_DAYS = {
 
 export const WEEKDAYS_ONLY = 31; // Mon-Fri
 export const ALL_DAYS = 127; // Mon-Sun
+
+// Form data types for dropdowns
+export interface DivisionOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface CompanyOption {
+  readonly id: string;
+  readonly name: string;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+}
+
+export interface WorkScheduleFormData {
+  readonly divisions: DivisionOption[];
+  readonly companies: CompanyOption[];
+}
+
+export interface WorkScheduleFormDataResponse {
+  readonly success: boolean;
+  readonly data: WorkScheduleFormData;
+}

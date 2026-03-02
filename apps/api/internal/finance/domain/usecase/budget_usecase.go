@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -28,6 +29,7 @@ type BudgetUsecase interface {
 	List(ctx context.Context, req *dto.ListBudgetsRequest) ([]dto.BudgetResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.BudgetResponse, error)
 	SyncActuals(ctx context.Context, id string) (*dto.BudgetResponse, error)
+	GetFormData(ctx context.Context) (*dto.BudgetFormDataResponse, error)
 }
 
 type budgetUsecase struct {
@@ -371,7 +373,7 @@ func (uc *budgetUsecase) Approve(ctx context.Context, id string) (*dto.BudgetRes
 		return &resp, nil
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.Budget{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{

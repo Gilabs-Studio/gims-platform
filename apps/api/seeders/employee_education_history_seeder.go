@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/hrd/data/models"
+	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )

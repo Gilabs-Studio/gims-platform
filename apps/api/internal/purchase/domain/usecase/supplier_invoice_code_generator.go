@@ -3,8 +3,8 @@ package usecase
 import (
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
 )
@@ -16,13 +16,13 @@ func getNextSupplierInvoiceCodeLocked(tx *gorm.DB, prefix string) (string, error
 	for _, ch := range prefix {
 		lockKey += int64(ch)
 	}
-	lockKey = lockKey*100000 + int64(time.Now().YearDay())
+	lockKey = lockKey*100000 + int64(apptime.Now().YearDay())
 
 	if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", lockKey).Error; err != nil {
 		return "", err
 	}
 
-	datePart := time.Now().Format("20060102")
+	datePart := apptime.Now().Format("20060102")
 	like := fmt.Sprintf("%s-%s-%%", prefix, datePart)
 
 	var last string

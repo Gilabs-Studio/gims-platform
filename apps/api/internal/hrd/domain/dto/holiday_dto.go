@@ -4,14 +4,15 @@ package dto
 
 // CreateHolidayRequest represents the request to create a holiday
 type CreateHolidayRequest struct {
-	Date              string `json:"date" binding:"required"`              // YYYY-MM-DD
-	Name              string `json:"name" binding:"required,max=200"`
-	Description       string `json:"description" binding:"max=500"`
-	Type              string `json:"type" binding:"required,oneof=NATIONAL COLLECTIVE COMPANY"`
-	IsCollectiveLeave bool   `json:"is_collective_leave"`
-	CutsAnnualLeave   bool   `json:"cuts_annual_leave"`
-	IsRecurring       bool   `json:"is_recurring"`
-	IsActive          bool   `json:"is_active"`
+	Date              string  `json:"date" binding:"required"`              // YYYY-MM-DD
+	Name              string  `json:"name" binding:"required,max=200"`
+	Description       string  `json:"description" binding:"max=500"`
+	Type              string  `json:"type" binding:"required,oneof=NATIONAL COLLECTIVE COMPANY"`
+	IsCollectiveLeave bool    `json:"is_collective_leave"`
+	CutsAnnualLeave   bool    `json:"cuts_annual_leave"`
+	IsRecurring       bool    `json:"is_recurring"`
+	IsActive          bool    `json:"is_active"`
+	CompanyID         *string `json:"company_id" binding:"omitempty,uuid"`
 }
 
 // UpdateHolidayRequest represents the request to update a holiday
@@ -24,6 +25,7 @@ type UpdateHolidayRequest struct {
 	CutsAnnualLeave   *bool   `json:"cuts_annual_leave"`
 	IsRecurring       *bool   `json:"is_recurring"`
 	IsActive          *bool   `json:"is_active"`
+	CompanyID         *string `json:"company_id" binding:"omitempty,uuid"`
 }
 
 // ListHolidaysRequest represents the request to list holidays
@@ -36,6 +38,7 @@ type ListHolidaysRequest struct {
 	DateFrom  string `form:"date_from"`
 	DateTo    string `form:"date_to"`
 	IsActive  *bool  `form:"is_active"`
+	CompanyID string `form:"company_id" binding:"omitempty,uuid"`
 	SortBy    string `form:"sort_by"`
 	SortOrder string `form:"sort_order" binding:"omitempty,oneof=asc desc ASC DESC"`
 }
@@ -58,18 +61,19 @@ type HolidayCSVRow struct {
 
 // HolidayResponse represents the response for a holiday
 type HolidayResponse struct {
-	ID                string `json:"id"`
-	Date              string `json:"date"`
-	Name              string `json:"name"`
-	Description       string `json:"description"`
-	Type              string `json:"type"`
-	Year              int    `json:"year"`
-	IsCollectiveLeave bool   `json:"is_collective_leave"`
-	CutsAnnualLeave   bool   `json:"cuts_annual_leave"`
-	IsRecurring       bool   `json:"is_recurring"`
-	IsActive          bool   `json:"is_active"`
-	CreatedAt         string `json:"created_at"`
-	UpdatedAt         string `json:"updated_at"`
+	ID                string  `json:"id"`
+	Date              string  `json:"date"`
+	Name              string  `json:"name"`
+	Description       string  `json:"description"`
+	Type              string  `json:"type"`
+	Year              int     `json:"year"`
+	IsCollectiveLeave bool    `json:"is_collective_leave"`
+	CutsAnnualLeave   bool    `json:"cuts_annual_leave"`
+	IsRecurring       bool    `json:"is_recurring"`
+	IsActive          bool    `json:"is_active"`
+	CompanyID         *string `json:"company_id"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
 }
 
 // HolidayCalendarResponse represents holidays for calendar view

@@ -19,7 +19,9 @@ export const attendanceKeys = {
   detail: (id: string) => [...attendanceKeys.details(), id] as const,
   today: () => [...attendanceKeys.all, "today"] as const,
   myStats: (params?: Record<string, unknown>) => [...attendanceKeys.all, "my-stats", params] as const,
+  myHistory: (params?: Record<string, unknown>) => [...attendanceKeys.all, "my-history", params] as const,
   employeeStats: (id: string, params?: Record<string, unknown>) => [...attendanceKeys.all, "stats", id, params] as const,
+  employeeSchedule: (id: string) => [...attendanceKeys.all, "employee-schedule", id] as const,
   formData: () => [...attendanceKeys.all, "form-data"] as const,
 } as const;
 
@@ -66,12 +68,30 @@ export function useMyMonthlyStats(params?: { month?: number; year?: number }) {
   });
 }
 
+export function useMyAttendanceHistory(params?: ListAttendanceRecordsParams) {
+  return useQuery({
+    queryKey: attendanceKeys.myHistory(params),
+    queryFn: () => attendanceRecordService.getMyAttendanceHistory(params),
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
 // Form data hook - replaces useAttendanceRecordReport
 export function useAttendanceFormData() {
   return useQuery({
     queryKey: attendanceKeys.formData(),
     queryFn: () => attendanceRecordService.getFormData(),
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Employee schedule hook - fetches the work schedule assigned to an employee
+export function useEmployeeSchedule(employeeId: string) {
+  return useQuery({
+    queryKey: attendanceKeys.employeeSchedule(employeeId),
+    queryFn: () => attendanceRecordService.getEmployeeSchedule(employeeId),
+    enabled: !!employeeId,
+    staleTime: 1000 * 60 * 5,
   });
 }
 

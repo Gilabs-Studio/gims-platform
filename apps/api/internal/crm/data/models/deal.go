@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -90,7 +91,7 @@ func (d *Deal) BeforeCreate(tx *gorm.DB) error {
 
 // generateDealCode creates auto-generated code: DEAL-YYYYMM-XXXXX
 func generateDealCode(tx *gorm.DB) string {
-	now := time.Now()
+	now := apptime.Now()
 	prefix := fmt.Sprintf("DEAL-%s", now.Format("200601"))
 
 	var count int64
@@ -177,7 +178,7 @@ func (h *DealHistory) BeforeCreate(tx *gorm.DB) error {
 		h.ID = uuid.New().String()
 	}
 	if h.ChangedAt.IsZero() {
-		h.ChangedAt = time.Now()
+		h.ChangedAt = apptime.Now()
 	}
 	return nil
 }

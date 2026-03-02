@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -47,7 +48,7 @@ func (a *Activity) BeforeCreate(tx *gorm.DB) error {
 		a.ID = uuid.New().String()
 	}
 	if a.Timestamp.IsZero() {
-		a.Timestamp = time.Now()
+		a.Timestamp = apptime.Now()
 	}
 	return nil
 }

@@ -23,7 +23,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { useLogout } from "@/features/auth/hooks/use-logout";
-import { UserMenuAttendance } from "@/features/hrd/attendance-records/components/user-menu-attendance";
+import { HeaderAttendanceButton } from "@/features/hrd/attendance-records/components/header-attendance-button";
+import {
+  AttendanceRightDrawer,
+  type AttendanceDrawerTab,
+} from "@/features/hrd/attendance-records/components/attendance-right-drawer";
 import { CommandPalette } from "@/features/command-palette";
 import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
@@ -104,12 +108,14 @@ const Header = memo(function Header({
   fallbackAvatarUrl,
   onMobileMenuClick,
   showAttendanceIndicator = false,
+  onOpenAttendanceDrawer,
 }: {
   userName: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
   showAttendanceIndicator?: boolean;
+  onOpenAttendanceDrawer: (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("common");
@@ -189,6 +195,7 @@ const Header = memo(function Header({
       </div>
 
       <div className="ml-auto flex items-center gap-1 overflow-visible">
+        <HeaderAttendanceButton onOpenDrawer={onOpenAttendanceDrawer} />
         <NotificationBadge />
         <ThemeToggle />
 
@@ -255,8 +262,6 @@ const Header = memo(function Header({
                   {userName}
                 </div>
               </div>
-              <Separator className="my-1" />
-              <UserMenuAttendance />
               <Separator className="my-1" />
               <div className="flex flex-col gap-1">
                 <Link
@@ -562,6 +567,9 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, []);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
+  const [attendanceDrawerTab, setAttendanceDrawerTab] = useState<AttendanceDrawerTab>("calendar");
+  const [openCreateLeaveSignal, setOpenCreateLeaveSignal] = useState(0);
 
   // Persist sidebar state
   useEffect(() => {
@@ -762,6 +770,17 @@ export const DashboardLayout = memo(function DashboardLayout({
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
   const isFullScreenMapPage = pathname?.includes("/master-data/company") || pathname?.includes("/master-data/suppliers") || pathname?.includes("/master-data/warehouses") || pathname?.includes("/master-data/customers") || pathname?.includes("/master-data/areas") || pathname?.includes("/master-data/geographic");
 
+  const handleOpenAttendanceDrawer = useCallback(
+    (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {
+      setAttendanceDrawerTab(tab);
+      setIsAttendanceDrawerOpen(true);
+      if (tab === "leave" && openCreateLeave) {
+        setOpenCreateLeaveSignal((prev) => prev + 1);
+      }
+    },
+    []
+  );
+
   // Check if current parent has children (should show detail sidebar)
   const shouldShowDetailSidebar = useMemo(() => {
     if (!activeParentId || !isMounted) return false;
@@ -833,6 +852,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 fallbackAvatarUrl={fallbackAvatarUrl}
                 onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
                 showAttendanceIndicator={showAttendanceIndicator}
+                onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
               />
             )}
 
@@ -850,6 +870,13 @@ export const DashboardLayout = memo(function DashboardLayout({
 
         {/* Notification Drawer */}
         <NotificationDrawer open={isDrawerOpen} onOpenChange={closeDrawer} />
+
+        <AttendanceRightDrawer
+          open={isAttendanceDrawerOpen}
+          onOpenChange={setIsAttendanceDrawerOpen}
+          initialTab={attendanceDrawerTab}
+          openCreateLeaveSignal={openCreateLeaveSignal}
+        />
 
         {/* Command Palette */}
         <CommandPalette />

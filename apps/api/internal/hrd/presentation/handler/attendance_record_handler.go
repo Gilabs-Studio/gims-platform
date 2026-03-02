@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"time"
+
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -63,6 +66,50 @@ func (h *AttendanceRecordHandler) List(c *gin.Context) {
 	}
 	if req.DateTo != "" {
 		meta.Filters["date_to"] = req.DateTo
+	}
+
+	response.SuccessResponse(c, records, meta)
+}
+
+// ListMyAttendance handles self attendance history for authenticated employee.
+// It uses ListSelf which resolves user_id → employee_id internally.
+func (h *AttendanceRecordHandler) ListMyAttendance(c *gin.Context) {
+	var req dto.ListAttendanceRecordsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	// Prefer employee_id from context; fall back to user_id.
+	// ListSelf will resolve whichever value is provided to the actual employee_id.
+	userID, exists := c.Get("employee_id")
+	if !exists {
+		userID, exists = c.Get("user_id")
+		if !exists {
+			errors.UnauthorizedResponse(c, "User not authenticated")
+			return
+		}
+	}
+
+	records, pagination, err := h.attendanceUC.ListSelf(c.Request.Context(), &req, userID.(string))
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
 	}
 
 	response.SuccessResponse(c, records, meta)
@@ -196,6 +243,14 @@ func (h *AttendanceRecordHandler) ClockOut(c *gin.Context) {
 			errors.ErrorResponse(c, "ALREADY_CHECKED_OUT", map[string]interface{}{
 				"message": "You have already checked out for today",
 			}, nil)
+		case usecase.ErrHolidayNoCheckOut:
+			errors.ErrorResponse(c, "HOLIDAY_NO_CHECK_OUT", map[string]interface{}{
+				"message": "Cannot check out on a holiday",
+			}, nil)
+		case usecase.ErrOffDayNoCheckOut:
+			errors.ErrorResponse(c, "OFF_DAY_NO_CHECK_OUT", map[string]interface{}{
+				"message": "Cannot check out on an off day",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}
@@ -283,7 +338,9 @@ func (h *AttendanceRecordHandler) Delete(c *gin.Context) {
 	}, nil)
 }
 
-// GetMonthlyStats handles get monthly attendance statistics request
+// GetMonthlyStats handles get monthly attendance statistics request.
+// When no employee_id is provided in the query (self-service path) it resolves the
+// authenticated user_id → employee_id via GetSelfMonthlyStats.
 func (h *AttendanceRecordHandler) GetMonthlyStats(c *gin.Context) {
 	var req dto.MonthlyReportRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -295,19 +352,26 @@ func (h *AttendanceRecordHandler) GetMonthlyStats(c *gin.Context) {
 		return
 	}
 
-	// If no employee ID provided, use current user
+	// Self-service path: no employee_id in query → resolve from auth context.
 	if req.EmployeeID == "" {
-		employeeID, exists := c.Get("employee_id")
+		userID, exists := c.Get("employee_id")
 		if !exists {
-			employeeID, exists = c.Get("user_id")
+			userID, exists = c.Get("user_id")
 			if !exists {
 				errors.UnauthorizedResponse(c, "User not authenticated")
 				return
 			}
 		}
-		req.EmployeeID = employeeID.(string)
+		stats, err := h.attendanceUC.GetSelfMonthlyStats(c.Request.Context(), &req, userID.(string))
+		if err != nil {
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+		response.SuccessResponse(c, stats, nil)
+		return
 	}
 
+	// Admin path: employee_id explicitly provided.
 	stats, err := h.attendanceUC.GetMonthlyStats(c.Request.Context(), &req)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
@@ -326,4 +390,51 @@ func (h *AttendanceRecordHandler) GetFormData(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, formData, nil)
+}
+
+// GetEmployeeSchedule handles get employee work schedule request
+func (h *AttendanceRecordHandler) GetEmployeeSchedule(c *gin.Context) {
+	employeeID := c.Param("employeeId")
+	if employeeID == "" {
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	schedule, err := h.attendanceUC.GetEmployeeSchedule(c.Request.Context(), employeeID)
+	if err != nil {
+		errors.NotFoundResponse(c, "EMPLOYEE_SCHEDULE_NOT_FOUND", "No work schedule found for this employee")
+		return
+	}
+
+	response.SuccessResponse(c, schedule, nil)
+}
+
+// ProcessAutoAbsent handles manual trigger of auto-absent processing
+func (h *AttendanceRecordHandler) ProcessAutoAbsent(c *gin.Context) {
+	var req dto.ProcessAutoAbsentRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		// Also try JSON body
+		_ = c.ShouldBindJSON(&req)
+	}
+
+	var targetDate time.Time
+	if req.Date != "" {
+		parsed, err := time.Parse("2006-01-02", req.Date)
+		if err != nil {
+			errors.InvalidRequestBodyResponse(c)
+			return
+		}
+		targetDate = parsed
+	} else {
+		// Default to yesterday
+		targetDate = apptime.Now().AddDate(0, 0, -1)
+	}
+
+	result, err := h.attendanceUC.ProcessAutoAbsent(c.Request.Context(), targetDate, "")
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
 }

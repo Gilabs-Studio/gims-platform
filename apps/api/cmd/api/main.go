@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -52,10 +53,12 @@ import (
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
 	hrdPresentation "github.com/gilabs/gims/api/internal/hrd/presentation"
+	hrdWorker "github.com/gilabs/gims/api/internal/hrd/worker"
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
 	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
@@ -78,6 +81,9 @@ func initInfrastructure() {
 	if err := config.Load(); err != nil {
 		log.Fatal("Failed to load config:", err)
 	}
+
+	// Initialize application timezone (must be before any time-dependent logic)
+	apptime.Init(config.AppConfig.Server.Timezone)
 
 	// Connect to database
 	if err := database.Connect(); err != nil {
@@ -112,6 +118,12 @@ func initInfrastructure() {
 	} else {
 		log.Println("Skipping seeders (RUN_SEEDERS=false)")
 	}
+
+	// Register per-company timezone provider so apptime can resolve
+	// employee/company-specific timezones from the database.
+	// WHY: Must be after migrations+seeders so the companies table exists.
+	tzProvider := orgRepos.NewCompanyTimezoneProvider(database.DB)
+	apptime.RegisterProvider(tzProvider)
 }
 
 func setupJWT() *jwt.JWTManager {
@@ -302,6 +314,12 @@ func main() {
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Start auto-absent worker (runs daily at startup + every 24 hours)
+		// Create a CompanyTimezoneProvider so the worker can iterate companies per-timezone.
+		workerTzProvider := orgRepos.NewCompanyTimezoneProvider(database.DB)
+		autoAbsentWorker := hrdWorker.NewAutoAbsentWorker(hrdDeps.AttendanceUC, 24*time.Hour, workerTzProvider)
+		autoAbsentWorker.Start()
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 

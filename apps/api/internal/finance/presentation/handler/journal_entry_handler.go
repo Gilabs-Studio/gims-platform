@@ -108,6 +108,25 @@ func (h *JournalEntryHandler) Post(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *JournalEntryHandler) Reverse(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Reverse(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_REVERSE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *JournalEntryHandler) GetFormData(c *gin.Context) {
+	res, err := h.uc.GetFormData(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "JOURNAL_FORM_DATA_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *JournalEntryHandler) TrialBalance(c *gin.Context) {
 	var startDate *time.Time
 	if v := strings.TrimSpace(c.Query("start_date")); v != "" {

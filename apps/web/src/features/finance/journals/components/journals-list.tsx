@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   useDeleteFinanceJournal,
   useFinanceJournals,
   usePostFinanceJournal,
+  useReverseFinanceJournal,
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
@@ -73,6 +74,7 @@ export function JournalsList() {
   const canUpdate = useUserPermission("journal.update");
   const canDelete = useUserPermission("journal.delete");
   const canPost = useUserPermission("journal.post");
+  const canReverse = useUserPermission("journal.reverse");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -110,6 +112,7 @@ export function JournalsList() {
 
   const deleteMutation = useDeleteFinanceJournal();
   const postMutation = usePostFinanceJournal();
+  const reverseMutation = useReverseFinanceJournal();
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
@@ -277,6 +280,22 @@ export function JournalsList() {
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             {t("actions.delete")}
+                          </DropdownMenuItem>
+                        )}
+                        {canReverse && item.status === "posted" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            onClick={async () => {
+                              try {
+                                await reverseMutation.mutateAsync(item.id);
+                                toast.success(t("toast.reversed"));
+                              } catch {
+                                toast.error(t("toast.failed"));
+                              }
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            {t("actions.reverse")}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

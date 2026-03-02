@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, Clock, User, Plus, Edit } from "lucide-react";
+import { ArrowLeft, Clock, User, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ interface AttendanceDayViewProps {
   readonly onBack: () => void;
   readonly onEventClick: (event: CalendarEvent) => void;
   readonly onEdit?: (event: CalendarEvent) => void;
-  readonly onCreateNew: () => void;
   readonly canEdit?: boolean;
 }
 
@@ -65,19 +64,18 @@ export function AttendanceDayView({
   onBack,
   onEventClick,
   onEdit,
-  onCreateNew,
   canEdit = false,
 }: AttendanceDayViewProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Day View Header */}
-      <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+      <div className="flex items-center border-b border-border bg-card px-6 py-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={onBack}
-            className="h-8 w-8"
+            className="h-8 w-8 cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -90,11 +88,6 @@ export function AttendanceDayView({
             </p>
           </div>
         </div>
-
-        <Button onClick={onCreateNew} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Record
-        </Button>
       </div>
 
       {/* Events List */}
@@ -109,10 +102,6 @@ export function AttendanceDayView({
               <p className="mt-1 text-sm text-muted-foreground">
                 No attendance records for this date
               </p>
-              <Button onClick={onCreateNew} size="sm" className="mt-4">
-                <Plus className="mr-2 h-4 w-4" />
-                Add First Record
-              </Button>
             </Card>
           ) : (
             <div className="space-y-3">

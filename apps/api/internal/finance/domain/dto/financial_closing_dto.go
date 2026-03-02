@@ -42,3 +42,8 @@ type FinancialClosingAnalysisResponse struct {
 	Closing FinancialClosingResponse      `json:"closing"`
 	Rows    []FinancialClosingAnalysisRow `json:"rows"`
 }
+
+// YearEndCloseRequest represents the request to perform year-end closing.
+type YearEndCloseRequest struct {
+	FiscalYear int `json:"fiscal_year" binding:"required,min=2000,max=2100"`
+}

@@ -11,6 +11,17 @@ type CreateLeaveRequestDTO struct {
 	AttachmentURL *string `json:"attachment_url" binding:"omitempty,url"`
 }
 
+// CreateMyLeaveRequestDTO represents self-service leave request payload.
+// EmployeeID is resolved from authenticated user context.
+type CreateMyLeaveRequestDTO struct {
+	LeaveTypeID   string  `json:"leave_type_id" binding:"required,uuid"`
+	StartDate     string  `json:"start_date" binding:"required"` // Format: YYYY-MM-DD
+	EndDate       string  `json:"end_date" binding:"required"`   // Format: YYYY-MM-DD
+	Duration      string  `json:"duration" binding:"required,oneof=FULL_DAY HALF_DAY MULTI_DAY"`
+	Reason        string  `json:"reason" binding:"required,min=10,max=1000"`
+	AttachmentURL *string `json:"attachment_url" binding:"omitempty,url"`
+}
+
 // UpdateLeaveRequestDTO represents the request to update a leave request
 // WHY: All fields are optional (pointers) to support partial updates
 type UpdateLeaveRequestDTO struct {

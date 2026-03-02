@@ -70,7 +70,8 @@ func (m *AttendanceRecordMapper) ToResponseList(records []models.AttendanceRecor
 	return responses
 }
 
-// ToTodayResponse creates today's attendance response
+// ToTodayResponse creates today's attendance response.
+// loc is the employee's timezone for correct CurrentServerTime and IsWorkingDay calculation.
 func (m *AttendanceRecordMapper) ToTodayResponse(
 	ar *models.AttendanceRecord,
 	ws *models.WorkSchedule,
@@ -78,13 +79,15 @@ func (m *AttendanceRecordMapper) ToTodayResponse(
 	holiday *models.Holiday,
 	wsMapper *WorkScheduleMapper,
 	holidayMapper *HolidayMapper,
+	loc *time.Location,
 ) *dto.TodayAttendanceResponse {
+	now := time.Now().In(loc)
 	resp := &dto.TodayAttendanceResponse{
 		HasCheckedIn:      ar != nil && ar.CheckInTime != nil,
 		HasCheckedOut:     ar != nil && ar.CheckOutTime != nil,
 		IsWorkingDay:      true,
 		IsHoliday:         isHoliday,
-		CurrentServerTime: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		CurrentServerTime: now.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	if ar != nil {
@@ -93,7 +96,7 @@ func (m *AttendanceRecordMapper) ToTodayResponse(
 
 	if ws != nil {
 		resp.WorkSchedule = wsMapper.ToResponse(ws)
-		resp.IsWorkingDay = ws.IsWorkingDay(int(time.Now().Weekday()))
+		resp.IsWorkingDay = ws.IsWorkingDay(int(now.Weekday()))
 	}
 
 	if holiday != nil {

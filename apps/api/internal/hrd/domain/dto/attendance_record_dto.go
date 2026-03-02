@@ -161,3 +161,30 @@ type AttendanceStatusFormOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
+
+// EmployeeScheduleResponse represents the work schedule for a specific employee
+type EmployeeScheduleResponse struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	StartTime         string  `json:"start_time"`
+	EndTime           string  `json:"end_time"`
+	IsFlexible        bool    `json:"is_flexible"`
+	FlexibleStartTime *string `json:"flexible_start_time,omitempty"`
+	FlexibleEndTime   *string `json:"flexible_end_time,omitempty"`
+}
+
+// ProcessAutoAbsentRequest represents the request to manually trigger auto-absent processing
+type ProcessAutoAbsentRequest struct {
+	Date string `json:"date" form:"date"` // Optional: YYYY-MM-DD, defaults to yesterday
+}
+
+// AutoAbsentResult represents the result of auto-absent processing
+type AutoAbsentResult struct {
+	Date           string `json:"date"`
+	TotalEmployees int    `json:"total_employees"`
+	AbsentCreated  int    `json:"absent_created"`
+	LeaveCreated   int    `json:"leave_created"`
+	Skipped        int    `json:"skipped"` // Already had record, off-day, etc.
+	HolidaySkipped bool   `json:"holiday_skipped"`
+	Errors         int    `json:"errors"`
+}

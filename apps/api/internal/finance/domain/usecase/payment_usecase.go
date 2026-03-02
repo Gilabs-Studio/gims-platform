@@ -3,11 +3,13 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -30,6 +32,7 @@ type PaymentUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.PaymentResponse, error)
 	List(ctx context.Context, req *dto.ListPaymentsRequest) ([]dto.PaymentResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.PaymentResponse, error)
+	GetFormData(ctx context.Context) (*dto.PaymentFormDataResponse, error)
 }
 
 type paymentUsecase struct {
@@ -449,7 +452,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		if err := ensureNotClosed(ctx, tx, p.PaymentDate); err != nil {
 			return err
 		}
-		now := time.Now()
+		now := apptime.Now()
 
 		je := &financeModels.JournalEntry{
 			EntryDate:     p.PaymentDate,
@@ -466,12 +469,11 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		}
 
 		for _, al := range p.Allocations {
-			// Check budget for each allocation (if applicable)
+			// Enforce budget guard — block if over-budget (strict ERP mode).
 			if al.Amount > 0 {
-				_ = EnsureWithinBudget(ctx, tx, al.ChartOfAccountID, p.PaymentDate, al.Amount)
-				// We don't return error here to maintain flexibility,
-				// but in strict ERP mode we would:
-				// if err := finUsecase.EnsureWithinBudget(...); err != nil { return err }
+				if err := EnsureWithinBudget(ctx, tx, al.ChartOfAccountID, p.PaymentDate, al.Amount); err != nil {
+					return fmt.Errorf("budget check failed for account %s: %w", al.ChartOfAccountID, err)
+				}
 			}
 
 			line := &financeModels.JournalLine{

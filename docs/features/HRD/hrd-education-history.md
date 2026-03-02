@@ -1,17 +1,28 @@
-# Employee Education History Feature
+# Employee Education History Feature (Migrated to Organization Module)
 
 ## Overview
-Employee education history tracking feature for managing employee educational backgrounds from elementary school to doctorate level. Part of Sprint 14 (HRD - Leave & Documents) for comprehensive employee document management.
+Employee education history tracking feature, fully integrated into the Employee Management module under Organization. Originally part of HRD Sprint 14, this feature has been **migrated** into the employee detail modal as a sub-resource, following the same pattern as Employee Contracts.
+
+All CRUD operations are performed within the employee detail modal — no standalone page exists.
+
+## Migration Summary
+
+| Aspect | Before (HRD) | After (Organization) |
+|--------|--------------|---------------------|
+| Backend path | `/hrd/employee-education-histories` | `/organization/employees/:id/education-histories` |
+| Backend module | `internal/hrd/` | `internal/organization/` |
+| Frontend location | `features/hrd/education-history/` (standalone page) | `features/master-data/employee/components/education/` (inside employee detail modal) |
+| Permissions | `education_history.*` | `employee.read`, `employee.update`, `employee.delete` |
+| Routing | `/hrd/education` or `/hrd/education-history` | Inside employee detail modal (no standalone page) |
+| i18n namespace | `educationHistory` | `employee.education` |
 
 ## Features
 - Track employee education from elementary to doctorate level
-- Support ongoing education (no end date required)
-- GPA tracking (optional, 0–4.0 scale) with auto-cap and form validation (no browser default warning)
-- Document upload via FileUpload component (same as HRD Contracts): PDF, DOC, DOCX, XLS, XLSX; max 10MB
-- List shows employee name and code (from API); Employee column is clickable to open detail modal
-- Detail modal: Employee information section (avatar, name, code, email, position, View profile link) and document section with download
-- Search by institution or field of study
-- Filter by employee and degree level
+- Support ongoing education (no end date required) with **only one ongoing education per employee**
+- GPA tracking (optional, **1.00–4.00 scale**) with input validation and clamping
+- Document upload via FileUpload component: PDF, DOC, DOCX, JPG, JPEG, PNG; max 10MB
+- Education Information section in employee detail Overview tab (shows latest/ongoing education)
+- Education History tab with timeline design and CRUD actions
 - Chronological ordering (most recent first)
 - Soft delete for audit trail
 
@@ -20,8 +31,9 @@ Employee education history tracking feature for managing employee educational ba
 ### Education Tracking
 - Education levels: ELEMENTARY, JUNIOR_HIGH, SENIOR_HIGH, DIPLOMA, BACHELOR, MASTER, DOCTORATE
 - Multiple education records per employee allowed
-- Ongoing education supported (end_date nullable)
-- GPA optional (not all programs use GPA system)
+- **Only one ongoing education** per employee (enforced on both frontend and backend)
+- Ongoing education indicated by null `end_date`
+- GPA optional (range: **1.00–4.00**; not all programs use GPA system)
 - Document path optional (for certificate storage)
 
 ### Date Validation
@@ -29,8 +41,20 @@ Employee education history tracking feature for managing employee educational ba
 - Ongoing education indicated by null `end_date`
 - System calculates duration automatically
 
+### GPA Validation
+- GPA must be between **1.00 and 4.00** (inclusive)
+- Frontend input field restricts input to this range
+- Backend binding tag: `min=1,max=4`
+- Backend usecase returns `ErrInvalidGPA` if out of range
+
+### Ongoing Education Constraint
+- Only **one** ongoing education (no `end_date`) allowed per employee
+- Frontend: checkbox is disabled when another ongoing education already exists
+- Backend: `FindOngoingByEmployeeID` checks before create/update; returns `ErrOngoingEducationExists`
+
 ### Data Integrity
 - Employee must exist before adding education history
+- Education history belongs to a specific employee (ownership validated)
 - Soft delete preserves audit trail
 - Created/updated tracking for compliance
 
@@ -38,12 +62,15 @@ Employee education history tracking feature for managing employee educational ba
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
-| POST | `/hrd/employee-education-histories` | `education_history.create` | Create new education record |
-| PUT | `/hrd/employee-education-histories/:id` | `education_history.update` | Update existing record |
-| DELETE | `/hrd/employee-education-histories/:id` | `education_history.delete` | Soft delete record |
-| GET | `/hrd/employee-education-histories/:id` | `education_history.read` | Get record details |
-| GET | `/hrd/employee-education-histories` | `education_history.read` | List all with pagination/filters; response items include `employee_name` and `employee_code` (enriched from employee) |
-| GET | `/hrd/employee-education-histories/employee/:employee_id` | `education_history.read` | Get all records for employee |
+| GET | `/organization/employees/:id/education-histories` | `employee.read` | List all education histories for an employee |
+| POST | `/organization/employees/:id/education-histories` | `employee.update` | Create new education record |
+| PUT | `/organization/employees/:id/education-histories/:education_id` | `employee.update` | Update existing record |
+| DELETE | `/organization/employees/:id/education-histories/:education_id` | `employee.delete` | Soft delete record |
+
+### Employee Response Integration
+The main `GET /organization/employees/:id` response includes a `latest_education` brief object populated automatically:
+- Prioritizes **ongoing education** (no end date)
+- Falls back to the most recent completed education by `start_date`
 
 ## Data Structure
 
@@ -56,12 +83,12 @@ type EmployeeEducationHistory struct {
     Degree        DegreeLevel     // enum
     FieldOfStudy  string          // varchar(200)
     StartDate     time.Time       // date
-    EndDate       *time.Time      // date, nullable
-    GPA           *float32        // decimal(3,2), nullable
+    EndDate       *time.Time      // date, nullable (nil = ongoing)
+    GPA           *float32        // decimal(3,2), nullable, range 1.00–4.00
     Description   string          // text
     DocumentPath  string          // varchar(255)
-    CreatedBy     string
-    UpdatedBy     string
+    CreatedBy     uuid.UUID
+    UpdatedBy     *uuid.UUID
     CreatedAt     time.Time
     UpdatedAt     time.Time
     DeletedAt     gorm.DeletedAt  // soft delete
@@ -89,8 +116,9 @@ const (
 
 ### Create Request
 ```json
+POST /organization/employees/:employee_id/education-histories
+
 {
-  "employee_id": "11111111-1111-1111-1111-111111111111",
   "institution": "University of Indonesia",
   "degree": "BACHELOR",
   "field_of_study": "Computer Science",
@@ -98,7 +126,21 @@ const (
   "end_date": "2019-06-30",
   "gpa": 3.75,
   "description": "Bachelor of Computer Science with focus on Software Engineering",
-  "document_path": "/documents/education/diploma_ui_2019.pdf"
+  "document_path": "/uploads/abc123_diploma.pdf"
+}
+```
+
+### Create Ongoing Education (no end_date)
+```json
+POST /organization/employees/:employee_id/education-histories
+
+{
+  "institution": "Gadjah Mada University",
+  "degree": "MASTER",
+  "field_of_study": "Information Systems",
+  "start_date": "2025-09-01",
+  "gpa": 3.90,
+  "description": "Currently pursuing Master's degree"
 }
 ```
 
@@ -116,25 +158,29 @@ const (
     "end_date": "2019-06-30",
     "gpa": 3.75,
     "description": "Bachelor of Computer Science with focus on Software Engineering",
-    "document_path": "/documents/education/diploma_ui_2019.pdf",
+    "document_path": "/uploads/abc123_diploma.pdf",
     "is_completed": true,
     "duration_years": 3.83,
-    "created_at": "2026-02-06T10:00:00+07:00",
-    "updated_at": "2026-02-06T10:00:00+07:00"
+    "created_at": "2026-02-17T10:00:00+07:00",
+    "updated_at": "2026-02-17T10:00:00+07:00"
   },
-  "timestamp": "2026-02-06T10:00:00+07:00",
+  "timestamp": "2026-02-17T10:00:00+07:00",
   "request_id": "req_create_edu_123"
 }
 ```
 
-### List Request (with filters)
-```
-GET /hrd/employee-education-histories?page=1&per_page=20&search=university&degree=BACHELOR&employee_id=11111111-1111-1111-1111-111111111111
+### Update Request
+```json
+PUT /organization/employees/:employee_id/education-histories/:education_id
+
+{
+  "gpa": 3.85,
+  "description": "Updated description with honors",
+  "document_path": "/uploads/def456_diploma_updated.pdf"
+}
 ```
 
 ### List Response
-List items include `employee_name` and `employee_code` (populated by backend from employee record) for display in the table and detail modal fallback.
-
 ```json
 {
   "success": true,
@@ -142,48 +188,43 @@ List items include `employee_name` and `employee_code` (populated by backend fro
     {
       "id": "e1111111-1111-1111-1111-111111111111",
       "employee_id": "11111111-1111-1111-1111-111111111111",
-      "employee_name": "John Doe",
-      "employee_code": "EMP-001",
       "institution": "University of Indonesia",
       "degree": "BACHELOR",
       "field_of_study": "Computer Science",
       "start_date": "2015-09-01",
       "end_date": "2019-06-30",
       "gpa": 3.75,
+      "description": "Bachelor of Computer Science",
+      "document_path": "/uploads/abc123_diploma.pdf",
       "is_completed": true,
       "duration_years": 3.83,
-      "created_at": "2026-02-06T10:00:00+07:00",
-      "updated_at": "2026-02-06T10:00:00+07:00"
+      "created_at": "2026-02-17T10:00:00+07:00",
+      "updated_at": "2026-02-17T10:00:00+07:00"
     }
   ],
-  "meta": {
-    "pagination": {
-      "page": 1,
-      "per_page": 20,
-      "total": 1,
-      "total_pages": 1
-    }
-  }
+  "timestamp": "2026-02-17T10:00:00+07:00",
+  "request_id": "req_list_edu_456"
 }
 ```
 
 ## Validation Rules
 
 ### Create Request
-- `employee_id`: required, valid UUID format (permissive regex to support seed UUIDs e.g. `11111111-...`), employee must exist
 - `institution`: required, max 200 characters
 - `degree`: required, one of valid degree levels
 - `field_of_study`: optional, max 200 characters
 - `start_date`: required, format YYYY-MM-DD
 - `end_date`: optional, format YYYY-MM-DD, must be after start_date
-- `gpa`: optional, decimal 0.00-4.00
+- `gpa`: optional, decimal **1.00–4.00**
 - `description`: optional, text
 - `document_path`: optional, max 255 characters
+- **Ongoing constraint**: If `end_date` is empty, employee must not already have another ongoing education
 
 ### Update Request
 - All fields optional (omitempty)
 - Same validation rules as create for provided fields
-- Cannot change employee_id (immutable)
+- Cannot change employee_id (immutable, derived from URL)
+- **Ongoing constraint**: Same as create — cannot set to ongoing if another ongoing exists
 
 ## Error Handling
 
@@ -193,7 +234,8 @@ List items include `employee_name` and `employee_code` (populated by backend fro
 | `EMPLOYEE_NOT_FOUND` | 404 | Employee doesn't exist in database |
 | `EDUCATION_HISTORY_NOT_FOUND` | 404 | Education record not found or deleted |
 | `VALIDATION_ERROR` | 400 | Invalid input data (dates, GPA range, etc.) |
-| `INVALID_ID` | 400 | Invalid UUID format |
+| `ONGOING_EDUCATION_EXISTS` | 400 | Employee already has an ongoing education |
+| `INVALID_GPA` | 400 | GPA not in 1.00–4.00 range |
 | `FORBIDDEN` | 403 | Missing required permission |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -201,190 +243,107 @@ List items include `employee_name` and `employee_code` (populated by backend fro
 - "employee not found" - Employee ID doesn't exist
 - "education history not found" - Record doesn't exist
 - "end date must be after start date" - Invalid date range
-- "GPA must be between 0 and 4.0" - GPA out of range
-- "invalid start_date format, must be YYYY-MM-DD" - Date parsing error
+- "GPA must be between 1.00 and 4.00" - GPA out of range
+- "employee already has an ongoing education" - Only one ongoing allowed
+- "education history does not belong to employee" - Ownership mismatch
 
 ## Frontend Implementation
 
 ### Architecture
-Feature-based structure following established patterns in `apps/web/src/features/hrd/education-history/`:
+Education history components are integrated into the employee detail modal under `apps/web/src/features/master-data/employee/components/education/`:
 
 ```
-education-history/
-├── types/           # TypeScript type definitions
-├── schemas/         # Zod validation schemas
-├── services/        # API client methods
-├── hooks/           # TanStack Query hooks
-├── i18n/            # Translations (en + id)
-└── components/      # UI components
-    ├── education-history-list.tsx
-    ├── education-history-form.tsx
-    └── education-history-detail-modal.tsx
+employee/
+├── types/index.d.ts              # EmployeeEducationHistory, DegreeLevel, etc.
+├── services/employee-service.ts  # API methods for education CRUD
+├── hooks/use-employees.ts        # TanStack Query hooks (educationKeys)
+├── i18n/en.ts, id.ts             # Translation keys under "employee.education"
+└── components/
+    └── education/
+        ├── index.ts                      # Barrel export
+        ├── education-info-card.tsx        # Overview tab section (read-only)
+        ├── education-timeline.tsx         # Timeline tab (list + actions)
+        ├── create-education-dialog.tsx    # Create dialog with ongoing checkbox
+        ├── edit-education-dialog.tsx      # Edit dialog with ongoing checkbox
+        └── delete-education-dialog.tsx    # Delete confirmation dialog
 ```
+
+### Employee Detail Modal Integration
+
+#### Overview Tab - Education Information
+- Displays the latest/ongoing education in a read-only table layout
+- Follows the same `bg-muted/50` table pattern as other sections
+- Shows: Institution, Degree, Field of Study, GPA, Start/End Date, Document (clickable download)
+- Populated from `employee.latest_education` in the API response
+
+#### Education History Tab
+- Timeline design showing all education records chronologically
+- Action buttons: Add Education, Edit, Delete (permission-gated)
+- Empty state message when no records exist
 
 ### Components
 
-#### EducationHistoryList
-**Purpose**: Main list view with search, filters, pagination, and CRUD actions
+#### CreateEducationDialog
+- Props: `open`, `onOpenChange`, `employeeId`, `existingEducations`, `onSuccess`
+- GPA input: `type="number"`, `step="0.01"`, `min="1"`, `max="4"`, with custom `handleGpaChange` that rejects out-of-range values at input time
+- Ongoing checkbox: disabled when `existingEducations` already contains an ongoing record; shows hint text
+- Submit validates GPA range (1–4) and ongoing constraint before calling API
+- Date picker for end date is disabled when ongoing is checked
 
-**Features**:
-- **Search**: Debounced input (500ms) searching institution and field of study
-- **Degree Filter**: Dropdown with 8 options (All + 7 degree levels)
-- **Pagination**: Server-side with configurable page size (default 20)
-- **Permission-based Actions**: Create/Edit/Delete buttons shown only with proper permissions
-- **Responsive Table**: 7 columns:
-  1. **Employee**: Displays employee name (primary) and employee code (muted secondary line). Cell is clickable (cursor-pointer, hover underline); click opens the detail modal (same as View action). Data from API `employee_name` and `employee_code`.
-  2. Institution
-  3. Degree (colored badge)
-  4. Field of Study
-  5. Start Date
-  6. Status (Completed/Ongoing badge)
-  7. Actions (dropdown menu)
+#### EditEducationDialog
+- Same GPA and ongoing validation as Create
+- Pre-populates form from existing education data
+- Ongoing checkbox checks `hasOtherOngoing` (excludes current record being edited)
 
-**State Management**:
-```typescript
-- search: string (debounced)
-- page: number (1-indexed)
-- pageSize: number
-- degreeFilter: DegreeLevel | "all"
-- isFormOpen: boolean
-- editingEducation: EmployeeEducationHistory | null
-- viewingEducation: EmployeeEducationHistory | null
-- deletingId: string | null
-```
-
-**Degree Badge Colors** (semantic mapping):
-- ELEMENTARY/JUNIOR_HIGH: secondary (gray)
-- SENIOR_HIGH: default
-- DIPLOMA/BACHELOR: info (blue)
-- MASTER/DOCTORATE: success (green)
-
-**Actions** (permission-gated):
-- View: Opens detail modal (requires `education_history.read`)
-- Edit: Opens form in edit mode (requires `education_history.update`)
-- Delete: Shows confirmation dialog (requires `education_history.delete`)
-
-#### EducationHistoryForm
-**Purpose**: Create/edit dialog form with validation
-
-**Features**:
-- **Mode Detection**: Automatically detects create vs edit mode
-- **GetFormData Integration**: Fetches employees + degree levels from backend on open
-- **React Hook Form**: Form state management with Zod validation
-- **Employee Field**: Same pattern as Leave Request—permissive UUID validation; if user selects by label (e.g. "EMP-001 - Name"), form normalizes to UUID via `employees.find(byLabel)` and `setValue("employee_id", id)`. Submit resolves `employee_id` from employees (by id or label) before sending.
-- **Reset on Edit Open**: When dialog opens in edit mode, form is reset with `educationHistory` (all fields including document_path); `documentPathDisplay` and "ongoing" checkbox are synced.
-- **Ongoing Checkbox**: Custom logic to hide end_date field when checked
-- **Date Pickers**: Calendar component with Popover (shadcn/ui)
-- **Real-time Validation**: Inline error messages below fields
-- **Toast Notifications**: Success/error feedback on submit
-- **Accessibility**: Dialog uses `DialogDescription` (title + subtitle) to satisfy aria-describedby and avoid console warnings.
-
-**Form Fields**:
-1. `employee_id`: Select dropdown (value = employee id; options show "code - name"; disabled in edit mode)
-2. `institution`: Text input (required, max 200 chars)
-3. `degree`: Select dropdown (7 options, required)
-4. `field_of_study`: Text input (optional, max 200 chars)
-5. `start_date`: Date picker (required)
-6. `ongoing`: Checkbox (hides end_date when checked)
-7. `end_date`: Date picker (optional, hidden if ongoing)
-8. `gpa`: Controlled number input (Controller): `inputMode="decimal"`, value clamped to 0–4 on change and onBlur; no native `max` to avoid browser tooltip; Zod validates 0–4.
-9. `description`: Textarea (optional)
-10. `document_path`: **FileUpload** component (same as HRD Contracts): upload endpoint `/upload/document`, accept `.pdf,.doc,.docx,.xls,.xlsx`, maxSize 10MB; display/clear in edit mode via `documentPathDisplay` state and reset effect.
-
-**Validation**:
-- Custom Zod refinement: end_date >= start_date
-- GPA: 0.00–4.00 (Zod); input auto-caps at 4 to avoid browser warning
-- employee_id: permissive UUID format (same regex as employee contract/leave request)
-- Required field indicators with red asterisk
-
-#### EducationHistoryDetailModal
-**Purpose**: Read-only detail view with edit/delete actions (aligned with Employee Contract detail modal where applicable)
-
-**Layout Sections**:
-1. **Header**: Icon, title, institution name, action buttons. Uses `DialogDescription` (institution name) for accessibility.
-2. **Employee Information**: Section similar to contract detail (not in a separate tab). Fetches employee by `employee_id` when modal is open (`useEmployee(displayEducation.employee_id)`). Displays: avatar, name, code, email, position badge, and **View profile** button (Link to `/master-data/employees?openId={employee_id}`). Below that, a grid with employee code, email, phone, position, department. If employee details fail to load, fallback shows `employee_name` / `employee_code` from list response or `employee_id`, plus View profile link.
-3. **Education Information**: Institution, degree badge, field, GPA (2-column grid)
-4. **Timeline**: Start date, end date, status badge, duration (2-column grid)
-5. **Description**: Full text block (if present)
-6. **Document Information**: If `document_path` exists: **Download** button (same URL logic as contract—`NEXT_PUBLIC_API_URL` + path, `download` attribute, `target="_blank"`). Otherwise "No document" text.
-7. **Timestamps**: Created/updated at (footer)
-
-**InfoRow Component**: Reusable display component with icon, label, value
-
-**Actions**:
-- Edit button: Opens EducationHistoryForm in edit mode
-- Delete button: Opens DeleteDialog confirmation
+#### DeleteEducationDialog
+- Simple confirmation dialog with cancel/delete buttons
 
 ### State Management
 
 #### TanStack Query Hooks
-Located in `hooks/use-education-history.ts`:
-
-**Query Hooks**:
-- `useEducationHistories(params)`: List with filters (search, employee_id, degree, pagination)
-- `useEducationHistory(id, options)`: Single record by ID (conditional fetching)
-- `useEducationHistoriesByEmployee(employeeId, options)`: All records for employee
-- `useEducationHistoryFormData()`: Dropdown options (employees + degree levels, 5min staleTime)
-
-**Mutation Hooks**:
-- `useCreateEducationHistory()`: Create with list invalidation
-- `useUpdateEducationHistory()`: Update with optimistic updates
-- `useDeleteEducationHistory()`: Soft delete with list invalidation
+Located in `hooks/use-employees.ts`:
 
 **Query Key Factory**:
 ```typescript
-educationHistoryKeys = {
+educationKeys = {
   all: ["employee-education-histories"],
-  lists: () => [...all, "list"],
-  list: (params) => [...lists(), params],
-  details: () => [...all, "detail"],
-  detail: (id) => [...details(), id],
-  byEmployee: (employeeId) => [...all, "by-employee", employeeId],
-  formData: () => [...all, "form-data"]
+  byEmployee: (employeeId) => [...all, employeeId],
 }
 ```
 
-**Optimistic Updates** (useUpdateEducationHistory):
-- `onMutate`: Cancel active queries, snapshot previous data
-- `onError`: Rollback to snapshot on failure
-- `onSettled`: Refetch detail + lists to ensure consistency
+**Hooks**:
+- `useEmployeeEducationHistories(employeeId)`: List for employee
+- `useCreateEmployeeEducationHistory()`: Create with cache invalidation
+- `useUpdateEmployeeEducationHistory()`: Update with cache invalidation
+- `useDeleteEmployeeEducationHistory()`: Delete with cache invalidation
 
 #### API Service
-Located in `services/education-history-service.ts`:
+Located in `services/employee-service.ts`:
 
 ```typescript
-const BASE_PATH = "/hrd/employee-education-histories";
-
-// Methods:
-list(params)              // GET with filters
-getById(id)               // GET /:id
-getByEmployeeId(empId)    // GET /employee/:employeeId
-getFormData()             // GET /form-data (NEW endpoint)
-create(data)              // POST
-update(id, data)          // PUT /:id
-delete(id)                // DELETE /:id
+// Education history methods on employeeService:
+getEmployeeEducationHistories(employeeId)       // GET /:id/education-histories
+createEmployeeEducationHistory(employeeId, data) // POST /:id/education-histories
+updateEmployeeEducationHistory(employeeId, educationId, data) // PUT /:id/education-histories/:education_id
+deleteEmployeeEducationHistory(employeeId, educationId) // DELETE /:id/education-histories/:education_id
 ```
-
-All methods use `apiClient` wrapper with typed responses.
 
 ### Internationalization (i18n)
 
 **Locales**: English (`en`) + Indonesian (`id`)
 
-**Translation Files**:
-- `i18n/en.ts`: English translations (117 lines)
-- `i18n/id.ts`: Indonesian translations (117 lines)
+**Namespace**: `employee.education`
 
-**Namespace**: `educationHistory`
-
-**Sections**:
-1. **common** (26 keys): search, actions, status, CRUD verbs, pagination
-2. **main** (23 keys): title, field labels, messages
-3. **degrees** (7 keys): Degree level labels (localized)
-4. **filters** (4 keys): Filter dropdowns
-5. **validation** (6 keys): Error messages
-6. **details** (14 keys): Detail modal sections—title, employeeInfo, educationInfo, documentInfo, timeline, noDocument, **viewProfile**, **employeeCode**, **email**, **phone**, **position**, **department**, **downloadDocument**
-7. **form** (7 keys): Form placeholders
+**Key Sections**:
+1. `sections` - Section titles
+2. `degrees` - Degree level labels (7 keys)
+3. `fields` - Field labels (institution, degree, gpa, etc.)
+4. `actions` - Action buttons (create, edit, delete, processing)
+5. `empty` - Empty state messages
+6. `form` - Form-specific labels (titles, placeholders, ongoing label)
+7. `success` - Success toast messages
+8. `error` - Error toast messages
+9. `validation` - Validation error messages (gpaRange, onlyOneOngoing, ongoingExists)
 
 **Degree Localizations (Indonesian)**:
 - ELEMENTARY → SD (Sekolah Dasar)
@@ -395,337 +354,82 @@ All methods use `apiClient` wrapper with typed responses.
 - MASTER → Magister (S2)
 - DOCTORATE → Doktor (S3)
 
-**Usage in Components**:
-```typescript
-import { useTranslations } from "next-intl";
-const t = useTranslations("educationHistory");
-<p>{t("title")}</p>  // "Employee Education History"
-```
-
-### Routing
-
-**Page**: `/hrd/education-history`
-
-**Files**:
-- `app/[locale]/hrd/education-history/page.tsx`: Main page (renders EducationHistoryList)
-- `app/[locale]/hrd/education-history/loading.tsx`: Loading skeleton during navigation
-
-**Page Component**:
-```typescript
-import { EducationHistoryList } from "@/features/hrd/education-history/components/education-history-list";
-import { PageMotion } from "@/components/page-motion";
-
-export default async function EducationHistoryPage() {
-  return (
-    <PageMotion>
-      <EducationHistoryList />
-    </PageMotion>
-  );
-}
-```
-
-**Loading State**: Skeleton UI with header, search, table placeholders
-
 ### Permissions
 
-**Required Permissions**:
-- `education_history.read`: View list and detail
-- `education_history.create`: Create new records
-- `education_history.update`: Edit existing records
-- `education_history.delete`: Delete records (soft)
+**Required Permissions** (reuses employee permissions):
+- `employee.read`: View education list and details
+- `employee.update`: Create and edit education records
+- `employee.delete`: Delete education records
 
 **UI Behavior**:
-- Add button hidden if no `create` permission
-- Edit action hidden if no `update` permission
-- Delete action hidden if no `delete` permission
-- View action hidden if no `read` permission
-
-**Permission Hook**:
-```typescript
-const { hasPermission } = useUserPermission();
-const canCreate = hasPermission("education_history.create");
-```
-
-### UI/UX Features
-
-#### Search & Filters
-- **Debounced Search**: 500ms delay prevents excessive API calls
-- **Search Scope**: Searches both institution and field_of_study
-- **Degree Filter**: Dropdown with "All Degrees" + 7 degree levels
-- **Auto-reset Pagination**: Search/filter changes reset to page 1
-
-#### Loading States
-- **Skeleton Loading**: 5 placeholder rows during data fetch
-- **Button Loading**: Spinner on submit buttons during mutations
-- **Query Status**: Loading/error/empty states handled with TanStack Query
-
-#### Error Handling
-- **Toast Notifications**: sonner library for success/error messages
-- **Inline Validation**: Field errors shown below inputs
-- **API Errors**: Displayed via toast with error message
-- **Empty States**: "No education histories found" with icon
-
-#### Responsive Design
-- **Mobile-friendly**: Table scrolls horizontally on small screens
-- **Modal Overflow**: Scrollable content for long forms/details
-- **Touch-friendly**: Large click targets for dropdown actions
-
-#### Accessibility
-- **Keyboard Navigation**: Tab order through forms
-- **ARIA Labels**: Proper labeling for screen readers
-- **Error Announcements**: Validation errors announce properly
-- **Focus Management**: Auto-focus on modal open
-
-### TypeScript Types
-
-Located in `types/index.d.ts` (115 lines):
-
-**Main Interfaces**:
-```typescript
-DegreeLevel: "ELEMENTARY" | "JUNIOR_HIGH" | ... | "DOCTORATE"
-
-EmployeeEducationHistory: {
-  id: string
-  employee_id: string
-  employee_name?: string   // from list API for table and detail fallback
-  employee_code?: string   // from list API for table and detail fallback
-  institution: string
-  degree: DegreeLevel
-  field_of_study: string
-  start_date: string
-  end_date: string | null
-  gpa: number | null
-  description: string
-  document_path: string
-  is_completed: boolean
-  duration_years: number
-  created_at: string
-  updated_at: string
-}
-
-EmployeeFormOption: { id: string, employee_code: string, name: string }
-DegreeLevelOption: { value: DegreeLevel, label: string }
-
-CreateEducationHistoryData: { ... }  // Required fields only
-UpdateEducationHistoryData: { ... }  // All optional (Partial)
-
-ListEducationHistoriesParams: {
-  page?: number
-  per_page?: number
-  search?: string
-  employee_id?: string
-  degree?: DegreeLevel
-}
-```
-
-**API Response Types**:
-```typescript
-EducationHistoryListResponse
-EducationHistorySingleResponse
-EducationHistoryFormDataResponse  // From GetFormData endpoint
-```
-
-### Zod Validation Schema
-
-Located in `schemas/education-history.schema.ts` (96 lines):
-
-**Schema Factory**:
-```typescript
-getEducationHistorySchema(t: Function)
-```
-
-**Validations**:
-- employee_id: Required; permissive UUID format (regex aligned with leave request / employee contract) so seed UUIDs (e.g. `11111111-...`) pass
-- institution: string (1-200 chars), required
-- degree: enum [7 values], required
-- field_of_study: string (0-200 chars), optional
-- start_date: string, required
-- end_date: string, optional, nullable
-- gpa: number (0-4 range), optional, nullable
-- description: string, optional
-- document_path: string (0-255 chars), optional
-
-**Custom Refinement**:
-```typescript
-.refine((data) => {
-  if (data.end_date && data.start_date) {
-    return new Date(data.end_date) >= new Date(data.start_date);
-  }
-  return true;
-}, {
-  message: t("validation.endDateAfterStart"),
-  path: ["end_date"]
-})
-```
-
-### Performance Optimizations
-
-#### TanStack Query Configuration
-- **Stale Time**: 5 minutes for form data (employees + degree levels don't change frequently)
-- **Cache Time**: Default 5 minutes for list queries
-- **Refetch on Window Focus**: Enabled for data freshness
-- **Placeholder Data**: Keep previous data during pagination transitions
-
-#### Debouncing
-- Search input debounced to 500ms (reduces API calls by ~80%)
-
-#### Optimistic Updates
-- Update mutations use optimistic updates for instant UI feedback
-- Rollback on error preserves data integrity
-
-#### Lazy Loading
-- Detail modal refetches only when opened (enabled option)
-- Employee-specific queries conditionally enabled
+- Add button hidden if no `employee.update` permission
+- Edit action hidden if no `employee.update` permission
+- Delete action hidden if no `employee.delete` permission
 
 ## Database Schema
 
 ### Table: employee_education_histories
-- Primary key: `id` (UUID)
+- Primary key: `id` (UUID, auto-generated)
 - Foreign key: `employee_id` → `employees.id`
 - Index: `idx_employee_education_employee` on `employee_id`
 - Soft delete: `deleted_at` timestamp
-
-### Search Performance
-- GIN index recommended for text search on `institution` and `field_of_study`
-- Prefix search pattern: `institution ILIKE 'text%'` (uses index)
-- Combined search: `institution ILIKE ? OR field_of_study ILIKE ?`
+- Registered in `migrate.go` as `&organization.EmployeeEducationHistory{}`
 
 ## Testing
 
 ### Manual Testing Steps
-1. Login as employee or HR admin
-2. Navigate to employee detail page
-3. Go to "Education History" tab
-4. Click "Add Education"
-5. Fill form with valid data (institution, degree, dates)
-6. Upload certificate document
-7. Submit → should show success
-8. Verify new record appears in list (most recent first)
-9. Edit record → update GPA or description
-10. Delete record → should soft delete (not appear in list)
+1. Login as HR admin with `employee.read` and `employee.update` permissions
+2. Navigate to Master Data → Employees
+3. Click on an employee to open the detail modal
+4. Go to the **Overview** tab — verify "Education Information" section shows latest/ongoing education
+5. Go to the **Education History** tab — verify timeline displays all records
+6. Click "Add Education" — fill form with valid data:
+   - Institution, degree, field of study, start date
+   - Test **ongoing checkbox**: check it → end date should be disabled
+   - Test **GPA input**: try entering values > 4 or < 1 → should be rejected
+   - Upload a document
+   - Submit → verify success toast and record appears in timeline
+7. Try adding another ongoing education → should see error "Only one ongoing education allowed"
+8. Edit a record → verify form pre-populates, GPA validation works
+9. Delete a record → verify confirmation dialog and soft delete
+10. Verify employee response includes `latest_education` field
 
-### Automated Testing
-- **Unit Tests**: `apps/api/internal/hrd/domain/usecase/employee_education_history_usecase_test.go`
-- **Repository Tests**: `apps/api/internal/hrd/data/repositories/employee_education_history_repository_test.go`
-- **Integration Tests**: `apps/api/test/hrd/education_history_integration_test.go`
-
-**Run Tests:**
+### Backend Test Commands
 ```bash
-# Backend unit tests
-cd apps/api && go test ./internal/hrd/...
-
-# Specific test
-go test -v ./internal/hrd/domain/usecase -run TestEmployeeEducationHistory
+cd apps/api
+go test ./internal/organization/... -v -run TestEducation
 ```
-
-## Dependencies
-
-### Backend
-- **GORM**: ORM for database operations
-- **Gin**: HTTP framework
-- **uuid**: UUID generation
-
-### Frontend (✅ Implemented)
-- **TanStack Query v5**: Data fetching, caching, and mutations
-- **Zod**: Form validation schemas with i18n support
-- **React Hook Form**: Form state management with zodResolver
-- **next-intl**: Internationalization (en + id locales)
-- **shadcn/ui**: UI component library (Table, Dialog, Select, Calendar, Badge)
-- **Lucide React**: Icon library
-- **date-fns**: Date formatting and manipulation
-- **sonner**: Toast notifications
-
-### Integration
-- **Employee Module**: Required for employee validation
-- **Upload Module**: For certificate document upload
-
-## Security Considerations
-
-### IDOR Prevention
-- Always validate employee_id ownership in frontend
-- Backend validates employee exists before any operation
-- Permission checks on all endpoints
-
-### Data Privacy
-- Education history visible only to:
-  - Employee themselves
-  - HR department with `education_history.read` permission
-  - Direct managers (future enhancement)
-
-### Audit Trail
-- Soft delete preserves history
-- Created/updated by tracking
-- Timestamps for all operations
-
-## Performance Optimization
-
-### Query Optimization
-- Index on `employee_id` for employee-specific queries
-- GIN index on `institution` and `field_of_study` for text search
-- Pagination enforced (max 100 per page)
-- Order by `start_date DESC` for chronological display
-
-### Caching Strategy (Future)
-- Cache employee's education list in Redis (5 min TTL)
-- Invalidate on create/update/delete operations
-- Use employee_id as cache key
 
 ## Technical Decisions
 
-### Why DegreeLevel Enum?
-- Standardizes degree classification across system
-- Enables filtering and reporting by degree level
-- Prevents data inconsistency from free-text entry
-- **Trade-off**: Less flexible for non-standard degrees (use description field for details)
+### Why Migrate to Organization Module?
+- Education history is a sub-resource of employee, not a standalone HRD entity
+- Aligns with the Employee Contract migration pattern
+- Simplifies frontend by consolidating into the employee detail modal
+- Reduces permission complexity (reuse `employee.*` permissions)
 
-### Why Nullable EndDate?
-- Supports ongoing education tracking
-- Common use case: employees pursuing part-time degrees
-- **Trade-off**: Must handle null checks in frontend
+### Why Only One Ongoing Education?
+- Business requirement: employees typically study one program at a time
+- Simplifies the "latest education" display logic in the Overview tab
+- Prevents data inconsistency in reporting
 
-### Why Soft Delete?
-- Audit trail requirement for HR compliance
-- Ability to restore mistakenly deleted records
-- **Trade-off**: Slightly more complex queries (must exclude deleted)
+### Why GPA Range 1.00–4.00?
+- Standard Indonesian university GPA scale
+- Values below 1.00 are not meaningful (would indicate failure)
+- Frontend input and backend both enforce this range
 
-### Why Separate Table (not JSON in Employee)?
-- Enables advanced querying (filter by degree, search institution)
-- Better normalized database design
-- Easier to add features (e.g., education verification status)
-- **Trade-off**: Additional table and API endpoints
-
-## Known Limitations & Future Improvements
-
-### Current Limitations
-- No education verification workflow (planned for Sprint 15)
-- No document expiry tracking for certifications
-- No support for partial completion (dropped out)
-- No support for non-standard GPA scales (5.0, 100-point, etc.)
-
-### Planned Improvements
-- **Sprint 15**: Education verification workflow (HR confirms authenticity)
-- **Sprint 16**: Bulk import from resume/CV parsing
-- **Future**: Integration with LinkedIn for auto-import
-- **Future**: Education requirement matching for job positions
-- **Future**: Reporting dashboard (education distribution by department)
-
-## Notes
-
-- All timestamps use **WIB timezone (UTC+7)**
-- Soft delete implemented - records never physically removed
-- Use pagination for large result sets (enforced max 100 per page)
-- Search is case-insensitive and searches both institution and field_of_study
-- Computed fields (`is_completed`, `duration_years`) calculated on-the-fly (not stored)
-- Document: Stored path from Upload Module; frontend uses FileUpload component (endpoint `/upload/document`, same as HRD Contracts) for upload and display/clear in form; detail modal provides download via API base URL + path.
-- List API returns `employee_name` and `employee_code` per item (backend enriches from employee record) for table display and detail modal fallback.
+### Why Sub-Resource URL Pattern?
+- `/employees/:id/education-histories` clearly expresses ownership
+- Automatic employee validation (employee must exist)
+- Consistent with the contract sub-resource pattern
+- Prevents IDOR by always scoping to the authenticated employee context
 
 ## Related Features
-- **Employee Contract**: Contract management with education requirement validation (future)
-- **Employee Certification**: Professional certifications separate from academic education
-- **Recruitment**: Education requirement matching for job postings (future)
+- **Employee Contracts**: Same sub-resource migration pattern
+- **Employee Certifications**: Professional certifications (separate from academic education)
+- **Employee Detail Modal**: Central UI for all employee sub-resources
 
 ## References
-- Sprint Planning: `docs/erp-sprint-planning.md` (Sprint 14)
+- Contract Migration Docs: `docs/features/HRD/hrd-employee-contracts.md`
 - API Standards: `docs/api-standart/README.md`
-- Postman Collection: `docs/postman/EMPLOYEE_EDUCATION_HISTORY_ENDPOINTS.md`
-- Database Relations: `docs/erp-database-relations.mmd`
+- Postman Collection: `docs/postman/postman.json` (Organization → Employee Education History)

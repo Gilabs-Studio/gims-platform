@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -478,7 +479,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		ToProbability:   toStage.Probability,
 		DaysInPrevStage: daysInPrevStage,
 		ChangedBy:       employeeID,
-		ChangedAt:       time.Now(),
+		ChangedAt:       apptime.Now(),
 		Reason:          req.Reason,
 		Notes:           req.Notes,
 	}
@@ -493,14 +494,14 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 
 	if toStage.IsWon {
 		deal.Status = models.DealStatusWon
-		now := time.Now()
+		now := apptime.Now()
 		deal.ActualCloseDate = &now
 		if req.CloseReason != "" {
 			deal.CloseReason = req.CloseReason
 		}
 	} else if toStage.IsLost {
 		deal.Status = models.DealStatusLost
-		now := time.Now()
+		now := apptime.Now()
 		deal.ActualCloseDate = &now
 		deal.CloseReason = req.CloseReason
 	} else {
@@ -732,7 +733,7 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 	}
 
 	// Generate quotation code
-	now := time.Now()
+	now := apptime.Now()
 	prefix := "QUO"
 	codePrefix := fmt.Sprintf("%s-%s", prefix, now.Format("200601"))
 	quotationCode, err := u.salesQuotationRepo.GetNextQuotationNumber(ctx, codePrefix)

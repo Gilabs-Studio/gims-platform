@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -28,6 +29,7 @@ type CashBankJournalUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.CashBankJournalResponse, error)
 	List(ctx context.Context, req *dto.ListCashBankJournalsRequest) ([]dto.CashBankJournalResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.CashBankJournalResponse, error)
+	GetFormData(ctx context.Context) (*dto.CashBankFormDataResponse, error)
 }
 
 type cashBankJournalUsecase struct {
@@ -68,8 +70,8 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 	if err != nil {
 		return nil, errors.New("invalid transaction_date")
 	}
-	if req.Type != financeModels.CashBankTypeCashIn && req.Type != financeModels.CashBankTypeCashOut {
-		return nil, errors.New("invalid type")
+	if req.Type != financeModels.CashBankTypeCashIn && req.Type != financeModels.CashBankTypeCashOut && req.Type != financeModels.CashBankTypeTransfer {
+		return nil, errors.New("invalid type: must be cash_in, cash_out, or transfer")
 	}
 
 	sum, err := validateCashBankLines(req.Lines)
@@ -184,8 +186,8 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 	if err != nil {
 		return nil, errors.New("invalid transaction_date")
 	}
-	if req.Type != financeModels.CashBankTypeCashIn && req.Type != financeModels.CashBankTypeCashOut {
-		return nil, errors.New("invalid type")
+	if req.Type != financeModels.CashBankTypeCashIn && req.Type != financeModels.CashBankTypeCashOut && req.Type != financeModels.CashBankTypeTransfer {
+		return nil, errors.New("invalid type: must be cash_in, cash_out, or transfer")
 	}
 
 	sum, err := validateCashBankLines(req.Lines)
@@ -409,7 +411,8 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 	bankCOAID := strings.TrimSpace(*bank.ChartOfAccountID)
 
 	var lines []dto.JournalLineRequest
-	if cb.Type == financeModels.CashBankTypeCashIn {
+	switch cb.Type {
+	case financeModels.CashBankTypeCashIn:
 		lines = append(lines, dto.JournalLineRequest{
 			ChartOfAccountID: bankCOAID,
 			Debit:            cb.TotalAmount,
@@ -424,7 +427,23 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 				Memo:             strings.TrimSpace(ln.Memo),
 			})
 		}
-	} else {
+	case financeModels.CashBankTypeTransfer:
+		// Inter-bank transfer: credit source bank, debit destination bank(s)
+		lines = append(lines, dto.JournalLineRequest{
+			ChartOfAccountID: bankCOAID,
+			Debit:            0,
+			Credit:           cb.TotalAmount,
+			Memo:             "Inter-bank transfer out",
+		})
+		for _, ln := range cb.Lines {
+			lines = append(lines, dto.JournalLineRequest{
+				ChartOfAccountID: ln.ChartOfAccountID,
+				Debit:            ln.Amount,
+				Credit:           0,
+				Memo:             strings.TrimSpace(ln.Memo),
+			})
+		}
+	default: // cash_out
 		lines = append(lines, dto.JournalLineRequest{
 			ChartOfAccountID: bankCOAID,
 			Debit:            0,
@@ -457,7 +476,7 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 		return nil, err
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.CashBankJournal{}).
 		Where("id = ?", cb.ID).
 		Updates(map[string]interface{}{

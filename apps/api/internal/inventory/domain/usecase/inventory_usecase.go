@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"math"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
 )
@@ -231,7 +231,7 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 		}
 
 		// 3. Create Batch
-		batchNumber := "GR-" + time.Now().Format("20060102-150405")
+		batchNumber := "GR-" + apptime.Now().Format("20060102-150405")
 		if item.BatchNumber != nil && *item.BatchNumber != "" {
 			batchNumber = *item.BatchNumber
 		}

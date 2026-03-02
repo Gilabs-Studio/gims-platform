@@ -3,7 +3,7 @@
 
 /* eslint-disable react-hooks/incompatible-library */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -75,6 +75,13 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
   const startDate = watch("start_date");
   const endDate = watch("end_date");
   const duration = watch("duration");
+  const selectedEmployeeId = watch("employee_id" as "leave_type_id");
+
+  // Get selected employee's remaining balance for display
+  const selectedEmployee = useMemo(
+    () => employees.find((e) => e.id === selectedEmployeeId),
+    [employees, selectedEmployeeId]
+  );
 
   // Auto-adjust duration when dates change
   useEffect(() => {
@@ -93,6 +100,18 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
       setValue("duration", "MULTI_DAY");
     }
   }, [startDate, endDate, duration, setValue]);
+
+  // Auto-fill end date when start date changes and start_date > end_date
+  const prevStartDateRef = useRef<Date | null>(null);
+  useEffect(() => {
+    if (!startDate || !endDate) return;
+    const prevStart = prevStartDateRef.current;
+    prevStartDateRef.current = startDate;
+    // Only auto-fill if start date actually changed (not on initial render)
+    if (prevStart && prevStart.getTime() !== startDate.getTime() && startDate > endDate) {
+      setValue("end_date", startDate);
+    }
+  }, [startDate, endDate, setValue]);
 
   // Calculate total days based on duration
   const totalDays = useMemo(() => {
@@ -309,6 +328,21 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
               />
               <FieldError>{"employee_id" in errors ? errors.employee_id?.message : undefined}</FieldError>
             </Field>
+
+            {selectedEmployee && !isEdit && (
+              <div className="rounded-lg border bg-muted/50 p-3">
+                <p className="text-sm">
+                  {t("balance.remaining")}: <span className={cn(
+                    "font-semibold",
+                    (selectedEmployee.remaining_balance ?? 0) <= 3 && (selectedEmployee.remaining_balance ?? 0) > 0
+                      ? "text-yellow-600"
+                      : (selectedEmployee.remaining_balance ?? 0) <= 0
+                        ? "text-destructive"
+                        : "text-emerald-600"
+                  )}>{selectedEmployee.remaining_balance ?? 0}</span> {t("days")}
+                </p>
+              </div>
+            )}
 
             <Field>
               <FieldLabel>{t("form.leaveType.label")} *</FieldLabel>

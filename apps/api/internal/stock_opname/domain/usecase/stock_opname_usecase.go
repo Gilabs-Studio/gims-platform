@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -78,7 +79,7 @@ func logDebug(msg string) {
 		return
 	}
 	defer f.Close()
-	f.WriteString(fmt.Sprintf("%s: %s\n", time.Now().Format(time.RFC3339), msg))
+	f.WriteString(fmt.Sprintf("%s: %s\n", apptime.Now().Format(time.RFC3339), msg))
 }
 
 func (u *stockOpnameUsecase) Update(ctx context.Context, id string, req *dto.UpdateStockOpnameRequest) (*dto.StockOpnameResponse, error) {

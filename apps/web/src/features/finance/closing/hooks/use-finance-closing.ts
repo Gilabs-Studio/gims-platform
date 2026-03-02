@@ -36,6 +36,25 @@ export function useApproveFinanceClosing() {
   });
 }
 
+export function useReopenFinanceClosing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeClosingService.reopen(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeClosingKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeClosingKeys.detail(id) });
+    },
+  });
+}
+
+export function useYearEndClose() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fiscalYear: number) => financeClosingService.yearEndClose(fiscalYear),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: financeClosingKeys.lists() }),
+  });
+}
+
 export function useFinanceClosingAnalysis(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: financeClosingKeys.analysis(id),

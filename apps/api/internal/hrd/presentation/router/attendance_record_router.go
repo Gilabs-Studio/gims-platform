@@ -15,12 +15,15 @@ func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRe
 	g.POST("/clock-in", h.ClockIn)
 	g.POST("/clock-out", h.ClockOut)
 	g.GET("/my-stats", h.GetMonthlyStats)
+	g.GET("/my-history", h.ListMyAttendance)
 
 	// Admin routes
 	g.GET("/form-data", middleware.RequirePermission("attendance.read"), h.GetFormData)
+	g.GET("/employee-schedule/:employeeId", middleware.RequirePermission("attendance.read"), h.GetEmployeeSchedule)
 	g.GET("", middleware.RequirePermission("attendance.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("attendance.read"), h.GetByID)
 	g.POST("/manual", middleware.RequirePermission("attendance.create"), h.CreateManualEntry)
+	g.POST("/process-absent", middleware.RequirePermission("attendance.create"), h.ProcessAutoAbsent)
 	g.PUT("/:id", middleware.RequirePermission("attendance.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("attendance.delete"), h.Delete)
 }

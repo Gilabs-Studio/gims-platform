@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -410,7 +411,7 @@ func (u *salesVisitUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		ToStatus:     newStatus,
 		Notes:        req.Notes,
 		ChangedBy:    userID,
-		CreatedAt:    time.Now(),
+		CreatedAt:    apptime.Now(),
 	}
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
@@ -440,7 +441,7 @@ func (u *salesVisitUsecase) CheckIn(ctx context.Context, id string, req *dto.Che
 		return nil, ErrVisitAlreadyCompleted
 	}
 
-	checkInTime := time.Now()
+	checkInTime := apptime.Now()
 
 	// Perform check-in
 	if err := u.visitRepo.CheckIn(ctx, id, req.Latitude, req.Longitude, checkInTime); err != nil {
@@ -481,7 +482,7 @@ func (u *salesVisitUsecase) CheckOut(ctx context.Context, id string, req *dto.Ch
 		return nil, ErrVisitNotCheckedIn
 	}
 
-	checkOutTime := time.Now()
+	checkOutTime := apptime.Now()
 
 	// Perform check-out
 	if err := u.visitRepo.CheckOut(ctx, id, checkOutTime, req.Result); err != nil {

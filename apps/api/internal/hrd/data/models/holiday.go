@@ -29,6 +29,10 @@ type Holiday struct {
 	IsCollectiveLeave  bool `gorm:"default:false" json:"is_collective_leave"`
 	CutsAnnualLeave    bool `gorm:"default:false" json:"cuts_annual_leave"` // If true, deducts from employee's annual leave quota
 
+	// Company scoping — NULL means global (NATIONAL/COLLECTIVE), non-NULL means company-specific
+	// WHY: Different companies may have different company holidays while sharing national ones
+	CompanyID *string `gorm:"type:uuid;index" json:"company_id"`
+
 	// Recurring flag for annual holidays
 	IsRecurring bool `gorm:"default:false" json:"is_recurring"`
 

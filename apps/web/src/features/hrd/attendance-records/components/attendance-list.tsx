@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import {
   Table,
   TableBody,
@@ -75,7 +76,7 @@ import {
 function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord {
   const dateStr =
     event.date instanceof Date
-      ? event.date.toISOString().split("T")[0]
+      ? format(event.date, "yyyy-MM-dd")
       : String(event.date);
   return {
     id: event.id,
@@ -114,7 +115,7 @@ function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord
 }
 
 export function AttendanceList() {
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
@@ -548,12 +549,12 @@ export function AttendanceList() {
                 handleEdit(calendarEventToAttendanceRecord(event))
               }
               canEdit={canUpdate}
-              onCreateNew={() => setIsFormOpen(true)}
             />
           ) : (
             <AttendanceCalendar
               currentDate={calendar.currentDate}
               events={calendar.events}
+              holidays={calendar.holidays}
               onPreviousMonth={calendar.handlePreviousMonth}
               onNextMonth={calendar.handleNextMonth}
               onToday={calendar.handleToday}

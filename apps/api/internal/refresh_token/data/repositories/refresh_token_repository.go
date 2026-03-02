@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"context"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	"gorm.io/gorm"
@@ -54,7 +54,7 @@ func (r *refreshTokenRepository) FindByTokenIDForUpdate(ctx context.Context, tok
 }
 
 func (r *refreshTokenRepository) Revoke(ctx context.Context, tokenID string) error {
-	now := time.Now()
+	now := apptime.Now()
 	// Using locking for revoke if in transaction
 	return r.getDB(ctx).Model(&models.RefreshToken{}).
 		Where("token_id = ?", tokenID).
@@ -66,6 +66,6 @@ func (r *refreshTokenRepository) Revoke(ctx context.Context, tokenID string) err
 
 func (r *refreshTokenRepository) DeleteExpired(ctx context.Context) error {
 	return r.getDB(ctx).
-		Where("expires_at < ?", time.Now()).
+		Where("expires_at < ?", apptime.Now()).
 		Delete(&models.RefreshToken{}).Error
 }

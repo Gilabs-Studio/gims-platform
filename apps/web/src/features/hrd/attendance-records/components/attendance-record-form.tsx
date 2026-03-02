@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, User, FileText, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Clock, User, FileText, Loader2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import {
   attendanceRecordSchema,
   type AttendanceRecordFormData,
@@ -26,9 +28,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useAttendanceFormData } from "../hooks/use-attendance-records";
+import { useAttendanceFormData, useEmployeeSchedule } from "../hooks/use-attendance-records";
+import { useCheckHoliday } from "@/features/hrd/holidays/hooks/use-holidays";
 import type { CalendarEvent } from "../types";
 import { sortOptions, cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ButtonLoading } from "@/components/loading";
 import { useTranslations } from "next-intl";
 
@@ -67,7 +71,7 @@ export function AttendanceRecordForm({
     defaultValues: event
       ? {
           employee_id: event.employeeId,
-          date: event.date instanceof Date ? event.date.toISOString().split("T")[0] : String(event.date),
+          date: event.date instanceof Date ? format(event.date, "yyyy-MM-dd") : String(event.date),
           check_in_time: event.checkInTime ?? undefined,
           check_out_time: event.checkOutTime ?? undefined,
           check_in_type: (event.checkInType as "NORMAL" | "WFH" | "FIELD_WORK") ?? "NORMAL",
@@ -77,7 +81,7 @@ export function AttendanceRecordForm({
         }
       : {
           employee_id: "",
-          date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
           check_in_time: undefined,
           check_out_time: undefined,
           check_in_type: "NORMAL" as const,
@@ -90,6 +94,47 @@ export function AttendanceRecordForm({
   const employeeIdValue = useWatch({ control, name: "employee_id" });
   const statusValue = useWatch({ control, name: "status" });
   const checkInTypeValue = useWatch({ control, name: "check_in_type" });
+  const dateValue = useWatch({ control, name: "date" });
+
+  // Determine if time fields should be disabled
+  const isTimeDisabled = statusValue === "ABSENT" || statusValue === "LEAVE";
+
+  // Fetch employee's work schedule for auto-fill
+  const { data: scheduleResponse } = useEmployeeSchedule(employeeIdValue ?? "");
+  const schedule = scheduleResponse?.data;
+
+  // Track previous status and employee to detect changes for auto-fill
+  const prevStatusRef = useRef(statusValue);
+  const prevEmployeeRef = useRef(employeeIdValue);
+
+  // Effect: Clear time fields when status changes to ABSENT or LEAVE
+  useEffect(() => {
+    if (isTimeDisabled) {
+      setValue("check_in_time", undefined);
+      setValue("check_out_time", undefined);
+    }
+  }, [isTimeDisabled, setValue]);
+
+  // Effect: Auto-fill time fields from work schedule when status is PRESENT
+  useEffect(() => {
+    if (!schedule) return;
+
+    const statusChangedToPresent = statusValue === "PRESENT" && prevStatusRef.current !== "PRESENT";
+    const employeeChanged = employeeIdValue !== prevEmployeeRef.current && statusValue === "PRESENT";
+
+    if (statusChangedToPresent || employeeChanged) {
+      setValue("check_in_time", schedule.start_time);
+      setValue("check_out_time", schedule.end_time);
+    }
+
+    prevStatusRef.current = statusValue;
+    prevEmployeeRef.current = employeeIdValue;
+  }, [statusValue, employeeIdValue, schedule, setValue]);
+
+  // Check if selected date is a holiday
+  const { data: holidayCheck } = useCheckHoliday(dateValue ?? "");
+  const isHoliday = holidayCheck?.data?.is_holiday ?? false;
+  const holidayInfo = holidayCheck?.data?.holiday;
 
   const handleFormSubmit = async (data: AttendanceRecordFormData) => {
     await onSubmit(data);
@@ -156,20 +201,16 @@ export function AttendanceRecordForm({
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value
-                        ? new Date(field.value).toLocaleDateString("id-ID", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
+                        ? format(parseISO(field.value), "dd MMMM yyyy")
                         : t("form.date")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value ? new Date(field.value) : undefined}
+                      selected={field.value ? parseISO(field.value) : undefined}
                       onSelect={(date: Date | undefined) => {
-                        field.onChange(date ? date.toISOString().split("T")[0] : "");
+                        field.onChange(date ? format(date, "yyyy-MM-dd") : "");
                       }}
                     />
                   </PopoverContent>
@@ -179,6 +220,26 @@ export function AttendanceRecordForm({
             {errors.date && <FieldError>{errors.date.message}</FieldError>}
           </Field>
         </div>
+
+        {/* Holiday Warning */}
+        {isHoliday && holidayInfo && (
+          <Alert variant="destructive" className="border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-400">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle className="font-semibold">{t("form.holidayWarningTitle")}</AlertTitle>
+            <AlertDescription className="text-amber-900 dark:text-amber-300">
+              {holidayInfo.type_display
+                ? t("form.holidayWarningDescWithType", {
+                    date: dateValue ? format(parseISO(dateValue), "dd MMMM yyyy") : "",
+                    name: holidayInfo.name,
+                    type: holidayInfo.type_display,
+                  })
+                : t("form.holidayWarningDesc", {
+                    date: dateValue ? format(parseISO(dateValue), "dd MMMM yyyy") : "",
+                    name: holidayInfo.name,
+                  })}
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Attendance Details Section */}
@@ -236,22 +297,36 @@ export function AttendanceRecordForm({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field orientation="vertical">
-            <FieldLabel>{t("form.checkInTime")}</FieldLabel>
+            <FieldLabel className={cn(isTimeDisabled && "text-muted-foreground")}>{t("form.checkInTime")}</FieldLabel>
             <Input
               type="time"
               {...register("check_in_time")}
+              disabled={isTimeDisabled}
+              className={cn(isTimeDisabled && "opacity-50 cursor-not-allowed")}
             />
-            <FieldDescription>{t("form.checkInTimeDesc")}</FieldDescription>
+            <FieldDescription>
+              {isTimeDisabled
+                ? t("form.checkInTimeDisabled")
+                : schedule && statusValue === "PRESENT"
+                  ? t("form.scheduleHint", { name: schedule.name, startTime: schedule.start_time, endTime: schedule.end_time })
+                  : t("form.checkInTimeDesc")}
+            </FieldDescription>
             {errors.check_in_time && <FieldError>{errors.check_in_time.message}</FieldError>}
           </Field>
 
           <Field orientation="vertical">
-            <FieldLabel>{t("form.checkOutTime")}</FieldLabel>
+            <FieldLabel className={cn(isTimeDisabled && "text-muted-foreground")}>{t("form.checkOutTime")}</FieldLabel>
             <Input
               type="time"
               {...register("check_out_time")}
+              disabled={isTimeDisabled}
+              className={cn(isTimeDisabled && "opacity-50 cursor-not-allowed")}
             />
-            <FieldDescription>{t("form.checkOutTimeDesc")}</FieldDescription>
+            <FieldDescription>
+              {isTimeDisabled
+                ? t("form.checkOutTimeDisabled")
+                : t("form.checkOutTimeDesc")}
+            </FieldDescription>
             {errors.check_out_time && <FieldError>{errors.check_out_time.message}</FieldError>}
           </Field>
         </div>

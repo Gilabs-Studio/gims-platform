@@ -1879,7 +1879,7 @@
                     "clock-out"
                   ]
                 },
-                "description": "Clock out with GPS coordinates. Auto-creates overtime request if working past schedule end time.\n\n**Note:** If clock out time exceeds schedule end time by more than 30 minutes, an overtime request is automatically created with type `AUTO_DETECTED`."
+                "description": "Clock out with GPS coordinates. Auto-creates overtime request if working past schedule end time.\n\n**Note:** If clock out time exceeds schedule end time by more than 30 minutes, an overtime request is automatically created with type `AUTO_DETECTED`.\n\n**Error Codes:**\n- `ATTENDANCE_NOT_CLOCKED_IN` - Cannot clock out without clock in\n- `ATTENDANCE_ALREADY_CLOCKED_OUT` - Already clocked out today\n- `HOLIDAY_NO_CHECK_OUT` - Cannot clock out on a holiday (NORMAL check-in type only)\n- `OFF_DAY_NO_CHECK_OUT` - Cannot clock out on an off-day (NORMAL check-in type only)"
               },
               "response": []
             },
@@ -2013,6 +2013,36 @@
                   ]
                 },
                 "description": "Get form data for attendance management forms. Returns employees, divisions, work schedules, check-in types, and attendance statuses. Requires `attendance.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employees\": [{\"id\": \"uuid\", \"employee_code\": \"EMP001\", \"name\": \"John Doe\"}],\n    \"divisions\": [{\"id\": \"uuid\", \"name\": \"IT Division\"}],\n    \"work_schedules\": [{\"id\": \"uuid\", \"name\": \"Standard Office Hours\", \"start_time\": \"08:00\", \"end_time\": \"17:00\", \"is_default\": true}],\n    \"check_in_types\": [{\"value\": \"NORMAL\", \"label\": \"Normal\"}, {\"value\": \"WFH\", \"label\": \"Work From Home\"}, {\"value\": \"FIELD_WORK\", \"label\": \"Field Work\"}],\n    \"statuses\": [{\"value\": \"PRESENT\", \"label\": \"Present\"}, {\"value\": \"LATE\", \"label\": \"Late\"}, ...]\n  }\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` - Missing attendance.read permission\n- `INTERNAL_ERROR` - Server error"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Employee Schedule",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/attendance/employee-schedule/:employeeId",
+                  "host": ["{{base_url}}"],
+                  "path": ["hrd", "attendance", "employee-schedule", ":employeeId"],
+                  "variable": [
+                    {
+                      "key": "employeeId",
+                      "value": "{{employee_id}}"
+                    }
+                  ]
+                },
+                "description": "Get the resolved work schedule for a specific employee. Resolves via Employee → Division → WorkSchedule, with fallback to the default schedule. Requires `attendance.read` permission.\n\n**Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"uuid\",\n    \"name\": \"Standard Office Hours\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"17:00\",\n    \"is_flexible\": false,\n    \"flexible_start_time\": null,\n    \"flexible_end_time\": null\n  }\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` - Missing attendance.read permission\n- `NOT_FOUND` - Employee or schedule not found\n- `INTERNAL_ERROR` - Server error"
               },
               "response": []
             },
@@ -3897,7 +3927,321 @@
                     }
                   ]
                 },
-                "description": "Cancel a leave request. Requires `leave.approve` permission (only HR/approvers can cancel).\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets status to CANCELLED, records cancellation details\n- Frees up leave balance if leave type cuts annual leave\n- cancellation_note is OPTIONAL but recommended for audit trail\n\n**Restrictions:**\n- Only status `PENDING` or `APPROVED` can be cancelled\n- Cannot cancel REJECTED or already CANCELLED requests\n\n**Request Body (Optional):**\n```json\n{\n  \"cancellation_note\": \"Reason for cancellation\"\n}\n```\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"emp123\",\n      \"name\": \"John Doe\",\n      \"employee_code\": \"EMP001\"\n    },\n    \"leave_type\": {\n      \"id\": \"lt456\",\n      \"name\": \"Annual Leave\",\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"CANCELLED\",\n    \"note\": \"Family vacation\",\n    \"cancellation_note\": \"Employee changed vacation plans\",\n    \"cancelled_by\": \"550e8400-e29b-41d4-a716-446655440002\",\n    \"cancelled_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-05T14:30:00+07:00\",\n  \"request_id\": \"req_cancel_456\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - No `leave.approve` permission\n- `NOT_FOUND` (404) - Leave request not found\n- `INVALID_STATUS` (400) - Cannot cancel from current status (must be PENDING or APPROVED)"
+                "description": "Cancel a leave request. Requires `leave.approve` permission (only HR/approvers can cancel).\n\n**Business Logic:**\n- Uses row-level locking (FOR UPDATE) to prevent race conditions\n- Sets status to CANCELLED, records cancellation details\n- Frees up leave balance if leave type cuts annual leave\n- cancellation_note is OPTIONAL but recommended for audit trail\n- **PENDING cancel**: No attendance records deleted (none were created)\n- **APPROVED cancel**: Linked attendance records are automatically deleted\n\n**Restrictions:**\n- Only status `PENDING` or `APPROVED` can be cancelled\n- Cannot cancel REJECTED or already CANCELLED requests\n\n**Request Body (Optional):**\n```json\n{\n  \"cancellation_note\": \"Reason for cancellation\"\n}\n```\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"employee\": {\n      \"id\": \"emp123\",\n      \"name\": \"John Doe\",\n      \"employee_code\": \"EMP001\"\n    },\n    \"leave_type\": {\n      \"id\": \"lt456\",\n      \"name\": \"Annual Leave\",\n      \"is_cut_annual_leave\": true\n    },\n    \"start_date\": \"2026-02-10\",\n    \"end_date\": \"2026-02-12\",\n    \"duration\": \"MULTI_DAY\",\n    \"total_days\": 3.0,\n    \"status\": \"CANCELLED\",\n    \"note\": \"Family vacation\",\n    \"cancellation_note\": \"Employee changed vacation plans\",\n    \"cancelled_by\": \"550e8400-e29b-41d4-a716-446655440002\",\n    \"cancelled_at\": \"2026-02-05T14:30:00+07:00\",\n    \"created_at\": \"2026-02-04T10:00:00+07:00\",\n    \"updated_at\": \"2026-02-05T14:30:00+07:00\"\n  },\n  \"timestamp\": \"2026-02-05T14:30:00+07:00\",\n  \"request_id\": \"req_cancel_456\"\n}\n```\n\n**Error Codes:**\n- `FORBIDDEN` (403) - No `leave.approve` permission\n- `NOT_FOUND` (404) - Leave request not found\n- `INVALID_STATUS` (400) - Cannot cancel from current status (must be PENDING or APPROVED)"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Self-Service Leave Requests",
+          "description": "Self-service leave request endpoints for employees. Uses JWT identity (no special permissions required).",
+          "item": [
+            {
+              "name": "List My Leave Requests",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/self?page=1&per_page=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "self"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "Filter by status: PENDING, APPROVED, REJECTED, CANCELLED",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "List authenticated employee's own leave requests. No special permission required.\n\n**Filters:**\n- `status` - PENDING, APPROVED, REJECTED, CANCELLED (optional)\n- `page`, `per_page` - Pagination (default: 20, max: 100)"
+              },
+              "response": []
+            },
+            {
+              "name": "Submit Self Leave Request",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"leave_type_id\": \"<leave_type_uuid>\",\n  \"start_date\": \"2026-03-10\",\n  \"end_date\": \"2026-03-12\",\n  \"duration\": \"MULTI_DAY\",\n  \"reason\": \"Personal leave request for family matters\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/self",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "self"
+                  ]
+                },
+                "description": "Submit a leave request for the authenticated employee (self-service).\n\n**Note:** Employee ID is resolved from JWT token.\n\n**Validations:**\n- Working days calculation (excludes weekends & holidays)\n- Balance check (if leave type cuts annual leave)\n- Overlap detection (no pending requests for same dates)\n- Reason: min 10, max 500 characters\n\n**Error Codes:**\n- `INSUFFICIENT_LEAVE_BALANCE` (422) - Not enough quota\n- `OVERLAPPING_LEAVE_REQUEST` (409) - Pending request exists\n- `LEAVE_TYPE_NOT_FOUND` (404) - Invalid leave type\n- `INVALID_DATE_RANGE` (400) - start_date > end_date or no working days"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Self Leave Request Detail",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/self/:id",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "self",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<leave_request_uuid>"
+                    }
+                  ]
+                },
+                "description": "Get a leave request detail by ID. Only returns if the request belongs to the authenticated employee."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Self Leave Request",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"leave_type_id\": \"<leave_type_uuid>\",\n  \"start_date\": \"2026-03-11\",\n  \"end_date\": \"2026-03-13\",\n  \"duration\": \"MULTI_DAY\",\n  \"reason\": \"Updated leave request reason\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/self/:id",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "self",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<leave_request_uuid>"
+                    }
+                  ]
+                },
+                "description": "Update own leave request. Only PENDING or REJECTED status can be updated.\n\n**Restrictions:**\n- Only the owner can update their own request\n- Only PENDING or REJECTED status allowed"
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel Self Leave Request",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"cancellation_note\": \"Changed my plans\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/self/:id/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "self",
+                    ":id",
+                    "cancel"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<leave_request_uuid>"
+                    }
+                  ]
+                },
+                "description": "Cancel own leave request (self-service). Only PENDING or APPROVED requests can be cancelled.\n\n**Business Logic:**\n- PENDING cancel: No attendance records deleted (none were created)\n- APPROVED cancel: Linked attendance records are deleted\n- cancellation_note is OPTIONAL\n- Sets status to CANCELLED (final state)\n\n**Error Codes:**\n- `INVALID_STATUS` (400) - Cannot cancel from current status\n- `NOT_FOUND` (404) - Leave request not found or not owned by user"
+              },
+              "response": []
+            },
+            {
+              "name": "Get My Leave Balance",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/my-balance",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "my-balance"
+                  ]
+                },
+                "description": "Get authenticated employee's leave balance.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"employee_id\": \"uuid\",\n    \"total_quota\": 12,\n    \"used_days\": 5,\n    \"remaining_balance\": 7,\n    \"carry_over_balance\": 0,\n    \"total_available_leave\": 7,\n    \"pending_requests_days\": 2,\n    \"calculated_at\": \"2026-03-01T10:00:00+07:00\"\n  }\n}\n```\n\n**Note:** Returns a single object (not array). Used by the frontend self-service tab to display the leave quota card."
+              },
+              "response": []
+            },
+            {
+              "name": "Get My Form Data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/hrd/leave-requests/my-form-data",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "leave-requests",
+                    "my-form-data"
+                  ]
+                },
+                "description": "Get form data for self-service leave request (leave types only, no employee list).\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"leave_types\": [\n      {\n        \"id\": \"uuid\",\n        \"name\": \"Annual Leave\",\n        \"code\": \"AL\",\n        \"max_days\": 12\n      }\n    ]\n  }\n}\n```"
               },
               "response": []
             }
@@ -8480,6 +8824,185 @@
                   "variable": [{ "key": "id", "value": "" }]
                 },
                 "description": "Soft delete a schedule. Requires `crm_schedule.delete` permission."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Finance",
+      "description": "Finance management endpoints for journal entries, chart of accounts, and accounting operations",
+      "item": [
+        {
+          "name": "Journal Lines",
+          "description": "Journal line entries endpoints with filtering, search, and export",
+          "item": [
+            {
+              "name": "List Journal Lines",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/journal-lines?page=1&per_page=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "journal-lines"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by COA code, name, or memo",
+                      "disabled": true
+                    },
+                    {
+                      "key": "chart_of_account_id",
+                      "value": "",
+                      "description": "Filter by specific Chart of Account UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "account_type",
+                      "value": "",
+                      "description": "Filter by account type: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, CASH_BANK, CURRENT_ASSET, FIXED_ASSET, TRADE_PAYABLE, COST_OF_GOODS_SOLD, SALARY_WAGES, OPERATIONAL",
+                      "disabled": true
+                    },
+                    {
+                      "key": "journal_status",
+                      "value": "",
+                      "description": "Filter by journal status: DRAFT or POSTED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "reference_type",
+                      "value": "",
+                      "description": "Filter by reference type: GENERAL, SALES, PURCHASE, PAYMENT, RECEIPT, ADJUSTMENT",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "",
+                      "description": "Filter from date (YYYY-MM-DD)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "",
+                      "description": "Filter to date (YYYY-MM-DD)",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "List all journal line entries with optional filters. When chart_of_account_id is provided, running balance is calculated. Requires `finance.read` permission."
+              },
+              "response": []
+            },
+            {
+              "name": "Export Journal Lines CSV",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/journal-lines/export",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "journal-lines",
+                    "export"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by COA code, name, or memo",
+                      "disabled": true
+                    },
+                    {
+                      "key": "chart_of_account_id",
+                      "value": "",
+                      "description": "Filter by specific Chart of Account UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "account_type",
+                      "value": "",
+                      "description": "Filter by account type: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, CASH_BANK, CURRENT_ASSET, FIXED_ASSET, TRADE_PAYABLE, COST_OF_GOODS_SOLD, SALARY_WAGES, OPERATIONAL",
+                      "disabled": true
+                    },
+                    {
+                      "key": "journal_status",
+                      "value": "",
+                      "description": "Filter by journal status: DRAFT or POSTED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "reference_type",
+                      "value": "",
+                      "description": "Filter by reference type: GENERAL, SALES, PURCHASE, PAYMENT, RECEIPT, ADJUSTMENT",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "",
+                      "description": "Filter from date (YYYY-MM-DD)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "",
+                      "description": "Filter to date (YYYY-MM-DD)",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Export journal lines as CSV file. Max 10000 rows. Supports the same filters as the list endpoint. Requires `finance.read` permission."
               },
               "response": []
             }

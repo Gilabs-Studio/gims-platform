@@ -14,6 +14,10 @@ Fitur untuk mengelola pengajuan cuti karyawan dengan approval workflow yang komp
 - Carry-over cuti maksimal 5 hari sampai 31 Maret tahun berikutnya
 - IDOR protection: karyawan hanya bisa akses data cuti sendiri
 - Form data endpoint untuk dropdown selection (employees dan leave types)
+- Self-service leave request (employees can create/view/cancel their own requests)
+- Self-service leave quota display with color-coded balance card (Total/Used/Remaining)
+- Auto-fill end date when start date exceeds current end date
+- Separate cancellation information display (orange theme) vs rejection information (red theme)
 
 ## Business Rules
 
@@ -38,8 +42,9 @@ Fitur untuk mengelola pengajuan cuti karyawan dengan approval workflow yang komp
 - Status PENDING atau REJECTED bisa di-edit/delete, status lainnya tidak
 - Only PENDING requests can be approved or rejected
 - Only PENDING or APPROVED requests can be cancelled
+- **Auto-fill end date**: When changing start date, end date automatically updates to match start date if start_date > end_date
 
-### 3. Duration Calculation
+### 4. Duration Calculation
 - **HALF_DAY**: 0.5 hari
 - **FULL_DAY**: 1 hari
 - **MULTI_DAY**: Dihitung working days (exclude weekends & holidays)
@@ -60,9 +65,27 @@ PENDING → APPROVED (by approver)
 
 REJECTED → PENDING (by re-submission after edit via approver)
 
-APPROVED → CANCELLED (by approver)
+APPROVED → CANCELLED (by approver or self-cancel)
 
 CANCELLED → Cannot be changed (final state)
+```
+
+### 7. Self-Service Leave Request
+- Employees can create, view, update, and cancel their own leave requests via self-service endpoints
+- Self-service uses separate `/self` prefix endpoints (no permission middleware, uses JWT identity)
+- Employees can only cancel their own PENDING or APPROVED requests
+- **Leave Quota Display**: Self-service tab shows a 3-column quota card:
+  - Total Quota (blue) / Used Days (amber) / Remaining Balance (green/red based on balance)
+  - Pending request days shown below the card
+  - Data fetched from `GET /my-balance` endpoint
+- **Admin Form Balance**: Employee selector in admin form shows remaining balance below with color coding
+- **Auto-fill End Date**: When start date changes and exceeds current end date, end date auto-fills to match start date
+
+### 8. Cancellation vs Rejection Display
+- Detail modal separates **cancellation** and **rejection** information into distinct sections:
+  - **Rejection Information** (red theme): Shown only for REJECTED status, displays rejection note
+  - **Cancellation Information** (orange theme): Shown only for CANCELLED status, displays cancellation note
+- Backend reuses `rejection_note` field for cancellation notes; frontend handles display logic
 ```
 
 ### 6. IDOR Protection (REMOVED - Business Rule Change)
@@ -75,8 +98,15 @@ CANCELLED → Cannot be changed (final state)
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/leave-requests/form-data` | Auth | Get dropdown data (employees with codes, leave types, current user balance) |
-| POST | `/api/v1/hrd/leave-requests` | leave.create | Submit new leave request (HR/Approvers only) |
+| GET | `/api/v1/hrd/leave-requests/self` | Auth | List own leave requests |
+| POST | `/api/v1/hrd/leave-requests/self` | Auth | Submit own leave request |
+| GET | `/api/v1/hrd/leave-requests/self/:id` | Auth | Get own leave request detail |
+| PUT | `/api/v1/hrd/leave-requests/self/:id` | Auth | Update own leave request (PENDING/REJECTED only) |
+| POST | `/api/v1/hrd/leave-requests/self/:id/cancel` | Auth | Cancel own leave request (PENDING or APPROVED) |
+| GET | `/api/v1/hrd/leave-requests/my-balance` | Auth | Get own leave balance (single object) |
+| GET | `/api/v1/hrd/leave-requests/my-form-data` | Auth | Get form data for self-service (leave types only) |
+| GET | `/api/v1/hrd/leave-requests/form-data` | leave_request.read | Get dropdown data (employees with codes, leave types, current user balance) |
+| POST | `/api/v1/hrd/leave-requests` | leave_request.create | Submit new leave request (HR/Approvers only) |
 | GET | `/api/v1/hrd/leave-requests` | leave.read | List leave requests with filters & search (HR/Approvers only) |
 | GET | `/api/v1/hrd/leave-requests/:id` | leave.read | Get detailed leave request by ID (HR/Approvers only) |
 | PUT | `/api/v1/hrd/leave-requests/:id` | leave.update | Update leave request (HR/Approvers only - PENDING/REJECTED only) |
@@ -84,7 +114,7 @@ CANCELLED → Cannot be changed (final state)
 | GET | `/api/v1/hrd/leave-requests/balance/:employee_id` | Auth | Get employee leave balance |
 | POST | `/api/v1/hrd/leave-requests/:id/approve` | leave.approve | Approve leave request (Approvers only) |
 | POST | `/api/v1/hrd/leave-requests/:id/reject` | leave.approve | Reject leave request (Approvers only) |
-| POST | `/api/v1/hrd/leave-requests/:id/cancel` | leave.approve | Cancel leave request (Approvers only - NEW) |
+| POST | `/api/v1/hrd/leave-requests/:id/cancel` | leave.approve | Cancel leave request (PENDING or APPROVED) |
 
 ## Request/Response Schemas
 
@@ -336,7 +366,8 @@ CANCELLED → Cannot be changed (final state)
 - Cancellation note is optional (unlike rejection which requires note)
 - Cancelled leave requests free up the leave balance immediately
 - Status changes to CANCELLED (final state - cannot be changed)
-- TODO: Trigger email notification to employee
+- **For APPROVED cancellations**: Linked attendance records (LEAVE status) are deleted
+- **For PENDING cancellations**: No attendance records exist, so deletion is skipped
 
 **Use Cases:**
 - Employee calls in sick after leave was approved → HR cancels the approved leave
@@ -382,8 +413,9 @@ apps/web/src/features/hrd/leave-request/
 │   └── use-leave-requests.ts          # TanStack Query hooks
 ├── components/
 │   ├── leave-request-list.tsx         # All-in-one list with table
-│   ├── leave-request-form.tsx         # Form with caching
-│   └── leave-request-detail-modal.tsx # Detail modal with tabs
+│   ├── leave-request-form.tsx         # Form with caching + employee balance display
+│   ├── leave-request-detail-modal.tsx # Detail modal with tabs + separate cancel/reject info
+│   └── self-leave-request-tab.tsx     # Self-service leave request tab (in drawer)
 ├── i18n/
 │   ├── en.ts                          # English translations
 │   └── id.ts                          # Indonesian translations
@@ -442,7 +474,9 @@ apps/web/src/features/hrd/leave-request/
  (IMPLEMENTED)
 **Reason**: 
 - **Semantics**: Cancel vs Reject memiliki makna berbeda (cancel = batalkan yang sudah disetujui, reject = tolak pengajuan)
-- **Status Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
+- **Cancel Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
+- **PENDING Cancel**: Skip attendance record deletion (none were created yet)
+- **APPROVED Cancel**: Delete linked attendance records
 - **Optional Note**: Cancel note optional, Reject note required
 - **Balance Impact**: Cancel immediately frees up leave balance if leave type cuts annual leave
 **Implementation**: Separate endpoint `POST /:id/cancel` with row-level locking (FOR UPDATE)pes USING gin (name gin_trgm_ops);
@@ -457,7 +491,9 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING
 ### 9. Mengapa Cancel endpoint terpisah dari Reject?
 **Reason**: 
 - **Semantics**: Cancel vs Reject memiliki makna berbeda (cancel = batalkan yang sudah disetujui, reject = tolak pengajuan)
-- **Status Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
+- **Cancel Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
+- **PENDING Cancel**: Skip attendance record deletion (none were created yet)
+- **APPROVED Cancel**: Delete linked attendance records
 - **Optional Note**: Cancel note optional, Reject note required
 **Trade-off**: Extra endpoint, tapi clearer business logic dan easier to understand status transitions.
 
@@ -788,6 +824,12 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING
 - ✅ **Employee balance in select** - Employee dropdown shows format: `{code} - {name} ({balance} days remaining)`
 - ✅ **Cancel action in list** - Cancel button in dropdown menu for PENDING/APPROVED requests (with optional note dialog)
 - ✅ **Cancel action in detail modal** - Cancel button in header for PENDING/APPROVED requests (separate from Reject)
+- ✅ **Separate cancel/reject info display** - Detail modal shows Rejection Information (red) for REJECTED and Cancellation Information (orange) for CANCELLED status
+- ✅ **Self-service leave request tab** - Employees can create/view/cancel their own leave requests via drawer tab
+- ✅ **Leave quota display** - Self-service tab shows 3-column quota card (Total/Used/Remaining) with color coding
+- ✅ **Employee balance in admin form** - Shows remaining balance below employee selector with color coding
+- ✅ **Auto-fill end date** - End date auto-fills to match start date when start date exceeds current end date
+- ✅ **Zod validation messages** - Custom error messages for min/max length on reason field (10-500 chars)
 - ✅ **Comprehensive detail modal** - Tabs with General + Timeline, sectioned info cards, action buttons, full nested data
 - ✅ **i18n translations complete** - All keys added for EN/ID locales including cancel dialog translations
 

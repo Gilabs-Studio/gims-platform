@@ -14,7 +14,13 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { getDisplayFilename } from "@/components/ui/file-upload";
-import { Employee, EmployeeContract } from "../types";
+import {
+  Employee,
+  EmployeeContract,
+  EmployeeEducationHistory,
+  EmployeeCertification,
+  EmployeeAsset,
+} from "../types";
 import {
   Shield,
   User,
@@ -25,13 +31,36 @@ import {
   Download,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils";
-import { useEmployee, useEmployeeContracts } from "../hooks/use-employees";
+import {
+  useEmployee,
+  useEmployeeContracts,
+  useEmployeeEducationHistories,
+  useEmployeeCertifications,
+  useEmployeeAssets,
+} from "../hooks/use-employees";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { ContractTimeline } from "./contracts";
 import { CreateContractDialog } from "./contracts/create-contract-dialog";
 import { TerminateContractDialog } from "./contracts/terminate-contract-dialog";
 import { RenewContractDialog } from "./contracts/renew-contract-dialog";
 import { CorrectContractDialog } from "./contracts/correct-contract-dialog";
+import { EducationInfoCard, EducationTimeline } from "./education";
+import { CreateEducationDialog } from "./education/create-education-dialog";
+import { EditEducationDialog } from "./education/edit-education-dialog";
+import { DeleteEducationDialog } from "./education/delete-education-dialog";
+import {
+  CertificationTimeline,
+  CreateCertificationDialog,
+  EditCertificationDialog,
+  DeleteCertificationDialog,
+} from "./certifications";
+import {
+  AssetTimeline,
+  CreateAssetDialog,
+  EditAssetDialog,
+  ReturnAssetDialog,
+  DeleteAssetDialog,
+} from "./assets";
 
 interface EmployeePermission {
   permissions?: string[];
@@ -68,8 +97,37 @@ export function EmployeeDetailModal({
   const [correctContract, setCorrectContract] =
     useState<EmployeeContract | null>(null);
 
+  // Education dialog states
+  const [createEduDialogOpen, setCreateEduDialogOpen] = useState(false);
+  const [editEducation, setEditEducation] =
+    useState<EmployeeEducationHistory | null>(null);
+  const [deleteEducation, setDeleteEducation] =
+    useState<EmployeeEducationHistory | null>(null);
+
+  // Certification dialog states
+  const [createCertDialogOpen, setCreateCertDialogOpen] = useState(false);
+  const [editCertification, setEditCertification] =
+    useState<EmployeeCertification | null>(null);
+  const [deleteCertification, setDeleteCertification] =
+    useState<EmployeeCertification | null>(null);
+
+  // Asset dialog states
+  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false);
+  const [editAsset, setEditAsset] = useState<EmployeeAsset | null>(null);
+  const [returnAsset, setReturnAsset] = useState<EmployeeAsset | null>(null);
+  const [deleteAsset, setDeleteAsset] = useState<EmployeeAsset | null>(null);
+
   // Fetch contracts for the timeline
   const { data: contractsData } = useEmployeeContracts(employee?.id);
+
+  // Fetch education histories
+  const { data: educationsData } = useEmployeeEducationHistories(employee?.id);
+
+  // Fetch certifications
+  const { data: certificationsData } = useEmployeeCertifications(employee?.id);
+
+  // Fetch assets
+  const { data: assetsData } = useEmployeeAssets(employee?.id);
 
   if (!employee) return null;
 
@@ -112,6 +170,15 @@ export function EmployeeDetailModal({
               <TabsTrigger value="contract-history">
                 <FileText className="h-4 w-4 mr-1" />
                 {t("tabs.contractHistory")}
+              </TabsTrigger>
+              <TabsTrigger value="education-history">
+                {t("tabs.educationHistory")}
+              </TabsTrigger>
+              <TabsTrigger value="certifications">
+                {t("tabs.certifications")}
+              </TabsTrigger>
+              <TabsTrigger value="assets">
+                {t("tabs.assets")}
               </TabsTrigger>
             </TabsList>
 
@@ -231,6 +298,20 @@ export function EmployeeDetailModal({
                       </TableRow>
                     </TableBody>
                   </Table>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Education Information (read-only) */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  {t("education.sections.latestEducation")}
+                </h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <EducationInfoCard
+                    education={displayEmployee.latest_education}
+                  />
                 </div>
               </div>
             </TabsContent>
@@ -384,14 +465,22 @@ export function EmployeeDetailModal({
                         <TableCell>
                           {displayEmployee.current_contract?.document_path ? (
                             <a
-                              href={resolveImageUrl(displayEmployee.current_contract.document_path) ?? "#"}
+                              href={
+                                resolveImageUrl(
+                                  displayEmployee.current_contract
+                                    .document_path,
+                                ) ?? "#"
+                              }
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate max-w-[200px]">
-                                {getDisplayFilename(displayEmployee.current_contract.document_path) || t("contract.actions.download")}
+                                {getDisplayFilename(
+                                  displayEmployee.current_contract
+                                    .document_path,
+                                ) || t("contract.actions.download")}
                               </span>
                             </a>
                           ) : (
@@ -522,6 +611,40 @@ export function EmployeeDetailModal({
             <TabsContent value="contract-history" className="space-y-6 py-4">
               <ContractTimeline contracts={contractsData || []} />
             </TabsContent>
+
+            <TabsContent value="education-history" className="space-y-6 py-4">
+              <EducationTimeline
+                educations={educationsData || []}
+                onAdd={() => setCreateEduDialogOpen(true)}
+                onEdit={(edu) => setEditEducation(edu)}
+                onDelete={(edu) => setDeleteEducation(edu)}
+                canEdit
+                canDelete
+              />
+            </TabsContent>
+
+            <TabsContent value="certifications" className="space-y-6 py-4">
+              <CertificationTimeline
+                certifications={certificationsData || []}
+                onAdd={() => setCreateCertDialogOpen(true)}
+                onEdit={(cert) => setEditCertification(cert)}
+                onDelete={(cert) => setDeleteCertification(cert)}
+                canEdit
+                canDelete
+              />
+            </TabsContent>
+
+            <TabsContent value="assets" className="space-y-6 py-4">
+              <AssetTimeline
+                assets={assetsData || []}
+                onAdd={() => setCreateAssetDialogOpen(true)}
+                onEdit={(asset) => setEditAsset(asset)}
+                onReturn={(asset) => setReturnAsset(asset)}
+                onDelete={(asset) => setDeleteAsset(asset)}
+                canEdit
+                canDelete
+              />
+            </TabsContent>
           </Tabs>
         )}
 
@@ -562,6 +685,108 @@ export function EmployeeDetailModal({
           employeeId={displayEmployee.id}
           onSuccess={() => {
             setCorrectContract(null);
+          }}
+        />
+
+        {/* Education Dialogs */}
+        <CreateEducationDialog
+          open={createEduDialogOpen}
+          onOpenChange={setCreateEduDialogOpen}
+          employeeId={displayEmployee.id}
+          existingEducations={educationsData || []}
+          onSuccess={() => {
+            setCreateEduDialogOpen(false);
+          }}
+        />
+
+        <EditEducationDialog
+          open={!!editEducation}
+          onOpenChange={(open) => !open && setEditEducation(null)}
+          employeeId={displayEmployee.id}
+          education={editEducation}
+          existingEducations={educationsData || []}
+          onSuccess={() => {
+            setEditEducation(null);
+          }}
+        />
+
+        <DeleteEducationDialog
+          open={!!deleteEducation}
+          onOpenChange={(open) => !open && setDeleteEducation(null)}
+          employeeId={displayEmployee.id}
+          education={deleteEducation}
+          onSuccess={() => {
+            setDeleteEducation(null);
+          }}
+        />
+
+        {/* Certification Dialogs */}
+        <CreateCertificationDialog
+          open={createCertDialogOpen}
+          onOpenChange={setCreateCertDialogOpen}
+          employeeId={displayEmployee.id}
+          onSuccess={() => {
+            setCreateCertDialogOpen(false);
+          }}
+        />
+
+        <EditCertificationDialog
+          open={!!editCertification}
+          onOpenChange={(open) => !open && setEditCertification(null)}
+          employeeId={displayEmployee.id}
+          certification={editCertification}
+          onSuccess={() => {
+            setEditCertification(null);
+          }}
+        />
+
+        <DeleteCertificationDialog
+          open={!!deleteCertification}
+          onOpenChange={(open) => !open && setDeleteCertification(null)}
+          employeeId={displayEmployee.id}
+          certification={deleteCertification}
+          onSuccess={() => {
+            setDeleteCertification(null);
+          }}
+        />
+
+        {/* Asset Dialogs */}
+        <CreateAssetDialog
+          open={createAssetDialogOpen}
+          onOpenChange={setCreateAssetDialogOpen}
+          employeeId={displayEmployee.id}
+          onSuccess={() => {
+            setCreateAssetDialogOpen(false);
+          }}
+        />
+
+        <EditAssetDialog
+          open={!!editAsset}
+          onOpenChange={(open) => !open && setEditAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={editAsset}
+          onSuccess={() => {
+            setEditAsset(null);
+          }}
+        />
+
+        <ReturnAssetDialog
+          open={!!returnAsset}
+          onOpenChange={(open) => !open && setReturnAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={returnAsset}
+          onSuccess={() => {
+            setReturnAsset(null);
+          }}
+        />
+
+        <DeleteAssetDialog
+          open={!!deleteAsset}
+          onOpenChange={(open) => !open && setDeleteAsset(null)}
+          employeeId={displayEmployee.id}
+          asset={deleteAsset}
+          onSuccess={() => {
+            setDeleteAsset(null);
           }}
         />
       </DialogContent>

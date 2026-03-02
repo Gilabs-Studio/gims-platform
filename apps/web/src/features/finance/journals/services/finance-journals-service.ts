@@ -41,6 +41,11 @@ export const financeJournalsService = {
     return response.data;
   },
 
+  reverse: async (id: string): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.post<ApiResponse<JournalEntry>>(`${BASE_URL}/${id}/reverse`);
+    return response.data;
+  },
+
   trialBalance: async (params?: { start_date?: string; end_date?: string }): Promise<ApiResponse<TrialBalanceResponse>> => {
     const response = await apiClient.get<ApiResponse<TrialBalanceResponse>>(`/finance/reports/trial-balance`, {
       params,

@@ -412,7 +412,7 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Chart of Accounts", "list", "/finance/coa", 1},
-		{"Journal Entries", "book-open", "/finance/journals", 2},
+		// "Journal Entries" created separately below (has sub-menu)
 		{"Bank Accounts", "landmark", "/finance/bank-accounts", 3},
 		{"Payments", "credit-card", "/finance/payments", 4},
 		{"Tax Invoices", "file-text", "/finance/tax-invoices", 5},
@@ -430,6 +430,18 @@ func SeedMenus() error {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
 			return err
 		}
+	}
+
+	// Journal Group (has sub-menus: Journal Entries, Journal Lines)
+	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
+	if err != nil {
+		return err
+	}
+	if _, err := createChildMenu("Journal Entries", "book-open", "/finance/journals", &journalMenu.ID, 1); err != nil {
+		return err
+	}
+	if _, err := createChildMenu("Journal Lines", "table", "/finance/journal-lines", &journalMenu.ID, 2); err != nil {
+		return err
 	}
 
 	// Finance Reports Group
@@ -494,7 +506,6 @@ func SeedMenus() error {
 		{"Contracts", "file-text", "/hrd/contracts", 1},
 		{"Education History", "graduation-cap", "/hrd/education", 2},
 		{"Certifications", "award", "/hrd/certifications", 3},
-		{"Employee Assets", "package", "/hrd/employee-assets", 4},
 	}
 	for _, child := range empDocsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &empDocsMenu.ID, child.order); err != nil {

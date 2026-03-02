@@ -158,7 +158,7 @@ export function CashBankJournalForm({ open, onOpenChange, mode, id }: Props) {
               </div>
               <div className="space-y-2">
                 <Label>{t("fields.type")}</Label>
-                <Select value={form.watch("type") || "cash_in"} onValueChange={(v) => form.setValue("type", v as "cash_in" | "cash_out", { shouldDirty: true })}>
+                <Select value={form.watch("type") || "cash_in"} onValueChange={(v) => form.setValue("type", v as "cash_in" | "cash_out" | "transfer", { shouldDirty: true })}>
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder={t("placeholders.select")} />
                   </SelectTrigger>
@@ -168,6 +168,9 @@ export function CashBankJournalForm({ open, onOpenChange, mode, id }: Props) {
                     </SelectItem>
                     <SelectItem value="cash_out" className="cursor-pointer">
                       {t("type.cash_out")}
+                    </SelectItem>
+                    <SelectItem value="transfer" className="cursor-pointer">
+                      {t("type.transfer")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
