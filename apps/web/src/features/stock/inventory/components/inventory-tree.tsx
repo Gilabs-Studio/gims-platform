@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { ChevronRight, ChevronDown, Package, AlertTriangle, CheckCircle2, XCircle, Layers, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,9 +256,78 @@ function WarehouseNode({ warehouse, isOpen, onToggle }: { warehouse: InventoryTr
   );
 }
 
+/**
+ * Simplified view for when there is only one warehouse.
+ * Skips the expandable card wrapper and renders products directly,
+ * with a flat non-interactive header showing warehouse name and stock badges.
+ */
+function SingleWarehouseView({ warehouse }: { warehouse: InventoryTreeWarehouse }) {
+  const { data: products, isLoading, meta, page, setPage } = useInventoryTreeProducts(warehouse.id, true);
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
+
+  const toggleProduct = (productId: string) => {
+    setExpandedProducts(prev => ({ ...prev, [productId]: !prev[productId] }));
+  };
+
+  return (
+    <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+      {/* Non-expandable warehouse header */}
+      <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Layers className="h-5 w-5 text-primary" />
+          <span className="font-semibold text-base">{warehouse.name}</span>
+        </div>
+        <div className="flex gap-2">
+          <StatusBadge count={warehouse.summary.ok} type="ok" />
+          <StatusBadge count={warehouse.summary.low} type="low" />
+          <StatusBadge count={warehouse.summary.out_of_stock} type="out" />
+          <StatusBadge count={warehouse.summary.overstock} type="over" />
+        </div>
+      </div>
+
+      {/* Products rendered directly without collapse */}
+      <div className="bg-muted/10 p-2">
+        {isLoading && products.length === 0 ? (
+          <div className="space-y-2 p-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {products.map(product => (
+              <ProductNode
+                key={product.product_id}
+                product={product}
+                warehouseId={warehouse.id}
+                isOpen={!!expandedProducts[product.product_id]}
+                onToggle={() => toggleProduct(product.product_id)}
+              />
+            ))}
+            {meta && meta.has_next && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground mt-2"
+                onClick={() => setPage(page + 1)}
+              >
+                Load next page ({meta.total_pages - page} remaining)
+              </Button>
+            )}
+          </div>
+        )}
+        {!isLoading && products.length === 0 && (
+          <div className="p-8 text-center text-muted-foreground">
+            No items in this warehouse
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function InventoryTree() {
   const { warehouses, isLoading, expandedWarehouses, toggleWarehouse } = useInventoryTree();
-  const t = useTranslations("inventory");
 
   if (isLoading) {
     return <div className="space-y-4">
@@ -267,6 +335,23 @@ export function InventoryTree() {
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
     </div>;
+  }
+
+  if (warehouses.length === 0) {
+    return (
+      <div className="p-10 border rounded-lg text-center text-muted-foreground">
+        No warehouses found.
+      </div>
+    );
+  }
+
+  // Single warehouse: skip expandable card, render products directly
+  if (warehouses.length === 1) {
+    return (
+      <div className="space-y-2">
+        <SingleWarehouseView warehouse={warehouses[0]} />
+      </div>
+    );
   }
 
   return (
@@ -279,11 +364,6 @@ export function InventoryTree() {
             onToggle={() => toggleWarehouse(warehouse.id)}
         />
       ))}
-      {warehouses.length === 0 && (
-          <div className="p-10 border rounded-lg text-center text-muted-foreground">
-              No warehouses found.
-          </div>
-      )}
     </div>
   );
 }
