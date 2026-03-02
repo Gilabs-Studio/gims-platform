@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,6 +61,19 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
 
   const isEditing = !!editingItem;
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  const [quickCreateQuery, setQuickCreateQuery] = useState("");
+
+  const openQuickCreate = (query: string) => {
+    setQuickCreateQuery(query);
+    setIsQuickCreateOpen(true);
+  };
+
+  const closeQuickCreate = () => {
+    setIsQuickCreateOpen(false);
+    setQuickCreateQuery("");
+  };
 
   const form = useForm<SupplierFormData>({
     resolver: zodResolver(supplierFormSchema),
@@ -125,6 +138,11 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     }
   }, [open, activeItem, form]);
 
+  const handleSupplierTypeCreated = (id: string) => {
+    form.setValue("supplier_type_id", id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    closeQuickCreate();
+  };
+
   const onSubmit: SubmitHandler<SupplierFormData> = async (data) => {
     try {
       const payload = {
@@ -172,6 +190,11 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     isLoadingDetail,
     activeItem,
     supplierTypes,
+    isQuickCreateOpen,
+    quickCreateQuery,
+    openQuickCreate,
+    closeQuickCreate,
+    handleSupplierTypeCreated,
     onSubmit: form.handleSubmit(onSubmit),
   };
 }
