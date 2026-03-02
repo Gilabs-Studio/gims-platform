@@ -16,6 +16,7 @@ export const financeCashBankId = {
   type: {
     cash_in: "Kas Masuk",
     cash_out: "Kas Keluar",
+    transfer: "Transfer",
   },
   status: {
     draft: "Draft",

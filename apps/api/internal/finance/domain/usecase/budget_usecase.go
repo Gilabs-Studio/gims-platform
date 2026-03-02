@@ -29,6 +29,7 @@ type BudgetUsecase interface {
 	List(ctx context.Context, req *dto.ListBudgetsRequest) ([]dto.BudgetResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.BudgetResponse, error)
 	SyncActuals(ctx context.Context, id string) (*dto.BudgetResponse, error)
+	GetFormData(ctx context.Context) (*dto.BudgetFormDataResponse, error)
 }
 
 type budgetUsecase struct {

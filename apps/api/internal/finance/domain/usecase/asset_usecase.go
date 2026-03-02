@@ -36,6 +36,7 @@ type AssetUsecase interface {
 	Adjust(ctx context.Context, id string, req *dto.AdjustAssetRequest) (*dto.AssetResponse, error)
 	ApproveTransaction(ctx context.Context, txID string) (*dto.AssetResponse, error)
 	CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error
+	GetFormData(ctx context.Context) (*dto.AssetFormDataResponse, error)
 }
 
 type assetUsecase struct {

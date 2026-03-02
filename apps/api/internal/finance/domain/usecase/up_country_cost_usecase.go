@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,17 +26,19 @@ type UpCountryCostUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
 	List(ctx context.Context, req *dto.ListUpCountryCostsRequest) ([]dto.UpCountryCostResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
+	GetFormData(ctx context.Context) (*dto.UpCountryCostFormDataResponse, error)
 }
 
 type upCountryCostUsecase struct {
 	db        *gorm.DB
+	coaRepo   repositories.ChartOfAccountRepository
 	repo      repositories.UpCountryCostRepository
 	journalUC JournalEntryUsecase
 	mapper    *mapper.UpCountryCostMapper
 }
 
-func NewUpCountryCostUsecase(db *gorm.DB, repo repositories.UpCountryCostRepository, journalUC JournalEntryUsecase, mapper *mapper.UpCountryCostMapper) UpCountryCostUsecase {
-	return &upCountryCostUsecase{db: db, repo: repo, journalUC: journalUC, mapper: mapper}
+func NewUpCountryCostUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.UpCountryCostRepository, journalUC JournalEntryUsecase, mapper *mapper.UpCountryCostMapper) UpCountryCostUsecase {
+	return &upCountryCostUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
 }
 
 func (uc *upCountryCostUsecase) Create(ctx context.Context, req *dto.CreateUpCountryCostRequest) (*dto.UpCountryCostResponse, error) {
@@ -253,14 +256,15 @@ func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.Up
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 
-	var expCoA financeModels.ChartOfAccount
-	if err := uc.db.WithContext(ctx).Where("name ILIKE ?", "%Perjalanan Dinas%").First(&expCoA).Error; err != nil {
-		return nil, errors.New("expense account (Perjalanan Dinas) not found")
+	// Look up well-known COA accounts by code (stable, unlike name-based ILIKE).
+	expCoA, err := uc.coaRepo.FindByCode(ctx, COACodeTravelExpense)
+	if err != nil {
+		return nil, fmt.Errorf("travel expense account (code %s) not found in Chart of Accounts: %w", COACodeTravelExpense, err)
 	}
 
-	var payableCoA financeModels.ChartOfAccount
-	if err := uc.db.WithContext(ctx).Where("name ILIKE ?", "%Hutang Biaya%").First(&payableCoA).Error; err != nil {
-		return nil, errors.New("payable account (Hutang Biaya) not found")
+	payableCoA, err := uc.coaRepo.FindByCode(ctx, COACodeAccruedExpense)
+	if err != nil {
+		return nil, fmt.Errorf("accrued expense account (code %s) not found in Chart of Accounts: %w", COACodeAccruedExpense, err)
 	}
 
 	var total float64

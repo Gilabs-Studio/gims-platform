@@ -17,8 +17,9 @@ const (
 type CashBankType string
 
 const (
-	CashBankTypeCashIn  CashBankType = "cash_in"
-	CashBankTypeCashOut CashBankType = "cash_out"
+	CashBankTypeCashIn   CashBankType = "cash_in"
+	CashBankTypeCashOut  CashBankType = "cash_out"
+	CashBankTypeTransfer CashBankType = "transfer"
 )
 
 type CashBankJournal struct {
@@ -28,13 +29,13 @@ type CashBankJournal struct {
 	Type            CashBankType `gorm:"type:varchar(20);not null;index" json:"type"`
 	Description     string       `gorm:"type:text" json:"description"`
 
-	BankAccountID string `gorm:"type:uuid;not null;index" json:"bank_account_id"`
+	BankAccountID               string `gorm:"type:uuid;not null;index" json:"bank_account_id"`
 	BankAccountNameSnapshot     string `gorm:"type:varchar(150)" json:"bank_account_name_snapshot,omitempty"`
 	BankAccountNumberSnapshot   string `gorm:"type:varchar(50)" json:"bank_account_number_snapshot,omitempty"`
 	BankAccountHolderSnapshot   string `gorm:"type:varchar(150)" json:"bank_account_holder_snapshot,omitempty"`
 	BankAccountCurrencySnapshot string `gorm:"type:varchar(10)" json:"bank_account_currency_snapshot,omitempty"`
 
-	TotalAmount float64       `gorm:"type:numeric(18,2);not null" json:"total_amount"`
+	TotalAmount float64        `gorm:"type:numeric(18,2);not null" json:"total_amount"`
 	Status      CashBankStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 
 	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id"`

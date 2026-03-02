@@ -17,7 +17,7 @@ func SeedFinanceSprint12() error {
 
 	log.Println("Seeding finance (Sprint 12): COA, assets, closing, tax invoice, non-trade payable...")
 
-	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable.
+	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable + UpCountryCost + YearEndClosing.
 	coaSeeds := []financeModels.ChartOfAccount{
 		{Code: "1100", Name: "Accounts Receivable", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "11100", Name: "Cash on Hand", Type: financeModels.AccountTypeAsset, IsActive: true},
@@ -27,10 +27,15 @@ func SeedFinanceSprint12() error {
 		{Code: "1590", Name: "Accumulated Depreciation", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "21000", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "21100", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "21200", Name: "Non-Trade Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "21300", Name: "Accrued Expenses", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "31000", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
+		{Code: "32000", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
 		{Code: "4100", Name: "Sales Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
 		{Code: "6100", Name: "Depreciation Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "61000", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "6200", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "62000", Name: "Travel Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 	}
 
 	for i := range coaSeeds {

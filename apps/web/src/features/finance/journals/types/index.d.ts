@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type JournalStatus = "draft" | "posted";
+export type JournalStatus = "draft" | "posted" | "reversed";
 
 export interface JournalLine {
   id: string;

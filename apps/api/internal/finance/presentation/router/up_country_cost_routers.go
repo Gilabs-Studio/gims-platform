@@ -19,6 +19,8 @@ func RegisterUpCountryCostRoutes(r *gin.RouterGroup, h *handler.UpCountryCostHan
 	{
 		g.GET("", middleware.RequirePermission(upCountryCostRead), h.List)
 		g.POST("", middleware.RequirePermission(upCountryCostCreate), h.Create)
+		// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+		g.GET("/form-data", middleware.RequirePermission(upCountryCostRead), h.GetFormData)
 		g.GET("/:id", middleware.RequirePermission(upCountryCostRead), h.GetByID)
 		g.PUT("/:id", middleware.RequirePermission(upCountryCostUpdate), h.Update)
 		g.DELETE("/:id", middleware.RequirePermission(upCountryCostDelete), h.Delete)

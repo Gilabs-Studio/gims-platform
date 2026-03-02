@@ -7,6 +7,7 @@ export const financeJournalsId = {
     updated: "Jurnal diperbarui",
     deleted: "Jurnal dihapus",
     posted: "Jurnal diposting",
+    reversed: "Jurnal dibalik",
     failed: "Terjadi kesalahan",
     unbalanced: "Jurnal harus seimbang (debit = kredit)",
   },
@@ -15,6 +16,7 @@ export const financeJournalsId = {
     edit: "Ubah",
     delete: "Hapus",
     post: "Posting",
+    reverse: "Balik",
     view: "Lihat",
     trialBalance: "Neraca Saldo",
   },
@@ -35,6 +37,7 @@ export const financeJournalsId = {
   status: {
     draft: "Draft",
     posted: "Diposting",
+    reversed: "Dibalik",
   },
   form: {
     createTitle: "Buat Jurnal",

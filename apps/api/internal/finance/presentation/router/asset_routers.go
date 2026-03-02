@@ -20,6 +20,8 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
 	g.POST("", middleware.RequirePermission(assetCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(assetCreate), h.Create)
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(assetRead), h.GetFormData)
 	g.GET("/:id", middleware.RequirePermission(assetRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(assetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(assetDelete), h.Delete)

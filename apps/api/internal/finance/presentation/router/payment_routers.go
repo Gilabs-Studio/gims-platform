@@ -20,6 +20,8 @@ func RegisterPaymentRoutes(r *gin.RouterGroup, h *handler.PaymentHandler) {
 	g.GET("/", middleware.RequirePermission(paymentRead), h.List)
 	g.POST("", middleware.RequirePermission(paymentCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(paymentCreate), h.Create)
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(paymentRead), h.GetFormData)
 	g.GET("/:id", middleware.RequirePermission(paymentRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(paymentUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(paymentDelete), h.Delete)

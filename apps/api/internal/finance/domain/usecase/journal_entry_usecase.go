@@ -35,8 +35,10 @@ type JournalEntryUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	List(ctx context.Context, req *dto.ListJournalEntriesRequest) ([]dto.JournalEntryResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	Reverse(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
 	PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error)
+	GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error)
 }
 
 type journalEntryUsecase struct {
@@ -119,12 +121,14 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		}
 
 		entry := &financeModels.JournalEntry{
-			EntryDate:     entryDate,
-			Description:   strings.TrimSpace(req.Description),
-			ReferenceType: req.ReferenceType,
-			ReferenceID:   req.ReferenceID,
-			Status:        financeModels.JournalStatusDraft,
-			CreatedBy:     &actorID,
+			EntryDate:         entryDate,
+			Description:       strings.TrimSpace(req.Description),
+			ReferenceType:     req.ReferenceType,
+			ReferenceID:       req.ReferenceID,
+			Status:            financeModels.JournalStatusDraft,
+			CreatedBy:         &actorID,
+			IsSystemGenerated: req.IsSystemGenerated,
+			SourceDocumentURL: req.SourceDocumentURL,
 		}
 		if err := tx.Create(entry).Error; err != nil {
 			return err
@@ -501,4 +505,88 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 	}
 
 	return nil, err
+}
+
+// Reverse creates a new reversing journal entry (swapped debit/credit) for a posted entry,
+// then auto-posts the reversal. This is standard accounting practice for correcting errors.
+func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	entry, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+
+	if entry.Status != financeModels.JournalStatusPosted {
+		return nil, errors.New("only posted journal entries can be reversed")
+	}
+
+	// Build reversed lines: swap debit and credit
+	reversedLines := make([]dto.JournalLineRequest, 0, len(entry.Lines))
+	for _, ln := range entry.Lines {
+		reversedLines = append(reversedLines, dto.JournalLineRequest{
+			ChartOfAccountID: ln.ChartOfAccountID,
+			Debit:            ln.Credit,
+			Credit:           ln.Debit,
+			Memo:             "Reversal: " + ln.Memo,
+		})
+	}
+
+	refType := "reversal"
+	reversalReq := &dto.CreateJournalEntryRequest{
+		EntryDate:         time.Now().Format("2006-01-02"),
+		Description:       "Reversal of: " + entry.Description,
+		ReferenceType:     &refType,
+		ReferenceID:       &entry.ID,
+		Lines:             reversedLines,
+		IsSystemGenerated: true,
+	}
+
+	// Create the reversal journal entry
+	reversal, err := uc.Create(ctx, reversalReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create reversal entry: %w", err)
+	}
+
+	// Auto-post the reversal
+	posted, err := uc.Post(ctx, reversal.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to post reversal entry: %w", err)
+	}
+
+	return posted, nil
+}
+
+// GetFormData returns dropdown options for journal entry forms (COA list).
+func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error) {
+	coas, err := uc.coaRepo.FindAll(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	coaOptions := make([]dto.COAFormOption, 0, len(coas))
+	for _, coa := range coas {
+		coaOptions = append(coaOptions, dto.COAFormOption{
+			ID:   coa.ID,
+			Code: coa.Code,
+			Name: coa.Name,
+			Type: string(coa.Type),
+		})
+	}
+
+	return &dto.JournalEntryFormDataResponse{
+		ChartOfAccounts: coaOptions,
+	}, nil
 }

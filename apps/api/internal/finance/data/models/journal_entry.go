@@ -45,6 +45,9 @@ type JournalEntry struct {
 
 	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
 
+	IsSystemGenerated bool    `gorm:"default:false;index" json:"is_system_generated"`
+	SourceDocumentURL *string `gorm:"type:varchar(500)" json:"source_document_url,omitempty"`
+
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

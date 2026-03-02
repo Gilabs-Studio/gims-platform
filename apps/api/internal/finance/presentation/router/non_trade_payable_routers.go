@@ -19,6 +19,8 @@ func RegisterNonTradePayableRoutes(r *gin.RouterGroup, h *handler.NonTradePayabl
 	g.GET("/", middleware.RequirePermission(nonTradePayableRead), h.List)
 	g.POST("", middleware.RequirePermission(nonTradePayableCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(nonTradePayableCreate), h.Create)
+	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+	g.GET("/form-data", middleware.RequirePermission(nonTradePayableRead), h.GetFormData)
 	g.GET("/:id", middleware.RequirePermission(nonTradePayableRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(nonTradePayableUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(nonTradePayableDelete), h.Delete)
