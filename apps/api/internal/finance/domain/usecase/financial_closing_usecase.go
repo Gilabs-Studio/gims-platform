@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -470,14 +471,18 @@ func (uc *financialClosingUsecase) YearEndClose(ctx context.Context, req *dto.Ye
 		})
 	}
 
-	// Create the closing journal entry via PostOrUpdateJournal (auto-posts)
+	// Create the closing journal entry via PostOrUpdateJournal (auto-posts).
+	// reference_id must be a UUID — use a deterministic UUID v5 derived from the
+	// fiscal year so that re-running year-end close for the same year performs an
+	// upsert rather than creating a duplicate.
+	var yearEndClosingNS = uuid.MustParse("23d6b1a2-0000-0000-0000-000000000000")
 	refType := "year_end_closing"
-	refID := fmt.Sprintf("year-end-%d", year)
+	refIDStr := uuid.NewSHA1(yearEndClosingNS, []byte(fmt.Sprintf("%d", year))).String()
 	journalReq := &dto.CreateJournalEntryRequest{
 		EntryDate:         endOfYear.Format("2006-01-02"),
 		Description:       fmt.Sprintf("Year-End Closing Journal FY%d", year),
 		ReferenceType:     &refType,
-		ReferenceID:       &refID,
+		ReferenceID:       &refIDStr,
 		Lines:             lines,
 		IsSystemGenerated: true,
 	}
