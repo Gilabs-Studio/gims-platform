@@ -45,6 +45,7 @@ import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
 import { VisitReportPhotos } from "./visit-report-photos";
 import { VisitReportGpsMap } from "./visit-report-gps-map";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import type { VisitReport, VisitReportStatus, VisitReportDetail as VisitReportDetailType } from "../types";
@@ -114,6 +115,8 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const canDelete = useUserPermission("crm_visit.delete");
   const canApprove = useUserPermission("crm_visit.approve");
 
+  const { user } = useAuthStore();
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -122,6 +125,8 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const history = historyResponse?.data ?? [];
   const isDraft = visit?.status === "draft";
   const isSubmitted = visit?.status === "submitted";
+  // Only the user who created this visit report may submit / edit / delete it
+  const isOwner = !!visit && !!user && visit.created_by === user.id;
 
   const handleDelete = async () => {
     if (!visit) return;
@@ -220,7 +225,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               {tCommon("print")}
             </Button>
 
-            {isDraft && (
+            {isDraft && isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -262,7 +267,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 </Button>
               </>
             )}
-            {isDraft && canUpdate && (
+            {isDraft && canUpdate && isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -273,7 +278,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 {tCommon("edit")}
               </Button>
             )}
-            {isDraft && canDelete && (
+            {isDraft && canDelete && isOwner && (
               <Button
                 variant="ghost"
                 size="sm"

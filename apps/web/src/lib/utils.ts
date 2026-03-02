@@ -87,3 +87,23 @@ export function sortOptions<T>(data: readonly T[], getLabel: (item: T) => string
     return labelA.localeCompare(labelB);
   });
 }
+
+/**
+ * Formats a phone number into a WhatsApp link.
+ * @param phone The phone number string.
+ * @param message Optional message to pre-fill.
+ * @returns A formatted wa.me link.
+ */
+export function formatWhatsAppLink(phone?: string, message?: string): string {
+  if (!phone) return "#";
+  // Remove non-digit characters
+  const digits = phone.replace(/\D/g, "");
+  // Basic normalization for ID numbers (08... -> 628...)
+  const normalized = digits.startsWith("0") ? "62" + digits.substring(1) : digits;
+  
+  const baseUrl = `https://wa.me/${normalized}`;
+  if (message) {
+    return `${baseUrl}?text=${encodeURIComponent(message)}`;
+  }
+  return baseUrl;
+}

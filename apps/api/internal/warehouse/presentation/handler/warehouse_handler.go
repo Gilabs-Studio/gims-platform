@@ -178,6 +178,13 @@ func (h *WarehouseHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
+		// Return a specific 422 when the warehouse still holds active stock
+		if err == usecase.ErrWarehouseHasStock {
+			errors.ErrorResponse(c, "WAREHOUSE_HAS_STOCK", map[string]interface{}{
+				"warehouse_id": id,
+			}, nil)
+			return
+		}
 		errors.ErrorResponse(c, "WAREHOUSE_DELETE_FAILED", map[string]interface{}{
 			"warehouse_id": id,
 			"message":      err.Error(),

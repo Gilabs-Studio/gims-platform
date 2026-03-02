@@ -149,5 +149,17 @@ export const crmVisitReportId = {
       priceMin: "Harga tidak boleh negatif",
       rejectionReasonMin: "Alasan penolakan minimal 5 karakter",
     },
+    tabs: {
+      byDate: "Berdasarkan Tanggal",
+      byEmployee: "Berdasarkan Karyawan",
+    },
+    employeeView: {
+      searchPlaceholder: "Cari karyawan...",
+      empty: "Tidak ada karyawan dengan laporan kunjungan",
+      loadError: "Gagal memuat ringkasan karyawan",
+      lastVisit: "Kunjungan terakhir",
+      viewAll: "Lihat semua laporan",
+    },
   },
 };
+

@@ -1,6 +1,5 @@
 // Employee entity types for Sprint 3
 
-export type EmployeeStatus = "draft" | "pending" | "approved" | "rejected";
 export type Gender = "male" | "female";
 
 // Contract types (new simplified structure)
@@ -353,18 +352,14 @@ export interface Employee {
   };
   areas?: EmployeeArea[];
   is_area_supervisor: boolean;
-  status: EmployeeStatus;
-  is_approved: boolean;
   created_by?: string;
-  approved_by?: string;
-  approved_at?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateEmployeeData {
-  employee_code: string;
+  employee_code?: string;
   name: string;
   email?: string;
   phone?: string;
@@ -419,10 +414,6 @@ export interface UpdateEmployeeData {
   is_active?: boolean;
 }
 
-export interface ApproveEmployeeData {
-  action: "approve" | "reject";
-  reason?: string;
-}
 
 export interface AssignEmployeeAreasData {
   area_ids: string[];
@@ -477,7 +468,6 @@ export interface ListEmployeesParams {
   job_position_id?: string;
   area_id?: string;
   company_id?: string;
-  status?: EmployeeStatus;
   is_active?: boolean;
   sort_by?: string;
   sort_dir?: "asc" | "desc";

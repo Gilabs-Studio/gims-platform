@@ -12,7 +12,6 @@ import {
   UserPlus,
   Users,
   Shield,
-  Info,
   Hash,
 } from "lucide-react";
 
@@ -25,9 +24,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { useAreaDetail, useRemoveAreaEmployee } from "../../hooks/use-areas";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -81,94 +79,224 @@ export function AreaDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent size="xl" className="max-h-[90vh] overflow-hidden">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {areaName}
-                {area && (
-                  <Badge variant={area.is_active ? "active" : "inactive"}>
-                    {area.is_active ? t("form.isActive") : t("form.isActive")}
-                  </Badge>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-
-            {/* Body scrolls separately so header stays fixed */}
-            <ScrollArea className="mt-4 max-h-[calc(90vh-6rem)] pr-2">
-              {isLoading ? (
-                <div className="p-4">
-                  <DetailSkeleton />
-                </div>
-              ) : area ? (
-                <div>
-                {/* Left: Info (main flexible column) */}
-                <div className="space-y-4 min-w-0">
-                  <InfoTab area={area} t={t} />
-                </div>
-
-                {/* Right: Supervisors + Members (fixed width) */}
-                <div className="pt-6 space-y-6">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Shield className="size-5" />
-                        <div>
-                          <p className="text-sm font-medium">{t("detail.supervisors")}</p>
-                          <p className="text-xs text-muted-foreground">{t("detail.supervisorCount", { count: area.supervisor_count })}</p>
-                        </div>
-                      </div>
-                      {canCreate && canAssignSupervisor ? (
-                        <Button
-                          size="sm"
-                          onClick={onAssignSupervisor}
-                          className="cursor-pointer h-8 w-8 p-0"
-                          aria-label={t("assign.supervisor")}
-                          title={t("assign.supervisor")}
-                        >
-                          <UserPlus className="size-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {area.supervisors.length === 0 ? (
-                      <EmptyState icon={<AlertTriangle className="size-10 text-amber-500" />} message={t("detail.noSupervisorWarning")} />
-                    ) : (
-                      <EmployeeList employees={area.supervisors} isSupervisor t={t} onRemove={(emp) => setRemoveTarget({ employee: emp, isSupervisor: true })} />
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="size-5" />
-                        <div>
-                          <p className="text-sm font-medium">{t("detail.members")}</p>
-                          <p className="text-xs text-muted-foreground">{t("detail.memberCount", { count: area.member_count })}</p>
-                        </div>
-                      </div>
-                      {canCreate && canAssignMember ? (
-                        <Button
-                          size="sm"
-                          onClick={onAssignMembers}
-                          className="cursor-pointer h-8 w-8 p-0"
-                          aria-label={t("assign.members")}
-                          title={t("assign.members")}
-                        >
-                          <UserPlus className="size-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {area.members.length === 0 ? (
-                      <EmptyState icon={<AlertTriangle className="size-10 text-amber-500" />} message={t("detail.noMembersWarning")} />
-                    ) : (
-                      <EmployeeList employees={area.members} isSupervisor={false} t={t} onRemove={(emp) => setRemoveTarget({ employee: emp, isSupervisor: false })} />
-                    )}
-                  </div>
+        <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <DialogTitle className="text-xl mb-2">{areaName}</DialogTitle>
+                <div className="flex items-center gap-3">
+                  {area && (
+                    <Badge variant={area.is_active ? "default" : "inactive"} className="text-xs font-medium">
+                      {area.is_active ? t("form.isActive") : t("form.isActive")}
+                    </Badge>
+                  )}
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Shield className="h-4 w-4 shrink-0" />
+                    {area?.supervisor_count ?? 0} {t("detail.supervisors")}
+                  </span>
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Users className="h-4 w-4 shrink-0" />
+                    {area?.member_count ?? 0} {t("detail.members")}
+                  </span>
                 </div>
               </div>
-            ) : null}
-          </ScrollArea>
+            </div>
+          </DialogHeader>
+
+          {isLoading ? (
+            <div className="space-y-4 py-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          ) : area ? (
+            <div className="space-y-6 py-4">
+              {/* General Info Table */}
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50 w-48">{t("form.name")}</TableCell>
+                      <TableCell>{area.name}</TableCell>
+                      <TableCell className="font-medium bg-muted/50 w-48">Created At</TableCell>
+                      <TableCell>
+                        {area.created_at ? new Date(area.created_at).toLocaleDateString("id-ID") : "-"}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">{t("form.description")}</TableCell>
+                      <TableCell colSpan={3}>{area.description || "-"}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Supervisors */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">{t("detail.supervisors")} ({area.supervisor_count})</h3>
+                  {canCreate && canAssignSupervisor && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onAssignSupervisor}
+                      className="cursor-pointer"
+                    >
+                      <UserPlus className="size-4 mr-2" />
+                      {t("assign.supervisor")}
+                    </Button>
+                  )}
+                </div>
+                {area.supervisors.length === 0 ? (
+                  <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
+                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <p className="text-sm text-muted-foreground">{t("detail.noSupervisorWarning")}</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Position</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {area.supervisors.map(emp => (
+                          <TableRow key={emp.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{emp.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {emp.email ? (
+                                <a href={`mailto:${emp.email}`} className="flex items-center gap-1 text-primary text-sm hover:underline cursor-pointer">
+                                  <Mail className="size-3" />
+                                  {emp.email}
+                                </a>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              <div className="flex flex-col gap-1">
+                                {emp.job_position ? (
+                                  <span className="flex items-center gap-1">
+                                    <Briefcase className="size-3" />
+                                    {emp.job_position}
+                                  </span>
+                                ) : null}
+                                {emp.division_name ? (
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="size-3" />
+                                    {emp.division_name}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                onClick={() => setRemoveTarget({ employee: emp, isSupervisor: true })}
+                                title={t("remove.supervisor")}
+                              >
+                                <UserMinus className="size-4 mr-1" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              {/* Members */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">{t("detail.members")} ({area.member_count})</h3>
+                  {canCreate && canAssignMember && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onAssignMembers}
+                      className="cursor-pointer"
+                    >
+                      <UserPlus className="size-4 mr-2" />
+                      {t("assign.members")}
+                    </Button>
+                  )}
+                </div>
+                {area.members.length === 0 ? (
+                  <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
+                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <p className="text-sm text-muted-foreground">{t("detail.noMembersWarning")}</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Position</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {area.members.map(emp => (
+                          <TableRow key={emp.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{emp.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {emp.email ? (
+                                <a href={`mailto:${emp.email}`} className="flex items-center gap-1 text-primary text-sm hover:underline cursor-pointer">
+                                  <Mail className="size-3" />
+                                  {emp.email}
+                                </a>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              <div className="flex flex-col gap-1">
+                                {emp.job_position ? (
+                                  <span className="flex items-center gap-1">
+                                    <Briefcase className="size-3" />
+                                    {emp.job_position}
+                                  </span>
+                                ) : null}
+                                {emp.division_name ? (
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="size-3" />
+                                    {emp.division_name}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                onClick={() => setRemoveTarget({ employee: emp, isSupervisor: false })}
+                                title={t("remove.member")}
+                              >
+                                <UserMinus className="size-4 mr-1" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
 
@@ -189,161 +317,5 @@ export function AreaDetailModal({
         isLoading={removeEmployee.isPending}
       />
     </>
-  );
-}
-
-// -- Sub-components --
-
-function InfoTab({
-  area,
-  t,
-}: {
-  area: {
-    name: string;
-    description?: string;
-    is_active: boolean;
-    supervisor_count: number;
-    member_count: number;
-    created_at: string;
-    updated_at: string;
-  };
-  t: ReturnType<typeof useTranslations>;
-}) {
-  return (
-    <div className="space-y-3">
-      <InfoRow label={t("form.name")} value={area.name} />
-      <InfoRow
-        label={t("form.description")}
-        value={area.description || "-"}
-      />
-      <Separator />
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex items-center gap-2 rounded-lg border p-3">
-          <Shield className="size-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {t("detail.supervisors")}
-            </p>
-            <p className="text-lg font-semibold">{area.supervisor_count}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border p-3">
-          <Users className="size-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {t("detail.members")}
-            </p>
-            <p className="text-lg font-semibold">{area.member_count}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-start gap-4">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-right min-w-0 break-words">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function EmployeeList({
-  employees,
-  isSupervisor,
-  t,
-  onRemove,
-}: {
-  employees: EmployeeInAreaResponse[];
-  isSupervisor: boolean;
-  t: ReturnType<typeof useTranslations>;
-  onRemove: (emp: EmployeeInAreaResponse) => void;
-}) {
-  return (
-    <ScrollArea className="max-h-[50vh]">
-      <div className="space-y-2">
-        {employees.map((emp) => (
-          <div
-            key={emp.id}
-            className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors min-h-[68px]"
-          >
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm truncate">
-                  {emp.name}
-                </span>
-                <Badge variant="outline" className="shrink-0 text-sm px-2 py-1">
-                  <Hash className="size-3 mr-1" />
-                  {emp.employee_code}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {emp.email && (
-                  <span className="flex items-center gap-1 truncate">
-                    <Mail className="size-3 shrink-0" />
-                    {emp.email}
-                  </span>
-                )}
-                {emp.division_name && (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="size-3 shrink-0" />
-                    {emp.division_name}
-                  </span>
-                )}
-                {emp.job_position && (
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="size-3 shrink-0" />
-                    {emp.job_position}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-              onClick={() => onRemove(emp)}
-            >
-              <UserMinus className="size-4 mr-1" />
-              {isSupervisor ? t("remove.supervisor") : t("remove.member")}
-            </Button>
-          </div>
-        ))}
-      </div>
-    </ScrollArea>
-  );
-}
-
-function EmptyState({
-  icon,
-  message,
-}: {
-  icon: React.ReactNode;
-  message: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center py-10 text-center">
-      {icon}
-      <p className="mt-3 text-sm text-muted-foreground">{message}</p>
-    </div>
-  );
-}
-
-function DetailSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-6 w-3/4" />
-      <Skeleton className="h-6 w-1/2" />
-      <div className="grid grid-cols-2 gap-4">
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
-      </div>
-    </div>
   );
 }

@@ -7,6 +7,8 @@ import {
   Pencil,
   Trash2,
   Eye,
+  AlertTriangle,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +29,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { WarehouseDialog } from "./warehouse-dialog";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
 import { useWarehouseList } from "../../hooks/use-warehouse-list";
+import { Link } from "@/i18n/routing";
 
 export function WarehouseList() {
   const { state, actions, data, permissions, translations } = useWarehouseList();
@@ -46,7 +57,7 @@ export function WarehouseList() {
           onClick={() => data.refetch()}
           className="mt-4 ml-2 cursor-pointer"
         >
-          Retry
+          {t("common.retry")}
         </Button>
       </div>
     );
@@ -146,14 +157,14 @@ export function WarehouseList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem
+                          <DropdownMenuItem
                             onClick={() => actions.handleViewDetail(item)}
                             className="cursor-pointer"
                           >
                             <Eye className="mr-2 h-4 w-4" />
-                            View
+                            {t("common.view")}
                           </DropdownMenuItem>
-                          
+
                           {permissions.canUpdate && (
                             <DropdownMenuItem
                               onClick={() => actions.handleEdit(item)}
@@ -163,9 +174,9 @@ export function WarehouseList() {
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
-                          
+
                           {permissions.canDelete && <DropdownMenuSeparator />}
-                          
+
                           {permissions.canDelete && (
                             <DropdownMenuItem
                               onClick={() => actions.setDeleteId(item.id)}
@@ -200,7 +211,7 @@ export function WarehouseList() {
         />
       )}
 
-      {/* Dialogs */}
+      {/* Create / Edit Dialog */}
       {(permissions.canCreate || permissions.canUpdate) && (
         <WarehouseDialog
           open={state.dialogOpen}
@@ -219,15 +230,62 @@ export function WarehouseList() {
         } : undefined}
       />
 
+      {/* Normal delete (no stock) */}
       {permissions.canDelete && (
         <DeleteDialog
           open={!!state.deleteId}
           onOpenChange={(open) => !open && actions.setDeleteId(null)}
           onConfirm={actions.handleDelete}
-          itemName="warehouse"
+          title={t("warehouse.deleteTitle")}
+          description={t("warehouse.deleteConfirm")}
           isLoading={data.isDeleting}
         />
       )}
+
+      {/* Blocked delete — warehouse still has stock */}
+      <Dialog
+        open={!!state.blockedDeleteId}
+        onOpenChange={(open) => !open && actions.setBlockedDeleteId(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-base">{t("warehouse.deleteBlocked.title")}</DialogTitle>
+                <DialogDescription className="mt-1.5 text-sm leading-relaxed">
+                  {t("warehouse.deleteBlocked.description")}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 font-medium text-destructive">
+              <ArrowRightLeft className="h-4 w-4 shrink-0" />
+              {t("warehouse.deleteBlocked.transferFirst")}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => actions.setBlockedDeleteId(null)}
+              className="cursor-pointer"
+            >
+              {t("warehouse.deleteBlocked.close")}
+            </Button>
+            <Button asChild className="cursor-pointer">
+              <Link href="/stock/inventory">
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                {t("warehouse.deleteBlocked.goToInventory")}
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

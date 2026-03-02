@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FileUpload } from "@/components/ui/file-upload";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { toast } from "sonner";
 import type {
   Employee,
@@ -58,9 +59,12 @@ import {
   useBulkUpdateEmployeeAreas,
   useEmployee,
 } from "../hooks/use-employees";
-import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
-import { useJobPositions } from "@/features/master-data/organization/hooks/use-job-positions";
-import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
+import { useDivisions, useCreateDivision } from "@/features/master-data/organization/hooks/use-divisions";
+import { useJobPositions, useCreateJobPosition } from "@/features/master-data/organization/hooks/use-job-positions";
+import { DivisionForm } from "@/features/master-data/organization/components/division/division-form";
+import { JobPositionForm } from "@/features/master-data/organization/components/job-position/job-position-form";
+import { useCompanies, useCreateCompany } from "@/features/master-data/organization/hooks/use-companies";
+import { useCreateUser, useRoles } from "@/features/master-data/user-management/hooks/use-users";
 import { ButtonLoading } from "@/components/loading";
 import {
   employeeSchema,
@@ -110,6 +114,9 @@ export function EmployeeForm({
   const [areaAssignments, setAreaAssignments] = useState<AreaAssignment[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>("");
 
+  const [divisionFormOpen, setDivisionFormOpen] = useState(false);
+  const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
+
   const { data: divisionsData } = useDivisions({ per_page: 100 });
   const { data: positionsData } = useJobPositions({ per_page: 100 });
   const { data: companiesData } = useCompanies({ per_page: 100 });
@@ -123,9 +130,17 @@ export function EmployeeForm({
   const updateEmployee = useUpdateEmployee();
   const bulkUpdateAreas = useBulkUpdateEmployeeAreas();
 
+  const createDivision = useCreateDivision();
+  const createJobPosition = useCreateJobPosition();
+  const createCompany = useCreateCompany();
+
+  const createUser = useCreateUser();
+  const { data: rolesData } = useRoles();
+
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
   const companies = sortOptions(companiesData?.data ?? [], (c) => c.name);
+  const roles = sortOptions(rolesData?.data ?? [], (r) => r.name);
 
   const availableUsers = useMemo(
     () => availableUsersData?.data ?? [],
@@ -182,8 +197,10 @@ export function EmployeeForm({
       contract_document: undefined,
       total_leave_quota: 12,
       ptkp_status: undefined,
-      is_disability: false,
       is_active: true,
+      create_user: false,
+      role_id: undefined,
+      password: "",
     },
   });
 
@@ -224,7 +241,6 @@ export function EmployeeForm({
         bpjs: employeeData.bpjs ?? "",
         total_leave_quota: employeeData.total_leave_quota ?? 12,
         ptkp_status: employeeData.ptkp_status ?? undefined,
-        is_disability: employeeData.is_disability ?? false,
         is_active: employeeData.is_active,
       };
       reset(formData, {
@@ -269,8 +285,10 @@ export function EmployeeForm({
         contract_document: undefined,
         total_leave_quota: 12,
         ptkp_status: undefined,
-        is_disability: false,
         is_active: true,
+        create_user: false,
+        role_id: undefined,
+        password: "",
       });
       setAreaAssignments([]);
     }
@@ -307,12 +325,38 @@ export function EmployeeForm({
         .filter((a) => a.is_supervisor)
         .map((a) => a.area_id);
 
+      let finalUserId = data.user_id || undefined;
+
+      if (!isEditing && data.create_user) {
+        if (!data.role_id) {
+          toast.error("Role is required when creating a user");
+          return;
+        }
+        if (!data.password || data.password.length < 8) {
+          toast.error("Password must be at least 8 characters");
+          return;
+        }
+        if (!data.email) {
+          toast.error("Email is required when creating a user linked to employee");
+          return;
+        }
+
+        const newUser = await createUser.mutateAsync({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role_id: data.role_id,
+          status: "active",
+        });
+        finalUserId = newUser.data.id;
+      }
+
       const baseData = {
         employee_code: data.employee_code,
         name: data.name,
         email: data.email || undefined,
         phone: data.phone || undefined,
-        user_id: data.user_id || undefined,
+        user_id: finalUserId,
         division_id: data.division_id || undefined,
         job_position_id: data.job_position_id || undefined,
         company_id: data.company_id || undefined,
@@ -329,7 +373,6 @@ export function EmployeeForm({
         bpjs: data.bpjs || undefined,
         total_leave_quota: data.total_leave_quota,
         ptkp_status: data.ptkp_status || undefined,
-        is_disability: data.is_disability,
         is_active: data.is_active,
         area_ids: memberAreaIds,
         supervised_area_ids: supervisorAreaIds,
@@ -380,9 +423,13 @@ export function EmployeeForm({
   };
 
   const isPending =
+    createUser.isPending ||
     createEmployee.isPending ||
     updateEmployee.isPending ||
-    bulkUpdateAreas.isPending;
+    bulkUpdateAreas.isPending ||
+    createDivision.isPending ||
+    createJobPosition.isPending ||
+    createCompany.isPending;
 
   const handleAddArea = () => {
     if (!selectedAreaId) {
@@ -442,17 +489,20 @@ export function EmployeeForm({
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Field orientation="vertical">
-                  <FieldLabel>{t("form.employeeCode")} *</FieldLabel>
-                  <Input
-                    placeholder={t("form.employeeCodePlaceholder")}
-                    {...register("employee_code")}
-                  />
-                  {errors.employee_code && (
-                    <FieldError>{errors.employee_code.message}</FieldError>
-                  )}
-                </Field>
+              <div className="grid grid-cols-1 gap-4">
+                {isEditing && (
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.employeeCode")}</FieldLabel>
+                    <Input
+                      placeholder={t("form.employeeCodePlaceholder")}
+                      {...register("employee_code")}
+                      disabled
+                    />
+                    {errors.employee_code && (
+                      <FieldError>{errors.employee_code.message}</FieldError>
+                    )}
+                  </Field>
+                )}
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.name")} *</FieldLabel>
                   <Input
@@ -464,7 +514,7 @@ export function EmployeeForm({
                   )}
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.email")}</FieldLabel>
                   <Input
@@ -486,44 +536,109 @@ export function EmployeeForm({
               </div>
 
               {/* User account link */}
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.user")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="user_id"
-                  render={({ field }) => {
-                    return (
-                      <Select
-                        value={field.value || ""}
-                        onValueChange={(v) =>
-                          field.onChange(v === "__none__" ? "" : v)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={t("form.userPlaceholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">
-                            {t("form.noUser")}
-                          </SelectItem>
-                          {availableUsers.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name} ({u.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    );
-                  }}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("form.userHint")}
-                </p>
-              </Field>
+              <div className="space-y-4 p-4 border rounded-lg">
+                {!isEditing && (
+                  <Field
+                    orientation="horizontal"
+                    className="flex justify-between items-center"
+                  >
+                    <div className="space-y-0.5">
+                      <FieldLabel className="text-base text-foreground">Create User Account</FieldLabel>
+                      <p className="text-sm text-muted-foreground">Automatically create and link a system user.</p>
+                    </div>
+                    <Controller
+                      control={control}
+                      name="create_user"
+                      render={({ field }) => (
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="cursor-pointer"
+                        />
+                      )}
+                    />
+                  </Field>
+                )}
 
-              <div className="grid grid-cols-2 gap-4">
+                {watch("create_user") && !isEditing ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field orientation="vertical">
+                      <FieldLabel>Role *</FieldLabel>
+                      <Controller
+                        control={control}
+                        name="role_id"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map((r) => (
+                                <SelectItem key={r.id} value={r.id}>
+                                  {r.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                    <Field orientation="vertical">
+                      <FieldLabel>Password *</FieldLabel>
+                      <Input
+                        type="password"
+                        placeholder="Enter password (min 8 chars)"
+                        {...register("password")}
+                      />
+                      {errors.password && (
+                        <FieldError>{errors.password.message}</FieldError>
+                      )}
+                    </Field>
+                  </div>
+                ) : (
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.user")}</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="user_id"
+                      render={({ field }) => {
+                        return (
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={(v) =>
+                              field.onChange(v === "__none__" ? "" : v)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={t("form.userPlaceholder")}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">
+                                {t("form.noUser")}
+                              </SelectItem>
+                              {availableUsers.map((u) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.name} ({u.email})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t("form.userHint")}
+                    </p>
+                  </Field>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.gender")}</FieldLabel>
                   <Controller
@@ -641,27 +756,19 @@ export function EmployeeForm({
                   <Controller
                     control={control}
                     name="division_id"
-                    render={({ field }) => {
-                      return (
-                        <Select
-                          value={field.value || ""}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={t("form.divisionPlaceholder")}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {divisions.map((d) => (
-                              <SelectItem key={d.id} value={d.id}>
-                                {d.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        options={divisions.map((d) => ({
+                          value: d.id,
+                          label: d.name,
+                        }))}
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        placeholder={t("form.divisionPlaceholder")}
+                        createPermission="division.create"
+                        onCreateClick={() => setDivisionFormOpen(true)}
+                      />
+                    )}
                   />
                 </Field>
                 <Field orientation="vertical">
@@ -669,27 +776,19 @@ export function EmployeeForm({
                   <Controller
                     control={control}
                     name="job_position_id"
-                    render={({ field }) => {
-                      return (
-                        <Select
-                          value={field.value || ""}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={t("form.jobPositionPlaceholder")}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {positions.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        options={positions.map((p) => ({
+                          value: p.id,
+                          label: p.name,
+                        }))}
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        placeholder={t("form.jobPositionPlaceholder")}
+                        createPermission="job_position.create"
+                        onCreateClick={() => setJobPositionFormOpen(true)}
+                      />
+                    )}
                   />
                 </Field>
               </div>
@@ -698,27 +797,32 @@ export function EmployeeForm({
                 <Controller
                   control={control}
                   name="company_id"
-                  render={({ field }) => {
-                    return (
-                      <Select
-                        value={field.value || ""}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={t("form.companyPlaceholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {companies.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    );
-                  }}
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      options={companies.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                      }))}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder={t("form.companyPlaceholder")}
+                      createPermission="company.create"
+                      onCreateClick={async (query) => {
+                        try {
+                          const res = await createCompany.mutateAsync({
+                            name: query,
+                            is_active: true,
+                          });
+                          field.onChange(res.data.id);
+                          toast.success(t("createSuccess"));
+                        } catch {
+                          toast.error("Failed to create company");
+                        }
+                      }}
+                      isLoading={createCompany.isPending}
+                      disabled={createCompany.isPending}
+                    />
+                  )}
                 />
               </Field>
               <Field orientation="vertical">
@@ -756,23 +860,6 @@ export function EmployeeForm({
                         </Select>
                       );
                     }}
-                  />
-                </Field>
-                <Field
-                  orientation="horizontal"
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <FieldLabel>{t("form.isDisability")}</FieldLabel>
-                  <Controller
-                    control={control}
-                    name="is_disability"
-                    render={({ field }) => (
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="cursor-pointer"
-                      />
-                    )}
                   />
                 </Field>
               </div>
@@ -834,37 +921,37 @@ export function EmployeeForm({
                         {...register("contract_number")}
                       />
                     </Field>
+                    <Field orientation="vertical">
+                      <FieldLabel>{t("form.contractType")} *</FieldLabel>
+                      <Controller
+                        control={control}
+                        name="contract_type"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={(v) =>
+                              field.onChange(v as ContractType)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={t(
+                                  "form.contractTypePlaceholder",
+                                )}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CONTRACT_TYPE_OPTIONS.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {t(`contract.types.${type}`)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
                     <div className="grid grid-cols-2 gap-4">
-                      <Field orientation="vertical">
-                        <FieldLabel>{t("form.contractType")} *</FieldLabel>
-                        <Controller
-                          control={control}
-                          name="contract_type"
-                          render={({ field }) => (
-                            <Select
-                              value={field.value || ""}
-                              onValueChange={(v) =>
-                                field.onChange(v as ContractType)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue
-                                  placeholder={t(
-                                    "form.contractTypePlaceholder",
-                                  )}
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CONTRACT_TYPE_OPTIONS.map((type) => (
-                                  <SelectItem key={type} value={type}>
-                                    {t(`contract.types.${type}`)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                      </Field>
                       <Field orientation="vertical">
                         <FieldLabel>
                           {t("form.contractStartDate")} *
@@ -914,63 +1001,63 @@ export function EmployeeForm({
                           )}
                         />
                       </Field>
-                    </div>
-                    {contractType !== "PKWTT" && (
-                      <Field orientation="vertical">
-                        <FieldLabel>
-                          {t("form.contractEndDate")} *
-                        </FieldLabel>
-                        <Controller
-                          control={control}
-                          name="contract_end_date"
-                          render={({ field }) => (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground",
-                                  )}
+                      {contractType !== "PKWTT" && (
+                        <Field orientation="vertical">
+                          <FieldLabel>
+                            {t("form.contractEndDate")} *
+                          </FieldLabel>
+                          <Controller
+                            control={control}
+                            name="contract_end_date"
+                            render={({ field }) => (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {field.value instanceof Date ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>{t("form.selectDate")}</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
                                 >
-                                  {field.value instanceof Date ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>{t("form.selectDate")}</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-auto p-0"
-                                align="start"
-                              >
-                                <Calendar
-                                  mode="single"
-                                  month={
-                                    field.value instanceof Date
-                                      ? field.value
-                                      : undefined
-                                  }
-                                  selected={
-                                    field.value instanceof Date
-                                      ? field.value
-                                      : undefined
-                                  }
-                                  onSelect={field.onChange}
-                                  disabled={(date) =>
-                                    contractStartDate instanceof Date
-                                      ? date <= contractStartDate
-                                      : false
-                                  }
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        />
-                      </Field>
-                    )}
+                                  <Calendar
+                                    mode="single"
+                                    month={
+                                      field.value instanceof Date
+                                        ? field.value
+                                        : undefined
+                                    }
+                                    selected={
+                                      field.value instanceof Date
+                                        ? field.value
+                                        : undefined
+                                    }
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                      contractStartDate instanceof Date
+                                        ? date <= contractStartDate
+                                        : false
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          />
+                        </Field>
+                      )}
+                    </div>
                     <Field orientation="vertical">
                       <FieldLabel>{t("form.document")}</FieldLabel>
                       <Controller
@@ -1122,6 +1209,15 @@ export function EmployeeForm({
           </div>
         </form>
       </DialogContent>
+
+      <DivisionForm 
+        open={divisionFormOpen} 
+        onClose={() => setDivisionFormOpen(false)} 
+      />
+      <JobPositionForm 
+        open={jobPositionFormOpen} 
+        onClose={() => setJobPositionFormOpen(false)} 
+      />
     </Dialog>
   );
 }

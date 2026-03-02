@@ -22,6 +22,9 @@ export const warehouseEn = {
     updatedAt: "Updated At",
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
+    retry: "Retry",
+    view: "View",
+    saving: "Saving...",
   },
   warehouse: {
     title: "Warehouses",
@@ -36,11 +39,21 @@ export const warehouseEn = {
     createSuccess: "Warehouse created successfully",
     updateSuccess: "Warehouse updated successfully",
     deleteSuccess: "Warehouse deleted successfully",
+    deleteError: "Failed to delete warehouse. Please try again.",
+    deleteBlocked: {
+      title: "Cannot Delete Warehouse",
+      description: "This warehouse still has active stock. All stock must be transferred to another warehouse before deleting.",
+      hasStock: "Warehouse has {count} active stock item(s).",
+      transferFirst: "Please transfer all inventory to another warehouse first.",
+      goToInventory: "Go to Inventory",
+      close: "Close",
+    },
     sections: {
       general: "General",
       basicInfo: "Basic Information",
       location: "Location",
       coordinates: "Coordinates",
+      status: "Status & Settings",
     },
     form: {
       code: "Warehouse Code",

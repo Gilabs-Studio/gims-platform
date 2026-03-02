@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { visitReportService } from "../services/visit-report-service";
 import type {
   VisitReportListParams,
+  VisitReportEmployeeListParams,
   CreateVisitReportData,
   UpdateVisitReportData,
   CheckInData,
@@ -21,6 +22,7 @@ export const visitReportKeys = {
   detail: (id: string) => [...visitReportKeys.details(), id] as const,
   formData: () => [...visitReportKeys.all, "form-data"] as const,
   history: (id: string) => [...visitReportKeys.all, "history", id] as const,
+  byEmployee: (params: VisitReportEmployeeListParams) => [...visitReportKeys.all, "by-employee", params] as const,
 };
 
 export function useVisitReports(params?: VisitReportListParams) {
@@ -155,5 +157,14 @@ export function useUploadVisitPhotos() {
     onSuccess: (_response, variables) => {
       qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
+  });
+}
+
+/** Fetches per-employee visit report metrics for the ALL/DIVISION/AREA team views. */
+export function useVisitReportsByEmployee(params?: VisitReportEmployeeListParams) {
+  return useQuery({
+    queryKey: visitReportKeys.byEmployee(params ?? {}),
+    queryFn: () => visitReportService.listByEmployee(params),
+    staleTime: 3 * 60 * 1000,
   });
 }

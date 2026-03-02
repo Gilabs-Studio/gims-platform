@@ -13,7 +13,7 @@ type EmployeeContractInput struct {
 
 // CreateEmployeeRequest represents the request to create an employee
 type CreateEmployeeRequest struct {
-	EmployeeCode     string     `json:"employee_code" binding:"required,max=50"`
+	EmployeeCode     string     `json:"employee_code" binding:"omitempty,max=50"`
 	Name             string     `json:"name" binding:"required,min=2,max=200"`
 	Email            string     `json:"email" binding:"omitempty,email,max=100"`
 	Phone            string     `json:"phone" binding:"max=20"`
@@ -32,7 +32,6 @@ type CreateEmployeeRequest struct {
 	BPJS             string     `json:"bpjs" binding:"max=30"`
 	TotalLeaveQuota  int        `json:"total_leave_quota"`
 	PTKPStatus       string     `json:"ptkp_status" binding:"max=10"`
-	IsDisability     bool       `json:"is_disability"`
 	ReplacementForID *string    `json:"replacement_for_id"`
 	// AreaIDs assigns the employee as a regular member of the specified areas.
 	AreaIDs []string `json:"area_ids"`
@@ -64,7 +63,6 @@ type UpdateEmployeeRequest struct {
 	BPJS             *string    `json:"bpjs" binding:"omitempty,max=30"`
 	TotalLeaveQuota  *int       `json:"total_leave_quota"`
 	PTKPStatus       *string    `json:"ptkp_status" binding:"omitempty,max=10"`
-	IsDisability     *bool      `json:"is_disability"`
 	ReplacementForID *string    `json:"replacement_for_id"`
 	// AreaIDs replaces all member area assignments when provided (nil = no change).
 	AreaIDs []string `json:"area_ids"`
@@ -123,7 +121,6 @@ type EmployeeListParams struct {
 	JobPositionID string `form:"job_position_id"`
 	AreaID        string `form:"area_id"`
 	CompanyID     string `form:"company_id"`
-	Status        string `form:"status"`
 	IsActive      *bool  `form:"is_active"`
 	SortBy        string `form:"sort_by"`
 	SortDir       string `form:"sort_dir"`
@@ -178,11 +175,7 @@ type EmployeeResponse struct {
 	Areas []EmployeeAreaSummary `json:"areas,omitempty"`
 	// IsAreaSupervisor is true when the employee supervises at least one area.
 	IsAreaSupervisor bool    `json:"is_area_supervisor"`
-	Status           string  `json:"status"`
-	IsApproved       bool    `json:"is_approved"`
 	CreatedBy        *string `json:"created_by"`
-	ApprovedBy       *string `json:"approved_by"`
-	ApprovedAt       *string `json:"approved_at"`
 	IsActive         bool    `json:"is_active"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at"`
@@ -248,14 +241,15 @@ type ProvinceResponse struct {
 
 // EmployeeListItemResponse represents a brief employee response for lists (no PII)
 type EmployeeListItemResponse struct {
-	ID           string                `json:"id"`
-	EmployeeCode string                `json:"employee_code"`
-	Name         string                `json:"name"`
-	Email        string                `json:"email"`
-	Phone        string                `json:"phone"`
-	Division     *DivisionResponse     `json:"division,omitempty"`
-	JobPosition  *JobPositionResponse  `json:"job_position,omitempty"`
-	Company      *CompanyBriefResponse `json:"company,omitempty"`
-	Status       string                `json:"status"`
-	IsActive     bool                  `json:"is_active"`
+	ID           string                        `json:"id"`
+	EmployeeCode string                        `json:"employee_code"`
+	Name         string                        `json:"name"`
+	Email        string                        `json:"email"`
+	Phone        string                        `json:"phone"`
+	Division     *DivisionResponse             `json:"division,omitempty"`
+	JobPosition  *JobPositionResponse          `json:"job_position,omitempty"`
+	Company      *CompanyBriefResponse         `json:"company,omitempty"`
+	CurrentContract *EmployeeContractBriefResponse `json:"current_contract,omitempty"`
+	Status       string                        `json:"status"`
+	IsActive     bool                          `json:"is_active"`
 }

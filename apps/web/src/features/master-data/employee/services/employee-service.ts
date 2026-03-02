@@ -6,7 +6,7 @@ import type {
   ListEmployeesParams,
   CreateEmployeeData,
   UpdateEmployeeData,
-  ApproveEmployeeData,
+
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
   AvailableUsersResponse,
@@ -73,23 +73,6 @@ export const employeeService = {
     return response.data;
   },
 
-  async submitForApproval(id: string): Promise<EmployeeSingleResponse> {
-    const response = await apiClient.post<EmployeeSingleResponse>(
-      `${BASE_PATH}/employees/${id}/submit`,
-    );
-    return response.data;
-  },
-
-  async approve(
-    id: string,
-    data: ApproveEmployeeData,
-  ): Promise<EmployeeSingleResponse> {
-    const response = await apiClient.post<EmployeeSingleResponse>(
-      `${BASE_PATH}/employees/${id}/approve`,
-      data,
-    );
-    return response.data;
-  },
 
   async assignAreas(
     id: string,

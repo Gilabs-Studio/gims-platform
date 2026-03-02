@@ -383,6 +383,10 @@ apiClient.interceptors.response.use(
     } else if (status === 409) {
       const msg = formatError("backend", "conflict");
       toast.error(msg.title, { description: msg.description });
+    } else if (status === 422) {
+      // 422 Unprocessable Entity — business rule violation (e.g. WAREHOUSE_HAS_STOCK).
+      // Suppress the global toast so each caller can render its own contextual UI.
+      return Promise.reject(error);
     } else if (status === 503) {
       const msg = formatError("backend", "serviceUnavailable");
       toast.error(msg.title, { description: msg.description });

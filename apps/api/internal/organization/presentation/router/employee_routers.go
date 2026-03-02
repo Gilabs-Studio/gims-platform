@@ -18,8 +18,6 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("", middleware.RequirePermission("employee.create"), h.Create)
 	g.PUT("/:id", middleware.RequirePermission("employee.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("employee.delete"), h.Delete)
-	g.POST("/:id/submit", middleware.RequirePermission("employee.update"), h.SubmitForApproval)
-	g.POST("/:id/approve", middleware.RequirePermission("employee.approve"), h.Approve)
 	g.POST("/:id/areas", middleware.RequirePermission("employee.update"), h.AssignAreas)
 	g.PUT("/:id/areas", middleware.RequirePermission("employee.update"), h.BulkUpdateAreas)
 	g.DELETE("/:id/areas/:area_id", middleware.RequirePermission("employee.update"), h.RemoveAreaAssignment)
