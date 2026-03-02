@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
@@ -259,7 +260,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 			CreatedBy:             actorID,
 			PurchaseRequisitionID: &pr.ID,
 			SalesOrderID:          nil,
-			OrderDate:             time.Now().Format("2006-01-02"),
+			OrderDate:             apptime.Now().Format("2006-01-02"),
 			DueDate:               nil,
 			Notes:                 pr.Notes,
 			Status:                models.PurchaseOrderStatusDraft,
@@ -447,7 +448,7 @@ func (uc *purchaseOrderUsecase) Submit(ctx context.Context, id string) (*dto.Pur
 		return nil, ErrPurchaseOrderConflict
 	}
 	before := poAuditSnapshot(existing)
-	now := time.Now()
+	now := apptime.Now()
 	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusSubmitted, map[string]interface{}{
 		"submitted_at": now,
 	})
@@ -473,7 +474,7 @@ func (uc *purchaseOrderUsecase) Approve(ctx context.Context, id string) (*dto.Pu
 		return nil, ErrPurchaseOrderConflict
 	}
 	before := poAuditSnapshot(existing)
-	now := time.Now()
+	now := apptime.Now()
 	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusApproved, map[string]interface{}{
 		"approved_at": now,
 	})
@@ -524,7 +525,7 @@ func (uc *purchaseOrderUsecase) Close(ctx context.Context, id string) (*dto.Purc
 		return nil, ErrPurchaseOrderConflict
 	}
 	before := poAuditSnapshot(existing)
-	now := time.Now()
+	now := apptime.Now()
 	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusClosed, map[string]interface{}{
 		"closed_at": now,
 	})
@@ -571,7 +572,7 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		/*
 			if po.TotalAmount > 0 {
 				// Using "50000" (COGS/Purchases) as the commitment check account
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", time.Now(), po.TotalAmount); err != nil {
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", apptime.Now(), po.TotalAmount); err != nil {
 					// return err // Uncomment to strictly block
 				}
 			}

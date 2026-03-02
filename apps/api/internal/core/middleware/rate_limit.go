@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	infraRedis "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
@@ -72,7 +73,7 @@ func (rl *rateLimiters) cleanupLimiters() {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	now := time.Now()
+	now := apptime.Now()
 	for ip, limiter := range rl.limiters {
 		if now.Sub(limiter.lastSeen) > 1*time.Hour {
 			delete(rl.limiters, ip)
@@ -90,13 +91,13 @@ func (rl *rateLimiters) getLimiter(key string, requests int, window int) (*rate.
 		interval := time.Duration(window) * time.Second / time.Duration(requests)
 		limiter = &rateLimiter{
 			limiter:        rate.NewLimiter(rate.Every(interval), requests),
-			lastSeen:       time.Now(),
+			lastSeen:       apptime.Now(),
 			firstLimitTime: nil,
 			window:         window,
 		}
 		rl.limiters[key] = limiter
 	} else {
-		limiter.lastSeen = time.Now()
+		limiter.lastSeen = apptime.Now()
 		limiter.window = window
 	}
 
@@ -125,7 +126,7 @@ func checkRedisRateLimit(ctx context.Context, client *redis.Client, key string, 
 		// If TTL is missing (e.g., -1) or key vanished (-2), treat as full window.
 		ttlSec = int64(window)
 	}
-	reset = time.Now().Add(time.Duration(ttlSec) * time.Second).Unix()
+	reset = apptime.Now().Add(time.Duration(ttlSec) * time.Second).Unix()
 
 	remaining = limit - int(count)
 	if remaining < 0 {
@@ -249,7 +250,7 @@ func checkLimit(c *gin.Context, key string, rule config.RateLimitRule, typeKey s
 		var resetTime int64
 		memConfig.mu.Lock()
 		if limiterStruct.firstLimitTime == nil {
-			now := time.Now()
+			now := apptime.Now()
 			limiterStruct.firstLimitTime = &now
 		}
 		resetTime = limiterStruct.firstLimitTime.Add(time.Duration(rule.Window) * time.Second).Unix()
@@ -271,7 +272,7 @@ func checkLimit(c *gin.Context, key string, rule config.RateLimitRule, typeKey s
 	// Remaining estimation for Token Bucket
 	c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", rule.Requests))
 	c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", rule.Requests-1)) // rough estimate
-	c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(time.Duration(rule.Window)*time.Second).Unix()))
+	c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", apptime.Now().Add(time.Duration(rule.Window)*time.Second).Unix()))
 	
 	return true
 }

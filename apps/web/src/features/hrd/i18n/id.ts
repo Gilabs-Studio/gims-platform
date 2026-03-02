@@ -55,6 +55,12 @@ export const hrdId = {
     attendance: {
       title: "Absensi",
       description: "Kelola catatan kehadiran karyawan",
+      historyTitle: "Riwayat Absensi",
+      historySubtitle: "Lihat kalender absensi dan permintaan cuti Anda",
+      historyAction: "Riwayat Absensi",
+      requestLeaveAction: "Ajukan Cuti",
+      calendarTab: "Kalender",
+      leaveTab: "Permintaan Cuti",
       clockIn: "Masuk",
       clockOut: "Pulang",
       clockedIn: "Sudah Masuk",
@@ -62,6 +68,8 @@ export const hrdId = {
       today: "Absensi Hari Ini",
       notClockedIn: "Belum absen masuk",
       alreadyClockedOut: "Sudah absen pulang",
+      holiday: "Hari Libur",
+      offDay: "Hari Libur",
       myStats: "Statistik Kehadiran Saya",
       monthlyStats: "Statistik Bulanan",
       loading: "Memuat...",
@@ -144,8 +152,11 @@ export const hrdId = {
         selectCheckInType: "Pilih tipe absen masuk",
         checkInTime: "Waktu Masuk",
         checkInTimeDesc: "Waktu karyawan absen masuk",
+        checkInTimeDisabled: "Tidak berlaku untuk status ini",
         checkOutTime: "Waktu Pulang",
         checkOutTimeDesc: "Waktu karyawan absen pulang",
+        checkOutTimeDisabled: "Tidak berlaku untuk status ini",
+        scheduleHint: "Berdasarkan jadwal: {name} ({startTime} - {endTime})",
         reason: "Alasan",
         reasonPlaceholder: "Jelaskan alasan input manual ini...",
         reasonDesc: "Opsional untuk input absensi manual",
@@ -156,6 +167,11 @@ export const hrdId = {
         submitting: "Mengirim...",
         update: "Perbarui Rekaman",
         create: "Buat Rekaman",
+        holidayWarningTitle: "Tanggal Libur Dipilih",
+        holidayWarningDesc:
+          "Tanggal yang dipilih ({date}) adalah hari libur: {name}. Apakah Anda yakin ingin membuat catatan kehadiran pada tanggal ini?",
+        holidayWarningDescWithType:
+          "Tanggal yang dipilih ({date}) adalah hari libur: {name} ({type}). Apakah Anda yakin ingin membuat catatan kehadiran pada tanggal ini?",
       },
 
       // Actions
@@ -243,6 +259,8 @@ export const hrdId = {
         officeLatitude: "Latitude Kantor",
         officeLongitude: "Longitude Kantor",
         division: "Divisi",
+        officeLocation: "Lokasi Kantor",
+        coordinates: "Koordinat",
         isActive: "Aktif",
         isDefault: "Default",
       },
@@ -259,11 +277,21 @@ export const hrdId = {
         workingDays: "Hari Kerja",
         tolerance: "Toleransi",
         gpsSettings: "Pengaturan GPS",
+        assignment: "Penugasan",
       },
 
       descriptions: {
         flexible: "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
         gps: "Wajibkan karyawan untuk absen masuk/keluar dalam radius GPS yang ditentukan dari kantor",
+        division: "Tetapkan jadwal ini ke divisi tertentu, atau kosongkan untuk jadwal umum",
+        officeLocation: "Pilih perusahaan untuk menggunakan koordinat GPS-nya untuk verifikasi kehadiran",
+      },
+
+      placeholders: {
+        selectDivision: "Pilih divisi",
+        allDivisions: "Semua Divisi (Umum)",
+        selectCompany: "Pilih lokasi perusahaan",
+        manualCoordinates: "Masukkan koordinat manual",
       },
 
       days: {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -451,7 +452,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		if err := ensureNotClosed(ctx, tx, p.PaymentDate); err != nil {
 			return err
 		}
-		now := time.Now()
+		now := apptime.Now()
 
 		je := &financeModels.JournalEntry{
 			EntryDate:     p.PaymentDate,

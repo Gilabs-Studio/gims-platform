@@ -1,8 +1,8 @@
 package mapper
 
 import (
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 )
@@ -31,7 +31,7 @@ func ToTaskResponse(task *models.Task) dto.TaskResponse {
 		resp.DueDate = &d
 		// Determine overdue status
 		if task.Status != string(models.TaskStatusCompleted) && task.Status != string(models.TaskStatusCancelled) {
-			resp.IsOverdue = task.DueDate.Before(time.Now())
+			resp.IsOverdue = task.DueDate.Before(apptime.Now())
 		}
 	}
 

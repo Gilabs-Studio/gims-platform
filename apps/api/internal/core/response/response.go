@@ -4,15 +4,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gin-gonic/gin"
 )
 
-// Timezone WIB (UTC+7)
-var timezoneWIB = time.FixedZone("WIB", 7*60*60)
-
-// GetTimezoneWIB returns WIB timezone
+// GetTimezoneWIB returns the application timezone.
+// Deprecated: Use apptime.Location() directly instead.
 func GetTimezoneWIB() *time.Location {
-	return timezoneWIB
+	return apptime.Location()
 }
 
 // APIResponse represents the standard API response structure
@@ -86,7 +85,7 @@ func SuccessResponse(c *gin.Context, data interface{}, meta *Meta) {
 		Success:   true,
 		Data:      data,
 		Meta:      meta,
-		Timestamp: time.Now().In(timezoneWIB).Format(time.RFC3339),
+		Timestamp: apptime.Now().Format(time.RFC3339),
 		RequestID: getRequestID(c),
 	}
 
@@ -99,7 +98,7 @@ func SuccessResponseCreated(c *gin.Context, data interface{}, meta *Meta) {
 		Success:   true,
 		Data:      data,
 		Meta:      meta,
-		Timestamp: time.Now().In(timezoneWIB).Format(time.RFC3339),
+		Timestamp: apptime.Now().Format(time.RFC3339),
 		RequestID: getRequestID(c),
 	}
 
@@ -125,7 +124,7 @@ func ErrorResponse(c *gin.Context, httpStatus int, code string, message string, 
 	resp := APIResponse{
 		Success:   false,
 		Error:     apiErr,
-		Timestamp: time.Now().In(timezoneWIB).Format(time.RFC3339),
+		Timestamp: apptime.Now().Format(time.RFC3339),
 		RequestID: reqID,
 	}
 
@@ -175,7 +174,7 @@ func SuccessResponseDeleted(c *gin.Context, resourceType string, resourceID stri
 		Success:   true,
 		Data:      data,
 		Meta:      meta,
-		Timestamp: time.Now().In(timezoneWIB).Format(time.RFC3339),
+		Timestamp: apptime.Now().Format(time.RFC3339),
 		RequestID: getRequestID(c),
 	}
 

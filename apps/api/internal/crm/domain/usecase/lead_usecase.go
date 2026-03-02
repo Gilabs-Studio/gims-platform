@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -322,7 +323,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	var customerID string
 
 	if req.CustomerID != nil && *req.CustomerID != "" {

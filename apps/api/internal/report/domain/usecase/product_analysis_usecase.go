@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/report/data/repositories"
 	"github.com/gilabs/gims/api/internal/report/domain/dto"
@@ -463,7 +464,7 @@ func (uc *productAnalysisUsecase) ListProcurementTypePerformance(ctx context.Con
 // --- Helpers (scoped to product analysis) ---
 
 func parseProductDateRange(startStr, endStr string) (time.Time, time.Time) {
-	now := time.Now()
+	now := apptime.Now()
 	start := now.AddDate(-1, 0, 0)
 	end := now
 

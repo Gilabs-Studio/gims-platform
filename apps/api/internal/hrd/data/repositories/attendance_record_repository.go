@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -23,6 +24,8 @@ type AttendanceRecordRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetLateEmployeesForDate(ctx context.Context, date time.Time) ([]models.AttendanceRecord, error)
 	GetAbsentEmployeesForDate(ctx context.Context, date time.Time, allEmployeeIDs []string) ([]string, error)
+	DeleteByLeaveRequestID(ctx context.Context, leaveRequestID string) error
+	CreateBatch(ctx context.Context, records []models.AttendanceRecord) error
 }
 
 type attendanceRecordRepository struct {
@@ -170,7 +173,7 @@ func (r *attendanceRecordRepository) GetEmployeeMonthlyStats(ctx context.Context
 	}
 
 	// Get first and last day of month
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, apptime.Location())
 	lastDay := firstDay.AddDate(0, 1, -1)
 
 	// Get all records for the month
@@ -255,4 +258,19 @@ func (r *attendanceRecordRepository) GetAbsentEmployeesForDate(ctx context.Conte
 	}
 
 	return absentEmployeeIDs, nil
+}
+
+// DeleteByLeaveRequestID soft-deletes all attendance records linked to a specific leave request
+func (r *attendanceRecordRepository) DeleteByLeaveRequestID(ctx context.Context, leaveRequestID string) error {
+	return r.getDB(ctx).
+		Where("leave_request_id = ?", leaveRequestID).
+		Delete(&models.AttendanceRecord{}).Error
+}
+
+// CreateBatch bulk-inserts attendance records
+func (r *attendanceRecordRepository) CreateBatch(ctx context.Context, records []models.AttendanceRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	return r.getDB(ctx).Create(&records).Error
 }

@@ -198,12 +198,14 @@ function Calendar({
     week_number: "size-9 p-0 text-xs font-medium text-muted-foreground/80",
   };
 
-  const mergedClassNames: typeof defaultClassNames = Object.keys(
-    defaultClassNames,
-  ).reduce(
+  const allClassNameKeys = new Set([
+    ...Object.keys(defaultClassNames),
+    ...Object.keys(classNames ?? {}),
+  ]);
+  const mergedClassNames = Array.from(allClassNameKeys).reduce(
     (acc, key) => {
       const baseClassName =
-        defaultClassNames[key as keyof typeof defaultClassNames];
+        defaultClassNames[key as keyof typeof defaultClassNames] ?? "";
       const userClassName = classNames?.[key as keyof typeof classNames];
       const shouldHide =
         mode !== "day" &&
@@ -217,7 +219,7 @@ function Calendar({
           : cn(baseClassName, hideClassName),
       };
     },
-    {} as typeof defaultClassNames,
+    {} as Record<string, string>,
   );
 
   const months = React.useMemo(
@@ -399,10 +401,10 @@ function Calendar({
   ]);
 
   return (
-    <div className={cn("w-fit", className)}>
+    <div className={cn(className)}>
       <DayPicker
         showOutsideDays={mode === "day" ? showOutsideDays : false}
-        className={cn("w-fit")}
+        className={cn("w-full", className)}
         classNames={mergedClassNames}
         components={mergedComponents}
         month={month}

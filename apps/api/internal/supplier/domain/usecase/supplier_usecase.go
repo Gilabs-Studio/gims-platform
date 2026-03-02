@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/mail"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"github.com/gilabs/gims/api/internal/supplier/data/repositories"
 	"github.com/gilabs/gims/api/internal/supplier/domain/dto"
@@ -296,7 +296,7 @@ func (u *supplierUsecase) Approve(ctx context.Context, id string, userID string,
 		return dto.SupplierResponse{}, errors.New("supplier must be in pending status to approve/reject")
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	supplier.ApprovedBy = &userID
 	supplier.ApprovedAt = &now
 

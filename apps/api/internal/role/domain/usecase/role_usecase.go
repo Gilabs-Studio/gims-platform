@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -331,7 +332,7 @@ func (u *roleUsecase) Delete(ctx context.Context, id string) error {
 	u.eventPublisher.PublishAsync(ctx, events.NewRoleDeletedEvent(ctx, events.RoleDeletedPayload{
 		RoleID:    id,
 		Code:      r.Code,
-		DeletedAt: time.Now(),
+		DeletedAt: apptime.Now(),
 	}))
 
 	return nil
@@ -357,7 +358,7 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
 		RoleID:        roleID,
 		PermissionIDs: permissionIDs,
-		AssignedAt:    time.Now(),
+		AssignedAt:    apptime.Now(),
 	}))
 
 	return nil
@@ -408,7 +409,7 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
 		RoleID:        role.ID,
 		PermissionIDs: permIDs,
-		AssignedAt:    time.Now(),
+		AssignedAt:    apptime.Now(),
 	}))
 
 	return nil

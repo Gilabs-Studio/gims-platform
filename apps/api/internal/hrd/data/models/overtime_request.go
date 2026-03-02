@@ -36,8 +36,8 @@ type OvertimeRequest struct {
 	RequestType OvertimeRequestType `gorm:"size:20;not null;default:'AUTO_DETECTED'" json:"request_type"`
 
 	// Time details
-	StartTime        time.Time `gorm:"type:timestamp;not null" json:"start_time"`
-	EndTime          time.Time `gorm:"type:timestamp;not null" json:"end_time"`
+	StartTime        time.Time `gorm:"type:timestamptz;not null" json:"start_time"`
+	EndTime          time.Time `gorm:"type:timestamptz;not null" json:"end_time"`
 	PlannedMinutes   int       `gorm:"default:0" json:"planned_minutes"`  // For pre-approved
 	ActualMinutes    int       `gorm:"default:0" json:"actual_minutes"`   // Actual overtime worked
 	ApprovedMinutes  int       `gorm:"default:0" json:"approved_minutes"` // Manager can adjust
@@ -50,9 +50,9 @@ type OvertimeRequest struct {
 	// Approval workflow
 	Status       OvertimeApprovalStatus `gorm:"size:20;not null;default:'PENDING'" json:"status"`
 	ApprovedBy   *string                `gorm:"type:uuid" json:"approved_by"`
-	ApprovedAt   *time.Time             `gorm:"type:timestamp" json:"approved_at"`
+	ApprovedAt   *time.Time             `gorm:"type:timestamptz" json:"approved_at"`
 	RejectedBy   *string                `gorm:"type:uuid" json:"rejected_by"`
-	RejectedAt   *time.Time             `gorm:"type:timestamp" json:"rejected_at"`
+	RejectedAt   *time.Time             `gorm:"type:timestamptz" json:"rejected_at"`
 	RejectReason string                 `gorm:"size:500" json:"reject_reason"`
 
 	// Link to attendance record
@@ -63,7 +63,7 @@ type OvertimeRequest struct {
 	CompensationAmount float64 `gorm:"type:decimal(15,2);default:0" json:"compensation_amount"` // Calculated amount
 
 	// Notification tracking
-	ManagerNotifiedAt *time.Time `gorm:"type:timestamp" json:"manager_notified_at"`
+	ManagerNotifiedAt *time.Time `gorm:"type:timestamptz" json:"manager_notified_at"`
 	IsManagerNotified bool       `gorm:"default:false" json:"is_manager_notified"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`

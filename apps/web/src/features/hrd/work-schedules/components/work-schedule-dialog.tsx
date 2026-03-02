@@ -23,7 +23,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Clock, MapPin, Plus, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Clock, MapPin, Plus, Trash2, Building2 } from "lucide-react";
 import {
   workScheduleSchema,
   type WorkScheduleFormData,
@@ -32,6 +39,7 @@ import {
 import {
   useCreateWorkSchedule,
   useUpdateWorkSchedule,
+  useWorkScheduleFormData,
 } from "../hooks/use-work-schedules";
 import type { WorkSchedule } from "../types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,6 +79,10 @@ export function WorkScheduleDialog({
 
   const createMutation = useCreateWorkSchedule();
   const updateMutation = useUpdateWorkSchedule();
+  const { data: formDataResponse } = useWorkScheduleFormData();
+
+  const divisions = formDataResponse?.data?.divisions ?? [];
+  const companies = formDataResponse?.data?.companies ?? [];
 
   const {
     register,
@@ -99,6 +111,7 @@ export function WorkScheduleDialog({
       office_latitude: -6.2088,
       office_longitude: 106.8456,
       division_id: undefined,
+      company_id: undefined,
     },
     mode: "onChange",
   });
@@ -109,11 +122,29 @@ export function WorkScheduleDialog({
   const breaks = watch("breaks");
   const startTime = watch("start_time");
   const endTime = watch("end_time");
+  const selectedCompanyId = watch("company_id");
 
   // Auto-calculate working hours per day
   const workingHoursPerDay = useMemo(() => {
     return calculateWorkingHours(startTime, endTime);
   }, [startTime, endTime]);
+
+  // Auto-populate coordinates when company is selected
+  const selectedCompany = useMemo(() => {
+    if (!selectedCompanyId) return null;
+    return companies.find((c) => c.id === selectedCompanyId) ?? null;
+  }, [selectedCompanyId, companies]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      if (selectedCompany.latitude !== null) {
+        setValue("office_latitude", selectedCompany.latitude);
+      }
+      if (selectedCompany.longitude !== null) {
+        setValue("office_longitude", selectedCompany.longitude);
+      }
+    }
+  }, [selectedCompany, setValue]);
 
   useEffect(() => {
     if (editingItem) {
@@ -142,6 +173,7 @@ export function WorkScheduleDialog({
         office_latitude: editingItem.office_latitude || -6.2088,
         office_longitude: editingItem.office_longitude || 106.8456,
         division_id: editingItem.division_id || undefined,
+        company_id: undefined,
       });
     } else {
       reset({
@@ -161,6 +193,7 @@ export function WorkScheduleDialog({
         office_latitude: -6.2088,
         office_longitude: 106.8456,
         division_id: undefined,
+        company_id: undefined,
       });
     }
   }, [editingItem, reset]);
@@ -205,6 +238,14 @@ export function WorkScheduleDialog({
 
   const onSubmit = async (data: WorkScheduleFormData) => {
     try {
+      // If company is selected, use its coordinates
+      let lat = data.office_latitude;
+      let lng = data.office_longitude;
+      if (data.company_id && selectedCompany) {
+        lat = selectedCompany.latitude ?? data.office_latitude;
+        lng = selectedCompany.longitude ?? data.office_longitude;
+      }
+
       const payload = {
         name: data.name,
         description: data.description,
@@ -223,8 +264,8 @@ export function WorkScheduleDialog({
         early_leave_tolerance_minutes: data.early_leave_tolerance_minutes,
         require_gps: data.require_gps,
         gps_radius_meter: data.require_gps ? data.gps_radius_meter : undefined,
-        office_latitude: data.require_gps ? data.office_latitude : undefined,
-        office_longitude: data.require_gps ? data.office_longitude : undefined,
+        office_latitude: data.require_gps ? lat : undefined,
+        office_longitude: data.require_gps ? lng : undefined,
         division_id: data.division_id,
         is_default: false,
         is_active: true,
@@ -251,10 +292,8 @@ export function WorkScheduleDialog({
           gps_radius_meter: data.require_gps
             ? data.gps_radius_meter
             : undefined,
-          office_latitude: data.require_gps ? data.office_latitude : undefined,
-          office_longitude: data.require_gps
-            ? data.office_longitude
-            : undefined,
+          office_latitude: data.require_gps ? lat : undefined,
+          office_longitude: data.require_gps ? lng : undefined,
           division_id: data.division_id,
         };
         await updateMutation.mutateAsync({
@@ -307,6 +346,49 @@ export function WorkScheduleDialog({
               />
               {errors.description && (
                 <FieldError>{errors.description.message}</FieldError>
+              )}
+            </Field>
+
+            {/* Division Selection */}
+            <Field className="sm:col-span-2">
+              <FieldLabel>{t("fields.division")}</FieldLabel>
+              <Controller
+                control={control}
+                name="division_id"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(val) =>
+                      field.onChange(val === "__none__" ? undefined : val)
+                    }
+                  >
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue
+                        placeholder={t("placeholders.selectDivision")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__" className="cursor-pointer">
+                        {t("placeholders.allDivisions")}
+                      </SelectItem>
+                      {divisions.map((div) => (
+                        <SelectItem
+                          key={div.id}
+                          value={div.id}
+                          className="cursor-pointer"
+                        >
+                          {div.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>
+                {t("descriptions.division")}
+              </FieldDescription>
+              {errors.division_id && (
+                <FieldError>{errors.division_id.message}</FieldError>
               )}
             </Field>
           </div>
@@ -542,7 +624,8 @@ export function WorkScheduleDialog({
             </Field>
 
             {requireGPS && (
-              <div className="grid gap-4 sm:grid-cols-3 pl-4 border-l-2">
+              <div className="space-y-4 pl-4 border-l-2">
+                {/* GPS Radius */}
                 <Field>
                   <FieldLabel>{t("fields.gpsRadius")}</FieldLabel>
                   <Input
@@ -553,25 +636,104 @@ export function WorkScheduleDialog({
                   <FieldDescription>meters</FieldDescription>
                 </Field>
 
+                {/* Company Selection for Coordinates */}
                 <Field>
-                  <FieldLabel>{t("fields.officeLatitude")}</FieldLabel>
-                  <Input
-                    type="number"
-                    step="any"
-                    placeholder="-6.123456"
-                    {...register("office_latitude", { valueAsNumber: true })}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <FieldLabel>{t("fields.officeLocation")}</FieldLabel>
+                  </div>
+                  <Controller
+                    control={control}
+                    name="company_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={(val) =>
+                          field.onChange(val === "__none__" ? undefined : val)
+                        }
+                      >
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue
+                            placeholder={t("placeholders.selectCompany")}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            value="__none__"
+                            className="cursor-pointer"
+                          >
+                            {t("placeholders.manualCoordinates")}
+                          </SelectItem>
+                          {companies.map((company) => (
+                            <SelectItem
+                              key={company.id}
+                              value={company.id}
+                              className="cursor-pointer"
+                            >
+                              {company.name}
+                              {company.latitude !== null &&
+                                company.longitude !== null && (
+                                  <span className="text-muted-foreground ml-1">
+                                    ({company.latitude.toFixed(4)},{" "}
+                                    {company.longitude.toFixed(4)})
+                                  </span>
+                                )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
+                  <FieldDescription>
+                    {t("descriptions.officeLocation")}
+                  </FieldDescription>
+                  {errors.company_id && (
+                    <FieldError>{errors.company_id.message}</FieldError>
+                  )}
                 </Field>
 
-                <Field>
-                  <FieldLabel>{t("fields.officeLongitude")}</FieldLabel>
-                  <Input
-                    type="number"
-                    step="any"
-                    placeholder="106.123456"
-                    {...register("office_longitude", { valueAsNumber: true })}
-                  />
-                </Field>
+                {/* Show coordinates (auto-populated or editable) */}
+                {selectedCompanyId ? (
+                  <div className="bg-muted p-3 rounded-lg">
+                    <p className="text-sm font-medium mb-1">
+                      {t("fields.coordinates")}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                      <span>
+                        Lat: {selectedCompany?.latitude?.toFixed(6) ?? "-"}
+                      </span>
+                      <span>
+                        Lng: {selectedCompany?.longitude?.toFixed(6) ?? "-"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel>{t("fields.officeLatitude")}</FieldLabel>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="-6.123456"
+                        {...register("office_latitude", {
+                          valueAsNumber: true,
+                        })}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>{t("fields.officeLongitude")}</FieldLabel>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="106.123456"
+                        {...register("office_longitude", {
+                          valueAsNumber: true,
+                        })}
+                      />
+                    </Field>
+                  </div>
+                )}
               </div>
             )}
           </div>

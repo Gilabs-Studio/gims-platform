@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
@@ -20,6 +21,9 @@ var (
 	ErrCannotApproveNonPending       = errors.New("can only approve/reject pending employees")
 	ErrReplacementNotFound           = errors.New("replacement employee not found")
 	ErrContractNotFound              = errors.New("contract not found")
+	ErrEducationNotFound             = errors.New("education history not found")
+	ErrInvalidDegreeLevel            = errors.New("invalid degree level")
+	ErrInvalidEducationDates         = errors.New("end date must be after start date")
 	ErrInvalidContractType           = errors.New("invalid contract type")
 	ErrInvalidContractDates          = errors.New("invalid contract dates")
 	ErrPKWTTCannotHaveEndDate        = errors.New("PKWTT contract cannot have end date")
@@ -28,6 +32,14 @@ var (
 	ErrCannotTerminateInactive       = errors.New("can only terminate active contracts")
 	ErrActiveContractExists          = errors.New("employee already has an active contract")
 	ErrNoActiveContract              = errors.New("employee has no active contract")
+	ErrOngoingEducationExists        = errors.New("employee already has an ongoing education")
+	ErrInvalidGPA                    = errors.New("GPA must be between 1.00 and 4.00")
+	ErrCertificationNotFound         = errors.New("certification not found")
+	ErrInvalidCertificationDates     = errors.New("expiry date must be after issue date")
+	ErrAssetNotFound                 = errors.New("asset not found")
+	ErrAssetAlreadyReturned          = errors.New("asset already returned")
+	ErrInvalidReturnDate             = errors.New("return date must be after borrow date")
+	ErrDuplicateAssetCode            = errors.New("asset code already exists")
 )
 
 // EmployeeUsecase defines the interface for employee business logic
@@ -57,16 +69,37 @@ type EmployeeUsecase interface {
 	TerminateEmployeeContract(ctx context.Context, employeeID string, contractID string, req dto.TerminateEmployeeContractRequest, terminatedBy string) (dto.EmployeeContractResponse, error)
 	RenewEmployeeContract(ctx context.Context, employeeID string, contractID string, req dto.RenewEmployeeContractRequest, renewedBy string) (dto.EmployeeContractResponse, error)
 	CorrectActiveEmployeeContract(ctx context.Context, employeeID string, req dto.CorrectEmployeeContractRequest, correctedBy string) (dto.EmployeeContractResponse, error)
+	// Education history management methods
+	GetEmployeeEducationHistories(ctx context.Context, employeeID string) ([]dto.EmployeeEducationHistoryResponse, error)
+	CreateEmployeeEducationHistory(ctx context.Context, employeeID string, req dto.CreateEmployeeEducationHistoryRequest, createdBy string) (dto.EmployeeEducationHistoryResponse, error)
+	UpdateEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string, req dto.UpdateEmployeeEducationHistoryRequest) (dto.EmployeeEducationHistoryResponse, error)
+	DeleteEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string) error
+	GetLatestEducation(ctx context.Context, employeeID string) (*models.EmployeeEducationHistory, error)
+	// Certification management methods
+	GetEmployeeCertifications(ctx context.Context, employeeID string) ([]dto.EmployeeCertificationResponse, error)
+	CreateEmployeeCertification(ctx context.Context, employeeID string, req dto.CreateEmployeeCertificationRequest, createdBy string) (dto.EmployeeCertificationResponse, error)
+	UpdateEmployeeCertification(ctx context.Context, employeeID string, certID string, req dto.UpdateEmployeeCertificationRequest) (dto.EmployeeCertificationResponse, error)
+	DeleteEmployeeCertification(ctx context.Context, employeeID string, certID string) error
+	GetLatestCertification(ctx context.Context, employeeID string) (*models.EmployeeCertification, error)
+	// Asset management methods
+	GetEmployeeAssets(ctx context.Context, employeeID string) ([]dto.EmployeeAssetResponse, error)
+	CreateEmployeeAsset(ctx context.Context, employeeID string, req dto.CreateEmployeeAssetRequest, createdBy string) (dto.EmployeeAssetResponse, error)
+	UpdateEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.UpdateEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
+	ReturnEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.ReturnEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
+	DeleteEmployeeAsset(ctx context.Context, employeeID string, assetID string) error
 }
 
 type employeeUsecase struct {
-	employeeRepo     repositories.EmployeeRepository
-	employeeAreaRepo repositories.EmployeeAreaRepository
-	divisionRepo     repositories.DivisionRepository
-	jobPositionRepo  repositories.JobPositionRepository
-	companyRepo      repositories.CompanyRepository
-	areaRepo         repositories.AreaRepository
-	contractRepo     repositories.EmployeeContractRepository
+	employeeRepo         repositories.EmployeeRepository
+	employeeAreaRepo     repositories.EmployeeAreaRepository
+	divisionRepo         repositories.DivisionRepository
+	jobPositionRepo      repositories.JobPositionRepository
+	companyRepo          repositories.CompanyRepository
+	areaRepo             repositories.AreaRepository
+	contractRepo         repositories.EmployeeContractRepository
+	educationHistoryRepo repositories.EmployeeEducationHistoryRepository
+	certificationRepo    repositories.EmployeeCertificationRepository
+	assetRepo            repositories.EmployeeAssetRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
@@ -78,15 +111,21 @@ func NewEmployeeUsecase(
 	companyRepo repositories.CompanyRepository,
 	areaRepo repositories.AreaRepository,
 	contractRepo repositories.EmployeeContractRepository,
+	educationHistoryRepo repositories.EmployeeEducationHistoryRepository,
+	certificationRepo repositories.EmployeeCertificationRepository,
+	assetRepo repositories.EmployeeAssetRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
-		employeeRepo:     employeeRepo,
-		employeeAreaRepo: employeeAreaRepo,
-		divisionRepo:     divisionRepo,
-		jobPositionRepo:  jobPositionRepo,
-		companyRepo:      companyRepo,
-		areaRepo:         areaRepo,
-		contractRepo:     contractRepo,
+		employeeRepo:         employeeRepo,
+		employeeAreaRepo:     employeeAreaRepo,
+		divisionRepo:         divisionRepo,
+		jobPositionRepo:      jobPositionRepo,
+		companyRepo:          companyRepo,
+		areaRepo:             areaRepo,
+		contractRepo:         contractRepo,
+		educationHistoryRepo: educationHistoryRepo,
+		certificationRepo:    certificationRepo,
+		assetRepo:            assetRepo,
 	}
 }
 
@@ -232,7 +271,11 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		return dto.EmployeeResponse{}, err
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	// Fetch latest education and certification
+	latestEdu, _ := u.GetLatestEducation(ctx, employee.ID)
+	latestCert, _ := u.GetLatestCertification(ctx, employee.ID)
+
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error) {
@@ -251,7 +294,11 @@ func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeR
 		}
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	// Fetch latest education and certification
+	latestEdu, _ := u.GetLatestEducation(ctx, id)
+	latestCert, _ := u.GetLatestCertification(ctx, id)
+
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error) {
@@ -412,7 +459,9 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	latestEdu, _ := u.GetLatestEducation(ctx, id)
+	latestCert, _ := u.GetLatestCertification(ctx, id)
+	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) Delete(ctx context.Context, id string) error {
@@ -441,7 +490,7 @@ func (u *employeeUsecase) SubmitForApproval(ctx context.Context, id string) (dto
 		return dto.EmployeeResponse{}, err
 	}
 
-	return mapper.ToEmployeeResponse(employee, nil), nil
+	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
 }
 
 func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error) {
@@ -454,7 +503,7 @@ func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.Approv
 		return dto.EmployeeResponse{}, ErrCannotApproveNonPending
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 
 	switch req.Action {
 	case "approve":
@@ -475,7 +524,7 @@ func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.Approv
 		return dto.EmployeeResponse{}, err
 	}
 
-	return mapper.ToEmployeeResponse(employee, nil), nil
+	return mapper.ToEmployeeResponse(employee, nil, nil, nil), nil
 }
 
 func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error) {
@@ -509,7 +558,7 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error) {
@@ -537,7 +586,7 @@ func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, 
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeAreasRequest) (dto.EmployeeResponse, error) {
@@ -571,7 +620,7 @@ func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string
 		currentContract = contract
 	}
 
-	return mapper.ToEmployeeResponse(employee, currentContract), nil
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
 func (u *employeeUsecase) RemoveAreaAssignment(ctx context.Context, employeeID string, areaID string) error {
@@ -888,7 +937,7 @@ func (u *employeeUsecase) TerminateEmployeeContract(ctx context.Context, employe
 		return dto.EmployeeContractResponse{}, ErrCannotTerminateInactive
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	contract.Status = models.ContractStatusTerminated
 	contract.TerminatedAt = &now
 	contract.TerminationReason = req.Reason
@@ -989,7 +1038,7 @@ func (u *employeeUsecase) RenewEmployeeContract(ctx context.Context, employeeID 
 	}
 
 	// Expire the old contract
-	now := time.Now()
+	now := apptime.Now()
 	oldContract.Status = models.ContractStatusExpired
 	oldContract.ExpiredAt = &now
 	if err := u.contractRepo.Update(ctx, oldContract); err != nil {
@@ -1060,7 +1109,7 @@ func (u *employeeUsecase) CorrectActiveEmployeeContract(ctx context.Context, emp
 	}
 
 	// Expire the old contract
-	now := time.Now()
+	now := apptime.Now()
 	activeContract.Status = models.ContractStatusExpired
 	activeContract.ExpiredAt = &now
 	if err := u.contractRepo.Update(ctx, activeContract); err != nil {
@@ -1114,4 +1163,509 @@ func (u *employeeUsecase) mapContractsToResponse(contracts []*models.EmployeeCon
 		result[i] = u.mapContractToResponse(contract)
 	}
 	return result
+}
+
+// Education history management methods
+
+func (u *employeeUsecase) GetLatestEducation(ctx context.Context, employeeID string) (*models.EmployeeEducationHistory, error) {
+	employeeUUID, err := uuid.Parse(employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid employee ID: %w", err)
+	}
+
+	// Try ongoing education first (end_date is null)
+	ongoing, err := u.educationHistoryRepo.FindOngoingByEmployeeID(ctx, employeeUUID)
+	if err == nil && ongoing != nil {
+		return ongoing, nil
+	}
+
+	// Fall back to most recent education
+	latest, err := u.educationHistoryRepo.FindLatestByEmployeeID(ctx, employeeUUID)
+	if err != nil {
+		return nil, err
+	}
+	return latest, nil
+}
+
+func (u *employeeUsecase) GetEmployeeEducationHistories(ctx context.Context, employeeID string) ([]dto.EmployeeEducationHistoryResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	employeeUUID, err := uuid.Parse(employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid employee ID: %w", err)
+	}
+
+	educations, err := u.educationHistoryRepo.FindByEmployeeID(ctx, employeeUUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch education histories: %w", err)
+	}
+
+	return mapper.ToEducationHistoryResponseList(educations), nil
+}
+
+func (u *employeeUsecase) CreateEmployeeEducationHistory(ctx context.Context, employeeID string, req dto.CreateEmployeeEducationHistoryRequest, createdBy string) (dto.EmployeeEducationHistoryResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, ErrEmployeeNotFound
+	}
+
+	employeeUUID, err := uuid.Parse(employeeID)
+	if err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid employee ID: %w", err)
+	}
+
+	startDate, err := time.Parse("2006-01-02", req.StartDate)
+	if err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid start_date format: %w", err)
+	}
+
+	var endDate *time.Time
+	if req.EndDate != "" {
+		parsedEndDate, err := time.Parse("2006-01-02", req.EndDate)
+		if err != nil {
+			return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid end_date format: %w", err)
+		}
+		if !parsedEndDate.After(startDate) {
+			return dto.EmployeeEducationHistoryResponse{}, ErrInvalidEducationDates
+		}
+		endDate = &parsedEndDate
+	}
+
+	if req.GPA != nil && (*req.GPA < 1 || *req.GPA > 4) {
+		return dto.EmployeeEducationHistoryResponse{}, ErrInvalidGPA
+	}
+
+	// If no end_date → ongoing education; enforce only one ongoing per employee
+	if endDate == nil {
+		existing, err := u.educationHistoryRepo.FindOngoingByEmployeeID(ctx, employeeUUID)
+		if err == nil && existing != nil {
+			return dto.EmployeeEducationHistoryResponse{}, ErrOngoingEducationExists
+		}
+	}
+
+	createdByUUID, err := uuid.Parse(createdBy)
+	if err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid created_by UUID: %w", err)
+	}
+
+	education := &models.EmployeeEducationHistory{
+		EmployeeID:   employeeUUID,
+		Institution:  req.Institution,
+		Degree:       models.DegreeLevel(req.Degree),
+		FieldOfStudy: req.FieldOfStudy,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		GPA:          req.GPA,
+		Description:  req.Description,
+		DocumentPath: req.DocumentPath,
+		CreatedBy:    createdByUUID,
+	}
+
+	if err := u.educationHistoryRepo.Create(ctx, education); err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("failed to create education history: %w", err)
+	}
+
+	return mapper.ToEducationHistoryResponse(education), nil
+}
+
+func (u *employeeUsecase) UpdateEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string, req dto.UpdateEmployeeEducationHistoryRequest) (dto.EmployeeEducationHistoryResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, ErrEmployeeNotFound
+	}
+
+	educationUUID, err := uuid.Parse(educationID)
+	if err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid education ID: %w", err)
+	}
+
+	education, err := u.educationHistoryRepo.FindByID(ctx, educationUUID)
+	if err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, ErrEducationNotFound
+	}
+
+	employeeUUID, _ := uuid.Parse(employeeID)
+	if education.EmployeeID != employeeUUID {
+		return dto.EmployeeEducationHistoryResponse{}, errors.New("education history does not belong to employee")
+	}
+
+	if req.Institution != "" {
+		education.Institution = req.Institution
+	}
+	if req.Degree != "" {
+		education.Degree = models.DegreeLevel(req.Degree)
+	}
+	if req.FieldOfStudy != "" {
+		education.FieldOfStudy = req.FieldOfStudy
+	}
+	if req.StartDate != "" {
+		startDate, err := time.Parse("2006-01-02", req.StartDate)
+		if err != nil {
+			return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+		education.StartDate = startDate
+	}
+	if req.EndDate != "" {
+		endDate, err := time.Parse("2006-01-02", req.EndDate)
+		if err != nil {
+			return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("invalid end_date format: %w", err)
+		}
+		if !endDate.After(education.StartDate) {
+			return dto.EmployeeEducationHistoryResponse{}, ErrInvalidEducationDates
+		}
+		education.EndDate = &endDate
+	}
+	if req.GPA != nil {
+		if *req.GPA < 1 || *req.GPA > 4 {
+			return dto.EmployeeEducationHistoryResponse{}, ErrInvalidGPA
+		}
+		education.GPA = req.GPA
+	}
+	if req.Description != "" {
+		education.Description = req.Description
+	}
+	if req.DocumentPath != "" {
+		education.DocumentPath = req.DocumentPath
+	}
+
+	// If end_date is being cleared (ongoing), enforce only one ongoing per employee
+	if req.EndDate == "" && education.EndDate == nil {
+		employeeUUID, _ := uuid.Parse(employeeID)
+		existing, err := u.educationHistoryRepo.FindOngoingByEmployeeID(ctx, employeeUUID)
+		if err == nil && existing != nil && existing.ID != education.ID {
+			return dto.EmployeeEducationHistoryResponse{}, ErrOngoingEducationExists
+		}
+	}
+
+	if err := u.educationHistoryRepo.Update(ctx, education); err != nil {
+		return dto.EmployeeEducationHistoryResponse{}, fmt.Errorf("failed to update education history: %w", err)
+	}
+
+	return mapper.ToEducationHistoryResponse(education), nil
+}
+
+func (u *employeeUsecase) DeleteEmployeeEducationHistory(ctx context.Context, employeeID string, educationID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	educationUUID, err := uuid.Parse(educationID)
+	if err != nil {
+		return fmt.Errorf("invalid education ID: %w", err)
+	}
+
+	education, err := u.educationHistoryRepo.FindByID(ctx, educationUUID)
+	if err != nil {
+		return ErrEducationNotFound
+	}
+
+	employeeUUID, _ := uuid.Parse(employeeID)
+	if education.EmployeeID != employeeUUID {
+		return errors.New("education history does not belong to employee")
+	}
+
+	return u.educationHistoryRepo.Delete(ctx, educationUUID)
+}
+
+// Certification management methods
+
+func (u *employeeUsecase) GetLatestCertification(ctx context.Context, employeeID string) (*models.EmployeeCertification, error) {
+	cert, err := u.certificationRepo.FindLatestByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	return cert, nil
+}
+
+func (u *employeeUsecase) GetEmployeeCertifications(ctx context.Context, employeeID string) ([]dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	certs, err := u.certificationRepo.FindByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch certifications: %w", err)
+	}
+
+	return mapper.ToCertificationResponseList(certs), nil
+}
+
+func (u *employeeUsecase) CreateEmployeeCertification(ctx context.Context, employeeID string, req dto.CreateEmployeeCertificationRequest, createdBy string) (dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrEmployeeNotFound
+	}
+
+	issueDate, err := time.Parse("2006-01-02", req.IssueDate)
+	if err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid issue_date format: %w", err)
+	}
+
+	var expiryDate *time.Time
+	if req.ExpiryDate != nil && *req.ExpiryDate != "" {
+		parsed, err := time.Parse("2006-01-02", *req.ExpiryDate)
+		if err != nil {
+			return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid expiry_date format: %w", err)
+		}
+		if !parsed.After(issueDate) {
+			return dto.EmployeeCertificationResponse{}, ErrInvalidCertificationDates
+		}
+		expiryDate = &parsed
+	}
+
+	cert := &models.EmployeeCertification{
+		EmployeeID:        employeeID,
+		CertificateName:   req.CertificateName,
+		IssuedBy:          req.IssuedBy,
+		IssueDate:         issueDate,
+		ExpiryDate:        expiryDate,
+		CertificateFile:   req.CertificateFile,
+		CertificateNumber: req.CertificateNumber,
+		Description:       req.Description,
+		CreatedBy:         createdBy,
+		UpdatedBy:         createdBy,
+	}
+
+	if err := u.certificationRepo.Create(ctx, cert); err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("failed to create certification: %w", err)
+	}
+
+	return mapper.ToCertificationResponse(cert), nil
+}
+
+func (u *employeeUsecase) UpdateEmployeeCertification(ctx context.Context, employeeID string, certID string, req dto.UpdateEmployeeCertificationRequest) (dto.EmployeeCertificationResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrEmployeeNotFound
+	}
+
+	cert, err := u.certificationRepo.FindByID(ctx, certID)
+	if err != nil {
+		return dto.EmployeeCertificationResponse{}, ErrCertificationNotFound
+	}
+
+	if cert.EmployeeID != employeeID {
+		return dto.EmployeeCertificationResponse{}, errors.New("certification does not belong to employee")
+	}
+
+	if req.CertificateName != "" {
+		cert.CertificateName = req.CertificateName
+	}
+	if req.IssuedBy != "" {
+		cert.IssuedBy = req.IssuedBy
+	}
+	if req.IssueDate != "" {
+		issueDate, err := time.Parse("2006-01-02", req.IssueDate)
+		if err != nil {
+			return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid issue_date format: %w", err)
+		}
+		cert.IssueDate = issueDate
+	}
+	if req.ExpiryDate != nil {
+		if *req.ExpiryDate == "" {
+			cert.ExpiryDate = nil
+		} else {
+			expiryDate, err := time.Parse("2006-01-02", *req.ExpiryDate)
+			if err != nil {
+				return dto.EmployeeCertificationResponse{}, fmt.Errorf("invalid expiry_date format: %w", err)
+			}
+			if !expiryDate.After(cert.IssueDate) {
+				return dto.EmployeeCertificationResponse{}, ErrInvalidCertificationDates
+			}
+			cert.ExpiryDate = &expiryDate
+		}
+	}
+	if req.CertificateFile != "" {
+		cert.CertificateFile = req.CertificateFile
+	}
+	if req.CertificateNumber != "" {
+		cert.CertificateNumber = req.CertificateNumber
+	}
+	if req.Description != "" {
+		cert.Description = req.Description
+	}
+
+	if err := u.certificationRepo.Update(ctx, cert); err != nil {
+		return dto.EmployeeCertificationResponse{}, fmt.Errorf("failed to update certification: %w", err)
+	}
+
+	return mapper.ToCertificationResponse(cert), nil
+}
+
+func (u *employeeUsecase) DeleteEmployeeCertification(ctx context.Context, employeeID string, certID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	cert, err := u.certificationRepo.FindByID(ctx, certID)
+	if err != nil {
+		return ErrCertificationNotFound
+	}
+
+	if cert.EmployeeID != employeeID {
+		return errors.New("certification does not belong to employee")
+	}
+
+	return u.certificationRepo.Delete(ctx, certID)
+}
+
+// --- Asset management methods ---
+
+func (u *employeeUsecase) GetEmployeeAssets(ctx context.Context, employeeID string) ([]dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	assets, err := u.assetRepo.FindByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch assets: %w", err)
+	}
+
+	return mapper.ToAssetResponseList(assets), nil
+}
+
+func (u *employeeUsecase) CreateEmployeeAsset(ctx context.Context, employeeID string, req dto.CreateEmployeeAssetRequest, createdBy string) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	existing, _ := u.assetRepo.FindByAssetCode(ctx, req.AssetCode)
+	if existing != nil {
+		return dto.EmployeeAssetResponse{}, ErrDuplicateAssetCode
+	}
+
+	borrowDate, err := time.Parse("2006-01-02", req.BorrowDate)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid borrow_date format: %w", err)
+	}
+
+	asset := &models.EmployeeAsset{
+		EmployeeID:      employeeID,
+		AssetName:       req.AssetName,
+		AssetCode:       req.AssetCode,
+		AssetCategory:   req.AssetCategory,
+		BorrowDate:      borrowDate,
+		BorrowCondition: models.AssetCondition(req.BorrowCondition),
+		AssetImage:      req.AssetImage,
+		Notes:           req.Notes,
+	}
+
+	if err := u.assetRepo.Create(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to create asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.UpdateEmployeeAssetRequest) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return dto.EmployeeAssetResponse{}, errors.New("asset does not belong to employee")
+	}
+
+	if asset.IsReturned() {
+		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
+	}
+
+	if req.AssetName != "" {
+		asset.AssetName = req.AssetName
+	}
+	if req.AssetCode != "" {
+		if req.AssetCode != asset.AssetCode {
+			existing, _ := u.assetRepo.FindByAssetCode(ctx, req.AssetCode)
+			if existing != nil && existing.ID != assetID {
+				return dto.EmployeeAssetResponse{}, ErrDuplicateAssetCode
+			}
+		}
+		asset.AssetCode = req.AssetCode
+	}
+	if req.AssetCategory != "" {
+		asset.AssetCategory = req.AssetCategory
+	}
+	if req.BorrowDate != "" {
+		borrowDate, err := time.Parse("2006-01-02", req.BorrowDate)
+		if err != nil {
+			return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid borrow_date format: %w", err)
+		}
+		asset.BorrowDate = borrowDate
+	}
+	if req.BorrowCondition != "" {
+		asset.BorrowCondition = models.AssetCondition(req.BorrowCondition)
+	}
+	if req.AssetImage != nil {
+		asset.AssetImage = *req.AssetImage
+	}
+	if req.Notes != nil {
+		asset.Notes = req.Notes
+	}
+
+	if err := u.assetRepo.Update(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to update asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) ReturnEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.ReturnEmployeeAssetRequest) (dto.EmployeeAssetResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return dto.EmployeeAssetResponse{}, errors.New("asset does not belong to employee")
+	}
+
+	if asset.IsReturned() {
+		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
+	}
+
+	returnDate, err := time.Parse("2006-01-02", req.ReturnDate)
+	if err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("invalid return_date format: %w", err)
+	}
+
+	if !returnDate.After(asset.BorrowDate) && !returnDate.Equal(asset.BorrowDate) {
+		return dto.EmployeeAssetResponse{}, ErrInvalidReturnDate
+	}
+
+	returnCondition := models.AssetCondition(req.ReturnCondition)
+	asset.ReturnDate = &returnDate
+	asset.ReturnCondition = &returnCondition
+	if req.Notes != nil {
+		asset.Notes = req.Notes
+	}
+
+	if err := u.assetRepo.Update(ctx, asset); err != nil {
+		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to return asset: %w", err)
+	}
+
+	return mapper.ToAssetResponse(asset), nil
+}
+
+func (u *employeeUsecase) DeleteEmployeeAsset(ctx context.Context, employeeID string, assetID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	asset, err := u.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return ErrAssetNotFound
+	}
+
+	if asset.EmployeeID != employeeID {
+		return errors.New("asset does not belong to employee")
+	}
+
+	return u.assetRepo.Delete(ctx, assetID)
 }

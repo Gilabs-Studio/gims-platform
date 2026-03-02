@@ -49,6 +49,7 @@ type RedisConfig struct {
 type ServerConfig struct {
 	Port                 string
 	Env                  string
+	Timezone             string // IANA timezone name (e.g. "Asia/Jakarta")
 	ReadHeaderTimeoutSec int
 	ReadTimeoutSec       int
 	WriteTimeoutSec      int
@@ -151,6 +152,7 @@ func Load() error {
 		Server: ServerConfig{
 			Port:                 getEnv("PORT", "8080"),
 			Env:                  envValue, // Use the env value we determined above
+			Timezone:             getEnv("APP_TIMEZONE", "Asia/Jakarta"),
 			ReadHeaderTimeoutSec: getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
 			ReadTimeoutSec:       getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
 			WriteTimeoutSec:      getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),
@@ -431,8 +433,10 @@ func GetDSN() string {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
+	// WHY: TimeZone=UTC ensures all timestamps are stored/retrieved in UTC,
+	// application-level timezone conversion is handled by apptime package.
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=UTC",
 		db.Host, db.Port, db.User, db.Password, db.DBName, sslmode,
 	)
 }

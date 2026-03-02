@@ -60,7 +60,7 @@ export function HolidayList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Holiday | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("list");
+  const [activeTab, setActiveTab] = useState("calendar");
 
   const { data, isLoading, isError, refetch } = useHolidays({
     page,

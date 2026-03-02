@@ -97,6 +97,25 @@ export interface LeaveBalancesResponse {
   request_id: string;
 }
 
+// Backend GetMyBalance returns a single object, not an array
+export interface MyLeaveBalance {
+  employee_id: string;
+  total_quota: number;
+  used_days: number;
+  remaining_balance: number;
+  carry_over_balance: number;
+  total_available_leave: number;
+  pending_requests_days: number;
+  calculated_at: string;
+}
+
+export interface MyLeaveBalanceResponse {
+  success: boolean;
+  data: MyLeaveBalance;
+  timestamp: string;
+  request_id: string;
+}
+
 export interface LeaveFormData {
   leave_types: LeaveType[];
   employees: Employee[];

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -254,7 +255,7 @@ func (u *taskUsecase) Complete(ctx context.Context, id string) (dto.TaskResponse
 		return dto.TaskResponse{}, errors.New("task is already completed")
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	task.Status = string(models.TaskStatusCompleted)
 	task.CompletedAt = &now
 

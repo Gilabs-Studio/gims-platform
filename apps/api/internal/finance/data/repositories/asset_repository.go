@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -131,7 +132,7 @@ func (r *assetRepository) FindLastDepreciation(ctx context.Context, assetID stri
 }
 
 func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
-	now := time.Now()
+	now := apptime.Now()
 	prefix := "AST-" + now.Format("200601") + "-"
 
 	var lastAsset financeModels.Asset

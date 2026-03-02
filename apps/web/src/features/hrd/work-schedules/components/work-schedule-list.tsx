@@ -12,6 +12,7 @@ import {
   Clock,
   MapPin,
   Eye,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -208,6 +209,7 @@ export function WorkScheduleList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("fields.name")}</TableHead>
+              <TableHead>{t("fields.division")}</TableHead>
               <TableHead>{t("fields.startTime")}</TableHead>
               <TableHead>{t("fields.endTime")}</TableHead>
               <TableHead>{t("fields.workingDays")}</TableHead>
@@ -222,6 +224,9 @@ export function WorkScheduleList() {
                 <TableRow key={i}>
                   <TableCell>
                     <Skeleton className="h-5 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-24" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-5 w-16" />
@@ -246,7 +251,7 @@ export function WorkScheduleList() {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {tCommon("noData")}
@@ -280,6 +285,18 @@ export function WorkScheduleList() {
                       <p className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">
                         {item.description}
                       </p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {item.division_name ? (
+                      <Badge variant="outline" className="gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        {item.division_name}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">
+                        {t("placeholders.allDivisions")}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="font-mono">
@@ -348,7 +365,7 @@ export function WorkScheduleList() {
                           <Pencil className="mr-2 h-4 w-4" />
                           {tCommon("edit")}
                         </DropdownMenuItem>
-                        {!item.is_default && (
+                        {!item.is_default && !item.division_id && (
                           <DropdownMenuItem
                             onClick={() => handleSetDefault(item.id)}
                             className="cursor-pointer"

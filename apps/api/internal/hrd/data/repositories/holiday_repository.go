@@ -22,6 +22,10 @@ type HolidayRepository interface {
 	Update(ctx context.Context, h *models.Holiday) error
 	Delete(ctx context.Context, id string) error
 	IsHoliday(ctx context.Context, date time.Time) (bool, *models.Holiday, error)
+	// Company-scoped variants: include global holidays (company_id IS NULL)
+	// plus holidays for the specified company.
+	IsHolidayForCompany(ctx context.Context, date time.Time, companyID string) (bool, *models.Holiday, error)
+	FindByDateRangeForCompany(ctx context.Context, startDate, endDate time.Time, companyID string) ([]models.Holiday, error)
 }
 
 type holidayRepository struct {
@@ -115,6 +119,11 @@ func (r *holidayRepository) List(ctx context.Context, req *dto.ListHolidaysReque
 		query = query.Where("is_active = ?", *req.IsActive)
 	}
 
+	// Apply company filter
+	if req.CompanyID != "" {
+		query = query.Where("(company_id IS NULL OR company_id = ?)", req.CompanyID)
+	}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -182,4 +191,47 @@ func (r *holidayRepository) IsHoliday(ctx context.Context, date time.Time) (bool
 		return false, nil, err
 	}
 	return true, holiday, nil
+}
+
+// IsHolidayForCompany checks whether the given date is a holiday that applies
+// to the specified company. Matches global holidays (company_id IS NULL) OR
+// holidays scoped to this company.
+func (r *holidayRepository) IsHolidayForCompany(ctx context.Context, date time.Time, companyID string) (bool, *models.Holiday, error) {
+	dateOnly := date.Format("2006-01-02")
+	var h models.Holiday
+
+	query := r.getDB(ctx).
+		Where("date = ? AND is_active = ?", dateOnly, true)
+
+	if companyID != "" {
+		query = query.Where("(company_id IS NULL OR company_id = ?)", companyID)
+	}
+
+	err := query.First(&h).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil, nil
+		}
+		return false, nil, err
+	}
+	return true, &h, nil
+}
+
+// FindByDateRangeForCompany returns holidays in the date range that apply
+// to the given company (global + company-specific).
+func (r *holidayRepository) FindByDateRangeForCompany(ctx context.Context, startDate, endDate time.Time, companyID string) ([]models.Holiday, error) {
+	var holidays []models.Holiday
+	query := r.getDB(ctx).
+		Where("date >= ? AND date <= ? AND is_active = ?",
+			startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), true)
+
+	if companyID != "" {
+		query = query.Where("(company_id IS NULL OR company_id = ?)", companyID)
+	}
+
+	err := query.Order("date ASC").Find(&holidays).Error
+	if err != nil {
+		return nil, err
+	}
+	return holidays, nil
 }

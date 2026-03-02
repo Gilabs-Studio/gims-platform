@@ -2,8 +2,8 @@ package handler
 
 import (
 	"strconv"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -110,7 +110,7 @@ func (h *HolidayHandler) GetCalendar(c *gin.Context) {
 	year, err := strconv.Atoi(yearStr)
 	if err != nil || year < 2000 || year > 2100 {
 		// Default to current year
-		year = time.Now().Year()
+		year = apptime.Now().Year()
 	}
 
 	calendar, err := h.holidayUC.GetCalendar(c.Request.Context(), year)
@@ -225,7 +225,7 @@ func (h *HolidayHandler) Delete(c *gin.Context) {
 func (h *HolidayHandler) CheckHoliday(c *gin.Context) {
 	date := c.Query("date")
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = apptime.Now().Format("2006-01-02")
 	}
 
 	isHoliday, holidayInfo, err := h.holidayUC.IsHoliday(c.Request.Context(), date)

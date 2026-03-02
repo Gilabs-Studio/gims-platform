@@ -208,17 +208,6 @@ export const navigationConfig: NavItem[] = [
     children: [
       { name: "Attendance", url: "/hrd/attendance", icon: "clock", permission: "attendance.read" },
       { name: "Leave Requests", url: "/hrd/leave-requests", icon: "calendar", permission: "leave_request.read" },
-      {
-        name: "Employee Documents",
-        url: "/hrd/documents",
-        icon: "folder",
-        children: [
-          { name: "Contracts", url: "/hrd/contracts", icon: "file-text", permission: "employee_contract.read" },
-          { name: "Education History", url: "/hrd/education", icon: "graduation-cap", permission: "education_history.read" },
-          { name: "Certifications", url: "/hrd/certifications", icon: "file-check", permission: "certification.read" },
-          { name: "Employee Assets", url: "/hrd/employee-assets", icon: "box", permission: "employee_asset.read" },
-        ],
-      },
       { name: "Evaluation", url: "/hrd/evaluation", icon: "check-square", permission: "evaluation.read" },
       { name: "Recruitment", url: "/hrd/recruitment", icon: "user-plus", permission: "recruitment.read" },
       { name: "Work Schedule", url: "/hrd/work-schedule", icon: "calendar-check", permission: "work_schedule.read" },

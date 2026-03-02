@@ -34,4 +34,23 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.POST("/:id/contracts/:contract_id/terminate", middleware.RequirePermission("employee.update"), h.TerminateEmployeeContract)
 	g.POST("/:id/contracts/:contract_id/renew", middleware.RequirePermission("employee.update"), h.RenewEmployeeContract)
 	g.PATCH("/:id/contracts/active", middleware.RequirePermission("employee.update"), h.CorrectActiveEmployeeContract)
+
+	// Employee education history management routes
+	g.GET("/:id/education-histories", middleware.RequirePermission("employee.read"), h.GetEmployeeEducationHistories)
+	g.POST("/:id/education-histories", middleware.RequirePermission("employee.update"), h.CreateEmployeeEducationHistory)
+	g.PUT("/:id/education-histories/:education_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeEducationHistory)
+	g.DELETE("/:id/education-histories/:education_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeEducationHistory)
+
+	// Employee certification management routes
+	g.GET("/:id/certifications", middleware.RequirePermission("employee.read"), h.GetEmployeeCertifications)
+	g.POST("/:id/certifications", middleware.RequirePermission("employee.update"), h.CreateEmployeeCertification)
+	g.PUT("/:id/certifications/:certification_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeCertification)
+	g.DELETE("/:id/certifications/:certification_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeCertification)
+
+	// Employee asset management routes
+	g.GET("/:id/assets", middleware.RequirePermission("employee.read"), h.GetEmployeeAssets)
+	g.POST("/:id/assets", middleware.RequirePermission("employee.update"), h.CreateEmployeeAsset)
+	g.PUT("/:id/assets/:asset_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeAsset)
+	g.POST("/:id/assets/:asset_id/return", middleware.RequirePermission("employee.update"), h.ReturnEmployeeAsset)
+	g.DELETE("/:id/assets/:asset_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeAsset)
 }

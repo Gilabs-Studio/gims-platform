@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -51,12 +52,12 @@ type LeaveRequest struct {
 
 	// Approval/Rejection details
 	ApprovedBy     *string    `gorm:"type:uuid" json:"approved_by"`
-	ApprovedAt     *time.Time `gorm:"type:timestamp" json:"approved_at"`
+	ApprovedAt     *time.Time `gorm:"type:timestamptz" json:"approved_at"`
 	RejectedBy     *string    `gorm:"type:uuid" json:"rejected_by"`
 	RejectionNote  *string    `gorm:"type:text" json:"rejection_note"`
 	ApprovalNotes  *string    `gorm:"type:text" json:"approval_notes"`
 	RejectionNotes *string    `gorm:"type:text" json:"rejection_notes"`
-	RejectedAt     *time.Time `gorm:"type:timestamp" json:"rejected_at"`
+	RejectedAt     *time.Time `gorm:"type:timestamptz" json:"rejected_at"`
 
 	// Carry-over tracking
 	// WHY: Track leave from previous year that hasn't expired (max 5 days until March 31)
@@ -123,9 +124,8 @@ func (lr *LeaveRequest) BeforeUpdate(tx *gorm.DB) error {
 		return errors.New("cannot revert approved leave to pending")
 	}
 
-	if oldLeave.Status == LeaveStatusRejected && lr.Status == LeaveStatusApproved {
-		return errors.New("cannot approve a rejected leave without re-submission")
-	}
+	// Allow REJECTED → APPROVED and CANCELLED → APPROVED for re-approve flow
+	// These transitions are valid when HR re-approves an accidentally rejected/cancelled leave
 
 	// If status is changing to APPROVED, ensure ApprovedBy and ApprovedAt are set
 	if lr.Status == LeaveStatusApproved && oldLeave.Status != LeaveStatusApproved {
@@ -144,9 +144,9 @@ func (lr *LeaveRequest) IsEditable() bool {
 }
 
 // CanBeApproved checks if the leave request can be approved
-// WHY: Only PENDING leaves can be approved
+// WHY: PENDING, REJECTED, and CANCELLED leaves can be (re-)approved
 func (lr *LeaveRequest) CanBeApproved() bool {
-	return lr.Status == LeaveStatusPending
+	return lr.Status == LeaveStatusPending || lr.Status == LeaveStatusRejected || lr.Status == LeaveStatusCancelled
 }
 
 // CanBeCancelled checks if the leave request can be cancelled
@@ -157,7 +157,7 @@ func (lr *LeaveRequest) CanBeCancelled() bool {
 	}
 	if lr.Status == LeaveStatusApproved {
 		// Can cancel if leave hasn't started yet
-		return time.Now().Before(lr.StartDate)
+		return apptime.Now().Before(lr.StartDate)
 	}
 	return false
 }

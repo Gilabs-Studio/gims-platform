@@ -72,6 +72,7 @@ type WorkScheduleResponse struct {
 	Name                       string      `json:"name"`
 	Description                string      `json:"description"`
 	DivisionID                 *string     `json:"division_id"`
+	DivisionName               string      `json:"division_name,omitempty"`
 	IsDefault                  bool        `json:"is_default"`
 	IsActive                   bool        `json:"is_active"`
 	StartTime                  string      `json:"start_time"`
@@ -91,4 +92,18 @@ type WorkScheduleResponse struct {
 	OfficeLongitude            float64     `json:"office_longitude"`
 	CreatedAt                  string      `json:"created_at"`
 	UpdatedAt                  string      `json:"updated_at"`
+}
+
+// CompanyFormOption represents a company option for GPS coordinate picker
+type CompanyFormOption struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+}
+
+// WorkScheduleFormDataResponse represents the form data for work schedule dropdowns
+type WorkScheduleFormDataResponse struct {
+	Divisions []DivisionFormOption `json:"divisions"`
+	Companies []CompanyFormOption  `json:"companies"`
 }

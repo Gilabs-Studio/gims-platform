@@ -159,6 +159,7 @@ func SeedOrganization() error {
 			VillageID:  villageID,
 			Latitude:   &lat,
 			Longitude:  &lng,
+			Timezone:   "Asia/Jakarta",
 			Status:     models.CompanyStatusApproved,
 			IsApproved: true,
 			IsActive:   true,

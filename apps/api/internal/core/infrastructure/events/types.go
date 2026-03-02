@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 )
 
@@ -77,7 +78,7 @@ func NewEventMetadata(eventType EventType) EventMetadata {
 	return EventMetadata{
 		EventID:   uuid.NewString(),
 		EventType: eventType,
-		Timestamp: time.Now(),
+		Timestamp: apptime.Now(),
 	}
 }
 

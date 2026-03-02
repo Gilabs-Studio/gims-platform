@@ -93,6 +93,176 @@ export interface CorrectEmployeeContractData {
   document_path?: string;
 }
 
+// Education history types
+export type DegreeLevel =
+  | "ELEMENTARY"
+  | "JUNIOR_HIGH"
+  | "SENIOR_HIGH"
+  | "DIPLOMA"
+  | "BACHELOR"
+  | "MASTER"
+  | "DOCTORATE";
+
+export interface EmployeeEducationHistory {
+  id: string;
+  employee_id: string;
+  institution: string;
+  degree: DegreeLevel;
+  field_of_study?: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+  is_completed: boolean;
+  duration_years: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeEducationBrief {
+  id: string;
+  institution: string;
+  degree: string;
+  field_of_study: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  document_path?: string;
+  is_completed: boolean;
+}
+
+export interface CreateEmployeeEducationHistoryData {
+  institution: string;
+  degree: DegreeLevel;
+  field_of_study?: string;
+  start_date: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+}
+
+export interface UpdateEmployeeEducationHistoryData {
+  institution?: string;
+  degree?: DegreeLevel;
+  field_of_study?: string;
+  start_date?: string;
+  end_date?: string;
+  gpa?: number;
+  description?: string;
+  document_path?: string;
+}
+
+// Certification types
+export interface EmployeeCertification {
+  id: string;
+  employee_id: string;
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+  is_expired: boolean;
+  days_until_expiry: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeCertificationBrief {
+  id: string;
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_number?: string;
+  certificate_file?: string;
+  is_expired: boolean;
+  days_until_expiry: number;
+}
+
+export interface CreateEmployeeCertificationData {
+  certificate_name: string;
+  issued_by: string;
+  issue_date: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+}
+
+export interface UpdateEmployeeCertificationData {
+  certificate_name?: string;
+  issued_by?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  certificate_file?: string;
+  certificate_number?: string;
+  description?: string;
+}
+
+// Asset types
+export type AssetCondition = "NEW" | "GOOD" | "FAIR" | "POOR" | "DAMAGED";
+export type AssetStatus = "BORROWED" | "RETURNED";
+
+export interface EmployeeAsset {
+  id: string;
+  employee_id: string;
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  return_date?: string;
+  borrow_condition: AssetCondition;
+  return_condition?: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+  status: AssetStatus;
+  days_borrowed: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeAssetBrief {
+  id: string;
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  return_date?: string;
+  asset_image?: string;
+  status: AssetStatus;
+  days_borrowed: number;
+}
+
+export interface CreateEmployeeAssetData {
+  asset_name: string;
+  asset_code: string;
+  asset_category: string;
+  borrow_date: string;
+  borrow_condition: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+}
+
+export interface UpdateEmployeeAssetData {
+  asset_name?: string;
+  asset_code?: string;
+  asset_category?: string;
+  borrow_date?: string;
+  borrow_condition?: AssetCondition;
+  asset_image?: string;
+  notes?: string;
+}
+
+export interface ReturnEmployeeAssetData {
+  return_date: string;
+  return_condition: AssetCondition;
+  notes?: string;
+}
+
 export interface Division {
   id: string;
   name: string;
@@ -170,8 +340,9 @@ export interface Employee {
   npwp?: string;
   bpjs?: string;
   total_leave_quota?: number;
-  // New contract structure
   current_contract?: EmployeeContract;
+  latest_education?: EmployeeEducationBrief;
+  latest_certification?: EmployeeCertificationBrief;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
   replacement_for_id?: string;

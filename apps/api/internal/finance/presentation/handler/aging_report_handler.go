@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,7 @@ func NewAgingReportHandler(uc usecase.AgingReportUsecase) *AgingReportHandler {
 func parseAsOfDate(c *gin.Context) (time.Time, error) {
 	v := strings.TrimSpace(c.Query("as_of_date"))
 	if v == "" {
-		now := time.Now()
+		now := apptime.Now()
 		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC), nil
 	}
 	parsed, err := time.Parse("2006-01-02", v)

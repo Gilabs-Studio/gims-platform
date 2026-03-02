@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -308,7 +309,7 @@ func (uc *salesPaymentUsecase) Confirm(ctx context.Context, id string) (*dto.Sal
 
 		if err := tx.Model(&pay).Updates(map[string]interface{}{
 			"status":     models.SalesPaymentStatusConfirmed,
-			"updated_at": time.Now(),
+			"updated_at": apptime.Now(),
 		}).Error; err != nil {
 			return err
 		}
@@ -324,10 +325,10 @@ func (uc *salesPaymentUsecase) Confirm(ctx context.Context, id string) (*dto.Sal
 			"status":           newStatus,
 			"paid_amount":      newTotal,
 			"remaining_amount": math.Max(0, inv.Amount-newTotal),
-			"updated_at":       time.Now(),
+			"updated_at":       apptime.Now(),
 		}
 		if newStatus == models.CustomerInvoiceStatusPaid {
-			now := time.Now()
+			now := apptime.Now()
 			updateData["payment_at"] = &now
 		}
 		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
@@ -378,7 +379,7 @@ func (uc *salesPaymentUsecase) Confirm(ctx context.Context, id string) (*dto.Sal
 					"down_payment_amount":     dpSum.Total,
 					"amount":                  newAmount,
 					"remaining_amount":        newRemaining,
-					"updated_at":              time.Now(),
+					"updated_at":              apptime.Now(),
 				}
 				if err := tx.Model(&models.CustomerInvoice{}).Where("id = ?", regInv.ID).Updates(regUpdates).Error; err != nil {
 					return err

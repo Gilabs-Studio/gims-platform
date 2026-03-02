@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -288,7 +288,7 @@ func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id str
 			return err
 		}
 
-		now := time.Now()
+		now := apptime.Now()
 		updates := map[string]interface{}{"status": status}
 
 		// Set workflow timestamp for the new status.

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -45,7 +46,7 @@ func (s *AIChatSession) BeforeCreate(tx *gorm.DB) error {
 		s.ID = uuid.New().String()
 	}
 	if s.LastActivity == nil {
-		now := time.Now()
+		now := apptime.Now()
 		s.LastActivity = &now
 	}
 	return nil

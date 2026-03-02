@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/ai/data/models"
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/dto"
@@ -148,7 +149,7 @@ func isNegativeMessage(msg string) bool {
 
 // SendMessage processes a user message through the agentic AI pipeline
 func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageRequest, userID string, userPermissions map[string]bool, isAdmin bool) (*dto.ChatResponse, error) {
-	start := time.Now()
+	start := apptime.Now()
 
 	if !u.cerebrasClient.IsConfigured() {
 		return nil, fmt.Errorf("AI_SERVICE_NOT_CONFIGURED: Cerebras AI is not configured")
@@ -274,7 +275,7 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 // ConfirmAction processes a user's confirmation of a pending action
 func (u *aiChatUsecase) ConfirmAction(ctx context.Context, req *dto.ConfirmActionRequest, userID string, userPermissions map[string]bool, isAdmin bool) (*dto.ChatResponse, error) {
-	start := time.Now()
+	start := apptime.Now()
 
 	// Find the pending action
 	action, err := u.actionRepo.FindByID(ctx, req.ActionID)
@@ -469,7 +470,7 @@ func (u *aiChatUsecase) getOrCreateSession(ctx context.Context, sessionID *strin
 	}
 
 	// Create new session
-	now := time.Now()
+	now := apptime.Now()
 	session := &models.AIChatSession{
 		UserID:       userID,
 		Title:        "New Chat",
@@ -736,7 +737,7 @@ func (u *aiChatUsecase) buildConfirmationMessage(intent *IntentResult, resolvedE
 		}
 		date := getStringParam(intent.Parameters, "quotation_date")
 		if date == "" {
-			date = time.Now().Format("2006-01-02")
+			date = apptime.Now().Format("2006-01-02")
 		}
 		var details []string
 		details = append(details, fmt.Sprintf("- **Customer**: %s", customer))

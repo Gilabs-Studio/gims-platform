@@ -452,25 +452,6 @@ func SeedPermissions() error {
 		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
 
-		{"/hrd/contracts", "employee_contract.read", "View Employee Contracts", "VIEW", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.create", "Create Employee Contracts", "CREATE", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.update", "Edit Employee Contracts", "EDIT", "employee_contract"},
-		{"/hrd/contracts", "employee_contract.delete", "Delete Employee Contracts", "DELETE", "employee_contract"},
-
-		{"/hrd/education", "education_history.read", "View Education History", "VIEW", "education_history"},
-		{"/hrd/education", "education_history.create", "Create Education History", "CREATE", "education_history"},
-		{"/hrd/education", "education_history.update", "Edit Education History", "EDIT", "education_history"},
-		{"/hrd/education", "education_history.delete", "Delete Education History", "DELETE", "education_history"},
-
-		{"/hrd/certifications", "certification.read", "View Certifications", "VIEW", "certification"},
-		{"/hrd/certifications", "certification.create", "Create Certifications", "CREATE", "certification"},
-		{"/hrd/certifications", "certification.update", "Edit Certifications", "EDIT", "certification"},
-		{"/hrd/certifications", "certification.delete", "Delete Certifications", "DELETE", "certification"},
-
-		{"/hrd/employee-assets", "employee_asset.read", "View Employee Assets", "VIEW", "employee_asset"},
-		{"/hrd/employee-assets", "employee_asset.create", "Create Employee Assets", "CREATE", "employee_asset"},
-		{"/hrd/employee-assets", "employee_asset.update", "Edit Employee Assets", "EDIT", "employee_asset"},
-		{"/hrd/employee-assets", "employee_asset.delete", "Delete Employee Assets", "DELETE", "employee_asset"},
 
 		{"/hrd/evaluation", "evaluation.read", "View Evaluations", "VIEW", "evaluation"},
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},

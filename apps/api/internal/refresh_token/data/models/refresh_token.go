@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -34,7 +35,7 @@ func (rt *RefreshToken) BeforeCreate(tx *gorm.DB) error {
 
 // IsExpired checks if the token is expired
 func (rt *RefreshToken) IsExpired() bool {
-	return time.Now().After(rt.ExpiresAt)
+	return apptime.Now().After(rt.ExpiresAt)
 }
 
 // IsValid checks if the token is valid (not revoked and not expired)
@@ -44,7 +45,7 @@ func (rt *RefreshToken) IsValid() bool {
 
 // Revoke marks the token as revoked
 func (rt *RefreshToken) Revoke() {
-	now := time.Now()
+	now := apptime.Now()
 	rt.Revoked = true
 	rt.RevokedAt = &now
 }

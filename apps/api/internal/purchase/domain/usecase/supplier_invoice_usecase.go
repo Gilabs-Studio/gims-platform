@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -489,7 +490,7 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			"remaining_amount":        math.Max(0, remainingAmount-si.PaidAmount),
 			"down_payment_invoice_id": dpInvoiceID,
 			"notes":                   req.Notes,
-			"updated_at":              time.Now(),
+			"updated_at":              apptime.Now(),
 		}
 		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
@@ -564,7 +565,7 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusSubmitted,
 			"submitted_at": &now,
@@ -599,7 +600,7 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusApproved,
 			"approved_at": &now,
@@ -634,7 +635,7 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusRejected,
 			"rejected_at": &now,
@@ -672,7 +673,7 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 		if !allowed {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusCancelled,
 			"cancelled_at": &now,
@@ -808,7 +809,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			"down_payment_invoice_id": dpInvoiceID,
 		}
 		if status == models.SupplierInvoiceStatusPaid {
-			now := time.Now()
+			now := apptime.Now()
 			updates["payment_at"] = &now
 		}
 

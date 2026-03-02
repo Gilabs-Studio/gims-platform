@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
@@ -35,24 +36,24 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 		TotalAmount:                pr.TotalAmount,
 		Notes:                      pr.Notes,
 		ConvertedToPurchaseOrderID: pr.ConvertedToPurchaseOrderID,
-		CreatedAt:                  pr.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:                  pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:                  pr.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
+		UpdatedAt:                  pr.UpdatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
 
 	if pr.SubmittedAt != nil {
-		s := pr.SubmittedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.SubmittedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.SubmittedAt = &s
 	}
 	if pr.ApprovedAt != nil {
-		s := pr.ApprovedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.ApprovedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.ApprovedAt = &s
 	}
 	if pr.RejectedAt != nil {
-		s := pr.RejectedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.RejectedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.RejectedAt = &s
 	}
 	if pr.ConvertedAt != nil {
-		s := pr.ConvertedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.ConvertedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.ConvertedAt = &s
 	}
 
@@ -159,25 +160,25 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 		OtherCost:                  pr.OtherCost,
 		TotalAmount:                pr.TotalAmount,
 		ConvertedToPurchaseOrderID: pr.ConvertedToPurchaseOrderID,
-		CreatedAt:                  pr.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:                  pr.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:                  pr.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
+		UpdatedAt:                  pr.UpdatedAt.In(apptime.Location()).Format(time.RFC3339),
 		Items:                      make([]dto.PurchaseRequisitionItemResponse, 0, len(pr.Items)),
 	}
 
 	if pr.SubmittedAt != nil {
-		s := pr.SubmittedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.SubmittedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.SubmittedAt = &s
 	}
 	if pr.ApprovedAt != nil {
-		s := pr.ApprovedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.ApprovedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.ApprovedAt = &s
 	}
 	if pr.RejectedAt != nil {
-		s := pr.RejectedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.RejectedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.RejectedAt = &s
 	}
 	if pr.ConvertedAt != nil {
-		s := pr.ConvertedAt.In(time.Local).Format(time.RFC3339)
+		s := pr.ConvertedAt.In(apptime.Location()).Format(time.RFC3339)
 		resp.ConvertedAt = &s
 	}
 

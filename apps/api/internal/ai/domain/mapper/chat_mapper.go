@@ -6,9 +6,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/ai/data/models"
 	"github.com/gilabs/gims/api/internal/ai/domain/dto"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 )
-
-var timezoneWIB = time.FixedZone("WIB", 7*60*60)
 
 // ChatMapper handles mapping between AI models and DTOs
 type ChatMapper struct{}
@@ -24,7 +23,7 @@ func (m *ChatMapper) ToMessageResponse(msg *models.AIChatMessage) dto.ChatMessag
 		ID:        msg.ID,
 		Role:      string(msg.Role),
 		Content:   msg.Content,
-		CreatedAt: msg.CreatedAt.In(timezoneWIB).Format(time.RFC3339),
+		CreatedAt: msg.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
 
 	if msg.Intent != nil {
@@ -44,10 +43,10 @@ func (m *ChatMapper) ToSessionListResponse(session *models.AIChatSession) dto.Se
 		Title:        session.Title,
 		Status:       string(session.Status),
 		MessageCount: session.MessageCount,
-		CreatedAt:    session.CreatedAt.In(timezoneWIB).Format(time.RFC3339),
+		CreatedAt:    session.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
 	if session.LastActivity != nil {
-		resp.LastActivity = session.LastActivity.In(timezoneWIB).Format(time.RFC3339)
+		resp.LastActivity = session.LastActivity.In(apptime.Location()).Format(time.RFC3339)
 	}
 	return resp
 }
@@ -93,7 +92,7 @@ func (m *ChatMapper) ToActionLogResponse(log *models.AIActionLog) dto.ActionLogR
 		ErrorMessage:   log.ErrorMessage,
 		PermissionUsed: log.PermissionUsed,
 		DurationMs:     log.DurationMs,
-		CreatedAt:      log.CreatedAt.In(timezoneWIB).Format(time.RFC3339),
+		CreatedAt:      log.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
 
 	if log.EntityID != nil {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -118,9 +119,9 @@ func (m *JWTManager) GenerateAccessToken(userID, email, role string) (string, er
 		Email:  email,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.accessTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(apptime.Now().Add(m.accessTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(apptime.Now()),
+			NotBefore: jwt.NewNumericDate(apptime.Now()),
 			ID:        uuid.New().String(),
 			Issuer:    m.issuer,
 		},
@@ -136,9 +137,9 @@ func (m *JWTManager) GenerateAccessToken(userID, email, role string) (string, er
 // GenerateRefreshToken generates a new refresh token
 func (m *JWTManager) GenerateRefreshToken(userID string) (string, error) {
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.refreshTokenTTL)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		NotBefore: jwt.NewNumericDate(time.Now()),
+		ExpiresAt: jwt.NewNumericDate(apptime.Now().Add(m.refreshTokenTTL)),
+		IssuedAt:  jwt.NewNumericDate(apptime.Now()),
+		NotBefore: jwt.NewNumericDate(apptime.Now()),
 		ID:        uuid.New().String(),
 		Subject:   userID,
 		Issuer:    m.issuer,

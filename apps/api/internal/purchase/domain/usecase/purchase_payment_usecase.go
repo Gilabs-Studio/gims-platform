@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -277,7 +278,7 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			return ErrPurchasePaymentConflict
 		}
 
-		if err := tx.Model(&pay).Updates(map[string]interface{}{"status": models.PurchasePaymentStatusConfirmed, "updated_at": time.Now()}).Error; err != nil {
+		if err := tx.Model(&pay).Updates(map[string]interface{}{"status": models.PurchasePaymentStatusConfirmed, "updated_at": apptime.Now()}).Error; err != nil {
 			return err
 		}
 
@@ -290,10 +291,10 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			"status":           newStatus,
 			"paid_amount":      row.Total + pay.Amount, // Track cash payments only (DP tracked separately in down_payment_amount)
 			"remaining_amount": math.Max(0, inv.Amount-totalSettled),
-			"updated_at":       time.Now(),
+			"updated_at":       apptime.Now(),
 		}
 		if newStatus == models.SupplierInvoiceStatusPaid {
-			now := time.Now()
+			now := apptime.Now()
 			updateData["payment_at"] = &now
 		}
 
@@ -352,10 +353,10 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 					"down_payment_invoice_id": &dpInvID,
 					"down_payment_amount":     dpSum.Total,
 					"remaining_amount":        newRemaining,
-					"updated_at":              time.Now(),
+					"updated_at":              apptime.Now(),
 				}
 				if regStatus == models.SupplierInvoiceStatusPaid && regInv.PaymentAt == nil {
-					now := time.Now()
+					now := apptime.Now()
 					regUpdates["payment_at"] = &now
 				}
 

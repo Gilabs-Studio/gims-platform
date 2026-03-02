@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -103,7 +104,7 @@ func (uc *financialClosingUsecase) Approve(ctx context.Context, id string) (*dto
 		}
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.FinancialClosing{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      financeModels.FinancialClosingStatusApproved,
 		"approved_at": now,
@@ -499,7 +500,7 @@ func (uc *financialClosingUsecase) YearEndClose(ctx context.Context, req *dto.Ye
 		Notes:         fmt.Sprintf("Year-end closing for FY%d. Net income: %.2f", year, netIncome),
 		CreatedBy:     &actorID,
 	}
-	now := time.Now()
+	now := apptime.Now()
 	closingItem.ApprovedAt = &now
 	closingItem.ApprovedBy = &actorID
 

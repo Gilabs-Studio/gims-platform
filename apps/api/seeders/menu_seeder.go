@@ -506,7 +506,6 @@ func SeedMenus() error {
 		{"Contracts", "file-text", "/hrd/contracts", 1},
 		{"Education History", "graduation-cap", "/hrd/education", 2},
 		{"Certifications", "award", "/hrd/certifications", 3},
-		{"Employee Assets", "package", "/hrd/employee-assets", 4},
 	}
 	for _, child := range empDocsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &empDocsMenu.ID, child.order); err != nil {

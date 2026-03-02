@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -150,7 +151,7 @@ func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
 		TotalAmount:    quotation.TotalAmount,
 
 		Items:     items,
-		PrintDate: time.Now().Format("02 January 2006"),
+		PrintDate: apptime.Now().Format("02 January 2006"),
 	}
 
 	// Parse formatted dates
