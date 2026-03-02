@@ -9,30 +9,19 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Switch } from "@/components/ui/switch";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, CheckCircle, XCircle, Send, Eye } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, CheckCircle, XCircle, Send, Eye, FileText, Download } from "lucide-react";
 import { EmployeeForm } from "./employee-form";
 import { EmployeeDetailModal } from "./employee-detail-modal";
-import { sortOptions } from "@/lib/utils";
+import { resolveImageUrl, sortOptions } from "@/lib/utils";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { STATUS_OPTIONS, useEmployeeList } from "../hooks/use-employee-list";
-import type { EmployeeStatus } from "../types";
+import { useEmployeeList } from "../hooks/use-employee-list";
+import { getDisplayFilename } from "@/components/ui/file-upload";
 
 export function EmployeeList() {
   const { state, actions, data, permissions, translations: { t } } = useEmployeeList();
-  const { handleApprove, handleStatusChange } = actions;
+  const { handleStatusChange } = actions;
 
-  const getStatusBadge = (status: EmployeeStatus) => {
-    const variants: Record<
-      EmployeeStatus,
-      "default" | "secondary" | "destructive" | "outline"
-    > = {
-      draft: "secondary",
-      pending: "outline",
-      approved: "default",
-      rejected: "destructive",
-    };
-    return <Badge variant={variants[status]}>{t(`status.${status}`)}</Badge>;
-  };
+
 
   if (data.isError) {
     return (
@@ -111,24 +100,25 @@ export function EmployeeList() {
           </SelectContent>
         </Select>
         <Select
-          value={state.statusFilter}
+          value={state.companyFilter}
           onValueChange={(v) => {
-            actions.setStatusFilter(v === "all" ? "" : (v as EmployeeStatus));
+            actions.setCompanyFilter(v === "all" ? "" : v);
             actions.setPage(1);
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t("filters.status")} />
+            <SelectValue placeholder={t("filters.company")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("filters.all")}</SelectItem>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {t(`status.${s}`)}
+            {sortOptions(data.companies, (c) => c.name).map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+
       </div>
 
       {/* Table */}
@@ -140,7 +130,8 @@ export function EmployeeList() {
               <TableHead>{t("columns.name")}</TableHead>
               <TableHead>{t("columns.division")}</TableHead>
               <TableHead>{t("columns.position")}</TableHead>
-              <TableHead>{t("columns.status")}</TableHead>
+              <TableHead>{t("columns.company")}</TableHead>
+              <TableHead>{t("columns.contract")}</TableHead>
               <TableHead>{t("columns.isActive")}</TableHead>
               <TableHead className="w-[100px]">
                 {t("columns.actions")}
@@ -164,9 +155,6 @@ export function EmployeeList() {
                     <Skeleton className="h-4 w-24" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
                     <Skeleton className="h-4 w-12" />
                   </TableCell>
                   <TableCell>
@@ -177,7 +165,7 @@ export function EmployeeList() {
             ) : data.employees.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {t("empty")}
@@ -201,7 +189,24 @@ export function EmployeeList() {
                   </TableCell>
                   <TableCell>{employee.division?.name ?? "-"}</TableCell>
                   <TableCell>{employee.job_position?.name ?? "-"}</TableCell>
-                  <TableCell>{getStatusBadge(employee.status)}</TableCell>
+                  <TableCell>{employee.company?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {employee.current_contract?.document_path ? (
+                      <a
+                        href={resolveImageUrl(employee.current_contract.document_path) ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                      >
+                        <Download className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate max-w-[200px]">
+                          {getDisplayFilename(employee.current_contract.document_path) || t("contract.actions.download")}
+                        </span>
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
@@ -247,34 +252,7 @@ export function EmployeeList() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
-                        {permissions.canUpdate && employee.status === "draft" && (
-                          <DropdownMenuItem
-                            onClick={() => actions.handleSubmitForApproval(employee.id)}
-                            className="cursor-pointer"
-                          >
-                            <Send className="mr-2 h-4 w-4" />
-                            {t("actions.submit")}
-                          </DropdownMenuItem>
-                        )}
-                        {permissions.canApprove && employee.status === "pending" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleApprove(employee.id, "approve")}
-                              className="cursor-pointer text-green-600"
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              {t("actions.approve")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleApprove(employee.id, "reject")}
-                              className="cursor-pointer text-destructive"
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              {t("actions.reject")}
-                            </DropdownMenuItem>
-                          </>
-                        )}
+
                         {permissions.canDelete && (
                           <>
                             <DropdownMenuSeparator />

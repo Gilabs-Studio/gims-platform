@@ -37,8 +37,6 @@ type EmployeeUsecase interface {
 	List(ctx context.Context, params dto.EmployeeListParams) ([]dto.EmployeeListItemResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error)
 	Delete(ctx context.Context, id string) error
-	SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error)
-	Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error)
 	AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error)
 	// AssignSupervisorAreas sets the areas in which the employee acts as supervisor.
 	AssignSupervisorAreas(ctx context.Context, id string, req dto.AssignEmployeeSupervisorAreasRequest) (dto.EmployeeResponse, error)
@@ -91,8 +89,23 @@ func NewEmployeeUsecase(
 }
 
 func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequest, createdBy string) (dto.EmployeeResponse, error) {
+	// Generate EmployeeCode if not provided
+	employeeCode := req.EmployeeCode
+	if employeeCode == "" {
+		lastCode, err := u.employeeRepo.GetLastEmployeeCode(ctx)
+		if err != nil {
+			return dto.EmployeeResponse{}, fmt.Errorf("failed to get last employee code: %w", err)
+		}
+
+		var lastNumber int
+		if lastCode != "" && len(lastCode) > 4 {
+			fmt.Sscanf(lastCode, "EMP-%d", &lastNumber)
+		}
+		employeeCode = fmt.Sprintf("EMP-%03d", lastNumber+1)
+	}
+
 	// Check if employee code already exists
-	existing, _ := u.employeeRepo.FindByCode(ctx, req.EmployeeCode)
+	existing, _ := u.employeeRepo.FindByCode(ctx, employeeCode)
 	if existing != nil {
 		return dto.EmployeeResponse{}, ErrEmployeeCodeExists
 	}
@@ -122,7 +135,7 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 	}
 
 	employee := &models.Employee{
-		EmployeeCode:     req.EmployeeCode,
+		EmployeeCode:     employeeCode,
 		Name:             req.Name,
 		Email:            req.Email,
 		Phone:            req.Phone,
@@ -141,10 +154,7 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		BPJS:             req.BPJS,
 		TotalLeaveQuota:  totalLeaveQuota,
 		PTKPStatus:       ptkpStatus,
-		IsDisability:     req.IsDisability,
 		ReplacementForID: req.ReplacementForID,
-		Status:           models.EmployeeStatusDraft,
-		IsApproved:       false,
 		CreatedBy:        &createdBy,
 		IsActive:         isActive,
 	}
@@ -271,7 +281,6 @@ func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParam
 		JobPositionID: params.JobPositionID,
 		AreaID:        params.AreaID,
 		CompanyID:     params.CompanyID,
-		Status:        params.Status,
 		IsActive:      params.IsActive,
 		SortBy:        params.SortBy,
 		SortDir:       params.SortDir,
@@ -282,7 +291,16 @@ func (u *employeeUsecase) List(ctx context.Context, params dto.EmployeeListParam
 		return nil, 0, err
 	}
 
-	return mapper.ToEmployeeListItemResponseList(employees), total, nil
+	employeeIDs := make([]uuid.UUID, 0, len(employees))
+	for _, e := range employees {
+		if parsedID, err := uuid.Parse(e.ID); err == nil {
+			employeeIDs = append(employeeIDs, parsedID)
+		}
+	}
+
+	activeContracts, _ := u.contractRepo.FindActiveByEmployeeIDs(ctx, employeeIDs)
+
+	return mapper.ToEmployeeListItemResponseList(employees, activeContracts), total, nil
 }
 
 func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateEmployeeRequest) (dto.EmployeeResponse, error) {
@@ -366,9 +384,6 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 	if req.PTKPStatus != nil {
 		employee.PTKPStatus = models.PTKPStatus(*req.PTKPStatus)
 	}
-	if req.IsDisability != nil {
-		employee.IsDisability = *req.IsDisability
-	}
 	if req.IsActive != nil {
 		employee.IsActive = *req.IsActive
 	}
@@ -427,55 +442,6 @@ func (u *employeeUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	return u.employeeRepo.Delete(ctx, id)
-}
-
-func (u *employeeUsecase) SubmitForApproval(ctx context.Context, id string) (dto.EmployeeResponse, error) {
-	employee, err := u.employeeRepo.FindByID(ctx, id)
-	if err != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeNotFound
-	}
-
-	employee.Status = models.EmployeeStatusPending
-
-	if err := u.employeeRepo.Update(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
-	}
-
-	return mapper.ToEmployeeResponse(employee, nil), nil
-}
-
-func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.ApproveEmployeeRequest, approvedBy string) (dto.EmployeeResponse, error) {
-	employee, err := u.employeeRepo.FindByID(ctx, id)
-	if err != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeNotFound
-	}
-
-	if employee.Status != models.EmployeeStatusPending {
-		return dto.EmployeeResponse{}, ErrCannotApproveNonPending
-	}
-
-	now := time.Now()
-
-	switch req.Action {
-	case "approve":
-		employee.Status = models.EmployeeStatusApproved
-		employee.IsApproved = true
-		employee.ApprovedBy = &approvedBy
-		employee.ApprovedAt = &now
-	case "reject":
-		employee.Status = models.EmployeeStatusRejected
-		employee.IsApproved = false
-		employee.ApprovedBy = &approvedBy
-		employee.ApprovedAt = &now
-	default:
-		return dto.EmployeeResponse{}, ErrEmployeeInvalidApprovalAction
-	}
-
-	if err := u.employeeRepo.Update(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
-	}
-
-	return mapper.ToEmployeeResponse(employee, nil), nil
 }
 
 func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.AssignEmployeeAreasRequest) (dto.EmployeeResponse, error) {

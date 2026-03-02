@@ -138,9 +138,6 @@ func (h *EmployeeHandler) List(c *gin.Context) {
 	if params.AreaID != "" {
 		meta.Filters["area_id"] = params.AreaID
 	}
-	if params.Status != "" {
-		meta.Filters["status"] = params.Status
-	}
 
 	response.SuccessResponse(c, employees, meta)
 }
@@ -213,72 +210,8 @@ func (h *EmployeeHandler) Delete(c *gin.Context) {
 	response.SuccessResponseDeleted(c, "employee", id, meta)
 }
 
-// SubmitForApproval handles POST /employees/:id/submit
-func (h *EmployeeHandler) SubmitForApproval(c *gin.Context) {
-	id := c.Param("id")
+// Approval Handlers removed
 
-	resp, err := h.employeeUC.SubmitForApproval(c.Request.Context(), id)
-	if err != nil {
-		if err == usecase.ErrEmployeeNotFound {
-			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
-				"employee_id": id,
-			}, nil)
-			return
-		}
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-
-	response.SuccessResponse(c, resp, nil)
-}
-
-// Approve handles POST /employees/:id/approve
-func (h *EmployeeHandler) Approve(c *gin.Context) {
-	id := c.Param("id")
-
-	var req dto.ApproveEmployeeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
-		return
-	}
-
-	// Get user ID from context (set by auth middleware)
-	userID := ""
-	if uid, exists := c.Get("user_id"); exists {
-		if id, ok := uid.(string); ok {
-			userID = id
-		}
-	}
-
-	resp, err := h.employeeUC.Approve(c.Request.Context(), id, req, userID)
-	if err != nil {
-		switch err {
-		case usecase.ErrEmployeeNotFound:
-			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
-				"employee_id": id,
-			}, nil)
-		case usecase.ErrCannotApproveNonPending:
-			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{
-				"message": err.Error(),
-			}, nil)
-		case usecase.ErrEmployeeInvalidApprovalAction:
-			errors.ErrorResponse(c, "INVALID_ACTION", map[string]interface{}{
-				"message": err.Error(),
-			}, nil)
-		default:
-			errors.InternalServerErrorResponse(c, err.Error())
-		}
-		return
-	}
-
-	response.SuccessResponse(c, resp, nil)
-}
-
-// AssignAreas handles POST /employees/:id/areas
 func (h *EmployeeHandler) AssignAreas(c *gin.Context) {
 	id := c.Param("id")
 

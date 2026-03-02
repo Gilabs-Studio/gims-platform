@@ -6,19 +6,17 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import type { Employee, EmployeeStatus } from "../types";
+import type { Employee } from "../types";
 import {
   useEmployees,
   useEmployee,
   useDeleteEmployee,
   useUpdateEmployee,
-  useSubmitEmployeeForApproval,
-  useApproveEmployee,
 } from "./use-employees";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions } from "@/features/master-data/organization/hooks/use-job-positions";
+import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 
-export const STATUS_OPTIONS: EmployeeStatus[] = ["draft", "pending", "approved", "rejected"];
 
 export function useEmployeeList() {
   const t = useTranslations("employee");
@@ -40,7 +38,8 @@ export function useEmployeeList() {
   const [pageSize, setPageSize] = useState(10);
   const [divisionFilter, setDivisionFilter] = useState<string>("");
   const [positionFilter, setPositionFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "">("");
+  const [companyFilter, setCompanyFilter] = useState<string>("");
+
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -53,6 +52,7 @@ export function useEmployeeList() {
   const { data: openEmployeeData } = useEmployee(openIdFromUrl ?? undefined);
   const { data: divisionsData } = useDivisions({ per_page: 100 });
   const { data: positionsData } = useJobPositions({ per_page: 100 });
+  const { data: companiesData } = useCompanies({ per_page: 100 });
 
   const { data, isLoading, isError, refetch } = useEmployees({
     page,
@@ -60,18 +60,17 @@ export function useEmployeeList() {
     search: debouncedSearch || undefined,
     division_id: divisionFilter || undefined,
     job_position_id: positionFilter || undefined,
-    status: statusFilter || undefined,
+    company_id: companyFilter || undefined,
   });
 
   const deleteMutation = useDeleteEmployee();
   const updateMutation = useUpdateEmployee();
-  const submitForApproval = useSubmitEmployeeForApproval();
-  const approveEmployee = useApproveEmployee();
 
   const employees = data?.data ?? [];
   const pagination = data?.meta?.pagination;
   const divisions = divisionsData?.data ?? [];
   const positions = positionsData?.data ?? [];
+  const companies = companiesData?.data ?? [];
 
   // Effects
   useEffect(() => {
@@ -117,23 +116,9 @@ export function useEmployeeList() {
     }
   };
 
-  const handleSubmitForApproval = async (id: string) => {
-    try {
-      await submitForApproval.mutateAsync(id);
-      toast.success(t("submitSuccess"));
-    } catch {
-      toast.error("Failed to submit for approval");
-    }
-  };
 
-  const handleApprove = async (id: string, action: "approve" | "reject") => {
-    try {
-      await approveEmployee.mutateAsync({ id, data: { action } });
-      toast.success(action === "approve" ? t("approveSuccess") : t("rejectSuccess"));
-    } catch {
-      toast.error(`Failed to ${action} employee`);
-    }
-  };
+
+
 
   const handleFormClose = () => {
     setIsFormOpen(false);
@@ -147,7 +132,7 @@ export function useEmployeeList() {
       pageSize,
       divisionFilter,
       positionFilter,
-      statusFilter,
+      companyFilter,
       isFormOpen,
       editingEmployee,
       deletingId,
@@ -160,7 +145,7 @@ export function useEmployeeList() {
       setPageSize,
       setDivisionFilter,
       setPositionFilter,
-      setStatusFilter,
+      setCompanyFilter,
       setDeletingId,
       setIsDetailOpen,
       handleCreate,
@@ -168,8 +153,6 @@ export function useEmployeeList() {
       handleViewDetail,
       handleDelete,
       handleStatusChange,
-      handleSubmitForApproval,
-      handleApprove,
       handleFormClose,
     },
     data: {
@@ -177,6 +160,7 @@ export function useEmployeeList() {
       pagination,
       divisions,
       positions,
+      companies,
       isLoading,
       isError,
       refetch,

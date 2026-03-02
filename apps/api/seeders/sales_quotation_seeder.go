@@ -38,11 +38,11 @@ func SeedSalesQuotation() error {
 	}
 
 	var employees []orgModels.Employee
-	if err := db.Where("is_approved = ?", true).Limit(5).Find(&employees).Error; err != nil {
+	if err := db.Where("is_active = ?", true).Limit(5).Find(&employees).Error; err != nil {
 		return fmt.Errorf("failed to fetch employees: %w", err)
 	}
 	if len(employees) == 0 {
-		log.Println("Warning: No approved employees found. Please seed employees first.")
+		log.Println("Warning: No active employees found. Please seed employees first.")
 		return nil
 	}
 

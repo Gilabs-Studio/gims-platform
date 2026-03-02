@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/user/data/models"
@@ -114,11 +116,25 @@ func (r *userRepository) List(ctx context.Context, req *dto.ListUsersRequest) ([
 }
 
 func (r *userRepository) Create(ctx context.Context, u *models.User) error {
-	return r.getDB(ctx).Create(u).Error
+	err := r.getDB(ctx).Create(u).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && strings.Contains(err.Error(), "users_email_key") {
+			return errors.New("user already exists") 
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *userRepository) Update(ctx context.Context, u *models.User) error {
-	return r.getDB(ctx).Save(u).Error
+	err := r.getDB(ctx).Save(u).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && strings.Contains(err.Error(), "users_email_key") {
+			return errors.New("user already exists") 
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {

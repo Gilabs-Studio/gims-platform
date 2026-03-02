@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const employeeSchema = z.object({
-  employee_code: z.string().min(1, "Employee code is required").max(50),
+  employee_code: z.string().max(50).optional(),
   name: z.string().min(2, "Name is required").max(200),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().max(20).optional(),
@@ -53,8 +53,11 @@ export const employeeSchema = z.object({
     ])
     .optional()
     .nullable(),
-  is_disability: z.boolean().optional(),
   is_active: z.boolean().optional(),
+  // For User Creation
+  create_user: z.boolean().optional(),
+  role_id: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>;

@@ -164,6 +164,7 @@ export const employeeId: EmployeeTranslations = {
     company: "Perusahaan",
     status: "Status",
     contractStatus: "Kontrak",
+    contract: "Dokumen Kontrak",
     isActive: "Aktif",
     actions: "Aksi",
   },

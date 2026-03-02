@@ -161,6 +161,7 @@ export const employeeEn = {
     company: "Company",
     status: "Status",
     contractStatus: "Contract",
+    contract: "Contract Document",
     isActive: "Active",
     actions: "Actions",
   },

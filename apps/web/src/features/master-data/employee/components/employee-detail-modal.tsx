@@ -92,16 +92,6 @@ export function EmployeeDetailModal({
                 <span className="text-sm text-muted-foreground">
                   {displayEmployee.job_position?.name || "-"}
                 </span>
-                <Badge
-                  variant={displayEmployee.is_active ? "default" : "secondary"}
-                  className={
-                    displayEmployee.is_active
-                      ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20"
-                      : ""
-                  }
-                >
-                  {displayEmployee.is_active ? t("active") : t("inactive")}
-                </Badge>
               </div>
             </div>
           </div>
