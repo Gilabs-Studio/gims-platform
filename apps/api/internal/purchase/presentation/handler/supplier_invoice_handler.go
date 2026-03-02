@@ -130,8 +130,12 @@ func (h *SupplierInvoiceHandler) Create(c *gin.Context) {
 
 	res, err := h.uc.Create(c.Request.Context(), &req)
 	if err != nil {
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", fmt.Sprintf("%v", req.GoodsReceiptID))
+			return
+		}
 		if err == usecase.ErrPurchaseOrderNotFound {
-			errors.NotFoundResponse(c, "purchase_order", fmt.Sprintf("%v", req.PurchaseOrderID))
+			errors.NotFoundResponse(c, "purchase_order", "derived from goods receipt")
 			return
 		}
 		if err == usecase.ErrPaymentTermsNotFound {
@@ -177,8 +181,12 @@ func (h *SupplierInvoiceHandler) Update(c *gin.Context) {
 			errors.NotFoundResponse(c, "supplier_invoice", id)
 			return
 		}
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", fmt.Sprintf("%v", req.GoodsReceiptID))
+			return
+		}
 		if err == usecase.ErrPurchaseOrderNotFound {
-			errors.NotFoundResponse(c, "purchase_order", fmt.Sprintf("%v", req.PurchaseOrderID))
+			errors.NotFoundResponse(c, "purchase_order", "derived from goods receipt")
 			return
 		}
 		if err == usecase.ErrPaymentTermsNotFound {

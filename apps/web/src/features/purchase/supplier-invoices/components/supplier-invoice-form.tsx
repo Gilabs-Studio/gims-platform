@@ -69,7 +69,7 @@ export function SupplierInvoiceFormDialog({
   const form = useForm<SupplierInvoiceFormData>({
     resolver: zodResolver(supplierInvoiceSchema),
     defaultValues: {
-      purchase_order_id: "",
+      goods_receipt_id: "",
       payment_terms_id: "",
       invoice_number: "",
       invoice_date: "",
@@ -92,13 +92,13 @@ export function SupplierInvoiceFormDialog({
     return list;
   }, [paymentTerms, detailQuery.data?.data?.payment_terms]);
 
-  const selectedPOId = form.watch("purchase_order_id");
+  const selectedGRId = form.watch("goods_receipt_id");
   const setFormValue = form.setValue;
 
-  const selectedPO = useMemo(() => {
-    if (!addData?.purchase_orders?.length || !selectedPOId) return null;
-    return addData.purchase_orders.find((po) => po.id === selectedPOId) ?? null;
-  }, [addData?.purchase_orders, selectedPOId]);
+  const selectedGR = useMemo(() => {
+    if (!addData?.goods_receipts?.length || !selectedGRId) return null;
+    return addData.goods_receipts.find((gr) => gr.id === selectedGRId) ?? null;
+  }, [addData?.goods_receipts, selectedGRId]);
 
   useEffect(() => {
     if (!open) return;
@@ -106,7 +106,7 @@ export function SupplierInvoiceFormDialog({
 
     if (!isEdit) {
       form.reset({
-        purchase_order_id: "",
+        goods_receipt_id: "",
         payment_terms_id: "",
         invoice_number: "",
         invoice_date: "",
@@ -124,7 +124,7 @@ export function SupplierInvoiceFormDialog({
     if (!detail) return;
 
     form.reset({
-      purchase_order_id: detail.purchase_order?.id ?? "",
+      goods_receipt_id: detail.goods_receipt?.id ?? "",
       payment_terms_id: detail.payment_terms?.id ?? "",
       invoice_number: detail.invoice_number,
       invoice_date: detail.invoice_date,
@@ -145,18 +145,18 @@ export function SupplierInvoiceFormDialog({
   }, [open, isEdit, detailQuery.data, form]);
 
   useEffect(() => {
-    if (!open || isEdit || !selectedPO) return;
+    if (!open || isEdit || !selectedGR) return;
     setFormValue(
       "items",
-      selectedPO.items.map((it) => ({
+      selectedGR.items.map((it) => ({
         product_id: it.product?.id ?? "",
-        quantity: it.quantity,
+        quantity: it.quantity_received,
         price: it.price,
         discount: 0,
       })),
       { shouldValidate: true },
     );
-  }, [open, isEdit, selectedPO, setFormValue]);
+  }, [open, isEdit, selectedGR, setFormValue]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
     form.setValue("payment_terms_id", item.id, { shouldValidate: true });
@@ -228,12 +228,12 @@ export function SupplierInvoiceFormDialog({
                 <h3 className="text-sm font-medium">{t("sections.invoiceInfo") || "Invoice Info"}</h3>
               </div>
 
-              {/* Purchase Order — full width */}
+              {/* Goods Receipt — full width */}
               <Field orientation="vertical">
-                <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                <FieldLabel>{t("fields.goodsReceipt") || "Goods Receipt"}</FieldLabel>
                 <Select
-                  value={selectedPOId}
-                  onValueChange={(value) => setFormValue("purchase_order_id", value, { shouldValidate: true })}
+                  value={selectedGRId}
+                  onValueChange={(value) => setFormValue("goods_receipt_id", value, { shouldValidate: true })}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
@@ -241,12 +241,14 @@ export function SupplierInvoiceFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                    {(addData?.purchase_orders ?? []).map((po) => (
-                      <SelectItem key={po.id} value={po.id} className="cursor-pointer">{po.code}</SelectItem>
+                    {(addData?.goods_receipts ?? []).map((gr) => (
+                      <SelectItem key={gr.id} value={gr.id} className="cursor-pointer">
+                        {gr.code}{gr.purchase_order ? ` (PO: ${gr.purchase_order.code})` : ""}{gr.supplier ? ` - ${gr.supplier.name}` : ""}
+                      </SelectItem>
                     ))}
-                    {isEdit && detailQuery.data?.data?.purchase_order && !(addData?.purchase_orders ?? []).some((x) => x.id === detailQuery.data?.data?.purchase_order?.id) && (
-                      <SelectItem value={detailQuery.data.data.purchase_order.id} className="cursor-pointer">
-                        {detailQuery.data.data.purchase_order.code}
+                    {isEdit && detailQuery.data?.data?.goods_receipt && !(addData?.goods_receipts ?? []).some((x) => x.id === detailQuery.data?.data?.goods_receipt?.id) && (
+                      <SelectItem value={detailQuery.data.data.goods_receipt.id} className="cursor-pointer">
+                        {detailQuery.data.data.goods_receipt.code}
                       </SelectItem>
                     )}
                   </SelectContent>

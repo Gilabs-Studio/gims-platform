@@ -14,6 +14,11 @@ type SupplierInvoicePurchaseOrderMini struct {
 	Code string `json:"code"`
 }
 
+type SupplierInvoiceGoodsReceiptMini struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+}
+
 type SupplierInvoicePaymentTermsMini struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -24,6 +29,7 @@ type SupplierInvoiceListResponse struct {
 	ID string `json:"id"`
 
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
+	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`
 	PaymentTerms  *SupplierInvoicePaymentTermsMini  `json:"payment_terms,omitempty"`
 
 	Type          string `json:"type"`
@@ -75,6 +81,7 @@ type SupplierInvoiceDetailResponse struct {
 	ID string `json:"id"`
 
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
+	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`
 	PaymentTerms  *SupplierInvoicePaymentTermsMini  `json:"payment_terms,omitempty"`
 
 	Type          string `json:"type"`
@@ -118,29 +125,29 @@ type CreateSupplierInvoiceItemRequest struct {
 }
 
 type CreateSupplierInvoiceRequest struct {
-	PurchaseOrderID string                             `json:"purchase_order_id" binding:"required,uuid"`
-	PaymentTermsID  string                             `json:"payment_terms_id" binding:"required,uuid"`
-	InvoiceNumber   string                             `json:"invoice_number" binding:"required"`
-	InvoiceDate     string                             `json:"invoice_date" binding:"required"`
-	DueDate         string                             `json:"due_date" binding:"required"`
-	TaxRate         float64                            `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
-	DeliveryCost    float64                            `json:"delivery_cost" binding:"omitempty,gte=0"`
-	OtherCost       float64                            `json:"other_cost" binding:"omitempty,gte=0"`
-	Notes           *string                            `json:"notes"`
-	Items           []CreateSupplierInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
+	GoodsReceiptID string                             `json:"goods_receipt_id" binding:"required,uuid"`
+	PaymentTermsID string                             `json:"payment_terms_id" binding:"required,uuid"`
+	InvoiceNumber  string                             `json:"invoice_number" binding:"required"`
+	InvoiceDate    string                             `json:"invoice_date" binding:"required"`
+	DueDate        string                             `json:"due_date" binding:"required"`
+	TaxRate        float64                            `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
+	DeliveryCost   float64                            `json:"delivery_cost" binding:"omitempty,gte=0"`
+	OtherCost      float64                            `json:"other_cost" binding:"omitempty,gte=0"`
+	Notes          *string                            `json:"notes"`
+	Items          []CreateSupplierInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
 type UpdateSupplierInvoiceRequest struct {
-	PurchaseOrderID string                             `json:"purchase_order_id" binding:"required,uuid"`
-	PaymentTermsID  string                             `json:"payment_terms_id" binding:"required,uuid"`
-	InvoiceNumber   string                             `json:"invoice_number" binding:"required"`
-	InvoiceDate     string                             `json:"invoice_date" binding:"required"`
-	DueDate         string                             `json:"due_date" binding:"required"`
-	TaxRate         float64                            `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
-	DeliveryCost    float64                            `json:"delivery_cost" binding:"omitempty,gte=0"`
-	OtherCost       float64                            `json:"other_cost" binding:"omitempty,gte=0"`
-	Notes           *string                            `json:"notes"`
-	Items           []CreateSupplierInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
+	GoodsReceiptID string                             `json:"goods_receipt_id" binding:"required,uuid"`
+	PaymentTermsID string                             `json:"payment_terms_id" binding:"required,uuid"`
+	InvoiceNumber  string                             `json:"invoice_number" binding:"required"`
+	InvoiceDate    string                             `json:"invoice_date" binding:"required"`
+	DueDate        string                             `json:"due_date" binding:"required"`
+	TaxRate        float64                            `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
+	DeliveryCost   float64                            `json:"delivery_cost" binding:"omitempty,gte=0"`
+	OtherCost      float64                            `json:"other_cost" binding:"omitempty,gte=0"`
+	Notes          *string                            `json:"notes"`
+	Items          []CreateSupplierInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
 // Add data DTOs
@@ -157,12 +164,13 @@ type SupplierInvoiceAddProductMini struct {
 	ImageURL *string `json:"image_url"`
 }
 
-type SupplierInvoiceAddPurchaseOrderItem struct {
-	ID       string                         `json:"id"`
-	Product  *SupplierInvoiceAddProductMini `json:"product,omitempty"`
-	Quantity float64                        `json:"quantity"`
-	Price    float64                        `json:"price"`
-	Subtotal float64                        `json:"subtotal"`
+type SupplierInvoiceAddGoodsReceiptItem struct {
+	ID                  string                         `json:"id"`
+	PurchaseOrderItemID string                         `json:"purchase_order_item_id"`
+	Product             *SupplierInvoiceAddProductMini `json:"product,omitempty"`
+	QuantityReceived    float64                        `json:"quantity_received"`
+	Price               float64                        `json:"price"`
+	SubTotal            float64                        `json:"sub_total"`
 }
 
 type SupplierInvoiceAddSupplierMini struct {
@@ -178,12 +186,34 @@ type SupplierInvoiceAddDownPaymentMini struct {
 	InvoiceDate   string                            `json:"invoice_date"`
 	DueDate       string                            `json:"due_date"`
 	Amount        float64                           `json:"amount"`
+	PaidAmount    float64                           `json:"paid_amount"`
 	Status        string                            `json:"status"`
 	Notes         *string                           `json:"notes"`
 	CreatedAt     time.Time                         `json:"created_at"`
 	UpdatedAt     time.Time                         `json:"updated_at"`
 }
 
+type SupplierInvoiceAddGoodsReceipt struct {
+	ID            string                               `json:"id"`
+	Code          string                               `json:"code"`
+	PurchaseOrder *SupplierInvoicePurchaseOrderMini    `json:"purchase_order,omitempty"`
+	Supplier      *SupplierInvoiceAddSupplierMini      `json:"supplier,omitempty"`
+	ReceiptDate   *time.Time                           `json:"receipt_date,omitempty"`
+	Status        string                               `json:"status"`
+	Items         []SupplierInvoiceAddGoodsReceiptItem `json:"items"`
+	InvoiceDP     *SupplierInvoiceAddDownPaymentMini   `json:"invoice_dp,omitempty"`
+}
+
+// SupplierInvoiceAddPurchaseOrderItem kept for backward compat with DP add-data.
+type SupplierInvoiceAddPurchaseOrderItem struct {
+	ID       string                         `json:"id"`
+	Product  *SupplierInvoiceAddProductMini `json:"product,omitempty"`
+	Quantity float64                        `json:"quantity"`
+	Price    float64                        `json:"price"`
+	Subtotal float64                        `json:"subtotal"`
+}
+
+// SupplierInvoiceAddPurchaseOrder kept for DP add-data endpoint.
 type SupplierInvoiceAddPurchaseOrder struct {
 	ID          string                                `json:"id"`
 	Supplier    *SupplierInvoiceAddSupplierMini       `json:"supplier,omitempty"`
@@ -196,8 +226,8 @@ type SupplierInvoiceAddPurchaseOrder struct {
 }
 
 type SupplierInvoiceAddResponse struct {
-	PaymentTerms   []SupplierInvoiceAddPaymentTerms  `json:"payment_terms"`
-	PurchaseOrders []SupplierInvoiceAddPurchaseOrder `json:"purchase_orders"`
+	PaymentTerms  []SupplierInvoiceAddPaymentTerms `json:"payment_terms"`
+	GoodsReceipts []SupplierInvoiceAddGoodsReceipt `json:"goods_receipts"`
 }
 
 // Keep core model imports referenced to avoid unused when generated conditionally.

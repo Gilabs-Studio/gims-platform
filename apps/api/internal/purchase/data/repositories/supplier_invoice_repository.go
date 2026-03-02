@@ -54,6 +54,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 	q := r.db.WithContext(ctx).Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
 		Preload("PurchaseOrder.Supplier").
+		Preload("GoodsReceipt").
 		Preload("PaymentTerms").
 		Preload("DownPaymentInvoice").
 		Preload("RegularInvoices")
@@ -103,6 +104,7 @@ func (r *supplierInvoiceRepository) GetByID(ctx context.Context, id string) (*mo
 	var si models.SupplierInvoice
 	err := r.db.WithContext(ctx).
 		Preload("PurchaseOrder").
+		Preload("GoodsReceipt").
 		Preload("PaymentTerms").
 		Preload("Items").
 		Preload("Items.Product").

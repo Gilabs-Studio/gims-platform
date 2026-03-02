@@ -58,12 +58,6 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 		resp.LatestCertification = ToCertificationBriefResponse(latestCertification)
 	}
 
-	// Approved at
-	if e.ApprovedAt != nil {
-		at := e.ApprovedAt.Format(time.RFC3339)
-		resp.ApprovedAt = &at
-	}
-
 	// Division
 	if e.Division != nil {
 		resp.Division = &dto.DivisionResponse{
