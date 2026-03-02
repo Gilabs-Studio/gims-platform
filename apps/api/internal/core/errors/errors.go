@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -331,7 +332,7 @@ func ErrorResponse(c *gin.Context, code string, details map[string]interface{}, 
 	apiResponse := &response.APIResponse{
 		Success:   false,
 		Error:     apiError,
-		Timestamp: time.Now().In(response.GetTimezoneWIB()).Format(time.RFC3339),
+		Timestamp: apptime.Now().Format(time.RFC3339),
 		RequestID: getRequestID(c),
 	}
 
@@ -521,7 +522,7 @@ func getRequestID(c *gin.Context) string {
 			return id
 		}
 	}
-	return "req_" + time.Now().Format("20060102150405")
+	return "req_" + apptime.Now().Format("20060102150405")
 }
 
 // InvalidRequestBodyResponse creates an invalid request body error response

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/usecase/prompts"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
@@ -94,7 +95,7 @@ func (r *IntentResolver) Resolve(ctx context.Context, userMessage string, conver
 // getOrRefreshIntentPrompt returns cached prompt or builds a fresh one
 func (r *IntentResolver) getOrRefreshIntentPrompt(ctx context.Context) (string, error) {
 	r.cacheMu.RLock()
-	if r.cachedIntentPrompt != "" && time.Now().Before(r.cacheExpiry) {
+	if r.cachedIntentPrompt != "" && apptime.Now().Before(r.cacheExpiry) {
 		prompt := r.cachedIntentPrompt
 		r.cacheMu.RUnlock()
 		return prompt, nil
@@ -111,7 +112,7 @@ func (r *IntentResolver) getOrRefreshIntentPrompt(ctx context.Context) (string, 
 
 	r.cacheMu.Lock()
 	r.cachedIntentPrompt = prompt
-	r.cacheExpiry = time.Now().Add(5 * time.Minute)
+	r.cacheExpiry = apptime.Now().Add(5 * time.Minute)
 	r.cacheMu.Unlock()
 
 	return prompt, nil

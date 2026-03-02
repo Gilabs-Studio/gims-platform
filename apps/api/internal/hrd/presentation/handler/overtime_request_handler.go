@@ -2,8 +2,8 @@ package handler
 
 import (
 	"strconv"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -331,8 +331,8 @@ func (h *OvertimeRequestHandler) GetMonthlySummary(c *gin.Context) {
 	}
 
 	// Parse year and month from query params, default to current month
-	year := time.Now().Year()
-	month := int(time.Now().Month())
+	year := apptime.Now().Year()
+	month := int(apptime.Now().Month())
 
 	if yearStr := c.Query("year"); yearStr != "" {
 		if y, err := strconv.Atoi(yearStr); err == nil && y >= 2000 && y <= 2100 {

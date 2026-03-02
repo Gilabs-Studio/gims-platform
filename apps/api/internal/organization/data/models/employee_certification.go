@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -39,7 +40,7 @@ func (e *EmployeeCertification) IsExpired() bool {
 	if e.ExpiryDate == nil {
 		return false
 	}
-	return e.ExpiryDate.Before(time.Now())
+	return e.ExpiryDate.Before(apptime.Now())
 }
 
 func (e *EmployeeCertification) DaysUntilExpiry() int {

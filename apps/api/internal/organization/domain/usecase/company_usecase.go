@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -139,6 +139,9 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 	if req.DirectorID != nil {
 		company.DirectorID = req.DirectorID
 	}
+	if req.Timezone != "" {
+		company.Timezone = req.Timezone
+	}
 	if req.IsActive != nil {
 		company.IsActive = *req.IsActive
 	}
@@ -214,7 +217,7 @@ func (u *companyUsecase) Approve(ctx context.Context, id string, req *dto.Approv
 		return nil, ErrCompanyNotPending
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	company.ApprovedBy = &approvedBy
 	company.ApprovedAt = &now
 

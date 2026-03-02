@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	hrdDTO "github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	hrdUsecase "github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -54,7 +55,7 @@ func NewActionExecutor(deps *ActionExecutorDeps, entityResolver *EntityResolver)
 
 // Execute dispatches the action based on intent code and parameters
 func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, resolvedEntities map[string]*ResolvedEntity, currentUserID string) *ActionResult {
-	start := time.Now()
+	start := apptime.Now()
 
 	var result *ActionResult
 	switch intent.IntentCode {
@@ -573,12 +574,12 @@ func (e *ActionExecutor) executeCreateSalesQuotation(ctx context.Context, params
 	}
 
 	// Ensure quotation_date is today (prevent LLM hallucination of past dates)
-	today := time.Now().Format("2006-01-02")
+	today := apptime.Now().Format("2006-01-02")
 	if qd, ok := params["quotation_date"].(string); !ok || qd == "" {
 		params["quotation_date"] = today
 	} else {
 		// Validate the date is reasonable — override if year is in the past
-		if parsed, err := time.Parse("2006-01-02", qd); err != nil || parsed.Year() < time.Now().Year() {
+		if parsed, err := time.Parse("2006-01-02", qd); err != nil || parsed.Year() < apptime.Now().Year() {
 			params["quotation_date"] = today
 		}
 	}
@@ -663,7 +664,7 @@ func (e *ActionExecutor) executeListSalesQuotations(ctx context.Context, params 
 		req.Status = status
 	}
 	if period := getStringParam(params, "period"); period != "" {
-		now := time.Now()
+		now := apptime.Now()
 		switch period {
 		case "current_month":
 			req.DateFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")

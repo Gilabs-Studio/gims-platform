@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -228,7 +228,7 @@ func (r *salesOrderRepository) Create(ctx context.Context, so *models.SalesOrder
 			updates := map[string]interface{}{
 				"status":                      models.SalesQuotationStatusConverted,
 				"converted_to_sales_order_id": so.ID,
-				"converted_at":                time.Now(),
+				"converted_at":                apptime.Now(),
 			}
 
 			if err := tx.Model(&sq).Updates(updates).Error; err != nil {

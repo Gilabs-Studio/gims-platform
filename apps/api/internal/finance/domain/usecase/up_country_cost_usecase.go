@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -54,7 +55,7 @@ func (uc *upCountryCostUsecase) Create(ctx context.Context, req *dto.CreateUpCou
 		return nil, errors.New("invalid end_date")
 	}
 
-	code, err := uc.repo.GenerateCode(ctx, time.Now())
+	code, err := uc.repo.GenerateCode(ctx, apptime.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +270,7 @@ func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.Up
 
 	refType := "up_country"
 	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:     time.Now().Format("2006-01-02"), // Or StartDate
+		EntryDate:     apptime.Now().Format("2006-01-02"), // Or StartDate
 		Description:   "Up-Country Cost Approval: " + item.Code + " - " + item.Purpose,
 		ReferenceType: &refType,
 		ReferenceID:   &item.ID,
@@ -294,7 +295,7 @@ func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.Up
 		return nil, err
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      financeModels.UpCountryCostStatusApproved,
 		"approved_at": &now,

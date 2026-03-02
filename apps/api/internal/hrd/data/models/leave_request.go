@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -51,12 +52,12 @@ type LeaveRequest struct {
 
 	// Approval/Rejection details
 	ApprovedBy     *string    `gorm:"type:uuid" json:"approved_by"`
-	ApprovedAt     *time.Time `gorm:"type:timestamp" json:"approved_at"`
+	ApprovedAt     *time.Time `gorm:"type:timestamptz" json:"approved_at"`
 	RejectedBy     *string    `gorm:"type:uuid" json:"rejected_by"`
 	RejectionNote  *string    `gorm:"type:text" json:"rejection_note"`
 	ApprovalNotes  *string    `gorm:"type:text" json:"approval_notes"`
 	RejectionNotes *string    `gorm:"type:text" json:"rejection_notes"`
-	RejectedAt     *time.Time `gorm:"type:timestamp" json:"rejected_at"`
+	RejectedAt     *time.Time `gorm:"type:timestamptz" json:"rejected_at"`
 
 	// Carry-over tracking
 	// WHY: Track leave from previous year that hasn't expired (max 5 days until March 31)
@@ -156,7 +157,7 @@ func (lr *LeaveRequest) CanBeCancelled() bool {
 	}
 	if lr.Status == LeaveStatusApproved {
 		// Can cancel if leave hasn't started yet
-		return time.Now().Before(lr.StartDate)
+		return apptime.Now().Before(lr.StartDate)
 	}
 	return false
 }

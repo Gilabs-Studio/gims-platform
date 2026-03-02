@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -92,7 +93,7 @@ func (h *SalesPaymentPrintHandler) PrintPayment(c *gin.Context) {
 		Amount:      payment.Amount,
 		Method:      formatPaymentMethod(payment.Method),
 		Status:      status,
-		PrintDate:   time.Now().Format("02 January 2006"),
+		PrintDate:   apptime.Now().Format("02 January 2006"),
 	}
 
 	if payment.PaymentDate != "" {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -403,7 +404,7 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			}
 		}
 
-		now := time.Now()
+		now := apptime.Now()
 		if err := tx.Model(&gr).Updates(map[string]interface{}{
 			"status":       models.GoodsReceiptStatusConfirmed,
 			"receipt_date": now,
@@ -553,7 +554,7 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 		SourceType:   "GR",
 		WarehouseID:  warehouseID,
 		Items:        items,
-		ReceivedAt:   time.Now(),
+		ReceivedAt:   apptime.Now(),
 		ReceivedBy:   gr.CreatedBy,
 		Notes:        notes,
 	}
@@ -594,7 +595,7 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 	}
 
 	// 3. Create Journal
-	date := time.Now()
+	date := apptime.Now()
 	if gr.ReceiptDate != nil {
 		date = *gr.ReceiptDate
 	}
@@ -756,7 +757,7 @@ func (uc *goodsReceiptUsecase) Submit(ctx context.Context, id string) (*dto.Good
 	}
 	before := grAuditSnapshot(existing)
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -797,7 +798,7 @@ func (uc *goodsReceiptUsecase) Approve(ctx context.Context, id string) (*dto.Goo
 	}
 	before := grAuditSnapshot(existing)
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -838,7 +839,7 @@ func (uc *goodsReceiptUsecase) Reject(ctx context.Context, id string) (*dto.Good
 	}
 	before := grAuditSnapshot(existing)
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -923,7 +924,7 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			}
 		}
 
-		now := time.Now()
+		now := apptime.Now()
 		if err := tx.Model(&gr).Updates(map[string]interface{}{
 			"status":    models.GoodsReceiptStatusClosed,
 			"closed_at": now,
@@ -1026,7 +1027,7 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 	}
 
 	var siID string
-	today := time.Now().Format("2006-01-02")
+	today := apptime.Now().Format("2006-01-02")
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Generate unique SI code using advisory lock.
@@ -1098,7 +1099,7 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		siID = si.ID
 
 		// Update GR with latest convert timestamp (multiple conversions allowed).
-		now := time.Now()
+		now := apptime.Now()
 		if err := tx.Model(&models.GoodsReceipt{}).Where("id = ?", id).Updates(map[string]interface{}{
 			"converted_at": now,
 		}).Error; err != nil {

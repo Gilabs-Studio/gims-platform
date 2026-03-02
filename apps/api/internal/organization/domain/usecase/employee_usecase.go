@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
@@ -502,7 +503,7 @@ func (u *employeeUsecase) Approve(ctx context.Context, id string, req dto.Approv
 		return dto.EmployeeResponse{}, ErrCannotApproveNonPending
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 
 	switch req.Action {
 	case "approve":
@@ -936,7 +937,7 @@ func (u *employeeUsecase) TerminateEmployeeContract(ctx context.Context, employe
 		return dto.EmployeeContractResponse{}, ErrCannotTerminateInactive
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	contract.Status = models.ContractStatusTerminated
 	contract.TerminatedAt = &now
 	contract.TerminationReason = req.Reason
@@ -1037,7 +1038,7 @@ func (u *employeeUsecase) RenewEmployeeContract(ctx context.Context, employeeID 
 	}
 
 	// Expire the old contract
-	now := time.Now()
+	now := apptime.Now()
 	oldContract.Status = models.ContractStatusExpired
 	oldContract.ExpiredAt = &now
 	if err := u.contractRepo.Update(ctx, oldContract); err != nil {
@@ -1108,7 +1109,7 @@ func (u *employeeUsecase) CorrectActiveEmployeeContract(ctx context.Context, emp
 	}
 
 	// Expire the old contract
-	now := time.Now()
+	now := apptime.Now()
 	activeContract.Status = models.ContractStatusExpired
 	activeContract.ExpiredAt = &now
 	if err := u.contractRepo.Update(ctx, activeContract); err != nil {

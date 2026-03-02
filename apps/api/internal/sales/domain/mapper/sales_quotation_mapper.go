@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 )
@@ -197,8 +198,8 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 		Notes:           req.Notes,
 		Status:          salesModels.SalesQuotationStatusDraft,
 		CreatedBy:       createdBy,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       apptime.Now(),
+		UpdatedAt:       apptime.Now(),
 	}
 
 	if req.ValidUntil != nil {
@@ -222,8 +223,8 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 				Quantity:  itemReq.Quantity,
 				Price:     itemReq.Price,
 				Discount:  itemReq.Discount,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				CreatedAt: apptime.Now(),
+				UpdatedAt: apptime.Now(),
 			}
 			quotation.Items[i].CalculateSubtotal()
 		}
@@ -314,12 +315,12 @@ func UpdateSalesQuotationModel(m *salesModels.SalesQuotation, req *dto.UpdateSal
 				Quantity:  itemReq.Quantity,
 				Price:     itemReq.Price,
 				Discount:  itemReq.Discount,
-				UpdatedAt: time.Now(),
+				UpdatedAt: apptime.Now(),
 			}
 			m.Items[i].CalculateSubtotal()
 		}
 	}
 
-	m.UpdatedAt = time.Now()
+	m.UpdatedAt = apptime.Now()
 	return nil
 }

@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"context"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -487,7 +487,7 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 		RefNumber:        req.ReferenceNumber,
 		Source:           req.Description,
 		CreatedBy:        req.CreatedBy,
-		Date:             time.Now(),
+		Date:             apptime.Now(),
 	}
 
 	switch {

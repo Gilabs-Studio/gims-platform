@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -172,7 +173,7 @@ func (r *attendanceRecordRepository) GetEmployeeMonthlyStats(ctx context.Context
 	}
 
 	// Get first and last day of month
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, apptime.Location())
 	lastDay := firstDay.AddDate(0, 1, -1)
 
 	// Get all records for the month

@@ -4,8 +4,8 @@ import (
 "fmt"
 "net/http"
 "strings"
-"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 "github.com/gin-gonic/gin"
 "github.com/go-pdf/fpdf"
 orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
@@ -134,7 +134,7 @@ DeliveryCost:   po.DeliveryCost,
 OtherCost:      po.OtherCost,
 TotalAmount:    po.TotalAmount,
 Items:          items,
-PrintDate:      time.Now().Format("02 January 2006"),
+PrintDate:      apptime.Now().Format("02 January 2006"),
 }
 }
 

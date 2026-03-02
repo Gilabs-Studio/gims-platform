@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
@@ -364,7 +365,7 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	// Publish event (async, fire-and-forget)
 	u.eventPublisher.PublishAsync(ctx, events.NewUserDeletedEvent(ctx, events.UserDeletedPayload{
 		UserID:    id,
-		DeletedAt: time.Now(),
+		DeletedAt: apptime.Now(),
 	}))
 
 	return nil

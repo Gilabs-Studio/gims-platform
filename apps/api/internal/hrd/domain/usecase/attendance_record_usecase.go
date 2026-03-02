@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -51,7 +52,8 @@ type AttendanceRecordUsecase interface {
 	// GetEmployeeSchedule returns the work schedule assigned to an employee (via division or default fallback).
 	GetEmployeeSchedule(ctx context.Context, employeeID string) (*dto.EmployeeScheduleResponse, error)
 	// ProcessAutoAbsent creates ABSENT/LEAVE records for employees who didn't clock in on the given date.
-	ProcessAutoAbsent(ctx context.Context, date time.Time) (*dto.AutoAbsentResult, error)
+	// companyID scopes the processing to a single company's timezone and holidays ("" = all employees, global holidays).
+	ProcessAutoAbsent(ctx context.Context, date time.Time, companyID string) (*dto.AutoAbsentResult, error)
 }
 
 type attendanceRecordUsecase struct {
@@ -161,7 +163,7 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 
 func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employeeID string) (*dto.TodayAttendanceResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Get today's attendance record
 	ar, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -175,18 +177,20 @@ func (u *attendanceRecordUsecase) GetTodayAttendance(ctx context.Context, employ
 		return nil, err
 	}
 
-	// Check if today is a holiday
-	isHoliday, holiday, err := u.holidayRepo.IsHoliday(ctx, today)
+	// Check if today is a holiday (company-scoped)
+	companyID := u.resolveCompanyID(ctx, employeeID)
+	isHoliday, holiday, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
 	if err != nil {
 		return nil, err
 	}
 
-	return u.mapper.ToTodayResponse(ar, ws, isHoliday, holiday, u.wsMapper, u.holidayMapper), nil
+	empLoc := apptime.LocationForEmployee(employeeID)
+	return u.mapper.ToTodayResponse(ar, ws, isHoliday, holiday, u.wsMapper, u.holidayMapper, empLoc), nil
 }
 
 func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string, req *dto.ClockInRequest) (*dto.AttendanceRecordResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Check if already checked in
 	existing, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -211,8 +215,9 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		}
 	}
 
-	// Check if holiday
-	isHoliday, _, err := u.holidayRepo.IsHoliday(ctx, today)
+	// Check if holiday (company-scoped)
+	companyID := u.resolveCompanyID(ctx, employeeID)
+	isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -234,13 +239,14 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 	}
 
 	// Calculate late minutes
-	now := time.Now()
+	empLoc := apptime.LocationForEmployee(employeeID)
+	now := time.Now().In(empLoc)
 	lateMinutes := 0
 
 	// Parse schedule start time
 	scheduleStart, _ := time.Parse("15:04", ws.StartTime)
 	scheduleStartToday := time.Date(today.Year(), today.Month(), today.Day(),
-		scheduleStart.Hour(), scheduleStart.Minute(), 0, 0, today.Location())
+		scheduleStart.Hour(), scheduleStart.Minute(), 0, 0, empLoc)
 
 	// Add tolerance
 	scheduleStartToday = scheduleStartToday.Add(time.Duration(ws.LateToleranceMinutes) * time.Minute)
@@ -292,7 +298,7 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 
 func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID string, req *dto.ClockOutRequest) (*dto.AttendanceRecordResponse, error) {
 	employeeID = u.resolveEmployeeID(ctx, employeeID)
-	today := time.Now()
+	today := apptime.NowForEmployee(employeeID)
 
 	// Get today's attendance
 	ar, err := u.attendanceRepo.FindByEmployeeAndDate(ctx, employeeID, today)
@@ -313,7 +319,8 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 
 	// Check if today is a holiday (block clock-out on holidays for normal check-in)
 	if ar.CheckInType == models.CheckInTypeNormal {
-		isHoliday, _, err := u.holidayRepo.IsHoliday(ctx, today)
+		companyID := u.resolveCompanyID(ctx, employeeID)
+		isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, today, companyID)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +338,8 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 	// Get work schedule
 	ws, _ := u.workScheduleRepo.FindByID(ctx, ar.WorkScheduleID)
 
-	now := time.Now()
+	empLoc := apptime.LocationForEmployee(employeeID)
+	now := time.Now().In(empLoc)
 	ar.CheckOutTime = &now
 	ar.CheckOutLatitude = req.Latitude
 	ar.CheckOutLongitude = req.Longitude
@@ -345,7 +353,7 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 	if ws != nil {
 		scheduleEnd, _ := time.Parse("15:04", ws.EndTime)
 		scheduleEndToday := time.Date(today.Year(), today.Month(), today.Day(),
-			scheduleEnd.Hour(), scheduleEnd.Minute(), 0, 0, today.Location())
+			scheduleEnd.Hour(), scheduleEnd.Minute(), 0, 0, empLoc)
 
 		// Subtract tolerance
 		scheduleEndToday = scheduleEndToday.Add(-time.Duration(ws.EarlyLeaveToleranceMinutes) * time.Minute)
@@ -534,8 +542,9 @@ func (u *attendanceRecordUsecase) GetMonthlyStats(ctx context.Context, req *dto.
 		return nil, err
 	}
 
-	// Calculate working days in month
-	firstDay := time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, time.Local)
+	// Calculate working days in month (using employee's timezone)
+	empLoc := apptime.LocationForEmployee(req.EmployeeID)
+	firstDay := time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, empLoc)
 	lastDay := firstDay.AddDate(0, 1, -1)
 	workingDays := 0
 	for d := firstDay; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
@@ -591,6 +600,16 @@ func (u *attendanceRecordUsecase) resolveEmployeeID(ctx context.Context, userIDO
 		return emp.ID
 	}
 	return userIDOrEmployeeID
+}
+
+// resolveCompanyID returns the company ID for the given employee.
+// Returns "" if the employee has no company assigned (falls back to global).
+func (u *attendanceRecordUsecase) resolveCompanyID(ctx context.Context, employeeID string) string {
+	emp, err := u.employeeRepo.FindByID(ctx, employeeID)
+	if err != nil || emp == nil || emp.CompanyID == nil {
+		return ""
+	}
+	return *emp.CompanyID
 }
 
 // buildEmployeeMap batch-fetches employees by IDs and builds a lookup map
@@ -751,14 +770,17 @@ func (u *attendanceRecordUsecase) GetFormData(ctx context.Context) (*dto.Attenda
 
 // ProcessAutoAbsent creates ABSENT/LEAVE attendance records for employees who didn't clock in
 // on the given date. It respects holidays, approved leaves, off-days, and existing records.
-func (u *attendanceRecordUsecase) ProcessAutoAbsent(ctx context.Context, date time.Time) (*dto.AutoAbsentResult, error) {
-	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
+// When companyID is non-empty, only employees of that company are processed and holiday checks
+// are company-scoped. When empty, all employees are processed with global holiday checks.
+func (u *attendanceRecordUsecase) ProcessAutoAbsent(ctx context.Context, date time.Time, companyID string) (*dto.AutoAbsentResult, error) {
+	empLoc := apptime.LocationForCompany(companyID)
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, empLoc)
 	result := &dto.AutoAbsentResult{
 		Date: dateOnly.Format("2006-01-02"),
 	}
 
-	// 1. Check if the date is a holiday — skip entirely
-	isHoliday, _, err := u.holidayRepo.IsHoliday(ctx, dateOnly)
+	// 1. Check if the date is a holiday — skip entirely (company-scoped)
+	isHoliday, _, err := u.holidayRepo.IsHolidayForCompany(ctx, dateOnly, companyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check holiday: %w", err)
 	}

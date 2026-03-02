@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -64,7 +65,7 @@ func (ea *EmployeeAsset) GetStatus() AssetStatus {
 }
 
 func (ea *EmployeeAsset) DaysBorrowed() int {
-	endDate := time.Now()
+	endDate := apptime.Now()
 	if ea.IsReturned() {
 		endDate = *ea.ReturnDate
 	}

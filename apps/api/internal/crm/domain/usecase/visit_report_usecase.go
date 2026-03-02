@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -328,7 +329,7 @@ func (u *visitReportUsecase) CheckIn(ctx context.Context, id string, req *dto.Ch
 
 	// Build GPS location JSONB
 	location := buildLocationJSON(req.Latitude, req.Longitude, req.Accuracy)
-	checkInAt := time.Now()
+	checkInAt := apptime.Now()
 
 	if err := u.visitRepo.CheckIn(ctx, id, location, checkInAt); err != nil {
 		return nil, err
@@ -372,7 +373,7 @@ func (u *visitReportUsecase) CheckOut(ctx context.Context, id string, req *dto.C
 	}
 
 	location := buildLocationJSON(req.Latitude, req.Longitude, req.Accuracy)
-	checkOutAt := time.Now()
+	checkOutAt := apptime.Now()
 
 	if err := u.visitRepo.CheckOut(ctx, id, location, checkOutAt); err != nil {
 		return nil, err
@@ -420,7 +421,7 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 		ToStatus:      models.VisitReportStatusSubmitted,
 		Notes:         fmt.Sprintf("Submitted for approval. %s", req.Notes),
 		ChangedBy:     userID,
-		CreatedAt:     time.Now(),
+		CreatedAt:     apptime.Now(),
 	}
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
@@ -449,7 +450,7 @@ func (u *visitReportUsecase) Approve(ctx context.Context, id string, req *dto.Ap
 		return nil, ErrVisitReportCannotApproveOwn
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := u.visitRepo.UpdateStatus(ctx, id, models.VisitReportStatusApproved); err != nil {
 		return nil, err
 	}
@@ -496,7 +497,7 @@ func (u *visitReportUsecase) Reject(ctx context.Context, id string, req *dto.Rej
 		return nil, ErrVisitReportRejectionRequired
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := u.visitRepo.UpdateStatus(ctx, id, models.VisitReportStatusRejected); err != nil {
 		return nil, err
 	}

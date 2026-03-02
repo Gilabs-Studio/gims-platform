@@ -10,6 +10,7 @@ Technology baseline
 - Use TanStack Query for server state management (API data, caching, refetching).
 - Use `framer-motion` for entrance animations (PageMotion, StaggerContainer). Keep animations subtle and performant.
 - **CRITICAL**: Never use `any` type. Always define proper types or use `unknown` with type guards.
+- **CRITICAL**: Never use bare `time.Now()` in Go backend business logic. Always use `apptime.Now()` (global) or `apptime.NowForEmployee(id)` / `apptime.NowForCompany(id)` (per-company timezone). Import: `"github.com/gilabs/gims/api/internal/core/apptime"`. See `docs/features/core/apptime-timezone-support.md`.
 
 Folder structure (per feature)
 - Place features under `apps/web/src/features/<feature-name>/`:

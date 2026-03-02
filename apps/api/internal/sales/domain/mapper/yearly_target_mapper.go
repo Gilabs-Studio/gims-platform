@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 )
@@ -99,8 +100,8 @@ func ToYearlyTargetModel(req *dto.CreateYearlyTargetRequest, code string) *sales
 		Notes:       req.Notes,
 		Status:      salesModels.YearlyTargetStatusDraft,
 		AreaID:      req.AreaID,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   apptime.Now(),
+		UpdatedAt:   apptime.Now(),
 	}
 
 	// Map monthly targets
@@ -112,8 +113,8 @@ func ToYearlyTargetModel(req *dto.CreateYearlyTargetRequest, code string) *sales
 				TargetAmount: monthReq.TargetAmount,
 				Notes:        monthReq.Notes,
 				ActualAmount: 0,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				CreatedAt:    apptime.Now(),
+				UpdatedAt:    apptime.Now(),
 			}
 		}
 	}
@@ -143,10 +144,10 @@ func UpdateYearlyTargetModel(m *salesModels.YearlyTarget, req *dto.UpdateYearlyT
 				Month:        monthReq.Month,
 				TargetAmount: monthReq.TargetAmount,
 				Notes:        monthReq.Notes,
-				UpdatedAt:    time.Now(),
+				UpdatedAt:    apptime.Now(),
 			}
 		}
 	}
 
-	m.UpdatedAt = time.Now()
+	m.UpdatedAt = apptime.Now()
 }

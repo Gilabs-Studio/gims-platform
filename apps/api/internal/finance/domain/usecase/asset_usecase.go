@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -201,7 +202,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 		txRec := &financeModels.AssetTransaction{
 			AssetID:         id,
 			Type:            financeModels.AssetTransactionTypeUpdate,
-			TransactionDate: time.Now(),
+			TransactionDate: apptime.Now(),
 			Description:     "Asset updated",
 			CreatedBy:       &actorID,
 		}
@@ -436,7 +437,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 			BookValue:        newBook,
 			Status:           financeModels.AssetDepreciationStatusPending,
 			CreatedBy:        &actorID,
-			CreatedAt:        time.Now(),
+			CreatedAt:        apptime.Now(),
 		}
 		if err := tx.Create(d).Error; err != nil {
 			return err
@@ -448,7 +449,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 			TransactionDate: asOfDate,
 			Description:     fmt.Sprintf("Depreciation pending for %s", period),
 			CreatedBy:       &actorID,
-			CreatedAt:       time.Now(),
+			CreatedAt:       apptime.Now(),
 		}
 		if err := tx.Create(txRec).Error; err != nil {
 			return err
@@ -501,7 +502,7 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 			return err
 		}
 
-		now := time.Now()
+		now := apptime.Now()
 		refType := "asset_depreciation"
 
 		je := &financeModels.JournalEntry{
@@ -550,7 +551,7 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		txRec := &financeModels.AssetTransaction{
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeDepreciate,
-			TransactionDate: time.Now(),
+			TransactionDate: apptime.Now(),
 			Description:     fmt.Sprintf("Depreciation approved for %s", dep.Period),
 			ReferenceType:   &refType,
 			ReferenceID:     &dep.ID,
@@ -624,7 +625,7 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 			Status:          financeModels.AssetTransactionStatusDraft,
 			ReferenceID:     &newLocationID, // Store target location ID in reference for approval
 			CreatedBy:       &actorID,
-			CreatedAt:       time.Now(),
+			CreatedAt:       apptime.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -692,7 +693,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			Description:     desc,
 			Status:          financeModels.AssetTransactionStatusDraft,
 			CreatedBy:       &actorID,
-			CreatedAt:       time.Now(),
+			CreatedAt:       apptime.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -735,7 +736,7 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 
 	parsedDate, _ := time.Parse("2006-01-02", req.AcquisitionDate)
 	if parsedDate.IsZero() {
-		parsedDate = time.Now()
+		parsedDate = apptime.Now()
 	}
 
 	asset := financeModels.Asset{
@@ -790,7 +791,7 @@ func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.Revalue
 			Description:     req.Description,
 			Status:          financeModels.AssetTransactionStatusDraft,
 			CreatedBy:       &actorID,
-			CreatedAt:       time.Now(),
+			CreatedAt:       apptime.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -827,7 +828,7 @@ func (uc *assetUsecase) Adjust(ctx context.Context, id string, req *dto.AdjustAs
 			Description:     req.Description,
 			Status:          financeModels.AssetTransactionStatusDraft,
 			CreatedBy:       &actorID,
-			CreatedAt:       time.Now(),
+			CreatedAt:       apptime.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -912,7 +913,7 @@ func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Ass
 		return
 	}
 	refType := "asset_transaction"
-	now := time.Now()
+	now := apptime.Now()
 	actorID, _ := tx.Statement.Context.Value("user_id").(string)
 
 	je := &financeModels.JournalEntry{

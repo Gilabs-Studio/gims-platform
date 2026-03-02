@@ -64,6 +64,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - REDIS_DB=${REDIS_DB:-0}
       - SEED_DEFAULT_PASSWORD=${SEED_DEFAULT_PASSWORD:-admin123}
+      - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Jakarta}
     volumes:
       - uploads_data:/app/uploads
     depends_on:

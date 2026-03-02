@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -57,7 +58,7 @@ func (EmployeeContract) TableName() string {
 
 // IsActive checks if the contract is currently active
 func (ec *EmployeeContract) IsActive() bool {
-	now := time.Now()
+	now := apptime.Now()
 	if ec.Status != ContractStatusActive {
 		return false
 	}
@@ -75,8 +76,8 @@ func (ec *EmployeeContract) IsExpiringSoon(days int) bool {
 	if ec.EndDate == nil {
 		return false
 	}
-	threshold := time.Now().AddDate(0, 0, days)
-	return ec.EndDate.Before(threshold) && ec.EndDate.After(time.Now())
+	threshold := apptime.Now().AddDate(0, 0, days)
+	return ec.EndDate.Before(threshold) && ec.EndDate.After(apptime.Now())
 }
 
 // DaysUntilExpiry returns days until contract expires
@@ -84,5 +85,5 @@ func (ec *EmployeeContract) DaysUntilExpiry() int {
 	if ec.EndDate == nil {
 		return -1
 	}
-	return int(ec.EndDate.Sub(time.Now()).Hours() / 24)
+	return int(ec.EndDate.Sub(apptime.Now()).Hours() / 24)
 }

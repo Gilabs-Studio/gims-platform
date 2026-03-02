@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -457,7 +458,7 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 		return nil, err
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.CashBankJournal{}).
 		Where("id = ?", cb.ID).
 		Updates(map[string]interface{}{

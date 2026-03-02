@@ -32,6 +32,7 @@ func (m *HolidayMapper) ToModel(req *dto.CreateHolidayRequest) (*models.Holiday,
 		CutsAnnualLeave:   req.CutsAnnualLeave,
 		IsRecurring:       req.IsRecurring,
 		IsActive:          req.IsActive,
+		CompanyID:         req.CompanyID,
 	}
 	return h, nil
 }
@@ -67,6 +68,9 @@ func (m *HolidayMapper) ApplyUpdate(h *models.Holiday, req *dto.UpdateHolidayReq
 	if req.IsActive != nil {
 		h.IsActive = *req.IsActive
 	}
+	if req.CompanyID != nil {
+		h.CompanyID = req.CompanyID
+	}
 	return nil
 }
 
@@ -83,6 +87,7 @@ func (m *HolidayMapper) ToResponse(h *models.Holiday) *dto.HolidayResponse {
 		CutsAnnualLeave:   h.CutsAnnualLeave,
 		IsRecurring:       h.IsRecurring,
 		IsActive:          h.IsActive,
+		CompanyID:         h.CompanyID,
 		CreatedAt:         h.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:         h.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

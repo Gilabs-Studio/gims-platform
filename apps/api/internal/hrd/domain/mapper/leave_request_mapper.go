@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -239,7 +240,7 @@ func (m *LeaveRequestMapper) ToBalanceDTO(employeeID string, totalQuota, usedDay
 		CarryOverBalance:    carryOverBalance,
 		TotalAvailableLeave: totalAvailable,
 		PendingRequestsDays: pendingDays,
-		CalculatedAt:        time.Now().Format(time.RFC3339),
+		CalculatedAt:        apptime.Now().Format(time.RFC3339),
 	}
 
 	if carryOverExpiry != nil {

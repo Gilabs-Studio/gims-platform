@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -201,8 +202,8 @@ func (r *customerInvoiceRepository) Update(ctx context.Context, invoice *models.
 		if len(invoice.Items) > 0 {
 			for i := range invoice.Items {
 				invoice.Items[i].CustomerInvoiceID = invoice.ID
-				invoice.Items[i].CreatedAt = time.Now()
-				invoice.Items[i].UpdatedAt = time.Now()
+				invoice.Items[i].CreatedAt = apptime.Now()
+				invoice.Items[i].UpdatedAt = apptime.Now()
 				if err := tx.Create(&invoice.Items[i]).Error; err != nil {
 					return err
 				}

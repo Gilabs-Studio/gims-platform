@@ -3,6 +3,7 @@ package middleware
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gin-gonic/gin"
 )
@@ -10,7 +11,7 @@ import (
 // LoggerMiddleware logs HTTP requests
 func LoggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		start := time.Now()
+		start := apptime.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 

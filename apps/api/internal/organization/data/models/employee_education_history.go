@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -53,7 +54,7 @@ func (eeh *EmployeeEducationHistory) IsCompleted() bool {
 }
 
 func (eeh *EmployeeEducationHistory) GetDurationYears() float64 {
-	endDate := time.Now()
+	endDate := apptime.Now()
 	if eeh.EndDate != nil {
 		endDate = *eeh.EndDate
 	}

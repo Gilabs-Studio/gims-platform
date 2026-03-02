@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 )
@@ -285,8 +286,8 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 		Status:          salesModels.SalesOrderStatusDraft,
 		ReservedStock:   false,
 		CreatedBy:       createdBy,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       apptime.Now(),
+		UpdatedAt:       apptime.Now(),
 	}
 
 	// Default tax rate to 11% if not provided
@@ -303,8 +304,8 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 				Quantity:  itemReq.Quantity,
 				Price:     itemReq.Price,
 				Discount:  itemReq.Discount,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				CreatedAt: apptime.Now(),
+				UpdatedAt: apptime.Now(),
 			}
 			order.Items[i].CalculateSubtotal()
 		}
@@ -392,13 +393,13 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 				Quantity:  itemReq.Quantity,
 				Price:     itemReq.Price,
 				Discount:  itemReq.Discount,
-				UpdatedAt: time.Now(),
+				UpdatedAt: apptime.Now(),
 			}
 			m.Items[i].CalculateSubtotal()
 		}
 	}
 
-	m.UpdatedAt = time.Now()
+	m.UpdatedAt = apptime.Now()
 	return nil
 }
 
@@ -406,7 +407,7 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliveryAreaID *string, customerName string, customerContact string, customerPhone string, customerEmail string, notes string, code string, createdBy *string) (*salesModels.SalesOrder, error) {
 	order := &salesModels.SalesOrder{
 		Code:            code,
-		OrderDate:       time.Now(),
+		OrderDate:       apptime.Now(),
 		SalesQuotationID: &quotation.ID,
 		PaymentTermsID:  quotation.PaymentTermsID,
 		SalesRepID:      quotation.SalesRepID,
@@ -429,8 +430,8 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 		Status:          salesModels.SalesOrderStatusDraft,
 		ReservedStock:   false,
 		CreatedBy:       createdBy,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       apptime.Now(),
+		UpdatedAt:       apptime.Now(),
 	}
 
 	// Convert items
@@ -443,8 +444,8 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 				Price:     item.Price,
 				Discount:  item.Discount,
 				Subtotal:  item.Subtotal,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				CreatedAt: apptime.Now(),
+				UpdatedAt: apptime.Now(),
 			}
 		}
 	}

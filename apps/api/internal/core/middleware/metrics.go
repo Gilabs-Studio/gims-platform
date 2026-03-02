@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,7 @@ var metrics = &metricsStore{}
 
 func MetricsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		start := time.Now()
+		start := apptime.Now()
 		c.Next()
 
 		durMs := uint64(time.Since(start).Milliseconds())

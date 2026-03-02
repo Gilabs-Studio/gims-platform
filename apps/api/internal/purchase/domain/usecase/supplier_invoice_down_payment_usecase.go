@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -145,7 +146,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		if err != nil {
 			return err
 		}
-		invNo := fmt.Sprintf("SUP-DP-%s-%s", time.Now().Format("20060102"), strings.TrimPrefix(code, "SIDP-"))
+		invNo := fmt.Sprintf("SUP-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "SIDP-"))
 
 		creatorID, _ := ctx.Value("user_id").(string)
 		si := models.SupplierInvoice{
@@ -291,7 +292,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 			"due_date":          req.DueDate,
 			"amount":            req.Amount,
 			"notes":             req.Notes,
-			"updated_at":        time.Now(),
+			"updated_at":        apptime.Now(),
 		}
 		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
@@ -407,7 +408,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusSubmitted,
 			"submitted_at": &now,
@@ -442,7 +443,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusApproved,
 			"approved_at": &now,
@@ -477,7 +478,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusRejected,
 			"rejected_at": &now,
@@ -515,7 +516,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 		if !allowed {
 			return ErrSupplierInvoiceConflict
 		}
-		now := time.Now()
+		now := apptime.Now()
 		return tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusCancelled,
 			"cancelled_at": &now,

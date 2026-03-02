@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -217,7 +218,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		if err != nil {
 			return err
 		}
-		invNo := fmt.Sprintf("CUS-DP-%s-%s", time.Now().Format("20060102"), strings.TrimPrefix(code, "CIDP-"))
+		invNo := fmt.Sprintf("CUS-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "CIDP-"))
 
 		creatorID, _ := ctx.Value("user_id").(string)
 
@@ -311,7 +312,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 			"amount":         req.Amount,
 			"subtotal":       req.Amount,
 			"notes":          notes,
-			"updated_at":     time.Now(),
+			"updated_at":     apptime.Now(),
 		}
 		if err := tx.Model(&ci).Updates(updates).Error; err != nil {
 			return err

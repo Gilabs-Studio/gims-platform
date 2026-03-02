@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -164,7 +165,7 @@ func (r *overtimeRequestRepository) Delete(ctx context.Context, id string) error
 }
 
 func (r *overtimeRequestRepository) Approve(ctx context.Context, id, approverID string, approvedMinutes int) error {
-	now := time.Now()
+	now := apptime.Now()
 	return r.getDB(ctx).Model(&models.OvertimeRequest{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -176,7 +177,7 @@ func (r *overtimeRequestRepository) Approve(ctx context.Context, id, approverID 
 }
 
 func (r *overtimeRequestRepository) Reject(ctx context.Context, id, rejecterID, reason string) error {
-	now := time.Now()
+	now := apptime.Now()
 	return r.getDB(ctx).Model(&models.OvertimeRequest{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -195,7 +196,7 @@ func (r *overtimeRequestRepository) Cancel(ctx context.Context, id string) error
 
 func (r *overtimeRequestRepository) GetEmployeeMonthlyOvertime(ctx context.Context, employeeID string, year, month int) (int, error) {
 	// Get first and last day of month
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, apptime.Location())
 	lastDay := firstDay.AddDate(0, 1, -1)
 
 	var totalMinutes int64
@@ -223,7 +224,7 @@ func (r *overtimeRequestRepository) GetUnnotifiedPendingRequests(ctx context.Con
 }
 
 func (r *overtimeRequestRepository) MarkNotified(ctx context.Context, ids []string) error {
-	now := time.Now()
+	now := apptime.Now()
 	return r.getDB(ctx).Model(&models.OvertimeRequest{}).
 		Where("id IN ?", ids).
 		Updates(map[string]interface{}{

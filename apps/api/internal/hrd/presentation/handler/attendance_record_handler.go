@@ -3,6 +3,7 @@ package handler
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -426,10 +427,10 @@ func (h *AttendanceRecordHandler) ProcessAutoAbsent(c *gin.Context) {
 		targetDate = parsed
 	} else {
 		// Default to yesterday
-		targetDate = time.Now().AddDate(0, 0, -1)
+		targetDate = apptime.Now().AddDate(0, 0, -1)
 	}
 
-	result, err := h.attendanceUC.ProcessAutoAbsent(c.Request.Context(), targetDate)
+	result, err := h.attendanceUC.ProcessAutoAbsent(c.Request.Context(), targetDate, "")
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -251,7 +251,7 @@ func (u *recruitmentRequestUsecase) UpdateStatus(ctx context.Context, id string,
 		return nil, fmt.Errorf("INVALID_STATUS_TRANSITION: cannot transition from %s to %s", existing.Status, newStatus)
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 
 	switch newStatus {
 	case models.RecruitmentStatusPending:

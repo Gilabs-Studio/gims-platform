@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -47,7 +48,7 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 	}
 
 	// Parse timestamp or use current time
-	timestamp := time.Now()
+	timestamp := apptime.Now()
 	if req.Timestamp != nil && *req.Timestamp != "" {
 		t, err := time.Parse(time.RFC3339, *req.Timestamp)
 		if err != nil {

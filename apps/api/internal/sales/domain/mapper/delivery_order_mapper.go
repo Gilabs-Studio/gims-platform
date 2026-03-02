@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 )
@@ -210,8 +211,8 @@ func ToDeliveryOrderModel(req *dto.CreateDeliveryOrderRequest, code string, crea
 		Status:          salesModels.DeliveryOrderStatusDraft,
 		IsPartialDelivery: false, // Will be determined based on quantities
 		CreatedBy:       createdBy,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       apptime.Now(),
+		UpdatedAt:       apptime.Now(),
 	}
 
 	// Map items
@@ -225,8 +226,8 @@ func ToDeliveryOrderModel(req *dto.CreateDeliveryOrderRequest, code string, crea
 				Quantity:         itemReq.Quantity,
 				Price:            itemReq.Price,
 				IsEquipment:      itemReq.IsEquipment,
-				CreatedAt:        time.Now(),
-				UpdatedAt:        time.Now(),
+				CreatedAt:        apptime.Now(),
+				UpdatedAt:        apptime.Now(),
 			}
 			deliveryOrder.Items[i].CalculateSubtotal()
 		}
@@ -288,12 +289,12 @@ func UpdateDeliveryOrderModel(m *salesModels.DeliveryOrder, req *dto.UpdateDeliv
 				Quantity:         itemReq.Quantity,
 				Price:            itemReq.Price,
 				IsEquipment:      itemReq.IsEquipment,
-				UpdatedAt:        time.Now(),
+				UpdatedAt:        apptime.Now(),
 			}
 			m.Items[i].CalculateSubtotal()
 		}
 	}
 
-	m.UpdatedAt = time.Now()
+	m.UpdatedAt = apptime.Now()
 	return nil
 }

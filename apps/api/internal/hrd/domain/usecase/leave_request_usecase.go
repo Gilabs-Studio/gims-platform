@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -232,7 +233,12 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 	}
 
 	// 4. Calculate total days based on duration
-	totalDays, err := u.calculateTotalDays(ctx, req.Duration, startDate, endDate)
+	// WHY: resolve companyID so holidays are scoped (global + company-specific)
+	empCompanyID := ""
+	if employee.CompanyID != nil {
+		empCompanyID = *employee.CompanyID
+	}
+	totalDays, err := u.calculateTotalDays(ctx, req.Duration, startDate, endDate, empCompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +473,12 @@ func (u *leaveRequestUsecase) Update(ctx context.Context, id string, req *dto.Up
 			duration = *req.Duration
 		}
 
-		calculated, err := u.calculateTotalDays(ctx, duration, startDate, endDate)
+		// WHY: resolve companyID so holidays are scoped (global + company-specific)
+		updCompanyID := ""
+		if employee.CompanyID != nil {
+			updCompanyID = *employee.CompanyID
+		}
+		calculated, err := u.calculateTotalDays(ctx, duration, startDate, endDate, updCompanyID)
 		if err != nil {
 			return nil, err
 		}
@@ -592,7 +603,8 @@ func (u *leaveRequestUsecase) CalculateBalance(ctx context.Context, employeeID s
 
 // calculateTotalDays calculates the total days for a leave request
 // WHY: Considers duration type and excludes weekends/holidays for MULTI_DAY
-func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration string, startDate, endDate time.Time) (float64, error) {
+// companyID is used to scope holidays (global + company-specific)
+func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration string, startDate, endDate time.Time, companyID string) (float64, error) {
 	switch duration {
 	case "HALF_DAY":
 		return 0.5, nil
@@ -600,7 +612,7 @@ func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration s
 		return 1.0, nil
 	case "MULTI_DAY":
 		// Calculate working days (exclude weekends and holidays)
-		return u.calculateWorkingDays(ctx, startDate, endDate)
+		return u.calculateWorkingDays(ctx, startDate, endDate, companyID)
 	default:
 		return 0, fmt.Errorf("INVALID_DURATION: must be FULL_DAY, HALF_DAY, or MULTI_DAY")
 	}
@@ -608,9 +620,10 @@ func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration s
 
 // calculateWorkingDays calculates working days between two dates (excluding weekends and holidays)
 // WHY: Leave days should only count actual working days
-func (u *leaveRequestUsecase) calculateWorkingDays(ctx context.Context, startDate, endDate time.Time) (float64, error) {
-	// Fetch holidays in the date range
-	holidays, err := u.holidayRepo.FindByDateRange(ctx, startDate, endDate)
+// companyID scopes holidays: global holidays (company_id IS NULL) + company-specific
+func (u *leaveRequestUsecase) calculateWorkingDays(ctx context.Context, startDate, endDate time.Time, companyID string) (float64, error) {
+	// Fetch holidays in the date range (global + company-specific)
+	holidays, err := u.holidayRepo.FindByDateRangeForCompany(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch holidays: %w", err)
 	}
@@ -688,7 +701,7 @@ func (u *leaveRequestUsecase) Approve(ctx context.Context, id string, req *dto.A
 
 		// 5. Update status to APPROVED
 		leaveRequest.Status = models.LeaveStatusApproved
-		now := time.Now()
+		now := apptime.Now()
 		leaveRequest.ApprovedAt = &now
 
 		// Use approver ID from DTO if provided, otherwise current user
@@ -933,8 +946,15 @@ func (u *leaveRequestUsecase) createLeaveAttendanceRecords(ctx context.Context, 
 		return fmt.Errorf("failed to clean up existing attendance records: %w", err)
 	}
 
-	// Fetch holidays in the leave period
-	holidays, err := u.holidayRepo.FindByDateRange(ctx, leaveRequest.StartDate, leaveRequest.EndDate)
+	// Resolve companyID for company-scoped holiday filtering
+	companyID := ""
+	emp, err := u.employeeRepo.FindByID(ctx, leaveRequest.EmployeeID)
+	if err == nil && emp.CompanyID != nil {
+		companyID = *emp.CompanyID
+	}
+
+	// Fetch holidays in the leave period (global + company-specific)
+	holidays, err := u.holidayRepo.FindByDateRangeForCompany(ctx, leaveRequest.StartDate, leaveRequest.EndDate, companyID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch holidays: %w", err)
 	}

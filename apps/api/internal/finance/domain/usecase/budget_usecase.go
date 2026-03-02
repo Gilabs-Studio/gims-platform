@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -371,7 +372,7 @@ func (uc *budgetUsecase) Approve(ctx context.Context, id string) (*dto.BudgetRes
 		return &resp, nil
 	}
 
-	now := time.Now()
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.Budget{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{

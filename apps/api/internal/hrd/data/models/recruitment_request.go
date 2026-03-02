@@ -73,11 +73,11 @@ type RecruitmentRequest struct {
 
 	// Approval
 	ApprovedByID   *string    `gorm:"type:uuid" json:"approved_by_id"`
-	ApprovedAt     *time.Time `gorm:"type:timestamp" json:"approved_at"`
+	ApprovedAt     *time.Time `gorm:"type:timestamptz" json:"approved_at"`
 	RejectedByID   *string    `gorm:"type:uuid" json:"rejected_by_id"`
-	RejectedAt     *time.Time `gorm:"type:timestamp" json:"rejected_at"`
+	RejectedAt     *time.Time `gorm:"type:timestamptz" json:"rejected_at"`
 	RejectionNotes *string    `gorm:"type:text" json:"rejection_notes"`
-	ClosedAt       *time.Time `gorm:"type:timestamp" json:"closed_at"`
+	ClosedAt       *time.Time `gorm:"type:timestamptz" json:"closed_at"`
 
 	// Timestamps
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`

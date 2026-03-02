@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-pdf/fpdf"
@@ -100,7 +101,7 @@ func (h *VisitReportPrintHandler) PrintVisitReport(c *gin.Context) {
 		Code:      visit.Code,
 		Status:    strings.ToUpper(visit.Status),
 		VisitDate: visit.VisitDate,
-		PrintDate: time.Now().Format("02 Jan 2006 15:04"),
+		PrintDate: apptime.Now().Format("02 Jan 2006 15:04"),
 	}
 
 	if visit.ScheduledTime != nil {

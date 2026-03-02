@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 )
@@ -39,7 +40,7 @@ func ToAreaCaptureResponses(captures []models.AreaCapture) []dto.AreaCaptureResp
 
 // AreaCaptureFromCreateRequest creates AreaCapture model from CreateAreaCaptureRequest
 func AreaCaptureFromCreateRequest(req *dto.CreateAreaCaptureRequest) *models.AreaCapture {
-	capturedAt := time.Now()
+	capturedAt := apptime.Now()
 	if req.CapturedAt != "" {
 		if parsed, err := time.Parse(time.RFC3339, req.CapturedAt); err == nil {
 			capturedAt = parsed

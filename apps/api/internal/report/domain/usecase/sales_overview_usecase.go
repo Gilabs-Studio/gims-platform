@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/report/data/repositories"
 	"github.com/gilabs/gims/api/internal/report/domain/dto"
@@ -31,7 +32,7 @@ func NewSalesOverviewUsecase(repo repositories.SalesOverviewRepository) SalesOve
 
 // defaultDateRange returns default start/end dates (last 1 year)
 func defaultDateRange() (time.Time, time.Time) {
-	now := time.Now()
+	now := apptime.Now()
 	return now.AddDate(-1, 0, 0), now
 }
 
