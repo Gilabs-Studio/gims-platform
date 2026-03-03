@@ -9,7 +9,7 @@ import { useRateLimitStore } from "./stores/useRateLimitStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
-// Flag to track if we've validated rate limit state after app load
+// Flag to track if we've validated rate limit state
 let rateLimitValidated = false;
 
 // Memory cache for CSRF token to support cross-origin API calls
@@ -100,7 +100,7 @@ interface ApiErrorResponse {
 apiClient.interceptors.response.use(
   (response) => {
     // Read and cache CSRF token from headers (vital for cross-origin setups)
-    const csrfHeader = response.headers["x-csrf-token"];
+    const csrfHeader = response.headers["x-csrf-token"] || response.headers["X-CSRF-Token"];
     if (csrfHeader) {
       memoryCsrfToken = csrfHeader;
     }
@@ -119,7 +119,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError<ApiErrorResponse>) => {
     // Try to extract CSRF token even from error responses
     if (error.response?.headers) {
-      const csrfHeader = error.response.headers["x-csrf-token"];
+      const csrfHeader = error.response.headers["x-csrf-token"] || error.response.headers["X-CSRF-Token"];
       if (csrfHeader) {
         memoryCsrfToken = csrfHeader;
       }
@@ -331,6 +331,12 @@ apiClient.interceptors.response.use(
             };
           }>("/auth/refresh-token", {}, { headers })
           .then((refreshResponse) => {
+            // Read and cache CSRF token from headers even during refresh
+            const refreshCsrfHeader = refreshResponse.headers["x-csrf-token"] || refreshResponse.headers["X-CSRF-Token"];
+            if (refreshCsrfHeader) {
+              memoryCsrfToken = refreshCsrfHeader;
+            }
+
             const response = refreshResponse.data;
             if (response.success && response.data) {
               // Update auth store with new user data
