@@ -33,6 +33,7 @@ type Warehouse struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	HasStock  bool           `gorm:"->;column:has_stock" json:"-"` // Not in DB table, just for query
 }
 
 // TableName specifies the table name for Warehouse

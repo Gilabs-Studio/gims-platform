@@ -38,6 +38,7 @@ import type { Warehouse as WarehouseType } from "../../types";
 import { WarehouseCard } from "./warehouse-card";
 import { WarehouseSidePanel } from "./warehouse-side-panel";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
+import { WarehouseDeleteBlockedDialog } from "./warehouse-delete-blocked-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
@@ -72,6 +73,7 @@ export function WarehouseMapView() {
   const [viewingWarehouse, setViewingWarehouse] = useState<WarehouseType | null>(null);
   const [editingWarehouse, setEditingWarehouse] = useState<WarehouseType | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [blockedDeleteId, setBlockedDeleteId] = useState<string | null>(null);
 
   // Permissions
   const canCreate = useUserPermission("warehouse.create");
@@ -332,7 +334,15 @@ export function WarehouseMapView() {
                   t={(key) => t(key as Parameters<typeof t>[0])}
                   onDetail={() => handleView(warehouse)}
                   onEdit={() => handleEdit(warehouse)}
-                  onDelete={() => setDeletingId(warehouse.id)}
+                  onDelete={() => {
+                    console.log("Map View Delete clicked for item:", warehouse);
+                    console.log("has_stock:", warehouse.has_stock);
+                    if (warehouse.has_stock) {
+                      setBlockedDeleteId(warehouse.id);
+                    } else {
+                      setDeletingId(warehouse.id);
+                    }
+                  }}
                   canUpdate={canUpdate}
                   canDelete={canDelete}
                 />
@@ -401,6 +411,12 @@ export function WarehouseMapView() {
         isLoading={deleteWarehouse.isPending}
         title={t("warehouse.deleteTitle")}
         description={t("warehouse.deleteConfirm")}
+      />
+
+      {/* Blocked delete — warehouse still has stock */}
+      <WarehouseDeleteBlockedDialog
+        open={!!blockedDeleteId}
+        onOpenChange={(open: boolean) => !open && setBlockedDeleteId(null)}
       />
 
       {/* Detail Dialog */}

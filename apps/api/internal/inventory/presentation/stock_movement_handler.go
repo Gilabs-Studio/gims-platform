@@ -11,12 +11,14 @@ import (
 )
 
 type StockMovementHandler struct {
-	service usecase.StockMovementService
+	service          usecase.StockMovementService
+	inventoryUsecase usecase.InventoryUsecase
 }
 
-func NewStockMovementHandler(service usecase.StockMovementService) *StockMovementHandler {
+func NewStockMovementHandler(service usecase.StockMovementService, inventoryUsecase usecase.InventoryUsecase) *StockMovementHandler {
 	return &StockMovementHandler{
-		service: service,
+		service:          service,
+		inventoryUsecase: inventoryUsecase,
 	}
 }
 
@@ -46,4 +48,22 @@ func (h *StockMovementHandler) GetMovements(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, movements, meta)
+}
+
+func (h *StockMovementHandler) CreateMovement(c *gin.Context) {
+	var req dto.CreateManualMovementRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body", err, nil)
+		return
+	}
+
+	userId, _ := c.Get("user_id")
+	req.CreatedBy = userId.(string)
+
+	if err := h.inventoryUsecase.CreateManualStockMovement(c, &req); err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create stock movement", err, nil)
+		return
+	}
+
+	response.SuccessResponse(c, nil, nil)
 }

@@ -7,7 +7,8 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download } from "lucide-react";
+import { Search, Download, Plus } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
 import { MovementBadge } from "./movement-badge";
@@ -114,10 +115,18 @@ export function MovementList() {
           <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground">{t("description")}</p>
         </div>
-        <Button variant="outline" className="cursor-pointer">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+          <Button variant="outline" className="cursor-pointer w-full sm:w-auto">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+          </Button>
+          <Button asChild className="cursor-pointer w-full sm:w-auto">
+            <Link href="/stock/movements/create">
+              <Plus className="mr-2 h-4 w-4" />
+              {tCommon("create")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

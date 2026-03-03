@@ -1,5 +1,5 @@
 import { apiClient as request } from "@/lib/api-client";
-import { StockMovementFilter, StockMovementResponse } from "../types";
+import { StockMovementFilter, StockMovementResponse, CreateStockMovementRequest } from "../types";
 
 const BASE_URL = "/stock/movements";
 
@@ -17,5 +17,8 @@ export const stockMovementService = {
     if (filter.end_date) params.append("end_date", filter.end_date);
 
     return request.get<StockMovementResponse>(`${BASE_URL}?${params.toString()}`);
+  },
+  createMovement: async (data: CreateStockMovementRequest) => {
+    return request.post(BASE_URL, data);
   },
 };

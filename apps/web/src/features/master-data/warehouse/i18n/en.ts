@@ -44,8 +44,9 @@ export const warehouseEn = {
       title: "Cannot Delete Warehouse",
       description: "This warehouse still has active stock. All stock must be transferred to another warehouse before deleting.",
       hasStock: "Warehouse has {count} active stock item(s).",
-      transferFirst: "Please transfer all inventory to another warehouse first.",
+      transferFirst: "You must transfer the stock to another warehouse via the Stock Movement menu.",
       goToInventory: "Go to Inventory",
+      goToStockMovement: "Create Stock Movement",
       close: "Close",
     },
     sections: {

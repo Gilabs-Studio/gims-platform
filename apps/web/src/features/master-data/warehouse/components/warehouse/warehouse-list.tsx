@@ -41,12 +41,13 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { WarehouseDialog } from "./warehouse-dialog";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
+import { WarehouseDeleteBlockedDialog } from "./warehouse-delete-blocked-dialog";
 import { useWarehouseList } from "../../hooks/use-warehouse-list";
 import { Link } from "@/i18n/routing";
 
 export function WarehouseList() {
   const { state, actions, data, permissions, translations } = useWarehouseList();
-  const { t, tCommon } = translations;
+  const { t } = translations;
 
   if (data.isError) {
     return (
@@ -179,7 +180,15 @@ export function WarehouseList() {
 
                           {permissions.canDelete && (
                             <DropdownMenuItem
-                              onClick={() => actions.setDeleteId(item.id)}
+                              onClick={() => {
+                                console.log("Delete clicked for item:", item);
+                                console.log("has_stock:", item.has_stock);
+                                if (item.has_stock) {
+                                  actions.setBlockedDeleteId(item.id);
+                                } else {
+                                  actions.setDeleteId(item.id);
+                                }
+                              }}
                               className="cursor-pointer text-destructive focus:text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -243,49 +252,10 @@ export function WarehouseList() {
       )}
 
       {/* Blocked delete — warehouse still has stock */}
-      <Dialog
+      <WarehouseDeleteBlockedDialog
         open={!!state.blockedDeleteId}
-        onOpenChange={(open) => !open && actions.setBlockedDeleteId(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-base">{t("warehouse.deleteBlocked.title")}</DialogTitle>
-                <DialogDescription className="mt-1.5 text-sm leading-relaxed">
-                  {t("warehouse.deleteBlocked.description")}
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm">
-            <div className="flex items-center gap-2 font-medium text-destructive">
-              <ArrowRightLeft className="h-4 w-4 shrink-0" />
-              {t("warehouse.deleteBlocked.transferFirst")}
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => actions.setBlockedDeleteId(null)}
-              className="cursor-pointer"
-            >
-              {t("warehouse.deleteBlocked.close")}
-            </Button>
-            <Button asChild className="cursor-pointer">
-              <Link href="/stock/inventory">
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-                {t("warehouse.deleteBlocked.goToInventory")}
-              </Link>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(open: boolean) => !open && actions.setBlockedDeleteId(null)}
+      />
     </div>
   );
 }

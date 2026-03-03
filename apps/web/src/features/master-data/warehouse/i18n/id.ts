@@ -44,8 +44,9 @@ export const warehouseId = {
       title: "Gudang Tidak Dapat Dihapus",
       description: "Gudang ini masih memiliki stok aktif. Semua stok harus dipindahkan ke gudang lain sebelum menghapus.",
       hasStock: "Gudang memiliki {count} item stok aktif.",
-      transferFirst: "Harap pindahkan semua inventori ke gudang lain terlebih dahulu.",
+      transferFirst: "Anda harus memindahkan stok ke gudang lain melalui menu Stock Movement terlebih dahulu.",
       goToInventory: "Ke Inventori",
+      goToStockMovement: "Buat Stock Movement",
       close: "Tutup",
     },
     sections: {

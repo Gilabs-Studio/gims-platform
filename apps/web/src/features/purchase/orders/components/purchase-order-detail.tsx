@@ -555,7 +555,7 @@ export function PurchaseOrderDetail({
         <PurchaseOrderPrintDialog
           open={isPrintOpen}
           onClose={() => setIsPrintOpen(false)}
-          purchaseOrderId={purchaseOrderId}
+          orderId={purchaseOrderId}
         />
       )}
     </>
