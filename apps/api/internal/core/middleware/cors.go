@@ -65,6 +65,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		"X-RateLimit-Limit",
 		"X-RateLimit-Remaining",
 		"X-RateLimit-Reset",
+		"X-CSRF-Token",
 	}
 	// Set max age for preflight requests (24 hours)
 	config.MaxAge = 86400

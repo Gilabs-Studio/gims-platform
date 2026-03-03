@@ -74,9 +74,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Refresh Token
@@ -85,9 +85,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Map to Presentation DTO (Strict Mode: No tokens in JSON)
@@ -149,9 +149,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -159,9 +159,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Map to Presentation DTO
@@ -214,18 +214,18 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_refresh_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 	// Also clear CSRF token cookie
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -233,9 +233,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	response.SuccessResponseNoContent(c)

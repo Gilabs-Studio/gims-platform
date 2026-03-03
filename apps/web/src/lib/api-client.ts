@@ -12,12 +12,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 // Flag to track if we've validated rate limit state after app load
 let rateLimitValidated = false;
 
+// Memory cache for CSRF token to support cross-origin API calls
+let memoryCsrfToken: string | null = null;
+
 /**
- * Get CSRF token from cookie.
- * The csrf_token cookie is set by the API and is readable by JavaScript.
+ * Get CSRF token from memory or cookie.
+ * The csrf_token is exposed by the API via the X-CSRF-Token header.
  */
 function getCSRFToken(): string | null {
+  if (memoryCsrfToken) return memoryCsrfToken;
   if (typeof document === "undefined") return null;
+  // Fallback to cookie if same-origin scenario
   const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
@@ -94,6 +99,12 @@ interface ApiErrorResponse {
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
+    // Read and cache CSRF token from headers (vital for cross-origin setups)
+    const csrfHeader = response.headers["x-csrf-token"];
+    if (csrfHeader) {
+      memoryCsrfToken = csrfHeader;
+    }
+
     // Clear rate limit reset time on successful response
     const status = response.status;
     if (status !== 429) {
@@ -106,6 +117,14 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError<ApiErrorResponse>) => {
+    // Try to extract CSRF token even from error responses
+    if (error.response?.headers) {
+      const csrfHeader = error.response.headers["x-csrf-token"];
+      if (csrfHeader) {
+        memoryCsrfToken = csrfHeader;
+      }
+    }
+
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
