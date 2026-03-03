@@ -242,6 +242,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // GetCSRFToken ensures the client has a CSRF cookie (middleware handles setting it)
+// and returns the token value in the response body so cross-origin clients can
+// read it without relying on CORS header exposure (which can silently fail in
+// certain browser/CDN configurations).
 func (h *AuthHandler) GetCSRFToken(c *gin.Context) {
-	response.SuccessResponse(c, gin.H{"message": "CSRF token set"}, nil)
+	token, err := c.Cookie("gims_csrf_token")
+	if err != nil || token == "" {
+		// Middleware should have set it; if for some reason it didn't, return a
+		// generic message — the header still carries the token for same-origin.
+		response.SuccessResponse(c, gin.H{"message": "CSRF token set"}, nil)
+		return
+	}
+	response.SuccessResponse(c, gin.H{"csrf_token": token}, nil)
 }

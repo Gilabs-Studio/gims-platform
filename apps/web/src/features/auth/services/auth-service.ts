@@ -21,12 +21,18 @@ export const authService = {
    * document.cookie is inaccessible and microtask ordering is non-deterministic.
    */
   async prefetchCSRFToken(): Promise<string | null> {
-    const response = await apiClient.get("/auth/csrf");
+    const response = await apiClient.get<{
+      data: { csrf_token?: string; message?: string };
+    }>("/auth/csrf");
 
-    // Use typeof guard before calling .get() — AxiosHeaders.get is a method,
-    // but the type union also includes string/number constituents, so the bare
-    // optional-chaining call `headers.get?.(...)` produces TS2349.
-    const csrfHeader: string | null =
+    // Primary: read from response body — always accessible regardless of CORS
+    // header exposure policies or browser quirks in cross-origin environments.
+    // The backend GetCSRFToken handler now echoes the token in the JSON body.
+    const bodyToken: string | null =
+      response.data?.data?.csrf_token ?? null;
+
+    // Fallback: response header (works in same-origin / when properly exposed)
+    const headerToken: string | null =
       (typeof response.headers.get === "function"
         ? (response.headers.get("x-csrf-token") as string | null)
         : null) ??
@@ -34,13 +40,15 @@ export const authService = {
       (response.headers["X-CSRF-Token"] as string | undefined) ??
       null;
 
-    // Always sync the global memory cache as well (used by interceptor for
-    // all other POST/PUT/PATCH/DELETE requests outside of the login flow).
-    if (csrfHeader) {
-      setCSRFTokenMemory(csrfHeader);
+    const csrfToken = bodyToken ?? headerToken;
+
+    // Sync the global memory cache so all other interceptor-based requests
+    // (PUT, PATCH, DELETE, etc.) also carry the correct token.
+    if (csrfToken) {
+      setCSRFTokenMemory(csrfToken);
     }
 
-    return csrfHeader;
+    return csrfToken;
   },
 
   /**
