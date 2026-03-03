@@ -182,7 +182,7 @@ docker-compose up --build
 ```bash
 cd apps/api
 docker build -t gims-api .
-docker run -p 8080:8080 gims-api
+docker run -p 8087:8087 gims-api
 ```
 
 ## API Endpoints
