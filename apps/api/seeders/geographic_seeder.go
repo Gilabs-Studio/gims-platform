@@ -89,7 +89,7 @@ func SeedGeographic() error {
 		return err
 	}
 	if err := db.Where("code = ?", "ID").First(&indonesia).Error; err != nil {
-		return err
+		log.Printf("Skipping geographic_seeder.go due to missing dependency: %v", err); return nil
 	}
 
 	// Parse village-level GeoJSON
