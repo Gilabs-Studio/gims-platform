@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { isAxiosError } from "axios";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -62,26 +61,26 @@ export function useWarehouseList() {
     setDetailOpen(true);
   };
 
-  const handleDelete = async () => {
-    // Capture immediately so the value is stable even after async state changes
+  const handleDelete = () => {
+    if (!deleteId) return;
     const idToDelete = deleteId;
-    if (!idToDelete) return;
-    try {
-      await deleteMutation.mutateAsync(idToDelete);
-      toast.success(t("warehouse.deleteSuccess"));
-      setDeleteId(null);
-    } catch (error: unknown) {
-      // BE returns 422 WAREHOUSE_HAS_STOCK when inventory still exists
-      const code = isAxiosError(error)
-        ? error.response?.data?.error?.code
-        : undefined;
-      if (code === "WAREHOUSE_HAS_STOCK") {
-        setDeleteId(null);
-        setBlockedDeleteId(idToDelete);
-      } else {
-        toast.error(t("warehouse.deleteError"));
-      }
-    }
+    // Close the confirm dialog immediately before mutation settles
+    setDeleteId(null);
+    deleteMutation.mutate(idToDelete, {
+      onSuccess: () => {
+        toast.success(t("deleteSuccess"));
+      },
+      onError: (error: unknown) => {
+        // BE returns 422 WAREHOUSE_HAS_STOCK when inventory still exists
+        const code = (error as { response?: { data?: { error?: { code?: string } } } })
+          ?.response?.data?.error?.code;
+        if (code === "WAREHOUSE_HAS_STOCK") {
+          setBlockedDeleteId(idToDelete);
+        } else {
+          toast.error(t("deleteError"));
+        }
+      },
+    });
   };
 
   const handleDialogClose = () => {

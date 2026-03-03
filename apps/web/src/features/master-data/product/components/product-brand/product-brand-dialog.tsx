@@ -19,12 +19,14 @@ export interface ProductBrandDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductBrand | null;
+  onCreated?: (id: string) => void;
 }
 
 export function ProductBrandDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: ProductBrandDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function ProductBrandDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useProductBrandForm({ open, onOpenChange, editingItem });
+  } = useProductBrandForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function ProductBrandDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

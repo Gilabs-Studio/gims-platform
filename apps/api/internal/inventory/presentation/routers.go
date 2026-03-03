@@ -33,7 +33,7 @@ func RegisterRoutes(
 
 	// Handlers
 	inventoryHandler := handler.NewInventoryHandler(inventoryUsecase)
-	stockMovementHandler := NewStockMovementHandler(stockMovementUsecase)
+	stockMovementHandler := NewStockMovementHandler(stockMovementUsecase, inventoryUsecase)
 
 	// Routes
 	stock := v1.Group("/stock")
@@ -50,6 +50,7 @@ func RegisterRoutes(
 		stock.GET("/tree/batches", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeBatches)
 
 		// Movement Routes
-		stock.GET("/movements", middleware.PermissionMiddleware("inventory.read"), stockMovementHandler.GetMovements)
+		stock.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
+		stock.POST("/movements", middleware.PermissionMiddleware("stock_movement.create"), stockMovementHandler.CreateMovement)
 	}
 }

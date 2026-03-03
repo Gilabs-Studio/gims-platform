@@ -55,11 +55,12 @@ func (r *warehouseRepository) Create(ctx context.Context, warehouse *models.Ware
 func (r *warehouseRepository) GetByID(ctx context.Context, id string) (*models.Warehouse, error) {
 	var warehouse models.Warehouse
 	err := r.db.WithContext(ctx).
+		Select("warehouses.*, EXISTS(SELECT 1 FROM inventory_batches WHERE warehouse_id = warehouses.id AND current_quantity > 0 AND deleted_at IS NULL) AS has_stock").
 		Preload("Province").
 		Preload("City").
 		Preload("District").
 		Preload("Village.District.City.Province").
-		First(&warehouse, "id = ?", id).Error
+		First(&warehouse, "warehouses.id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,8 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 	var warehouses []*models.Warehouse
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Warehouse{})
+	query := r.db.WithContext(ctx).Model(&models.Warehouse{}).
+		Select("warehouses.*, EXISTS(SELECT 1 FROM inventory_batches WHERE warehouse_id = warehouses.id AND current_quantity > 0 AND deleted_at IS NULL) AS has_stock")
 
 	// Apply filters
 	if params.Search != "" {

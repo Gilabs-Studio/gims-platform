@@ -61,3 +61,13 @@ export interface StockMovementResponse {
     pagination: PaginationMeta;
   };
 }
+
+export interface CreateStockMovementRequest {
+  type: StockMovementType;
+  product_id: string;
+  warehouse_id: string;
+  target_warehouse_id?: string;
+  quantity: number;
+  reference_number?: string;
+  description?: string;
+}

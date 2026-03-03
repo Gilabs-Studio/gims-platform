@@ -268,7 +268,7 @@ export function GeoPerformanceMap({ className }: GeoPerformanceMapProps) {
 
     // Group features by selected aggregation level property
     // Level -> GeoJSON property mapping: province -> WADMPR, city -> WADMKK, district -> WADMKC
-    const keyProp = level === "city" ? "WADMKK" : level === "district" ? "WADMKC" : "WADMPR";
+    const keyProp: string = level === "city" ? "WADMKK" : "WADMPR";
 
     const normalizeName = (n?: string) =>
       String(n ?? "")
@@ -307,7 +307,7 @@ export function GeoPerformanceMap({ className }: GeoPerformanceMapProps) {
 
     if (!features.length) return null;
     return { type: "FeatureCollection", features };
-  }, [allFeatures, areaLookup]);
+  }, [allFeatures, areaLookup, level]);
 
   // Determine active tile layer
   const activeTile = useMemo(() => {

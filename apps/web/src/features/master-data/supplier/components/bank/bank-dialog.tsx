@@ -47,7 +47,7 @@ export function BankDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEditing ? t("editTitle") : t("createTitle")}</DialogTitle>
         </DialogHeader>

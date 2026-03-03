@@ -22,9 +22,10 @@ export interface UseProcurementTypeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProcurementType | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useProcurementTypeForm({ open, onOpenChange, editingItem }: UseProcurementTypeFormProps) {
+export function useProcurementTypeForm({ open, onOpenChange, editingItem, onCreated }: UseProcurementTypeFormProps) {
   const t = useTranslations("product.procurementType");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -75,12 +76,15 @@ export function useProcurementTypeForm({ open, onOpenChange, editingItem }: UseP
         });
         toast.success(t("updated", { fallback: "Procurement Type updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Procurement Type created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

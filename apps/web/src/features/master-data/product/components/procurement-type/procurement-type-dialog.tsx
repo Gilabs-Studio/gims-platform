@@ -19,12 +19,14 @@ export interface ProcurementTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProcurementType | null;
+  onCreated?: (id: string) => void;
 }
 
 export function ProcurementTypeDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: ProcurementTypeDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function ProcurementTypeDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useProcurementTypeForm({ open, onOpenChange, editingItem });
+  } = useProcurementTypeForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function ProcurementTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

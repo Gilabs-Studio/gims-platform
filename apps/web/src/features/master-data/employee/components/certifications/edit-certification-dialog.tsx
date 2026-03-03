@@ -55,7 +55,10 @@ export function EditCertificationDialog({
   const [certificateFile, setCertificateFile] = useState("");
   const [description, setDescription] = useState("");
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (certification && open) {
       setCertificateName(certification.certificate_name ?? "");
       setIssuedBy(certification.issued_by ?? "");
@@ -75,7 +78,7 @@ export function EditCertificationDialog({
       setCertificateFile(certification.certificate_file ?? "");
       setDescription(certification.description ?? "");
     }
-  }, [certification, open]);
+  }
 
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -244,7 +247,7 @@ export function EditCertificationDialog({
             <Label>{t("certification.fields.certificateFile")}</Label>
             <FileUpload
               value={certificateFile}
-              onChange={setCertificateFile}
+              onChange={(url) => setCertificateFile(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
             />
           </div>

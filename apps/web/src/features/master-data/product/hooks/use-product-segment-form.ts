@@ -22,9 +22,10 @@ export interface UseProductSegmentFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductSegment | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useProductSegmentForm({ open, onOpenChange, editingItem }: UseProductSegmentFormProps) {
+export function useProductSegmentForm({ open, onOpenChange, editingItem, onCreated }: UseProductSegmentFormProps) {
   const t = useTranslations("product.productSegment");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -75,12 +76,15 @@ export function useProductSegmentForm({ open, onOpenChange, editingItem }: UsePr
         });
         toast.success(t("updated", { fallback: "Product Segment updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Product Segment created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

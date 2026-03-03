@@ -19,12 +19,14 @@ export interface UnitOfMeasureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: UnitOfMeasure | null;
+  onCreated?: (id: string) => void;
 }
 
 export function UnitOfMeasureDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: UnitOfMeasureDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function UnitOfMeasureDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useUnitOfMeasureForm({ open, onOpenChange, editingItem });
+  } = useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function UnitOfMeasureDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

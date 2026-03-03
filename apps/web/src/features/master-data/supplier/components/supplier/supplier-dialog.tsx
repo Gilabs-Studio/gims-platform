@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
+import { SupplierTypeDialog } from "../supplier-type/supplier-type-dialog";
 import { Loader2 } from "lucide-react";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
@@ -55,6 +57,11 @@ export function SupplierDialog({
     isLoadingDetail,
     activeItem,
     supplierTypes,
+    isQuickCreateOpen,
+    quickCreateQuery,
+    openQuickCreate,
+    closeQuickCreate,
+    handleSupplierTypeCreated,
     onSubmit,
   } = useSupplierForm({ open, onOpenChange, editingItem, onCreated });
 
@@ -98,7 +105,7 @@ export function SupplierDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? t("editTitle") : t("createTitle")}</DialogTitle>
         </DialogHeader>
@@ -126,21 +133,15 @@ export function SupplierDialog({
 
                     <Field>
                       <FieldLabel>{t("form.supplierType")}</FieldLabel>
-                      <Select
-                        value={supplierTypeId}
-                        onValueChange={(val) => setValue("supplier_type_id", val, { shouldValidate: true })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("form.supplierTypePlaceholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {supplierTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <CreatableCombobox
+                        value={supplierTypeId ?? ""}
+                        onValueChange={(val) => setValue("supplier_type_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                        options={supplierTypes.map(t => ({ value: t.id, label: t.name }))}
+                        placeholder={t("form.supplierTypePlaceholder")}
+                        createPermission="supplier_type.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={(q) => openQuickCreate(q)}
+                      />
                       {errors.supplier_type_id && <FieldError>{errors.supplier_type_id.message}</FieldError>}
                     </Field>
 
@@ -258,6 +259,14 @@ export function SupplierDialog({
           </form>
         )}
       </DialogContent>
+
+      <SupplierTypeDialog
+        open={isQuickCreateOpen}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        initialName={quickCreateQuery}
+        onSuccess={handleSupplierTypeCreated}
+      />
     </Dialog>
   );
 }

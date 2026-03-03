@@ -56,6 +56,7 @@ type WarehouseResponse struct {
 	Latitude    *float64                `json:"latitude,omitempty"`
 	Longitude   *float64                `json:"longitude,omitempty"`
 	IsActive    bool                    `json:"is_active"`
+	HasStock    bool                    `json:"has_stock"`
 	CreatedAt   string                  `json:"created_at"`
 	UpdatedAt   string                  `json:"updated_at"`
 }

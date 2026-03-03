@@ -22,9 +22,10 @@ export interface UseProductBrandFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductBrand | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useProductBrandForm({ open, onOpenChange, editingItem }: UseProductBrandFormProps) {
+export function useProductBrandForm({ open, onOpenChange, editingItem, onCreated }: UseProductBrandFormProps) {
   const t = useTranslations("product.productBrand");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -75,12 +76,15 @@ export function useProductBrandForm({ open, onOpenChange, editingItem }: UseProd
         });
         toast.success(t("updated", { fallback: "Product Brand updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Product Brand created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

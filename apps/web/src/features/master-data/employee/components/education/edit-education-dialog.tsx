@@ -80,7 +80,10 @@ export function EditEducationDialog({
       e.id !== education?.id && !e.end_date && !e.is_completed,
   );
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open && education) {
       setInstitution(education.institution);
       setDegree(education.degree);
@@ -95,7 +98,7 @@ export function EditEducationDialog({
       setDescription(education.description ?? "");
       setDocumentPath(education.document_path ?? "");
     }
-  }, [open, education]);
+  }
 
   const handleGpaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -319,7 +322,7 @@ export function EditEducationDialog({
             <Label>{t("education.fields.document")}</Label>
             <FileUpload
               value={documentPath}
-              onChange={setDocumentPath}
+              onChange={(url) => setDocumentPath(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               uploadEndpoint="/upload/document"
             />

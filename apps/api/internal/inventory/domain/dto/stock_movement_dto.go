@@ -25,3 +25,13 @@ type StockMovementRequest struct {
 	CreatedBy        *string `json:"created_by"`
 }
 
+type CreateManualMovementRequest struct {
+	ProductID        string  `json:"product_id" binding:"required,uuid"`
+	WarehouseID      string  `json:"warehouse_id" binding:"required,uuid"`
+	TargetWarehouseID *string `json:"target_warehouse_id"` // required for TRANSFER, handled in usecase
+	Type             string  `json:"type" binding:"required,oneof=IN OUT ADJUST TRANSFER"`
+	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
+	ReferenceNumber  string  `json:"reference_number"`
+	Description      string  `json:"description"`
+	CreatedBy        string  `json:"-"`
+}

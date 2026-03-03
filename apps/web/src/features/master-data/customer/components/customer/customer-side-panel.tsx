@@ -20,9 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
 import { LocationPicker } from "../../../geographic/components/location-picker";
+import { CustomerTypeDialog } from "../customer-type/customer-type-dialog";
+import { BusinessTypeForm } from "../../../organization/components/business-type/business-type-form";
+import { AreaForm } from "../../../organization/components/area/area-form";
+import { EmployeeForm } from "../../../employee/components/employee-form";
+import { PaymentTermsDialog } from "../../../payment-and-couriers/payment-terms/components/payment-terms-dialog";
 
 import {
   useCreateCustomer,
@@ -60,6 +66,26 @@ export function CustomerSidePanel({
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const [activeTab, setActiveTab] = useState("details");
+
+  type QuickCreateType = "customerType" | "businessType" | "area" | "employee" | "paymentTerm" | null;
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; query: string }>({ type: null, query: "" });
+
+  const openQuickCreate = (type: QuickCreateType, query: string) => {
+    setQuickCreate({ type, query });
+  };
+
+  const closeQuickCreate = () => {
+    setQuickCreate({ type: null, query: "" });
+  };
+
+
+
+
+
+  const handlePaymentTermCreated = (id: string) => {
+    setValue("default_payment_terms_id", id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    closeQuickCreate();
+  };
 
   const {
     register,
@@ -297,22 +323,19 @@ export function CustomerSidePanel({
                   control={control}
                   name="customer_type_id"
                   render={({ field }) => (
-                    <Select
+                    <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
                       disabled={isViewing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("customer.form.customerTypePlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customerTypes.map((ct) => (
-                          <SelectItem key={ct.id} value={ct.id}>
-                            {ct.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={customerTypes.map((ct) => ({
+                        value: ct.id,
+                        label: ct.name,
+                      }))}
+                      placeholder={t("customer.form.customerTypePlaceholder")}
+                      createPermission="customer_type.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("customerType", q)}
+                    />
                   )}
                 />
               </Field>
@@ -429,22 +452,19 @@ export function CustomerSidePanel({
                 control={control}
                 name="default_business_type_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                     disabled={isViewing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("customer.form.defaultBusinessTypePlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {businessTypes.map((bt) => (
-                        <SelectItem key={bt.id} value={bt.id}>
-                          {bt.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={businessTypes.map((bt) => ({
+                      value: bt.id,
+                      label: bt.name,
+                    }))}
+                    placeholder={t("customer.form.defaultBusinessTypePlaceholder")}
+                    createPermission="business_type.create"
+                    createLabel={`${t("common.create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("businessType", q)}
+                  />
                 )}
               />
             </Field>
@@ -455,22 +475,19 @@ export function CustomerSidePanel({
                 control={control}
                 name="default_area_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                     disabled={isViewing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("customer.form.defaultAreaPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map((area) => (
-                        <SelectItem key={area.id} value={area.id}>
-                          {area.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={areas.map((area) => ({
+                      value: area.id,
+                      label: area.name,
+                    }))}
+                    placeholder={t("customer.form.defaultAreaPlaceholder")}
+                    createPermission="area.create"
+                    createLabel={`${t("common.create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("area", q)}
+                  />
                 )}
               />
             </Field>
@@ -481,22 +498,19 @@ export function CustomerSidePanel({
                 control={control}
                 name="default_sales_rep_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                     disabled={isViewing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("customer.form.defaultSalesRepPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {salesReps.map((rep) => (
-                        <SelectItem key={rep.id} value={rep.id}>
-                          {rep.name} ({rep.employee_code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={salesReps.map((rep) => ({
+                      value: rep.id,
+                      label: `${rep.name} (${rep.employee_code})`,
+                    }))}
+                    placeholder={t("customer.form.defaultSalesRepPlaceholder")}
+                    createPermission="employee.create"
+                    createLabel={`${t("common.create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("employee", q)}
+                  />
                 )}
               />
             </Field>
@@ -507,22 +521,19 @@ export function CustomerSidePanel({
                 control={control}
                 name="default_payment_terms_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                     disabled={isViewing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("customer.form.defaultPaymentTermsPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paymentTermsList.map((pt) => (
-                        <SelectItem key={pt.id} value={pt.id}>
-                          {pt.name} ({pt.days} days)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={paymentTermsList.map((pt) => ({
+                      value: pt.id,
+                      label: `${pt.name} (${pt.days} days)`,
+                    }))}
+                    placeholder={t("customer.form.defaultPaymentTermsPlaceholder")}
+                    createPermission="payment_term.create"
+                    createLabel={`${t("common.create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("paymentTerm", q)}
+                  />
                 )}
               />
             </Field>
@@ -589,6 +600,33 @@ export function CustomerSidePanel({
             </div>
           )}
         </form>
+
+      <CustomerTypeDialog
+        open={quickCreate.type === "customerType"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+      />
+      
+      <BusinessTypeForm
+        open={quickCreate.type === "businessType"}
+        onClose={closeQuickCreate}
+      />
+      
+      <AreaForm
+        open={quickCreate.type === "area"}
+        onClose={closeQuickCreate}
+      />
+      
+      <EmployeeForm
+        open={quickCreate.type === "employee"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+      />
+      
+      <PaymentTermsDialog
+        open={quickCreate.type === "paymentTerm"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        onCreated={(item) => handlePaymentTermCreated(item.id)}
+      />
       </Drawer>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { formatWhatsAppLink } from "@/lib/utils";
 import { toast } from "sonner";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -190,8 +191,10 @@ export function SupplierPhoneList({
                 <TableRow key={index}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <Phone className="h-3 w-3 text-muted-foreground" />
-                      {phone.phone_number}
+                      <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <a href={formatWhatsAppLink(phone.phone_number)} target="_blank" rel="noreferrer" className="text-primary hover:underline cursor-pointer">
+                        {phone.phone_number}
+                      </a>
                     </div>
                   </TableCell>
                   <TableCell>{phone.label || "-"}</TableCell>

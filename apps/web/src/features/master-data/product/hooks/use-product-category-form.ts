@@ -27,9 +27,10 @@ export interface UseProductCategoryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductCategory | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useProductCategoryForm({ open, onOpenChange, editingItem }: UseProductCategoryFormProps) {
+export function useProductCategoryForm({ open, onOpenChange, editingItem, onCreated }: UseProductCategoryFormProps) {
   const t = useTranslations("product.productCategory");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -95,13 +96,16 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem }: UseP
         });
         toast.success(t("updated", { fallback: "Product Category updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           parent_id: data.parent_id || null,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Product Category created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

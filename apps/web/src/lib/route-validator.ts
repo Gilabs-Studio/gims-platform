@@ -47,6 +47,7 @@ const VALID_DASHBOARD_ROUTES = [
   // Stock routes
   "/stock/inventory",
   "/stock/movements",
+  "/stock/movements/create",
   "/stock/opname",
   // Finance routes
   "/finance/coa",
