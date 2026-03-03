@@ -16,10 +16,30 @@ let rateLimitValidated = false;
 let memoryCsrfToken: string | null = null;
 
 /**
+ * Robustly extract CSRF token from axios headers object.
+ * Axios headers can sometimes be an AxiosHeaders object or a plain object,
+ * and standardizing extraction helps avoid case sensitivity bugs.
+ */
+function extractCsrfFromHeaders(headers: any): string | null {
+  if (!headers) return null;
+  // Try exact match
+  if (headers["x-csrf-token"]) return headers["x-csrf-token"];
+  if (headers["X-CSRF-Token"]) return headers["X-CSRF-Token"];
+  
+  // Try iterating to find case-insensitive match (for some raw setups)
+  for (const key in headers) {
+    if (key.toLowerCase() === "x-csrf-token") {
+      return headers[key];
+    }
+  }
+  return null;
+}
+
+/**
  * Get CSRF token from memory or cookie.
  * The csrf_token is exposed by the API via the X-CSRF-Token header.
  */
-function getCSRFToken(): string | null {
+export function getCSRFToken(): string | null {
   if (memoryCsrfToken) return memoryCsrfToken;
   if (typeof document === "undefined") return null;
   // Fallback to cookie if same-origin scenario
@@ -100,7 +120,7 @@ interface ApiErrorResponse {
 apiClient.interceptors.response.use(
   (response) => {
     // Read and cache CSRF token from headers (vital for cross-origin setups)
-    const csrfHeader = response.headers["x-csrf-token"] || response.headers["X-CSRF-Token"];
+    const csrfHeader = extractCsrfFromHeaders(response.headers);
     if (csrfHeader) {
       memoryCsrfToken = csrfHeader;
     }
@@ -119,7 +139,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError<ApiErrorResponse>) => {
     // Try to extract CSRF token even from error responses
     if (error.response?.headers) {
-      const csrfHeader = error.response.headers["x-csrf-token"] || error.response.headers["X-CSRF-Token"];
+      const csrfHeader = extractCsrfFromHeaders(error.response.headers);
       if (csrfHeader) {
         memoryCsrfToken = csrfHeader;
       }
@@ -332,7 +352,7 @@ apiClient.interceptors.response.use(
           }>("/auth/refresh-token", {}, { headers })
           .then((refreshResponse) => {
             // Read and cache CSRF token from headers even during refresh
-            const refreshCsrfHeader = refreshResponse.headers["x-csrf-token"] || refreshResponse.headers["X-CSRF-Token"];
+            const refreshCsrfHeader = extractCsrfFromHeaders(refreshResponse.headers);
             if (refreshCsrfHeader) {
               memoryCsrfToken = refreshCsrfHeader;
             }
