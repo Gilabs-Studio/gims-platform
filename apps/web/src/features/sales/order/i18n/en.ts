@@ -183,7 +183,6 @@ export const orderEn = {
     cancellationReason: "Cancellation Reason",
 
     // Print
-    print: "Print",
     printOrder: "Print Sales Order",
     printSelectCompany: "Select the company to display on the document.",
     printCompanyLabel: "Company",

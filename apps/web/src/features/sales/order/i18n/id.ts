@@ -183,7 +183,6 @@ export const orderId = {
     cancellationReason: "Alasan Pembatalan",
 
     // Print
-    print: "Cetak",
     printOrder: "Cetak Sales Order",
     printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
     printCompanyLabel: "Perusahaan",
