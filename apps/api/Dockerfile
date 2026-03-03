@@ -22,8 +22,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -o server ./cmd/api/main.go
 # Final stage
 FROM alpine:latest
 
-# Install runtime dependencies for libwebp
-RUN apk --no-cache add ca-certificates libwebp
+# Install runtime dependencies for libwebp and timezones
+RUN apk --no-cache add ca-certificates libwebp tzdata
 
 WORKDIR /root/
 
