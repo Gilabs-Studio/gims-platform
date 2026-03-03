@@ -14,13 +14,15 @@ export const authService = {
    * in-memory value is updated synchronously within the same microtask, with
    * no dynamic-import async boundary that could defer the assignment.
    */
-  async prefetchCSRFToken(): Promise<void> {
+  /**
+   * Returns the CSRF token string so callers can inject it explicitly into
+   * the immediately-following POST, bypassing the module-level memory cache.
+   * This is the only truly reliable approach in cross-origin environments where
+   * document.cookie is inaccessible and microtask ordering is non-deterministic.
+   */
+  async prefetchCSRFToken(): Promise<string | null> {
     const response = await apiClient.get("/auth/csrf");
 
-    // Use .get() for AxiosHeaders (Axios v1+) with case-insensitive fallback.
-    // The response interceptor already sets memoryCsrfToken, but we repeat it
-    // here via the static import to guarantee synchronous visibility before
-    // this Promise resolves (no additional microtask delay).
     // Use typeof guard before calling .get() — AxiosHeaders.get is a method,
     // but the type union also includes string/number constituents, so the bare
     // optional-chaining call `headers.get?.(...)` produces TS2349.
@@ -32,15 +34,33 @@ export const authService = {
       (response.headers["X-CSRF-Token"] as string | undefined) ??
       null;
 
+    // Always sync the global memory cache as well (used by interceptor for
+    // all other POST/PUT/PATCH/DELETE requests outside of the login flow).
     if (csrfHeader) {
       setCSRFTokenMemory(csrfHeader);
     }
+
+    return csrfHeader;
   },
 
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
+  /**
+   * Perform the login POST.
+   *
+   * @param csrfToken - Token returned by prefetchCSRFToken(). When provided it
+   *   is injected directly as a per-request header, guaranteeing the
+   *   Double-Submit Cookie pair even if the global memoryCsrfToken cache is
+   *   stale or null (cross-origin environments, page reload, etc.).
+   */
+  async login(
+    credentials: LoginRequest,
+    csrfToken?: string | null,
+  ): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(
       "/auth/login",
       credentials,
+      // Explicit header takes precedence over (and is redundant with) the
+      // interceptor, but provides a guaranteed second line of defence.
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
     );
     return response.data;
   },

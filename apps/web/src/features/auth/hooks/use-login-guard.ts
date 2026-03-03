@@ -54,15 +54,16 @@ export function useLoginGuard() {
     try {
       const { authService } = await import("../services/auth-service");
 
-      // Fetch CSRF token FIRST (sequential GET), so the subsequent POST
-      // /auth/refresh-token has a matching X-CSRF-Token header via the
-      // request interceptor. Without this, if useLogin's fire-and-forget GET
-      // races with this POST, two different CSRF tokens are generated and the
-      // login POST later fails with 403 CSRF_INVALID in cross-origin staging.
+      // Fetch CSRF token FIRST (sequential GET) so the subsequent POST uses
+      // the same token. prefetchCSRFToken now returns the token string; we
+      // discard it here because the module-level memoryCsrfToken is sufficient
+      // for the /auth/refresh-token probe (the token is only critical for the
+      // /auth/login POST, handled explicitly in handleLogin).
       try {
         await authService.prefetchCSRFToken();
       } catch {
-        // Ignore CSRF prefetch errors — getMe() will surface any real failure.
+        // Non-fatal: the getMe() POST may still carry the cookie and the
+        // interceptor will attach whatever token it has from memory.
       }
 
       const response = await authService.getMe();

@@ -30,13 +30,17 @@ export function useLogin() {
     setIsLoading(true);
     setError(null);
     try {
-      // Ensure CSRF token is set
-      await authService.prefetchCSRFToken();
+      // Fetch a fresh CSRF token and pass it explicitly to the login call.
+      // Using the return value (not the memoryCsrfToken cache) is the only
+      // reliable approach in cross-origin staging/production where
+      // document.cookie is inaccessible and module state can be null after
+      // navigation or a JS-engine microtask reorder.
+      const csrfToken = await authService.prefetchCSRFToken();
 
-      const response = await authService.login({
-        email: data.email,
-        password: data.password,
-      });
+      const response = await authService.login(
+        { email: data.email, password: data.password },
+        csrfToken,
+      );
 
       if (response.success && response.data) {
         const { user } = response.data;
