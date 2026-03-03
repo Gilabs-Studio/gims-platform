@@ -121,7 +121,6 @@ export const invoiceId = {
     paymentRecorded: "Pembayaran berhasil dicatat",
     deleteDesc: "Apakah Anda yakin ingin menghapus faktur ini? Tindakan ini tidak dapat dibatalkan. Hanya faktur yang belum dibayar yang dapat dihapus.",
     recordPayment: "Catat Pembayaran",
-    print: "Cetak",
     export: "Ekspor PDF",
     overdue: "Jatuh Tempo",
     daysOverdue: "hari melewati jatuh tempo",

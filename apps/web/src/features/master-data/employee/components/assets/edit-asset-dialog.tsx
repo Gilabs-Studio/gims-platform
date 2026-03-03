@@ -68,7 +68,10 @@ export function EditAssetDialog({
   const [assetImage, setAssetImage] = useState("");
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (asset && open) {
       setAssetName(asset.asset_name ?? "");
       setAssetCode(asset.asset_code ?? "");
@@ -80,7 +83,7 @@ export function EditAssetDialog({
       setAssetImage(asset.asset_image ?? "");
       setNotes(asset.notes ?? "");
     }
-  }, [asset, open]);
+  }
 
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -209,7 +212,7 @@ export function EditAssetDialog({
             <Label>{t("asset.fields.assetImage")}</Label>
             <FileUpload
               value={assetImage}
-              onChange={setAssetImage}
+              onChange={(url) => setAssetImage(url ?? "")}
               accept=".jpg,.jpeg,.png,.webp"
               uploadEndpoint="/upload/image"
             />

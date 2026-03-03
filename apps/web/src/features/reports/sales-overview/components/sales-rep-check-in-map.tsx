@@ -34,8 +34,6 @@ const Polyline = dynamic(
 );
 import { useMap } from "react-leaflet";
 
-// @ts-expect-error -- leaflet CSS import has no type declarations
-import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";

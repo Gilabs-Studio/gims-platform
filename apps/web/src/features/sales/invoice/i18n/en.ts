@@ -121,7 +121,6 @@ export const invoiceEn = {
     paymentRecorded: "Payment recorded successfully",
     deleteDesc: "Are you sure you want to delete this invoice? This action cannot be undone. Only unpaid invoices can be deleted.",
     recordPayment: "Record Payment",
-    print: "Print",
     export: "Export PDF",
     overdue: "Overdue",
     daysOverdue: "days overdue",

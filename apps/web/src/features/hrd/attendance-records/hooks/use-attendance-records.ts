@@ -70,7 +70,7 @@ export function useMyMonthlyStats(params?: { month?: number; year?: number }) {
 
 export function useMyAttendanceHistory(params?: ListAttendanceRecordsParams) {
   return useQuery({
-    queryKey: attendanceKeys.myHistory(params),
+    queryKey: attendanceKeys.myHistory(params as unknown as Record<string, unknown>),
     queryFn: () => attendanceRecordService.getMyAttendanceHistory(params),
     staleTime: 1000 * 60 * 2,
   });
