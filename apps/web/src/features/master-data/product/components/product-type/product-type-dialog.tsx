@@ -19,12 +19,14 @@ export interface ProductTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductType | null;
+  onCreated?: (id: string) => void;
 }
 
 export function ProductTypeDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: ProductTypeDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function ProductTypeDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useProductTypeForm({ open, onOpenChange, editingItem });
+  } = useProductTypeForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function ProductTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

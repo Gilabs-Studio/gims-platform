@@ -150,7 +150,7 @@ export function ProductDetailDialog({
               <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.code}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {product.is_active ? (
-                  <Badge variant="active" className="h-5 text-[10px]">
+                  <Badge variant="default" className="h-5 text-[10px]">
                     {tCommon("active")}
                   </Badge>
                 ) : (
