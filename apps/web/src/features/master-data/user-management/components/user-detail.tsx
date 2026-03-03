@@ -164,7 +164,18 @@ export function UserDetail({ userId }: UserDetailProps) {
                 <Mail className="h-4 w-4" />
                 <span>{t("userInfo.email")}</span>
               </div>
-              <div className="text-base font-medium">{user.email}</div>
+              <div className="text-base font-medium">
+                {user.email ? (
+                  <a
+                    href={`mailto:${user.email}`}
+                    className="text-primary hover:underline cursor-pointer"
+                  >
+                    {user.email}
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">

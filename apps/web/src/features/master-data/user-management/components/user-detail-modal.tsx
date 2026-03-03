@@ -60,7 +60,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("title")}</DialogTitle>
           </DialogHeader>
@@ -151,7 +151,18 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                         <Mail className="h-4 w-4" />
                         <span>{t("userInfo.email")}</span>
                       </div>
-                      <div className="text-base font-medium">{user.email}</div>
+                      <div className="text-base font-medium">
+                        {user.email ? (
+                          <a
+                            href={`mailto:${user.email}`}
+                            className="text-primary hover:underline cursor-pointer"
+                          >
+                            {user.email}
+                          </a>
+                        ) : (
+                          "-"
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -273,7 +284,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
       {/* Edit Dialog */}
       {isEditDialogOpen && user && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("editDialogTitle")}</DialogTitle>
             </DialogHeader>
