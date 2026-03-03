@@ -1,19 +1,38 @@
-import apiClient from "@/lib/api-client";
-import type { LoginRequest, LoginResponse, MenusResponse } from "../types";
+import apiClient, { setCSRFTokenMemory } from "@/lib/api-client";
+import type { LoginRequest, LoginResponse } from "../types";
 
 export const authService = {
   /**
    * Prefetch CSRF token from the API.
-   * This sets the csrf_token cookie for use in subsequent requests.
+   *
+   * Performs a GET /auth/csrf which causes the backend CSRF middleware to:
+   *  1. Generate/reuse the gims_csrf_token cookie (SameSite=None; Secure)
+   *  2. Echo the token in the X-CSRF-Token response header
+   *
+   * The response interceptor in api-client already captures the header into
+   * memoryCsrfToken. We mirror it here via the static import to ensure the
+   * in-memory value is updated synchronously within the same microtask, with
+   * no dynamic-import async boundary that could defer the assignment.
    */
   async prefetchCSRFToken(): Promise<void> {
     const response = await apiClient.get("/auth/csrf");
-    
-    // Explicitly cache token here just in case interceptor has race conditions
-    // The interceptor also does this, but doing it here guarantees it before the Promise resolves
-    const csrfHeader = response.headers["x-csrf-token"] || response.headers["X-CSRF-Token"];
+
+    // Use .get() for AxiosHeaders (Axios v1+) with case-insensitive fallback.
+    // The response interceptor already sets memoryCsrfToken, but we repeat it
+    // here via the static import to guarantee synchronous visibility before
+    // this Promise resolves (no additional microtask delay).
+    // Use typeof guard before calling .get() — AxiosHeaders.get is a method,
+    // but the type union also includes string/number constituents, so the bare
+    // optional-chaining call `headers.get?.(...)` produces TS2349.
+    const csrfHeader: string | null =
+      (typeof response.headers.get === "function"
+        ? (response.headers.get("x-csrf-token") as string | null)
+        : null) ??
+      (response.headers["x-csrf-token"] as string | undefined) ??
+      (response.headers["X-CSRF-Token"] as string | undefined) ??
+      null;
+
     if (csrfHeader) {
-      const { setCSRFTokenMemory } = await import("@/lib/api-client");
       setCSRFTokenMemory(csrfHeader);
     }
   },

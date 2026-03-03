@@ -53,6 +53,18 @@ export function useLoginGuard() {
     // ALWAYS verify session with backend - we cannot check HttpOnly cookies
     try {
       const { authService } = await import("../services/auth-service");
+
+      // Fetch CSRF token FIRST (sequential GET), so the subsequent POST
+      // /auth/refresh-token has a matching X-CSRF-Token header via the
+      // request interceptor. Without this, if useLogin's fire-and-forget GET
+      // races with this POST, two different CSRF tokens are generated and the
+      // login POST later fails with 403 CSRF_INVALID in cross-origin staging.
+      try {
+        await authService.prefetchCSRFToken();
+      } catch {
+        // Ignore CSRF prefetch errors — getMe() will surface any real failure.
+      }
+
       const response = await authService.getMe();
 
       // Session is valid - update user data and redirect to dashboard
@@ -67,15 +79,30 @@ export function useLoginGuard() {
         setIsLoading(false);
       }
     } catch (error: unknown) {
-      const axiosError = error as { response?: { status?: number } };
+      const axiosError = error as {
+        response?: { status?: number; data?: { error?: { code?: string } } };
+      };
       const status = axiosError?.response?.status;
+      const errorCode = axiosError?.response?.data?.error?.code;
 
-      // 401/403 means session is invalid - clear auth and show login form
-      if (status === 401 || status === 403) {
+      // Treat CSRF_INVALID as a non-fatal error: the cookie/header simply
+      // weren't in sync yet. Show the login form; handleLogin will re-fetch
+      // a fresh CSRF token before the actual login POST.
+      if (errorCode === "CSRF_INVALID") {
+        setIsLoading(false);
+        return;
+      }
+
+      // 401 means session is genuinely expired — clean up and show login form
+      if (status === 401) {
         logout();
         // Also clear cookies since they're invalid
         const { fullAuthCleanup } = await import("../utils/clear-auth-cookies");
         await fullAuthCleanup();
+      } else if (status === 403) {
+        // 403 Forbidden (non-CSRF) — session exists but lacks permissions.
+        // Show login form without wiping cookies so the user can re-login.
+        logout();
       } else if (status === 429) {
         // Rate limited - don't logout, but show login form for now
         // User can try again later

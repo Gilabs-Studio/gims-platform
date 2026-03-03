@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores/use-auth-store";
 import { authService } from "../services/auth-service";
 import type { LoginFormData } from "../schemas/login.schema";
 import type { AuthError } from "../types/errors";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export function useLogin() {
   const router = useRouter();
@@ -17,12 +17,14 @@ export function useLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Prefetch CSRF token on mount
-  useEffect(() => {
-    authService.prefetchCSRFToken().catch(() => {
-      // Ignore CSRF prefetch errors - will retry on login
-    });
-  }, []);
+  // NOTE: Do NOT prefetch CSRF here on mount.
+  // useLoginGuard already fetches CSRF before its /auth/refresh-token probe,
+  // guaranteeing a single sequential GET → POST flow. Adding a second
+  // concurrent GET here races with that POST and can cause the backend to
+  // issue two different CSRF tokens, breaking the Double-Submit Cookie match.
+  //
+  // handleLogin explicitly awaits prefetchCSRFToken() before every login
+  // attempt, which is the authoritative refresh point.
 
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);

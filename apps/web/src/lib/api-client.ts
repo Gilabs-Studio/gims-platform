@@ -1,7 +1,9 @@
 import axios, {
   AxiosInstance,
   AxiosError,
+  AxiosResponseHeaders,
   InternalAxiosRequestConfig,
+  RawAxiosResponseHeaders,
 } from "axios";
 import { toast } from "sonner";
 import { formatError } from "./i18n/error-messages";
@@ -9,27 +11,37 @@ import { useRateLimitStore } from "./stores/useRateLimitStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
-// Flag to track if we've validated rate limit state
-let rateLimitValidated = false;
-
 // Memory cache for CSRF token to support cross-origin API calls
 let memoryCsrfToken: string | null = null;
 
 /**
- * Robustly extract CSRF token from axios headers object.
- * Axios headers can sometimes be an AxiosHeaders object or a plain object,
- * and standardizing extraction helps avoid case sensitivity bugs.
+ * Robustly extract CSRF token from an Axios headers object.
+ *
+ * Axios v1+ uses an AxiosHeaders instance whose internal storage may not be
+ * enumerable via `for...in`. The `.get()` method is the canonical API for
+ * case-insensitive lookup, so we try it first before falling back to bracket
+ * access and the slower `for...in` walk.
  */
-function extractCsrfFromHeaders(headers: any): string | null {
+function extractCsrfFromHeaders(
+  headers: RawAxiosResponseHeaders | AxiosResponseHeaders | null | undefined,
+): string | null {
   if (!headers) return null;
-  // Try exact match
-  if (headers["x-csrf-token"]) return headers["x-csrf-token"];
-  if (headers["X-CSRF-Token"]) return headers["X-CSRF-Token"];
-  
-  // Try iterating to find case-insensitive match (for some raw setups)
+
+  // Primary: AxiosHeaders v1+ case-insensitive .get()
+  if (typeof headers.get === "function") {
+    const val = headers.get("x-csrf-token");
+    if (val) return String(val);
+  }
+
+  // Fallback: plain object bracket access (works for both casings)
+  if (headers["x-csrf-token"]) return String(headers["x-csrf-token"]);
+  if (headers["X-CSRF-Token"]) return String(headers["X-CSRF-Token"]);
+
+  // Last resort: enumerate for any remaining case variant
   for (const key in headers) {
-    if (key.toLowerCase() === "x-csrf-token") {
-      return headers[key];
+    if (Object.prototype.hasOwnProperty.call(headers, key) &&
+        key.toLowerCase() === "x-csrf-token") {
+      return String(headers[key]);
     }
   }
   return null;
@@ -72,10 +84,7 @@ const failedQueue: Array<{
   reject: (error?: unknown) => void;
 }> = [];
 
-const processQueue = (
-  error: AxiosError | null,
-  _token: string | null = null,
-) => {
+const processQueue = (error: AxiosError | null) => {
   const queue = [...failedQueue];
   failedQueue.splice(0, failedQueue.length);
   queue.forEach((prom) => {
@@ -135,12 +144,10 @@ apiClient.interceptors.response.use(
     }
 
     // Clear rate limit reset time on successful response
-    const status = response.status;
-    if (status !== 429) {
+    if (response.status !== 429) {
       const currentResetTime = useRateLimitStore.getState().resetTime;
       if (currentResetTime) {
         useRateLimitStore.getState().clearResetTime();
-        rateLimitValidated = true;
       }
     }
     return response;
@@ -377,7 +384,7 @@ apiClient.interceptors.response.use(
               );
 
               originalRequest._retry = true;
-              processQueue(null, null);
+              processQueue(null);
               isRefreshing = false;
 
               // Retry original request
@@ -407,7 +414,7 @@ apiClient.interceptors.response.use(
                 window.location.href = `/${locale}/login`;
               }, 1000);
             }
-            processQueue(refreshError as AxiosError, null);
+            processQueue(refreshError as AxiosError);
             return Promise.reject(refreshError);
           });
       } else {
