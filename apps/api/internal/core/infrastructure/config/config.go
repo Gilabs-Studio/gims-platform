@@ -338,9 +338,9 @@ func Load() error {
 			fmt.Println("WARNING: Auto-migrations are enabled in production. Ensure proper testing and backup procedures are in place.")
 		}
 
-		// SECURITY: Enforce SSL for database connections in production
+		// SECURITY: Suggest SSL for database connections in production
 		if AppConfig.Database.SSLMode == "disable" {
-			return fmt.Errorf("SECURITY: DB_SSLMODE must not be 'disable' in production. Use 'require', 'verify-ca', or 'verify-full'")
+			fmt.Println("WARNING: SECURITY: DB_SSLMODE is 'disable' in production. Ensure you are using a secure connection method such as Cloud SQL Auth Proxy or a private VPC network.")
 		}
 	}
 
