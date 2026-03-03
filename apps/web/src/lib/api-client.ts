@@ -47,6 +47,15 @@ export function getCSRFToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/**
+ * Manually set the CSRF token in memory for cross-origin setups.
+ */
+export function setCSRFTokenMemory(token: string): void {
+  if (token) {
+    memoryCsrfToken = token;
+  }
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: {

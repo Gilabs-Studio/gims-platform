@@ -7,7 +7,15 @@ export const authService = {
    * This sets the csrf_token cookie for use in subsequent requests.
    */
   async prefetchCSRFToken(): Promise<void> {
-    await apiClient.get("/auth/csrf");
+    const response = await apiClient.get("/auth/csrf");
+    
+    // Explicitly cache token here just in case interceptor has race conditions
+    // The interceptor also does this, but doing it here guarantees it before the Promise resolves
+    const csrfHeader = response.headers["x-csrf-token"] || response.headers["X-CSRF-Token"];
+    if (csrfHeader) {
+      const { setCSRFTokenMemory } = await import("@/lib/api-client");
+      setCSRFTokenMemory(csrfHeader);
+    }
   },
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
