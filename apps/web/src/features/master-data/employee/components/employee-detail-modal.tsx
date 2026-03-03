@@ -30,7 +30,6 @@ import {
   Edit,
   Download,
 } from "lucide-react";
-import { resolveImageUrl } from "@/lib/utils";
 import {
   useEmployee,
   useEmployeeContracts,
@@ -38,6 +37,7 @@ import {
   useEmployeeCertifications,
   useEmployeeAssets,
 } from "../hooks/use-employees";
+import { resolveImageUrl, formatWhatsAppLink } from "@/lib/utils";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { ContractTimeline } from "./contracts";
 import { CreateContractDialog } from "./contracts/create-contract-dialog";
@@ -195,11 +195,35 @@ export function EmployeeDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">
                           {t("form.email")}
                         </TableCell>
-                        <TableCell>{displayEmployee.email || "-"}</TableCell>
+                        <TableCell>
+                          {displayEmployee.email ? (
+                            <a
+                              href={`mailto:${displayEmployee.email}`}
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {displayEmployee.email}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">
                           {t("form.phone")}
                         </TableCell>
-                        <TableCell>{displayEmployee.phone || "-"}</TableCell>
+                        <TableCell>
+                          {displayEmployee.phone ? (
+                            <a
+                              href={formatWhatsAppLink(displayEmployee.phone)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {displayEmployee.phone}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">
