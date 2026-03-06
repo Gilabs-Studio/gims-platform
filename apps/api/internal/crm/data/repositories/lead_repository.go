@@ -30,6 +30,7 @@ type LeadListParams struct {
 type LeadRepository interface {
 	Create(ctx context.Context, lead *models.Lead) error
 	FindByID(ctx context.Context, id string) (*models.Lead, error)
+	FindByEmail(ctx context.Context, email string) (*models.Lead, error)
 	List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error)
 	Update(ctx context.Context, lead *models.Lead) error
 	Delete(ctx context.Context, id string) error
@@ -76,6 +77,21 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 		Preload("Customer").
 		Preload("Contact").
 		First(&lead, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &lead, nil
+}
+
+// FindByEmail looks up an unconverted lead by email for deduplication during upsert
+func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models.Lead, error) {
+	var lead models.Lead
+	err := r.db.WithContext(ctx).
+		Preload("LeadSource").
+		Preload("LeadStatus").
+		Preload("AssignedEmployee").
+		Where("email = ? AND converted_at IS NULL", email).
+		First(&lead).Error
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,8 @@ import type {
   LeadListParams,
   LeadFormDataResponse,
   LeadAnalytics,
+  BulkUpsertLeadRequest,
+  BulkUpsertLeadResponse,
   ApiResponse,
 } from "../types";
 
@@ -50,6 +52,11 @@ export const leadService = {
 
   getAnalytics: async (): Promise<ApiResponse<LeadAnalytics>> => {
     const response = await apiClient.get<ApiResponse<LeadAnalytics>>(`${BASE_URL}/analytics`);
+    return response.data;
+  },
+
+  bulkUpsert: async (data: BulkUpsertLeadRequest): Promise<ApiResponse<BulkUpsertLeadResponse>> => {
+    const response = await apiClient.post<ApiResponse<BulkUpsertLeadResponse>>(`${BASE_URL}/upsert`, data);
     return response.data;
   },
 };

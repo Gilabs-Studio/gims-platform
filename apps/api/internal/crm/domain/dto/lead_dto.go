@@ -66,6 +66,36 @@ type ConvertLeadRequest struct {
 	Notes       string  `json:"notes"`
 }
 
+// BulkUpsertLeadRequest defines the request body for bulk upserting leads from automation
+type BulkUpsertLeadRequest struct {
+	Leads []UpsertLeadItem `json:"leads" binding:"required,min=1,max=100,dive"`
+}
+
+// UpsertLeadItem represents a single lead in a bulk upsert operation.
+// Uses email as the deduplication key: existing leads are updated, new ones are created.
+type UpsertLeadItem struct {
+	FirstName      string  `json:"first_name" binding:"required,min=2,max=100"`
+	LastName       string  `json:"last_name" binding:"max=100"`
+	CompanyName    string  `json:"company_name" binding:"max=200"`
+	Email          string  `json:"email" binding:"required,email,max=100"`
+	Phone          string  `json:"phone" binding:"max=30"`
+	JobTitle       string  `json:"job_title" binding:"max=100"`
+	Address        string  `json:"address"`
+	City           string  `json:"city" binding:"max=100"`
+	Province       string  `json:"province" binding:"max=100"`
+	LeadSourceID   *string `json:"lead_source_id" binding:"omitempty,uuid"`
+	EstimatedValue float64 `json:"estimated_value"`
+	Notes          string  `json:"notes"`
+}
+
+// BulkUpsertLeadResponse describes the outcome of a bulk upsert operation
+type BulkUpsertLeadResponse struct {
+	Created int              `json:"created"`
+	Updated int              `json:"updated"`
+	Errors  int              `json:"errors"`
+	Items   []LeadResponse   `json:"items"`
+}
+
 // LeadResponse defines the response body for a lead
 type LeadResponse struct {
 	ID             string              `json:"id"`

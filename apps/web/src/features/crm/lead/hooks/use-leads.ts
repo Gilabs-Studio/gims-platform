@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leadService } from "../services/lead-service";
-import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData } from "../types";
+import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest } from "../types";
 
 const QUERY_KEY = "crm-leads";
 
@@ -83,6 +83,16 @@ export function useConvertLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ConvertLeadData }) =>
       leadService.convert(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
+}
+
+export function useBulkUpsertLeads() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkUpsertLeadRequest) => leadService.bulkUpsert(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: leadKeys.all });
     },

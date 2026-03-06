@@ -25,6 +25,7 @@ type LeadUsecase interface {
 	Update(ctx context.Context, id string, req dto.UpdateLeadRequest) (dto.LeadResponse, error)
 	Delete(ctx context.Context, id string) error
 	Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error)
+	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
 	GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error)
 	GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error)
 }
@@ -412,6 +413,120 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	}
 
 	return mapper.ToLeadResponse(converted), nil
+}
+
+// BulkUpsert creates or updates leads in bulk, using email as the deduplication key.
+// Designed for automation workflows (e.g., n8n) that scrape leads from external sources.
+func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error) {
+	result := &dto.BulkUpsertLeadResponse{
+		Items: make([]dto.LeadResponse, 0, len(req.Leads)),
+	}
+
+	// Resolve default status once for all new leads
+	var defaultStatusID *string
+	defaultStatus, err := u.leadStatusRepo.FindDefault(ctx)
+	if err == nil && defaultStatus != nil {
+		defaultStatusID = &defaultStatus.ID
+	}
+
+	for _, item := range req.Leads {
+		// Try to find existing lead by email (deduplication key)
+		existing, findErr := u.leadRepo.FindByEmail(ctx, item.Email)
+
+		if findErr == nil && existing != nil {
+			// Update existing lead with new data (merge non-empty fields)
+			if item.FirstName != "" {
+				existing.FirstName = item.FirstName
+			}
+			if item.LastName != "" {
+				existing.LastName = item.LastName
+			}
+			if item.CompanyName != "" {
+				existing.CompanyName = item.CompanyName
+			}
+			if item.Phone != "" {
+				existing.Phone = item.Phone
+			}
+			if item.JobTitle != "" {
+				existing.JobTitle = item.JobTitle
+			}
+			if item.Address != "" {
+				existing.Address = item.Address
+			}
+			if item.City != "" {
+				existing.City = item.City
+			}
+			if item.Province != "" {
+				existing.Province = item.Province
+			}
+			if item.EstimatedValue > 0 {
+				existing.EstimatedValue = item.EstimatedValue
+			}
+			if item.LeadSourceID != nil && *item.LeadSourceID != "" {
+				existing.LeadSourceID = item.LeadSourceID
+			}
+			if item.Notes != "" {
+				existing.Notes = existing.Notes + "\n---\n" + item.Notes
+			}
+
+			existing.LeadScore = existing.CalculateLeadScore()
+
+			if updateErr := u.leadRepo.Update(ctx, existing); updateErr != nil {
+				result.Errors++
+				continue
+			}
+
+			reloaded, reloadErr := u.leadRepo.FindByID(ctx, existing.ID)
+			if reloadErr != nil {
+				result.Errors++
+				continue
+			}
+
+			result.Updated++
+			result.Items = append(result.Items, mapper.ToLeadResponse(reloaded))
+		} else {
+			// Create new lead
+			lead := &models.Lead{
+				ID:             uuid.New().String(),
+				FirstName:      item.FirstName,
+				LastName:       item.LastName,
+				CompanyName:    item.CompanyName,
+				Email:          item.Email,
+				Phone:          item.Phone,
+				JobTitle:       item.JobTitle,
+				Address:        item.Address,
+				City:           item.City,
+				Province:       item.Province,
+				LeadSourceID:   item.LeadSourceID,
+				LeadStatusID:   defaultStatusID,
+				EstimatedValue: item.EstimatedValue,
+				Notes:          item.Notes,
+				CreatedBy:      &createdBy,
+			}
+
+			// Load status for score calculation
+			if defaultStatusID != nil && defaultStatus != nil {
+				lead.LeadStatus = defaultStatus
+			}
+			lead.LeadScore = lead.CalculateLeadScore()
+
+			if createErr := u.leadRepo.Create(ctx, lead); createErr != nil {
+				result.Errors++
+				continue
+			}
+
+			reloaded, reloadErr := u.leadRepo.FindByID(ctx, lead.ID)
+			if reloadErr != nil {
+				result.Errors++
+				continue
+			}
+
+			result.Created++
+			result.Items = append(result.Items, mapper.ToLeadResponse(reloaded))
+		}
+	}
+
+	return result, nil
 }
 
 func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error) {

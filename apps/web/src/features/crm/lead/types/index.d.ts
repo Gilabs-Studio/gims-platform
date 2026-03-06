@@ -145,6 +145,42 @@ export interface LeadListParams {
   is_converted?: string;
 }
 
+// n8n Lead Generation Types
+export type LeadGenerateSource = "linkedin" | "google_maps";
+
+export interface GenerateLeadsInput {
+  type: LeadGenerateSource;
+  keyword: string;
+  city: string;
+  limit: number;
+}
+
+export interface BulkUpsertLeadItem {
+  first_name: string;
+  last_name?: string;
+  company_name?: string;
+  email: string;
+  phone?: string;
+  job_title?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  lead_source_id?: string | null;
+  estimated_value?: number;
+  notes?: string;
+}
+
+export interface BulkUpsertLeadRequest {
+  leads: BulkUpsertLeadItem[];
+}
+
+export interface BulkUpsertLeadResponse {
+  created: number;
+  updated: number;
+  errors: number;
+  items: Lead[];
+}
+
 export interface LeadFormDataResponse {
   employees: LeadEmployeeOption[];
   lead_sources: LeadSourceOption[];

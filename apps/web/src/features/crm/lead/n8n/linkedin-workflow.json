@@ -1,0 +1,309 @@
+{
+  "name": "GIMS - LinkedIn Lead Scraper + AI Research (Apollo + Groq + Tavily)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gims-leads-linkedin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "On Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "gims-leads-linkedin"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Apollo URL Generator - builds Apollo.io People Search API params\n// Apollo free tier: 50 exports/month (app.apollo.io)\nconst input = $input.first().json;\nconst searchParams = {\n  api_key: $vars.APOLLO_API_KEY || input.apollo_api_key || '',\n  q_keywords: input.keyword || '',\n  person_locations: [input.city || ''],\n  per_page: Math.min(input.limit || 10, 25),\n  page: 1\n};\nreturn [{ json: { ...input, apollo_search_params: searchParams } }];"
+      },
+      "id": "apollo-url-gen",
+      "name": "Apollo URL Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/mixed_people/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Cache-Control", "value": "no-cache" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apollo_search_params) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "run-apify",
+      "name": "Run Apify Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "text": "=Extract and structure these Apollo.io people search results into a JSON leads array.\n\nRaw data:\n{{ JSON.stringify($json.people || $json.contacts || []) }}\n\nContext - Keyword: {{ $('On Webhook Trigger').first().json.keyword }}, City: {{ $('On Webhook Trigger').first().json.city }}\n\nFor each person return: first_name, last_name, company_name, email (primary only), phone, job_title, city (use search city if missing), province, estimated_value (number in IDR based on seniority: C-level=50000000, Director=30000000, Manager=20000000, Staff=5000000), notes (include LinkedIn URL, industry, company size), lead_source_id={{ $('On Webhook Trigger').first().json.lead_source_id || '' }}\n\nReturn ONLY a valid JSON object: { \"leads\": [...] }",
+        "options": {
+          "systemMessage": "You are a precise data extraction assistant. Return valid JSON only, no markdown, no explanation."
+        }
+      },
+      "id": "parse-lead-data",
+      "name": "Parse Lead Data",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1, "maxTokens": 4096 }
+      },
+      "id": "groq-model-1",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [860, 520],
+      "credentials": { "groqApi": { "id": "groq-api-key", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"leads\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"first_name\":{\"type\":\"string\"},\"last_name\":{\"type\":\"string\"},\"company_name\":{\"type\":\"string\"},\"email\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"},\"job_title\":{\"type\":\"string\"},\"city\":{\"type\":\"string\"},\"province\":{\"type\":\"string\"},\"estimated_value\":{\"type\":\"number\"},\"notes\":{\"type\":\"string\"},\"lead_source_id\":{\"type\":\"string\"}},\"required\":[\"first_name\",\"email\"]}}}}"
+      },
+      "id": "output-parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [1060, 520]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "check-leads",
+              "leftValue": "={{ ($json.output?.leads || $json.leads || []).length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-leads",
+      "name": "If1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1180, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "typeValidation": "loose" },
+          "conditions": [
+            { "id": "has-email", "leftValue": "={{ $json.email }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } },
+            { "id": "has-name", "leftValue": "={{ $json.first_name }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-node",
+      "name": "Filter",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1420, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('On Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leads: $json.output?.leads || $json.leads || [$json] }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "add-to-gims",
+      "name": "Add to Google Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 200]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "output.leads", "options": {} },
+      "id": "limit-node",
+      "name": "Limit1",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1420, 380]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "id": "loop-over-items",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [220, 740]
+    },
+    {
+      "parameters": {
+        "text": "=Research this company for B2B sales intelligence:\n\nContact: {{ $json.first_name }} {{ $json.last_name }}, {{ $json.job_title }} at {{ $json.company_name }}, {{ $json.city }}\n\nUse Tavily to search for: what {{ $json.company_name }} does, their size/revenue, recent news, and key business challenges. Provide a concise 3-5 sentence sales intelligence summary.",
+        "options": {
+          "systemMessage": "You are a B2B sales intelligence researcher. Use Tavily to search for current company information. Be concise and actionable.",
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "company-research",
+      "name": "Company Research",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [460, 740]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.3, "maxTokens": 2048 }
+      },
+      "id": "groq-model-2",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [360, 940],
+      "credentials": { "groqApi": { "id": "groq-api-key", "name": "Groq API" } }
+    },
+    {
+      "parameters": { "description": "Search the web for company information, news, and business intelligence" },
+      "id": "tavily-tool",
+      "name": "Tavily",
+      "type": "@n8n/n8n-nodes-langchain.toolTavily",
+      "typeVersion": 1,
+      "position": [540, 940],
+      "credentials": { "tavilyApi": { "id": "tavily-api-key", "name": "Tavily API" } }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.email }}",
+        "contextWindowLength": 5
+      },
+      "id": "chat-memory",
+      "name": "Chat ModelMemory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [240, 940]
+    },
+    {
+      "parameters": {
+        "text": "=Write a short personalized B2B cold outreach message:\n\nContact: {{ $json.first_name }} {{ $json.last_name }}, {{ $json.job_title }} at {{ $json.company_name }}, {{ $json.city }}\n\nResearch: {{ $('Company Research').first().json.output }}\n\nWrite 3 sentences: (1) specific observation about their company, (2) connect to our GIMS ERP solution, (3) soft CTA for discovery call. Language: Indonesian if Indonesian city.",
+        "options": {
+          "systemMessage": "You are an expert B2B sales copywriter. Write concise, personalized outreach messages."
+        }
+      },
+      "id": "generate-outreach",
+      "name": "Generate Outreach...",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [700, 740]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.7, "maxTokens": 1024 }
+      },
+      "id": "groq-model-3",
+      "name": "OpenAI Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [700, 940],
+      "credentials": { "groqApi": { "id": "groq-api-key", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('On Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leads: [{ first_name: $('Loop Over Items').first().json.first_name, last_name: $('Loop Over Items').first().json.last_name, company_name: $('Loop Over Items').first().json.company_name, email: $('Loop Over Items').first().json.email, phone: $('Loop Over Items').first().json.phone || '', job_title: $('Loop Over Items').first().json.job_title || '', city: $('Loop Over Items').first().json.city || '', lead_source_id: $('Loop Over Items').first().json.lead_source_id || null, estimated_value: $('Loop Over Items').first().json.estimated_value || 0, notes: (($('Loop Over Items').first().json.notes || '') + '\\n--- Company Research ---\\n' + ($('Company Research').first().json.output || '') + '\\n--- Outreach Draft ---\\n' + ($('Generate Outreach...').first().json.output || '')) }] }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "add-company-info",
+      "name": "Add Company Info to Google Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 740]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, source: 'linkedin', keyword: $('On Webhook Trigger').first().json.keyword, city: $('On Webhook Trigger').first().json.city, erp_result: $('Add to Google Sheet').first().json }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Add Lead to Instantly AI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1180, 740]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, source: 'linkedin', message: 'No valid leads returned. Try different keyword or city.', keyword: $('On Webhook Trigger').first().json.keyword }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-no-leads",
+      "name": "Respond No Valid Leads",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1420, 380]
+    }
+  ],
+  "connections": {
+    "On Webhook Trigger": { "main": [[{ "node": "Apollo URL Generator", "type": "main", "index": 0 }]] },
+    "Apollo URL Generator": { "main": [[{ "node": "Run Apify Scraper", "type": "main", "index": 0 }]] },
+    "Run Apify Scraper": { "main": [[{ "node": "Parse Lead Data", "type": "main", "index": 0 }]] },
+    "Parse Lead Data": { "main": [[{ "node": "If1", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "Parse Lead Data", "type": "ai_languageModel", "index": 0 }]] },
+    "Structured Output Parser": { "ai_outputParser": [[{ "node": "Parse Lead Data", "type": "ai_outputParser", "index": 0 }]] },
+    "If1": { "main": [[{ "node": "Filter", "type": "main", "index": 0 }], [{ "node": "Respond No Valid Leads", "type": "main", "index": 0 }]] },
+    "Filter": { "main": [[{ "node": "Add to Google Sheet", "type": "main", "index": 0 }]] },
+    "Add to Google Sheet": { "main": [[{ "node": "Limit1", "type": "main", "index": 0 }]] },
+    "Limit1": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "Loop Over Items": {
+      "main": [
+        [{ "node": "Add Lead to Instantly AI", "type": "main", "index": 0 }],
+        [{ "node": "Company Research", "type": "main", "index": 0 }]
+      ]
+    },
+    "Company Research": { "main": [[{ "node": "Generate Outreach...", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model1": { "ai_languageModel": [[{ "node": "Company Research", "type": "ai_languageModel", "index": 0 }]] },
+    "Tavily": { "ai_tool": [[{ "node": "Company Research", "type": "ai_tool", "index": 0 }]] },
+    "Chat ModelMemory": { "ai_memory": [[{ "node": "Company Research", "type": "ai_memory", "index": 0 }]] },
+    "Generate Outreach...": { "main": [[{ "node": "Add Company Info to Google Sheet", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model2": { "ai_languageModel": [[{ "node": "Generate Outreach...", "type": "ai_languageModel", "index": 0 }]] },
+    "Add Company Info to Google Sheet": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "GIMS", "id": "gims" },
+    { "name": "CRM", "id": "crm" },
+    { "name": "Lead Generation", "id": "lead-gen" },
+    { "name": "AI", "id": "ai" }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "gims-erp",
+    "notes": "FREE AI stack: Groq (llama-3.3-70b-versatile) at console.groq.com | Tavily 1000 free searches/month at tavily.com | Apollo.io 50 free exports/month at app.apollo.io. IMPORTANT: Use /webhook/ URL (not /webhook-test/) and Activate the workflow for full execution."
+  }
+}

@@ -21,6 +21,7 @@ func RegisterLeadRoutes(r *gin.RouterGroup, h *handler.LeadHandler) {
 	// Static routes first (before parameterized routes)
 	g.GET("/form-data", middleware.RequirePermission(leadRead), h.GetFormData)
 	g.GET("/analytics", middleware.RequirePermission(leadRead), h.GetAnalytics)
+	g.POST("/upsert", middleware.RequirePermission(leadCreate), h.BulkUpsert)
 
 	// CRUD routes
 	g.GET("", middleware.RequirePermission(leadRead), h.List)

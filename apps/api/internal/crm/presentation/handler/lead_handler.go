@@ -261,6 +261,35 @@ func (h *LeadHandler) GetFormData(c *gin.Context) {
 	response.SuccessResponse(c, formData, nil)
 }
 
+// BulkUpsert handles POST request to bulk upsert leads from automation tools (e.g., n8n).
+// Uses email as the deduplication key: existing leads are updated, new ones are created.
+func (h *LeadHandler) BulkUpsert(c *gin.Context) {
+	var req dto.BulkUpsertLeadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	createdBy := ""
+	if userID, exists := c.Get("user_id"); exists {
+		if id, ok := userID.(string); ok {
+			createdBy = id
+		}
+	}
+
+	result, err := h.uc.BulkUpsert(c.Request.Context(), req, createdBy)
+	if err != nil {
+		handleLeadError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // GetAnalytics handles GET request to get lead analytics
 func (h *LeadHandler) GetAnalytics(c *gin.Context) {
 	analytics, err := h.uc.GetAnalytics(c.Request.Context())

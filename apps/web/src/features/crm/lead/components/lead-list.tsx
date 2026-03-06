@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter, Eye } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter, Eye, Zap } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LeadAnalytics } from "./lead-analytics";
+import { GenerateLeadsDialog } from "./generate-leads-dialog";
 import { useLeadList } from "../hooks/use-lead-list";
 import { useLeadFormData } from "../hooks/use-leads";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -23,6 +25,7 @@ export function LeadList() {
   const { t, tCommon } = translations;
   const { data: formData } = useLeadFormData();
   const router = useRouter();
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   const leadSources = formData?.data?.lead_sources ?? [];
   const leadStatuses = formData?.data?.lead_statuses ?? [];
@@ -45,12 +48,20 @@ export function LeadList() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
         </div>
-        {permissions.canCreate && (
-          <Button onClick={actions.handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("addLead")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {permissions.canCreate && (
+            <Button variant="outline" onClick={() => setGenerateOpen(true)} className="cursor-pointer">
+              <Zap className="mr-2 h-4 w-4" />
+              {t("generate.buttonLabel")}
+            </Button>
+          )}
+          {permissions.canCreate && (
+            <Button onClick={actions.handleCreate} className="cursor-pointer">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("addLead")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Analytics */}
@@ -286,6 +297,13 @@ export function LeadList() {
           onConfirm={actions.handleDelete}
           itemName="lead"
           isLoading={data.isDeleting}
+        />
+      )}
+
+      {permissions.canCreate && (
+        <GenerateLeadsDialog
+          open={generateOpen}
+          onClose={() => setGenerateOpen(false)}
         />
       )}
     </div>

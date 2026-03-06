@@ -1,0 +1,127 @@
+{
+  "name": "GIMS - Google Maps Lead Gen + AI Parse (Serper + Groq)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gims-leads-google-maps",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "On Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "gims-leads-google-maps"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/maps",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-KEY", "value": "={{ $vars.SERPER_API_KEY || $json.serper_api_key }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ q: $json.keyword + ' in ' + $json.city, num: Math.min($json.limit || 10, 20) }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "serper-maps-search",
+      "name": "Serper Maps Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "text": "=Extract and structure these Google Maps places search results into lead objects for a B2B CRM.\n\nRaw places data:\n{{ JSON.stringify($json.places || []) }}\n\nContext - Keyword: {{ $('On Webhook Trigger').first().json.keyword }}, City: {{ $('On Webhook Trigger').first().json.city }}\n\nFor each place, create a lead with:\n- first_name: owner/manager name if available, else first word of business name\n- last_name: remaining business name words, else ''\n- company_name: full business name\n- email: email if found, else derive as info@<domain> from website, else ''\n- phone: phone number\n- job_title: business category\n- city: from address or search city\n- province: from address\n- estimated_value: number in IDR (estimate based on business type: restaurant/retail=5000000, professional services=15000000, manufacturing=30000000)\n- notes: Rating, review count, website, Google Maps CID, keyword searched\n- lead_source_id: '{{ $('On Webhook Trigger').first().json.lead_source_id || '' }}'\n\nReturn ONLY a valid JSON object: { \"leads\": [...] }",
+        "options": {
+          "systemMessage": "You are a precise data extraction assistant. Return valid JSON only, no markdown, no explanation."
+        }
+      },
+      "id": "parse-lead-data",
+      "name": "Parse Lead Data",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1, "maxTokens": 4096 }
+      },
+      "id": "groq-model-1",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [620, 500],
+      "credentials": { "groqApi": { "id": "groq-api-key", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"leads\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"first_name\":{\"type\":\"string\"},\"last_name\":{\"type\":\"string\"},\"company_name\":{\"type\":\"string\"},\"email\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"},\"job_title\":{\"type\":\"string\"},\"city\":{\"type\":\"string\"},\"province\":{\"type\":\"string\"},\"estimated_value\":{\"type\":\"number\"},\"notes\":{\"type\":\"string\"},\"lead_source_id\":{\"type\":\"string\"}},\"required\":[\"first_name\",\"company_name\"]}}}}"
+      },
+      "id": "output-parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [820, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('On Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leads: $json.output?.leads || $json.leads || [] }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "send-to-erp",
+      "name": "Send to GIMS ERP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, source: 'google_maps', keyword: $('On Webhook Trigger').first().json.keyword, city: $('On Webhook Trigger').first().json.city, erp_result: $json }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "On Webhook Trigger": { "main": [[{ "node": "Serper Maps Search", "type": "main", "index": 0 }]] },
+    "Serper Maps Search": { "main": [[{ "node": "Parse Lead Data", "type": "main", "index": 0 }]] },
+    "Parse Lead Data": { "main": [[{ "node": "Send to GIMS ERP", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "Parse Lead Data", "type": "ai_languageModel", "index": 0 }]] },
+    "Structured Output Parser": { "ai_outputParser": [[{ "node": "Parse Lead Data", "type": "ai_outputParser", "index": 0 }]] },
+    "Send to GIMS ERP": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "GIMS", "id": "gims" },
+    { "name": "CRM", "id": "crm" },
+    { "name": "Lead Generation", "id": "lead-gen" },
+    { "name": "AI", "id": "ai" }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "gims-erp",
+    "notes": "FREE AI stack: Groq (llama-3.3-70b-versatile) at console.groq.com | Serper.dev 2500 free searches/month at serper.dev. IMPORTANT: Use /webhook/ URL (not /webhook-test/) and Activate the workflow for full execution."
+  }
+}
