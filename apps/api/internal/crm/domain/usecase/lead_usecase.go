@@ -431,8 +431,8 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 	}
 
 	for _, item := range req.Leads {
-		// Try to find existing lead by email, phone, or company_name (deduplication key)
-		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName)
+		// Try to find existing lead by place_id, cid, email, phone, or company_name (deduplication key)
+		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName, item.PlaceID, item.CID)
 
 		typesStr := ""
 		if item.Types != nil {
