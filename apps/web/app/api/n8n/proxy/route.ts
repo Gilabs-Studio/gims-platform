@@ -7,7 +7,29 @@ import { NextRequest, NextResponse } from "next/server";
  * IMPORTANT — n8n URL modes:
  *  - /webhook-test/<path>  → Test mode: captures input only, does NOT run downstream nodes
  *  - /webhook/<path>       → Production mode: runs full workflow, returns Respond To Webhook output
+ *
+ * API key injection:
+ *  Server-side env vars (APOLLO_API_KEY, SERPER_API_KEY, APIFY_API_KEY) are
+ *  merged into the payload here so they are never exposed to the browser.
+ *  Explicit caller-supplied values always win (they override the env defaults).
  */
+
+/**
+ * Build a server-side API-key overlay from non-public env vars.
+ * Only keys whose env var is actually set are included so we don't accidentally
+ * overwrite caller-supplied values with an empty string.
+ */
+function buildApiKeyOverlay(): Record<string, string> {
+  const overlay: Record<string, string> = {};
+  const apolloKey  = process.env.APOLLO_API_KEY;
+  const serperKey  = process.env.SERPER_API_KEY;
+  const apifyKey   = process.env.APIFY_API_KEY;
+  if (apolloKey)  overlay.apollo_api_key  = apolloKey;
+  if (serperKey)  overlay.serper_api_key  = serperKey;
+  if (apifyKey)   overlay.apify_api_key   = apifyKey;
+  return overlay;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as {
@@ -41,8 +63,13 @@ export async function POST(request: NextRequest) {
     };
 
     if (method === "POST" && payload !== undefined) {
+      // Merge server-side API keys: env vars provide the base, caller payload
+      // fields take precedence (truthy caller value overrides env default).
+      const overlay = buildApiKeyOverlay();
+      const enrichedPayload: Record<string, unknown> = { ...overlay, ...payload };
+
       init.headers = { "Content-Type": "application/json" };
-      init.body = JSON.stringify(payload);
+      init.body = JSON.stringify(enrichedPayload);
     }
 
     const upstream = await fetch(webhookUrl, init);
