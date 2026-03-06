@@ -77,7 +77,7 @@ type UpsertLeadItem struct {
 	FirstName      string  `json:"first_name" binding:"required,min=2,max=100"`
 	LastName       string  `json:"last_name" binding:"max=100"`
 	CompanyName    string  `json:"company_name" binding:"max=200"`
-	Email          string  `json:"email" binding:"required,email,max=100"`
+	Email          string  `json:"email" binding:"omitempty,email,max=100"`
 	Phone          string  `json:"phone" binding:"max=30"`
 	JobTitle       string  `json:"job_title" binding:"max=100"`
 	Address        string  `json:"address"`

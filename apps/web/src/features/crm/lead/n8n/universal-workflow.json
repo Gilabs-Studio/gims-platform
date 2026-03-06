@@ -26,7 +26,7 @@
           "conditions": [
             {
               "id": "check-type-linkedin",
-              "leftValue": "={{ $json.type }}",
+              "leftValue": "={{ $json.body.type }}",
               "rightValue": "linkedin",
               "operator": {
                 "type": "string",
@@ -53,7 +53,7 @@
           "parameters": [
             {
               "name": "token",
-              "value": "={{ $('Webhook Trigger').first().json.apify_api_key || $env.APIFY_API_KEY || '' }}"
+              "value": "={{ $('Webhook Trigger').first().json.body.apify_api_key || $env.APIFY_API_KEY || '' }}"
             }
           ]
         },
@@ -68,7 +68,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ searchTerms: [$('Webhook Trigger').first().json.keyword + ' ' + $('Webhook Trigger').first().json.city], maxResults: Math.min($('Webhook Trigger').first().json.limit || 10, 25), cookie: $('Webhook Trigger').first().json.linkedin_cookie || '' }) }}",
+        "jsonBody": "={{ JSON.stringify({ searchTerms: [$('Webhook Trigger').first().json.body.keyword + ' ' + $('Webhook Trigger').first().json.body.city], maxResults: Math.min($('Webhook Trigger').first().json.body.limit || 10, 25), cookie: $('Webhook Trigger').first().json.body.linkedin_cookie || '' }) }}",
         "options": {
           "timeout": 120000
         }
@@ -88,7 +88,7 @@
           "parameters": [
             {
               "name": "X-API-KEY",
-              "value": "={{ $('Webhook Trigger').first().json.serper_api_key || $env.SERPER_API_KEY || '' }}"
+              "value": "={{ $('Webhook Trigger').first().json.body.serper_api_key || $env.SERPER_API_KEY || '' }}"
             },
             {
               "name": "Content-Type",
@@ -98,7 +98,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ q: $('Webhook Trigger').first().json.keyword + ' in ' + $('Webhook Trigger').first().json.city, num: Math.min($('Webhook Trigger').first().json.limit || 10, 20) }) }}",
+        "jsonBody": "={{ JSON.stringify({ q: $('Webhook Trigger').first().json.body.keyword + ' in ' + $('Webhook Trigger').first().json.body.city, num: Math.min($('Webhook Trigger').first().json.body.limit || 10, 20) }) }}",
         "options": {
           "timeout": 30000
         }
@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Map LinkedIn (Apify) results to GIMS Lead interface\nconst webhookData = $('Webhook Trigger').first().json;\nconst results = $input.all().map(i => i.json);\nconst leadSourceId = webhookData.lead_source_id || null;\nconst limit = webhookData.limit || 10;\n\nconst leads = results.slice(0, limit).map(person => {\n  const firstName = person.firstName || person.first_name || (person.fullName || 'Unknown').split(' ')[0] || 'Unknown';\n  const lastName = person.lastName || person.last_name || (person.fullName || '').split(' ').slice(1).join(' ') || '';\n  \n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: person.companyName || person.company || '',\n    email: person.email || '',\n    phone: person.phone || person.phoneNumber || '',\n    job_title: person.title || person.headline || person.position || '',\n    address: person.location || person.address || '',\n    city: webhookData.city || (person.location || '').split(',')[0]?.trim() || '',\n    province: (person.location || '').split(',').slice(1).join(',').trim() || '',\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    notes: [\n      `Source: LinkedIn`,\n      `Profile: ${person.profileUrl || person.url || 'N/A'}`,\n      `Headline: ${person.headline || person.title || 'N/A'}`,\n      `Company: ${person.companyName || person.company || 'N/A'}`,\n      `Keyword: ${webhookData.keyword}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\n// Filter leads that have email (required for deduplication)\nconst validLeads = leads.filter(l => l.email && l.email.length > 0);\n\nreturn [{ json: { leads: validLeads, source: 'linkedin' } }];"
+        "jsCode": "// Map LinkedIn (Apify) results to GIMS Lead interface\nconst rawWebhookData = $('Webhook Trigger').first().json;\n// n8n Webhook typeVersion 2 wraps payload under .body; unwrap for flat access\nconst webhookData = (rawWebhookData.body && typeof rawWebhookData.body === 'object') ? rawWebhookData.body : rawWebhookData;\nconst results = $input.all().map(i => i.json);\nconst leadSourceId = webhookData.lead_source_id || null;\nconst limit = webhookData.limit || 10;\n\nconst leads = results.slice(0, limit).map(person => {\n  const firstName = person.firstName || person.first_name || (person.fullName || 'Unknown').split(' ')[0] || 'Unknown';\n  const lastName = person.lastName || person.last_name || (person.fullName || '').split(' ').slice(1).join(' ') || '';\n  \n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: person.companyName || person.company || '',\n    email: person.email || '',\n    phone: person.phone || person.phoneNumber || '',\n    job_title: person.title || person.headline || person.position || '',\n    address: person.location || person.address || '',\n    city: webhookData.city || (person.location || '').split(',')[0]?.trim() || '',\n    province: (person.location || '').split(',').slice(1).join(',').trim() || '',\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    notes: [\n      `Source: LinkedIn`,\n      `Profile: ${person.profileUrl || person.url || 'N/A'}`,\n      `Headline: ${person.headline || person.title || 'N/A'}`,\n      `Company: ${person.companyName || person.company || 'N/A'}`,\n      `Keyword: ${webhookData.keyword}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\n// Filter leads that have email (required for deduplication)\nconst validLeads = leads.filter(l => l.email && l.email.length > 0);\n\nreturn [{ json: { leads: validLeads, source: 'linkedin' } }];"
       },
       "id": "map-linkedin",
       "name": "Map LinkedIn Data",
@@ -121,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Map Serper Google Maps results to GIMS Lead interface\nconst webhookData = $('Webhook Trigger').first().json;\nconst places = $input.first().json.places || [];\nconst leadSourceId = webhookData.lead_source_id || null;\nconst limit = webhookData.limit || 10;\n\nconst leads = places.slice(0, limit).map(place => {\n  const nameParts = (place.title || 'Unknown').split(' ');\n  const firstName = nameParts[0] || 'Unknown';\n  const lastName = nameParts.slice(1).join(' ') || '';\n  \n  const addressParts = (place.address || '').split(',').map(s => s.trim());\n  const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2] : webhookData.city || '';\n  const province = addressParts.length >= 3 ? addressParts[addressParts.length - 1] : '';\n  \n  // Build email from domain if available\n  let email = '';\n  if (place.website) {\n    try {\n      const domain = new URL(place.website).hostname.replace('www.', '');\n      email = 'info@' + domain;\n    } catch(e) { /* no valid URL */ }\n  }\n  \n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: place.title || '',\n    email: email,\n    phone: place.phoneNumber || place.phone || '',\n    job_title: place.category || '',\n    address: place.address || '',\n    city: city,\n    province: province,\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    notes: [\n      `Source: Google Maps`,\n      `Rating: ${place.rating || 'N/A'} (${place.ratingCount || 0} reviews)`,\n      `Category: ${place.category || 'N/A'}`,\n      `Website: ${place.website || 'N/A'}`,\n      `CID: ${place.cid || 'N/A'}`,\n      `Keyword: ${webhookData.keyword}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\n// Filter leads that have email (required for deduplication)\nconst validLeads = leads.filter(l => l.email && l.email.length > 0);\n\nreturn [{ json: { leads: validLeads, source: 'google_maps' } }];"
+        "jsCode": "// Map Serper Google Maps results to GIMS Lead interface\nconst rawWebhookData = $('Webhook Trigger').first().json;\n// n8n Webhook typeVersion 2 wraps payload under .body; unwrap for flat access\nconst webhookData = (rawWebhookData.body && typeof rawWebhookData.body === 'object') ? rawWebhookData.body : rawWebhookData;\nconst places = $input.first().json.places || [];\nconst leadSourceId = webhookData.lead_source_id || null;\nconst limit = webhookData.limit || 10;\n\nconst leads = places.slice(0, limit).map(place => {\n  const nameParts = (place.title || 'Unknown').split(' ');\n  const firstName = nameParts[0] || 'Unknown';\n  const lastName = nameParts.slice(1).join(' ') || '';\n  \n  const addressParts = (place.address || '').split(',').map(s => s.trim());\n  const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2] : webhookData.city || '';\n  const province = addressParts.length >= 3 ? addressParts[addressParts.length - 1] : '';\n  \n  // Build email from domain if available\n  let email = '';\n  if (place.website) {\n    try {\n      const domain = new URL(place.website).hostname.replace('www.', '');\n      email = 'info@' + domain;\n    } catch(e) { /* no valid URL */ }\n  }\n  \n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: place.title || '',\n    email: email,\n    phone: place.phoneNumber || place.phone || '',\n    job_title: place.category || '',\n    address: place.address || '',\n    city: city,\n    province: province,\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    notes: [\n      `Source: Google Maps`,\n      `Rating: ${place.rating || 'N/A'} (${place.ratingCount || 0} reviews)`,\n      `Category: ${place.category || 'N/A'}`,\n      `Website: ${place.website || 'N/A'}`,\n      `CID: ${place.cid || 'N/A'}`,\n      `Keyword: ${webhookData.keyword}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\n// Filter leads that have email (required for deduplication)\nconst validLeads = leads.filter(l => l.email && l.email.length > 0);\n\nreturn [{ json: { leads: validLeads, source: 'google_maps' } }];"
       },
       "id": "map-google-maps",
       "name": "Map Google Maps Data",
@@ -173,7 +173,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "url": "={{ $('Webhook Trigger').first().json.body.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -183,11 +183,11 @@
             },
             {
               "name": "Cookie",
-              "value": "={{ $('Webhook Trigger').first().json.auth_cookie || '' }}"
+              "value": "={{ $('Webhook Trigger').first().json.body.auth_cookie || '' }}"
             },
             {
               "name": "X-CSRF-Token",
-              "value": "={{ $('Webhook Trigger').first().json.csrf_token || '' }}"
+              "value": "={{ $('Webhook Trigger').first().json.body.csrf_token || '' }}"
             }
           ]
         },
@@ -207,7 +207,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, source: $('Webhook Trigger').first().json.type, keyword: $('Webhook Trigger').first().json.keyword, city: $('Webhook Trigger').first().json.city, erp_result: $json }) }}"
+        "responseBody": "={{ JSON.stringify({ success: true, source: $('Webhook Trigger').first().json.body.type, keyword: $('Webhook Trigger').first().json.body.keyword, city: $('Webhook Trigger').first().json.body.city, erp_result: $json }) }}"
       },
       "id": "respond-success",
       "name": "Respond Success",
@@ -218,7 +218,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, source: $('Webhook Trigger').first().json.type, message: 'No leads with valid email found from scraping. For Google Maps results, emails are derived from website domains. For LinkedIn, email availability depends on public profile data.', keyword: $('Webhook Trigger').first().json.keyword, city: $('Webhook Trigger').first().json.city }) }}",
+        "responseBody": "={{ JSON.stringify({ success: false, source: $('Webhook Trigger').first().json.body.type, message: 'No leads with valid email found from scraping. For Google Maps results, emails are derived from website domains. For LinkedIn, email availability depends on public profile data.', keyword: $('Webhook Trigger').first().json.body.keyword, city: $('Webhook Trigger').first().json.body.city }) }}",
         "options": {
           "responseCode": 200
         }

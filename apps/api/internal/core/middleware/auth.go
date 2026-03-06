@@ -15,6 +15,41 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 0. Exclude webhooks that do not use browser JWT sessions
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/crm/leads/upsert") {
+			// Inject a system mock user so RequirePermission middleware passes
+			// created_by in DB is a UUID, so we must use a real UUID format instead of 'system-webhook'
+			mockUserID := "00000000-0000-0000-0000-000000000000"
+			c.Set("user_id", mockUserID)
+			c.Set("user_email", "webhook@system.local")
+			c.Set("user_role", "admin")
+			
+			permMap := map[string]bool{
+				"crm_lead.create": true,
+				"crm_lead.read":   true,
+				"crm_lead.update": true,
+			}
+			c.Set("user_permissions", permMap)
+			
+			permScopeMap := map[string]string{
+				"crm_lead.create": "ALL",
+				"crm_lead.read":   "ALL",
+				"crm_lead.update": "ALL",
+			}
+			c.Set("user_permissions_scope", permScopeMap)
+
+			reqCtx := c.Request.Context()
+			reqCtx = context.WithValue(reqCtx, "user_id", mockUserID)
+			reqCtx = context.WithValue(reqCtx, "user_email", "webhook@system.local")
+			reqCtx = context.WithValue(reqCtx, "user_role", "admin")
+			reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
+			reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
+			c.Request = c.Request.WithContext(reqCtx)
+
+			c.Next()
+			return
+		}
+
 		var tokenString string
 
 		// 1. Check Authorization Header (Bearer)

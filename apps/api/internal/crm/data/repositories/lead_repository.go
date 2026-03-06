@@ -31,6 +31,7 @@ type LeadRepository interface {
 	Create(ctx context.Context, lead *models.Lead) error
 	FindByID(ctx context.Context, id string) (*models.Lead, error)
 	FindByEmail(ctx context.Context, email string) (*models.Lead, error)
+	FindDuplicate(ctx context.Context, email, phone, companyName string) (*models.Lead, error)
 	List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error)
 	Update(ctx context.Context, lead *models.Lead) error
 	Delete(ctx context.Context, id string) error
@@ -83,7 +84,7 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 	return &lead, nil
 }
 
-// FindByEmail looks up an unconverted lead by email for deduplication during upsert
+// FindByEmail looks up an unconverted lead by email
 func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models.Lead, error) {
 	var lead models.Lead
 	err := r.db.WithContext(ctx).
@@ -92,6 +93,33 @@ func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models
 		Preload("AssignedEmployee").
 		Where("email = ? AND converted_at IS NULL", email).
 		First(&lead).Error
+	if err != nil {
+		return nil, err
+	}
+	return &lead, nil
+}
+
+// FindDuplicate looks up an unconverted lead by either email, phone, or company name for deduplication during upsert
+func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, companyName string) (*models.Lead, error) {
+	var lead models.Lead
+	query := r.db.WithContext(ctx).
+		Preload("LeadSource").
+		Preload("LeadStatus").
+		Preload("AssignedEmployee").
+		Where("converted_at IS NULL")
+
+	if email != "" {
+		query = query.Where("email = ?", email)
+	} else if phone != "" {
+		query = query.Where("phone = ?", phone)
+	} else if companyName != "" {
+		query = query.Where("company_name = ?", companyName)
+	} else {
+		// Nothing to match against
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	err := query.First(&lead).Error
 	if err != nil {
 		return nil, err
 	}

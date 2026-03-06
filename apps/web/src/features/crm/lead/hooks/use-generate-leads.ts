@@ -78,9 +78,11 @@ export function useGenerateLeads() {
       limit: state.limit,
       lead_source_id: state.leadSourceId || null,
       erp_base_url:
-        typeof window !== "undefined"
+        process.env.NEXT_PUBLIC_N8N_ERP_BASE_URL ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== "undefined"
           ? window.location.origin.replace(/:\d+$/, ":8080")
-          : "",
+          : ""),
     }),
     [state]
   );

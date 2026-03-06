@@ -47,10 +47,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only allow https:// to prevent SSRF to internal services
-    if (!webhookUrl.startsWith("https://")) {
+    // Only allow https:// to prevent SSRF, except for local testing via docker/localhost
+    const isLocalDevelopment = 
+      webhookUrl.startsWith("http://localhost:") || 
+      webhookUrl.startsWith("http://127.0.0.1:") || 
+      webhookUrl.startsWith("http://host.docker.internal:");
+
+    if (!webhookUrl.startsWith("https://") && !isLocalDevelopment) {
       return NextResponse.json(
-        { error: "Only HTTPS webhook URLs are allowed" },
+        { error: "Only HTTPS webhook URLs are allowed (except local testing)" },
         { status: 400 }
       );
     }

@@ -430,8 +430,8 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 	}
 
 	for _, item := range req.Leads {
-		// Try to find existing lead by email (deduplication key)
-		existing, findErr := u.leadRepo.FindByEmail(ctx, item.Email)
+		// Try to find existing lead by email, phone, or company_name (deduplication key)
+		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName)
 
 		if findErr == nil && existing != nil {
 			// Update existing lead with new data (merge non-empty fields)
@@ -511,6 +511,7 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			lead.LeadScore = lead.CalculateLeadScore()
 
 			if createErr := u.leadRepo.Create(ctx, lead); createErr != nil {
+				fmt.Printf("Error creating new lead %s - %s: %v\n", lead.CompanyName, lead.FirstName, createErr)
 				result.Errors++
 				continue
 			}

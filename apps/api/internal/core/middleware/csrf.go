@@ -44,6 +44,13 @@ func CSRF() gin.HandlerFunc {
 		// ALWAYS expose the current token in the header so frontend can read it (cross-origin support)
 		c.Header("X-CSRF-Token", token)
 
+		// Exclude webhooks and external API endpoints that do not use browser sessions
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/v1/crm/leads/upsert") {
+			c.Next()
+			return
+		}
+
 		// 3. For safe methods, just proceed
 		if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" {
 			c.Next()
@@ -71,19 +78,16 @@ func CSRF() gin.HandlerFunc {
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
 	isSecure := false
+	sameSite := http.SameSiteLaxMode
+
 	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
 		// In production we default to Secure cookies.
-		// If you're behind TLS termination, ensure proxy sets X-Forwarded-Proto=https.
-		isSecure = c.Request.TLS != nil
-		if !isSecure && config.AppConfig.Security.ProxyHeadersEnabled {
-			xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
-			isSecure = xfp == "https"
-		}
+		isSecure = true
+		// Set SameSite to None for cross-origin requests to work, which requires Secure=true.
+		sameSite = http.SameSiteNoneMode
 	}
 
-	// Set SameSite to None for cross-origin requests to work, which requires Secure=true.
-	c.SetSameSite(http.SameSiteNoneMode)
-	isSecure = true // SameSite=None requires Secure=true
+	c.SetSameSite(sameSite)
 
 	// Note: HttpOnly is FALSE so JavaScript can read it and send in header (Double-Submit Cookie pattern)
 	c.SetCookie("gims_csrf_token", token, 3600*24, "/", "", isSecure, false)

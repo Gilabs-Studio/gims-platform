@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Apollo URL Generator - builds Apollo.io People Search API params\n// Apollo free tier: 50 exports/month (app.apollo.io)\nconst input = $input.first().json;\nconst searchParams = {\n  api_key: $vars.APOLLO_API_KEY || input.apollo_api_key || '',\n  q_keywords: input.keyword || '',\n  person_locations: [input.city || ''],\n  per_page: Math.min(input.limit || 10, 25),\n  page: 1\n};\nreturn [{ json: { ...input, apollo_search_params: searchParams } }];"
+        "jsCode": "// Apollo URL Generator - builds Apollo.io People Search API params\n// Apollo free tier: 50 exports/month (app.apollo.io)\n// n8n Webhook typeVersion 2 wraps payload under .body; unwrap for flat field access\nconst rawInput = $input.first().json;\nconst input = (rawInput.body && typeof rawInput.body === 'object') ? rawInput.body : rawInput;\nconst searchParams = {\n  api_key: $vars.APOLLO_API_KEY || input.apollo_api_key || '',\n  q_keywords: input.keyword || '',\n  person_locations: [input.city || ''],\n  per_page: Math.min(input.limit || 10, 25),\n  page: 1\n};\nreturn [{ json: { ...input, apollo_search_params: searchParams } }];"
       },
       "id": "apollo-url-gen",
       "name": "Apollo URL Generator",
@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "text": "=Extract and structure these Apollo.io people search results into a JSON leads array.\n\nRaw data:\n{{ JSON.stringify($json.people || $json.contacts || []) }}\n\nContext - Keyword: {{ $('On Webhook Trigger').first().json.keyword }}, City: {{ $('On Webhook Trigger').first().json.city }}\n\nFor each person return: first_name, last_name, company_name, email (primary only), phone, job_title, city (use search city if missing), province, estimated_value (number in IDR based on seniority: C-level=50000000, Director=30000000, Manager=20000000, Staff=5000000), notes (include LinkedIn URL, industry, company size), lead_source_id={{ $('On Webhook Trigger').first().json.lead_source_id || '' }}\n\nReturn ONLY a valid JSON object: { \"leads\": [...] }",
+        "text": "=Extract and structure these Apollo.io people search results into a JSON leads array.\n\nRaw data:\n{{ JSON.stringify($json.people || $json.contacts || []) }}\n\nContext - Keyword: {{ $('On Webhook Trigger').first().json.body.keyword }}, City: {{ $('On Webhook Trigger').first().json.body.city }}\n\nFor each person return: first_name, last_name, company_name, email (primary only), phone, job_title, city (use search city if missing), province, estimated_value (number in IDR based on seniority: C-level=50000000, Director=30000000, Manager=20000000, Staff=5000000), notes (include LinkedIn URL, industry, company size), lead_source_id={{ $('On Webhook Trigger').first().json.body.lead_source_id || '' }}\n\nReturn ONLY a valid JSON object: { \"leads\": [...] }",
         "options": {
           "systemMessage": "You are a precise data extraction assistant. Return valid JSON only, no markdown, no explanation."
         }
@@ -124,7 +124,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('On Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "url": "={{ $('On Webhook Trigger').first().json.body.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
         "sendHeaders": true,
         "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
         "sendBody": true,
@@ -229,7 +229,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('On Webhook Trigger').first().json.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
+        "url": "={{ $('On Webhook Trigger').first().json.body.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
         "sendHeaders": true,
         "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
         "sendBody": true,
@@ -246,7 +246,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, source: 'linkedin', keyword: $('On Webhook Trigger').first().json.keyword, city: $('On Webhook Trigger').first().json.city, erp_result: $('Add to Google Sheet').first().json }) }}"
+        "responseBody": "={{ JSON.stringify({ success: true, source: 'linkedin', keyword: $('On Webhook Trigger').first().json.body.keyword, city: $('On Webhook Trigger').first().json.body.city, erp_result: $('Add to Google Sheet').first().json }) }}"
       },
       "id": "respond-webhook",
       "name": "Add Lead to Instantly AI",
@@ -257,7 +257,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, source: 'linkedin', message: 'No valid leads returned. Try different keyword or city.', keyword: $('On Webhook Trigger').first().json.keyword }) }}",
+        "responseBody": "={{ JSON.stringify({ success: false, source: 'linkedin', message: 'No valid leads returned. Try different keyword or city.', keyword: $('On Webhook Trigger').first().json.body.keyword }) }}",
         "options": { "responseCode": 200 }
       },
       "id": "respond-no-leads",
