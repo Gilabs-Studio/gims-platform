@@ -86,6 +86,16 @@ type UpsertLeadItem struct {
 	LeadSourceID   *string `json:"lead_source_id" binding:"omitempty,uuid"`
 	EstimatedValue float64 `json:"estimated_value"`
 	Notes          string  `json:"notes"`
+	// External Scraping Fields
+	Latitude       *float64 `json:"latitude"`
+	Longitude      *float64 `json:"longitude"`
+	Rating         *float64 `json:"rating"`
+	RatingCount    *int     `json:"ratingCount"`
+	Types          any      `json:"types"`
+	OpeningHours   any      `json:"openingHours"`
+	ThumbnailURL   string   `json:"thumbnailUrl"`
+	CID            string   `json:"cid"`
+	PlaceID        string   `json:"placeId"`
 }
 
 // BulkUpsertLeadResponse describes the outcome of a bulk upsert operation
@@ -140,6 +150,17 @@ type LeadResponse struct {
 	CreatedBy *string `json:"created_by"`
 	CreatedAt string  `json:"created_at"`
 	UpdatedAt string  `json:"updated_at"`
+
+	// External Scraping Fields
+	Latitude       *float64 `json:"latitude"`
+	Longitude      *float64 `json:"longitude"`
+	Rating         *float64 `json:"rating"`
+	RatingCount    *int     `json:"rating_count"`
+	Types          string   `json:"types"`
+	OpeningHours   string   `json:"opening_hours"`
+	ThumbnailURL   string   `json:"thumbnail_url"`
+	CID            string   `json:"cid"`
+	PlaceID        string   `json:"place_id"`
 }
 
 // LeadSourceInfo is a compact representation of lead source

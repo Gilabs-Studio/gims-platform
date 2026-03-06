@@ -59,6 +59,17 @@ type Lead struct {
 	ConvertedAt *time.Time                `json:"converted_at"`
 	ConvertedBy *string                   `gorm:"type:uuid" json:"converted_by"`
 
+	// External Source Data (Google Maps, etc)
+	Latitude     *float64 `gorm:"type:numeric(10,8)" json:"latitude"`
+	Longitude    *float64 `gorm:"type:numeric(11,8)" json:"longitude"`
+	Rating       *float64 `gorm:"type:numeric(3,1)" json:"rating"`
+	RatingCount  *int     `gorm:"type:int" json:"rating_count"`
+	Types        string   `gorm:"type:text" json:"types"`
+	OpeningHours string   `gorm:"type:text" json:"opening_hours"`
+	ThumbnailURL string   `gorm:"type:text" json:"thumbnail_url"`
+	CID          string   `gorm:"type:varchar(200)" json:"cid"`
+	PlaceID      string   `gorm:"type:varchar(200)" json:"place_id"`
+
 	// Metadata
 	Notes     string         `gorm:"type:text" json:"notes"`
 	CreatedBy *string        `gorm:"type:uuid" json:"created_by"`

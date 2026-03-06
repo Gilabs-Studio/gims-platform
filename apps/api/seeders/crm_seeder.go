@@ -23,6 +23,8 @@ const (
 	LeadSourceColdCallID   = "cb000001-0000-0000-0000-000000000003"
 	LeadSourceExhibitionID = "cb000001-0000-0000-0000-000000000004"
 	LeadSourceSocialMediaID = "cb000001-0000-0000-0000-000000000005"
+	LeadSourceGoogleMapsID = "cb000001-0000-0000-0000-000000000006"
+	LeadSourceLinkedInID   = "cb000001-0000-0000-0000-000000000007"
 
 	// Lead Statuses (prefix: cc)
 	LeadStatusNewID       = "cc000001-0000-0000-0000-000000000001"
@@ -263,6 +265,8 @@ func seedLeadSources() error {
 		{ID: LeadSourceColdCallID, Name: "Cold Call", Code: "COLD_CALL", Description: "Lead from outbound cold calling", Order: 3, IsActive: true},
 		{ID: LeadSourceExhibitionID, Name: "Exhibition", Code: "EXHIBITION", Description: "Lead from trade show or exhibition", Order: 4, IsActive: true},
 		{ID: LeadSourceSocialMediaID, Name: "Social Media", Code: "SOCIAL_MEDIA", Description: "Lead from social media channels", Order: 5, IsActive: true},
+		{ID: LeadSourceGoogleMapsID, Name: "Google Maps Scraping", Code: "GOOGLE_MAPS", Description: "Lead generated via n8n Google Maps scraping", Order: 6, IsActive: true},
+		{ID: LeadSourceLinkedInID, Name: "LinkedIn Scraping", Code: "LINKEDIN", Description: "Lead generated via n8n LinkedIn scraping", Order: 7, IsActive: true},
 	}
 
 	for _, source := range sources {

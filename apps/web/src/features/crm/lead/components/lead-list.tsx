@@ -304,6 +304,10 @@ export function LeadList() {
         <GenerateLeadsDialog
           open={generateOpen}
           onClose={() => setGenerateOpen(false)}
+          onSuccess={() => {
+            setGenerateOpen(false);
+            data.refetch();
+          }}
         />
       )}
     </div>

@@ -21,6 +21,7 @@ import type { LeadGenerateSource } from "../types";
 interface GenerateLeadsDialogProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const SOURCE_OPTIONS: { value: LeadGenerateSource; label: string; icon: typeof Globe; description: string }[] = [
@@ -38,9 +39,9 @@ const SOURCE_OPTIONS: { value: LeadGenerateSource; label: string; icon: typeof G
   },
 ];
 
-export function GenerateLeadsDialog({ open, onClose }: GenerateLeadsDialogProps) {
+export function GenerateLeadsDialog({ open, onClose, onSuccess }: GenerateLeadsDialogProps) {
   const t = useTranslations("crmLead");
-  const { state, actions } = useGenerateLeads();
+  const { state, actions } = useGenerateLeads({ onSuccess });
 
   const handleClose = () => {
     onClose();

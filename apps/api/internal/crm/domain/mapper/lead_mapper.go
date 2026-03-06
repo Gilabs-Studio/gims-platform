@@ -40,6 +40,15 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		CreatedBy:       lead.CreatedBy,
 		CreatedAt:       lead.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
 		UpdatedAt:       lead.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
+		Latitude:        lead.Latitude,
+		Longitude:       lead.Longitude,
+		Rating:          lead.Rating,
+		RatingCount:     lead.RatingCount,
+		Types:           lead.Types,
+		OpeningHours:    lead.OpeningHours,
+		ThumbnailURL:    lead.ThumbnailURL,
+		CID:             lead.CID,
+		PlaceID:         lead.PlaceID,
 	}
 
 	if lead.TimeExpected != nil {

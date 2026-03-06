@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -433,6 +434,26 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 		// Try to find existing lead by email, phone, or company_name (deduplication key)
 		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName)
 
+		typesStr := ""
+		if item.Types != nil {
+			if s, ok := item.Types.(string); ok {
+				typesStr = s
+			} else {
+				b, _ := json.Marshal(item.Types)
+				typesStr = string(b)
+			}
+		}
+
+		openingHoursStr := ""
+		if item.OpeningHours != nil {
+			if s, ok := item.OpeningHours.(string); ok {
+				openingHoursStr = s
+			} else {
+				b, _ := json.Marshal(item.OpeningHours)
+				openingHoursStr = string(b)
+			}
+		}
+
 		if findErr == nil && existing != nil {
 			// Update existing lead with new data (merge non-empty fields)
 			if item.FirstName != "" {
@@ -464,6 +485,33 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			}
 			if item.LeadSourceID != nil && *item.LeadSourceID != "" {
 				existing.LeadSourceID = item.LeadSourceID
+			}
+			if item.Latitude != nil {
+				existing.Latitude = item.Latitude
+			}
+			if item.Longitude != nil {
+				existing.Longitude = item.Longitude
+			}
+			if item.Rating != nil {
+				existing.Rating = item.Rating
+			}
+			if item.RatingCount != nil {
+				existing.RatingCount = item.RatingCount
+			}
+			if typesStr != "" {
+				existing.Types = typesStr
+			}
+			if openingHoursStr != "" {
+				existing.OpeningHours = openingHoursStr
+			}
+			if item.ThumbnailURL != "" {
+				existing.ThumbnailURL = item.ThumbnailURL
+			}
+			if item.CID != "" {
+				existing.CID = item.CID
+			}
+			if item.PlaceID != "" {
+				existing.PlaceID = item.PlaceID
 			}
 			if item.Notes != "" {
 				existing.Notes = existing.Notes + "\n---\n" + item.Notes
@@ -500,6 +548,15 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 				LeadSourceID:   item.LeadSourceID,
 				LeadStatusID:   defaultStatusID,
 				EstimatedValue: item.EstimatedValue,
+				Latitude:       item.Latitude,
+				Longitude:      item.Longitude,
+				Rating:         item.Rating,
+				RatingCount:    item.RatingCount,
+				Types:          typesStr,
+				OpeningHours:   openingHoursStr,
+				ThumbnailURL:   item.ThumbnailURL,
+				CID:            item.CID,
+				PlaceID:        item.PlaceID,
 				Notes:          item.Notes,
 				CreatedBy:      &createdBy,
 			}

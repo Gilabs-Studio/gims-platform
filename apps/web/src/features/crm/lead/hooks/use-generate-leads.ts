@@ -31,7 +31,11 @@ const DEFAULT_WEBHOOK_URL =
     ? (process.env.NEXT_PUBLIC_N8N_LEADS_WEBHOOK_URL ?? "")
     : "";
 
-export function useGenerateLeads() {
+interface UseGenerateLeadsProps {
+  onSuccess?: () => void;
+}
+
+export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
   const t = useTranslations("crmLead");
 
   const [state, setState] = useState<GenerateLeadsState>({
@@ -71,19 +75,28 @@ export function useGenerateLeads() {
 
   /** Builds the JSON payload to POST to the n8n webhook */
   const buildPayload = useCallback(
-    () => ({
-      type: state.source,
-      keyword: state.keyword,
-      city: state.city,
-      limit: state.limit,
-      lead_source_id: state.leadSourceId || null,
-      erp_base_url:
-        process.env.NEXT_PUBLIC_N8N_ERP_BASE_URL ||
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== "undefined"
-          ? window.location.origin.replace(/:\d+$/, ":8080")
-          : ""),
-    }),
+    () => {
+      // Auto-assign the LeadSource ID based on the CRM Default Seeders if the user didn't pick one
+      let autoSourceId = null;
+      if (!state.leadSourceId) {
+        if (state.source === "google_maps") autoSourceId = "cb000001-0000-0000-0000-000000000006";
+        else if (state.source === "linkedin") autoSourceId = "cb000001-0000-0000-0000-000000000007";
+      }
+
+      return {
+        type: state.source,
+        keyword: state.keyword,
+        city: state.city,
+        limit: state.limit,
+        lead_source_id: state.leadSourceId || autoSourceId,
+        erp_base_url:
+          process.env.NEXT_PUBLIC_N8N_ERP_BASE_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          (typeof window !== "undefined"
+            ? window.location.origin.replace(/:\d+$/, ":8080")
+            : ""),
+      };
+    },
     [state]
   );
 
@@ -164,6 +177,9 @@ export function useGenerateLeads() {
           "Workflow triggered in TEST mode — nodes did not run. " +
           "Change your URL from /webhook-test/ to /webhook/ and activate the workflow."
         );
+        if (onSuccess) {
+          onSuccess();
+        }
         return;
       }
 
@@ -179,6 +195,10 @@ export function useGenerateLeads() {
       const updated = (resultData?.updated ?? 0) as number;
 
       toast.success(t("generate.runSuccess", { created, updated }));
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       toast.error(t("generate.runError", { message }));
