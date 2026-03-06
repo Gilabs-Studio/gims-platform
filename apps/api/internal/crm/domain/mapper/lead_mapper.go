@@ -19,6 +19,10 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		Address:         lead.Address,
 		City:            lead.City,
 		Province:        lead.Province,
+		ProvinceID:      lead.ProvinceID,
+		CityID:          lead.CityID,
+		DistrictID:      lead.DistrictID,
+		VillageName:     lead.VillageName,
 		LeadSourceID:    lead.LeadSourceID,
 		LeadStatusID:    lead.LeadStatusID,
 		LeadScore:       lead.LeadScore,
@@ -49,6 +53,7 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		ThumbnailURL:    lead.ThumbnailURL,
 		CID:             lead.CID,
 		PlaceID:         lead.PlaceID,
+		Website:         lead.Website,
 	}
 
 	if lead.TimeExpected != nil {

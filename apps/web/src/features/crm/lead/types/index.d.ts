@@ -12,6 +12,10 @@ export interface Lead {
   address: string;
   city: string;
   province: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_source?: LeadSourceInfo | null;
   lead_status_id?: string | null;
@@ -39,7 +43,19 @@ export interface Lead {
   converted_at?: string | null;
   converted_by?: string | null;
   // Metadata
+  // Metadata
   notes: string;
+  // External
+  latitude?: number | null;
+  longitude?: number | null;
+  rating?: number | null;
+  rating_count?: number | null;
+  types?: string;
+  opening_hours?: string;
+  thumbnail_url?: string;
+  cid?: string;
+  place_id?: string;
+  website?: string;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
@@ -82,6 +98,10 @@ export interface CreateLeadData {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_status_id?: string | null;
   estimated_value?: number;
@@ -96,6 +116,7 @@ export interface CreateLeadData {
   time_expected?: string | null;
   assigned_to?: string | null;
   notes?: string;
+  website?: string;
 }
 
 export interface UpdateLeadData {
@@ -108,6 +129,10 @@ export interface UpdateLeadData {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_status_id?: string | null;
   estimated_value?: number;
@@ -122,6 +147,7 @@ export interface UpdateLeadData {
   time_expected?: string | null;
   assigned_to?: string | null;
   notes?: string;
+  website?: string;
 }
 
 export interface ConvertLeadData {
@@ -165,9 +191,24 @@ export interface BulkUpsertLeadItem {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   estimated_value?: number;
   notes?: string;
+  // External
+  latitude?: number | null;
+  longitude?: number | null;
+  rating?: number | null;
+  rating_count?: number | null;
+  types?: string;
+  opening_hours?: string;
+  thumbnail_url?: string;
+  cid?: string;
+  place_id?: string;
+  website?: string;
 }
 
 export interface BulkUpsertLeadRequest {

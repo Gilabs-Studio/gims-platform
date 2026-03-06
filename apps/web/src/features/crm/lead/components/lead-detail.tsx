@@ -327,6 +327,34 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   </Badge>
                 </div>
               )}
+              {lead.place_id && lead.place_id.startsWith('http') && (
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("form.sourceLink") || "Source Link"}</p>
+                  <Link
+                    href={lead.place_id}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 mt-1 text-sm font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{lead.place_id.includes('linkedin.com') ? 'View LinkedIn Profile' : 'View on Google Maps'}</span>
+                  </Link>
+                </div>
+              )}
+              {lead.website && (
+                <div className="mt-3">
+                  <p className="text-xs text-muted-foreground">{t("form.website")}</p>
+                  <Link
+                    href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 mt-1 text-sm font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{t("form.visitLink")}</span>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Assignment */}

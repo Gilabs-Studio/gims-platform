@@ -113,10 +113,15 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		Address:         req.Address,
 		City:            req.City,
 		Province:        req.Province,
+		ProvinceID:      req.ProvinceID,
+		CityID:          req.CityID,
+		DistrictID:      req.DistrictID,
+		VillageName:     req.VillageName,
 		LeadSourceID:    req.LeadSourceID,
 		LeadStatusID:    statusID,
 		EstimatedValue:  req.EstimatedValue,
 		Probability:     req.Probability,
+		Website:         req.Website,
 		BudgetConfirmed: req.BudgetConfirmed,
 		BudgetAmount:    req.BudgetAmount,
 		AuthConfirmed:   req.AuthConfirmed,
@@ -239,6 +244,21 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	}
 	if req.Province != nil {
 		lead.Province = *req.Province
+	}
+	if req.ProvinceID != nil {
+		lead.ProvinceID = req.ProvinceID
+	}
+	if req.CityID != nil {
+		lead.CityID = req.CityID
+	}
+	if req.DistrictID != nil {
+		lead.DistrictID = req.DistrictID
+	}
+	if req.VillageName != nil {
+		lead.VillageName = *req.VillageName
+	}
+	if req.Website != nil {
+		lead.Website = *req.Website
 	}
 	if req.EstimatedValue != nil {
 		lead.EstimatedValue = *req.EstimatedValue
@@ -480,6 +500,18 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			if item.Province != "" {
 				existing.Province = item.Province
 			}
+			if item.ProvinceID != nil && *item.ProvinceID != "" {
+				existing.ProvinceID = item.ProvinceID
+			}
+			if item.CityID != nil && *item.CityID != "" {
+				existing.CityID = item.CityID
+			}
+			if item.DistrictID != nil && *item.DistrictID != "" {
+				existing.DistrictID = item.DistrictID
+			}
+			if item.VillageName != "" {
+				existing.VillageName = item.VillageName
+			}
 			if item.EstimatedValue > 0 {
 				existing.EstimatedValue = item.EstimatedValue
 			}
@@ -513,6 +545,9 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			if item.PlaceID != "" {
 				existing.PlaceID = item.PlaceID
 			}
+			if item.Website != "" {
+				existing.Website = item.Website
+			}
 			if item.Notes != "" {
 				existing.Notes = existing.Notes + "\n---\n" + item.Notes
 			}
@@ -545,6 +580,10 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 				Address:        item.Address,
 				City:           item.City,
 				Province:       item.Province,
+				ProvinceID:     item.ProvinceID,
+				CityID:         item.CityID,
+				DistrictID:     item.DistrictID,
+				VillageName:    item.VillageName,
 				LeadSourceID:   item.LeadSourceID,
 				LeadStatusID:   defaultStatusID,
 				EstimatedValue: item.EstimatedValue,
@@ -557,6 +596,7 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 				ThumbnailURL:   item.ThumbnailURL,
 				CID:            item.CID,
 				PlaceID:        item.PlaceID,
+				Website:        item.Website,
 				Notes:          item.Notes,
 				CreatedBy:      &createdBy,
 			}

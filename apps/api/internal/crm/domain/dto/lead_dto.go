@@ -4,7 +4,7 @@ import "github.com/google/uuid"
 
 // CreateLeadRequest defines the request body for creating a lead
 type CreateLeadRequest struct {
-	FirstName      string  `json:"first_name" binding:"required,min=2,max=100"`
+	FirstName      string  `json:"first_name" binding:"required,min=1,max=100"`
 	LastName       string  `json:"last_name" binding:"max=100"`
 	CompanyName    string  `json:"company_name" binding:"max=200"`
 	Email          string  `json:"email" binding:"omitempty,email,max=100"`
@@ -13,10 +13,15 @@ type CreateLeadRequest struct {
 	Address        string  `json:"address"`
 	City           string  `json:"city" binding:"max=100"`
 	Province       string  `json:"province" binding:"max=100"`
+	ProvinceID     *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID         *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageName    string  `json:"village_name" binding:"max=200"`
 	LeadSourceID   *string `json:"lead_source_id" binding:"omitempty,uuid"`
 	LeadStatusID   *string `json:"lead_status_id" binding:"omitempty,uuid"`
 	EstimatedValue float64 `json:"estimated_value"`
 	Probability    int     `json:"probability" binding:"min=0,max=100"`
+	Website        string  `json:"website" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
@@ -33,7 +38,7 @@ type CreateLeadRequest struct {
 
 // UpdateLeadRequest defines the request body for updating a lead
 type UpdateLeadRequest struct {
-	FirstName      *string  `json:"first_name" binding:"omitempty,min=2,max=100"`
+	FirstName      *string  `json:"first_name" binding:"omitempty,min=1,max=100"`
 	LastName       *string  `json:"last_name" binding:"omitempty,max=100"`
 	CompanyName    *string  `json:"company_name" binding:"omitempty,max=200"`
 	Email          *string  `json:"email" binding:"omitempty,email,max=100"`
@@ -42,10 +47,15 @@ type UpdateLeadRequest struct {
 	Address        *string  `json:"address"`
 	City           *string  `json:"city" binding:"omitempty,max=100"`
 	Province       *string  `json:"province" binding:"omitempty,max=100"`
+	ProvinceID     *string  `json:"province_id" binding:"omitempty,uuid"`
+	CityID         *string  `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     *string  `json:"district_id" binding:"omitempty,uuid"`
+	VillageName    *string  `json:"village_name" binding:"omitempty,max=200"`
 	LeadSourceID   *string  `json:"lead_source_id" binding:"omitempty,uuid"`
 	LeadStatusID   *string  `json:"lead_status_id" binding:"omitempty,uuid"`
 	EstimatedValue *float64 `json:"estimated_value"`
 	Probability    *int     `json:"probability" binding:"omitempty,min=0,max=100"`
+	Website        *string  `json:"website" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed *bool    `json:"budget_confirmed"`
 	BudgetAmount    *float64 `json:"budget_amount"`
@@ -74,7 +84,7 @@ type BulkUpsertLeadRequest struct {
 // UpsertLeadItem represents a single lead in a bulk upsert operation.
 // Uses email as the deduplication key: existing leads are updated, new ones are created.
 type UpsertLeadItem struct {
-	FirstName      string  `json:"first_name" binding:"required,min=2,max=100"`
+	FirstName      string  `json:"first_name" binding:"required,min=1,max=100"`
 	LastName       string  `json:"last_name" binding:"max=100"`
 	CompanyName    string  `json:"company_name" binding:"max=200"`
 	Email          string  `json:"email" binding:"omitempty,email,max=100"`
@@ -83,8 +93,13 @@ type UpsertLeadItem struct {
 	Address        string  `json:"address"`
 	City           string  `json:"city" binding:"max=100"`
 	Province       string  `json:"province" binding:"max=100"`
+	ProvinceID     *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID         *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID     *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageName    string  `json:"village_name" binding:"max=200"`
 	LeadSourceID   *string `json:"lead_source_id" binding:"omitempty,uuid"`
 	EstimatedValue float64 `json:"estimated_value"`
+	Website        string  `json:"website" binding:"omitempty,max=255"`
 	Notes          string  `json:"notes"`
 	// External Scraping Fields
 	Latitude       *float64 `json:"latitude"`
@@ -119,6 +134,10 @@ type LeadResponse struct {
 	Address        string              `json:"address"`
 	City           string              `json:"city"`
 	Province       string              `json:"province"`
+	ProvinceID     *string             `json:"province_id"`
+	CityID         *string             `json:"city_id"`
+	DistrictID     *string             `json:"district_id"`
+	VillageName    string              `json:"village_name"`
 	LeadSourceID   *string             `json:"lead_source_id"`
 	LeadSource     *LeadSourceInfo     `json:"lead_source,omitempty"`
 	LeadStatusID   *string             `json:"lead_status_id"`
@@ -161,6 +180,7 @@ type LeadResponse struct {
 	ThumbnailURL   string   `json:"thumbnail_url"`
 	CID            string   `json:"cid"`
 	PlaceID        string   `json:"place_id"`
+	Website        string   `json:"website"`
 }
 
 // LeadSourceInfo is a compact representation of lead source

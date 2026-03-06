@@ -181,8 +181,27 @@ export function LeadList() {
                     onClick={() => router.push(`/crm/leads/${item.id}`)}
                   >
                     <TableCell className="font-mono text-sm">{item.code}</TableCell>
-                    <TableCell className="font-medium">
-                      {item.first_name} {item.last_name}
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {item.first_name} {item.last_name}
+                        </span>
+                        {item.place_id && item.place_id.startsWith("http") && (
+                          <a
+                            href={item.place_id}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline w-fit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {item.lead_source?.name === "LinkedIn" || item.lead_source?.name === "LinkedIn Scraping"
+                              ? "View LinkedIn Profile"
+                              : item.lead_source?.name === "Google Maps" || item.lead_source?.name === "Google Maps Scraping"
+                              ? "View on Google Maps"
+                              : t("form.visitLink") || "Visit Source Link"}
+                          </a>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{item.company_name || "-"}</TableCell>
                     <TableCell>{item.lead_source?.name ?? "-"}</TableCell>

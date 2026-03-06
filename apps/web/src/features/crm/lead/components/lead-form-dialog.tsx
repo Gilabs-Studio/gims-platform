@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LocationSelector } from "@/features/master-data/geographic/components/location-selector";
 import { useLeadForm, type UseLeadFormProps } from "../hooks/use-lead-form";
 import { useLeadFormData } from "../hooks/use-leads";
 import type { Lead } from "../types";
@@ -163,23 +164,24 @@ export function LeadFormDialog({
               />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.city")}</FieldLabel>
-                <Input
-                  placeholder={t("form.cityPlaceholder")}
-                  {...register("city")}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.province")}</FieldLabel>
-                <Input
-                  placeholder={t("form.provincePlaceholder")}
-                  {...register("province")}
-                />
-              </Field>
-            </div>
+            <LocationSelector
+              control={control}
+              setValue={setValue}
+              fieldNames={{
+                province_id: "province_id",
+                city_id: "city_id",
+                district_id: "district_id",
+                village_name: "village_name",
+              }}
+              labels={{
+                province: t("form.province"),
+                city: t("form.city"),
+                district: t("form.district") || "District",
+                village: t("form.village") || "Village / Kelurahan",
+                selectProvince: t("form.provincePlaceholder"),
+                selectCity: t("form.cityPlaceholder"),
+              }}
+            />
           </div>
 
           {/* Classification */}
@@ -264,6 +266,14 @@ export function LeadFormDialog({
                     </SelectContent>
                   </Select>
                 )}
+              />
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("form.website")}</FieldLabel>
+              <Input
+                placeholder="https:// instagram.com/username, linkedin.com/in/name, etc."
+                {...register("website")}
               />
             </Field>
           </div>

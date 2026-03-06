@@ -24,6 +24,10 @@ type Lead struct {
 	Address        string  `gorm:"type:text" json:"address"`
 	City           string  `gorm:"type:varchar(100)" json:"city"`
 	Province       string  `gorm:"type:varchar(100)" json:"province"`
+	ProvinceID     *string `gorm:"type:uuid;index" json:"province_id"`
+	CityID         *string `gorm:"type:uuid;index" json:"city_id"`
+	DistrictID     *string `gorm:"type:uuid;index" json:"district_id"`
+	VillageName    string  `gorm:"type:varchar(200)" json:"village_name"`
 
 	// Classification
 	LeadSourceID *string     `gorm:"type:uuid;index" json:"lead_source_id"`
@@ -69,6 +73,7 @@ type Lead struct {
 	ThumbnailURL string   `gorm:"type:text" json:"thumbnail_url"`
 	CID          string   `gorm:"type:varchar(200)" json:"cid"`
 	PlaceID      string   `gorm:"type:varchar(200)" json:"place_id"`
+	Website      string   `gorm:"type:varchar(255)" json:"website"`
 
 	// Metadata
 	Notes     string         `gorm:"type:text" json:"notes"`

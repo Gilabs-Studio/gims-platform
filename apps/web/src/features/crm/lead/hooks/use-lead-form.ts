@@ -41,6 +41,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         address: z.string().optional().or(z.literal("")),
         city: z.string().max(100).optional().or(z.literal("")),
         province: z.string().max(100).optional().or(z.literal("")),
+        province_id: z.string().uuid().optional().or(z.literal("")),
+        city_id: z.string().uuid().optional().or(z.literal("")),
+        district_id: z.string().uuid().optional().or(z.literal("")),
+        village_name: z.string().max(200).optional().or(z.literal("")),
         lead_source_id: z.string().uuid().optional().or(z.literal("")),
         lead_status_id: z.string().uuid().optional().or(z.literal("")),
         estimated_value: z.number().min(0),
@@ -55,6 +59,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         time_expected: z.string().optional().or(z.literal("")),
         assigned_to: z.string().uuid().optional().or(z.literal("")),
         notes: z.string().optional().or(z.literal("")),
+        website: z.string().optional().or(z.literal("")),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -77,6 +82,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       address: "",
       city: "",
       province: "",
+      province_id: "",
+      city_id: "",
+      district_id: "",
+      village_name: "",
       lead_source_id: "",
       lead_status_id: "",
       estimated_value: 0,
@@ -91,6 +100,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       time_expected: "",
       assigned_to: "",
       notes: "",
+      website: "",
     },
   });
 
@@ -107,6 +117,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           address: editingItem.address ?? "",
           city: editingItem.city ?? "",
           province: editingItem.province ?? "",
+          province_id: editingItem.province_id ?? "",
+          city_id: editingItem.city_id ?? "",
+          district_id: editingItem.district_id ?? "",
+          village_name: editingItem.village_name ?? "",
           lead_source_id: editingItem.lead_source_id ?? "",
           lead_status_id: editingItem.lead_status_id ?? "",
           estimated_value: editingItem.estimated_value ?? 0,
@@ -121,6 +135,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           time_expected: editingItem.time_expected ?? "",
           assigned_to: editingItem.assigned_to ?? "",
           notes: editingItem.notes ?? "",
+          website: editingItem.website ?? "",
         });
       } else {
         form.reset({
@@ -133,6 +148,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           address: "",
           city: "",
           province: "",
+          province_id: "",
+          city_id: "",
+          district_id: "",
+          village_name: "",
           lead_source_id: "",
           lead_status_id: "",
           estimated_value: 0,
@@ -147,6 +166,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           time_expected: "",
           assigned_to: "",
           notes: "",
+          website: "",
         });
       }
     }
@@ -168,9 +188,14 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         address: data.address || undefined,
         city: data.city || undefined,
         province: data.province || undefined,
+        province_id: data.province_id || null,
+        city_id: data.city_id || null,
+        district_id: data.district_id || null,
+        village_name: data.village_name || undefined,
         auth_person: data.auth_person || undefined,
         need_description: data.need_description || undefined,
         notes: data.notes || undefined,
+        website: data.website || undefined,
       };
 
       if (editingItem) {
