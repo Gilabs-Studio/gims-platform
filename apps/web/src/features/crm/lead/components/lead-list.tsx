@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
@@ -207,7 +208,7 @@ export function LeadList() {
                     <TableCell>{item.lead_source?.name ?? "-"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={isConverted ? "default" : "outline"}
+                        variant="outline"
                         style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
                       >
                         {item.lead_status?.name ?? "-"}
@@ -217,7 +218,26 @@ export function LeadList() {
                     <TableCell className="text-right">
                       {item.estimated_value ? formatCurrency(item.estimated_value) : "-"}
                     </TableCell>
-                    <TableCell>{item.assigned_employee?.name ?? "-"}</TableCell>
+                    <TableCell>
+                      {item.assigned_employee ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage
+                              src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(item.assigned_employee.employee_code)}`}
+                              alt={item.assigned_employee.name}
+                            />
+                            <AvatarFallback dataSeed={item.assigned_employee.employee_code} className="text-xs">
+                              {item.assigned_employee.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm truncate max-w-[120px]" title={item.assigned_employee.name}>
+                            {item.assigned_employee.name}
+                          </span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDate(item.created_at)}
                     </TableCell>
