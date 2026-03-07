@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Controller, useWatch } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -21,6 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { LocationSelector } from "@/features/master-data/geographic/components/location-selector";
 import { LeadSourceDialog } from "../../lead-source/components/lead-source-dialog";
@@ -311,22 +320,31 @@ export function LeadFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <Field orientation="vertical">
                 <FieldLabel>{t("form.estimatedValue")}</FieldLabel>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder={t("form.estimatedValuePlaceholder")}
-                  {...register("estimated_value", { valueAsNumber: true })}
+                <Controller
+                  control={control}
+                  name="estimated_value"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={(val) => field.onChange(val ?? 0)}
+                      placeholder={t("form.estimatedValuePlaceholder")}
+                    />
+                  )}
                 />
               </Field>
 
               <Field orientation="vertical">
                 <FieldLabel>{t("form.probability")}</FieldLabel>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  placeholder={t("form.probabilityPlaceholder")}
-                  {...register("probability", { valueAsNumber: true })}
+                <Controller
+                  control={control}
+                  name="probability"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value}
+                      onChange={(val) => field.onChange(val ?? 0)}
+                      placeholder={t("form.probabilityPlaceholder")}
+                    />
+                  )}
                 />
               </Field>
             </div>
@@ -354,11 +372,16 @@ export function LeadFormDialog({
               {watch("budget_confirmed") && (
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.budgetAmount")}</FieldLabel>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder={t("form.budgetAmountPlaceholder")}
-                    {...register("budget_amount", { valueAsNumber: true })}
+                  <Controller
+                    control={control}
+                    name="budget_amount"
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value}
+                        onChange={(val) => field.onChange(val ?? 0)}
+                        placeholder={t("form.budgetAmountPlaceholder")}
+                      />
+                    )}
                   />
                 </Field>
               )}
@@ -429,9 +452,39 @@ export function LeadFormDialog({
               {watch("time_confirmed") && (
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.timeExpected")}</FieldLabel>
-                  <Input
-                    type="date"
-                    {...register("time_expected")}
+                  <Controller
+                    control={control}
+                    name="time_expected"
+                    render={({ field }) => (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal cursor-pointer",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(new Date(field.value), "PPP")
+                            ) : (
+                              <span>{t("form.pickDate") || "Pick a date"}</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date: Date | undefined) =>
+                              field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   />
                 </Field>
               )}

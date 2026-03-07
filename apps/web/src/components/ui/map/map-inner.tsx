@@ -114,13 +114,22 @@ function MapController<T>({
       // Verify bounds are valid
       if (bounds.length > 0 && bounds[0].length === 2 && !isNaN(bounds[0][0])) {
          try {
-            // @ts-ignore
-            map.fitBounds(bounds, {
-              padding: [50, 50],
-              maxZoom: 16,
-              duration: 1.5,
-              easeLinearity: 0.25,
-            });
+            // If there's only a single marker, use the provided defaultZoom
+            // to avoid Leaflet trying to zoom too far when fitting identical bounds.
+            if (bounds.length === 1) {
+              map.flyTo(bounds[0], defaultZoom, {
+                duration: 1.5,
+                easeLinearity: 0.25,
+              });
+            } else {
+              // @ts-ignore
+              map.fitBounds(bounds, {
+                padding: [50, 50],
+                maxZoom: Math.max(defaultZoom, 12),
+                duration: 1.5,
+                easeLinearity: 0.25,
+              });
+            }
          } catch(e) {
             console.error("Leaflet fitBounds error", e);
          }

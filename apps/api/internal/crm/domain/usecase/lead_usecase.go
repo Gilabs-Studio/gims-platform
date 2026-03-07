@@ -297,6 +297,15 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Notes != nil {
 		lead.Notes = *req.Notes
 	}
+	if req.NPWP != nil {
+		lead.NPWP = *req.NPWP
+	}
+	if req.Latitude != nil {
+		lead.Latitude = req.Latitude
+	}
+	if req.Longitude != nil {
+		lead.Longitude = req.Longitude
+	}
 
 	// Recalculate lead score after updates
 	lead.LeadScore = lead.CalculateLeadScore()

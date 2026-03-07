@@ -68,6 +68,10 @@ type UpdateLeadRequest struct {
 	// Assignment
 	AssignedTo *string `json:"assigned_to" binding:"omitempty,uuid"`
 	Notes      *string `json:"notes"`
+	// Additional fields for conversion completeness
+	NPWP      *string  `json:"npwp" binding:"omitempty,max=30"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 // ConvertLeadRequest defines the request body for converting a lead
@@ -166,6 +170,7 @@ type LeadResponse struct {
 	ConvertedBy *string          `json:"converted_by"`
 	// Metadata
 	Notes     string  `json:"notes"`
+	NPWP      string  `json:"npwp"`
 	CreatedBy *string `json:"created_by"`
 	CreatedAt string  `json:"created_at"`
 	UpdatedAt string  `json:"updated_at"`

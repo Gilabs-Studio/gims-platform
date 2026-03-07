@@ -43,8 +43,8 @@ export interface Lead {
   converted_at?: string | null;
   converted_by?: string | null;
   // Metadata
-  // Metadata
   notes: string;
+  npwp?: string | null;
   // External
   latitude?: number | null;
   longitude?: number | null;
@@ -148,6 +148,9 @@ export interface UpdateLeadData {
   assigned_to?: string | null;
   notes?: string;
   website?: string;
+  npwp?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface ConvertLeadData {
@@ -239,6 +242,7 @@ export interface LeadSourceOption {
   id: string;
   name: string;
   code: string;
+  order?: number;
 }
 
 export interface LeadStatusOption {
@@ -246,6 +250,7 @@ export interface LeadStatusOption {
   name: string;
   code: string;
   color: string;
+  order?: number;
   is_default: boolean;
   is_converted: boolean;
 }

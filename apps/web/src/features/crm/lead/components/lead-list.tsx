@@ -1,12 +1,12 @@
 "use client";
 
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter, Eye, Zap } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, ArrowRightLeft, Filter, Eye, Zap, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -17,19 +17,30 @@ import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LeadAnalytics } from "./lead-analytics";
 import { GenerateLeadsDialog } from "./generate-leads-dialog";
 import { useLeadList } from "../hooks/use-lead-list";
-import { useLeadFormData } from "../hooks/use-leads";
+import { useLeadFormData, useUpdateLead } from "../hooks/use-leads";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
+import { toast } from "sonner";
 
 export function LeadList() {
   const { state, actions, data, permissions, translations } = useLeadList();
   const { t, tCommon } = translations;
   const { data: formData } = useLeadFormData();
   const router = useRouter();
+  const updateMutation = useUpdateLead();
   const [generateOpen, setGenerateOpen] = useState(false);
 
   const leadSources = formData?.data?.lead_sources ?? [];
   const leadStatuses = formData?.data?.lead_statuses ?? [];
+
+  const handleStatusChange = async (leadId: string, statusId: string) => {
+    try {
+      await updateMutation.mutateAsync({ id: leadId, data: { lead_status_id: statusId } });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
 
   if (data.isError) {
     return (
@@ -268,6 +279,42 @@ export function LeadList() {
                                 <ArrowRightLeft className="mr-2 h-4 w-4" />
                                 {t("convertTitle")}
                               </DropdownMenuItem>
+                            )}
+                            {permissions.canUpdate && !isConverted && leadStatuses.length > 0 && (
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger className="cursor-pointer">
+                                  <ChevronRight className="mr-2 h-4 w-4" />
+                                  {t("changeStatus")}
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {leadStatuses
+                                    .slice()
+                                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                                    .map((status) => {
+                                      const isCurrent = item.lead_status_id === status.id;
+                                      return (
+                                        <DropdownMenuItem
+                                          key={status.id}
+                                          disabled={isCurrent || updateMutation.isPending}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusChange(item.id, status.id);
+                                          }}
+                                          className="cursor-pointer"
+                                        >
+                                          <span
+                                            className="mr-2 h-2 w-2 rounded-full shrink-0 inline-block"
+                                            style={{ backgroundColor: status.color ?? "#888" }}
+                                          />
+                                          {status.name}
+                                          {isCurrent && (
+                                            <span className="ml-auto text-xs text-muted-foreground">✓</span>
+                                          )}
+                                        </DropdownMenuItem>
+                                      );
+                                    })}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
                             )}
                             {(permissions.canUpdate || permissions.canConvert) && permissions.canDelete && !isConverted && (
                               <DropdownMenuSeparator />

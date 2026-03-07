@@ -63,6 +63,9 @@ type Lead struct {
 	ConvertedAt *time.Time                `json:"converted_at"`
 	ConvertedBy *string                   `gorm:"type:uuid" json:"converted_by"`
 
+	// NPWP / Tax ID
+	NPWP string `gorm:"type:varchar(30)" json:"npwp"`
+
 	// External Source Data (Google Maps, etc)
 	Latitude     *float64 `gorm:"type:numeric(10,8)" json:"latitude"`
 	Longitude    *float64 `gorm:"type:numeric(11,8)" json:"longitude"`

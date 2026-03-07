@@ -4,24 +4,26 @@ import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   ArrowRightLeft,
+  Briefcase,
   Building2,
   Calendar,
-  DollarSign,
+  CheckCircle2,
+  ChevronRight,
+  ExternalLink,
+  FileText,
   Mail,
   MapPin,
+  Navigation,
   Pencil,
   Phone,
+  Target,
   Trash2,
   User,
-  Briefcase,
-  CheckCircle2,
   XCircle,
-  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -33,19 +35,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
+import { MapView } from "@/components/ui/map/map-view";
+import { Marker, Popup } from "react-leaflet";
+import { formatCurrency, formatDate, formatWhatsAppLink, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useLeadById, useDeleteLead } from "../hooks/use-leads";
+import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData } from "../hooks/use-leads";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { Lead } from "../types";
+import type { Lead, LeadStatusOption } from "../types";
 
 interface LeadDetailProps {
   leadId: string;
+}
+
+// Fallback ordering for well-known status codes when the API doesn't supply an order field
+const STATUS_ORDER_FALLBACK: Record<string, number> = {
+  new: 1,
+  contacted: 2,
+  qualified: 3,
+  converted: 4,
+  lost: 5,
+};
+
+function getSortOrder(status: LeadStatusOption): number {
+  if (status.order != null) return status.order;
+  return STATUS_ORDER_FALLBACK[status.code?.toLowerCase() ?? ""] ?? 99;
 }
 
 function BANTIndicator({ confirmed, label }: { confirmed: boolean; label: string }) {
@@ -63,10 +82,16 @@ function BANTIndicator({ confirmed, label }: { confirmed: boolean; label: string
   );
 }
 
-function InfoRow({ icon: Icon, label, value }: {
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string | null | undefined;
+  href?: string;
 }) {
   if (!value) return null;
   return (
@@ -74,9 +99,192 @@ function InfoRow({ icon: Icon, label, value }: {
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm">{value}</p>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline cursor-pointer"
+          >
+            {value}
+          </a>
+        ) : (
+          <p className="text-sm">{value}</p>
+        )}
       </div>
     </div>
+  );
+}
+
+// Sequential status stepper — each step is clickable to update the lead status
+function StatusStepper({
+  statuses,
+  currentStatusId,
+  onStatusChange,
+  disabled,
+}: {
+  statuses: LeadStatusOption[];
+  currentStatusId: string | null | undefined;
+  onStatusChange: (statusId: string) => void;
+  disabled?: boolean;
+}) {
+  const sorted = [...statuses].sort((a, b) => getSortOrder(a) - getSortOrder(b));
+  const currentIndex = sorted.findIndex((s) => s.id === currentStatusId);
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {sorted.map((status, index) => {
+        const isCurrent = status.id === currentStatusId;
+        const isPast = index < currentIndex;
+        const color = status.color || "#6366f1";
+        return (
+          <div key={status.id} className="flex items-center gap-1">
+            {index > 0 && (
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+            )}
+            <button
+              onClick={() => !disabled && !isCurrent && onStatusChange(status.id)}
+              disabled={disabled || isCurrent}
+              title={status.name}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap select-none",
+                isCurrent
+                  ? "text-white shadow-sm cursor-default"
+                  : isPast
+                  ? "opacity-60 cursor-pointer hover:opacity-90"
+                  : "border cursor-pointer hover:opacity-80",
+                disabled && !isCurrent && "cursor-not-allowed opacity-40"
+              )}
+              style={
+                isCurrent
+                  ? { backgroundColor: color }
+                  : { borderColor: color, color }
+              }
+            >
+              {status.name}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Conversion readiness checklist — shows which customer fields are populated
+interface CheckField {
+  key: string;
+  label: string;
+  filled: boolean;
+  required?: boolean;
+}
+
+function ConversionReadiness({ fields }: { fields: CheckField[] }) {
+  const filledCount = fields.filter((f) => f.filled).length;
+  const percent = Math.round((filledCount / fields.length) * 100);
+  const missingRequired = fields.filter((f) => f.required && !f.filled);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn(
+              "h-2 rounded-full transition-all",
+              percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-yellow-500" : "bg-destructive/70"
+            )}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0">
+          {filledCount}/{fields.length}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {fields.map((field) => (
+          <div key={field.key} className="flex items-center gap-1.5">
+            {field.filled ? (
+              <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+            ) : (
+              <XCircle
+                className={cn(
+                  "h-3 w-3 shrink-0",
+                  field.required ? "text-destructive" : "text-muted-foreground/40"
+                )}
+              />
+            )}
+            <span
+              className={cn(
+                "text-xs truncate",
+                field.filled
+                  ? "text-foreground"
+                  : field.required
+                  ? "text-destructive"
+                  : "text-muted-foreground/60"
+              )}
+            >
+              {field.label}
+              {field.required && !field.filled && (
+                <span className="text-destructive ml-0.5">*</span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+      {missingRequired.length > 0 && (
+        <p className="text-xs text-destructive">
+          Required: {missingRequired.map((f) => f.label).join(", ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+
+function LeadDetailSkeleton() {
+  return (
+    <PageMotion>
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <Skeleton className="h-9 w-9" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-12 w-full" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg border p-3 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border p-4 space-y-4">
+                <Skeleton className="h-4 w-32" />
+                <div className="grid grid-cols-2 gap-4">
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <Skeleton key={j} className="h-12 w-full" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-lg border p-3 space-y-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </PageMotion>
   );
 }
 
@@ -86,7 +294,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
+  const { data: formDataRes } = useLeadFormData();
   const deleteMutation = useDeleteLead();
+  const updateMutation = useUpdateLead();
 
   const canUpdate = useUserPermission("crm_lead.update");
   const canDelete = useUserPermission("crm_lead.delete");
@@ -95,8 +305,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const lead: Lead | undefined = response?.data;
+  const statuses = formDataRes?.data?.lead_statuses ?? [];
   const isConverted = !!lead?.converted_at;
 
   const handleDelete = async () => {
@@ -109,6 +321,29 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
       toast.error(tCommon("error"));
     }
     setShowDeleteDialog(false);
+  };
+
+  const handleStatusChange = async (statusId: string) => {
+    if (!lead) return;
+    try {
+      await updateMutation.mutateAsync({ id: lead.id, data: { lead_status_id: statusId } });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const handleLocationSave = async (lat: number, lng: number) => {
+    if (!lead) return;
+    try {
+      await updateMutation.mutateAsync({ id: lead.id, data: { latitude: lat, longitude: lng } });
+      toast.success(t("locationUpdated"));
+      // Ensure detail view reflects updated coords immediately
+      await refetch();
+      setShowMapPicker(false);
+    } catch {
+      toast.error(tCommon("error"));
+    }
   };
 
   if (isLoading) {
@@ -129,9 +364,45 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   }
 
   const statusColor = lead.lead_status?.color ?? undefined;
-  const bantCount = [lead.budget_confirmed, lead.auth_confirmed, lead.need_confirmed, lead.time_confirmed]
-    .filter(Boolean).length;
-  const scoreColor = lead.lead_score >= 70 ? "text-green-600" : lead.lead_score >= 40 ? "text-yellow-600" : "text-muted-foreground";
+  const bantCount = [
+    lead.budget_confirmed,
+    lead.auth_confirmed,
+    lead.need_confirmed,
+    lead.time_confirmed,
+  ].filter(Boolean).length;
+  const scoreColor =
+    lead.lead_score >= 70
+      ? "text-green-600"
+      : lead.lead_score >= 40
+      ? "text-yellow-600"
+      : "text-muted-foreground";
+
+  // Sorted statuses for stepper and next-step detection
+  const sortedStatuses = [...statuses].sort((a, b) => getSortOrder(a) - getSortOrder(b));
+  const currentStatusIndex = sortedStatuses.findIndex((s) => s.id === lead.lead_status_id);
+  const nextStatus =
+    currentStatusIndex >= 0 && currentStatusIndex < sortedStatuses.length - 1
+      ? sortedStatuses[currentStatusIndex + 1]
+      : null;
+  const lostStatus = sortedStatuses.find(
+    (s) => s.code?.toLowerCase() === "lost" || s.name?.toLowerCase() === "lost"
+  );
+
+  const hasCoordinates = lead.latitude != null && lead.longitude != null;
+
+  // Fields checked for customer conversion completeness
+  const conversionFields: CheckField[] = [
+    { key: "name", label: "Name", filled: !!(lead.first_name || lead.company_name), required: true },
+    { key: "email", label: "Email", filled: !!lead.email, required: true },
+    { key: "phone", label: "Phone", filled: !!lead.phone },
+    { key: "company", label: "Company", filled: !!lead.company_name },
+    { key: "address", label: "Address", filled: !!lead.address },
+    { key: "city", label: "City", filled: !!lead.city },
+    { key: "province", label: "Province", filled: !!(lead.province || lead.province_id) },
+    { key: "district", label: "District", filled: !!lead.district_id },
+    { key: "npwp", label: "NPWP", filled: !!lead.npwp },
+    { key: "coords", label: "Location", filled: hasCoordinates },
+  ];
 
   return (
     <PageMotion>
@@ -142,13 +413,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="cursor-pointer mt-0.5"
+              className="cursor-pointer mt-0.5 shrink-0"
               onClick={() => router.push("/crm/leads")}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold tracking-tight">
                   {lead.first_name} {lead.last_name}
                 </h1>
@@ -158,15 +429,47 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 >
                   {lead.lead_status?.name ?? "-"}
                 </Badge>
-                {isConverted && (
-                  <Badge variant="default">{t("convertedBadge")}</Badge>
-                )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">{lead.code}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            {/* Quick "next status" button styled with the next status's color */}
+            {canUpdate && !isConverted && nextStatus && nextStatus.id !== lostStatus?.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                disabled={updateMutation.isPending}
+                onClick={() => handleStatusChange(nextStatus.id)}
+                style={{
+                  borderColor: nextStatus.color || undefined,
+                  color: nextStatus.color || undefined,
+                }}
+              >
+                <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                {nextStatus.name}
+              </Button>
+            )}
+
+            {/* Mark as Lost */}
+            {canUpdate &&
+              !isConverted &&
+              lostStatus &&
+              lead.lead_status_id !== lostStatus.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer text-destructive border-destructive/40 hover:bg-destructive/10"
+                  disabled={updateMutation.isPending}
+                  onClick={() => handleStatusChange(lostStatus.id)}
+                >
+                  {t("lostBadge")}
+                </Button>
+              )}
+
             {canConvert && !isConverted && (
               <Button
                 variant="outline"
@@ -224,13 +527,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           </div>
         </div>
 
-        {/* Main content: two columns */}
+        {/* Two-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left: main info */}
+          {/* ── Left: main information ── */}
           <div className="md:col-span-2 space-y-6">
             {/* Basic Information */}
             <div className="rounded-lg border p-4 space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("sections.basicInfo")}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -243,26 +546,30 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
             {/* Contact Information */}
             <div className="rounded-lg border p-4 space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("sections.contactInfo")}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoRow icon={Mail} label={t("form.email")} value={lead.email} />
-                <InfoRow icon={Phone} label={t("form.phone")} value={lead.phone} />
+                <InfoRow icon={Mail} label={t("form.email")} value={lead.email} href={lead.email ? `mailto:${lead.email}` : undefined} />
+                <InfoRow icon={Phone} label={t("form.phone")} value={lead.phone} href={lead.phone ? formatWhatsAppLink(lead.phone) : undefined} />
                 <InfoRow icon={MapPin} label={t("form.address")} value={lead.address} />
                 <InfoRow icon={MapPin} label={t("form.city")} value={lead.city} />
                 <InfoRow icon={MapPin} label={t("form.province")} value={lead.province} />
+                <InfoRow icon={FileText} label={t("form.npwp")} value={lead.npwp} />
               </div>
             </div>
 
             {/* BANT Qualification */}
             <div className="rounded-lg border p-4 space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("sections.bant")}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
                 <div className="space-y-2">
-                  <BANTIndicator confirmed={lead.budget_confirmed} label={t("form.budgetConfirmed")} />
+                  <BANTIndicator
+                    confirmed={lead.budget_confirmed}
+                    label={t("form.budgetConfirmed")}
+                  />
                   {lead.budget_confirmed && lead.budget_amount > 0 && (
                     <p className="text-sm text-muted-foreground ml-6">
                       {formatCurrency(lead.budget_amount)}
@@ -270,19 +577,28 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <BANTIndicator confirmed={lead.auth_confirmed} label={t("form.authConfirmed")} />
+                  <BANTIndicator
+                    confirmed={lead.auth_confirmed}
+                    label={t("form.authConfirmed")}
+                  />
                   {lead.auth_confirmed && lead.auth_person && (
                     <p className="text-sm text-muted-foreground ml-6">{lead.auth_person}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <BANTIndicator confirmed={lead.need_confirmed} label={t("form.needConfirmed")} />
+                  <BANTIndicator
+                    confirmed={lead.need_confirmed}
+                    label={t("form.needConfirmed")}
+                  />
                   {lead.need_confirmed && lead.need_description && (
                     <p className="text-sm text-muted-foreground ml-6">{lead.need_description}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <BANTIndicator confirmed={lead.time_confirmed} label={t("form.timeConfirmed")} />
+                  <BANTIndicator
+                    confirmed={lead.time_confirmed}
+                    label={t("form.timeConfirmed")}
+                  />
                   {lead.time_confirmed && lead.time_expected && (
                     <p className="text-sm text-muted-foreground ml-6">
                       {formatDate(lead.time_expected)}
@@ -292,10 +608,32 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
               </div>
             </div>
 
+            {/* Conversion Readiness */}
+            <div className="rounded-lg border p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Target className="h-4 w-4" />
+                  {t("sections.conversionReadiness")}
+                </h3>
+                {!isConverted && canConvert && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer h-7 text-xs"
+                    onClick={() => setShowConvertDialog(true)}
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
+                    {t("convertTitle")}
+                  </Button>
+                )}
+              </div>
+              <ConversionReadiness fields={conversionFields} />
+            </div>
+
             {/* Notes */}
             {lead.notes && (
               <div className="rounded-lg border p-4 space-y-2">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   {t("sections.notes")}
                 </h3>
                 <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
@@ -303,11 +641,96 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             )}
           </div>
 
-          {/* Right: sidebar */}
+          {/* ── Right: sidebar ── */}
           <div className="space-y-4">
+            {/* Location / Map */}
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {t("sections.location")}
+                </h4>
+                {canUpdate && !isConverted && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="cursor-pointer h-6 px-2 text-xs"
+                    onClick={() => setShowMapPicker(true)}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Navigation className="h-3 w-3 mr-1" />
+                    {hasCoordinates ? t("changeLocation") : t("pickLocation")}
+                  </Button>
+                )}
+              </div>
+
+              {hasCoordinates ? (
+                <>
+                  <div className="w-full h-64 rounded-md border bg-muted/30 overflow-hidden">
+                    <MapView
+                      className="h-64"
+                      defaultZoom={9}
+                      markers={[
+                        {
+                          id: lead.id,
+                          latitude: Number(lead.latitude),
+                          longitude: Number(lead.longitude),
+                          data: lead,
+                        },
+                      ]}
+                      renderMarkers={(markers) => (
+                        <>
+                          {markers.map((m) => (
+                            <Marker key={m.id} position={[m.latitude, m.longitude]}>
+                              <Popup>
+                                <div className="text-sm font-medium">
+                                  {lead.company_name ? lead.company_name : `${lead.first_name} ${lead.last_name}`}
+                                </div>
+                              </Popup>
+                            </Marker>
+                          ))}
+                        </>
+                      )}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-mono tabular-nums">
+                      {Number(lead.latitude).toFixed(6)},{" "}
+                      {Number(lead.longitude).toFixed(6)}
+                    </span>
+                    <a
+                      href={`https://maps.google.com/?q=${lead.latitude},${lead.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {t("openInMaps")}
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <div className="h-28 flex flex-col items-center justify-center bg-muted/30 rounded-md gap-2 border border-dashed">
+                  <MapPin className="h-6 w-6 text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
+                  {canUpdate && !isConverted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="cursor-pointer text-xs h-7"
+                      onClick={() => setShowMapPicker(true)}
+                    >
+                      <Navigation className="h-3 w-3 mr-1" />
+                      {t("pickLocation")}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Classification */}
             <div className="rounded-lg border p-3 space-y-3">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("sections.classification")}
               </h4>
               {lead.lead_source && (
@@ -327,9 +750,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   </Badge>
                 </div>
               )}
-              {lead.place_id && lead.place_id.startsWith('http') && (
+              {lead.place_id && lead.place_id.startsWith("http") && (
                 <div>
-                  <p className="text-xs text-muted-foreground">{t("form.sourceLink") || "Source Link"}</p>
+                  <p className="text-xs text-muted-foreground">{t("form.sourceLink")}</p>
                   <Link
                     href={lead.place_id}
                     target="_blank"
@@ -337,15 +760,21 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     className="flex items-center gap-1 mt-1 text-sm font-medium text-primary hover:underline cursor-pointer"
                   >
                     <ExternalLink className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{lead.place_id.includes('linkedin.com') ? 'View LinkedIn Profile' : 'View on Google Maps'}</span>
+                    <span className="truncate">
+                      {lead.place_id.includes("linkedin.com")
+                        ? "View LinkedIn Profile"
+                        : "View on Google Maps"}
+                    </span>
                   </Link>
                 </div>
               )}
               {lead.website && (
-                <div className="mt-3">
+                <div>
                   <p className="text-xs text-muted-foreground">{t("form.website")}</p>
                   <Link
-                    href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                    href={
+                      lead.website.startsWith("http") ? lead.website : `https://${lead.website}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 mt-1 text-sm font-medium text-primary hover:underline cursor-pointer"
@@ -360,16 +789,23 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             {/* Assignment */}
             {lead.assigned_employee && (
               <div className="rounded-lg border p-3 space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {t("sections.assignment")}
                 </h4>
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarImage
-                      src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(lead.assigned_employee.employee_code)}`}
+                      src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(
+                        lead.assigned_employee.employee_code
+                      )}`}
                       alt={lead.assigned_employee.name}
                     />
-                    <AvatarFallback dataSeed={lead.assigned_employee.employee_code} className="text-xs">{lead.assigned_employee.name}</AvatarFallback>
+                    <AvatarFallback
+                      dataSeed={lead.assigned_employee.employee_code}
+                      className="text-xs"
+                    >
+                      {lead.assigned_employee.name}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="text-sm">{lead.assigned_employee.name}</span>
                 </div>
@@ -381,7 +817,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
             {/* Scoring */}
             <div className="rounded-lg border p-3 space-y-3">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("sections.scoring")}
               </h4>
               <div>
@@ -410,10 +846,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
               </div>
             </div>
 
-            {/* Conversion (if converted) */}
+            {/* Conversion details (only shown when already converted) */}
             {isConverted && (
               <div className="rounded-lg border p-3 space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {t("sections.conversion")}
                 </h4>
                 {lead.converted_at && (
@@ -443,7 +879,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
             {/* Dates */}
             <div className="rounded-lg border p-3 space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t("table.createdAt")}
               </h4>
               <div className="flex items-center gap-2 text-xs">
@@ -496,51 +932,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           </AlertDialogContent>
         </AlertDialog>
       )}
-    </PageMotion>
-  );
-}
 
-function LeadDetailSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-3">
-        <Skeleton className="h-9 w-9" />
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-3 space-y-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-8 w-20" />
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-lg border p-4 space-y-4">
-              <Skeleton className="h-4 w-32" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 4 }).map((_, j) => (
-                  <Skeleton key={j} className="h-12 w-full" />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg border p-3 space-y-3">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      {/* Map picker modal for setting / updating coordinates */}
+      <MapPickerModal
+        open={showMapPicker}
+        onOpenChange={setShowMapPicker}
+        latitude={lead.latitude ?? 0}
+        longitude={lead.longitude ?? 0}
+        onCoordinateSelect={handleLocationSave}
+        title={t("pickLocation")}
+        description={t("pickLocationDesc")}
+      />
+    </PageMotion>
   );
 }

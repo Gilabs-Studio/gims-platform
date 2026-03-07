@@ -41,6 +41,7 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		DealID:          lead.DealID,
 		ConvertedBy:     lead.ConvertedBy,
 		Notes:           lead.Notes,
+		NPWP:            lead.NPWP,
 		CreatedBy:       lead.CreatedBy,
 		CreatedAt:       lead.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
 		UpdatedAt:       lead.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
