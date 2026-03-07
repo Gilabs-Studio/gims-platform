@@ -319,6 +319,64 @@ func RateLimitMiddleware() gin.HandlerFunc {
 
 ---
 
+## Panic Attack Prevention & Runtime Safety
+
+### Mandatory Safeguards
+
+**✅ REQUIRED:**
+- Global panic recovery middleware must be enabled for all routes.
+- Request parameter bounds must be validated before repository/usecase execution.
+- All handlers must handle malformed payloads without panic.
+- Body and multipart size limits must be enforced globally.
+- Background workers must use timeout-bound contexts.
+
+**Example (Query Bounds):**
+```go
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+
+if page < 1 {
+    page = 1
+}
+if perPage < 1 {
+    perPage = 20
+}
+if perPage > 100 {
+    perPage = 100
+}
+```
+
+---
+
+## Retry Storm & Burst Mitigation
+
+### Server-Side Rules
+
+**✅ REQUIRED:**
+- Use distributed rate limiting (Redis-backed) in multi-instance deployments.
+- Define limiter backend failure policy explicitly:
+  - Public/auth critical surfaces: prefer fail-closed.
+  - Internal low-risk surfaces: fail-open only with strict observability.
+- Return `Retry-After` for `429` and temporary overload scenarios.
+- Protect expensive endpoints with tighter per-endpoint limits than general endpoints.
+
+### Retry Policy Rules
+
+**✅ REQUIRED:**
+- Retries must use exponential backoff with jitter.
+- Retries must have max attempts and retry budget.
+- Do not retry non-idempotent writes without idempotency key.
+- Idempotent mutation endpoints should support idempotency key to avoid duplicate effects.
+
+### Client Coordination Rules
+
+**✅ REQUIRED:**
+- Client must not aggressively auto-retry on `429`/`503`.
+- Respect `Retry-After` header if present.
+- Use cache/stale data and controlled refetch to avoid thundering herd after reconnect/focus.
+
+---
+
 ## Monitoring & Observability
 
 ### Metrics to Monitor

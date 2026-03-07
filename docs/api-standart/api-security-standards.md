@@ -26,12 +26,30 @@ This document outlines the security standards and best practices implemented in 
 
 ### 3.1 Redis-Backed Limiter
 - Rate limiting is implemented using **Redis** (Fixed Window algorithm) for distributed tracking.
-- If Redis is unavailable, the system automatically falls back to an in-memory implementation.
+- For production/multi-instance environments, limiter failure policy MUST be explicit:
+	- Critical public/auth endpoints: prefer fail-closed to avoid distributed bypass during incidents.
+	- Non-critical internal endpoints: controlled fail-open allowed only with alerting.
 
 ### 3.2 Limit Levels
 - **Global Login Limit**: Per-IP limit on login attempts to prevent DOS.
 - **Email-Based Limit**: Limits login attempts per email address to prevent brute-force attacks on specific accounts.
 - **General Limit**: Default limit for all authenticated endpoints.
+
+### 3.3 Retry Storm Prevention
+- The API MUST protect against retry storms and burst abuse:
+	- Return `429 Too Many Requests` with `Retry-After` when limits are exceeded.
+	- Avoid expensive work before limiter checks (fail fast).
+	- Enforce tighter limits on authentication, upload, and expensive report endpoints.
+
+### 3.4 Idempotency and Safe Retries
+- Non-idempotent endpoints (create/charge/submit) MUST NOT be blindly retried by clients.
+- If retries are required for non-idempotent operations, endpoint MUST support idempotency key.
+- Duplicate request handling MUST be deterministic to prevent double processing.
+
+## 3.5 Dependency Degradation Safety
+- All dependency calls (DB/Redis/external API) MUST use timeout-bound contexts.
+- On dependency timeout/failure, API MUST return controlled error responses (no panic, no process crash).
+- Background workers MUST stop gracefully during shutdown before resource teardown.
 
 ## 4. Input Validation & Data Integrity
 

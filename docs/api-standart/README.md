@@ -119,7 +119,13 @@ This directory contains comprehensive standards and guidelines for backend API d
 - Proper connection pooling
 - Caching where appropriate
 
-### 5. Maintainability
+### 5. Resilience & Stability
+- Panic-safe request lifecycle (no crash on malformed input)
+- Retry-storm protection for burst and multi-instance traffic
+- Dependency degradation handling (Redis/DB/external APIs)
+- Fail-safe behavior with graceful fallback or fail-closed policy where required
+
+### 6. Maintainability
 - Clear code organization
 - Comprehensive error handling
 - Proper logging and monitoring
@@ -143,6 +149,9 @@ This directory contains comprehensive standards and guidelines for backend API d
 - [ ] Caching strategy implemented
 - [ ] Connection pool configured
 - [ ] Query timeouts set
+- [ ] Retry policy uses exponential backoff + jitter
+- [ ] Retry budget and max attempts defined
+- [ ] No retry for non-idempotent writes without idempotency key
 
 ### Security
 - [ ] Input sanitization implemented
@@ -152,6 +161,16 @@ This directory contains comprehensive standards and guidelines for backend API d
 - [ ] Authentication required
 - [ ] Authorization checked
 - [ ] Sensitive data not logged
+
+### Resilience & Anti-Crash
+- [ ] Global panic recovery middleware enabled
+- [ ] Input bounds validation for all query/path/body params
+- [ ] Request/body/multipart size limits enforced
+- [ ] Graceful shutdown stops all background workers
+- [ ] Distributed rate limit configured for multi-instance
+- [ ] Behavior on limiter backend failure explicitly defined (fail-open/fail-closed)
+- [ ] `Retry-After` header returned for rate-limit/overload responses
+- [ ] Client retry behavior respects `429`/`503` and avoids retry storms
 
 ### Enterprise Requirements
 - [ ] Multi-tenancy handled (if applicable)

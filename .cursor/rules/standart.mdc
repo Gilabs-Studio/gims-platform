@@ -1110,6 +1110,38 @@ Backend Standards (Go + Gin)
 - Use interface-based design for repositories.
 - Follow API response standards from `/docs/api-standart/`.
 - All errors must use error codes from `/docs/api-standart/api-error-codes.md`.
+- **CRITICAL**: Backend must be resilient against panic, retry storm, burst traffic, and dependency degradation.
+
+Backend Panic/Crash Prevention (CRITICAL)
+- Always keep `gin.Recovery()` enabled globally and return standardized error response with request ID.
+- Never panic for expected runtime failures (validation, not found, conflict, timeout, dependency error).
+- Validate query/body/path params with strict bounds before business logic (e.g., `page >= 1`, `1 <= per_page <= 100`).
+- Enforce bounded resource usage:
+  - Request body size limit (`http.MaxBytesReader` + Content-Length pre-check)
+  - Multipart memory/body limits
+  - DB pagination upper bound
+- All remote/dependency calls must use timeout-bound contexts (DB/Redis/HTTP/external API/background workers).
+- During graceful shutdown, stop all background workers before closing shared resources.
+- Use row-level locking (`FOR UPDATE`) for concurrent mutation paths that can race.
+
+Retry Storm / Burst Control (CRITICAL)
+- Use distributed rate limiting (Redis-backed) for multi-instance environments.
+- For production, limiter backend failure policy must be explicit and safe (prefer fail-closed for auth/public abuse surfaces).
+- Add jittered exponential backoff for retries. Never use tight immediate retries.
+- Cap retries and define retry budget per request/user/session.
+- Do not retry non-idempotent mutations unless idempotency key is implemented.
+- For idempotent write endpoints, support idempotency key to prevent duplicate effects under retries.
+- Return `Retry-After` header for `429` or temporary overload scenarios when applicable.
+
+Client Resilience / Anti-Crash (CRITICAL)
+- API hooks/services must classify errors into: validation, auth, rate-limit, timeout, network, server.
+- For `429`/`503`, respect `Retry-After` and show cooldown UI; do not auto-spam retries.
+- TanStack Query defaults should avoid retry storms:
+  - Disable retries for 4xx (except optional 408/409 strategy)
+  - Limited retries for 5xx/network with exponential backoff + jitter
+  - Use `staleTime` and deduping to reduce refetch bursts
+- Prevent thundering herd on focus/reconnect by controlling `refetchOnWindowFocus` and staggered/manual refetch where needed.
+- Always show safe fallback UI (loading/error/empty) and never assume nested response fields exist.
 - **CRITICAL**: When adding/modifying backend endpoints:
   1. Update Postman collection: `/docs/postman/CRM-Healthcare-API.postman_collection.json`
   2. Update Postman documentation if needed: `/docs/postman/README.md` or `/docs/postman/SETUP.md`
