@@ -1,8 +1,8 @@
-"use client";
-
+import { useState } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,9 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { LocationSelector } from "@/features/master-data/geographic/components/location-selector";
+import { LeadSourceDialog } from "../../lead-source/components/lead-source-dialog";
+import { LeadStatusDialog } from "../../lead-status/components/lead-status-dialog";
 import { useLeadForm, type UseLeadFormProps } from "../hooks/use-lead-form";
-import { useLeadFormData } from "../hooks/use-leads";
+import { useLeadFormData, leadKeys } from "../hooks/use-leads";
 import type { Lead } from "../types";
 
 interface LeadFormDialogProps {
@@ -41,7 +44,33 @@ export function LeadFormDialog({
 }: LeadFormDialogProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
+  const queryClient = useQueryClient();
   const isEditing = !!lead;
+
+  const [quickCreate, setQuickCreate] = useState<{
+    type: "source" | "status" | null;
+    query: string;
+  }>({ type: null, query: "" });
+
+  const openQuickCreate = (type: "source" | "status", query: string) => {
+    setQuickCreate({ type, query });
+  };
+
+  const closeQuickCreate = () => {
+    setQuickCreate({ type: null, query: "" });
+  };
+
+  const handleSourceCreated = (item: { id: string; name: string }) => {
+    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    form.setValue("lead_source_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleStatusCreated = (item: { id: string; name: string }) => {
+    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    form.setValue("lead_status_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    closeQuickCreate();
+  };
 
   const formProps: UseLeadFormProps = {
     open,
@@ -72,6 +101,7 @@ export function LeadFormDialog({
   } = form;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -197,21 +227,18 @@ export function LeadFormDialog({
                   control={control}
                   name="lead_source_id"
                   render={({ field }) => (
-                    <Select
+                    <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
-                    >
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.leadSourcePlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {leadSources.map((source) => (
-                          <SelectItem key={source.id} value={source.id} className="cursor-pointer">
-                            {source.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={leadSources.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                      }))}
+                      placeholder={t("form.leadSourcePlaceholder")}
+                      createPermission="crm_lead_source.create"
+                      createLabel={`${tCommon("create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("source", q)}
+                    />
                   )}
                 />
               </Field>
@@ -222,23 +249,20 @@ export function LeadFormDialog({
                   control={control}
                   name="lead_status_id"
                   render={({ field }) => (
-                    <Select
+                    <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
-                    >
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.leadStatusPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {leadStatuses
-                          .filter((s) => !s.is_converted)
-                          .map((status) => (
-                            <SelectItem key={status.id} value={status.id} className="cursor-pointer">
-                              {status.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                      options={leadStatuses
+                        .filter((s) => !s.is_converted)
+                        .map((s) => ({
+                          value: s.id,
+                          label: s.name,
+                        }))}
+                      placeholder={t("form.leadStatusPlaceholder")}
+                      createPermission="crm_lead_status.create"
+                      createLabel={`${tCommon("create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("status", q)}
+                    />
                   )}
                 />
               </Field>
@@ -449,5 +473,28 @@ export function LeadFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+    
+    <LeadSourceDialog
+      open={quickCreate.type === "source"}
+      onOpenChange={(o) => !o && closeQuickCreate()}
+      editingItem={null}
+      onCreated={handleSourceCreated}
+      initialData={{
+        name: quickCreate.query,
+        order: Math.max(0, ...leadSources.map((s) => s.order ?? 0)) + 1,
+      }}
+    />
+
+    <LeadStatusDialog
+      open={quickCreate.type === "status"}
+      onOpenChange={(o) => !o && closeQuickCreate()}
+      editingItem={null}
+      onCreated={handleStatusCreated}
+      initialData={{
+        name: quickCreate.query,
+        order: Math.max(0, ...leadStatuses.map((s) => s.order ?? 0)) + 1,
+      }}
+    />
+    </>
   );
 }

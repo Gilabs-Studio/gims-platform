@@ -21,9 +21,17 @@ export interface UseLeadSourceFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: LeadSource | null;
+  onCreated?: (item: { id: string; name: string }) => void;
+  initialData?: { name?: string; order?: number };
 }
 
-export function useLeadSourceForm({ open, onOpenChange, editingItem }: UseLeadSourceFormProps) {
+export function useLeadSourceForm({
+  open,
+  onOpenChange,
+  editingItem,
+  onCreated,
+  initialData,
+}: UseLeadSourceFormProps) {
   const t = useTranslations("leadSource");
   const tCommon = useTranslations("common");
 
@@ -40,7 +48,13 @@ export function useLeadSourceForm({ open, onOpenChange, editingItem }: UseLeadSo
       if (editingItem) {
         form.reset({ name: editingItem.name, code: editingItem.code, description: editingItem.description ?? "", order: editingItem.order, is_active: editingItem.is_active });
       } else {
-        form.reset({ name: "", code: "", description: "", order: 0, is_active: true });
+        form.reset({
+          name: initialData?.name ?? "",
+          code: initialData?.name?.toUpperCase() ?? "",
+          description: "",
+          order: initialData?.order ?? 0,
+          is_active: true,
+        });
       }
     }
   }, [editingItem, form, open]);
@@ -51,8 +65,11 @@ export function useLeadSourceForm({ open, onOpenChange, editingItem }: UseLeadSo
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = (await createMutation.mutateAsync(data)) as {
+          data: { id: string; name: string };
+        };
         toast.success(t("created"));
+        onCreated?.(result.data);
       }
       onOpenChange(false);
       form.reset();
