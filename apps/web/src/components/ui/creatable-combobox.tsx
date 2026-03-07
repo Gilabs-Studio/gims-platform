@@ -29,6 +29,7 @@ export interface CreatableComboboxProps {
   disabled?: boolean;
   isLoading?: boolean;
   className?: string;
+  ariaInvalid?: boolean;
 }
 
 /**
@@ -49,6 +50,7 @@ export function CreatableCombobox({
   disabled = false,
   isLoading = false,
   className,
+  ariaInvalid = false,
 }: CreatableComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -125,6 +127,7 @@ export function CreatableCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           disabled={disabled || isLoading}
+          aria-invalid={ariaInvalid}
           data-placeholder={!selectedLabel ? "" : undefined}
           className={cn(
             "border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground",
