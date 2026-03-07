@@ -23,7 +23,6 @@ import {
   User,
   XCircle,
 } from "lucide-react";
-import { getActivityTypeIcon } from "@/features/crm/activity/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -45,14 +44,16 @@ import { Marker, Popup } from "react-leaflet";
 import { formatCurrency, formatDate, formatWhatsAppLink, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData } from "../hooks/use-leads";
+import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "./log-activity-dialog";
+import { LeadActivityFeed } from "./lead-activity-feed";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { Lead, LeadStatusOption, ActivityResponse } from "../types";
+import type { Lead, LeadStatusOption } from "../types";
 
 interface LeadDetailProps {
   leadId: string;
@@ -303,6 +304,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
   const { data: formDataRes } = useLeadFormData();
+  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
 
@@ -316,6 +319,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
@@ -567,98 +571,21 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
               {/* ── Activities Tab ── */}
               <TabsContent value="activities" className="mt-4">
-                <div className="space-y-4">
-                  {canCreateActivity && (
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="cursor-pointer h-7 text-xs"
-                        onClick={() => setShowActivityDialog(true)}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        {t("addActivity")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {!lead.activities || lead.activities.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
-                      <History className="h-8 w-8 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">{t("noActivities")}</p>
-                      {canCreateActivity && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer mt-1"
-                          onClick={() => setShowActivityDialog(true)}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" />
-                          {t("addActivity")}
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <ol className="relative border-l border-border ml-3 space-y-6">
-                      {(lead.activities as ActivityResponse[])
-                        .slice()
-                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                        .map((activity) => {
-                          const TypeIcon = getActivityTypeIcon(activity.activity_type?.icon);
-                          return (
-                          <li key={activity.id} className="ml-6">
-                            <span
-                              className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full border bg-background"
-                              style={
-                                activity.activity_type?.badge_color
-                                  ? { borderColor: activity.activity_type.badge_color, color: activity.activity_type.badge_color }
-                                  : undefined
-                              }
-                            >
-                              <TypeIcon className="h-3 w-3" />
-                            </span>
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                {activity.activity_type && (
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex items-center gap-1 text-xs"
-                                    style={
-                                      activity.activity_type.badge_color
-                                        ? { borderColor: activity.activity_type.badge_color, color: activity.activity_type.badge_color }
-                                        : undefined
-                                    }
-                                  >
-                                    <TypeIcon className="h-3 w-3 shrink-0" />
-                                    {activity.activity_type.name}
-                                  </Badge>
-                                )}
-                                <time className="text-xs text-muted-foreground">
-                                  {formatDate(activity.timestamp)}
-                                </time>
-                                {activity.employee && (
-                                  <span className="text-xs text-muted-foreground">
-                                    &bull; {activity.employee.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm">{activity.description}</p>
-                            </div>
-                          </li>
-                          );
-                        })}
-                    </ol>
-                  )}
-                </div>
+                <LeadActivityFeed
+                  leadId={lead.id}
+                  canCreateActivity={canCreateActivity}
+                  onLogActivity={() => setShowActivityDialog(true)}
+                  refreshKey={activityRefreshKey}
+                />
               </TabsContent>
 
               {/* ── Information Tab: Contact, BANT, Conversion Readiness ── */}
               <TabsContent value="information" className="mt-4 space-y-4">
                 {/* Contact Information */}
-                <div className="rounded-lg border p-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="rounded-lg border p-3 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {t("sections.contactInfo")}
-                  </h3>
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InfoRow icon={Mail} label={t("form.email")} value={lead.email} href={lead.email ? `mailto:${lead.email}` : undefined} />
                     <InfoRow icon={Phone} label={t("form.phone")} value={lead.phone} href={lead.phone ? formatWhatsAppLink(lead.phone) : undefined} />
@@ -670,10 +597,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 </div>
 
                 {/* BANT Qualification */}
-                <div className="rounded-lg border p-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="rounded-lg border p-3 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {t("sections.bant")}
-                  </h3>
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
                     <div className="space-y-2">
                       <BANTIndicator confirmed={lead.budget_confirmed} label={t("form.budgetConfirmed")} />
@@ -703,12 +630,12 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 </div>
 
                 {/* Conversion Readiness */}
-                <div className="rounded-lg border p-4 space-y-4">
+                <div className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <Target className="h-4 w-4" />
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5" />
                       {t("sections.conversionReadiness")}
-                    </h3>
+                    </h4>
                     {!isConverted && canConvert && (
                       <Button
                         variant="outline"
@@ -999,7 +926,11 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           leadId={lead.id}
           defaultEmployeeId={lead.assigned_employee?.id}
           employees={formDataRes?.data?.employees ?? []}
-          onSuccess={() => refetch()}
+          activityTypes={activityTypes}
+          onSuccess={() => {
+            refetch();
+            setActivityRefreshKey((k) => k + 1);
+          }}
         />
       )}
 

@@ -33,9 +33,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useCreateActivity } from "@/features/crm/activity/hooks/use-activities";
 import { getActivityTypeIcon } from "@/features/crm/activity/utils";
-import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { toast } from "sonner";
 import type { LeadEmployeeOption } from "../types";
+import type { ActivityType } from "@/features/crm/activity-type/types";
 
 interface LogActivityDialogProps {
   readonly open: boolean;
@@ -43,6 +43,7 @@ interface LogActivityDialogProps {
   readonly leadId: string;
   readonly defaultEmployeeId?: string;
   readonly employees: LeadEmployeeOption[];
+  readonly activityTypes: ActivityType[];
   readonly onSuccess?: () => void;
 }
 
@@ -60,23 +61,13 @@ export function LogActivityDialog({
   leadId,
   defaultEmployeeId,
   employees,
+  activityTypes,
   onSuccess,
 }: LogActivityDialogProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
 
   const { mutateAsync: createActivity, isPending } = useCreateActivity();
-
-  // Fetch activity types from master data
-  const { data: activityTypesData } = useActivityTypes({
-    per_page: 100,
-    sort_by: "order",
-    sort_dir: "asc",
-  });
-  const activityTypes = useMemo(
-    () => (activityTypesData?.data ?? []).filter((at) => at.is_active),
-    [activityTypesData],
-  );
 
   const schema = useMemo(
     () =>

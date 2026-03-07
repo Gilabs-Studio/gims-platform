@@ -41,7 +41,13 @@ func (h *ActivityHandler) Create(c *gin.Context) {
 		}
 	}
 
-	result, err := h.uc.Create(c.Request.Context(), req, createdBy)
+	// Use the explicitly provided employee_id if present; fall back to JWT user
+	employeeID := createdBy
+	if req.EmployeeID != nil && *req.EmployeeID != "" {
+		employeeID = *req.EmployeeID
+	}
+
+	result, err := h.uc.Create(c.Request.Context(), req, employeeID)
 	if err != nil {
 		handleActivityError(c, err)
 		return
