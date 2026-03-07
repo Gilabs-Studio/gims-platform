@@ -48,7 +48,7 @@ type Deal struct {
 	AssignedTo *string                  `gorm:"type:uuid;index" json:"assigned_to"`
 	AssignedEmployee *orgModels.Employee `gorm:"foreignKey:AssignedTo" json:"assigned_employee,omitempty"`
 	LeadID     *string                  `gorm:"type:uuid;index" json:"lead_id"`
-	Lead       *Lead                    `gorm:"foreignKey:LeadID" json:"lead,omitempty"`
+	Lead       *Lead                    `gorm:"foreignKey:LeadID;constraint:false" json:"lead,omitempty"`
 
 	// BANT (inherited from lead on conversion)
 	BudgetConfirmed bool    `gorm:"default:false" json:"budget_confirmed"`

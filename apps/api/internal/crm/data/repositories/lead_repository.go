@@ -79,6 +79,13 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 		Preload("Contact").
 		Preload("BusinessType").
 		Preload("Area").
+		Preload("Deal").
+		Preload("Deal.PipelineStage").
+		Preload("Activities", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Limit(50)
+		}).
+		Preload("Activities.ActivityType").
+		Preload("Activities.Employee").
 		First(&lead, "id = ?", id).Error
 	if err != nil {
 		return nil, err

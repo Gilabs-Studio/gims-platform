@@ -2,7 +2,7 @@ package dto
 
 // CreateActivityRequest represents the request to create an activity
 type CreateActivityRequest struct {
-	Type           string  `json:"type" binding:"required,oneof=visit call email task deal lead"`
+	Type           string  `json:"type" binding:"required,min=1"`
 	ActivityTypeID *string `json:"activity_type_id" binding:"omitempty,uuid"`
 	CustomerID     *string `json:"customer_id" binding:"omitempty,uuid"`
 	ContactID      *string `json:"contact_id" binding:"omitempty,uuid"`

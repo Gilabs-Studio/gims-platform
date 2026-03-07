@@ -37,7 +37,6 @@ func SeedCRMLeads() error {
 	statusNew := LeadStatusNewID
 	statusContacted := LeadStatusContactedID
 	statusQualified := LeadStatusQualifiedID
-	statusProposal := LeadStatusProposalID
 	statusConverted := LeadStatusConvertedID
 	statusLost := LeadStatusLostID
 
@@ -149,7 +148,7 @@ func SeedCRMLeads() error {
 			City:            "Semarang",
 			Province:        "Jawa Tengah",
 			LeadSourceID:    &sourceExhibition,
-			LeadStatusID:    &statusProposal,
+			LeadStatusID:    &statusQualified,
 			LeadScore:       60,
 			Probability:     70,
 			EstimatedValue:  200000000,
@@ -161,7 +160,7 @@ func SeedCRMLeads() error {
 			TimeConfirmed:   true,
 			TimeExpected:    &timeExp3,
 			AssignedTo:      &salesRep2,
-			Notes:           "Met at medical exhibition, proposal sent",
+			Notes:           "Met at medical exhibition, qualified for pipeline",
 			CreatedBy:       &adminID,
 		},
 		{

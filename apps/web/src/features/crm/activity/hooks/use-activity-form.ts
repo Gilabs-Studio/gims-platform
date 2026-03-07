@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,9 +12,10 @@ export interface UseActivityFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultLeadId?: string;
 }
 
-export function useActivityForm({ open, onOpenChange, onSuccess }: UseActivityFormProps) {
+export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId }: UseActivityFormProps) {
   const t = useTranslations("crmActivity");
   const tCommon = useTranslations("common");
 
@@ -48,12 +49,30 @@ export function useActivityForm({ open, onOpenChange, onSuccess }: UseActivityFo
       customer_id: "",
       contact_id: "",
       deal_id: "",
-      lead_id: "",
+      lead_id: defaultLeadId || "",
       employee_id: "",
       description: "",
       timestamp: "",
     },
   });
+
+  // Re-populate lead_id whenever the dialog opens (handles subsequent opens)
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        type: "call",
+        activity_type_id: "",
+        customer_id: "",
+        contact_id: "",
+        deal_id: "",
+        lead_id: defaultLeadId || "",
+        employee_id: "",
+        description: "",
+        timestamp: "",
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const onSubmit: SubmitHandler<ActivityFormValues> = async (data) => {
     try {

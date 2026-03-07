@@ -11,12 +11,19 @@ import (
 
 // CRM Activity, Task & Schedule UUIDs (hex-only: 0-9, a-f)
 const (
-	// Activities (prefix: d0)
+	// Activities linked to Customers (prefix: d0)
 	ActivityID1 = "d0000001-0000-0000-0000-000000000001"
 	ActivityID2 = "d0000001-0000-0000-0000-000000000002"
 	ActivityID3 = "d0000001-0000-0000-0000-000000000003"
 	ActivityID4 = "d0000001-0000-0000-0000-000000000004"
 	ActivityID5 = "d0000001-0000-0000-0000-000000000005"
+
+	// Activities linked to Leads (prefix: d5)
+	LeadActivityID1 = "d5000001-0000-0000-0000-000000000001"
+	LeadActivityID2 = "d5000001-0000-0000-0000-000000000002"
+	LeadActivityID3 = "d5000001-0000-0000-0000-000000000003"
+	LeadActivityID4 = "d5000001-0000-0000-0000-000000000004"
+	LeadActivityID5 = "d5000001-0000-0000-0000-000000000005"
 
 	// Tasks (prefix: d1)
 	TaskID1 = "d1000001-0000-0000-0000-000000000001"
@@ -118,6 +125,64 @@ func seedCRMActivities() error {
 			DoUpdates: clause.AssignmentColumns([]string{"description", "timestamp"}),
 		}).Create(&activity).Error; err != nil {
 			log.Printf("Warning: Failed to seed activity %s: %v", activity.ID, err)
+		}
+	}
+
+	// Seed activities linked to leads
+	leadActivities := []crm.Activity{
+		{
+			ID:             LeadActivityID1,
+			Type:           "call",
+			ActivityTypeID: strPtr(ActivityTypeCallID),
+			LeadID:         strPtr(LeadID1),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Initial qualification call with PT Teknologi Maju Bersama — confirmed budget allocation for Q1 procurement",
+			Timestamp:      now.Add(-96 * time.Hour),
+		},
+		{
+			ID:             LeadActivityID2,
+			Type:           "email",
+			ActivityTypeID: strPtr(ActivityTypeEmailID),
+			LeadID:         strPtr(LeadID2),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Sent product brochure and initial pricing proposal to CV Sumber Makmur Abadi",
+			Timestamp:      now.Add(-72 * time.Hour),
+		},
+		{
+			ID:             LeadActivityID3,
+			Type:           "visit",
+			ActivityTypeID: strPtr(ActivityTypeVisitID),
+			LeadID:         strPtr(LeadID3),
+			EmployeeID:     SalesRep2EmployeeID,
+			Description:    "Site visit to UD Berkah Jaya Sentosa — assessed operational needs and discussed procurement timeline",
+			Timestamp:      now.Add(-48 * time.Hour),
+		},
+		{
+			ID:             LeadActivityID4,
+			Type:           "meeting",
+			ActivityTypeID: strPtr(ActivityTypeMeetingID),
+			LeadID:         strPtr(LeadID4),
+			EmployeeID:     ManagerEmployeeID,
+			Description:    "Discovery meeting with PT Karya Mandiri Sejahtera — aligned on authority chain and decision-making process",
+			Timestamp:      now.Add(-24 * time.Hour),
+		},
+		{
+			ID:             LeadActivityID5,
+			Type:           "follow_up",
+			ActivityTypeID: strPtr(ActivityTypeFollowUpID),
+			LeadID:         strPtr(LeadID5),
+			EmployeeID:     SalesRep2EmployeeID,
+			Description:    "Follow-up with CV Mitra Usaha Bersama — confirmed need for supply chain solution and requested formal proposal",
+			Timestamp:      now.Add(-4 * time.Hour),
+		},
+	}
+
+	for _, activity := range leadActivities {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"description", "timestamp"}),
+		}).Create(&activity).Error; err != nil {
+			log.Printf("Warning: Failed to seed lead activity %s: %v", activity.ID, err)
 		}
 	}
 

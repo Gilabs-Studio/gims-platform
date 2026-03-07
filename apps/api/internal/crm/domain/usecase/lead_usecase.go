@@ -13,10 +13,6 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
-	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
-	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
-	geoRepos "github.com/gilabs/gims/api/internal/geographic/data/repositories"
-	geoDto "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/google/uuid"
@@ -36,18 +32,15 @@ type LeadUsecase interface {
 }
 
 type leadUsecase struct {
-	leadRepo        repositories.LeadRepository
-	leadStatusRepo  repositories.LeadStatusRepository
-	leadSourceRepo  repositories.LeadSourceRepository
-	customerRepo    customerRepos.CustomerRepository
-	contactRepo     repositories.ContactRepository
-	employeeRepo    orgRepos.EmployeeRepository
-	provinceRepo    geoRepos.ProvinceRepository
-	cityRepo        geoRepos.CityRepository
-	districtRepo    geoRepos.DistrictRepository
-	businessTypeRepo orgRepos.BusinessTypeRepository
-	areaRepo        orgRepos.AreaRepository
-	paymentTermsRepo coreRepos.PaymentTermsRepository
+	leadRepo          repositories.LeadRepository
+	leadStatusRepo    repositories.LeadStatusRepository
+	leadSourceRepo    repositories.LeadSourceRepository
+	dealRepo          repositories.DealRepository
+	pipelineStageRepo repositories.PipelineStageRepository
+	employeeRepo      orgRepos.EmployeeRepository
+	businessTypeRepo  orgRepos.BusinessTypeRepository
+	areaRepo          orgRepos.AreaRepository
+	paymentTermsRepo  coreRepos.PaymentTermsRepository
 }
 
 // NewLeadUsecase creates a new lead usecase
@@ -55,29 +48,23 @@ func NewLeadUsecase(
 	leadRepo repositories.LeadRepository,
 	leadStatusRepo repositories.LeadStatusRepository,
 	leadSourceRepo repositories.LeadSourceRepository,
-	customerRepo customerRepos.CustomerRepository,
-	contactRepo repositories.ContactRepository,
+	dealRepo repositories.DealRepository,
+	pipelineStageRepo repositories.PipelineStageRepository,
 	employeeRepo orgRepos.EmployeeRepository,
-	provinceRepo geoRepos.ProvinceRepository,
-	cityRepo geoRepos.CityRepository,
-	districtRepo geoRepos.DistrictRepository,
 	businessTypeRepo orgRepos.BusinessTypeRepository,
 	areaRepo orgRepos.AreaRepository,
 	paymentTermsRepo coreRepos.PaymentTermsRepository,
 ) LeadUsecase {
 	return &leadUsecase{
-		leadRepo:        leadRepo,
-		leadStatusRepo:  leadStatusRepo,
-		leadSourceRepo:  leadSourceRepo,
-		customerRepo:    customerRepo,
-		contactRepo:     contactRepo,
-		employeeRepo:    employeeRepo,
-		provinceRepo:    provinceRepo,
-		cityRepo:        cityRepo,
-		districtRepo:    districtRepo,
-		businessTypeRepo: businessTypeRepo,
-		areaRepo:        areaRepo,
-		paymentTermsRepo: paymentTermsRepo,
+		leadRepo:          leadRepo,
+		leadStatusRepo:    leadStatusRepo,
+		leadSourceRepo:    leadSourceRepo,
+		dealRepo:          dealRepo,
+		pipelineStageRepo: pipelineStageRepo,
+		employeeRepo:      employeeRepo,
+		businessTypeRepo:  businessTypeRepo,
+		areaRepo:          areaRepo,
+		paymentTermsRepo:  paymentTermsRepo,
 	}
 }
 
@@ -371,7 +358,7 @@ func (u *leadUsecase) Delete(ctx context.Context, id string) error {
 	return u.leadRepo.Delete(ctx, id)
 }
 
-// Convert transforms a lead into a customer + contact, updating the lead's conversion fields
+// Convert transforms a lead into a deal in the pipeline, updating the lead's conversion fields
 func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error) {
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
@@ -388,140 +375,74 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	now := apptime.Now()
-	var customerID string
-
-	if req.CustomerID != nil && *req.CustomerID != "" {
-		// Link to existing customer
-		customer, err := u.customerRepo.FindByID(ctx, *req.CustomerID)
+	// Resolve pipeline stage: use provided stage or default to first stage (order=1)
+	var pipelineStageID string
+	if req.PipelineStageID != nil && *req.PipelineStageID != "" {
+		stage, err := u.pipelineStageRepo.FindByID(ctx, *req.PipelineStageID)
 		if err != nil {
-			return dto.LeadResponse{}, errors.New("customer not found")
+			return dto.LeadResponse{}, errors.New("pipeline stage not found")
 		}
-		customerID = customer.ID
+		pipelineStageID = stage.ID
 	} else {
-		// Create a new customer from lead data
-		nextCode, err := u.customerRepo.GetNextCode(ctx)
+		firstStage, err := u.pipelineStageRepo.FindByOrder(ctx, 1)
 		if err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to generate customer code: %w", err)
+			return dto.LeadResponse{}, fmt.Errorf("failed to find default pipeline stage: %w", err)
 		}
+		pipelineStageID = firstStage.ID
+	}
 
-		customerName := lead.FirstName
-		if lead.LastName != "" {
-			customerName += " " + lead.LastName
-		}
+	// Build deal title from request or lead data
+	dealTitle := req.DealTitle
+	if dealTitle == "" {
 		if lead.CompanyName != "" {
-			customerName = lead.CompanyName
-		}
-
-		// Contact person is always the individual name (even when name = company name)
-		cpName := lead.FirstName
-		if lead.LastName != "" {
-			cpName += " " + lead.LastName
-		}
-
-		var villageName *string
-		if lead.VillageName != "" {
-			villageName = &lead.VillageName
-		}
-
-		// Resolve geographic IDs when only textual names exist on the lead
-		resolvedProvinceID := lead.ProvinceID
-		resolvedCityID := lead.CityID
-		resolvedDistrictID := lead.DistrictID
-
-		// Try to resolve province by name if ID missing
-		if (resolvedProvinceID == nil || *resolvedProvinceID == "") && lead.Province != "" {
-			provs, _, err := u.provinceRepo.List(ctx, &geoDto.ListProvincesRequest{Search: lead.Province, PerPage: 1})
-			if err == nil && len(provs) > 0 {
-				id := provs[0].ID
-				resolvedProvinceID = &id
-			}
-		}
-
-		// Try to resolve city by name if ID missing (prefer filtering by province if available)
-		if (resolvedCityID == nil || *resolvedCityID == "") && lead.City != "" {
-			provinceFilter := ""
-			if resolvedProvinceID != nil {
-				provinceFilter = *resolvedProvinceID
-			}
-			cities, _, err := u.cityRepo.List(ctx, &geoDto.ListCitiesRequest{Search: lead.City, ProvinceID: provinceFilter, PerPage: 1})
-			if err == nil && len(cities) > 0 {
-				id := cities[0].ID
-				resolvedCityID = &id
-			}
-		}
-
-		// District resolution is skipped — lead currently stores DistrictID, not a textual district name.
-		// If future leads include district text, we can resolve similarly via u.districtRepo.List().
-
-		newCustomer := &customerModels.Customer{
-			ID:                   uuid.New().String(),
-			Code:                 nextCode,
-			Name:                 customerName,
-			ContactPerson:        cpName,
-			Address:              lead.Address,
-			Email:                lead.Email,
-			Website:              lead.Website,
-			NPWP:                 lead.NPWP,
-			ProvinceID:           resolvedProvinceID,
-			CityID:               resolvedCityID,
-			DistrictID:           resolvedDistrictID,
-			VillageName:          villageName,
-			Latitude:             lead.Latitude,
-			Longitude:            lead.Longitude,
-			DefaultBusinessTypeID: lead.BusinessTypeID,
-			DefaultAreaID:        lead.AreaID,
-			DefaultPaymentTermsID: lead.PaymentTermsID,
-			DefaultSalesRepID:    lead.AssignedTo,
-			Notes:                fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
-			CreatedBy:            &convertedBy,
-			IsActive:      true,
-		}
-
-		if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to create customer from lead: %w", err)
-		}
-		customerID = newCustomer.ID
-
-		// Create primary phone number record if the lead has a phone
-		if lead.Phone != "" {
-			phone := &customerModels.CustomerPhoneNumber{
-				CustomerID:  customerID,
-				PhoneNumber: lead.Phone,
-				Label:       "Primary",
-				IsPrimary:   true,
-			}
-			// Non-fatal — log and continue if phone creation fails
-			if err := u.customerRepo.CreatePhoneNumber(ctx, phone); err != nil {
-				_ = fmt.Errorf("warn: failed to create phone number during lead conversion: %w", err)
+			dealTitle = lead.CompanyName
+		} else {
+			dealTitle = lead.FirstName
+			if lead.LastName != "" {
+				dealTitle += " " + lead.LastName
 			}
 		}
 	}
 
-	// Create contact under the customer
-	contactName := lead.FirstName
-	if lead.LastName != "" {
-		contactName += " " + lead.LastName
+	// Determine deal value
+	dealValue := lead.EstimatedValue
+	if req.DealValue != nil {
+		dealValue = *req.DealValue
 	}
 
-	newContact := &models.Contact{
-		ID:         uuid.New().String(),
-		CustomerID: customerID,
-		Name:       contactName,
-		Phone:      lead.Phone,
-		Email:      lead.Email,
-		Position:   lead.JobTitle,
-		Notes:      fmt.Sprintf("Auto-created from lead conversion (%s)", lead.Code),
-		IsActive:   true,
+	now := apptime.Now()
+
+	// Create deal from lead data
+	newDeal := &models.Deal{
+		ID:              uuid.New().String(),
+		Title:           dealTitle,
+		Status:          models.DealStatusOpen,
+		PipelineStageID: pipelineStageID,
+		Value:           dealValue,
+		Probability:     lead.Probability,
+		LeadID:          &lead.ID,
+		AssignedTo:      lead.AssignedTo,
+		BudgetConfirmed: lead.BudgetConfirmed,
+		BudgetAmount:    lead.BudgetAmount,
+		AuthConfirmed:   lead.AuthConfirmed,
+		AuthPerson:      lead.AuthPerson,
+		NeedConfirmed:   lead.NeedConfirmed,
+		NeedDescription: lead.NeedDescription,
+		TimeConfirmed:   lead.TimeConfirmed,
+		Notes:           fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
+		CreatedBy:       &convertedBy,
 	}
 
-	if err := u.contactRepo.Create(ctx, newContact); err != nil {
-		return dto.LeadResponse{}, fmt.Errorf("failed to create contact from lead: %w", err)
+	if lead.TimeExpected != nil {
+		newDeal.ExpectedCloseDate = lead.TimeExpected
+	}
+
+	if err := u.dealRepo.Create(ctx, newDeal); err != nil {
+		return dto.LeadResponse{}, fmt.Errorf("failed to create deal from lead: %w", err)
 	}
 
 	// Update lead with conversion data
-	lead.CustomerID = &customerID
-	lead.ContactID = &newContact.ID
+	lead.DealID = &newDeal.ID
 	lead.ConvertedAt = &now
 	lead.ConvertedBy = &convertedBy
 
@@ -791,22 +712,20 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 		})
 	}
 
-	// Fetch customers for conversion dropdown
-	customers, _, err := u.customerRepo.List(ctx, customerRepos.CustomerListParams{
-		ListParams: customerRepos.ListParams{
-			Limit: 500,
-		},
-	})
+	// Fetch pipeline stages for conversion dropdown
+	stages, _, err := u.pipelineStageRepo.List(ctx, repositories.ListParams{Limit: 100})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch customers: %w", err)
+		return nil, fmt.Errorf("failed to fetch pipeline stages: %w", err)
 	}
 
-	customerOptions := make([]dto.LeadCustomerOption, 0, len(customers))
-	for _, c := range customers {
-		customerOptions = append(customerOptions, dto.LeadCustomerOption{
-			ID:   c.ID,
-			Code: c.Code,
-			Name: c.Name,
+	stageOptions := make([]dto.LeadPipelineStageOption, 0, len(stages))
+	for _, s := range stages {
+		stageOptions = append(stageOptions, dto.LeadPipelineStageOption{
+			ID:          s.ID,
+			Name:        s.Name,
+			Code:        s.Code,
+			Order:       s.Order,
+			Probability: s.Probability,
 		})
 	}
 
@@ -856,13 +775,13 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 	}
 
 	return &dto.LeadFormDataResponse{
-		Employees:     employeeOptions,
-		LeadSources:   sourceOptions,
-		LeadStatuses:  statusOptions,
-		Customers:     customerOptions,
-		BusinessTypes: businessTypeOptions,
-		Areas:         areaOptions,
-		PaymentTerms:  paymentTermsOptions,
+		Employees:      employeeOptions,
+		LeadSources:    sourceOptions,
+		LeadStatuses:   statusOptions,
+		PipelineStages: stageOptions,
+		BusinessTypes:  businessTypeOptions,
+		Areas:          areaOptions,
+		PaymentTerms:   paymentTermsOptions,
 	}, nil
 }
 

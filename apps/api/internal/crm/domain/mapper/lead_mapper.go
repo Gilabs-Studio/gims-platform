@@ -119,6 +119,24 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		}
 	}
 
+	if lead.Deal != nil {
+		stageName := ""
+		if lead.Deal.PipelineStage != nil {
+			stageName = lead.Deal.PipelineStage.Name
+		}
+		resp.Deal = &dto.LeadDealInfo{
+			ID:     lead.Deal.ID,
+			Code:   lead.Deal.Code,
+			Title:  lead.Deal.Title,
+			Status: string(lead.Deal.Status),
+			Stage:  stageName,
+		}
+	}
+
+	if len(lead.Activities) > 0 {
+		resp.Activities = ToActivityResponseList(lead.Activities)
+	}
+
 	return resp
 }
 

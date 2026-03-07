@@ -221,7 +221,7 @@ func (h *LeadHandler) Delete(c *gin.Context) {
 	response.SuccessResponseDeleted(c, "crm_lead", id, meta)
 }
 
-// Convert handles POST request to convert a lead to customer + contact
+// Convert handles POST request to convert a lead to a deal in the pipeline
 func (h *LeadHandler) Convert(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -325,8 +325,8 @@ func handleLeadError(c *gin.Context, err error) {
 		errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
-	case "customer not found":
-		errors.ErrorResponse(c, "CUSTOMER_NOT_FOUND", map[string]interface{}{
+	case "pipeline stage not found":
+		errors.ErrorResponse(c, "CRM_PIPELINE_STAGE_NOT_FOUND", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
 	case "lead already converted":

@@ -61,6 +61,7 @@ type Lead struct {
 	ContactID   *string                   `gorm:"type:uuid;index" json:"contact_id"`
 	Contact     *Contact                  `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
 	DealID      *string                   `gorm:"type:uuid;index" json:"deal_id"`
+	Deal        *Deal                     `gorm:"foreignKey:DealID;constraint:false" json:"deal,omitempty"`
 	ConvertedAt *time.Time                `json:"converted_at"`
 	ConvertedBy *string                   `gorm:"type:uuid" json:"converted_by"`
 
@@ -93,6 +94,9 @@ type Lead struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Associations
+	Activities []Activity `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
 }
 
 func (Lead) TableName() string {

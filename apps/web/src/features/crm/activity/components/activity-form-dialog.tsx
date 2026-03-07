@@ -30,12 +30,14 @@ interface ActivityFormDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onSuccess?: () => void;
+  readonly leadId?: string;
 }
 
 export function ActivityFormDialog({
   open,
   onClose,
   onSuccess,
+  leadId,
 }: ActivityFormDialogProps) {
   const t = useTranslations("crmActivity");
   const tCommon = useTranslations("common");
@@ -49,6 +51,7 @@ export function ActivityFormDialog({
       }
     },
     onSuccess,
+    defaultLeadId: leadId,
   };
 
   const { form, onSubmit, isSubmitting } = useActivityForm(formProps);
@@ -161,13 +164,15 @@ export function ActivityFormDialog({
                 />
               </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.lead")}</FieldLabel>
-                <Input
-                  placeholder={t("form.leadPlaceholder")}
-                  {...register("lead_id")}
-                />
-              </Field>
+              {!leadId && (
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.lead")}</FieldLabel>
+                  <Input
+                    placeholder={t("form.leadPlaceholder")}
+                    {...register("lead_id")}
+                  />
+                </Field>
+              )}
             </div>
           </div>
 

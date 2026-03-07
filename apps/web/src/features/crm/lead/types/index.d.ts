@@ -40,6 +40,7 @@ export interface Lead {
   customer?: LeadCustomerInfo | null;
   contact_id?: string | null;
   deal_id?: string | null;
+  deal?: LeadDealInfo | null;
   converted_at?: string | null;
   converted_by?: string | null;
   // Metadata
@@ -65,6 +66,7 @@ export interface Lead {
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+  activities?: ActivityResponse[] | null;
 }
 
 export interface LeadSourceInfo {
@@ -92,6 +94,46 @@ export interface LeadCustomerInfo {
   id: string;
   code: string;
   name: string;
+}
+
+export interface LeadDealInfo {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  pipeline_stage_name: string;
+}
+
+export interface ActivityTypeInfo {
+  id: string;
+  name: string;
+  code: string;
+  icon: string;
+  badge_color: string;
+}
+
+export interface ActivityEmployeeInfo {
+  id: string;
+  employee_code: string;
+  name: string;
+}
+
+export interface ActivityResponse {
+  id: string;
+  type: string;
+  activity_type_id?: string | null;
+  activity_type?: ActivityTypeInfo | null;
+  customer_id?: string | null;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  visit_report_id?: string | null;
+  employee_id: string;
+  employee?: ActivityEmployeeInfo | null;
+  description: string;
+  timestamp: string;
+  metadata?: string | null;
+  created_at: string;
 }
 
 export interface LeadBusinessTypeInfo {
@@ -176,7 +218,9 @@ export interface UpdateLeadData {
 }
 
 export interface ConvertLeadData {
-  customer_id?: string | null;
+  pipeline_stage_id?: string;
+  deal_title?: string;
+  deal_value?: number;
   notes?: string;
 }
 
@@ -251,7 +295,7 @@ export interface LeadFormDataResponse {
   employees: LeadEmployeeOption[];
   lead_sources: LeadSourceOption[];
   lead_statuses: LeadStatusOption[];
-  customers: LeadCustomerOption[];
+  pipeline_stages: LeadPipelineStageOption[];
   business_types: LeadBusinessTypeOption[];
   areas: LeadAreaOption[];
   payment_terms: LeadPaymentTermsOption[];
@@ -280,10 +324,12 @@ export interface LeadStatusOption {
   is_converted: boolean;
 }
 
-export interface LeadCustomerOption {
+export interface LeadPipelineStageOption {
   id: string;
-  code: string;
   name: string;
+  code: string;
+  order: number;
+  probability: number;
 }
 
 export interface LeadBusinessTypeOption {

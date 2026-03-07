@@ -56,8 +56,8 @@ Customer (Active)
 ### Phase 1: Backend — Lead Conversion Redesign
 > Lead sekarang convert ke Deal/Pipeline, bukan langsung ke Customer
 
-- [ ] **1.1 Update Lead Model** — Pastikan `DealID` field tracking sudah ada (sudah ada: `deal_id`)
-- [ ] **1.2 Update Lead Conversion Usecase** — Ubah `ConvertLead()` dari create Customer menjadi create Deal:
+- [x] **1.1 Update Lead Model** — Pastikan `DealID` field tracking sudah ada (sudah ada: `deal_id`)
+- [x] **1.2 Update Lead Conversion Usecase** — Ubah `ConvertLead()` dari create Customer menjadi create Deal:
   - Buat Deal baru dari data Lead:
     - `Title`: Lead company name / full name
     - `PipelineStageID`: Set ke stage pertama (Qualification)
@@ -72,16 +72,16 @@ Customer (Active)
     - Set status ke "Converted"
     - **JANGAN** create Customer lagi
   - Return created Deal data
-- [ ] **1.3 Update ConvertLeadRequest DTO** — Ubah payload:
+- [x] **1.3 Update ConvertLeadRequest DTO** — Ubah payload:
   - Remove: `customer_id` (tidak perlu lagi)
   - Add: `pipeline_stage_id` (optional, default stage pertama)
   - Add: `deal_title` (optional, default dari lead name)
   - Add: `deal_value` (optional)
   - Keep: `notes`
-- [ ] **1.4 Update ConvertLeadResponse** — Return deal data setelah conversion
-- [ ] **1.5 Update Lead Mapper** — Pastikan `DealID`, `Deal` data di-map ke response
-- [ ] **1.6 Update Lead FormData** — Remove `customers` dari form data convert (tidak butuh customer selection lagi), add `pipeline_stages`
-- [ ] **1.7 Add Activities to Lead Detail Response** — Endpoint GET `/crm/leads/:id` harus include `activities` yang tertaut `lead_id`:
+- [x] **1.4 Update ConvertLeadResponse** — Return deal data setelah conversion
+- [x] **1.5 Update Lead Mapper** — Pastikan `DealID`, `Deal` data di-map ke response
+- [x] **1.6 Update Lead FormData** — Remove `customers` dari form data convert (tidak butuh customer selection lagi), add `pipeline_stages`
+- [x] **1.7 Add Activities to Lead Detail Response** — Endpoint GET `/crm/leads/:id` harus include `activities` yang tertaut `lead_id`:
   - Preload `Activities` (with ActivityType, Employee) pada lead detail query
   - Tambahkan `Activities []ActivityResponse` ke LeadDetailResponse DTO
   - Limit ke 50 latest activities (paginated jika perlu)
@@ -90,7 +90,7 @@ Customer (Active)
 
 ### Phase 2: Backend — Pipeline Stage & Status Seeder Update
 
-- [ ] **2.1 Update Pipeline Stages Seeder** — Tambah 2 stage baru sesuai journey:
+- [x] **2.1 Update Pipeline Stages Seeder** — Tambah 2 stage baru sesuai journey:
   ```
   1. Qualification    (20%) — sudah ada
   2. Needs Analysis   (35%) — BARU
@@ -102,7 +102,7 @@ Customer (Active)
   ```
   - Tambah constant: `PipelineStageNeedsAnalysisID`, `PipelineStageDemoID`
   - Update ordering number semua stages
-- [ ] **2.2 Update Lead Statuses Seeder** — Remove "Proposal Sent" (pindah ke pipeline stages):
+- [x] **2.2 Update Lead Statuses Seeder** — Remove "Proposal Sent" (pindah ke pipeline stages):
   ```
   1. New              (score=10, default) — tetap
   2. Contacted        (score=30) — tetap
@@ -111,7 +111,7 @@ Customer (Active)
   5. Lost             (score=0) — tetap
   ```
   - "Proposal Sent" dihapus karena proposal tracking ada di pipeline stage level
-- [ ] **2.3 Update Lead Status Description** — "Converted" description dari "converted to customer" menjadi "converted to pipeline/deal"
+- [x] **2.3 Update Lead Status Description** — "Converted" description dari "converted to customer" menjadi "converted to pipeline/deal"
 
 ---
 
@@ -159,7 +159,7 @@ Customer (Active)
 
 ### Phase 6: Frontend — Lead Conversion Redesign
 
-- [ ] **6.1 Redesign LeadConvertDialog** — Ubah dari "Convert to Customer" menjadi "Convert to Pipeline":
+- [x] **6.1 Redesign LeadConvertDialog** — Ubah dari "Convert to Customer" menjadi "Convert to Pipeline":
   - Title: "Convert Lead to Pipeline"
   - Remove: Customer dropdown selection
   - Add: Pipeline stage selection (default: first stage / Qualification)
@@ -167,9 +167,9 @@ Customer (Active)
   - Add: Deal value field (optional)
   - Keep: Notes field
   - Button: "Convert to Pipeline" (bukan "Convert to Customer")
-- [ ] **6.2 Update useConvertLead Hook** — Update mutation payload sesuai DTO baru
-- [ ] **6.3 Update Lead Service** — Update `convert()` method payload type
-- [ ] **6.4 Update Lead Types** — Update `ConvertLeadData` interface:
+- [x] **6.2 Update useConvertLead Hook** — Update mutation payload sesuai DTO baru
+- [x] **6.3 Update Lead Service** — Update `convert()` method payload type
+- [x] **6.4 Update Lead Types** — Update `ConvertLeadData` interface:
   ```typescript
   interface ConvertLeadData {
     pipeline_stage_id?: string;
@@ -178,7 +178,7 @@ Customer (Active)
     notes?: string;
   }
   ```
-- [ ] **6.5 Update Lead FormData Types** — Replace `customers` dengan `pipeline_stages` di form data
+- [x] **6.5 Update Lead FormData Types** — Replace `customers` dengan `pipeline_stages` di form data
 
 ---
 

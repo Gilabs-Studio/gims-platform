@@ -24,9 +24,10 @@ func Connect() error {
 
 	var err error
 	gormCfg := &gorm.Config{
-		Logger:                 logger.Default.LogMode(logLevel),
-		PrepareStmt:            config.AppConfig != nil && config.AppConfig.Database.PrepareStmt,
-		SkipDefaultTransaction: config.AppConfig != nil && config.AppConfig.Database.SkipDefaultTransaction,
+		Logger:                                   logger.Default.LogMode(logLevel),
+		PrepareStmt:                              config.AppConfig != nil && config.AppConfig.Database.PrepareStmt,
+		SkipDefaultTransaction:                   config.AppConfig != nil && config.AppConfig.Database.SkipDefaultTransaction,
+		DisableForeignKeyConstraintWhenMigrating: true,
 	}
 
 	DB, err = gorm.Open(postgres.Open(dsn), gormCfg)

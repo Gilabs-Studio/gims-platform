@@ -82,10 +82,12 @@ type UpdateLeadRequest struct {
 	PaymentTermsID *string `json:"payment_terms_id" binding:"omitempty,uuid"`
 }
 
-// ConvertLeadRequest defines the request body for converting a lead
+// ConvertLeadRequest defines the request body for converting a lead to a deal
 type ConvertLeadRequest struct {
-	CustomerID  *string `json:"customer_id" binding:"omitempty,uuid"`
-	Notes       string  `json:"notes"`
+	PipelineStageID *string  `json:"pipeline_stage_id" binding:"omitempty,uuid"`
+	DealTitle       string   `json:"deal_title" binding:"max=200"`
+	DealValue       *float64 `json:"deal_value"`
+	Notes           string   `json:"notes"`
 }
 
 // BulkUpsertLeadRequest defines the request body for bulk upserting leads from automation
@@ -174,6 +176,7 @@ type LeadResponse struct {
 	Customer    *LeadCustomerInfo `json:"customer,omitempty"`
 	ContactID   *string          `json:"contact_id"`
 	DealID      *string          `json:"deal_id"`
+	Deal        *LeadDealInfo    `json:"deal,omitempty"`
 	ConvertedAt *string          `json:"converted_at"`
 	ConvertedBy *string          `json:"converted_by"`
 	// Metadata
@@ -200,6 +203,8 @@ type LeadResponse struct {
 	AreaID         *string             `json:"area_id"`
 	Area           *LeadAreaInfo       `json:"area,omitempty"`
 	PaymentTermsID *string             `json:"payment_terms_id"`
+	// Activities log (populated on detail)
+	Activities []ActivityResponse `json:"activities,omitempty"`
 }
 
 // LeadSourceInfo is a compact representation of lead source
@@ -233,6 +238,15 @@ type LeadCustomerInfo struct {
 	Name string `json:"name"`
 }
 
+// LeadDealInfo is a compact representation of a deal for lead response
+type LeadDealInfo struct {
+	ID     string `json:"id"`
+	Code   string `json:"code"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+	Stage  string `json:"stage"`
+}
+
 // LeadBusinessTypeInfo is a compact representation of a business type
 type LeadBusinessTypeInfo struct {
 	ID   string `json:"id"`
@@ -247,13 +261,13 @@ type LeadAreaInfo struct {
 
 // LeadFormDataResponse holds all options required by the lead form
 type LeadFormDataResponse struct {
-	Employees     []LeadEmployeeOption     `json:"employees"`
-	LeadSources   []LeadSourceOption       `json:"lead_sources"`
-	LeadStatuses  []LeadStatusOption       `json:"lead_statuses"`
-	Customers     []LeadCustomerOption     `json:"customers"`
-	BusinessTypes []LeadBusinessTypeOption `json:"business_types"`
-	Areas         []LeadAreaOption         `json:"areas"`
-	PaymentTerms  []LeadPaymentTermsOption `json:"payment_terms"`
+	Employees      []LeadEmployeeOption        `json:"employees"`
+	LeadSources    []LeadSourceOption          `json:"lead_sources"`
+	LeadStatuses   []LeadStatusOption          `json:"lead_statuses"`
+	PipelineStages []LeadPipelineStageOption   `json:"pipeline_stages"`
+	BusinessTypes  []LeadBusinessTypeOption    `json:"business_types"`
+	Areas          []LeadAreaOption            `json:"areas"`
+	PaymentTerms   []LeadPaymentTermsOption    `json:"payment_terms"`
 }
 
 // LeadEmployeeOption for employee dropdown
@@ -280,11 +294,13 @@ type LeadStatusOption struct {
 	IsConverted bool   `json:"is_converted"`
 }
 
-// LeadCustomerOption for customer dropdown
-type LeadCustomerOption struct {
-	ID   string `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
+// LeadPipelineStageOption for pipeline stage dropdown in conversion
+type LeadPipelineStageOption struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Order       int    `json:"order"`
+	Probability int    `json:"probability"`
 }
 
 // LeadBusinessTypeOption for business type dropdown
