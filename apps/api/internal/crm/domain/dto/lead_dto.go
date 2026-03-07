@@ -34,6 +34,10 @@ type CreateLeadRequest struct {
 	// Assignment
 	AssignedTo *string `json:"assigned_to" binding:"omitempty,uuid"`
 	Notes      string  `json:"notes"`
+	// Sales defaults for customer conversion
+	BusinessTypeID *string `json:"business_type_id" binding:"omitempty,uuid"`
+	AreaID         *string `json:"area_id" binding:"omitempty,uuid"`
+	PaymentTermsID *string `json:"payment_terms_id" binding:"omitempty,uuid"`
 }
 
 // UpdateLeadRequest defines the request body for updating a lead
@@ -72,6 +76,10 @@ type UpdateLeadRequest struct {
 	NPWP      *string  `json:"npwp" binding:"omitempty,max=30"`
 	Latitude  *float64 `json:"latitude"`
 	Longitude *float64 `json:"longitude"`
+	// Sales defaults for customer conversion
+	BusinessTypeID *string `json:"business_type_id" binding:"omitempty,uuid"`
+	AreaID         *string `json:"area_id" binding:"omitempty,uuid"`
+	PaymentTermsID *string `json:"payment_terms_id" binding:"omitempty,uuid"`
 }
 
 // ConvertLeadRequest defines the request body for converting a lead
@@ -186,6 +194,12 @@ type LeadResponse struct {
 	CID            string   `json:"cid"`
 	PlaceID        string   `json:"place_id"`
 	Website        string   `json:"website"`
+	// Sales defaults
+	BusinessTypeID *string             `json:"business_type_id"`
+	BusinessType   *LeadBusinessTypeInfo `json:"business_type,omitempty"`
+	AreaID         *string             `json:"area_id"`
+	Area           *LeadAreaInfo       `json:"area,omitempty"`
+	PaymentTermsID *string             `json:"payment_terms_id"`
 }
 
 // LeadSourceInfo is a compact representation of lead source
@@ -219,12 +233,27 @@ type LeadCustomerInfo struct {
 	Name string `json:"name"`
 }
 
+// LeadBusinessTypeInfo is a compact representation of a business type
+type LeadBusinessTypeInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// LeadAreaInfo is a compact representation of an area
+type LeadAreaInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // LeadFormDataResponse holds all options required by the lead form
 type LeadFormDataResponse struct {
-	Employees    []LeadEmployeeOption  `json:"employees"`
-	LeadSources  []LeadSourceOption    `json:"lead_sources"`
-	LeadStatuses []LeadStatusOption    `json:"lead_statuses"`
-	Customers    []LeadCustomerOption  `json:"customers"`
+	Employees     []LeadEmployeeOption     `json:"employees"`
+	LeadSources   []LeadSourceOption       `json:"lead_sources"`
+	LeadStatuses  []LeadStatusOption       `json:"lead_statuses"`
+	Customers     []LeadCustomerOption     `json:"customers"`
+	BusinessTypes []LeadBusinessTypeOption `json:"business_types"`
+	Areas         []LeadAreaOption         `json:"areas"`
+	PaymentTerms  []LeadPaymentTermsOption `json:"payment_terms"`
 }
 
 // LeadEmployeeOption for employee dropdown
@@ -256,4 +285,25 @@ type LeadCustomerOption struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
 	Name string `json:"name"`
+}
+
+// LeadBusinessTypeOption for business type dropdown
+type LeadBusinessTypeOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// LeadAreaOption for area dropdown
+type LeadAreaOption struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Province string `json:"province,omitempty"`
+}
+
+// LeadPaymentTermsOption for payment terms dropdown
+type LeadPaymentTermsOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code"`
+	Days int    `json:"days"`
 }

@@ -104,6 +104,13 @@ export const crmLeadEn = {
       visitLink: "Visit Link",
       npwp: "NPWP / Tax ID",
       npwpPlaceholder: "Enter NPWP",
+      businessType: "Business Type",
+      businessTypePlaceholder: "Select business type",
+      area: "Area",
+      areaPlaceholder: "Select area",
+      paymentTerms: "Payment Terms",
+      paymentTermsPlaceholder: "Select payment terms",
+      pickDate: "Pick a date",
     },
     validation: {
       firstNameRequired: "First name is required",

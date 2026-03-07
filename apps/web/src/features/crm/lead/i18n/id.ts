@@ -104,6 +104,13 @@ export const crmLeadId = {
       visitLink: "Kunjungi Tautan",
       npwp: "NPWP",
       npwpPlaceholder: "Masukkan NPWP",
+      businessType: "Tipe Bisnis",
+      businessTypePlaceholder: "Pilih tipe bisnis",
+      area: "Area",
+      areaPlaceholder: "Pilih area",
+      paymentTerms: "Termin Pembayaran",
+      paymentTermsPlaceholder: "Pilih termin pembayaran",
+      pickDate: "Pilih tanggal",
     },
     validation: {
       firstNameRequired: "Nama depan wajib diisi",

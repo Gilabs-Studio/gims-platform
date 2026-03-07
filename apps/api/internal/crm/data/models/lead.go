@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
@@ -62,6 +63,14 @@ type Lead struct {
 	DealID      *string                   `gorm:"type:uuid;index" json:"deal_id"`
 	ConvertedAt *time.Time                `json:"converted_at"`
 	ConvertedBy *string                   `gorm:"type:uuid" json:"converted_by"`
+
+	// Sales defaults for customer conversion
+	BusinessTypeID *string                  `gorm:"type:uuid;index" json:"business_type_id"`
+	BusinessType   *orgModels.BusinessType   `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
+	AreaID         *string                  `gorm:"type:uuid;index" json:"area_id"`
+	Area           *orgModels.Area           `gorm:"foreignKey:AreaID" json:"area,omitempty"`
+	PaymentTermsID *string                  `gorm:"type:uuid;index" json:"payment_terms_id"`
+	PaymentTerms   *coreModels.PaymentTerms  `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
 
 	// NPWP / Tax ID
 	NPWP string `gorm:"type:varchar(30)" json:"npwp"`

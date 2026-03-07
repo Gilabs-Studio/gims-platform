@@ -77,6 +77,8 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 		Preload("AssignedEmployee").
 		Preload("Customer").
 		Preload("Contact").
+		Preload("BusinessType").
+		Preload("Area").
 		First(&lead, "id = ?", id).Error
 	if err != nil {
 		return nil, err

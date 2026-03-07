@@ -58,6 +58,8 @@ interface LocationPickerProps {
   readonly fieldNames?: Partial<LocationFieldNames>;
   readonly labels?: LocationPickerLabels;
   readonly className?: string;
+  /** Fired when user explicitly changes province (map geocode or manual dropdown). Provides province ID and name. */
+  readonly onProvinceChange?: (id: string, name: string) => void;
 }
 
 const DEFAULT_FIELD_NAMES: LocationFieldNames = {
@@ -108,6 +110,7 @@ export function LocationPicker({
   fieldNames: customFieldNames,
   labels: customLabels,
   className,
+  onProvinceChange,
 }: LocationPickerProps) {
   const fields = { ...DEFAULT_FIELD_NAMES, ...customFieldNames };
   const labels = { ...DEFAULT_LABELS, ...customLabels };
@@ -182,8 +185,12 @@ export function LocationPicker({
         city: result.city_name || undefined,
         district: result.district_name || undefined,
       });
+      // Notify parent — geocoding is always a user-initiated action (map pick)
+      if (result.province_id && result.province_name) {
+        onProvinceChange?.(result.province_id, result.province_name);
+      }
     },
-    [setValue, fields.province_id, fields.city_id, fields.district_id]
+    [setValue, fields.province_id, fields.city_id, fields.district_id, onProvinceChange]
   );
 
   // When coordinates are selected from the map picker, run reverse geocode.
@@ -349,6 +356,10 @@ export function LocationPicker({
                         city: undefined,
                         district: undefined,
                       }));
+                      // Notify parent — manual dropdown is a user-initiated action
+                      if (!isProgrammaticChange.current) {
+                        onProvinceChange?.(val, prov.name);
+                      }
                     }
                   }}
                   disabled={disabled}

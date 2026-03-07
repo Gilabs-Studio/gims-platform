@@ -56,6 +56,12 @@ export interface Lead {
   cid?: string;
   place_id?: string;
   website?: string;
+  // Sales defaults for customer conversion
+  business_type_id?: string | null;
+  business_type?: LeadBusinessTypeInfo | null;
+  area_id?: string | null;
+  area?: LeadAreaInfo | null;
+  payment_terms_id?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
@@ -88,6 +94,16 @@ export interface LeadCustomerInfo {
   name: string;
 }
 
+export interface LeadBusinessTypeInfo {
+  id: string;
+  name: string;
+}
+
+export interface LeadAreaInfo {
+  id: string;
+  name: string;
+}
+
 export interface CreateLeadData {
   first_name: string;
   last_name?: string;
@@ -117,6 +133,9 @@ export interface CreateLeadData {
   assigned_to?: string | null;
   notes?: string;
   website?: string;
+  business_type_id?: string | null;
+  area_id?: string | null;
+  payment_terms_id?: string | null;
 }
 
 export interface UpdateLeadData {
@@ -151,6 +170,9 @@ export interface UpdateLeadData {
   npwp?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  business_type_id?: string | null;
+  area_id?: string | null;
+  payment_terms_id?: string | null;
 }
 
 export interface ConvertLeadData {
@@ -230,6 +252,9 @@ export interface LeadFormDataResponse {
   lead_sources: LeadSourceOption[];
   lead_statuses: LeadStatusOption[];
   customers: LeadCustomerOption[];
+  business_types: LeadBusinessTypeOption[];
+  areas: LeadAreaOption[];
+  payment_terms: LeadPaymentTermsOption[];
 }
 
 export interface LeadEmployeeOption {
@@ -259,6 +284,24 @@ export interface LeadCustomerOption {
   id: string;
   code: string;
   name: string;
+}
+
+export interface LeadBusinessTypeOption {
+  id: string;
+  name: string;
+}
+
+export interface LeadAreaOption {
+  id: string;
+  name: string;
+  province?: string;
+}
+
+export interface LeadPaymentTermsOption {
+  id: string;
+  name: string;
+  code: string;
+  days: number;
 }
 
 export interface LeadAnalytics {

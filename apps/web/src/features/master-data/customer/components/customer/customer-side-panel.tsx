@@ -26,7 +26,6 @@ import { CustomerContactsTab } from "@/features/crm/contact/components/customer-
 import { LocationPicker } from "../../../geographic/components/location-picker";
 import { CustomerTypeDialog } from "../customer-type/customer-type-dialog";
 import { BusinessTypeForm } from "../../../organization/components/business-type/business-type-form";
-import { AreaForm } from "../../../organization/components/area/area-form";
 import { EmployeeForm } from "../../../employee/components/employee-form";
 import { PaymentTermsDialog } from "../../../payment-and-couriers/payment-terms/components/payment-terms-dialog";
 
@@ -67,7 +66,7 @@ export function CustomerSidePanel({
   const updateCustomer = useUpdateCustomer();
   const [activeTab, setActiveTab] = useState("details");
 
-  type QuickCreateType = "customerType" | "businessType" | "area" | "employee" | "paymentTerm" | null;
+  type QuickCreateType = "customerType" | "businessType" | "employee" | "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; query: string }>({ type: null, query: "" });
 
   const openQuickCreate = (type: QuickCreateType, query: string) => {
@@ -437,6 +436,15 @@ export function CustomerSidePanel({
               setValue={setValue}
               disabled={isViewing}
               enabled={isOpen}
+              onProvinceChange={(_id, name) => {
+                if (!name || isViewing) return;
+                const matched = areas.find(
+                  (a) => a.province && a.province.toLowerCase() === name.toLowerCase()
+                );
+                if (matched) {
+                  setValue("default_area_id", matched.id, { shouldDirty: true });
+                }
+              }}
             />
           </div>
 
@@ -475,19 +483,18 @@ export function CustomerSidePanel({
                 control={control}
                 name="default_area_id"
                 render={({ field }) => (
-                  <CreatableCombobox
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                    disabled={isViewing}
-                    options={areas.map((area) => ({
-                      value: area.id,
-                      label: area.name,
-                    }))}
-                    placeholder={t("customer.form.defaultAreaPlaceholder")}
-                    createPermission="area.create"
-                    createLabel={`${t("common.create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("area", q)}
-                  />
+                  <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isViewing}>
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue placeholder={t("customer.form.defaultAreaPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map((area) => (
+                        <SelectItem key={area.id} value={area.id} className="cursor-pointer">
+                          {area.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               />
             </Field>
@@ -609,11 +616,6 @@ export function CustomerSidePanel({
       
       <BusinessTypeForm
         open={quickCreate.type === "businessType"}
-        onClose={closeQuickCreate}
-      />
-      
-      <AreaForm
-        open={quickCreate.type === "area"}
         onClose={closeQuickCreate}
       />
       

@@ -34,6 +34,8 @@ import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { LocationSelector } from "@/features/master-data/geographic/components/location-selector";
 import { LeadSourceDialog } from "../../lead-source/components/lead-source-dialog";
 import { LeadStatusDialog } from "../../lead-status/components/lead-status-dialog";
+import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
+import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { useLeadForm, type UseLeadFormProps } from "../hooks/use-lead-form";
 import { useLeadFormData, leadKeys } from "../hooks/use-leads";
 import type { Lead } from "../types";
@@ -57,11 +59,11 @@ export function LeadFormDialog({
   const isEditing = !!lead;
 
   const [quickCreate, setQuickCreate] = useState<{
-    type: "source" | "status" | null;
+    type: "source" | "status" | "businessType" | "paymentTerm" | null;
     query: string;
   }>({ type: null, query: "" });
 
-  const openQuickCreate = (type: "source" | "status", query: string) => {
+  const openQuickCreate = (type: "source" | "status" | "businessType" | "paymentTerm", query: string) => {
     setQuickCreate({ type, query });
   };
 
@@ -78,6 +80,17 @@ export function LeadFormDialog({
   const handleStatusCreated = (item: { id: string; name: string }) => {
     queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
     form.setValue("lead_status_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleBusinessTypeCreated = () => {
+    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    closeQuickCreate();
+  };
+
+  const handlePaymentTermCreated = (item: { id: string; name: string }) => {
+    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    form.setValue("payment_terms_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     closeQuickCreate();
   };
 
@@ -100,6 +113,9 @@ export function LeadFormDialog({
   const leadSources = formData?.lead_sources ?? [];
   const leadStatuses = formData?.lead_statuses ?? [];
   const employees = formData?.employees ?? [];
+  const businessTypes = formData?.business_types ?? [];
+  const areas = formData?.areas ?? [];
+  const paymentTermsList = formData?.payment_terms ?? [];
 
   const {
     register,
@@ -173,7 +189,7 @@ export function LeadFormDialog({
             </h4>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
+              <Field orientation="vertical" data-invalid={!!errors.email}>
                 <FieldLabel>{t("form.email")}</FieldLabel>
                 <Input
                   type="email"
@@ -194,13 +210,14 @@ export function LeadFormDialog({
               </Field>
             </div>
 
-            <Field orientation="vertical">
+            <Field orientation="vertical" data-invalid={!!errors.address}>
               <FieldLabel>{t("form.address")}</FieldLabel>
               <Textarea
                 placeholder={t("form.addressPlaceholder")}
                 rows={2}
                 {...register("address")}
               />
+              {errors.address && <FieldError>{errors.address.message}</FieldError>}
             </Field>
 
             <LocationSelector
@@ -220,7 +237,42 @@ export function LeadFormDialog({
                 selectProvince: t("form.provincePlaceholder"),
                 selectCity: t("form.cityPlaceholder"),
               }}
+              onProvinceChange={(_id, name) => {
+                if (!name) return;
+                const matched = areas.find(
+                  (a) => a.province && a.province.toLowerCase() === name.toLowerCase()
+                );
+                setValue("area_id", matched?.id ?? "", { shouldDirty: true });
+              }}
             />
+
+            {/* Area — auto-filled from province selection, can be overridden */}
+            <Field orientation="vertical" data-invalid={!!errors.area_id}>
+              <FieldLabel>{t("form.area")}</FieldLabel>
+              <Controller
+                control={control}
+                name="area_id"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue placeholder={t("form.areaPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map((area) => (
+                        <SelectItem key={area.id} value={area.id} className="cursor-pointer">
+                          {area.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.area_id && <FieldError>{errors.area_id.message}</FieldError>}
+            </Field>
+
           </div>
 
           {/* Classification */}
@@ -230,7 +282,7 @@ export function LeadFormDialog({
             </h4>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
+              <Field orientation="vertical" data-invalid={!!errors.lead_source_id}>
                 <FieldLabel>{t("form.leadSource")}</FieldLabel>
                 <Controller
                   control={control}
@@ -239,6 +291,7 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      ariaInvalid={!!errors.lead_source_id}
                       options={leadSources.map((s) => ({
                         value: s.id,
                         label: s.name,
@@ -250,9 +303,10 @@ export function LeadFormDialog({
                     />
                   )}
                 />
+                {errors.lead_source_id && <FieldError>{errors.lead_source_id.message}</FieldError>}
               </Field>
 
-              <Field orientation="vertical">
+              <Field orientation="vertical" data-invalid={!!errors.lead_status_id}>
                 <FieldLabel>{t("form.leadStatus")}</FieldLabel>
                 <Controller
                   control={control}
@@ -261,6 +315,7 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      ariaInvalid={!!errors.lead_status_id}
                       options={leadStatuses
                         .filter((s) => !s.is_converted)
                         .map((s) => ({
@@ -274,10 +329,11 @@ export function LeadFormDialog({
                     />
                   )}
                 />
+                {errors.lead_status_id && <FieldError>{errors.lead_status_id.message}</FieldError>}
               </Field>
             </div>
 
-            <Field orientation="vertical">
+            <Field orientation="vertical" data-invalid={!!errors.assigned_to}>
               <FieldLabel>{t("form.assignedTo")}</FieldLabel>
               <Controller
                 control={control}
@@ -287,7 +343,7 @@ export function LeadFormDialog({
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                   >
-                    <SelectTrigger className="cursor-pointer">
+                    <SelectTrigger aria-invalid={!!errors.assigned_to} className="cursor-pointer">
                       <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -300,15 +356,68 @@ export function LeadFormDialog({
                   </Select>
                 )}
               />
+              {errors.assigned_to && <FieldError>{errors.assigned_to.message}</FieldError>}
             </Field>
 
-            <Field orientation="vertical">
+            <Field orientation="vertical" data-invalid={!!errors.website}>
               <FieldLabel>{t("form.website")}</FieldLabel>
               <Input
                 placeholder="https:// instagram.com/username, linkedin.com/in/name, etc."
                 {...register("website")}
               />
+              {errors.website && <FieldError>{errors.website.message}</FieldError>}
             </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field orientation="vertical" data-invalid={!!errors.business_type_id}>
+                <FieldLabel>{t("form.businessType")}</FieldLabel>
+                <Controller
+                  control={control}
+                  name="business_type_id"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      ariaInvalid={!!errors.business_type_id}
+                      options={businessTypes.map((bt) => ({
+                        value: bt.id,
+                        label: bt.name,
+                      }))}
+                      placeholder={t("form.businessTypePlaceholder")}
+                      createPermission="business_type.create"
+                      createLabel={`${tCommon("create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("businessType", q)}
+                    />
+                  )}
+                />
+                {errors.business_type_id && <FieldError>{errors.business_type_id.message}</FieldError>}
+              </Field>
+
+              <Field orientation="vertical" data-invalid={!!errors.payment_terms_id}>
+                <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
+                <Controller
+                  control={control}
+                  name="payment_terms_id"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      ariaInvalid={!!errors.payment_terms_id}
+                      options={paymentTermsList.map((pt) => ({
+                        value: pt.id,
+                        label: `${pt.name} (${pt.days} ${tCommon("days")})`,
+                      }))}
+                      placeholder={t("form.paymentTermsPlaceholder")}
+                      createPermission="payment_term.create"
+                      createLabel={`${tCommon("create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("paymentTerm", q)}
+                    />
+                  )}
+                />
+                {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
+              </Field>
+            </div>
+
           </div>
 
           {/* Scoring & Value */}
@@ -318,7 +427,7 @@ export function LeadFormDialog({
             </h4>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
+              <Field orientation="vertical" data-invalid={!!errors.estimated_value}>
                 <FieldLabel>{t("form.estimatedValue")}</FieldLabel>
                 <Controller
                   control={control}
@@ -331,9 +440,10 @@ export function LeadFormDialog({
                     />
                   )}
                 />
+                {errors.estimated_value && <FieldError>{errors.estimated_value.message}</FieldError>}
               </Field>
 
-              <Field orientation="vertical">
+              <Field orientation="vertical" data-invalid={!!errors.probability}>
                 <FieldLabel>{t("form.probability")}</FieldLabel>
                 <Controller
                   control={control}
@@ -346,6 +456,7 @@ export function LeadFormDialog({
                     />
                   )}
                 />
+                {errors.probability && <FieldError>{errors.probability.message}</FieldError>}
               </Field>
             </div>
           </div>
@@ -370,7 +481,7 @@ export function LeadFormDialog({
                 />
               </Field>
               {watch("budget_confirmed") && (
-                <Field orientation="vertical">
+                <Field orientation="vertical" data-invalid={!!errors.budget_amount}>
                   <FieldLabel>{t("form.budgetAmount")}</FieldLabel>
                   <Controller
                     control={control}
@@ -383,6 +494,7 @@ export function LeadFormDialog({
                       />
                     )}
                   />
+                  {errors.budget_amount && <FieldError>{errors.budget_amount.message}</FieldError>}
                 </Field>
               )}
             </div>
@@ -450,7 +562,7 @@ export function LeadFormDialog({
                 />
               </Field>
               {watch("time_confirmed") && (
-                <Field orientation="vertical">
+                <Field orientation="vertical" data-invalid={!!errors.time_expected}>
                   <FieldLabel>{t("form.timeExpected")}</FieldLabel>
                   <Controller
                     control={control}
@@ -486,6 +598,7 @@ export function LeadFormDialog({
                       </Popover>
                     )}
                   />
+                    {errors.time_expected && <FieldError>{errors.time_expected.message}</FieldError>}
                 </Field>
               )}
             </div>
@@ -498,7 +611,6 @@ export function LeadFormDialog({
             </h4>
 
             <Field orientation="vertical">
-              <FieldLabel>{t("form.notes")}</FieldLabel>
               <Textarea
                 placeholder={t("form.notesPlaceholder")}
                 rows={3}
@@ -547,6 +659,18 @@ export function LeadFormDialog({
         name: quickCreate.query,
         order: Math.max(0, ...leadStatuses.map((s) => s.order ?? 0)) + 1,
       }}
+    />
+
+    <BusinessTypeForm
+      open={quickCreate.type === "businessType"}
+      onClose={handleBusinessTypeCreated}
+    />
+
+    <PaymentTermsDialog
+      open={quickCreate.type === "paymentTerm"}
+      onOpenChange={(o) => !o && closeQuickCreate()}
+      editingItem={null}
+      onCreated={handlePaymentTermCreated}
     />
     </>
   );

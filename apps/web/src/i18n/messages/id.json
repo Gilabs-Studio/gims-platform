@@ -45,7 +45,9 @@
     "purchaseRequisition": "Permintaan Pembelian",
     "purchaseOrder": "Pesanan Pembelian",
     "goodsReceipt": "Penerimaan Barang",
-    "createdBy": "Dibuat oleh"
+    "createdBy": "Dibuat oleh",
+    "days": "hari",
+    "validationError": "Periksa kembali isian form"
   },
   "notFound": {
     "label": "404",

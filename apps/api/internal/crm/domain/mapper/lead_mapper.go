@@ -55,6 +55,9 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		CID:             lead.CID,
 		PlaceID:         lead.PlaceID,
 		Website:         lead.Website,
+		BusinessTypeID:  lead.BusinessTypeID,
+		AreaID:          lead.AreaID,
+		PaymentTermsID:  lead.PaymentTermsID,
 	}
 
 	if lead.TimeExpected != nil {
@@ -99,6 +102,20 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 			ID:   lead.Customer.ID,
 			Code: lead.Customer.Code,
 			Name: lead.Customer.Name,
+		}
+	}
+
+	if lead.BusinessType != nil {
+		resp.BusinessType = &dto.LeadBusinessTypeInfo{
+			ID:   lead.BusinessType.ID,
+			Name: lead.BusinessType.Name,
+		}
+	}
+
+	if lead.Area != nil {
+		resp.Area = &dto.LeadAreaInfo{
+			ID:   lead.Area.ID,
+			Name: lead.Area.Name,
 		}
 	}
 

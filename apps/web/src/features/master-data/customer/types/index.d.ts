@@ -154,6 +154,7 @@ export interface Customer {
 export interface SalesDefaultOptionBrief {
   id: string;
   name: string;
+  province?: string;
 }
 
 export interface SalesRepBrief {

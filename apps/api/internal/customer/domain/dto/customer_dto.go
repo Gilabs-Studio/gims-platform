@@ -114,6 +114,13 @@ type SalesDefaultOptionBrief struct {
 	Name string `json:"name"`
 }
 
+// CustomerAreaFormOption is a lightweight area reference that includes province for auto-mapping.
+type CustomerAreaFormOption struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Province string `json:"province,omitempty"`
+}
+
 // SalesRepBrief is a lightweight sales rep reference
 type SalesRepBrief struct {
 	ID           string `json:"id"`
@@ -125,7 +132,7 @@ type SalesRepBrief struct {
 type CustomerFormDataResponse struct {
 	CustomerTypes []CustomerTypeResponse         `json:"customer_types"`
 	BusinessTypes []SalesDefaultOptionBrief      `json:"business_types"`
-	Areas         []SalesDefaultOptionBrief      `json:"areas"`
+	Areas         []CustomerAreaFormOption        `json:"areas"`
 	SalesReps     []SalesRepBrief               `json:"sales_reps"`
 	PaymentTerms  []PaymentTermsFormOption       `json:"payment_terms"`
 }

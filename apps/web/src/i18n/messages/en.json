@@ -50,7 +50,9 @@
     "purchaseRequisition": "Purchase Requisition",
     "purchaseOrder": "Purchase Order",
     "goodsReceipt": "Goods Receipt",
-    "createdBy": "Created by"
+    "createdBy": "Created by",
+    "days": "days",
+    "validationError": "Please check the form for errors"
   },
   "notFound": {
     "label": "404",

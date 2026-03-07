@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -41,6 +42,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	provinceRepo := geoRepos.NewProvinceRepository(db)
 	cityRepo := geoRepos.NewCityRepository(db)
 	districtRepo := geoRepos.NewDistrictRepository(db)
+	businessTypeRepo := orgRepos.NewBusinessTypeRepository(db)
+	areaRepo := orgRepos.NewAreaRepository(db)
+	paymentTermsRepo := coreRepos.NewPaymentTermsRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	salesQuotationRepo := salesRepos.NewSalesQuotationRepository(db)
 
@@ -51,7 +55,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleUC := usecase.NewContactRoleUsecase(contactRoleRepo)
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
-	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo, provinceRepo, cityRepo, districtRepo)
+	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo, provinceRepo, cityRepo, districtRepo, businessTypeRepo, areaRepo, paymentTermsRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
 	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
 	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)

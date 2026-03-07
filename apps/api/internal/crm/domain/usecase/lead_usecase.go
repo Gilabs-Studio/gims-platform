@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -17,6 +18,7 @@ import (
 	geoRepos "github.com/gilabs/gims/api/internal/geographic/data/repositories"
 	geoDto "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/google/uuid"
 )
 
@@ -34,15 +36,18 @@ type LeadUsecase interface {
 }
 
 type leadUsecase struct {
-	leadRepo       repositories.LeadRepository
-	leadStatusRepo repositories.LeadStatusRepository
-	leadSourceRepo repositories.LeadSourceRepository
-	customerRepo   customerRepos.CustomerRepository
-	contactRepo    repositories.ContactRepository
-	employeeRepo   orgRepos.EmployeeRepository
-	provinceRepo   geoRepos.ProvinceRepository
-	cityRepo       geoRepos.CityRepository
-	districtRepo   geoRepos.DistrictRepository
+	leadRepo        repositories.LeadRepository
+	leadStatusRepo  repositories.LeadStatusRepository
+	leadSourceRepo  repositories.LeadSourceRepository
+	customerRepo    customerRepos.CustomerRepository
+	contactRepo     repositories.ContactRepository
+	employeeRepo    orgRepos.EmployeeRepository
+	provinceRepo    geoRepos.ProvinceRepository
+	cityRepo        geoRepos.CityRepository
+	districtRepo    geoRepos.DistrictRepository
+	businessTypeRepo orgRepos.BusinessTypeRepository
+	areaRepo        orgRepos.AreaRepository
+	paymentTermsRepo coreRepos.PaymentTermsRepository
 }
 
 // NewLeadUsecase creates a new lead usecase
@@ -56,17 +61,23 @@ func NewLeadUsecase(
 	provinceRepo geoRepos.ProvinceRepository,
 	cityRepo geoRepos.CityRepository,
 	districtRepo geoRepos.DistrictRepository,
+	businessTypeRepo orgRepos.BusinessTypeRepository,
+	areaRepo orgRepos.AreaRepository,
+	paymentTermsRepo coreRepos.PaymentTermsRepository,
 ) LeadUsecase {
 	return &leadUsecase{
-		leadRepo:       leadRepo,
-		leadStatusRepo: leadStatusRepo,
-		leadSourceRepo: leadSourceRepo,
-		customerRepo:   customerRepo,
-		contactRepo:    contactRepo,
-		employeeRepo:   employeeRepo,
-		provinceRepo:   provinceRepo,
-		cityRepo:       cityRepo,
-		districtRepo:   districtRepo,
+		leadRepo:        leadRepo,
+		leadStatusRepo:  leadStatusRepo,
+		leadSourceRepo:  leadSourceRepo,
+		customerRepo:    customerRepo,
+		contactRepo:     contactRepo,
+		employeeRepo:    employeeRepo,
+		provinceRepo:    provinceRepo,
+		cityRepo:        cityRepo,
+		districtRepo:    districtRepo,
+		businessTypeRepo: businessTypeRepo,
+		areaRepo:        areaRepo,
+		paymentTermsRepo: paymentTermsRepo,
 	}
 }
 
@@ -143,6 +154,9 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		TimeExpected:    timeExpected,
 		AssignedTo:      req.AssignedTo,
 		Notes:           req.Notes,
+		BusinessTypeID:  req.BusinessTypeID,
+		AreaID:          req.AreaID,
+		PaymentTermsID:  req.PaymentTermsID,
 		CreatedBy:       &createdBy,
 	}
 
@@ -317,6 +331,15 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Longitude != nil {
 		lead.Longitude = req.Longitude
 	}
+	if req.BusinessTypeID != nil {
+		lead.BusinessTypeID = req.BusinessTypeID
+	}
+	if req.AreaID != nil {
+		lead.AreaID = req.AreaID
+	}
+	if req.PaymentTermsID != nil {
+		lead.PaymentTermsID = req.PaymentTermsID
+	}
 
 	// Recalculate lead score after updates
 	lead.LeadScore = lead.CalculateLeadScore()
@@ -432,22 +455,26 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		// If future leads include district text, we can resolve similarly via u.districtRepo.List().
 
 		newCustomer := &customerModels.Customer{
-			ID:            uuid.New().String(),
-			Code:          nextCode,
-			Name:          customerName,
-			ContactPerson: cpName,
-			Address:       lead.Address,
-			Email:         lead.Email,
-			Website:       lead.Website,
-			NPWP:          lead.NPWP,
-			ProvinceID:    resolvedProvinceID,
-			CityID:        resolvedCityID,
-			DistrictID:    resolvedDistrictID,
-			VillageName:   villageName,
-			Latitude:      lead.Latitude,
-			Longitude:     lead.Longitude,
-			Notes:         fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
-			CreatedBy:     &convertedBy,
+			ID:                   uuid.New().String(),
+			Code:                 nextCode,
+			Name:                 customerName,
+			ContactPerson:        cpName,
+			Address:              lead.Address,
+			Email:                lead.Email,
+			Website:              lead.Website,
+			NPWP:                 lead.NPWP,
+			ProvinceID:           resolvedProvinceID,
+			CityID:               resolvedCityID,
+			DistrictID:           resolvedDistrictID,
+			VillageName:          villageName,
+			Latitude:             lead.Latitude,
+			Longitude:            lead.Longitude,
+			DefaultBusinessTypeID: lead.BusinessTypeID,
+			DefaultAreaID:        lead.AreaID,
+			DefaultPaymentTermsID: lead.PaymentTermsID,
+			DefaultSalesRepID:    lead.AssignedTo,
+			Notes:                fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
+			CreatedBy:            &convertedBy,
 			IsActive:      true,
 		}
 
@@ -783,11 +810,59 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 		})
 	}
 
+	// Fetch business types
+	businessTypes, _, err := u.businessTypeRepo.List(ctx, &orgDto.ListBusinessTypesRequest{PerPage: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch business types: %w", err)
+	}
+
+	businessTypeOptions := make([]dto.LeadBusinessTypeOption, 0, len(businessTypes))
+	for _, bt := range businessTypes {
+		businessTypeOptions = append(businessTypeOptions, dto.LeadBusinessTypeOption{
+			ID:   bt.ID,
+			Name: bt.Name,
+		})
+	}
+
+	// Fetch areas
+	areas, _, err := u.areaRepo.List(ctx, &orgDto.ListAreasRequest{PerPage: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch areas: %w", err)
+	}
+
+	areaOptions := make([]dto.LeadAreaOption, 0, len(areas))
+	for _, a := range areas {
+		areaOptions = append(areaOptions, dto.LeadAreaOption{
+			ID:       a.ID,
+			Name:     a.Name,
+			Province: a.Province,
+		})
+	}
+
+	// Fetch payment terms
+	paymentTermsList, _, err := u.paymentTermsRepo.List(ctx, coreRepos.ListParams{Limit: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch payment terms: %w", err)
+	}
+
+	paymentTermsOptions := make([]dto.LeadPaymentTermsOption, 0, len(paymentTermsList))
+	for _, pt := range paymentTermsList {
+		paymentTermsOptions = append(paymentTermsOptions, dto.LeadPaymentTermsOption{
+			ID:   pt.ID,
+			Name: pt.Name,
+			Code: pt.Code,
+			Days: pt.Days,
+		})
+	}
+
 	return &dto.LeadFormDataResponse{
-		Employees:    employeeOptions,
-		LeadSources:  sourceOptions,
-		LeadStatuses: statusOptions,
-		Customers:    customerOptions,
+		Employees:     employeeOptions,
+		LeadSources:   sourceOptions,
+		LeadStatuses:  statusOptions,
+		Customers:     customerOptions,
+		BusinessTypes: businessTypeOptions,
+		Areas:         areaOptions,
+		PaymentTerms:  paymentTermsOptions,
 	}, nil
 }
 

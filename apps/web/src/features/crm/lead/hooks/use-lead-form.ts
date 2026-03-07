@@ -43,25 +43,28 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         address: z.string().optional().or(z.literal("")),
         city: z.string().max(100).optional().or(z.literal("")),
         province: z.string().max(100).optional().or(z.literal("")),
-        province_id: z.string().uuid().optional().or(z.literal("")),
-        city_id: z.string().uuid().optional().or(z.literal("")),
-        district_id: z.string().uuid().optional().or(z.literal("")),
+        province_id: z.string().optional().or(z.literal("")),
+        city_id: z.string().optional().or(z.literal("")),
+        district_id: z.string().optional().or(z.literal("")),
         village_name: z.string().max(200).optional().or(z.literal("")),
-        lead_source_id: z.string().uuid().optional().or(z.literal("")),
-        lead_status_id: z.string().uuid().optional().or(z.literal("")),
-        estimated_value: z.number().min(0),
-        probability: z.number().min(0).max(100),
+        lead_source_id: z.string().optional().or(z.literal("")),
+        lead_status_id: z.string().optional().or(z.literal("")),
+        estimated_value: z.number().min(0).optional(),
+        probability: z.number().min(0).max(100).optional(),
         budget_confirmed: z.boolean(),
-        budget_amount: z.number().min(0),
+        budget_amount: z.number().min(0).optional(),
         auth_confirmed: z.boolean(),
         auth_person: z.string().max(200).optional().or(z.literal("")),
         need_confirmed: z.boolean(),
         need_description: z.string().optional().or(z.literal("")),
         time_confirmed: z.boolean(),
         time_expected: z.string().optional().or(z.literal("")),
-        assigned_to: z.string().uuid().optional().or(z.literal("")),
+        assigned_to: z.string().optional().or(z.literal("")),
         notes: z.string().optional().or(z.literal("")),
         website: z.string().optional().or(z.literal("")),
+        business_type_id: z.string().optional().or(z.literal("")),
+        area_id: z.string().optional().or(z.literal("")),
+        payment_terms_id: z.string().optional().or(z.literal("")),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -102,6 +105,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         assigned_to: editingItem.assigned_to ?? "",
         notes: editingItem.notes ?? "",
         website: editingItem.website ?? "",
+        business_type_id: editingItem.business_type_id ?? "",
+        area_id: editingItem.area_id ?? "",
+        payment_terms_id: editingItem.payment_terms_id ?? "",
       }
     : {
         first_name: "",
@@ -132,6 +138,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         assigned_to: "",
         notes: "",
         website: "",
+        business_type_id: "",
+        area_id: "",
+        payment_terms_id: "",
       };
 
   // (debug logs removed)
@@ -173,6 +182,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           assigned_to: editingItem.assigned_to ?? "",
           notes: editingItem.notes ?? "",
           website: editingItem.website ?? "",
+          business_type_id: editingItem.business_type_id ?? "",
+          area_id: editingItem.area_id ?? "",
+          payment_terms_id: editingItem.payment_terms_id ?? "",
         });
         
 
@@ -241,6 +253,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           assigned_to: "",
           notes: "",
           website: "",
+          business_type_id: "",
+          area_id: "",
+          payment_terms_id: "",
         });
         
       }
@@ -271,6 +286,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         need_description: data.need_description || undefined,
         notes: data.notes || undefined,
         website: data.website || undefined,
+        business_type_id: data.business_type_id || null,
+        area_id: data.area_id || null,
+        payment_terms_id: data.payment_terms_id || null,
       };
 
       if (editingItem) {
@@ -288,11 +306,15 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
     }
   };
 
+  const onInvalid = () => {
+    toast.error(tCommon("validationError"));
+  };
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return {
     form,
-    onSubmit: form.handleSubmit(onSubmit),
+    onSubmit: form.handleSubmit(onSubmit, onInvalid),
     isSubmitting,
     isEditing: !!editingItem,
     schema,

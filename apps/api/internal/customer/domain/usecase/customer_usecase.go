@@ -433,16 +433,17 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 
 	// Load areas
 	type areaRow struct {
-		ID   string
-		Name string
+		ID       string
+		Name     string
+		Province string
 	}
 	var areaRows []areaRow
 	u.db.WithContext(ctx).Table("areas").
-		Select("id, name").Where("deleted_at IS NULL").
+		Select("id, name, province").Where("deleted_at IS NULL").
 		Order("name").Scan(&areaRows)
-	areaOptions := make([]dto.SalesDefaultOptionBrief, 0, len(areaRows))
+	areaOptions := make([]dto.CustomerAreaFormOption, 0, len(areaRows))
 	for _, r := range areaRows {
-		areaOptions = append(areaOptions, dto.SalesDefaultOptionBrief{ID: r.ID, Name: r.Name})
+		areaOptions = append(areaOptions, dto.CustomerAreaFormOption{ID: r.ID, Name: r.Name, Province: r.Province})
 	}
 
 	// Load employees (sales reps)
