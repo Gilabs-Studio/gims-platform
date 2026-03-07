@@ -57,8 +57,8 @@ import (
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
-	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
 	purchasePresentation "github.com/gilabs/gims/api/internal/purchase/presentation"
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
@@ -266,6 +266,7 @@ func main() {
 	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
 	// API v1 routes
+	var autoAbsentWorker *hrdWorker.AutoAbsentWorker
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/", func(c *gin.Context) {
@@ -318,7 +319,7 @@ func main() {
 		// Start auto-absent worker (runs daily at startup + every 24 hours)
 		// Create a CompanyTimezoneProvider so the worker can iterate companies per-timezone.
 		workerTzProvider := orgRepos.NewCompanyTimezoneProvider(database.DB)
-		autoAbsentWorker := hrdWorker.NewAutoAbsentWorker(hrdDeps.AttendanceUC, 24*time.Hour, workerTzProvider)
+		autoAbsentWorker = hrdWorker.NewAutoAbsentWorker(hrdDeps.AttendanceUC, 24*time.Hour, workerTzProvider)
 		autoAbsentWorker.Start()
 		// Inventory module (Sprint 9)
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
@@ -383,6 +384,9 @@ func main() {
 
 	// Stop background worker before shutting down server/resources
 	rtWorker.Stop()
+	if autoAbsentWorker != nil {
+		autoAbsentWorker.Stop()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.AppConfig.Server.ShutdownTimeoutSec)*time.Second)
 	defer cancel()

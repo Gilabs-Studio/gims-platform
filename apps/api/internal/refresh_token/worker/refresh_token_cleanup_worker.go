@@ -56,8 +56,8 @@ func (w *RefreshTokenCleanupWorker) Stop() {
 
 // cleanupExpiredTokens deletes expired refresh tokens from the database
 func (w *RefreshTokenCleanupWorker) cleanupExpiredTokens() {
-	// Use background context as this is running in a goroutine
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	err := w.refreshTokenRepo.DeleteExpired(ctx)
 	if err != nil {
 		log.Printf("Error cleaning up expired refresh tokens: %v", err)
