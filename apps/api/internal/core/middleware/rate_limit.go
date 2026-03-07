@@ -236,8 +236,19 @@ func checkLimit(c *gin.Context, key string, rule config.RateLimitRule, typeKey s
 			}
 			return true
 		}
-		// Redis failed? Fallback to memory
-		fmt.Printf("Redis rate limit error: %v, falling back to memory\n", err)
+		// Redis failed: for production hardening, fail closed to avoid multi-instance bypass.
+		fmt.Printf("Redis rate limit error: %v\n", err)
+		if config.AppConfig != nil && config.AppConfig.RateLimit.FailClosedOnRedisError {
+			c.Header("Retry-After", "1")
+			errors.ErrorResponse(c, "SERVICE_UNAVAILABLE", map[string]interface{}{
+				"reason": "rate_limiter_backend_unavailable",
+			}, nil)
+			c.Abort()
+			return false
+		}
+
+		// Non-production or explicit fail-open mode: fallback to in-memory limiter.
+		fmt.Printf("Falling back to in-memory rate limiter for key=%s\n", key)
 	}
 
 	// In-Memory Fallback

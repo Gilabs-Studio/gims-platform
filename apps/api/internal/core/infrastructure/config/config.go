@@ -121,6 +121,7 @@ type RateLimitConfig struct {
 	Upload  RateLimitRule // File upload endpoint: 20 requests per hour
 	General RateLimitRule // General API endpoints: 100 requests per minute
 	Public  RateLimitRule // Public endpoints: 200 requests per minute
+	FailClosedOnRedisError bool // If true, reject requests when Redis limiter is unavailable
 	// Multi-level rate limiting for login
 	LoginByEmail RateLimitRule // Level 2: 10 attempts per 15 minutes per email
 	LoginGlobal  RateLimitRule // Level 3: 100 attempts per minute globally
@@ -235,6 +236,7 @@ func Load() error {
 				Requests: getEnvAsInt("RATE_LIMIT_PUBLIC_REQUESTS", 200),   // 200 requests
 				Window:   getEnvAsInt("RATE_LIMIT_PUBLIC_WINDOW", 60),     // 1 minute (60 seconds)
 			},
+			FailClosedOnRedisError: getEnvAsBool("RATE_LIMIT_FAIL_CLOSED_ON_REDIS_ERROR", envValue == "production"),
 			// Level 2: Rate limit by email/username (prevents brute force even if IP changes)
 			LoginByEmail: RateLimitRule{
 				Requests: getEnvAsInt("RATE_LIMIT_LOGIN_BY_EMAIL_REQUESTS", 5), // 5 requests per 15 minutes per email
