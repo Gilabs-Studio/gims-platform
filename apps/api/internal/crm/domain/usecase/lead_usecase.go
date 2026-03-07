@@ -14,6 +14,8 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
+	geoRepos "github.com/gilabs/gims/api/internal/geographic/data/repositories"
+	geoDto "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/google/uuid"
 )
@@ -38,6 +40,9 @@ type leadUsecase struct {
 	customerRepo   customerRepos.CustomerRepository
 	contactRepo    repositories.ContactRepository
 	employeeRepo   orgRepos.EmployeeRepository
+	provinceRepo   geoRepos.ProvinceRepository
+	cityRepo       geoRepos.CityRepository
+	districtRepo   geoRepos.DistrictRepository
 }
 
 // NewLeadUsecase creates a new lead usecase
@@ -48,6 +53,9 @@ func NewLeadUsecase(
 	customerRepo customerRepos.CustomerRepository,
 	contactRepo repositories.ContactRepository,
 	employeeRepo orgRepos.EmployeeRepository,
+	provinceRepo geoRepos.ProvinceRepository,
+	cityRepo geoRepos.CityRepository,
+	districtRepo geoRepos.DistrictRepository,
 ) LeadUsecase {
 	return &leadUsecase{
 		leadRepo:       leadRepo,
@@ -56,6 +64,9 @@ func NewLeadUsecase(
 		customerRepo:   customerRepo,
 		contactRepo:    contactRepo,
 		employeeRepo:   employeeRepo,
+		provinceRepo:   provinceRepo,
+		cityRepo:       cityRepo,
+		districtRepo:   districtRepo,
 	}
 }
 
@@ -379,21 +390,85 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 			customerName = lead.CompanyName
 		}
 
+		// Contact person is always the individual name (even when name = company name)
+		cpName := lead.FirstName
+		if lead.LastName != "" {
+			cpName += " " + lead.LastName
+		}
+
+		var villageName *string
+		if lead.VillageName != "" {
+			villageName = &lead.VillageName
+		}
+
+		// Resolve geographic IDs when only textual names exist on the lead
+		resolvedProvinceID := lead.ProvinceID
+		resolvedCityID := lead.CityID
+		resolvedDistrictID := lead.DistrictID
+
+		// Try to resolve province by name if ID missing
+		if (resolvedProvinceID == nil || *resolvedProvinceID == "") && lead.Province != "" {
+			provs, _, err := u.provinceRepo.List(ctx, &geoDto.ListProvincesRequest{Search: lead.Province, PerPage: 1})
+			if err == nil && len(provs) > 0 {
+				id := provs[0].ID
+				resolvedProvinceID = &id
+			}
+		}
+
+		// Try to resolve city by name if ID missing (prefer filtering by province if available)
+		if (resolvedCityID == nil || *resolvedCityID == "") && lead.City != "" {
+			provinceFilter := ""
+			if resolvedProvinceID != nil {
+				provinceFilter = *resolvedProvinceID
+			}
+			cities, _, err := u.cityRepo.List(ctx, &geoDto.ListCitiesRequest{Search: lead.City, ProvinceID: provinceFilter, PerPage: 1})
+			if err == nil && len(cities) > 0 {
+				id := cities[0].ID
+				resolvedCityID = &id
+			}
+		}
+
+		// District resolution is skipped — lead currently stores DistrictID, not a textual district name.
+		// If future leads include district text, we can resolve similarly via u.districtRepo.List().
+
 		newCustomer := &customerModels.Customer{
-			ID:        uuid.New().String(),
-			Code:      nextCode,
-			Name:      customerName,
-			Address:   lead.Address,
-			Email:     lead.Email,
-			Notes:     fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
-			CreatedBy: &convertedBy,
-			IsActive:  true,
+			ID:            uuid.New().String(),
+			Code:          nextCode,
+			Name:          customerName,
+			ContactPerson: cpName,
+			Address:       lead.Address,
+			Email:         lead.Email,
+			Website:       lead.Website,
+			NPWP:          lead.NPWP,
+			ProvinceID:    resolvedProvinceID,
+			CityID:        resolvedCityID,
+			DistrictID:    resolvedDistrictID,
+			VillageName:   villageName,
+			Latitude:      lead.Latitude,
+			Longitude:     lead.Longitude,
+			Notes:         fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
+			CreatedBy:     &convertedBy,
+			IsActive:      true,
 		}
 
 		if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
 			return dto.LeadResponse{}, fmt.Errorf("failed to create customer from lead: %w", err)
 		}
 		customerID = newCustomer.ID
+
+		// Create primary phone number record if the lead has a phone
+		if lead.Phone != "" {
+			phone := &customerModels.CustomerPhoneNumber{
+				CustomerID:  customerID,
+				PhoneNumber: lead.Phone,
+				Label:       "Primary",
+				IsPrimary:   true,
+			}
+			// Non-fatal — log and continue if phone creation fails
+			if err := u.customerRepo.CreatePhoneNumber(ctx, phone); err != nil {
+				_ = fmt.Errorf("warn: failed to create phone number during lead conversion: %w", err)
+			}
+		}
 	}
 
 	// Create contact under the customer

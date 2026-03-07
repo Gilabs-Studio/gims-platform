@@ -128,7 +128,10 @@ function StatusStepper({
   onStatusChange: (statusId: string) => void;
   disabled?: boolean;
 }) {
-  const sorted = [...statuses].sort((a, b) => getSortOrder(a) - getSortOrder(b));
+  // Exclude the "converted" status — it is set only via the dedicated Convert flow
+  const sorted = [...statuses]
+    .filter((s) => !s.is_converted)
+    .sort((a, b) => getSortOrder(a) - getSortOrder(b));
   const currentIndex = sorted.findIndex((s) => s.id === currentStatusId);
 
   return (
@@ -387,6 +390,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const lostStatus = sortedStatuses.find(
     (s) => s.code?.toLowerCase() === "lost" || s.name?.toLowerCase() === "lost"
   );
+  // "Converted" status must not be reachable via the quick-action button
+  // (it is exclusively set through the dedicated Convert workflow)
+  const convertedStatus = sortedStatuses.find((s) => s.is_converted);
 
   const hasCoordinates = lead.latitude != null && lead.longitude != null;
 
@@ -423,12 +429,6 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {lead.first_name} {lead.last_name}
                 </h1>
-                <Badge
-                  variant={isConverted ? "default" : "outline"}
-                  style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                >
-                  {lead.lead_status?.name ?? "-"}
-                </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">{lead.code}</p>
             </div>
@@ -437,7 +437,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
             {/* Quick "next status" button styled with the next status's color */}
-            {canUpdate && !isConverted && nextStatus && nextStatus.id !== lostStatus?.id && (
+            {canUpdate && !isConverted && nextStatus && nextStatus.id !== lostStatus?.id && nextStatus.id !== convertedStatus?.id && (
               <Button
                 variant="outline"
                 size="sm"

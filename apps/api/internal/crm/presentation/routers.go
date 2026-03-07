@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/presentation/handler"
 	"github.com/gilabs/gims/api/internal/crm/presentation/router"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
+	geoRepos "github.com/gilabs/gims/api/internal/geographic/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -37,6 +38,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaCaptureRepo := repositories.NewAreaCaptureRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
+	provinceRepo := geoRepos.NewProvinceRepository(db)
+	cityRepo := geoRepos.NewCityRepository(db)
+	districtRepo := geoRepos.NewDistrictRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	salesQuotationRepo := salesRepos.NewSalesQuotationRepository(db)
 
@@ -47,7 +51,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleUC := usecase.NewContactRoleUsecase(contactRoleRepo)
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
-	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
+	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo, provinceRepo, cityRepo, districtRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
 	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
 	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)
