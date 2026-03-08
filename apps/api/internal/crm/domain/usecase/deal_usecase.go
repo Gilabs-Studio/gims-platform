@@ -738,9 +738,66 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
 	}
 
-	// Validate deal has customer
+	// Auto-create customer from lead when no customer is linked yet
 	if deal.CustomerID == nil || *deal.CustomerID == "" {
-		return dto.ConvertToQuotationResponse{}, errors.New("deal customer required")
+		if deal.Lead == nil {
+			return dto.ConvertToQuotationResponse{}, errors.New("deal customer required")
+		}
+		customerCode, codeErr := u.customerRepo.GetNextCode(ctx)
+		if codeErr != nil {
+			return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to generate customer code: %w", codeErr)
+		}
+		customerName := deal.Lead.CompanyName
+		if customerName == "" {
+			customerName = deal.Lead.FirstName
+			if deal.Lead.LastName != "" {
+				customerName += " " + deal.Lead.LastName
+			}
+		}
+		newCustomer := &customerModels.Customer{
+			Code:                  customerCode,
+			Name:                  customerName,
+			Address:               deal.Lead.Address,
+			Email:                 deal.Lead.Email,
+			Website:               deal.Lead.Website,
+			NPWP:                  deal.Lead.NPWP,
+			ContactPerson:         deal.Lead.FirstName + " " + deal.Lead.LastName,
+			Latitude:              deal.Lead.Latitude,
+			Longitude:             deal.Lead.Longitude,
+			ProvinceID:            deal.Lead.ProvinceID,
+			DefaultBusinessTypeID: deal.Lead.BusinessTypeID,
+			DefaultAreaID:         deal.Lead.AreaID,
+			DefaultSalesRepID:     deal.AssignedTo,
+			DefaultPaymentTermsID: deal.Lead.PaymentTermsID,
+			CreatedBy:             &userID,
+		}
+		notesText := fmt.Sprintf("Auto-created from deal won (Lead: %s)", deal.Lead.Code)
+		if deal.Lead.Notes != "" {
+			notesText = notesText + " - " + deal.Lead.Notes
+		}
+		newCustomer.Notes = notesText
+		if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
+			return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to create customer from lead: %w", err)
+		}
+		// Prefer contact phone; fall back to lead phone
+		phoneToUse := deal.Lead.Phone
+		if deal.Contact != nil && deal.Contact.Phone != "" {
+			phoneToUse = deal.Contact.Phone
+		}
+		if phoneToUse != "" {
+			_ = u.customerRepo.CreatePhoneNumber(ctx, &customerModels.CustomerPhoneNumber{
+				CustomerID:  newCustomer.ID,
+				PhoneNumber: phoneToUse,
+				IsPrimary:   true,
+			})
+		}
+		deal.CustomerID = &newCustomer.ID
+		// Best-effort: link the lead to the new customer
+		if deal.Lead != nil {
+			deal.Lead.CustomerID = &newCustomer.ID
+			deal.Lead.Customer = nil
+			_ = u.leadRepo.Update(ctx, deal.Lead)
+		}
 	}
 
 	// Snapshot customer data
@@ -963,6 +1020,9 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 		newCustomer.Longitude = leadData.Longitude
 		newCustomer.Website = leadData.Website
 		newCustomer.Notes = fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code)
+		if leadData.Notes != "" {
+			newCustomer.Notes = newCustomer.Notes + " - " + leadData.Notes
+		}
 		newCustomer.DefaultBusinessTypeID = leadData.BusinessTypeID
 		newCustomer.DefaultAreaID = leadData.AreaID
 		newCustomer.DefaultPaymentTermsID = leadData.PaymentTermsID
@@ -993,7 +1053,12 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 			Phone:      leadData.Phone,
 			Email:      leadData.Email,
 			Position:   leadData.JobTitle,
-			Notes:      fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code),
+			Notes:      fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code) + func() string {
+				if leadData.Notes != "" {
+					return " - " + leadData.Notes
+				}
+				return ""
+			}(),
 			IsActive:   true,
 		}
 		if changedBy != "" {

@@ -34,15 +34,21 @@ import { cn } from "@/lib/utils";
 import { useCreateActivity } from "@/features/crm/activity/hooks/use-activities";
 import { getActivityTypeIcon } from "@/features/crm/activity/utils";
 import { toast } from "sonner";
-import type { LeadEmployeeOption } from "../types";
 import type { ActivityType } from "@/features/crm/activity-type/types";
+
+interface EmployeeOption {
+  id: string;
+  employee_code: string;
+  name: string;
+}
 
 interface LogActivityDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly leadId: string;
+  readonly leadId?: string;
+  readonly dealId?: string;
   readonly defaultEmployeeId?: string;
-  readonly employees: LeadEmployeeOption[];
+  readonly employees: EmployeeOption[];
   readonly activityTypes: ActivityType[];
   readonly onSuccess?: () => void;
 }
@@ -59,6 +65,7 @@ export function LogActivityDialog({
   open,
   onClose,
   leadId,
+  dealId,
   defaultEmployeeId,
   employees,
   activityTypes,
@@ -106,7 +113,7 @@ export function LogActivityDialog({
     },
   });
 
-  // Synchronize date/time state at render time when dialog opens (avoids setState-in-effect)
+  // Synchronize date/time state at render time when dialog opens
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -134,7 +141,6 @@ export function LogActivityDialog({
       const selectedType = activityTypes.find(
         (at) => at.id === data.activity_type_id,
       );
-      // Combine selected date with selected time into a single ISO timestamp
       const [hours, minutes] = selectedTime.split(":").map(Number);
       const timestamp = new Date(selectedDate);
       timestamp.setHours(hours ?? 0, minutes ?? 0, 0, 0);
@@ -144,7 +150,8 @@ export function LogActivityDialog({
         activity_type_id: data.activity_type_id,
         employee_id: data.employee_id,
         description: data.description,
-        lead_id: leadId,
+        ...(leadId ? { lead_id: leadId } : {}),
+        ...(dealId ? { deal_id: dealId } : {}),
         timestamp: timestamp.toISOString(),
       });
 

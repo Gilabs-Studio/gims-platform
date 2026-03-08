@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Phone, Landmark, Users } from "lucide-react";
+import { MapPin, Edit, Phone, Landmark, Users, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -162,7 +162,19 @@ export function CustomerDetailModal({
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("form.website")}</TableCell>
-                        <TableCell>{entity.website ?? "-"}</TableCell>
+                        <TableCell>
+                          {entity.website ? (
+                            <a
+                              href={entity.website.startsWith("http") ? entity.website : `https://${entity.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                              {entity.website}
+                            </a>
+                          ) : "-"}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
                         <TableCell>{entity.npwp ?? "-"}</TableCell>
                       </TableRow>

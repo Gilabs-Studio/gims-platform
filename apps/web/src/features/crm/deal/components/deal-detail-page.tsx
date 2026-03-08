@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
@@ -12,6 +12,8 @@ import {
   FileText,
   History,
   Mail,
+  MapPin,
+  Navigation,
   Package,
   Pencil,
   Phone,
@@ -36,14 +38,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useDealById, useDeleteDeal } from "../hooks/use-deals";
+import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
 import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { DealStockCheck } from "./deal-stock-check";
 import { DealActivityFeed } from "./deal-activity-feed";
-import { ActivityFormDialog } from "@/features/crm/activity/components/activity-form-dialog";
+import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
+import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
+import { MapView } from "@/components/ui/map/map-view";
+import { Marker, Popup } from "react-leaflet";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
@@ -71,6 +76,10 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
   const deleteMutation = useDeleteDeal();
+  const { data: formDataRes } = useDealFormData();
+  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
+  const employees = formDataRes?.employees ?? [];
 
   const canUpdate = useUserPermission("crm_deal.update");
   const canDelete = useUserPermission("crm_deal.delete");
@@ -150,19 +159,21 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                   {deal.status.toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{deal.code}</p>
-              {/* Conversion links */}
-              {(deal.lead_id || deal.converted_to_quotation_id || deal.customer_id) && (
-                <div className="flex items-center gap-3 mt-2 flex-wrap text-xs">
-                  {deal.lead_id && deal.lead && (
-                    <Link
-                      href={`/crm/leads/${deal.lead_id}`}
-                      className="flex items-center gap-1 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      {deal.lead.code ?? `${deal.lead.first_name} ${deal.lead.last_name}`}
-                    </Link>
-                  )}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-sm text-muted-foreground">{deal.code}</p>
+                {deal.lead_id && deal.lead && (
+                  <Link
+                    href={`/crm/leads/${deal.lead_id}`}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    {deal.lead.code ?? `${deal.lead.first_name} ${deal.lead.last_name}`}
+                  </Link>
+                )}
+              </div>
+              {/* Quotation / customer conversion links */}
+              {(deal.converted_to_quotation_id || deal.customer_id) && (
+                <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
                   {deal.converted_to_quotation_id && (
                     <Link
                       href={`/sales/quotations/${deal.converted_to_quotation_id}`}
@@ -383,6 +394,8 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               <TabsContent value="information" className="mt-3">
                 {visitedTabs.has("information") && (
                   <div className="space-y-4">
+                    {/* Location / Map from lead - moved to sidebar */}
+
                     {/* BANT Details */}
                     <div className="rounded-lg border p-4 space-y-3">
                       <h4 className="text-sm font-semibold">{t("bantTitle")}</h4>
@@ -455,7 +468,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     {t("customer")}
                   </h4>
                   {!deal.customer && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-600/40">
                       {t("potential")}
                     </Badge>
                   )}
@@ -466,8 +479,16 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     {deal.customer?.name ?? deal.lead!.company_name}
                   </span>
                 </div>
-                {deal.customer && (
-                  <p className="text-xs text-muted-foreground">{deal.customer.code}</p>
+                {deal.customer && deal.customer_id ? (
+                  <Link
+                    href={`/customers/${deal.customer_id}`}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    {deal.customer.code}
+                  </Link>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">{t("fromLead")}</p>
                 )}
               </div>
             )}
@@ -539,6 +560,61 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               </div>
             )}
 
+            {/* Location (moved to sidebar) */}
+            {deal.lead && (deal.lead.latitude != null || deal.lead.address) && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                  <MapPin className="h-4 w-4 inline-block mr-1" />
+                  {t("location")}
+                </h4>
+                {deal.lead.latitude != null && deal.lead.longitude != null ? (
+                  <div className="w-full h-64 rounded-md border overflow-hidden">
+                    <MapView
+                      className="h-full"
+                      defaultZoom={9}
+                      markers={[{
+                        id: deal.lead.id,
+                        latitude: Number(deal.lead.latitude),
+                        longitude: Number(deal.lead.longitude),
+                        data: deal.lead,
+                      }]}
+                      renderMarkers={(markers) =>
+                        markers.map((m) => (
+                          <Marker key={m.id} position={[m.latitude, m.longitude]}>
+                            <Popup>
+                              {deal.lead!.company_name || `${deal.lead!.first_name} ${deal.lead!.last_name}`}
+                            </Popup>
+                          </Marker>
+                        ))
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="h-28 flex flex-col items-center justify-center bg-muted/30 rounded-md gap-2 border border-dashed">
+                    <MapPin className="h-6 w-6 text-muted-foreground/40" />
+                    <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
+                  </div>
+                )}
+                <div className="text-xs space-y-1">
+                  {deal.lead.address && <p className="text-muted-foreground">{deal.lead.address}</p>}
+                  {(deal.lead.city || deal.lead.province) && (
+                    <p className="text-muted-foreground">{[deal.lead.city, deal.lead.province].filter(Boolean).join(", ")}</p>
+                  )}
+                  {deal.lead.latitude != null && deal.lead.longitude != null && (
+                    <a
+                      href={`https://www.google.com/maps?q=${deal.lead.latitude},${deal.lead.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      <Navigation className="h-3 w-3" />
+                      {t("openInMaps")}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Assigned */}
             {deal.assigned_employee && (
               <div className="rounded-lg border p-3 space-y-2">
@@ -557,32 +633,6 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 </div>
               </div>
             )}
-
-            {/* Dates */}
-            <div className="rounded-lg border p-3 space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                {t("dates")}
-              </h4>
-              {deal.expected_close_date && (
-                <div className="flex items-center gap-2 text-xs">
-                  <Calendar className="h-3 w-3 text-muted-foreground" />
-                  <span>{t("expectedClose")}:</span>
-                  <span className="font-medium">{formatDate(deal.expected_close_date)}</span>
-                </div>
-              )}
-              {deal.actual_close_date && (
-                <div className="flex items-center gap-2 text-xs">
-                  <Calendar className="h-3 w-3 text-muted-foreground" />
-                  <span>{t("actualClose")}:</span>
-                  <span className="font-medium">{formatDate(deal.actual_close_date)}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-xs">
-                <Calendar className="h-3 w-3 text-muted-foreground" />
-                <span>{t("createdAt")}:</span>
-                <span className="font-medium">{formatDate(deal.created_at)}</span>
-              </div>
-            </div>
 
             {/* BANT */}
             <div className="rounded-lg border p-3 space-y-2">
@@ -642,6 +692,32 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 </Link>
               </div>
             )}
+
+            {/* Dates */}
+            <div className="rounded-lg border p-3 space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                {t("dates")}
+              </h4>
+              {deal.expected_close_date && (
+                <div className="flex items-center gap-2 text-xs">
+                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                  <span>{t("expectedClose")}:</span>
+                  <span className="font-medium">{formatDate(deal.expected_close_date)}</span>
+                </div>
+              )}
+              {deal.actual_close_date && (
+                <div className="flex items-center gap-2 text-xs">
+                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                  <span>{t("actualClose")}:</span>
+                  <span className="font-medium">{formatDate(deal.actual_close_date)}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-xs">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                <span>{t("createdAt")}:</span>
+                <span className="font-medium">{formatDate(deal.created_at)}</span>
+              </div>
+            </div>
 
             {/* Close reason */}
             {deal.close_reason && (
@@ -708,11 +784,14 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
       )}
 
       {/* Log activity dialog */}
-      <ActivityFormDialog
+      <LogActivityDialog
         open={showActivityDialog}
         onClose={() => setShowActivityDialog(false)}
         dealId={deal.id}
         leadId={deal.lead_id ?? undefined}
+        defaultEmployeeId={deal.assigned_employee?.id}
+        employees={employees}
+        activityTypes={activityTypes}
         onSuccess={() => {
           setShowActivityDialog(false);
           refetch();

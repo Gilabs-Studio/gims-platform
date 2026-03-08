@@ -81,6 +81,11 @@ export interface DealLeadInfo {
   company_name: string;
   phone?: string;
   email?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface DealProductItem {

@@ -98,6 +98,11 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 			CompanyName: deal.Lead.CompanyName,
 			Phone:       deal.Lead.Phone,
 			Email:       deal.Lead.Email,
+			Address:     deal.Lead.Address,
+			City:        deal.Lead.City,
+			Province:    deal.Lead.Province,
+			Latitude:    deal.Lead.Latitude,
+			Longitude:   deal.Lead.Longitude,
 		}
 	}
 

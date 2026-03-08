@@ -41,7 +41,7 @@ export const crmLeadId = {
       classification: "Klasifikasi",
       scoring: "Skor & Nilai",
       bant: "Kualifikasi BANT",
-      assignment: "Penugasan",
+      assignment: "Penanggung Jawab",
       conversion: "Konversi",
       notes: "Catatan",
       statusProgress: "Progres Status",

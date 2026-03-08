@@ -41,7 +41,7 @@ export const crmLeadEn = {
       classification: "Classification",
       scoring: "Scoring & Value",
       bant: "BANT Qualification",
-      assignment: "Assignment",
+      assignment: "Assigned To",
       conversion: "Conversion",
       notes: "Notes",
       statusProgress: "Status Progress",

@@ -74,6 +74,8 @@ export const crmDealId = {
     contactPlaceholder: "Pilih kontak",
     selectContact: "Pilih kontak",
     fromLead: "Dari lead",
+    location: "Lokasi",
+    openInMaps: "Buka di Maps",
     assignedTo: "Ditugaskan Ke",
     assignedToPlaceholder: "Pilih karyawan",
     selectEmployee: "Pilih karyawan",

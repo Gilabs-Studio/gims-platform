@@ -48,7 +48,7 @@ import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData } from "../h
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
-import { LogActivityDialog } from "./log-activity-dialog";
+import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LeadActivityFeed } from "./lead-activity-feed";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
@@ -581,99 +581,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 />
               </TabsContent>
 
-              {/* ── Information Tab: Location, Classification, Scoring, Conversion Readiness ── */}
+              {/* ── Information Tab (other info) ── */}
               <TabsContent value="information" className="mt-4 space-y-4">
-                {/* Location / Map */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {t("sections.location")}
-                    </h4>
-                    {canUpdate && !isConverted && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="cursor-pointer h-6 px-2 text-xs"
-                        onClick={() => setShowMapPicker(true)}
-                        disabled={updateMutation.isPending}
-                      >
-                        <Navigation className="h-3 w-3 mr-1" />
-                        {hasCoordinates ? t("changeLocation") : t("pickLocation")}
-                      </Button>
-                    )}
-                  </div>
-
-                  {hasCoordinates ? (
-                    <>
-                      <div className="w-full h-48 rounded-md border bg-muted/30 overflow-hidden">
-                        <MapView
-                          className="h-48"
-                          defaultZoom={9}
-                          markers={[
-                            {
-                              id: lead.id,
-                              latitude: Number(lead.latitude),
-                              longitude: Number(lead.longitude),
-                              data: lead,
-                            },
-                          ]}
-                          renderMarkers={(markers) => (
-                            <>
-                              {markers.map((m) => (
-                                <Marker key={m.id} position={[m.latitude, m.longitude]}>
-                                  <Popup>
-                                    <div className="text-sm font-medium">
-                                      {lead.company_name ? lead.company_name : `${lead.first_name} ${lead.last_name}`}
-                                    </div>
-                                  </Popup>
-                                </Marker>
-                              ))}
-                            </>
-                          )}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground font-mono tabular-nums">
-                          {Number(lead.latitude).toFixed(6)},{" "}
-                          {Number(lead.longitude).toFixed(6)}
-                        </span>
-                        <a
-                          href={`https://maps.google.com/?q=${lead.latitude},${lead.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          {t("openInMaps")}
-                        </a>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="h-28 flex flex-col items-center justify-center bg-muted/30 rounded-md gap-2 border border-dashed">
-                      <MapPin className="h-6 w-6 text-muted-foreground/40" />
-                      <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
-                      {canUpdate && !isConverted && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="cursor-pointer text-xs h-7"
-                          onClick={() => setShowMapPicker(true)}
-                        >
-                          <Navigation className="h-3 w-3 mr-1" />
-                          {t("pickLocation")}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <InfoRow icon={MapPin} label={t("form.address")} value={lead.address} />
-                    <InfoRow icon={MapPin} label={t("form.city")} value={lead.city} />
-                    <InfoRow icon={MapPin} label={t("form.province")} value={lead.province} />
-                    <InfoRow icon={FileText} label={t("form.npwp")} value={lead.npwp} />
-                  </div>
-                </div>
 
                 {/* Classification */}
                 <div className="rounded-lg border p-3 space-y-3">
@@ -836,8 +745,67 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   )}
                 </div>
 
-                {/* Assignment */}
-                {lead.assigned_employee && (
+                  {/* Location (moved to sidebar) */}
+                  {(lead.latitude != null || lead.longitude != null || lead.address) && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                        <MapPin className="h-4 w-4 inline-block mr-1" />
+                        {t("sections.location")}
+                      </h4>
+                      {lead.latitude != null && lead.longitude != null ? (
+                        <div className="w-full h-64 rounded-md border overflow-hidden">
+                          <MapView
+                            className="h-full"
+                            defaultZoom={9}
+                            markers={[{
+                              id: lead.id,
+                              latitude: Number(lead.latitude),
+                              longitude: Number(lead.longitude),
+                              data: lead,
+                            }]}
+                            renderMarkers={(markers) => (
+                              <>
+                                {markers.map((m) => (
+                                  <Marker key={m.id} position={[m.latitude, m.longitude]}>
+                                    <Popup>
+                                      <div className="text-sm font-medium">
+                                        {lead.company_name ? lead.company_name : `${lead.first_name} ${lead.last_name}`}
+                                      </div>
+                                    </Popup>
+                                  </Marker>
+                                ))}
+                              </>
+                            )}
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-28 flex flex-col items-center justify-center bg-muted/30 rounded-md gap-2 border border-dashed">
+                          <MapPin className="h-6 w-6 text-muted-foreground/40" />
+                          <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
+                        </div>
+                      )}
+                      <div className="text-xs space-y-1">
+                        {lead.address && <p className="text-muted-foreground">{lead.address}</p>}
+                        {(lead.city || lead.province) && (
+                          <p className="text-muted-foreground">{[lead.city, lead.province].filter(Boolean).join(", ")}</p>
+                        )}
+                        {lead.latitude != null && lead.longitude != null && (
+                          <a
+                            href={`https://maps.google.com/?q=${lead.latitude},${lead.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                          >
+                            <Navigation className="h-3 w-3" />
+                            {t("openInMaps")}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assignment */}
+                  {lead.assigned_employee && (
                   <div className="rounded-lg border p-3 space-y-2">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                       {t("sections.assignment")}

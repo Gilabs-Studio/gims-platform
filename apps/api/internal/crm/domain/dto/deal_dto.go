@@ -183,13 +183,18 @@ type DealEmployeeInfo struct {
 }
 
 type DealLeadInfo struct {
-	ID          string `json:"id"`
-	Code        string `json:"code"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	CompanyName string `json:"company_name"`
-	Phone       string `json:"phone"`
-	Email       string `json:"email"`
+	ID          string   `json:"id"`
+	Code        string   `json:"code"`
+	FirstName   string   `json:"first_name"`
+	LastName    string   `json:"last_name"`
+	CompanyName string   `json:"company_name"`
+	Phone       string   `json:"phone"`
+	Email       string   `json:"email"`
+	Address     string   `json:"address"`
+	City        string   `json:"city"`
+	Province    string   `json:"province"`
+	Latitude    *float64 `json:"latitude"`
+	Longitude   *float64 `json:"longitude"`
 }
 
 // DealFormDataResponse holds all options required by the deal form

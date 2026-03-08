@@ -74,6 +74,8 @@ export const crmDealEn = {
     contactPlaceholder: "Select contact",
     selectContact: "Select contact",
     fromLead: "From lead",
+    location: "Location",
+    openInMaps: "Open in Maps",
     assignedTo: "Assigned To",
     assignedToPlaceholder: "Select employee",
     selectEmployee: "Select employee",
