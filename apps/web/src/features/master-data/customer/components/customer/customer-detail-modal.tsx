@@ -171,7 +171,7 @@ export function CustomerDetailModal({
                               className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer"
                             >
                               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                              {entity.website}
+                                Visit Link
                             </a>
                           ) : "-"}
                         </TableCell>
