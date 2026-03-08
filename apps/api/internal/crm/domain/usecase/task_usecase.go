@@ -37,9 +37,11 @@ type TaskUsecase interface {
 
 type taskUsecase struct {
 	taskRepo     repositories.TaskRepository
+	scheduleRepo repositories.ScheduleRepository
 	reminderRepo repositories.ReminderRepository
 	contactRepo  repositories.ContactRepository
 	dealRepo     repositories.DealRepository
+	leadRepo     repositories.LeadRepository
 	customerRepo customerRepos.CustomerRepository
 	employeeRepo orgRepos.EmployeeRepository
 }
@@ -47,15 +49,19 @@ type taskUsecase struct {
 // NewTaskUsecase creates a new task usecase
 func NewTaskUsecase(
 	taskRepo repositories.TaskRepository,
+	scheduleRepo repositories.ScheduleRepository,
 	reminderRepo repositories.ReminderRepository,
 	contactRepo repositories.ContactRepository,
 	dealRepo repositories.DealRepository,
+	leadRepo repositories.LeadRepository,
 	customerRepo customerRepos.CustomerRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 ) TaskUsecase {
 	return &taskUsecase{
-		taskRepo: taskRepo, reminderRepo: reminderRepo,
+		taskRepo: taskRepo, scheduleRepo: scheduleRepo,
+		reminderRepo: reminderRepo,
 		contactRepo: contactRepo, dealRepo: dealRepo,
+		leadRepo: leadRepo,
 		customerRepo: customerRepo, employeeRepo: employeeRepo,
 	}
 }
@@ -80,6 +86,11 @@ func (u *taskUsecase) Create(ctx context.Context, req dto.CreateTaskRequest, cre
 	if req.DealID != nil && *req.DealID != "" {
 		if _, err := u.dealRepo.FindByID(ctx, *req.DealID); err != nil {
 			return dto.TaskResponse{}, errors.New("deal not found")
+		}
+	}
+	if req.LeadID != nil && *req.LeadID != "" {
+		if _, err := u.leadRepo.FindByID(ctx, *req.LeadID); err != nil {
+			return dto.TaskResponse{}, errors.New("lead not found")
 		}
 	}
 
@@ -114,12 +125,16 @@ func (u *taskUsecase) Create(ctx context.Context, req dto.CreateTaskRequest, cre
 		CustomerID:  req.CustomerID,
 		ContactID:   req.ContactID,
 		DealID:      req.DealID,
+		LeadID:      req.LeadID,
 		CreatedBy:   &createdBy,
 	}
 
 	if err := u.taskRepo.Create(ctx, task); err != nil {
 		return dto.TaskResponse{}, fmt.Errorf("failed to create task: %w", err)
 	}
+
+	// Auto-create schedule when task has due_date + assigned_to
+	u.autoCreateSchedule(ctx, task)
 
 	created, err := u.taskRepo.FindByID(ctx, task.ID)
 	if err != nil {
@@ -195,10 +210,16 @@ func (u *taskUsecase) Update(ctx context.Context, id string, req dto.UpdateTaskR
 	if req.DealID != nil {
 		task.DealID = req.DealID
 	}
+	if req.LeadID != nil {
+		task.LeadID = req.LeadID
+	}
 
 	if err := u.taskRepo.Update(ctx, task); err != nil {
 		return dto.TaskResponse{}, fmt.Errorf("failed to update task: %w", err)
 	}
+
+	// Auto-sync linked schedule
+	u.autoSyncSchedule(ctx, task)
 
 	updated, err := u.taskRepo.FindByID(ctx, task.ID)
 	if err != nil {
@@ -210,6 +231,10 @@ func (u *taskUsecase) Update(ctx context.Context, id string, req dto.UpdateTaskR
 func (u *taskUsecase) Delete(ctx context.Context, id string) error {
 	if _, err := u.taskRepo.FindByID(ctx, id); err != nil {
 		return errors.New("task not found")
+	}
+	// Auto-delete linked schedule
+	if err := u.scheduleRepo.DeleteByTaskID(ctx, id); err != nil {
+		fmt.Printf("[WARN] failed to delete schedule for task %s: %v\n", id, err)
 	}
 	return u.taskRepo.Delete(ctx, id)
 }
@@ -262,6 +287,9 @@ func (u *taskUsecase) Complete(ctx context.Context, id string) (dto.TaskResponse
 	if err := u.taskRepo.Update(ctx, task); err != nil {
 		return dto.TaskResponse{}, fmt.Errorf("failed to complete task: %w", err)
 	}
+
+	// Auto-complete linked schedule
+	u.autoCompleteSchedule(ctx, task.ID)
 
 	updated, err := u.taskRepo.FindByID(ctx, task.ID)
 	if err != nil {
@@ -351,11 +379,24 @@ func (u *taskUsecase) GetFormData(ctx context.Context) (*dto.TaskFormDataRespons
 		})
 	}
 
+	// Fetch leads
+	leads, _, err := u.leadRepo.List(ctx, repositories.LeadListParams{Limit: 500, SortBy: "created_at", SortDir: "DESC"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch leads: %w", err)
+	}
+	leadOptions := make([]dto.TaskLeadOption, 0, len(leads))
+	for _, l := range leads {
+		leadOptions = append(leadOptions, dto.TaskLeadOption{
+			ID: l.ID, Code: l.Code, Name: l.FirstName + " " + l.LastName,
+		})
+	}
+
 	return &dto.TaskFormDataResponse{
 		Employees: employeeOptions,
 		Customers: customerOptions,
 		Contacts:  contactOptions,
 		Deals:     dealOptions,
+		Leads:     leadOptions,
 	}, nil
 }
 
@@ -465,4 +506,76 @@ func (u *taskUsecase) DeleteReminder(ctx context.Context, taskID string, reminde
 	}
 
 	return u.reminderRepo.Delete(ctx, reminderID)
+}
+
+// --- Schedule auto-sync helpers ---
+
+// autoCreateSchedule creates a linked schedule when a task has both due_date and assigned_to
+func (u *taskUsecase) autoCreateSchedule(ctx context.Context, task *models.Task) {
+	if task.DueDate == nil || task.AssignedTo == nil {
+		return
+	}
+
+	schedule := &models.Schedule{
+		TaskID:                &task.ID,
+		EmployeeID:            *task.AssignedTo,
+		Title:                 task.Title,
+		Description:           task.Description,
+		ScheduledAt:           *task.DueDate,
+		Status:                "pending",
+		ReminderMinutesBefore: 30,
+		CreatedBy:             task.CreatedBy,
+	}
+	if err := u.scheduleRepo.Create(ctx, schedule); err != nil {
+		fmt.Printf("[WARN] failed to auto-create schedule for task %s: %v\n", task.ID, err)
+	}
+}
+
+// autoSyncSchedule updates or creates/deletes the linked schedule when task is updated
+func (u *taskUsecase) autoSyncSchedule(ctx context.Context, task *models.Task) {
+	existing, err := u.scheduleRepo.FindByTaskID(ctx, task.ID)
+
+	if task.DueDate == nil || task.AssignedTo == nil || task.Status == string(models.TaskStatusCancelled) {
+		// Remove linked schedule if conditions no longer met or task cancelled
+		if err == nil && existing != nil {
+			if task.Status == string(models.TaskStatusCancelled) {
+				existing.Status = "cancelled"
+				if updateErr := u.scheduleRepo.Update(ctx, existing); updateErr != nil {
+					fmt.Printf("[WARN] failed to cancel schedule for task %s: %v\n", task.ID, updateErr)
+				}
+			} else {
+				if delErr := u.scheduleRepo.DeleteByTaskID(ctx, task.ID); delErr != nil {
+					fmt.Printf("[WARN] failed to delete schedule for task %s: %v\n", task.ID, delErr)
+				}
+			}
+		}
+		return
+	}
+
+	if err != nil {
+		// No existing schedule — create one
+		u.autoCreateSchedule(ctx, task)
+		return
+	}
+
+	// Update existing schedule
+	existing.Title = task.Title
+	existing.Description = task.Description
+	existing.EmployeeID = *task.AssignedTo
+	existing.ScheduledAt = *task.DueDate
+	if updateErr := u.scheduleRepo.Update(ctx, existing); updateErr != nil {
+		fmt.Printf("[WARN] failed to update schedule for task %s: %v\n", task.ID, updateErr)
+	}
+}
+
+// autoCompleteSchedule marks the linked schedule as completed
+func (u *taskUsecase) autoCompleteSchedule(ctx context.Context, taskID string) {
+	schedule, err := u.scheduleRepo.FindByTaskID(ctx, taskID)
+	if err != nil {
+		return
+	}
+	schedule.Status = "completed"
+	if updateErr := u.scheduleRepo.Update(ctx, schedule); updateErr != nil {
+		fmt.Printf("[WARN] failed to complete schedule for task %s: %v\n", taskID, updateErr)
+	}
 }

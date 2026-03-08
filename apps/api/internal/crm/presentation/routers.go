@@ -53,9 +53,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
 	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, dealRepo, pipelineStageRepo, activityRepo, employeeRepo, businessTypeRepo, areaRepo, paymentTermsRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
-	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
+	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, activityRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
 	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)
-	taskUC := usecase.NewTaskUsecase(taskRepo, reminderRepo, contactRepo, dealRepo, customerRepo, employeeRepo)
+	taskUC := usecase.NewTaskUsecase(taskRepo, scheduleRepo, reminderRepo, contactRepo, dealRepo, leadRepo, customerRepo, employeeRepo)
 	scheduleUC := usecase.NewScheduleUsecase(scheduleRepo, taskRepo, employeeRepo)
 	areaCaptureUC := usecase.NewAreaCaptureUsecase(areaCaptureRepo)
 

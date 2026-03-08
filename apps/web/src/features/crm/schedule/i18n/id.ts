@@ -13,6 +13,8 @@ export const crmScheduleId = {
     deleteTitle: "Hapus Jadwal",
     deleteDescription: "Apakah Anda yakin ingin menghapus jadwal ini? Tindakan ini tidak dapat dibatalkan.",
     allStatuses: "Semua Status",
+    autoCreatedFromTask: "Jadwal otomatis dibuat dari Tugas yang memiliki tenggat waktu dan penerima tugas.",
+    manageViaTask: "Kelola jadwal melalui Tugas.",
     sections: {
       basicInfo: "Informasi Dasar",
       timing: "Waktu",

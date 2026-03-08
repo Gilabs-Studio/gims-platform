@@ -17,6 +17,8 @@ export const crmTaskId = {
     deleteDescription: "Apakah Anda yakin ingin menghapus tugas ini? Tindakan ini tidak dapat dibatalkan.",
     allStatuses: "Semua Status",
     allPriorities: "Semua Prioritas",
+    calendarView: "Kalender",
+    tableView: "Tabel",
     overdue: "Terlambat",
     sections: {
       basicInfo: "Informasi Dasar",
@@ -66,6 +68,8 @@ export const crmTaskId = {
       contactPlaceholder: "Pilih kontak (opsional)",
       deal: "Deal",
       dealPlaceholder: "Pilih deal (opsional)",
+      lead: "Lead",
+      leadPlaceholder: "Pilih lead (opsional)",
     },
     validation: {
       titleRequired: "Judul wajib diisi",
@@ -103,6 +107,7 @@ export const crmTaskId = {
       priority: "Prioritas",
       dueDate: "Tenggat Waktu",
       assignedTo: "Ditugaskan Ke",
+      lead: "Lead",
       createdAt: "Dibuat",
     },
   },

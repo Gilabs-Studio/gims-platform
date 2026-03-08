@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/select";
 import { useMyActivities } from "../hooks/use-activities";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
-import { getActivityTypeIcon } from "../utils";
+import { getActivityTypeIcon, parseVisitMetadata } from "../utils";
+import { VisitActivityCard } from "./visit-activity-card";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import type { Activity, ActivityListParams } from "../types";
@@ -198,6 +199,12 @@ export function ActivityFeedDialog({
                             </div>
 
                             <p className="text-sm">{activity.description}</p>
+
+                            {/* Visit activity details */}
+                            {activity.type === "visit" && (() => {
+                              const meta = parseVisitMetadata(activity.metadata);
+                              return meta ? <VisitActivityCard meta={meta} visitReportId={activity.visit_report_id} /> : null;
+                            })()}
 
                             {entityLink?.label && (
                               <Link

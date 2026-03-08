@@ -2,32 +2,29 @@
 
 import { useMemo, useState } from "react";
 import {
-  MoreHorizontal,
-  Eye,
-  Filter,
   Calendar as CalendarIcon,
-  MapPin,
   Clock,
+  MapPin,
   User,
   Info,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScheduleDetailDialog } from "./schedule-detail-dialog";
-import { useScheduleList } from "../hooks/use-schedule-list";
-import { useSchedules } from "../hooks/use-schedules";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Filter } from "lucide-react";
+import { ScheduleDetailDialog } from "@/features/crm/schedule/components/schedule-detail-dialog";
+import { useSchedules } from "@/features/crm/schedule/hooks/use-schedules";
 import { formatDate } from "@/lib/utils";
-import type { Schedule } from "../types";
+import { useTranslations } from "next-intl";
+import type { Schedule } from "@/features/crm/schedule/types";
 
 const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline",
@@ -43,24 +40,22 @@ const STATUS_DOT_COLOR: Record<string, string> = {
   cancelled: "bg-destructive",
 };
 
-export function ScheduleList() {
-  const { state, actions, permissions, translations } = useScheduleList();
-  const { t, tCommon } = translations;
+export function TaskCalendarView() {
+  const t = useTranslations("crmSchedule");
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [detailItem, setDetailItem] = useState<Schedule | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
 
-  // Fetch all schedules for the visible month (no search/pagination — calendar needs all)
-  const { data: allSchedulesRes, isLoading: isCalendarLoading } = useSchedules({
+  const { data: allSchedulesRes, isLoading } = useSchedules({
     page: 1,
     per_page: 100,
-    status: state.statusFilter || undefined,
+    status: statusFilter || undefined,
   });
 
   const allItems = allSchedulesRes?.data ?? [];
 
-  // Build a set of dates that have schedules for calendar highlighting
   const scheduleDatesMap = useMemo(() => {
     const map = new Map<string, Schedule[]>();
     for (const item of allItems) {
@@ -72,53 +67,45 @@ export function ScheduleList() {
     return map;
   }, [allItems]);
 
-  // Filter schedules for selected date
   const selectedDateSchedules = useMemo(() => {
     if (!selectedDate) return [];
     return scheduleDatesMap.get(selectedDate.toDateString()) ?? [];
   }, [selectedDate, scheduleDatesMap]);
 
-  // Dates that have at least one schedule — for calendar modifiers
   const datesWithSchedules = useMemo(
     () => Array.from(scheduleDatesMap.keys()).map((d) => new Date(d)),
     [scheduleDatesMap],
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <Select
-            value={state.statusFilter || "all"}
-            onValueChange={(value) => {
-              actions.setStatusFilter(value === "all" ? "" : value);
-            }}
-          >
-            <SelectTrigger className="w-40 cursor-pointer">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder={t("allStatuses")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
-              {(["pending", "confirmed", "completed", "cancelled"] as const).map((s) => (
-                <SelectItem key={s} value={s} className="cursor-pointer">
-                  {t(`statuses.${s}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="space-y-4">
+      {/* Filter + Info */}
+      <div className="flex items-center gap-3">
+        <Select
+          value={statusFilter || "all"}
+          onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}
+        >
+          <SelectTrigger className="w-40 cursor-pointer">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder={t("allStatuses")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
+            {(["pending", "confirmed", "completed", "cancelled"] as const).map((s) => (
+              <SelectItem key={s} value={s} className="cursor-pointer">
+                {t(`statuses.${s}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Auto-sync notice */}
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>{t("autoCreatedFromTask")}</AlertDescription>
       </Alert>
+
+      {/* Calendar + Schedule List grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
         {/* Calendar sidebar */}
         <div className="rounded-lg border p-4">
@@ -159,7 +146,7 @@ export function ScheduleList() {
               : t("title")}
           </div>
 
-          {isCalendarLoading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-lg border p-4 space-y-2">
@@ -173,7 +160,6 @@ export function ScheduleList() {
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
               <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t("manageViaTask")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -226,25 +212,6 @@ export function ScheduleList() {
                         </p>
                       )}
                     </div>
-
-                    {/* Actions */}
-                    {(permissions.canUpdate || permissions.canDelete) && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer shrink-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer">
-                              <Eye className="mr-2 h-4 w-4" />
-                              {t("detailTitle")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}

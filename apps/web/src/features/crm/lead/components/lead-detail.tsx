@@ -47,6 +47,7 @@ import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activit
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
+import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
 import { LeadActivityFeed } from "./lead-activity-feed";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
@@ -300,12 +301,14 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const canDelete = useUserPermission("crm_lead.delete");
   const canConvert = useUserPermission("crm_lead.convert");
   const canCreateActivity = useUserPermission("crm_activity.create");
+  const canCreateVisit = useUserPermission("crm_visit.create");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const lead: Lead | undefined = response?.data;
@@ -577,7 +580,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <LeadActivityFeed
                   leadId={lead.id}
                   canCreateActivity={canCreateActivity}
+                  canCreateVisit={canCreateVisit}
                   onLogActivity={() => setShowActivityDialog(true)}
+                  onLogVisit={() => setShowVisitDialog(true)}
                   refreshKey={activityRefreshKey}
                 />
               </TabsContent>
@@ -948,6 +953,21 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           defaultEmployeeId={lead.assigned_employee?.id}
           employees={formDataRes?.data?.employees ?? []}
           activityTypes={activityTypes}
+          onSuccess={() => {
+            refetch();
+            setActivityRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      {canCreateVisit && (
+        <LogVisitDialog
+          open={showVisitDialog}
+          onClose={() => setShowVisitDialog(false)}
+          leadId={lead.id}
+          customerId={lead.customer_id ?? undefined}
+          contactId={lead.contact_id ?? undefined}
+          defaultEmployeeId={lead.assigned_employee?.id}
           onSuccess={() => {
             refetch();
             setActivityRefreshKey((k) => k + 1);

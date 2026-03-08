@@ -1,10 +1,5 @@
-import { PermissionGuard } from "@/features/auth/components/permission-guard";
-import { ScheduleContainer } from "@/features/crm/schedule/components";
+import { redirect } from "@/i18n/routing";
 
 export default function SchedulesPage() {
-  return (
-    <PermissionGuard requiredPermission="crm_schedule.read">
-      <ScheduleContainer />
-    </PermissionGuard>
-  );
+  redirect({ href: "/crm/tasks", locale: "id" });
 }

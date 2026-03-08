@@ -1,19 +1,22 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { History, Plus } from "lucide-react";
+import { History, MapPin, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
 import { useLeadActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
-import { getActivityTypeIcon } from "@/features/crm/activity/utils";
+import { getActivityTypeIcon, parseVisitMetadata } from "@/features/crm/activity/utils";
+import { VisitActivityCard } from "@/features/crm/activity/components/visit-activity-card";
 import { formatDate, formatTime } from "@/lib/utils";
 
 interface LeadActivityFeedProps {
   readonly leadId: string;
   readonly canCreateActivity: boolean;
+  readonly canCreateVisit?: boolean;
   readonly onLogActivity: () => void;
+  readonly onLogVisit?: () => void;
   /** Called after a new activity is created so this feed can refresh */
   readonly refreshKey?: number;
 }
@@ -21,7 +24,9 @@ interface LeadActivityFeedProps {
 export function LeadActivityFeed({
   leadId,
   canCreateActivity,
+  canCreateVisit,
   onLogActivity,
+  onLogVisit,
   refreshKey,
 }: LeadActivityFeedProps) {
   const t = useTranslations("crmLead");
@@ -54,17 +59,30 @@ export function LeadActivityFeed({
 
   return (
     <div className="space-y-4">
-      {canCreateActivity && (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            variant="outline"
-            className="cursor-pointer h-7 text-xs"
-            onClick={onLogActivity}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {t("addActivity")}
-          </Button>
+      {(canCreateActivity || canCreateVisit) && (
+        <div className="flex justify-end gap-2">
+          {canCreateVisit && onLogVisit && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer h-7 text-xs"
+              onClick={onLogVisit}
+            >
+              <MapPin className="h-3.5 w-3.5 mr-1" />
+              {t("logVisit")}
+            </Button>
+          )}
+          {canCreateActivity && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer h-7 text-xs"
+              onClick={onLogActivity}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              {t("addActivity")}
+            </Button>
+          )}
         </div>
       )}
 
@@ -152,6 +170,12 @@ export function LeadActivityFeed({
 
                     {/* Description */}
                     <p className="text-sm">{activity.description}</p>
+
+                    {/* Visit activity details */}
+                    {activity.type === "visit" && (() => {
+                      const meta = parseVisitMetadata(activity.metadata);
+                      return meta ? <VisitActivityCard meta={meta} visitReportId={activity.visit_report_id} /> : null;
+                    })()}
                   </div>
                 </li>
               );

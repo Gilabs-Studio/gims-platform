@@ -34,6 +34,26 @@ var (
 
 const maxPhotosPerVisit = 5
 
+// visitActivityTypeID is the fixed UUID for the "Visit" activity type from the CRM seeder
+const visitActivityTypeID = "ce000001-0000-0000-0000-000000000001"
+
+// VisitActivityMetadata defines the JSONB metadata structure for visit activities
+type VisitActivityMetadata struct {
+	VisitCode     string   `json:"visit_code"`
+	Purpose       string   `json:"purpose"`
+	Outcome       string   `json:"outcome"`
+	Result        string   `json:"result"`
+	Photos        []string `json:"photos"`
+	CheckInAt     *string  `json:"check_in_at,omitempty"`
+	CheckOutAt    *string  `json:"check_out_at,omitempty"`
+	CheckInLat    *float64 `json:"check_in_lat,omitempty"`
+	CheckInLng    *float64 `json:"check_in_lng,omitempty"`
+	CheckOutLat   *float64 `json:"check_out_lat,omitempty"`
+	CheckOutLng   *float64 `json:"check_out_lng,omitempty"`
+	Address       string   `json:"address"`
+	ContactPerson string   `json:"contact_person"`
+}
+
 // VisitReportUsecase defines the interface for visit report business logic
 type VisitReportUsecase interface {
 	List(ctx context.Context, req *dto.ListVisitReportsRequest) ([]dto.VisitReportResponse, *utils.PaginationResult, error)
@@ -55,6 +75,7 @@ type VisitReportUsecase interface {
 
 type visitReportUsecase struct {
 	visitRepo    repositories.VisitReportRepository
+	activityRepo repositories.ActivityRepository
 	customerRepo customerRepos.CustomerRepository
 	contactRepo  repositories.ContactRepository
 	employeeRepo orgRepos.EmployeeRepository
@@ -66,6 +87,7 @@ type visitReportUsecase struct {
 // NewVisitReportUsecase creates a new visit report usecase
 func NewVisitReportUsecase(
 	visitRepo repositories.VisitReportRepository,
+	activityRepo repositories.ActivityRepository,
 	customerRepo customerRepos.CustomerRepository,
 	contactRepo repositories.ContactRepository,
 	employeeRepo orgRepos.EmployeeRepository,
@@ -75,6 +97,7 @@ func NewVisitReportUsecase(
 ) VisitReportUsecase {
 	return &visitReportUsecase{
 		visitRepo:    visitRepo,
+		activityRepo: activityRepo,
 		customerRepo: customerRepo,
 		contactRepo:  contactRepo,
 		employeeRepo: employeeRepo,
@@ -428,6 +451,9 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
 	}
+
+	// Auto-create activity on submit
+	u.autoCreateVisitActivity(ctx, id)
 
 	updated, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
@@ -841,4 +867,103 @@ func (u *visitReportUsecase) ListByEmployee(ctx context.Context, req *dto.ListBy
 	}
 
 	return summaries, pagination, nil
+}
+
+// autoCreateVisitActivity creates an immutable Activity record from a submitted visit report
+func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitReportID string) {
+	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
+	if err != nil {
+		fmt.Printf("[WARN] failed to fetch visit report %s for activity creation: %v\n", visitReportID, err)
+		return
+	}
+
+	// Parse photos from JSONB
+	var photos []string
+	if visit.Photos != nil {
+		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
+	}
+
+	// Extract GPS coordinates from check-in/check-out locations
+	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
+	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
+
+	metadata := VisitActivityMetadata{
+		VisitCode:     visit.Code,
+		Purpose:       visit.Purpose,
+		Outcome:       visit.Outcome,
+		Result:        visit.Result,
+		Photos:        photos,
+		CheckInAt:     formatTimePtr(visit.CheckInAt),
+		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
+		CheckInLat:    checkInLat,
+		CheckInLng:    checkInLng,
+		CheckOutLat:   checkOutLat,
+		CheckOutLng:   checkOutLng,
+		Address:       visit.Address,
+		ContactPerson: visit.ContactPerson,
+	}
+
+	metadataJSON, marshalErr := json.Marshal(metadata)
+	if marshalErr != nil {
+		fmt.Printf("[WARN] failed to marshal visit activity metadata: %v\n", marshalErr)
+		return
+	}
+	metadataStr := string(metadataJSON)
+
+	// Determine timestamp: use check-in time, then visit date
+	timestamp := visit.VisitDate
+	if visit.CheckInAt != nil {
+		timestamp = *visit.CheckInAt
+	}
+
+	actTypeID := visitActivityTypeID
+	description := fmt.Sprintf("Visit: %s", visit.Purpose)
+	if visit.Result != "" {
+		description = fmt.Sprintf("Visit: %s — %s", visit.Purpose, visit.Result)
+	}
+
+	activity := &models.Activity{
+		Type:           "visit",
+		ActivityTypeID: &actTypeID,
+		EmployeeID:     visit.EmployeeID,
+		LeadID:         visit.LeadID,
+		DealID:         visit.DealID,
+		CustomerID:     visit.CustomerID,
+		VisitReportID:  &visit.ID,
+		Description:    description,
+		Timestamp:      timestamp,
+		Metadata:       &metadataStr,
+	}
+
+	if createErr := u.activityRepo.Create(ctx, activity); createErr != nil {
+		fmt.Printf("[WARN] failed to auto-create activity for visit %s: %v\n", visit.Code, createErr)
+	}
+}
+
+// extractCoords parses lat/lng from a JSONB location string
+func extractCoords(locationJSON *string) (*float64, *float64) {
+	if locationJSON == nil {
+		return nil, nil
+	}
+	var loc map[string]interface{}
+	if err := json.Unmarshal([]byte(*locationJSON), &loc); err != nil {
+		return nil, nil
+	}
+	var lat, lng *float64
+	if v, ok := loc["lat"].(float64); ok {
+		lat = &v
+	}
+	if v, ok := loc["lng"].(float64); ok {
+		lng = &v
+	}
+	return lat, lng
+}
+
+// formatTimePtr formats a *time.Time to ISO 8601 string pointer
+func formatTimePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("2006-01-02T15:04:05+07:00")
+	return &s
 }

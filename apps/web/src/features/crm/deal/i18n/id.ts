@@ -17,6 +17,7 @@ export const crmDealId = {
     activityTimeline: "Timeline Aktivitas",
     noActivities: "Belum ada aktivitas",
     addActivity: "Catat Aktivitas",
+    logVisit: "Log Kunjungan",
     information: "Informasi",
     visitReport: "Laporan Kunjungan",
     visitReports: "Laporan Kunjungan",

@@ -22,6 +22,7 @@ type TaskListParams struct {
 	AssignedTo string
 	CustomerID string
 	DealID     string
+	LeadID     string
 	DueDateFrom string
 	DueDateTo   string
 	IsOverdue  *bool
@@ -57,6 +58,7 @@ func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task,
 		Preload("Customer").
 		Preload("Contact").
 		Preload("Deal").
+		Preload("Lead").
 		Preload("Reminders").
 		First(&task, "id = ?", id).Error
 	if err != nil {
@@ -90,6 +92,9 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 	if params.DealID != "" {
 		query = query.Where("deal_id = ?", params.DealID)
 	}
+	if params.LeadID != "" {
+		query = query.Where("lead_id = ?", params.LeadID)
+	}
 	if params.DueDateFrom != "" {
 		query = query.Where("due_date >= ?", params.DueDateFrom)
 	}
@@ -121,6 +126,7 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 	err := query.
 		Preload("AssignedEmployee").
 		Preload("Customer").
+		Preload("Lead").
 		Preload("Reminders").
 		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
 		Limit(params.Limit).Offset(params.Offset).

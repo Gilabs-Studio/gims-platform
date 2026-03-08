@@ -35,6 +35,7 @@ export const crmLeadEn = {
       information: "Information",
     },
     addActivity: "Log Activity",
+    logVisit: "Log Visit",
     sections: {
       basicInfo: "Basic Information",
       contactInfo: "Contact Information",

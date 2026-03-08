@@ -53,6 +53,8 @@ type Task struct {
 	Contact    *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
 	DealID     *string                  `gorm:"type:uuid;index" json:"deal_id"`
 	Deal       *Deal                    `gorm:"foreignKey:DealID" json:"deal,omitempty"`
+	LeadID     *string                  `gorm:"type:uuid;index" json:"lead_id"`
+	Lead       *Lead                    `gorm:"foreignKey:LeadID" json:"lead,omitempty"`
 
 	// Metadata
 	CreatedBy *string        `gorm:"type:uuid" json:"created_by"`

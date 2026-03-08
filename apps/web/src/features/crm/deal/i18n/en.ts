@@ -17,6 +17,7 @@ export const crmDealEn = {
     activityTimeline: "Activity Timeline",
     noActivities: "No activities yet",
     addActivity: "Log Activity",
+    logVisit: "Log Visit",
     information: "Information",
     visitReport: "Visit Report",
     visitReports: "Visit Reports",

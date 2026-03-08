@@ -7,6 +7,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { VisitActivityMetadata } from "./types";
 
 const ACTIVITY_ICON_MAP: Record<string, LucideIcon> = {
   "map-pin": MapPin,
@@ -20,4 +21,10 @@ const ACTIVITY_ICON_MAP: Record<string, LucideIcon> = {
 export function getActivityTypeIcon(iconCode?: string | null): LucideIcon {
   if (!iconCode) return Activity;
   return ACTIVITY_ICON_MAP[iconCode] ?? Activity;
+}
+
+/** Safely parses visit activity metadata from the JSON metadata field. */
+export function parseVisitMetadata(metadata?: Record<string, unknown> | null): VisitActivityMetadata | null {
+  if (!metadata) return null;
+  return metadata as VisitActivityMetadata;
 }

@@ -27,9 +27,11 @@ type ScheduleListParams struct {
 type ScheduleRepository interface {
 	Create(ctx context.Context, schedule *models.Schedule) error
 	FindByID(ctx context.Context, id string) (*models.Schedule, error)
+	FindByTaskID(ctx context.Context, taskID string) (*models.Schedule, error)
 	List(ctx context.Context, params ScheduleListParams) ([]models.Schedule, int64, error)
 	Update(ctx context.Context, schedule *models.Schedule) error
 	Delete(ctx context.Context, id string) error
+	DeleteByTaskID(ctx context.Context, taskID string) error
 }
 
 type scheduleRepository struct {
@@ -113,4 +115,20 @@ func (r *scheduleRepository) Update(ctx context.Context, schedule *models.Schedu
 
 func (r *scheduleRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Schedule{}).Error
+}
+
+func (r *scheduleRepository) FindByTaskID(ctx context.Context, taskID string) (*models.Schedule, error) {
+	var schedule models.Schedule
+	err := r.db.WithContext(ctx).
+		Preload("Task").
+		Preload("Employee").
+		First(&schedule, "task_id = ?", taskID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &schedule, nil
+}
+
+func (r *scheduleRepository) DeleteByTaskID(ctx context.Context, taskID string) error {
+	return r.db.WithContext(ctx).Where("task_id = ?", taskID).Delete(&models.Schedule{}).Error
 }

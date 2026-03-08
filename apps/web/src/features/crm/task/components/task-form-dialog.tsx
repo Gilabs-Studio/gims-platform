@@ -65,6 +65,7 @@ export function TaskFormDialog({
   const customers = formData?.customers ?? [];
   const contacts = formData?.contacts ?? [];
   const deals = formData?.deals ?? [];
+  const leads = formData?.leads ?? [];
 
   const {
     register,
@@ -303,6 +304,28 @@ export function TaskFormDialog({
                       {deals.map((d: { id: string; title: string }) => (
                         <SelectItem key={d.id} value={d.id} className="cursor-pointer">
                           {d.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("form.lead")}</FieldLabel>
+              <Controller
+                control={control}
+                name="lead_id"
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue placeholder={t("form.leadPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leads.map((l: { id: string; code: string; name: string }) => (
+                        <SelectItem key={l.id} value={l.id} className="cursor-pointer">
+                          {l.name} ({l.code})
                         </SelectItem>
                       ))}
                     </SelectContent>

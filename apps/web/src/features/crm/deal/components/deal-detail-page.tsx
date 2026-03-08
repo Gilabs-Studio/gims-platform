@@ -47,6 +47,7 @@ import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { DealStockCheck } from "./deal-stock-check";
 import { DealActivityFeed } from "./deal-activity-feed";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
+import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
@@ -86,12 +87,14 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canDelete = useUserPermission("crm_deal.delete");
   const canMoveStage = useUserPermission("crm_deal.move_stage");
   const canConvert = useUserPermission("sales_quotation.create");
+  const canCreateVisit = useUserPermission("crm_visit.create");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showMoveStage, setShowMoveStage] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
 
   const deal: Deal | undefined = response?.data;
@@ -333,7 +336,9 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     dealId={deal.id}
                     leadId={deal.lead_id ?? undefined}
                     canCreateActivity={true}
+                    canCreateVisit={canCreateVisit}
                     onLogActivity={() => setShowActivityDialog(true)}
+                    onLogVisit={() => setShowVisitDialog(true)}
                   />
                 )}
               </TabsContent>
@@ -827,6 +832,23 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           refetch();
         }}
       />
+
+      {/* Log visit dialog */}
+      {canCreateVisit && (
+        <LogVisitDialog
+          open={showVisitDialog}
+          onClose={() => setShowVisitDialog(false)}
+          dealId={deal.id}
+          leadId={deal.lead_id ?? undefined}
+          customerId={deal.customer_id ?? undefined}
+          contactId={deal.contact_id ?? undefined}
+          defaultEmployeeId={deal.assigned_employee?.id}
+          onSuccess={() => {
+            setShowVisitDialog(false);
+            refetch();
+          }}
+        />
+      )}
     </PageMotion>
   );
 }

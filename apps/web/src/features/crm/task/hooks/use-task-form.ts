@@ -39,6 +39,7 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         customer_id: z.string().optional().or(z.literal("")),
         contact_id: z.string().optional().or(z.literal("")),
         deal_id: z.string().optional().or(z.literal("")),
+        lead_id: z.string().optional().or(z.literal("")),
       }),
     [t]
   );
@@ -62,6 +63,7 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
       customer_id: "",
       contact_id: "",
       deal_id: "",
+      lead_id: "",
     },
   });
 
@@ -79,6 +81,7 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         customer_id: editingItem.customer?.id ?? "",
         contact_id: editingItem.contact?.id ?? "",
         deal_id: editingItem.deal?.id ?? "",
+        lead_id: editingItem.lead?.id ?? "",
       });
     } else if (open) {
       form.reset();
@@ -96,6 +99,7 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         customer_id: data.customer_id || null,
         contact_id: data.contact_id || null,
         deal_id: data.deal_id || null,
+        lead_id: data.lead_id || null,
       };
 
       if (isEditing) {

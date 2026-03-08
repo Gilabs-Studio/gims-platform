@@ -35,6 +35,7 @@ export const crmLeadId = {
       information: "Informasi",
     },
     addActivity: "Catat Aktivitas",
+    logVisit: "Log Kunjungan",
     sections: {
       basicInfo: "Informasi Dasar",
       contactInfo: "Informasi Kontak",

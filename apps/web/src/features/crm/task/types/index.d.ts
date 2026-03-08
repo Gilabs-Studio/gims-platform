@@ -28,6 +28,12 @@ export interface TaskDealInfo {
   title: string;
 }
 
+export interface TaskLeadInfo {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface Reminder {
   id: string;
   task_id: string;
@@ -55,6 +61,7 @@ export interface Task {
   customer: TaskCustomerInfo | null;
   contact: TaskContactInfo | null;
   deal: TaskDealInfo | null;
+  lead: TaskLeadInfo | null;
   reminders: Reminder[];
   created_at: string;
   updated_at: string;
@@ -71,6 +78,7 @@ export interface CreateTaskData {
   customer_id?: string | null;
   contact_id?: string | null;
   deal_id?: string | null;
+  lead_id?: string | null;
 }
 
 export interface UpdateTaskData extends Partial<CreateTaskData> {
@@ -98,6 +106,7 @@ export interface TaskFormData {
   customers: TaskCustomerInfo[];
   contacts: TaskContactInfo[];
   deals: TaskDealInfo[];
+  leads: TaskLeadInfo[];
   statuses: { value: string; label: string }[];
   priorities: { value: string; label: string }[];
   types: { value: string; label: string }[];
@@ -111,6 +120,7 @@ export interface TaskListParams {
   priority?: string;
   type?: string;
   assigned_to?: string;
+  lead_id?: string;
   is_overdue?: boolean;
   sort_by?: string;
   sort_dir?: string;

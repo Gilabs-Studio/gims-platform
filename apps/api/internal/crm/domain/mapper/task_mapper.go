@@ -1,7 +1,6 @@
 package mapper
 
 import (
-
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -21,6 +20,7 @@ func ToTaskResponse(task *models.Task) dto.TaskResponse {
 		CustomerID:  task.CustomerID,
 		ContactID:   task.ContactID,
 		DealID:      task.DealID,
+		LeadID:      task.LeadID,
 		CreatedBy:   task.CreatedBy,
 		CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
 		UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
@@ -71,6 +71,13 @@ func ToTaskResponse(task *models.Task) dto.TaskResponse {
 	if task.Deal != nil {
 		resp.Deal = &dto.TaskDealInfo{
 			ID: task.Deal.ID, Code: task.Deal.Code, Name: task.Deal.Title,
+		}
+	}
+
+	if task.Lead != nil {
+		resp.Lead = &dto.TaskLeadInfo{
+			ID: task.Lead.ID, Code: task.Lead.Code,
+			FirstName: task.Lead.FirstName, LastName: task.Lead.LastName,
 		}
 	}
 

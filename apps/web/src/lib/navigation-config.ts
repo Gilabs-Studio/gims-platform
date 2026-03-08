@@ -222,7 +222,6 @@ export const navigationConfig: NavItem[] = [
       { name: "Leads", url: "/crm/leads", icon: "users", permission: "crm_lead.read" },
       { name: "Pipeline", url: "/crm/pipeline", icon: "kanban", permission: "crm_deal.read" },
       { name: "Tasks", url: "/crm/tasks", icon: "check-square", permission: "crm_task.read" },
-      { name: "Schedules", url: "/crm/schedules", icon: "calendar", permission: "crm_schedule.read" },
       { name: "Visit Reports", url: "/crm/visits", icon: "map-pin", permission: "crm_visit.read" },
       { name: "Area Mapping", url: "/crm/area-mapping", icon: "map", permission: "crm_area_mapping.read" },
       { name: "Route Optimization", url: "/crm/routes", icon: "route", permission: "crm_route.read" },

@@ -92,3 +92,18 @@ export interface ApiResponse<T> {
   meta?: { pagination?: PaginationMeta; filters?: Record<string, unknown> };
   error?: string;
 }
+
+export interface VisitActivityMetadata {
+  visit_code?: string;
+  purpose?: string;
+  outcome?: string;
+  photos?: string[];
+  check_in_at?: string | null;
+  check_out_at?: string | null;
+  check_in_lat?: number | null;
+  check_in_lng?: number | null;
+  check_out_lat?: number | null;
+  check_out_lng?: number | null;
+  address?: string;
+  contact_person?: string;
+}

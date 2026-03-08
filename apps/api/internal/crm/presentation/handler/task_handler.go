@@ -88,6 +88,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 		AssignedTo: c.Query("assigned_to"),
 		CustomerID: c.Query("customer_id"),
 		DealID:     c.Query("deal_id"),
+		LeadID:     c.Query("lead_id"),
 		DueDateFrom: c.Query("due_date_from"),
 		DueDateTo:   c.Query("due_date_to"),
 	}

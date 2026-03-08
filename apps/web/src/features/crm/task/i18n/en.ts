@@ -17,6 +17,8 @@ export const crmTaskEn = {
     deleteDescription: "Are you sure you want to delete this task? This action cannot be undone.",
     allStatuses: "All Statuses",
     allPriorities: "All Priorities",
+    calendarView: "Calendar",
+    tableView: "Table",
     overdue: "Overdue",
     sections: {
       basicInfo: "Basic Information",
@@ -66,6 +68,8 @@ export const crmTaskEn = {
       contactPlaceholder: "Select contact (optional)",
       deal: "Deal",
       dealPlaceholder: "Select deal (optional)",
+      lead: "Lead",
+      leadPlaceholder: "Select lead (optional)",
     },
     validation: {
       titleRequired: "Title is required",
@@ -103,6 +107,7 @@ export const crmTaskEn = {
       priority: "Priority",
       dueDate: "Due Date",
       assignedTo: "Assigned To",
+      lead: "Lead",
       createdAt: "Created",
     },
   },
