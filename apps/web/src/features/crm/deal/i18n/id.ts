@@ -17,6 +17,9 @@ export const crmDealId = {
     noActivities: "Belum ada aktivitas",
     addActivity: "Catat Aktivitas",
     information: "Informasi",
+    visitReport: "Laporan Kunjungan",
+    visitReports: "Laporan Kunjungan",
+    noVisitReports: "Tidak ada laporan kunjungan",
 
     // Actions
     edit: "Edit",

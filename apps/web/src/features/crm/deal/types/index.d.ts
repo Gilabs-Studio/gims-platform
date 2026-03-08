@@ -21,6 +21,9 @@ export interface Deal {
   assigned_employee?: DealEmployeeInfo | null;
   lead_id?: string | null;
   lead?: DealLeadInfo | null;
+  // Optional web/visit report fields (may be present at runtime)
+  website?: string;
+  visit_report?: string;
   // BANT
   budget_confirmed: boolean;
   budget_amount: number;
@@ -86,6 +89,9 @@ export interface DealLeadInfo {
   province?: string;
   latitude?: number | null;
   longitude?: number | null;
+  // Optional fields mirrored from Lead entity
+  website?: string;
+  visit_report?: string;
 }
 
 export interface DealProductItem {

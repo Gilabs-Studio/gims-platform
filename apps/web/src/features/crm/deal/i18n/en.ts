@@ -17,6 +17,9 @@ export const crmDealEn = {
     noActivities: "No activities yet",
     addActivity: "Log Activity",
     information: "Information",
+    visitReport: "Visit Report",
+    visitReports: "Visit Reports",
+    noVisitReports: "No visit reports",
 
     // Actions
     edit: "Edit",

@@ -39,6 +39,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
+import { useLeadById } from "@/features/crm/lead/hooks/use-leads";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
@@ -94,6 +95,13 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
 
   const deal: Deal | undefined = response?.data;
+  const { data: leadResponse } = useLeadById(deal?.lead_id ?? "");
+  const visitReportUrl =
+    deal?.visit_report ??
+    deal?.lead?.visit_report ??
+    leadResponse?.data?.website ??
+    deal?.lead?.website ??
+    deal?.website;
 
   const handleDelete = useCallback(async () => {
     if (!deal) return;
@@ -510,7 +518,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         href={`https://wa.me/${deal.contact.phone.replace(/[^0-9]/g, "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
                       >
                         <Phone className="h-3 w-3" />
                         {deal.contact.phone}
@@ -519,10 +527,21 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     {deal.contact.email && (
                       <a
                         href={`mailto:${deal.contact.email}`}
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
                       >
                         <Mail className="h-3 w-3" />
                         {deal.contact.email}
+                      </a>
+                    )}
+                    {visitReportUrl && (
+                      <a
+                        href={visitReportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("visitReport")}
                       </a>
                     )}
                   </>
@@ -539,7 +558,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         href={`https://wa.me/${deal.lead!.phone.replace(/[^0-9]/g, "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
                       >
                         <Phone className="h-3 w-3" />
                         {deal.lead!.phone}
@@ -548,10 +567,21 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     {deal.lead!.email && (
                       <a
                         href={`mailto:${deal.lead!.email}`}
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
                       >
                         <Mail className="h-3 w-3" />
                         {deal.lead!.email}
+                      </a>
+                    )}
+                    {visitReportUrl && (
+                      <a
+                        href={visitReportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("visitReport")}
                       </a>
                     )}
                     <p className="text-xs text-muted-foreground/70 italic">{t("fromLead")}</p>

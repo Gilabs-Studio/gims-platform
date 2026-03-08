@@ -11,14 +11,12 @@ import {
   ChevronRight,
   DollarSign,
   ExternalLink,
-  FileText,
   History,
   Mail,
   MapPin,
   Navigation,
   Pencil,
   Phone,
-  Plus,
   Target,
   Trash2,
   User,
@@ -55,6 +53,7 @@ import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import { useState } from "react";
 import type { Lead, LeadStatusOption } from "../types";
+import type { PaymentTermsFormOption } from "@/features/master-data/customer/types";
 
 interface LeadDetailProps {
   leadId: string;
@@ -312,6 +311,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
   const isConverted = !!lead?.converted_at;
+  const paymentTermsList: PaymentTermsFormOption[] = formDataRes?.data?.payment_terms ?? [];
+  const paymentTerm = paymentTermsList.find((p: PaymentTermsFormOption) => String(p.id) === String(lead?.payment_terms_id));
 
   const handleDelete = async () => {
     if (!lead) return;
@@ -611,18 +612,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       </Link>
                     </div>
                   )}
-                  {lead.website && (
+                  {lead.business_type && (
                     <div>
-                      <p className="text-xs text-muted-foreground">{t("form.website")}</p>
-                      <Link
-                        href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 mt-1 text-sm font-medium text-primary hover:underline cursor-pointer"
-                      >
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{t("form.visitLink")}</span>
-                      </Link>
+                      <p className="text-xs text-muted-foreground">{t("form.businessType")}</p>
+                      <p className="text-sm font-medium">{lead.business_type?.name ?? lead.business_type}</p>
+                    </div>
+                  )}
+
+                  {lead.payment_terms_id && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("form.paymentTerms")}</p>
+                      <p className="text-sm font-medium">{paymentTerm?.name ?? lead.payment_terms_id}</p>
                     </div>
                   )}
                 </div>
@@ -727,22 +727,36 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       {lead.first_name} {lead.last_name}
                     </span>
                   </div>
-                  {lead.phone && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-3 w-3" />
-                      <a href={formatWhatsAppLink(lead.phone)} target="_blank" rel="noopener noreferrer" className="hover:text-primary cursor-pointer">
-                        {lead.phone}
-                      </a>
+                  <div className="gap-2">
+                    <div className="space-y-2">
+                      {lead.phone && (
+                        <div className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
+                          <Phone className="h-3 w-3" />
+                          <a href={formatWhatsAppLink(lead.phone)} target="_blank" rel="noopener noreferrer">
+                            {lead.phone}
+                          </a>
+                        </div>
+                      )}
+                      {lead.email && (
+                        <div className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
+                          <Mail className="h-3 w-3" />
+                          <a href={`mailto:${lead.email}`}>{lead.email}</a>
+                        </div>
+                      )}
+                      {lead.website && (
+                        <div className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
+                          <ExternalLink className="h-3 w-3" />
+                          <Link
+                            href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("form.visitLink")}
+                          </Link>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {lead.email && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Mail className="h-3 w-3" />
-                      <a href={`mailto:${lead.email}`} className="hover:text-primary cursor-pointer">
-                        {lead.email}
-                      </a>
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                   {/* Location (moved to sidebar) */}
