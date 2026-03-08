@@ -21,6 +21,9 @@ import {
   ThumbsDown,
   Package,
   Printer,
+  LogOut,
+  Loader2,
+  Navigation,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,12 +41,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
-import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory } from "../hooks/use-visit-reports";
+import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
+import { MapView } from "@/components/ui/map/map-view";
+import { Marker, Popup } from "react-leaflet";
 import { VisitReportFormDialog } from "./visit-report-form-dialog";
 import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
 import { VisitReportPhotos } from "./visit-report-photos";
-import { VisitReportGpsMap } from "./visit-report-gps-map";
+
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { PageMotion } from "@/components/motion";
@@ -110,6 +115,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const deleteMutation = useDeleteVisitReport();
   const submitMutation = useSubmitVisitReport();
   const approveMutation = useApproveVisitReport();
+  const checkOutMutation = useCheckOutVisitReport();
 
   const canUpdate = useUserPermission("crm_visit.update");
   const canDelete = useUserPermission("crm_visit.delete");
@@ -120,6 +126,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const visit: VisitReport | undefined = response?.data;
   const history = historyResponse?.data ?? [];
@@ -161,6 +168,38 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
       toast.success(t("approved"));
     } catch {
       toast.error(tCommon("error"));
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!visit) return;
+    setIsCheckingOut(true);
+    try {
+      let gps: { latitude: number; longitude: number; accuracy: number } | undefined;
+      if (typeof navigator !== "undefined" && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+            })
+          );
+          gps = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          };
+        } catch {
+          // GPS is optional — proceed without it
+        }
+      }
+      await checkOutMutation.mutateAsync({ id: visit.id, data: gps ?? {} });
+      toast.success(t("actions.checkOut"));
+      refetch();
+    } catch {
+      toast.error(tCommon("error"));
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
@@ -235,6 +274,24 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               >
                 <Send className="h-4 w-4 mr-1" />
                 {t("actions.submit")}
+              </Button>
+            )}
+
+            {/* Checkout button — visible when checked in but not yet checked out */}
+            {visit.check_in_at && !visit.check_out_at && (isDraft || isSubmitted) && isOwner && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={handleCheckOut}
+                disabled={isCheckingOut}
+              >
+                {isCheckingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <LogOut className="h-4 w-4 mr-1" />
+                )}
+                {t("actions.checkOut")}
               </Button>
             )}
             {isSubmitted && canApprove && (
@@ -541,13 +598,73 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               </div>
             </div>
 
-            {/* GPS Map */}
-            <VisitReportGpsMap
-              checkInLocation={visit.check_in_location}
-              checkOutLocation={visit.check_out_location}
-              checkInAt={visit.check_in_at}
-              checkOutAt={visit.check_out_at}
-            />
+            {/* GPS Location — same MapView pattern as deal-detail-page.tsx */}
+            {(visit.check_in_location || visit.check_out_location) && (() => {
+              const parseGpsLocation = (locStr: string | null | undefined) => {
+                if (!locStr) return null;
+                try {
+                  const loc = JSON.parse(locStr) as Record<string, number>;
+                  const lat = loc.latitude ?? loc.lat;
+                  const lng = loc.longitude ?? loc.lng;
+                  if (lat != null && lng != null) {
+                    return { lat: Number(lat), lng: Number(lng), accuracy: loc.accuracy };
+                  }
+                } catch { /* skip invalid */ }
+                return null;
+              };
+
+              const checkIn = parseGpsLocation(visit.check_in_location);
+              const checkOut = parseGpsLocation(visit.check_out_location);
+
+              type GpsMarkerData = { label: string; accuracy?: number };
+              const rawMarkers = [
+                checkIn ? { id: "check-in", latitude: checkIn.lat, longitude: checkIn.lng, data: { label: "Check In", accuracy: checkIn.accuracy } as GpsMarkerData } : null,
+                checkOut ? { id: "check-out", latitude: checkOut.lat, longitude: checkOut.lng, data: { label: "Check Out", accuracy: checkOut.accuracy } as GpsMarkerData } : null,
+              ];
+              const markers = rawMarkers.filter((m): m is NonNullable<typeof rawMarkers[0]> => m !== null);
+
+              if (markers.length === 0) return null;
+
+              return (
+                <div className="rounded-lg border p-3 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    <Navigation className="h-4 w-4 inline-block mr-1" />
+                    {t("detail.gpsLocation")}
+                  </h4>
+                  <div className="w-full h-64 rounded-md border overflow-hidden">
+                    <MapView
+                      className="h-full"
+                      defaultZoom={14}
+                      markers={markers}
+                      renderMarkers={(mkrs) =>
+                        mkrs.map((m) => (
+                          <Marker key={m.id} position={[m.latitude, m.longitude]}>
+                            <Popup>
+                              {m.data.label}
+                              {m.data.accuracy != null ? ` (±${Math.round(m.data.accuracy)}m)` : ""}
+                            </Popup>
+                          </Marker>
+                        ))
+                      }
+                    />
+                  </div>
+                  <div className="text-xs space-y-1">
+                    {checkIn && (
+                      <p className="text-muted-foreground">
+                        Check In: {checkIn.lat.toFixed(6)}, {checkIn.lng.toFixed(6)}
+                        {checkIn.accuracy != null ? ` ±${Math.round(checkIn.accuracy)}m` : ""}
+                      </p>
+                    )}
+                    {checkOut && (
+                      <p className="text-muted-foreground">
+                        Check Out: {checkOut.lat.toFixed(6)}, {checkOut.lng.toFixed(6)}
+                        {checkOut.accuracy != null ? ` ±${Math.round(checkOut.accuracy)}m` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Approval */}
             {(visit.status === "approved" || visit.status === "rejected") && (

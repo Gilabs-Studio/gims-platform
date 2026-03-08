@@ -1,5 +1,7 @@
 package dto
 
+import "encoding/json"
+
 // CreateActivityRequest represents the request to create an activity
 type CreateActivityRequest struct {
 	Type           string  `json:"type" binding:"required,min=1"`
@@ -30,7 +32,7 @@ type ActivityResponse struct {
 	Employee       *ActivityEmployeeInfo `json:"employee,omitempty"`
 	Description    string            `json:"description"`
 	Timestamp      string            `json:"timestamp"`
-	Metadata       *string           `json:"metadata"`
+	Metadata       json.RawMessage   `json:"metadata"`
 	CreatedAt      string            `json:"created_at"`
 }
 

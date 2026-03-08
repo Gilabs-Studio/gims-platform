@@ -23,8 +23,17 @@ export function getActivityTypeIcon(iconCode?: string | null): LucideIcon {
   return ACTIVITY_ICON_MAP[iconCode] ?? Activity;
 }
 
-/** Safely parses visit activity metadata from the JSON metadata field. */
-export function parseVisitMetadata(metadata?: Record<string, unknown> | null): VisitActivityMetadata | null {
+/** Safely parses visit activity metadata from the JSON metadata field.
+ * Handles both pre-parsed objects and legacy double-encoded JSON strings.
+ */
+export function parseVisitMetadata(metadata?: Record<string, unknown> | null | string): VisitActivityMetadata | null {
   if (!metadata) return null;
+  if (typeof metadata === "string") {
+    try {
+      return JSON.parse(metadata) as VisitActivityMetadata;
+    } catch {
+      return null;
+    }
+  }
   return metadata as VisitActivityMetadata;
 }
