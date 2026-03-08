@@ -157,3 +157,22 @@ export function useDeleteReminder() {
     },
   });
 }
+
+// Scoped task queries for lead/deal detail tabs
+export function useTasksByLead(leadId: string, params?: TaskListParams) {
+  return useQuery({
+    queryKey: taskKeys.list({ lead_id: leadId, per_page: 20, ...params }),
+    queryFn: () => taskService.list({ lead_id: leadId, per_page: 20, ...params }),
+    enabled: !!leadId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useTasksByDeal(dealId: string, params?: TaskListParams) {
+  return useQuery({
+    queryKey: taskKeys.list({ deal_id: dealId, per_page: 20, ...params }),
+    queryFn: () => taskService.list({ deal_id: dealId, per_page: 20, ...params }),
+    enabled: !!dealId,
+    staleTime: 2 * 60 * 1000,
+  });
+}

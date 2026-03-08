@@ -114,6 +114,10 @@ func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal,
 		Preload("Lead").
 		Preload("Items").
 		Preload("Items.Product").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Order("CASE WHEN status IN ('pending','in_progress') THEN 0 ELSE 1 END, due_date ASC NULLS LAST").Limit(20)
+		}).
+		Preload("Tasks.AssignedEmployee").
 		First(&deal, "id = ?", id).Error
 	if err != nil {
 		return nil, err

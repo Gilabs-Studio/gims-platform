@@ -113,28 +113,21 @@ export function LogActivityDialog({
     },
   });
 
-  // Synchronize date/time state at render time when dialog opens
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (prevOpen !== open) {
-    setPrevOpen(open);
+  // Initialize date/time and reset form when dialog opens
+  useEffect(() => {
     if (open) {
       const { date, time } = getNowParts();
       setSelectedDate(date);
       setSelectedTime(time);
       setCalendarOpen(false);
-    }
-  }
-
-  // Reset react-hook-form fields each time the dialog opens
-  useEffect(() => {
-    if (open) {
       reset({
         activity_type_id: activityTypes[0]?.id ?? "",
         employee_id: defaultEmployeeId ?? "",
         description: "",
       });
     }
-  }, [open, defaultEmployeeId, activityTypes, reset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {

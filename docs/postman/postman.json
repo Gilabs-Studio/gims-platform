@@ -8042,7 +8042,7 @@
                     }
                   ]
                 },
-                "description": "Submit a visit report for approval. Changes status from draft to submitted. Requires `crm_visit.update` permission."
+                "description": "Submit a visit report for approval. Changes status from draft to submitted. Automatically creates a Visit activity record with visit details and outcome. Requires `crm_visit.update` permission."
               },
               "response": []
             },
@@ -8430,6 +8430,8 @@
                     { "key": "priority", "value": "", "description": "Filter: low/medium/high/urgent", "disabled": true },
                     { "key": "type", "value": "", "description": "Filter: general/call/email/meeting/follow_up", "disabled": true },
                     { "key": "assigned_to", "value": "", "description": "Filter by assigned employee", "disabled": true },
+                    { "key": "lead_id", "value": "", "description": "Filter by lead UUID", "disabled": true },
+                    { "key": "deal_id", "value": "", "description": "Filter by deal UUID", "disabled": true },
                     { "key": "is_overdue", "value": "true", "description": "Filter overdue tasks", "disabled": true }
                   ]
                 },
@@ -8451,7 +8453,7 @@
                   "host": ["{{base_url}}"],
                   "path": ["crm", "tasks", "form-data"]
                 },
-                "description": "Get form dropdown data (employees, customers, contacts, deals, statuses, priorities, types). Requires `crm_task.read` permission."
+                "description": "Get form dropdown data (employees, customers, contacts, deals, leads, statuses, priorities, types). Requires `crm_task.read` permission."
               },
               "response": []
             },
@@ -8485,7 +8487,7 @@
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Follow up client meeting\",\n  \"description\": \"Discuss project requirements\",\n  \"type\": \"meeting\",\n  \"priority\": \"high\",\n  \"due_date\": \"2025-02-15T10:00:00Z\",\n  \"assigned_to\": \"{{employee_id}}\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null\n}",
+                  "raw": "{\n  \"title\": \"Follow up client meeting\",\n  \"description\": \"Discuss project requirements\",\n  \"type\": \"meeting\",\n  \"priority\": \"high\",\n  \"due_date\": \"2025-02-15T10:00:00Z\",\n  \"assigned_to\": \"{{employee_id}}\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null,\n  \"lead_id\": null\n}",
                   "options": { "raw": { "language": "json" } }
                 },
                 "url": {

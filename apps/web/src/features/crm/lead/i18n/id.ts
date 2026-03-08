@@ -33,7 +33,10 @@ export const crmLeadId = {
     tabs: {
       activities: "Aktivitas",
       information: "Informasi",
+      tasks: "Tugas",
     },
+    noTasks: "Belum ada tugas",
+    addTask: "Tambah Tugas",
     addActivity: "Catat Aktivitas",
     logVisit: "Log Kunjungan",
     sections: {

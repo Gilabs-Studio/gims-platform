@@ -220,12 +220,12 @@ Sales kunjungi lead/deal (dari Lead/Deal Detail → tab Activities → "Log Visi
 ### Phase 4: Backend — Task & Visit Report di Lead/Deal Response
 > Task yang terkait lead/deal perlu muncul di response detail untuk frontend bisa render.
 
-- [ ] **4.1 Add Tasks ke Lead Detail Response** — Preload tasks by `lead_id`:
+- [x] **4.1 Add Tasks ke Lead Detail Response** — Preload tasks by `lead_id`:
   - Tambah `Tasks []TaskSummary` ke `LeadDetailResponse`
   - Limit 20 latest (sorted by due_date asc, pending first)
   - `TaskSummary`: `{ id, title, type, status, priority, due_date, assigned_employee, is_overdue }`
 
-- [ ] **4.2 Add Tasks ke Deal Detail Response** — Preload tasks by `deal_id`:
+- [x] **4.2 Add Tasks ke Deal Detail Response** — Preload tasks by `deal_id`:
   - Sama seperti lead, tambah `Tasks []TaskSummary` ke `DealDetailResponse`
 
 ---
@@ -429,17 +429,17 @@ Sales kunjungi lead/deal (dari Lead/Deal Detail → tab Activities → "Log Visi
 ### Phase 9: Frontend — Tasks di Lead/Deal Detail
 > Task yang terkait lead/deal ditampilkan di detail page (mirip activity timeline).
 
-- [ ] **9.1 Add Tasks Tab di Lead Detail** — Tab "Tasks" di lead-detail.tsx:
+- [x] **9.1 Add Tasks Tab di Lead Detail** — Tab "Tasks" di lead-detail.tsx:
   - Fetch `GET /crm/tasks?lead_id={id}&per_page=20`
   - List compact: title + priority badge + status + due date + assigned employee avatar
   - Quick action: Mark Complete button
   - "Add Task" button → pre-fill `lead_id`
 
-- [ ] **9.2 Add Tasks Tab di Deal Detail** — Sama untuk deal-detail-page.tsx:
+- [x] **9.2 Add Tasks Tab di Deal Detail** — Sama untuk deal-detail-page.tsx:
   - Fetch `GET /crm/tasks?deal_id={id}&per_page=20`
   - Sorted: overdue first, then by due date asc
 
-- [ ] **9.3 Update `useTasksByLead` & `useTasksByDeal` Hooks** — Query hooks baru:
+- [x] **9.3 Update `useTasksByLead` & `useTasksByDeal` Hooks** — Query hooks baru:
   ```typescript
   export function useTasksByLead(leadId: string, params?: TaskListParams) {
     return useQuery({
@@ -472,15 +472,15 @@ Sales kunjungi lead/deal (dari Lead/Deal Detail → tab Activities → "Log Visi
 
 ### Phase 11: Seeder Updates
 
-- [ ] **11.1 Ensure "Visit" ActivityType seeder ada** — Di `crm_activity_task_schedule_seeder.go`:
+- [x] **11.1 Ensure "Visit" ActivityType seeder ada** — Di `crm_activity_task_schedule_seeder.go`:
   - Pastikan ActivityType "Visit" punya stable UUID constant
   - Tambah `VisitActivityTypeID` ke `seeders/constants.go` jika belum ada
 
-- [ ] **11.2 Update Task Seeder** — Link beberapa sample tasks ke leads:
+- [x] **11.2 Update Task Seeder** — Link beberapa sample tasks ke leads:
   - Tambah `LeadID` ke beberapa sample tasks
   - Pastikan sample tasks yang punya `DealID` juga diupdate
 
-- [ ] **11.3 Update Visit Report Seeder** — Pastikan sample visits sudah di-submit:
+- [x] **11.3 Update Visit Report Seeder** — Pastikan sample visits sudah di-submit:
   - Visit yang di-submit akan trigger auto-activity (dalam flow baru)
   - Untuk seeder, buat activity secara langsung (karena seeder tidak lewat usecase)
 
@@ -488,14 +488,14 @@ Sales kunjungi lead/deal (dari Lead/Deal Detail → tab Activities → "Log Visi
 
 ### Phase 12: Postman & Documentation
 
-- [ ] **12.1 Update Postman Collection** — Update/tambah endpoints:
+- [x] **12.1 Update Postman Collection** — Update/tambah endpoints:
   - `POST /crm/tasks` — tambah `lead_id` field di request body
   - `GET /crm/tasks?lead_id={id}` — new filter param
   - `GET /crm/tasks/form-data` — response sekarang include `leads` array
   - `GET /crm/activities?lead_id={id}` — activity includes visit photos di metadata
   - Note di Visit Report Submit endpoint: "Auto-creates an Activity record with photos"
 
-- [ ] **12.2 Update Feature Documentation** — Update `docs/features/crm/`:
+- [x] **12.2 Update Feature Documentation** — Update `docs/features/crm/`:
   - Dokumentasikan Flow baru: Task → Schedule (auto)
   - Dokumentasikan Flow baru: Visit → Activity (auto saat submit)
   - Tambah tabel API endpoints baru

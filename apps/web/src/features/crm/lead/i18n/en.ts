@@ -33,7 +33,10 @@ export const crmLeadEn = {
     tabs: {
       activities: "Activities",
       information: "Information",
+      tasks: "Tasks",
     },
+    noTasks: "No tasks yet",
+    addTask: "Add Task",
     addActivity: "Log Activity",
     logVisit: "Log Visit",
     sections: {

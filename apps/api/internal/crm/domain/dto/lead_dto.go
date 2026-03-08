@@ -205,6 +205,8 @@ type LeadResponse struct {
 	PaymentTermsID *string             `json:"payment_terms_id"`
 	// Activities log (populated on detail)
 	Activities []ActivityResponse `json:"activities,omitempty"`
+	// Tasks (populated on detail)
+	Tasks []TaskSummaryResponse `json:"tasks,omitempty"`
 }
 
 // LeadSourceInfo is a compact representation of lead source

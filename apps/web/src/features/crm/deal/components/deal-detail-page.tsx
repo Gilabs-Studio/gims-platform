@@ -11,6 +11,7 @@ import {
   ExternalLink,
   FileText,
   History,
+  ListTodo,
   Mail,
   MapPin,
   Navigation,
@@ -48,6 +49,9 @@ import { DealStockCheck } from "./deal-stock-check";
 import { DealActivityFeed } from "./deal-activity-feed";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
+import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
+import { useTasksByDeal } from "@/features/crm/task/hooks/use-tasks";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
@@ -88,6 +92,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canMoveStage = useUserPermission("crm_deal.move_stage");
   const canConvert = useUserPermission("sales_quotation.create");
   const canCreateVisit = useUserPermission("crm_visit.create");
+  const canCreateTask = useUserPermission("crm_task.create");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -95,7 +100,10 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
+
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId);
 
   const deal: Deal | undefined = response?.data;
   const { data: leadResponse } = useLeadById(deal?.lead_id ?? "");
@@ -320,6 +328,15 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                   <History className="h-4 w-4 mr-1" />
                   {t("activities")}
                 </TabsTrigger>
+                <TabsTrigger value="tasks" className="cursor-pointer">
+                  <ListTodo className="h-4 w-4 mr-1" />
+                  {t("tasks")}
+                  {(tasksData?.data?.length ?? 0) > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-xs">
+                      {tasksData?.data?.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="items" className="cursor-pointer">
                   <Package className="h-4 w-4 mr-1" />
                   {t("productItems")} ({deal.items?.length ?? 0})
@@ -339,6 +356,18 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     canCreateVisit={canCreateVisit}
                     onLogActivity={() => setShowActivityDialog(true)}
                     onLogVisit={() => setShowVisitDialog(true)}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="tasks" className="mt-3">
+                {visitedTabs.has("tasks") && (
+                  <TaskEmbedList
+                    tasks={tasksData?.data ?? []}
+                    isLoading={isTasksLoading}
+                    canCreate={canCreateTask}
+                    onAddTask={() => setShowTaskDialog(true)}
+                    emptyMessage={t("noTasks")}
                   />
                 )}
               </TabsContent>
@@ -833,6 +862,14 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
         }}
       />
 
+      {/* Task dialog */}
+      <TaskFormDialog
+        open={showTaskDialog}
+        onClose={() => setShowTaskDialog(false)}
+        defaultDealId={deal.id}
+        onSuccess={() => setShowTaskDialog(false)}
+      />
+
       {/* Log visit dialog */}
       {canCreateVisit && (
         <LogVisitDialog
@@ -843,6 +880,15 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           customerId={deal.customer_id ?? undefined}
           contactId={deal.contact_id ?? undefined}
           defaultEmployeeId={deal.assigned_employee?.id}
+          defaultContactPerson={deal.contact?.name}
+          defaultContactPhone={deal.contact?.phone}
+          contacts={
+            deal.customer_id
+              ? (formDataRes?.contacts ?? [])
+                  .filter((c) => c.customer_id === deal.customer_id)
+                  .map((c) => ({ id: c.id, name: c.name, phone: c.phone }))
+              : undefined
+          }
           onSuccess={() => {
             setShowVisitDialog(false);
             refetch();

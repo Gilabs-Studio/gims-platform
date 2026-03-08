@@ -142,6 +142,18 @@ type TaskLeadOption struct {
 	Name string `json:"name"`
 }
 
+// TaskSummaryResponse is a compact task representation for lead/deal detail responses
+type TaskSummaryResponse struct {
+	ID               string            `json:"id"`
+	Title            string            `json:"title"`
+	Type             string            `json:"type"`
+	Status           string            `json:"status"`
+	Priority         string            `json:"priority"`
+	DueDate          *string           `json:"due_date"`
+	IsOverdue        bool              `json:"is_overdue"`
+	AssignedEmployee *TaskEmployeeInfo `json:"assigned_employee,omitempty"`
+}
+
 // CreateReminderRequest represents the request to create a reminder
 type CreateReminderRequest struct {
 	RemindAt     string `json:"remind_at" binding:"required"` // ISO 8601

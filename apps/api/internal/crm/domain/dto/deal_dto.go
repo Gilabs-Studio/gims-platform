@@ -109,6 +109,8 @@ type DealResponse struct {
 	// Conversion tracking
 	ConvertedToQuotationID *string `json:"converted_to_quotation_id"`
 	ConvertedAt            *string `json:"converted_at"`
+	// Tasks (populated on detail)
+	Tasks []TaskSummaryResponse `json:"tasks,omitempty"`
 	// Metadata
 	Notes     string  `json:"notes"`
 	CreatedBy *string `json:"created_by"`

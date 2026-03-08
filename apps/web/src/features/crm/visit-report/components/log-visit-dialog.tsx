@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { MapPin, Loader2, Camera, X, Check } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,10 +27,16 @@ import { useCreateVisitReport } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
 import { activityKeys } from "@/features/crm/activity/hooks/use-activities";
 import { toast } from "sonner";
-import type { CreateVisitReportData, VisitReportOutcome } from "../types";
+import { resolveImageUrl } from "@/lib/utils";
+import type { CreateVisitReportData } from "../types";
 
-const OUTCOME_OPTIONS: VisitReportOutcome[] = ["very_positive", "positive", "neutral", "negative"];
 const MAX_PHOTOS = 5;
+
+interface ContactOption {
+  id: string;
+  name: string;
+  phone: string;
+}
 
 interface LogVisitDialogProps {
   readonly open: boolean;
@@ -40,6 +46,9 @@ interface LogVisitDialogProps {
   readonly customerId?: string;
   readonly contactId?: string;
   readonly defaultEmployeeId?: string;
+  readonly defaultContactPerson?: string;
+  readonly defaultContactPhone?: string;
+  readonly contacts?: ContactOption[];
   readonly onSuccess?: () => void;
 }
 
@@ -57,6 +66,9 @@ export function LogVisitDialog({
   customerId,
   contactId,
   defaultEmployeeId,
+  defaultContactPerson,
+  defaultContactPhone,
+  contacts,
   onSuccess,
 }: LogVisitDialogProps) {
   const t = useTranslations("crmVisitReport");
@@ -68,28 +80,33 @@ export function LogVisitDialog({
   const [purpose, setPurpose] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [result, setResult] = useState("");
-  const [outcome, setOutcome] = useState<string>("");
+  const [selectedContactId, setSelectedContactId] = useState("");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // GPS state
+  // GPS check-in state only (checkout is a separate action)
   const [checkInGps, setCheckInGps] = useState<GpsState | null>(null);
-  const [checkOutGps, setCheckOutGps] = useState<GpsState | null>(null);
-  const [capturingGps, setCapturingGps] = useState<"in" | "out" | null>(null);
+  const [capturingGps, setCapturingGps] = useState(false);
+
+  // Initialize contact fields from props when dialog opens
+  useEffect(() => {
+    if (open) {
+      setContactPerson(defaultContactPerson ?? "");
+      setContactPhone(defaultContactPhone ?? "");
+      setSelectedContactId("");
+    }
+  }, [open, defaultContactPerson, defaultContactPhone]);
 
   const resetForm = useCallback(() => {
     setPurpose("");
     setContactPerson("");
     setContactPhone("");
-    setResult("");
-    setOutcome("");
+    setSelectedContactId("");
     setNotes("");
     setPhotos([]);
     setCheckInGps(null);
-    setCheckOutGps(null);
-    setCapturingGps(null);
+    setCapturingGps(false);
     setUploadingPhoto(false);
   }, []);
 
@@ -98,13 +115,22 @@ export function LogVisitDialog({
     onClose();
   }, [resetForm, onClose]);
 
-  const captureGps = useCallback(async (type: "in" | "out") => {
+  const handleContactSelect = useCallback((id: string) => {
+    setSelectedContactId(id);
+    const contact = contacts?.find((c) => c.id === id);
+    if (contact) {
+      setContactPerson(contact.name);
+      setContactPhone(contact.phone);
+    }
+  }, [contacts]);
+
+  const captureGps = useCallback(async () => {
     if (!navigator.geolocation) {
       toast.error(t("locationError"));
       return;
     }
 
-    setCapturingGps(type);
+    setCapturingGps(true);
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -113,23 +139,16 @@ export function LogVisitDialog({
         })
       );
 
-      const gps: GpsState = {
+      setCheckInGps({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy,
-      };
-
-      if (type === "in") {
-        setCheckInGps(gps);
-        toast.success(t("locationCaptured"));
-      } else {
-        setCheckOutGps(gps);
-        toast.success(t("locationCaptured"));
-      }
+      });
+      toast.success(t("locationCaptured"));
     } catch {
       toast.error(t("locationError"));
     } finally {
-      setCapturingGps(null);
+      setCapturingGps(false);
     }
   }, [t]);
 
@@ -155,7 +174,6 @@ export function LogVisitDialog({
       toast.error(tCommon("error"));
     } finally {
       setUploadingPhoto(false);
-      // Reset input value so the same file can be uploaded again
       e.target.value = "";
     }
   }, [photos.length, tCommon]);
@@ -209,18 +227,7 @@ export function LogVisitDialog({
         await visitReportService.uploadPhotos(visitId, photos);
       }
 
-      // Check-out with result/outcome if provided
-      if (checkOutGps || result.trim() || outcome) {
-        await visitReportService.checkOut(visitId, {
-          latitude: checkOutGps?.latitude,
-          longitude: checkOutGps?.longitude,
-          accuracy: checkOutGps?.accuracy,
-          result: result.trim() || undefined,
-          outcome: outcome || undefined,
-        });
-      }
-
-      // Submit the visit report
+      // Submit the visit to trigger activity creation
       await visitReportService.submit(visitId);
 
       // Invalidate activity queries to refresh timelines
@@ -234,10 +241,12 @@ export function LogVisitDialog({
     }
   }, [
     purpose, defaultEmployeeId, leadId, dealId, customerId, contactId,
-    contactPerson, contactPhone, notes, checkInGps, checkOutGps,
-    photos, result, outcome, createMutation, handleClose, onSuccess,
+    contactPerson, contactPhone, notes, checkInGps,
+    photos, createMutation, handleClose, onSuccess,
     qc, t, tCommon,
   ]);
+
+  const hasContacts = contacts && contacts.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -261,25 +270,61 @@ export function LogVisitDialog({
             />
           </div>
 
-          {/* Contact Person */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Contact — dropdown if contacts available, otherwise free-text inputs */}
+          {hasContacts ? (
             <div className="space-y-1.5">
               <Label>{t("form.contactPerson")}</Label>
-              <Input
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
-                placeholder={t("form.contactPersonPlaceholder")}
-              />
+              <Select value={selectedContactId} onValueChange={handleContactSelect}>
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("form.contactPersonPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                      <span>{c.name}</span>
+                      {c.phone && (
+                        <span className="ml-2 text-xs text-muted-foreground">{c.phone}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Show resolved values as read-only badges */}
+              {(contactPerson || contactPhone) && (
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  {contactPerson && (
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {contactPerson}
+                    </Badge>
+                  )}
+                  {contactPhone && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {contactPhone}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("form.contactPhone")}</Label>
-              <Input
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder={t("form.contactPhonePlaceholder")}
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("form.contactPerson")}</Label>
+                <Input
+                  value={contactPerson}
+                  onChange={(e) => setContactPerson(e.target.value)}
+                  placeholder={t("form.contactPersonPlaceholder")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("form.contactPhone")}</Label>
+                <Input
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder={t("form.contactPhonePlaceholder")}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* GPS Check-in */}
           <div className="space-y-1.5">
@@ -290,17 +335,17 @@ export function LogVisitDialog({
                 variant={checkInGps ? "secondary" : "outline"}
                 size="sm"
                 className="cursor-pointer gap-1.5"
-                onClick={() => captureGps("in")}
-                disabled={capturingGps === "in"}
+                onClick={captureGps}
+                disabled={capturingGps}
               >
-                {capturingGps === "in" ? (
+                {capturingGps ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : checkInGps ? (
                   <Check className="h-3.5 w-3.5 text-green-600" />
                 ) : (
                   <MapPin className="h-3.5 w-3.5" />
                 )}
-                {capturingGps === "in" ? t("capturingLocation") : t("actions.checkIn")}
+                {capturingGps ? t("capturingLocation") : t("actions.checkIn")}
               </Button>
               {checkInGps && (
                 <Badge variant="outline" className="text-xs">
@@ -317,7 +362,7 @@ export function LogVisitDialog({
               {photos.map((url, i) => (
                 <div key={url} className="relative h-16 w-16 rounded-md overflow-hidden border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+                  <img src={resolveImageUrl(url) ?? url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
                   <button
                     type="button"
                     className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 cursor-pointer"
@@ -343,63 +388,6 @@ export function LogVisitDialog({
                     disabled={uploadingPhoto}
                   />
                 </label>
-              )}
-            </div>
-          </div>
-
-          {/* Result */}
-          <div className="space-y-1.5">
-            <Label>{t("form.result")}</Label>
-            <Textarea
-              value={result}
-              onChange={(e) => setResult(e.target.value)}
-              placeholder={t("form.resultPlaceholder")}
-              rows={2}
-            />
-          </div>
-
-          {/* Outcome */}
-          <div className="space-y-1.5">
-            <Label>{t("form.outcome")}</Label>
-            <Select value={outcome} onValueChange={setOutcome}>
-              <SelectTrigger className="cursor-pointer">
-                <SelectValue placeholder={t("form.outcomePlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {OUTCOME_OPTIONS.map((o) => (
-                  <SelectItem key={o} value={o} className="cursor-pointer">
-                    {t(`outcome.${o}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* GPS Check-out */}
-          <div className="space-y-1.5">
-            <Label>{t("actions.checkOut")}</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant={checkOutGps ? "secondary" : "outline"}
-                size="sm"
-                className="cursor-pointer gap-1.5"
-                onClick={() => captureGps("out")}
-                disabled={capturingGps === "out"}
-              >
-                {capturingGps === "out" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : checkOutGps ? (
-                  <Check className="h-3.5 w-3.5 text-green-600" />
-                ) : (
-                  <MapPin className="h-3.5 w-3.5" />
-                )}
-                {capturingGps === "out" ? t("capturingLocation") : t("actions.checkOut")}
-              </Button>
-              {checkOutGps && (
-                <Badge variant="outline" className="text-xs">
-                  {checkOutGps.latitude.toFixed(5)}, {checkOutGps.longitude.toFixed(5)}
-                </Badge>
               )}
             </div>
           </div>

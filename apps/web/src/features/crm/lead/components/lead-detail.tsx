@@ -12,6 +12,7 @@ import {
   DollarSign,
   ExternalLink,
   History,
+  ListTodo,
   Mail,
   MapPin,
   Navigation,
@@ -48,6 +49,9 @@ import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
+import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
+import { useTasksByLead } from "@/features/crm/task/hooks/use-tasks";
 import { LeadActivityFeed } from "./lead-activity-feed";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
@@ -302,6 +306,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const canConvert = useUserPermission("crm_lead.convert");
   const canCreateActivity = useUserPermission("crm_activity.create");
   const canCreateVisit = useUserPermission("crm_visit.create");
+  const canCreateTask = useUserPermission("crm_task.create");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -309,7 +314,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
@@ -558,7 +566,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
               </div>
             )}
 
-            {/* Tabs: Activities | Information */}
+            {/* Tabs: Activities | Tasks | Information */}
             <Tabs defaultValue="activities">
               <TabsList>
                 <TabsTrigger value="activities" className="cursor-pointer gap-1.5">
@@ -567,6 +575,15 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   {(lead.activities?.length ?? 0) > 0 && (
                     <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                       {lead.activities!.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="cursor-pointer gap-1.5">
+                  <ListTodo className="h-4 w-4" />
+                  {t("tabs.tasks")}
+                  {(tasksData?.data?.length ?? 0) > 0 && (
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                      {tasksData!.data!.length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -584,6 +601,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   onLogActivity={() => setShowActivityDialog(true)}
                   onLogVisit={() => setShowVisitDialog(true)}
                   refreshKey={activityRefreshKey}
+                />
+              </TabsContent>
+
+              {/* ── Tasks Tab ── */}
+              <TabsContent value="tasks" className="mt-4">
+                <TaskEmbedList
+                  tasks={tasksData?.data ?? []}
+                  isLoading={isTasksLoading}
+                  canCreate={canCreateTask}
+                  onAddTask={() => setShowTaskDialog(true)}
+                  emptyMessage={t("noTasks")}
                 />
               </TabsContent>
 
@@ -968,12 +996,21 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           customerId={lead.customer_id ?? undefined}
           contactId={lead.contact_id ?? undefined}
           defaultEmployeeId={lead.assigned_employee?.id}
+          defaultContactPerson={`${lead.first_name} ${lead.last_name}`.trim() || undefined}
+          defaultContactPhone={lead.phone || undefined}
           onSuccess={() => {
             refetch();
             setActivityRefreshKey((k) => k + 1);
           }}
         />
       )}
+
+      <TaskFormDialog
+        open={showTaskDialog}
+        onClose={() => setShowTaskDialog(false)}
+        defaultLeadId={lead.id}
+        onSuccess={() => setShowTaskDialog(false)}
+      />
 
       {canDelete && (
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -299,6 +299,20 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Request body too large",
 	},
 
+	// File Upload Errors
+	"INVALID_FILE_TYPE": {
+		HTTPStatus: http.StatusUnsupportedMediaType,
+		Message:    "File type not allowed. Accepted formats: JPEG, PNG, GIF, WebP",
+	},
+	"FILE_TOO_LARGE": {
+		HTTPStatus: http.StatusRequestEntityTooLarge,
+		Message:    "File size exceeds the maximum allowed limit",
+	},
+	"INVALID_IMAGE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid or corrupted image file",
+	},
+
 	// AI Service Errors
 	"AI_ANALYSIS_FAILED": {
 		HTTPStatus: http.StatusInternalServerError,

@@ -97,6 +97,7 @@ type Lead struct {
 
 	// Associations
 	Activities []Activity `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
+	Tasks      []Task     `gorm:"foreignKey:LeadID" json:"tasks,omitempty"`
 }
 
 func (Lead) TableName() string {

@@ -41,6 +41,11 @@ const (
 	ReminderID2 = "d2000001-0000-0000-0000-000000000002"
 	ReminderID3 = "d2000001-0000-0000-0000-000000000003"
 
+	// Visit-generated activities (prefix: d7)
+	VisitActivityID1 = "d7000001-0000-0000-0000-000000000001"
+	VisitActivityID2 = "d7000001-0000-0000-0000-000000000002"
+	VisitActivityID3 = "d7000001-0000-0000-0000-000000000003"
+
 	// Schedules (prefix: d3)
 	ScheduleID1 = "d3000001-0000-0000-0000-000000000001"
 	ScheduleID2 = "d3000001-0000-0000-0000-000000000002"
@@ -231,6 +236,58 @@ func seedCRMActivities() error {
 		}
 	}
 
+	// Seed activities auto-generated from submitted/approved visit reports
+	// In production, these are created by the visit-submit usecase; for seeder we create them directly
+	visitActivities := []crm.Activity{
+		{
+			ID:             VisitActivityID1,
+			Type:           "visit",
+			ActivityTypeID: strPtr(ActivityTypeVisitID),
+			CustomerID:     strPtr(Customer1ID),
+			ContactID:      strPtr(ContactID1),
+			DealID:         strPtr(DealID1),
+			VisitReportID:  strPtr(VisitReportID1),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Visit ke PT Apotek Sehat Sentosa — Follow-up penawaran produk farmasi baru. Customer setuju untuk melakukan trial order 100 unit.",
+			Timestamp:      now.Add(-7 * 24 * time.Hour),
+			Metadata:       strPtr(`{"outcome":"POSITIVE","has_check_in":true,"has_check_out":true}`),
+		},
+		{
+			ID:             VisitActivityID2,
+			Type:           "visit",
+			ActivityTypeID: strPtr(ActivityTypeVisitID),
+			CustomerID:     strPtr(Customer2ID),
+			ContactID:      strPtr(ContactID2),
+			VisitReportID:  strPtr(VisitReportID2),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Visit ke RS Harapan Kita — Presentasi katalog produk ke bagian pengadaan. Diminta untuk submit proposal resmi.",
+			Timestamp:      now.Add(-24 * time.Hour),
+			Metadata:       strPtr(`{"outcome":"NEUTRAL","has_check_in":false,"has_check_out":false}`),
+		},
+		{
+			ID:             VisitActivityID3,
+			Type:           "visit",
+			ActivityTypeID: strPtr(ActivityTypeVisitID),
+			CustomerID:     strPtr(Customer3ID),
+			ContactID:      strPtr(ContactID3),
+			LeadID:         strPtr(LeadID2),
+			VisitReportID:  strPtr(VisitReportID3),
+			EmployeeID:     SalesRep2EmployeeID,
+			Description:    "Visit ke Klinik Pratama Medika — Kunjungan pertama ke prospek klinik baru. Berhasil mendapatkan PO pertama senilai 50 juta.",
+			Timestamp:      now.Add(-14 * 24 * time.Hour),
+			Metadata:       strPtr(`{"outcome":"VERY_POSITIVE","has_check_in":true,"has_check_out":true}`),
+		},
+	}
+
+	for _, activity := range visitActivities {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"description", "timestamp"}),
+		}).Create(&activity).Error; err != nil {
+			log.Printf("Warning: Failed to seed visit activity %s: %v", activity.ID, err)
+		}
+	}
+
 	return nil
 }
 
@@ -261,6 +318,7 @@ func seedCRMTasks() error {
 			AssignedFrom: &manager,
 			CustomerID:   strPtr(Customer1ID),
 			ContactID:    strPtr(ContactID1),
+			LeadID:       strPtr(LeadID1),
 			CreatedBy:    &adminID,
 		},
 		{
@@ -274,6 +332,7 @@ func seedCRMTasks() error {
 			AssignedTo:  &salesRep2,
 			CustomerID:  strPtr(Customer4ID),
 			ContactID:   strPtr(ContactID4),
+			DealID:      strPtr(DealID1),
 			CreatedBy:   &adminID,
 		},
 		{
@@ -287,6 +346,7 @@ func seedCRMTasks() error {
 			AssignedTo:  &salesRep2,
 			CustomerID:  strPtr(Customer3ID),
 			ContactID:   strPtr(ContactID3),
+			LeadID:      strPtr(LeadID3),
 			CreatedBy:   &adminID,
 		},
 		{

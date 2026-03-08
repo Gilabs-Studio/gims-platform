@@ -97,6 +97,44 @@ func ToTaskResponseList(tasks []models.Task) []dto.TaskResponse {
 	return result
 }
 
+// ToTaskSummaryResponse converts a Task model to a compact TaskSummaryResponse
+func ToTaskSummaryResponse(task *models.Task) dto.TaskSummaryResponse {
+	resp := dto.TaskSummaryResponse{
+		ID:       task.ID,
+		Title:    task.Title,
+		Type:     task.Type,
+		Status:   task.Status,
+		Priority: task.Priority,
+	}
+
+	if task.DueDate != nil {
+		d := task.DueDate.Format("2006-01-02")
+		resp.DueDate = &d
+		if task.Status != string(models.TaskStatusCompleted) && task.Status != string(models.TaskStatusCancelled) {
+			resp.IsOverdue = task.DueDate.Before(apptime.Now())
+		}
+	}
+
+	if task.AssignedEmployee != nil {
+		resp.AssignedEmployee = &dto.TaskEmployeeInfo{
+			ID:           task.AssignedEmployee.ID,
+			EmployeeCode: task.AssignedEmployee.EmployeeCode,
+			Name:         task.AssignedEmployee.Name,
+		}
+	}
+
+	return resp
+}
+
+// ToTaskSummaryResponseList converts a slice of Task models to summary responses
+func ToTaskSummaryResponseList(tasks []models.Task) []dto.TaskSummaryResponse {
+	result := make([]dto.TaskSummaryResponse, 0, len(tasks))
+	for i := range tasks {
+		result = append(result, ToTaskSummaryResponse(&tasks[i]))
+	}
+	return result
+}
+
 // ToReminderResponse converts a Reminder model to ReminderResponse
 func ToReminderResponse(reminder *models.Reminder) dto.ReminderResponse {
 	resp := dto.ReminderResponse{

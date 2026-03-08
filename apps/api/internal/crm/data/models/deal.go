@@ -73,6 +73,7 @@ type Deal struct {
 	// Associations
 	Items   []DealProductItem `gorm:"foreignKey:DealID" json:"items,omitempty"`
 	History []DealHistory     `gorm:"foreignKey:DealID" json:"history,omitempty"`
+	Tasks   []Task            `gorm:"foreignKey:DealID" json:"tasks,omitempty"`
 }
 
 func (Deal) TableName() string {

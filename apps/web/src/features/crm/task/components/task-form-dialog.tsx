@@ -33,6 +33,8 @@ interface TaskFormDialogProps {
   readonly onClose: () => void;
   readonly task?: Task | null;
   readonly onSuccess?: () => void;
+  readonly defaultLeadId?: string;
+  readonly defaultDealId?: string;
 }
 
 export function TaskFormDialog({
@@ -40,6 +42,8 @@ export function TaskFormDialog({
   onClose,
   task,
   onSuccess,
+  defaultLeadId,
+  defaultDealId,
 }: TaskFormDialogProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
@@ -55,6 +59,7 @@ export function TaskFormDialog({
     },
     editingItem: task,
     onSuccess,
+    defaultValues: { lead_id: defaultLeadId, deal_id: defaultDealId },
   };
 
   const { form, onSubmit, isSubmitting } = useTaskForm(formProps);

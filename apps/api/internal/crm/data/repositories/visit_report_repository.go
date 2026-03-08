@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -334,15 +335,24 @@ func (r *visitReportRepository) Delete(ctx context.Context, id string) error {
 
 func (r *visitReportRepository) GetNextCode(ctx context.Context) (string, error) {
 	now := r.getDB(ctx).NowFunc()
-	prefix := fmt.Sprintf("VISIT-%s", now.Format("200601"))
+	prefix := fmt.Sprintf("VISIT-%s-", now.Format("200601"))
 
-	var count int64
+	var lastCode string
 	r.getDB(ctx).Model(&models.VisitReport{}).
 		Where("code LIKE ?", prefix+"%").
-		Count(&count)
+		Order("code DESC").
+		Limit(1).
+		Pluck("code", &lastCode)
 
-	code := fmt.Sprintf("%s-%05d", prefix, count+1)
-	return code, nil
+	seq := 1
+	if lastCode != "" && len(lastCode) > len(prefix) {
+		suffix := lastCode[len(prefix):]
+		if n, err := strconv.Atoi(suffix); err == nil {
+			seq = n + 1
+		}
+	}
+
+	return fmt.Sprintf("%s%05d", prefix, seq), nil
 }
 
 func (r *visitReportRepository) UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error {

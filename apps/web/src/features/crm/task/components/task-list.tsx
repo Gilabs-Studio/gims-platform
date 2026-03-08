@@ -57,7 +57,7 @@ const PRIORITY_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" |
 export function TaskList() {
   const { state, actions, permissions, translations } = useTaskList();
   const { t, tCommon } = translations;
-  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
 
   const { data: tasksRes, isLoading, isError, refetch } = useTasks({
     page: state.page,

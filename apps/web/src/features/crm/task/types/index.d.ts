@@ -121,6 +121,7 @@ export interface TaskListParams {
   type?: string;
   assigned_to?: string;
   lead_id?: string;
+  deal_id?: string;
   is_overdue?: boolean;
   sort_by?: string;
   sort_dir?: string;

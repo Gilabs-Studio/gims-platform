@@ -14,9 +14,10 @@ export interface UseTaskFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: Task | null;
   onSuccess?: () => void;
+  defaultValues?: { lead_id?: string; deal_id?: string };
 }
 
-export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseTaskFormProps) {
+export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, defaultValues: defaults }: UseTaskFormProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
   const isEditing = !!editingItem;
@@ -84,9 +85,22 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         lead_id: editingItem.lead?.id ?? "",
       });
     } else if (open) {
-      form.reset();
+      form.reset({
+        title: "",
+        description: "",
+        type: "general",
+        priority: "medium",
+        status: "pending",
+        due_date: "",
+        assigned_to: "",
+        assigned_from: "",
+        customer_id: "",
+        contact_id: "",
+        deal_id: defaults?.deal_id ?? "",
+        lead_id: defaults?.lead_id ?? "",
+      });
     }
-  }, [open, editingItem, form]);
+  }, [open, editingItem, form, defaults]);
 
   const onSubmit: SubmitHandler<TaskFormValues> = async (data) => {
     try {

@@ -137,6 +137,10 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		resp.Activities = ToActivityResponseList(lead.Activities)
 	}
 
+	if len(lead.Tasks) > 0 {
+		resp.Tasks = ToTaskSummaryResponseList(lead.Tasks)
+	}
+
 	return resp
 }
 

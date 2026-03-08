@@ -124,6 +124,10 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		})
 	}
 
+	if len(deal.Tasks) > 0 {
+		resp.Tasks = ToTaskSummaryResponseList(deal.Tasks)
+	}
+
 	return resp
 }
 
