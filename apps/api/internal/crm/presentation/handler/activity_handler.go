@@ -10,16 +10,18 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 // ActivityHandler handles HTTP requests for CRM activities
 type ActivityHandler struct {
 	uc usecase.ActivityUsecase
+	db *gorm.DB
 }
 
 // NewActivityHandler creates a new activity handler
-func NewActivityHandler(uc usecase.ActivityUsecase) *ActivityHandler {
-	return &ActivityHandler{uc: uc}
+func NewActivityHandler(uc usecase.ActivityUsecase, db *gorm.DB) *ActivityHandler {
+	return &ActivityHandler{uc: uc, db: db}
 }
 
 // Create handles POST request to create an activity
@@ -166,6 +168,79 @@ func (h *ActivityHandler) Timeline(c *gin.Context) {
 	params.Offset = (page - 1) * perPage
 
 	results, total, err := h.uc.Timeline(c.Request.Context(), params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       page,
+			PerPage:    perPage,
+			Total:      int(total),
+			TotalPages: totalPages,
+			HasNext:    page < totalPages,
+			HasPrev:    page > 1,
+		},
+	}
+
+	response.SuccessResponse(c, results, meta)
+}
+
+// MyActivities handles GET request to list current user's activities
+func (h *ActivityHandler) MyActivities(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{
+			"message": "User not authenticated",
+		}, nil)
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok || userIDStr == "" {
+		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{
+			"message": "Invalid user ID",
+		}, nil)
+		return
+	}
+
+	// Resolve employee_id from user_id
+	var employeeID string
+	if err := h.db.WithContext(c.Request.Context()).
+		Table("employees").
+		Select("id").
+		Where("user_id = ? AND deleted_at IS NULL", userIDStr).
+		Row().Scan(&employeeID); err != nil {
+		errors.ErrorResponse(c, "CRM_ACTIVITY_NOT_FOUND", map[string]interface{}{
+			"message": "No employee profile linked to current user",
+		}, nil)
+		return
+	}
+
+	params := repositories.ActivityListParams{
+		SortBy:         "timestamp",
+		SortDir:        "desc",
+		EmployeeID:     employeeID,
+		ActivityTypeID: c.Query("activity_type_id"),
+		DateFrom:       c.Query("date_from"),
+		DateTo:         c.Query("date_to"),
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
+	params.Limit = perPage
+	params.Offset = (page - 1) * perPage
+
+	results, total, err := h.uc.List(c.Request.Context(), params)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return

@@ -47,7 +47,8 @@
     "goodsReceipt": "Penerimaan Barang",
     "createdBy": "Dibuat oleh",
     "days": "hari",
-    "validationError": "Periksa kembali isian form"
+    "validationError": "Periksa kembali isian form",
+    "myActivities": "Aktivitas Saya"
   },
   "notFound": {
     "label": "404",

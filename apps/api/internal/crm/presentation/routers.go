@@ -70,7 +70,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	dealH := handler.NewDealHandler(dealUC)
 	visitReportH := handler.NewVisitReportHandler(visitReportUC)
 	visitReportPrintH := handler.NewVisitReportPrintHandler(visitReportUC)
-	activityH := handler.NewActivityHandler(activityUC)
+	activityH := handler.NewActivityHandler(activityUC, db)
 	taskH := handler.NewTaskHandler(taskUC)
 	scheduleH := handler.NewScheduleHandler(scheduleUC)
 	areaCaptureH := handler.NewAreaCaptureHandler(areaCaptureUC)

@@ -25,6 +25,11 @@ const (
 	LeadActivityID4 = "d5000001-0000-0000-0000-000000000004"
 	LeadActivityID5 = "d5000001-0000-0000-0000-000000000005"
 
+	// Activities linked to Deals (prefix: d6)
+	DealActivityID1 = "d6000001-0000-0000-0000-000000000001"
+	DealActivityID2 = "d6000001-0000-0000-0000-000000000002"
+	DealActivityID3 = "d6000001-0000-0000-0000-000000000003"
+
 	// Tasks (prefix: d1)
 	TaskID1 = "d1000001-0000-0000-0000-000000000001"
 	TaskID2 = "d1000001-0000-0000-0000-000000000002"
@@ -183,6 +188,46 @@ func seedCRMActivities() error {
 			DoUpdates: clause.AssignmentColumns([]string{"description", "timestamp"}),
 		}).Create(&activity).Error; err != nil {
 			log.Printf("Warning: Failed to seed lead activity %s: %v", activity.ID, err)
+		}
+	}
+
+	// Seed activities linked to deals
+	dealActivities := []crm.Activity{
+		{
+			ID:             DealActivityID1,
+			Type:           "meeting",
+			ActivityTypeID: strPtr(ActivityTypeMeetingID),
+			DealID:         strPtr(DealID1),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Demo scheduled with RS Harapan Kita — presenting medical supply package options and bulk pricing tiers",
+			Timestamp:      now.Add(-36 * time.Hour),
+		},
+		{
+			ID:             DealActivityID2,
+			Type:           "email",
+			ActivityTypeID: strPtr(ActivityTypeEmailID),
+			DealID:         strPtr(DealID2),
+			EmployeeID:     SalesRep1EmployeeID,
+			Description:    "Sent detailed proposal for lab equipment upgrade to PT Apotek Sehat — includes installation timeline and training plan",
+			Timestamp:      now.Add(-18 * time.Hour),
+		},
+		{
+			ID:             DealActivityID3,
+			Type:           "call",
+			ActivityTypeID: strPtr(ActivityTypeCallID),
+			DealID:         strPtr(DealID3),
+			EmployeeID:     SalesRep2EmployeeID,
+			Description:    "Negotiation call with Klinik Pratama — discussed payment terms and delivery schedule for annual consumable contract",
+			Timestamp:      now.Add(-8 * time.Hour),
+		},
+	}
+
+	for _, activity := range dealActivities {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"description", "timestamp"}),
+		}).Create(&activity).Error; err != nil {
+			log.Printf("Warning: Failed to seed deal activity %s: %v", activity.ID, err)
 		}
 	}
 

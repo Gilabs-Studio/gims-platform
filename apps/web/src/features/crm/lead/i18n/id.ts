@@ -134,6 +134,9 @@ export const crmLeadId = {
       emailInvalid: "Masukkan alamat email yang valid",
     },
     viewDeal: "Lihat Deal",
+    viewInPipeline: "Lihat di Pipeline",
+    convertedToDeal: "Terkonversi ke Deal",
+    activityTimeline: "Timeline Aktivitas",
     noActivities: "Belum ada aktivitas yang dicatat",
     logActivity: {
       title: "Catat Aktivitas",

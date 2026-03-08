@@ -14,12 +14,14 @@ export const crmDealEn = {
     noItems: "No product items",
     noHistory: "No stage transition history",
     activities: "Activities",
+    activityTimeline: "Activity Timeline",
     noActivities: "No activities yet",
     addActivity: "Log Activity",
     information: "Information",
     visitReport: "Visit Report",
     visitReports: "Visit Reports",
     noVisitReports: "No visit reports",
+    noLocation: "No location set",
 
     // Actions
     edit: "Edit",

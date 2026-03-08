@@ -215,3 +215,11 @@ export function useCreateActivity() {
     },
   });
 }
+
+export function useMyActivities(params?: ActivityListParams) {
+  return useQuery({
+    queryKey: [...activityKeys.all, "my-activities", params] as const,
+    queryFn: () => activityService.myActivities(params),
+    staleTime: 2 * 60 * 1000,
+  });
+}

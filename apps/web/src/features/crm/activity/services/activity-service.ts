@@ -28,4 +28,9 @@ export const activityService = {
     const response = await apiClient.get<ApiResponse<Activity[]>>(`${BASE_URL}/timeline`, { params });
     return response.data;
   },
+
+  myActivities: async (params?: ActivityListParams): Promise<ApiResponse<Activity[]>> => {
+    const response = await apiClient.get<ApiResponse<Activity[]>>(`${BASE_URL}/my-activities`, { params });
+    return response.data;
+  },
 };

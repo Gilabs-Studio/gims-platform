@@ -135,11 +135,11 @@ Customer (Active)
 
 ### Phase 4: Backend — Activity Permissions Update
 
-- [ ] **4.1 Update Permission Seeder** — Ubah `crm_activity` permissions:
+- [x] **4.1 Update Permission Seeder** — Ubah `crm_activity` permissions:
   - Keep: `crm_activity.read` (view-only dari header tooltip dan embedded di lead/deal detail)
   - Remove dari role assignment: `crm_activity.create` (activity tetap bisa dibuat secara programmatic dari backend saat log action, tapi UI tidak expose CRUD)
   - Note: Backend endpoint POST `/crm/activities` tetap ada tapi hanya untuk internal use / embedded form di lead/deal detail
-- [ ] **4.2 Update Activity List Endpoint** — Add filter `employee_id` agar header tooltip bisa query activities milik user yang login:
+- [x] **4.2 Update Activity List Endpoint** — Add filter `employee_id` agar header tooltip bisa query activities milik user yang login:
   - `GET /crm/activities?employee_id={me}` → semua activities user
   - Already supports `lead_id`, `deal_id`, `customer_id` filters
 
@@ -147,11 +147,11 @@ Customer (Active)
 
 ### Phase 5: Backend — Add Activity from Lead/Deal Detail
 
-- [ ] **5.1 Add Inline Activity Creation** — Activity bisa dibuat langsung dari lead detail dan deal detail:
+- [x] **5.1 Add Inline Activity Creation** — Activity bisa dibuat langsung dari lead detail dan deal detail:
   - Endpoint tetap: `POST /crm/activities`
   - FE akan pre-fill `lead_id` atau `deal_id` secara otomatis
   - Activity types tetap dari dropdown (Call, Email, Meeting, Visit, Follow Up)
-- [ ] **5.2 Add Activities to Deal Detail Response** — Sama seperti lead, deal detail harus include activities:
+- [x] **5.2 Add Activities to Deal Detail Response** — Sama seperti lead, deal detail harus include activities:
   - Preload `Activities` pada deal detail query
   - Filter by `deal_id`
 
@@ -207,15 +207,15 @@ Customer (Active)
 
 ### Phase 8: Frontend — Deal Detail Enhancement (Activities + Customer Info)
 
-- [ ] **8.1 Add Activity Timeline Tab** — Di deal detail, tambah tab "Activities":
+- [x] **8.1 Add Activity Timeline Tab** — Di deal detail, tambah tab "Activities":
   - Same component reuse dari lead detail activity timeline
   - Filter by `deal_id`
-- [ ] **8.2 Add "Log Activity" Button** — Di deal detail header:
+- [x] **8.2 Add "Log Activity" Button** — Di deal detail header:
   - Same form component, auto-fill `deal_id`
-- [ ] **8.3 Show Lead Origin Badge** — Jika deal berasal dari lead conversion:
+- [x] **8.3 Show Lead Origin Badge** — Jika deal berasal dari lead conversion:
   - Badge "From Lead: {lead_code}" clickable → navigate ke lead detail
   - Tampilkan di deal detail header/sidebar
-- [ ] **8.4 Show Customer Created Badge** — Saat deal won dan customer auto-created:
+- [x] **8.4 Show Customer Created Badge** — Saat deal won dan customer auto-created:
   - Badge "Customer Created: {customer_name}" clickable → navigate ke customer detail
   - Tampilkan setelah deal won
 
@@ -223,12 +223,12 @@ Customer (Active)
 
 ### Phase 9: Frontend — Activities Migration (Sidebar → Header Tooltip)
 
-- [ ] **9.1 Remove Activities dari Sidebar CRM** — Hapus entry di navigation-config.ts:
+- [x] **9.1 Remove Activities dari Sidebar CRM** — Hapus entry di navigation-config.ts:
   ```typescript
   // REMOVE:
   { name: "Activities", url: "/crm/activities", icon: "activity", permission: "crm_activity.read" }
   ```
-- [ ] **9.2 Add Activities Button di Header User Tooltip** — Di user popover (sebelah Settings & Logout):
+- [x] **9.2 Add Activities Button di Header User Tooltip** — Di user popover (sebelah Settings & Logout):
   - Tambah tombol "My Activities" dengan icon Activity
   - Klik → buka dialog/sheet yang menampilkan semua activities dari user login
   - View-only (no create/edit/delete dari sini)
@@ -236,7 +236,7 @@ Customer (Active)
   - Infinite scroll atau pagination
   - Filter by type (Call, Email, Visit, Meeting, Follow Up)
   - Filter by date range
-- [ ] **9.3 Create ActivityFeedDialog Component** — Dialog/Sheet fullscreen untuk My Activities:
+- [x] **9.3 Create ActivityFeedDialog Component** — Dialog/Sheet fullscreen untuk My Activities:
   - Fetch `GET /crm/activities?employee_id={current_user_employee_id}`
   - Timeline view dengan grouping per hari
   - Setiap entry menampilkan:
@@ -245,8 +245,8 @@ Customer (Active)
     - Related entity link (Lead name, Deal title, Customer name)
     - Timestamp
   - Clicking entity link → navigate ke entity detail
-- [ ] **9.4 Keep Activity Page Route** — Jangan hapus route `/crm/activities` dulu (backward compatibility), tapi redirect ke '/crm/leads' atau tampilkan empty state dengan info bahwa activities dipindah ke header
-- [ ] **9.5 Update Route Validator** — Remove `/crm/activities` dari route validator (atau mark sebagai deprecated redirect)
+- [x] **9.4 Keep Activity Page Route** — Jangan hapus route `/crm/activities` dulu (backward compatibility), tapi redirect ke '/crm/leads' atau tampilkan empty state dengan info bahwa activities dipindah ke header
+- [x] **9.5 Update Route Validator** — Remove `/crm/activities` dari route validator (atau mark sebagai deprecated redirect)
 
 ---
 
@@ -280,21 +280,21 @@ Customer (Active)
 
 ### Phase 11: Seeder & Data Migration
 
-- [ ] **11.1 Update Pipeline Stage Seeder** — Sesuai Phase 2.1
-- [ ] **11.2 Update Lead Status Seeder** — Sesuai Phase 2.2
-- [ ] **11.3 Update Permission Seeder** — Update role assignments:
+- [x] **11.1 Update Pipeline Stage Seeder** — Sesuai Phase 2.1
+- [x] **11.2 Update Lead Status Seeder** — Sesuai Phase 2.2
+- [x] **11.3 Update Permission Seeder** — Update role assignments:
   - Admin: Keep `crm_activity.read`
   - Manager: Keep `crm_activity.read`
   - Staff: Keep `crm_activity.read`
   - Remove `crm_activity.create` dari semua role assignments (atau keep tapi hidden dari standalone UI)
   - Note: `crm_activity.create` masih exist sebagai permission tapi tidak di-assign ke role by default (untuk internal/embedded use)
-- [ ] **11.4 Update Lead Seeder** — Update sample leads:
+- [x] **11.4 Update Lead Seeder** — Update sample leads:
   - LeadID5 (yang sudah converted): Set `deal_id` instead of `customer_id` sebagai conversion target
   - Add sample activity logs untuk beberapa leads
-- [ ] **11.5 Update Deal Seeder** — Update sample deals:
+- [x] **11.5 Update Deal Seeder** — Update sample deals:
   - Link beberapa deals ke leads (`lead_id` field)
   - Sesuaikan stage IDs dengan stages baru (Needs Analysis, Demo)
-- [ ] **11.6 Add Activity Seeder** — Buat sample activities tertaut ke leads dan deals:
+- [x] **11.6 Add Activity Seeder** — Buat sample activities tertaut ke leads dan deals:
   - Lead activities: Call (New → Contacted), Email follow-up, Meeting (Qualified)
   - Deal activities: Demo scheduled, Proposal sent, Negotiation call
 
@@ -302,18 +302,18 @@ Customer (Active)
 
 ### Phase 12: i18n Updates
 
-- [ ] **12.1 Update Lead i18n** — Tambah/ubah translation keys:
+- [x] **12.1 Update Lead i18n** — Tambah/ubah translation keys:
   - `convertToPipeline`, `convertToDeal` (ganti `convertToCustomer`)
   - `dealTitle`, `dealValue`, `pipelineStage`
   - `convertedToDeal`, `viewInPipeline`
   - `activityTimeline`, `logActivity`
-- [ ] **12.2 Update Deal i18n** — Tambah translation keys:
+- [x] **12.2 Update Deal i18n** — Tambah translation keys:
   - `fromLead`, `customerCreated`
   - `activityTimeline`, `logActivity`
-- [ ] **12.3 Update Activity i18n** — Tambah translation keys:
+- [x] **12.3 Update Activity i18n** — Tambah translation keys:
   - `myActivities`, `activityFeed`
   - `relatedEntity`, `viewEntity`
-- [ ] **12.4 Update Common Header i18n** — Tambah:
+- [x] **12.4 Update Common Header i18n** — Tambah:
   - `myActivities` untuk header tooltip button
 
 ---

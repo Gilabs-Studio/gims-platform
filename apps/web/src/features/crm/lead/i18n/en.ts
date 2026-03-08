@@ -134,6 +134,9 @@ export const crmLeadEn = {
       emailInvalid: "Please enter a valid email address",
     },
     viewDeal: "View Deal",
+    viewInPipeline: "View in Pipeline",
+    convertedToDeal: "Converted to Deal",
+    activityTimeline: "Activity Timeline",
     noActivities: "No activities recorded yet",
     logActivity: {
       title: "Log Activity",

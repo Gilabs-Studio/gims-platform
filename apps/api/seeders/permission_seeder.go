@@ -554,7 +554,7 @@ func SeedPermissions() error {
 		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
 		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
 
-		// CRM Activities (Sprint 23)
+		// CRM Activities (Sprint 23) — crm_activity.create kept for embedded forms in lead/deal detail
 		{"/crm/activities", "crm_activity.read", "View Activities", "VIEW", "crm_activity"},
 		{"/crm/activities", "crm_activity.create", "Create Activities", "CREATE", "crm_activity"},
 

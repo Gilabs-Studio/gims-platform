@@ -14,12 +14,14 @@ export const crmDealId = {
     noItems: "Tidak ada item produk",
     noHistory: "Tidak ada riwayat perpindahan tahap",
     activities: "Aktivitas",
+    activityTimeline: "Timeline Aktivitas",
     noActivities: "Belum ada aktivitas",
     addActivity: "Catat Aktivitas",
     information: "Informasi",
     visitReport: "Laporan Kunjungan",
     visitReports: "Laporan Kunjungan",
     noVisitReports: "Tidak ada laporan kunjungan",
+    noLocation: "Belum ada lokasi",
 
     // Actions
     edit: "Edit",

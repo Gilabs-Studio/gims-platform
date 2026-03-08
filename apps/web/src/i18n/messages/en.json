@@ -52,7 +52,8 @@
     "goodsReceipt": "Goods Receipt",
     "createdBy": "Created by",
     "days": "days",
-    "validationError": "Please check the form for errors"
+    "validationError": "Please check the form for errors",
+    "myActivities": "My Activities"
   },
   "notFound": {
     "label": "404",

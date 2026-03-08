@@ -46,8 +46,8 @@ func SeedCRMLeads() error {
 	timeExp2 := now.Add(60 * 24 * time.Hour)
 	timeExp3 := now.Add(14 * 24 * time.Hour)
 
-	// Convert to customer reference (lead 5 is already converted)
-	customer1 := Customer1ID
+	// Converted lead links to deal (lead 5 is already converted to pipeline)
+	deal1 := DealID1
 	contact1 := ContactID1
 
 	leads := []crm.Lead{
@@ -189,7 +189,7 @@ func SeedCRMLeads() error {
 			TimeConfirmed:   true,
 			TimeExpected:    &now,
 			AssignedTo:      &salesRep1,
-			CustomerID:      &customer1,
+			DealID:          &deal1,
 			ContactID:       &contact1,
 			ConvertedAt:     &convertedAt,
 			ConvertedBy:     &salesRep1,
@@ -227,7 +227,7 @@ func SeedCRMLeads() error {
 	for _, lead := range leads {
 		if err := database.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"updated_at", "deal_id", "customer_id"}),
 		}).Create(&lead).Error; err != nil {
 			log.Printf("Warning: Failed to seed lead %s (%s): %v", lead.Code, lead.ID, err)
 		}

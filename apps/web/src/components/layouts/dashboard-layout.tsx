@@ -4,7 +4,7 @@ import React, { memo, useMemo, useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
-import { Search, Settings, Menu as MenuIcon, ChevronRight } from "lucide-react";
+import { Search, Settings, Menu as MenuIcon, ChevronRight, Activity } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 
@@ -30,6 +30,7 @@ import {
 } from "@/features/hrd/attendance-records/components/attendance-right-drawer";
 import { CommandPalette } from "@/features/command-palette";
 import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
+import { ActivityFeedDialog } from "@/features/crm/activity/components/activity-feed-dialog";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 
@@ -127,6 +128,7 @@ const Header = memo(function Header({
     avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : fallbackAvatarUrl
   );
   const [mounted, setMounted] = useState(false);
+  const [activityFeedOpen, setActivityFeedOpen] = useState(false);
 
   React.useEffect(() => {
     if (avatarUrl && avatarUrl.trim() !== "") {
@@ -264,6 +266,14 @@ const Header = memo(function Header({
               </div>
               <Separator className="my-1" />
               <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
+                  onClick={() => setActivityFeedOpen(true)}
+                >
+                  <Activity className="h-4 w-4" />
+                  {t("myActivities")}
+                </button>
                 <Link
                   href="/profile"
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
@@ -321,6 +331,7 @@ const Header = memo(function Header({
           </Button>
         )}
       </div>
+      <ActivityFeedDialog open={activityFeedOpen} onOpenChange={setActivityFeedOpen} />
     </header>
   );
 });

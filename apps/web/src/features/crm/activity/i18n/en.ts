@@ -11,6 +11,10 @@ export const crmActivityEn = {
     timeline: "Timeline",
     timelineTitle: "Activity Timeline",
     timelineEmpty: "No timeline entries found",
+    myActivities: "My Activities",
+    activityFeed: "Your recent activities across all CRM entities",
+    relatedEntity: "Related Entity",
+    viewEntity: "View Entity",
     sections: {
       basicInfo: "Basic Information",
       relatedEntities: "Related Entities",

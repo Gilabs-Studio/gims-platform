@@ -11,6 +11,10 @@ export const crmActivityId = {
     timeline: "Timeline",
     timelineTitle: "Timeline Aktivitas",
     timelineEmpty: "Tidak ada entri timeline ditemukan",
+    myActivities: "Aktivitas Saya",
+    activityFeed: "Aktivitas terbaru Anda di seluruh entitas CRM",
+    relatedEntity: "Entitas Terkait",
+    viewEntity: "Lihat Entitas",
     sections: {
       basicInfo: "Informasi Dasar",
       relatedEntities: "Entitas Terkait",
