@@ -117,7 +117,7 @@ Customer (Active)
 
 ### Phase 3: Backend — Deal Won → Auto-Create Customer
 
-- [ ] **3.1 Update Deal MoveStage Usecase** — Saat deal pindah ke stage "Closed Won":
+- [x] **3.1 Update Deal MoveStage Usecase** — Saat deal pindah ke stage "Closed Won":
   - **Auto-create Customer** dari deal data (jika `deal.CustomerID` masih nil):
     - Name: Deal title / customer_name field
     - ContactPerson: Deal contact name
@@ -129,7 +129,7 @@ Customer (Active)
     - Notes: "Auto-created from deal conversion (DEAL-XXX)"
   - Set `deal.CustomerID` = new customer ID
   - Optional: User bisa skip auto-create jika customer sudah dipilih saat create deal
-- [ ] **3.2 Keep ConvertToQuotation Flow** — Tetap bisa convert ke quotation setelah deal won (existing flow)
+- [x] **3.2 Keep ConvertToQuotation Flow** — Tetap bisa convert ke quotation setelah deal won (existing flow)
 
 ---
 
@@ -184,21 +184,21 @@ Customer (Active)
 
 ### Phase 7: Frontend — Lead Detail Redesign (Activities Embedded)
 
-- [ ] **7.1 Add Activity Timeline Tab** — Di lead detail, tambah tab "Activities" yang menampilkan:
+- [x] **7.1 Add Activity Timeline Tab** — Di lead detail, tambah tab "Activities" yang menampilkan:
   - Timeline view semua activities yang tertaut ke lead_id
   - Setiap entry: icon type, title, result/notes, timestamp, employee name
   - Sorted by newest first
   - Badge untuk activity type (Call, Email, Visit, Meeting, Follow Up)
-- [ ] **7.2 Add "Log Activity" Button** — Di lead detail, tambah tombol untuk log activity baru:
+- [x] **7.2 Add "Log Activity" Button** — Di lead detail, tambah tombol untuk log activity baru:
   - Quick form: Type dropdown, Title, Result, Notes
   - Auto-fill `lead_id` dari current lead
   - Setelah submit, refresh activity timeline
-- [ ] **7.3 Add Converted Badge** — Jika lead sudah converted:
+- [x] **7.3 Add Converted Badge** — Jika lead sudah converted:
   - Tampilkan badge/chip "Converted → Pipeline" dengan icon link
   - Badge clickable → redirect ke `/crm/pipeline/{deal_id}` (deal detail page)
   - Badge color: hijau (success variant)
   - Tampilkan di header area lead detail dan juga di lead list table
-- [ ] **7.4 Update Lead List Table** — Tambah kolom/indicator:
+- [x] **7.4 Update Lead List Table** — Tambah kolom/indicator:
   - "Converted" badge di status column jika lead sudah converted
   - Badge clickable → navigate ke deal detail
   - Tooltip: "View in Pipeline: {deal title}"
@@ -252,7 +252,7 @@ Customer (Active)
 
 ### Phase 10: Frontend — Converted Badge Component (Reusable)
 
-- [ ] **10.1 Create ConvertedBadge Component** — Reusable badge component:
+- [x] **10.1 Create ConvertedBadge Component** — Reusable badge component:
   ```typescript
   interface ConvertedBadgeProps {
     type: "lead-to-deal" | "deal-to-quotation" | "deal-to-customer";
@@ -268,13 +268,13 @@ Customer (Active)
     - `lead-to-deal`: Blue (info)
     - `deal-to-quotation`: Purple (special)
     - `deal-to-customer`: Green (success)
-- [ ] **10.2 Integrate ConvertedBadge di Lead Detail** — Tampilkan setelah lead converted
-- [ ] **10.3 Integrate ConvertedBadge di Lead List** — Tampilkan di baris tabel lead yang sudah converted
-- [ ] **10.4 Integrate ConvertedBadge di Deal Detail** — Tampilkan untuk:
+- [x] **10.2 Integrate ConvertedBadge di Lead Detail** — Tampilkan setelah lead converted
+- [x] **10.3 Integrate ConvertedBadge di Lead List** — Tampilkan di baris tabel lead yang sudah converted
+- [x] **10.4 Integrate ConvertedBadge di Deal Detail** — Tampilkan untuk:
   - Origin: "From Lead: LEAD-XXX" (link back ke lead)
   - Result: "Converted to Quotation: QUO-XXX" (existing)
   - Customer: "Customer Created: PT XXX" (saat deal won)
-- [ ] **10.5 Integrate ConvertedBadge di Kanban Card** — Tampilkan mini badge di deal card jika sudah converted
+- [x] **10.5 Integrate ConvertedBadge di Kanban Card** — Tampilkan mini badge di deal card jika sudah converted
 
 ---
 

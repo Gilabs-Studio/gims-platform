@@ -26,6 +26,8 @@ export const crmLeadEn = {
     openInMaps: "Open in Maps",
     noLocation: "No location set",
     pickLocationDesc: "Click on the map or drag the marker to set the lead's location",
+    potentialCustomer: "Potential Customer",
+    updatedAt: "Updated at",
     allStatuses: "All Statuses",
     allSources: "All Sources",
     tabs: {
@@ -46,6 +48,8 @@ export const crmLeadEn = {
       location: "Location",
       conversionReadiness: "Conversion Readiness",
       activities: "Activities",
+      customer: "Customer",
+      dates: "Dates",
     },
     analytics: {
       title: "Lead Analytics",

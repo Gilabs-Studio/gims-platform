@@ -79,6 +79,8 @@ export interface DealLeadInfo {
   first_name: string;
   last_name: string;
   company_name: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface DealProductItem {

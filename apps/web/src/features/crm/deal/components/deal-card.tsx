@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Calendar, DollarSign, FileText, User } from "lucide-react";
+import { Building2, Calendar, DollarSign, ExternalLink, FileText, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { Link } from "@/i18n/routing";
 import type { Deal } from "../types";
 
 interface DealCardProps {
@@ -63,14 +64,28 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           </Badge>
         </div>
 
-        {/* Converted to SQ badge */}
+        {/* Origin — from lead */}
+        {deal.lead_id && deal.lead && (
+          <Link
+            href={`/crm/leads/${deal.lead_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">{deal.lead.code ?? `${deal.lead.first_name} ${deal.lead.last_name}`}</span>
+          </Link>
+        )}
+
+        {/* Converted to SQ */}
         {converted && (
-          <div className="flex items-center gap-1.5">
-            <Badge variant="success" className="text-xs gap-1">
-              <FileText className="h-3 w-3" />
-              {t("convertedToSQBadge")}
-            </Badge>
-          </div>
+          <Link
+            href={`/sales/quotations/${deal.converted_to_quotation_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">{t("convertedToSQBadge")}</span>
+          </Link>
         )}
 
         {/* Quick convert action for won deals that are not yet converted */}

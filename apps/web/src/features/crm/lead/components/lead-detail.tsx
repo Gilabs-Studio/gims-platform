@@ -9,6 +9,7 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
+  DollarSign,
   ExternalLink,
   FileText,
   History,
@@ -73,20 +74,7 @@ function getSortOrder(status: LeadStatusOption): number {
   return STATUS_ORDER_FALLBACK[status.code?.toLowerCase() ?? ""] ?? 99;
 }
 
-function BANTIndicator({ confirmed, label }: { confirmed: boolean; label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      {confirmed ? (
-        <CheckCircle2 className="h-4 w-4 text-green-500" />
-      ) : (
-        <XCircle className="h-4 w-4 text-muted-foreground" />
-      )}
-      <span className={`text-sm ${confirmed ? "font-medium" : "text-muted-foreground"}`}>
-        {label}
-      </span>
-    </div>
-  );
-}
+
 
 function InfoRow({
   icon: Icon,
@@ -440,6 +428,20 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {lead.first_name} {lead.last_name}
                 </h1>
+                {lead.lead_status && (
+                  <Badge
+                    variant="outline"
+                    style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
+                    className={isConverted && lead.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                    onClick={
+                      isConverted && lead.deal_id
+                        ? () => router.push(`/crm/pipeline/${lead.deal_id}`)
+                        : undefined
+                    }
+                  >
+                    {lead.lead_status.name}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">{lead.code}</p>
             </div>
@@ -579,94 +581,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 />
               </TabsContent>
 
-              {/* ── Information Tab: Contact, BANT, Conversion Readiness ── */}
+              {/* ── Information Tab: Location, Classification, Scoring, Conversion Readiness ── */}
               <TabsContent value="information" className="mt-4 space-y-4">
-                {/* Contact Information */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {t("sections.contactInfo")}
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <InfoRow icon={Mail} label={t("form.email")} value={lead.email} href={lead.email ? `mailto:${lead.email}` : undefined} />
-                    <InfoRow icon={Phone} label={t("form.phone")} value={lead.phone} href={lead.phone ? formatWhatsAppLink(lead.phone) : undefined} />
-                    <InfoRow icon={MapPin} label={t("form.address")} value={lead.address} />
-                    <InfoRow icon={MapPin} label={t("form.city")} value={lead.city} />
-                    <InfoRow icon={MapPin} label={t("form.province")} value={lead.province} />
-                    <InfoRow icon={FileText} label={t("form.npwp")} value={lead.npwp} />
-                  </div>
-                </div>
-
-                {/* BANT Qualification */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {t("sections.bant")}
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
-                    <div className="space-y-2">
-                      <BANTIndicator confirmed={lead.budget_confirmed} label={t("form.budgetConfirmed")} />
-                      {lead.budget_confirmed && lead.budget_amount > 0 && (
-                        <p className="text-sm text-muted-foreground ml-6">{formatCurrency(lead.budget_amount)}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <BANTIndicator confirmed={lead.auth_confirmed} label={t("form.authConfirmed")} />
-                      {lead.auth_confirmed && lead.auth_person && (
-                        <p className="text-sm text-muted-foreground ml-6">{lead.auth_person}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <BANTIndicator confirmed={lead.need_confirmed} label={t("form.needConfirmed")} />
-                      {lead.need_confirmed && lead.need_description && (
-                        <p className="text-sm text-muted-foreground ml-6">{lead.need_description}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <BANTIndicator confirmed={lead.time_confirmed} label={t("form.timeConfirmed")} />
-                      {lead.time_confirmed && lead.time_expected && (
-                        <p className="text-sm text-muted-foreground ml-6">{formatDate(lead.time_expected)}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conversion Readiness */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <Target className="h-3.5 w-3.5" />
-                      {t("sections.conversionReadiness")}
-                    </h4>
-                    {!isConverted && canConvert && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="cursor-pointer h-7 text-xs"
-                        onClick={() => setShowConvertDialog(true)}
-                      >
-                        <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
-                        {t("convertTitle")}
-                      </Button>
-                    )}
-                  </div>
-                  <ConversionReadiness fields={conversionFields} />
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* ── Right column: Basic Info, Location, Classification, Assignment, Scoring, Conversion, Dates ── */}
-              <div className="space-y-4">
-                {/* Basic Information (moved to right sidebar) */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {t("sections.basicInfo")}
-                  </h4>
-                  <InfoRow icon={User} label={t("form.firstName")} value={lead.first_name} />
-                  <InfoRow icon={User} label={t("form.lastName")} value={lead.last_name} />
-                  <InfoRow icon={Building2} label={t("form.companyName")} value={lead.company_name} />
-                  <InfoRow icon={Briefcase} label={t("form.jobTitle")} value={lead.job_title} />
-                </div>
-
                 {/* Location / Map */}
                 <div className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between">
@@ -750,6 +666,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       )}
                     </div>
                   )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InfoRow icon={MapPin} label={t("form.address")} value={lead.address} />
+                    <InfoRow icon={MapPin} label={t("form.city")} value={lead.city} />
+                    <InfoRow icon={MapPin} label={t("form.province")} value={lead.province} />
+                    <InfoRow icon={FileText} label={t("form.npwp")} value={lead.npwp} />
+                  </div>
                 </div>
 
                 {/* Classification */}
@@ -761,17 +684,6 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     <div>
                       <p className="text-xs text-muted-foreground">{t("form.leadSource")}</p>
                       <p className="text-sm font-medium">{lead.lead_source.name}</p>
-                    </div>
-                  )}
-                  {lead.lead_status && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t("form.leadStatus")}</p>
-                      <Badge
-                        variant="outline"
-                        style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                      >
-                        {lead.lead_status.name}
-                      </Badge>
                     </div>
                   )}
                   {lead.place_id && lead.place_id.startsWith("http") && (
@@ -806,28 +718,6 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   )}
                 </div>
 
-                {/* Assignment */}
-                {lead.assigned_employee && (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {t("sections.assignment")}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage
-                          src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(lead.assigned_employee.employee_code)}`}
-                          alt={lead.assigned_employee.name}
-                        />
-                        <AvatarFallback dataSeed={lead.assigned_employee.employee_code} className="text-xs">
-                          {lead.assigned_employee.name}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{lead.assigned_employee.name}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{lead.assigned_employee.employee_code}</p>
-                  </div>
-                )}
-
                 {/* Scoring */}
                 <div className="rounded-lg border p-3 space-y-3">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -853,10 +743,155 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   </div>
                 </div>
 
+                {/* Conversion Readiness */}
+                <div className="rounded-lg border p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5" />
+                      {t("sections.conversionReadiness")}
+                    </h4>
+                    {!isConverted && canConvert && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer h-7 text-xs"
+                        onClick={() => setShowConvertDialog(true)}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
+                        {t("convertTitle")}
+                      </Button>
+                    )}
+                  </div>
+                  <ConversionReadiness fields={conversionFields} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* ── Right column: Customer, Contact, Assignment, BANT, Conversion, Dates ── */}
+              <div className="space-y-4">
+                {/* Customer (Potential) */}
+                <div className="rounded-lg border p-3 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    {t("sections.customer")}
+                  </h4>
+                  {lead.company_name ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{lead.company_name}</span>
+                      </div>
+                      {lead.job_title && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Briefcase className="h-3 w-3" />
+                          {lead.job_title}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">-</p>
+                  )}
+                  {!lead.customer_id && (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-600/40">
+                      {t("potentialCustomer")}
+                    </Badge>
+                  )}
+                  {lead.customer_id && lead.customer && (
+                    <Link
+                      href={`/customers/${lead.customer_id}`}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {lead.customer.name}
+                    </Link>
+                  )}
+                </div>
+
+                {/* Contact */}
+                <div className="rounded-lg border p-3 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    {t("sections.contactInfo")}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {lead.first_name} {lead.last_name}
+                    </span>
+                  </div>
+                  {lead.phone && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      <a href={formatWhatsAppLink(lead.phone)} target="_blank" rel="noopener noreferrer" className="hover:text-primary cursor-pointer">
+                        {lead.phone}
+                      </a>
+                    </div>
+                  )}
+                  {lead.email && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3" />
+                      <a href={`mailto:${lead.email}`} className="hover:text-primary cursor-pointer">
+                        {lead.email}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Assignment */}
+                {lead.assigned_employee && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                      {t("sections.assignment")}
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage
+                          src={`https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(lead.assigned_employee.employee_code)}`}
+                          alt={lead.assigned_employee.name}
+                        />
+                        <AvatarFallback dataSeed={lead.assigned_employee.employee_code} className="text-xs">
+                          {lead.assigned_employee.name}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{lead.assigned_employee.name}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* BANT Qualification */}
+                <div className="rounded-lg border p-3 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    {t("sections.bant")}
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${lead.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                      <span>{t("form.budgetConfirmed")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${lead.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                      <span>{t("form.authConfirmed")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${lead.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                      <span>{t("form.needConfirmed")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${lead.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                      <span>{t("form.timeConfirmed")}</span>
+                    </div>
+                  </div>
+                  {lead.budget_confirmed && lead.budget_amount > 0 && (
+                    <div className="flex items-center gap-1 text-xs">
+                      <DollarSign className="h-3 w-3" />
+                      <span>{formatCurrency(lead.budget_amount)}</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Conversion details (only when converted) */}
                 {isConverted && (
                   <div className="rounded-lg border p-3 space-y-3">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                       {t("sections.conversion")}
                     </h4>
                     {lead.converted_at && (
@@ -865,20 +900,22 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                         <span>{formatDate(lead.converted_at)}</span>
                       </div>
                     )}
-                    {lead.customer && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("form.convertCustomer")}</p>
-                        <p className="text-sm font-medium">{lead.customer.name}</p>
-                        <p className="text-xs text-muted-foreground">{lead.customer.code}</p>
-                      </div>
-                    )}
                     {lead.deal_id && (
                       <Link
                         href={`/crm/pipeline/${lead.deal_id}`}
-                        className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
                       >
                         <ExternalLink className="h-3 w-3" />
-                        {t("viewDeal")}
+                        {lead.deal?.code ?? lead.deal?.title ?? "Deal"}
+                      </Link>
+                    )}
+                    {lead.customer_id && lead.customer && (
+                      <Link
+                        href={`/customers/${lead.customer_id}`}
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {lead.customer.name}
                       </Link>
                     )}
                   </div>
@@ -886,16 +923,18 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
                 {/* Dates */}
                 <div className="rounded-lg border p-3 space-y-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {t("table.createdAt")}
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    {t("sections.dates")}
                   </h4>
                   <div className="flex items-center gap-2 text-xs">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatDate(lead.created_at)}</span>
+                    <span>{t("table.createdAt")}:</span>
+                    <span className="font-medium">{formatDate(lead.created_at)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    <span>{formatDate(lead.updated_at)}</span>
+                    <span>{t("updatedAt")}:</span>
+                    <span className="font-medium">{formatDate(lead.updated_at)}</span>
                   </div>
                 </div>
               </div>

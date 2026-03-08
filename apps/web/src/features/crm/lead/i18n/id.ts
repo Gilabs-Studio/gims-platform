@@ -26,6 +26,8 @@ export const crmLeadId = {
     openInMaps: "Buka di Maps",
     noLocation: "Belum ada lokasi",
     pickLocationDesc: "Klik pada peta atau seret penanda untuk mengatur lokasi lead",
+    potentialCustomer: "Pelanggan Potensial",
+    updatedAt: "Diperbarui",
     allStatuses: "Semua Status",
     allSources: "Semua Sumber",
     tabs: {
@@ -46,6 +48,8 @@ export const crmLeadId = {
       location: "Lokasi",
       conversionReadiness: "Kesiapan Konversi",
       activities: "Aktivitas",
+      customer: "Pelanggan",
+      dates: "Tanggal",
     },
     analytics: {
       title: "Analitik Lead",

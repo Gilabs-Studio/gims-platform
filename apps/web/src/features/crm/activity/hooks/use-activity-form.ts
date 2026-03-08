@@ -13,9 +13,10 @@ export interface UseActivityFormProps {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   defaultLeadId?: string;
+  defaultDealId?: string;
 }
 
-export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId }: UseActivityFormProps) {
+export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId, defaultDealId }: UseActivityFormProps) {
   const t = useTranslations("crmActivity");
   const tCommon = useTranslations("common");
 
@@ -48,7 +49,7 @@ export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId }
       activity_type_id: "",
       customer_id: "",
       contact_id: "",
-      deal_id: "",
+      deal_id: defaultDealId || "",
       lead_id: defaultLeadId || "",
       employee_id: "",
       description: "",
@@ -56,7 +57,7 @@ export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId }
     },
   });
 
-  // Re-populate lead_id whenever the dialog opens (handles subsequent opens)
+  // Re-populate contextual IDs whenever the dialog opens (handles subsequent opens)
   useEffect(() => {
     if (open) {
       form.reset({
@@ -64,7 +65,7 @@ export function useActivityForm({ open, onOpenChange, onSuccess, defaultLeadId }
         activity_type_id: "",
         customer_id: "",
         contact_id: "",
-        deal_id: "",
+        deal_id: defaultDealId || "",
         lead_id: defaultLeadId || "",
         employee_id: "",
         description: "",

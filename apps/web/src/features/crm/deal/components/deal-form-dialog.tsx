@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -577,25 +578,44 @@ export function DealFormDialog({
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("unitPrice")}</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.unit_price`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        currency
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("qty")}</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.quantity`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("discountPct")} (%)</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.discount_percent`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.discount_percent`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
@@ -634,7 +654,17 @@ export function DealFormDialog({
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("budgetAmount")}</FieldLabel>
-                          <Input type="number" {...register("budget_amount", { valueAsNumber: true })} />
+                          <Controller
+                            name="budget_amount"
+                            control={control}
+                            render={({ field }) => (
+                              <NumericInput
+                                currency
+                                value={field.value}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
                         </Field>
 
                         <div className="flex items-center gap-2">
@@ -711,7 +741,17 @@ export function DealFormDialog({
                         ) : (
                           <Field orientation="vertical">
                             <FieldLabel>{t("value")}</FieldLabel>
-                            <Input type="number" {...register("value", { valueAsNumber: true })} />
+                            <Controller
+                              name="value"
+                              control={control}
+                              render={({ field }) => (
+                                <NumericInput
+                                  currency
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                />
+                              )}
+                            />
                           </Field>
                         )}
 

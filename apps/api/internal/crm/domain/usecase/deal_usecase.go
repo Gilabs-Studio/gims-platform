@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -12,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -511,6 +514,13 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		deal.CloseReason = ""
 	}
 
+	// Capture lead data before nil-ing preloaded associations
+	var leadData *models.Lead
+	if deal.Lead != nil {
+		l := *deal.Lead
+		leadData = &l
+	}
+
 	// Nil out preloaded associations before Save to prevent GORM BelongsTo FK override
 	deal.PipelineStage = nil
 	deal.Customer = nil
@@ -521,6 +531,13 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 
 	if err := u.dealRepo.Update(ctx, deal); err != nil {
 		return dto.MoveDealStageResponse{}, fmt.Errorf("failed to update deal stage: %w", err)
+	}
+
+	// Auto-create customer + contact when deal is won and no customer assigned yet
+	if toStage.IsWon && deal.CustomerID == nil {
+		if err := u.autoCreateCustomerFromDeal(ctx, deal, leadData, changedBy); err != nil {
+			log.Printf("Warning: auto-create customer failed for deal %s: %v", id, err)
+		}
 	}
 
 	// Reload with preloaded relations
@@ -906,4 +923,122 @@ func (u *dealUsecase) StockCheck(ctx context.Context, dealID string) (dto.StockC
 		Items:         items,
 		AllSufficient: allSufficient,
 	}, nil
+}
+
+// autoCreateCustomerFromDeal creates a customer and contact from the deal's associated lead
+// when a deal moves to a Won stage and has no customer assigned yet.
+func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *models.Deal, leadData *models.Lead, changedBy string) error {
+	// Determine customer name from lead data or deal title
+	customerName := deal.Title
+	if leadData != nil {
+		if leadData.CompanyName != "" {
+			customerName = leadData.CompanyName
+		} else if leadData.FirstName != "" {
+			customerName = strings.TrimSpace(leadData.FirstName + " " + leadData.LastName)
+		}
+	}
+
+	code, err := u.customerRepo.GetNextCode(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to generate customer code: %w", err)
+	}
+
+	newCustomer := &customerModels.Customer{
+		ID:       uuid.New().String(),
+		Code:     code,
+		Name:     customerName,
+		IsActive: true,
+	}
+
+	// Map lead fields to customer if available
+	if leadData != nil {
+		newCustomer.Email = leadData.Email
+		newCustomer.ContactPerson = strings.TrimSpace(leadData.FirstName + " " + leadData.LastName)
+		newCustomer.Address = leadData.Address
+		newCustomer.ProvinceID = leadData.ProvinceID
+		newCustomer.CityID = leadData.CityID
+		newCustomer.DistrictID = leadData.DistrictID
+		newCustomer.NPWP = leadData.NPWP
+		newCustomer.Latitude = leadData.Latitude
+		newCustomer.Longitude = leadData.Longitude
+		newCustomer.Website = leadData.Website
+		newCustomer.Notes = fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code)
+		newCustomer.DefaultBusinessTypeID = leadData.BusinessTypeID
+		newCustomer.DefaultAreaID = leadData.AreaID
+		newCustomer.DefaultPaymentTermsID = leadData.PaymentTermsID
+
+		if leadData.VillageName != "" {
+			newCustomer.VillageName = &leadData.VillageName
+		}
+		if leadData.AssignedTo != nil {
+			newCustomer.DefaultSalesRepID = leadData.AssignedTo
+		}
+		if changedBy != "" {
+			newCustomer.CreatedBy = &changedBy
+		}
+	}
+
+	if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
+		return fmt.Errorf("failed to create customer: %w", err)
+	}
+
+	// Create contact from lead person info
+	var newContact *models.Contact
+	if leadData != nil && leadData.FirstName != "" {
+		contactName := strings.TrimSpace(leadData.FirstName + " " + leadData.LastName)
+		newContact = &models.Contact{
+			ID:         uuid.New().String(),
+			CustomerID: newCustomer.ID,
+			Name:       contactName,
+			Phone:      leadData.Phone,
+			Email:      leadData.Email,
+			Position:   leadData.JobTitle,
+			Notes:      fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code),
+			IsActive:   true,
+		}
+		if changedBy != "" {
+			newContact.CreatedBy = &changedBy
+		}
+
+		if err := u.contactRepo.Create(ctx, newContact); err != nil {
+			return fmt.Errorf("failed to create contact: %w", err)
+		}
+	}
+
+	// Update deal with customer and contact references
+	customerID := newCustomer.ID
+	deal.CustomerID = &customerID
+	if newContact != nil {
+		contactID := newContact.ID
+		deal.ContactID = &contactID
+	}
+	if err := u.dealRepo.Update(ctx, deal); err != nil {
+		return fmt.Errorf("failed to update deal with customer: %w", err)
+	}
+
+	// Update lead with customer and contact references
+	if leadData != nil {
+		leadData.CustomerID = &customerID
+		if newContact != nil {
+			contactID := newContact.ID
+			leadData.ContactID = &contactID
+		}
+		// Nil out preloaded associations to prevent GORM FK override
+		leadData.LeadSource = nil
+		leadData.LeadStatus = nil
+		leadData.AssignedEmployee = nil
+		leadData.Customer = nil
+		leadData.Contact = nil
+		leadData.Deal = nil
+		leadData.BusinessType = nil
+		leadData.Area = nil
+		leadData.PaymentTerms = nil
+		leadData.Activities = nil
+
+		if err := u.leadRepo.Update(ctx, leadData); err != nil {
+			log.Printf("Warning: failed to update lead %s with customer reference: %v", leadData.ID, err)
+		}
+	}
+
+	return nil
 }

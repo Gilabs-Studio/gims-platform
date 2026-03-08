@@ -37,6 +37,7 @@ type leadUsecase struct {
 	leadSourceRepo    repositories.LeadSourceRepository
 	dealRepo          repositories.DealRepository
 	pipelineStageRepo repositories.PipelineStageRepository
+	activityRepo      repositories.ActivityRepository
 	employeeRepo      orgRepos.EmployeeRepository
 	businessTypeRepo  orgRepos.BusinessTypeRepository
 	areaRepo          orgRepos.AreaRepository
@@ -50,6 +51,7 @@ func NewLeadUsecase(
 	leadSourceRepo repositories.LeadSourceRepository,
 	dealRepo repositories.DealRepository,
 	pipelineStageRepo repositories.PipelineStageRepository,
+	activityRepo repositories.ActivityRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 	businessTypeRepo orgRepos.BusinessTypeRepository,
 	areaRepo orgRepos.AreaRepository,
@@ -61,6 +63,7 @@ func NewLeadUsecase(
 		leadSourceRepo:    leadSourceRepo,
 		dealRepo:          dealRepo,
 		pipelineStageRepo: pipelineStageRepo,
+		activityRepo:      activityRepo,
 		employeeRepo:      employeeRepo,
 		businessTypeRepo:  businessTypeRepo,
 		areaRepo:          areaRepo,
@@ -331,6 +334,18 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	// Recalculate lead score after updates
 	lead.LeadScore = lead.CalculateLeadScore()
 
+	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	lead.LeadSource = nil
+	lead.LeadStatus = nil
+	lead.AssignedEmployee = nil
+	lead.Customer = nil
+	lead.Contact = nil
+	lead.Deal = nil
+	lead.BusinessType = nil
+	lead.Area = nil
+	lead.PaymentTerms = nil
+	lead.Activities = nil
+
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead: %w", err)
 	}
@@ -429,8 +444,9 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		NeedConfirmed:   lead.NeedConfirmed,
 		NeedDescription: lead.NeedDescription,
 		TimeConfirmed:   lead.TimeConfirmed,
-		Notes:           fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
-		CreatedBy:       &convertedBy,
+		// Use the lead's original notes so deal mirrors lead data exactly
+		Notes:     lead.Notes,
+		CreatedBy: &convertedBy,
 	}
 
 	if lead.TimeExpected != nil {
@@ -439,6 +455,30 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 
 	if err := u.dealRepo.Create(ctx, newDeal); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to create deal from lead: %w", err)
+	}
+
+	// Create initial stage history entry so the Information tab is never empty
+	initialHistory := &models.DealHistory{
+		DealID:        newDeal.ID,
+		ToStageID:     pipelineStageID,
+		ToProbability: newDeal.Probability,
+		ChangedAt:     now,
+		Reason:        fmt.Sprintf("Converted from lead %s", lead.Code),
+	}
+	// best-effort — do not block conversion if history creation fails
+	_ = u.dealRepo.CreateHistory(ctx, initialHistory)
+
+	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
+	if convertedBy != "" {
+		conversionActivity := &models.Activity{
+			Type:        "conversion",
+			DealID:      &newDeal.ID,
+			LeadID:      &lead.ID,
+			EmployeeID:  convertedBy,
+			Description: fmt.Sprintf("Lead %s (%s %s) dikonversi ke deal pipeline %s", lead.Code, lead.FirstName, lead.LastName, newDeal.Code),
+			Timestamp:   now,
+		}
+		_ = u.activityRepo.Create(ctx, conversionActivity)
 	}
 
 	// Update lead with conversion data
@@ -454,6 +494,18 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	}
 
 	lead.LeadScore = lead.CalculateLeadScore()
+
+	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	lead.LeadSource = nil
+	lead.LeadStatus = nil
+	lead.AssignedEmployee = nil
+	lead.Customer = nil
+	lead.Contact = nil
+	lead.Deal = nil
+	lead.BusinessType = nil
+	lead.Area = nil
+	lead.PaymentTerms = nil
+	lead.Activities = nil
 
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead conversion: %w", err)

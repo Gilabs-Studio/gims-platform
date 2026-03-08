@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   DollarSign,
   ExternalLink,
   FileText,
+  History,
   Mail,
   Package,
   Pencil,
@@ -41,6 +42,8 @@ import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
 import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { DealStockCheck } from "./deal-stock-check";
+import { DealActivityFeed } from "./deal-activity-feed";
+import { ActivityFormDialog } from "@/features/crm/activity/components/activity-form-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
@@ -78,6 +81,8 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showMoveStage, setShowMoveStage] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
 
   const deal: Deal | undefined = response?.data;
 
@@ -146,6 +151,38 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">{deal.code}</p>
+              {/* Conversion links */}
+              {(deal.lead_id || deal.converted_to_quotation_id || deal.customer_id) && (
+                <div className="flex items-center gap-3 mt-2 flex-wrap text-xs">
+                  {deal.lead_id && deal.lead && (
+                    <Link
+                      href={`/crm/leads/${deal.lead_id}`}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {deal.lead.code ?? `${deal.lead.first_name} ${deal.lead.last_name}`}
+                    </Link>
+                  )}
+                  {deal.converted_to_quotation_id && (
+                    <Link
+                      href={`/sales/quotations/${deal.converted_to_quotation_id}`}
+                      className="flex items-center gap-1 text-primary hover:underline cursor-pointer transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {t("conversion.viewQuotation")}
+                    </Link>
+                  )}
+                  {deal.customer_id && deal.customer && (
+                    <Link
+                      href={`/customers/${deal.customer_id}`}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {deal.customer.name}
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -199,23 +236,6 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           </div>
         </div>
 
-        {/* Conversion status banner */}
-        {deal.converted_to_quotation_id && (
-          <div className="flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
-            <ReceiptText className="h-5 w-5 text-green-600 shrink-0" />
-            <div className="flex-1 text-sm">
-              <span className="font-medium text-green-700">{t("conversion.alreadyConverted")}</span>
-            </div>
-            <Link
-              href={`/sales/quotations/${deal.converted_to_quotation_id}`}
-              className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer shrink-0"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {t("conversion.viewQuotation")}
-            </Link>
-          </div>
-        )}
-
         {/* Key metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="rounded-lg border p-3">
@@ -258,129 +278,263 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               </div>
             )}
 
-            {/* Tabs: Product Items / History */}
-            <Tabs defaultValue="items">
-              <TabsList>
-                <TabsTrigger value="items" className="cursor-pointer">
-                  <Package className="h-4 w-4 mr-1" />
-                  {t("productItems")} ({deal.items?.length ?? 0})
-                </TabsTrigger>
-                <TabsTrigger value="history" className="cursor-pointer">
-                  <FileText className="h-4 w-4 mr-1" />
-                  {t("history")}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="items" className="mt-3">
-                {!deal.items || deal.items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    {t("noItems")}
-                  </p>
-                ) : (
-                  <div className="rounded-lg border overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left p-3 font-medium">{t("product")}</th>
-                          <th className="text-right p-3 font-medium">{t("unitPrice")}</th>
-                          <th className="text-right p-3 font-medium">{t("qty")}</th>
-                          <th className="text-right p-3 font-medium">{t("discountPct")}</th>
-                          <th className="text-right p-3 font-medium">{t("subtotal")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {deal.items.map((item) => (
-                          <tr key={item.id} className="border-t">
-                            <td className="p-3">
-                              <p className="font-medium">{item.product_name}</p>
-                              {item.product_sku && (
-                                <p className="text-xs text-muted-foreground">{item.product_sku}</p>
-                              )}
-                            </td>
-                            <td className="text-right p-3">{formatCurrency(item.unit_price)}</td>
-                            <td className="text-right p-3">{item.quantity}</td>
-                            <td className="text-right p-3">
-                              {item.discount_percent > 0 ? `${item.discount_percent}%` : "-"}
-                            </td>
-                            <td className="text-right p-3 font-medium">
-                              {formatCurrency(item.subtotal)}
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="border-t bg-muted/30">
-                          <td colSpan={4} className="text-right p-3 font-semibold">
-                            {t("total")}
-                          </td>
-                          <td className="text-right p-3 font-semibold">
-                            {formatCurrency(deal.value)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Stock availability check for deal items */}
-                {deal.items && deal.items.length > 0 && (
-                  <div className="mt-4">
-                    <DealStockCheck dealId={deal.id} />
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="history" className="mt-3">
-                <DealHistoryTimeline dealId={deal.id} />
-              </TabsContent>
-            </Tabs>
-
             {/* Notes */}
             {deal.notes && (
-              <div className="rounded-lg border p-4">
-                <h4 className="text-sm font-semibold mb-2">{t("notes")}</h4>
+              <div className="rounded-lg border p-4 space-y-2">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("notes")}</h4>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {deal.notes}
                 </p>
               </div>
             )}
+
+            {/* Tabs: Activities / Product Items / Information */}
+            <Tabs
+              defaultValue="activities"
+              onValueChange={(v) => setVisitedTabs((prev) => new Set([...prev, v]))}
+            >
+              <TabsList>
+                <TabsTrigger value="activities" className="cursor-pointer">
+                  <History className="h-4 w-4 mr-1" />
+                  {t("activities")}
+                </TabsTrigger>
+                <TabsTrigger value="items" className="cursor-pointer">
+                  <Package className="h-4 w-4 mr-1" />
+                  {t("productItems")} ({deal.items?.length ?? 0})
+                </TabsTrigger>
+                <TabsTrigger value="information" className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-1" />
+                  {t("information")}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="activities" className="mt-3">
+                {visitedTabs.has("activities") && (
+                  <DealActivityFeed
+                    dealId={deal.id}
+                    leadId={deal.lead_id ?? undefined}
+                    canCreateActivity={true}
+                    onLogActivity={() => setShowActivityDialog(true)}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="items" className="mt-3">
+                {visitedTabs.has("items") && (
+                  <>
+                    {!deal.items || deal.items.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">
+                        {t("noItems")}
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left p-3 font-medium">{t("product")}</th>
+                              <th className="text-right p-3 font-medium">{t("unitPrice")}</th>
+                              <th className="text-right p-3 font-medium">{t("qty")}</th>
+                              <th className="text-right p-3 font-medium">{t("discountPct")}</th>
+                              <th className="text-right p-3 font-medium">{t("subtotal")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deal.items.map((item) => (
+                              <tr key={item.id} className="border-t">
+                                <td className="p-3">
+                                  <p className="font-medium">{item.product_name}</p>
+                                  {item.product_sku && (
+                                    <p className="text-xs text-muted-foreground">{item.product_sku}</p>
+                                  )}
+                                </td>
+                                <td className="text-right p-3">{formatCurrency(item.unit_price)}</td>
+                                <td className="text-right p-3">{item.quantity}</td>
+                                <td className="text-right p-3">
+                                  {item.discount_percent > 0 ? `${item.discount_percent}%` : "-"}
+                                </td>
+                                <td className="text-right p-3 font-medium">
+                                  {formatCurrency(item.subtotal)}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="border-t bg-muted/30">
+                              <td colSpan={4} className="text-right p-3 font-semibold">
+                                {t("total")}
+                              </td>
+                              <td className="text-right p-3 font-semibold">
+                                {formatCurrency(deal.value)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Stock availability check for deal items */}
+                    {deal.items && deal.items.length > 0 && (
+                      <div className="mt-4">
+                        <DealStockCheck dealId={deal.id} />
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="information" className="mt-3">
+                {visitedTabs.has("information") && (
+                  <div className="space-y-4">
+                    {/* BANT Details */}
+                    <div className="rounded-lg border p-4 space-y-3">
+                      <h4 className="text-sm font-semibold">{t("bantTitle")}</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase">{t("budget")}</span>
+                          </div>
+                          {deal.budget_amount > 0 && (
+                            <p className="text-sm font-medium pl-3.5">{formatCurrency(deal.budget_amount)}</p>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase">{t("authority")}</span>
+                          </div>
+                          {deal.auth_person && (
+                            <p className="text-sm pl-3.5">{deal.auth_person}</p>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase">{t("need")}</span>
+                          </div>
+                          {deal.need_description && (
+                            <p className="text-sm pl-3.5 text-muted-foreground whitespace-pre-wrap">{deal.need_description}</p>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase">{t("timeline")}</span>
+                          </div>
+                          {deal.expected_close_date && (
+                            <p className="text-sm pl-3.5">{formatDate(deal.expected_close_date)}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stage Transition History */}
+                    <div className="rounded-lg border p-4">
+                      <h4 className="text-sm font-semibold mb-3">{t("history")}</h4>
+                      <DealHistoryTimeline dealId={deal.id} />
+                    </div>
+
+                    {/* Close reason when deal is closed */}
+                    {deal.close_reason && (
+                      <div className="rounded-lg border p-4 space-y-1">
+                        <h4 className="text-sm font-semibold">{t("closeReason")}</h4>
+                        <p className="text-sm text-muted-foreground">{deal.close_reason}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Right: sidebar */}
           <div className="space-y-4">
-            {/* Customer */}
-            {deal.customer && (
+            {/* Customer — show actual customer OR potential from lead company */}
+            {(deal.customer || deal.lead?.company_name) && (
               <div className="rounded-lg border p-3 space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                  {t("customer")}
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    {t("customer")}
+                  </h4>
+                  {!deal.customer && (
+                    <Badge variant="outline" className="text-xs">
+                      {t("potential")}
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{deal.customer.name}</span>
+                  <span className="text-sm font-medium">
+                    {deal.customer?.name ?? deal.lead!.company_name}
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{deal.customer.code}</p>
+                {deal.customer && (
+                  <p className="text-xs text-muted-foreground">{deal.customer.code}</p>
+                )}
               </div>
             )}
 
             {/* Contact */}
-            {deal.contact && (
+            {(deal.contact || (deal.lead && (deal.lead.phone || deal.lead.email))) && (
               <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                   {t("contact")}
                 </h4>
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{deal.contact.name}</span>
-                </div>
-                {deal.contact.phone && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Phone className="h-3 w-3" />
-                    {deal.contact.phone}
-                  </div>
-                )}
-                {deal.contact.email && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Mail className="h-3 w-3" />
-                    {deal.contact.email}
-                  </div>
+                {deal.contact ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{deal.contact.name}</span>
+                    </div>
+                    {deal.contact.phone && (
+                      <a
+                        href={`https://wa.me/${deal.contact.phone.replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <Phone className="h-3 w-3" />
+                        {deal.contact.phone}
+                      </a>
+                    )}
+                    {deal.contact.email && (
+                      <a
+                        href={`mailto:${deal.contact.email}`}
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <Mail className="h-3 w-3" />
+                        {deal.contact.email}
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        {deal.lead!.first_name} {deal.lead!.last_name}
+                      </span>
+                    </div>
+                    {deal.lead!.phone && (
+                      <a
+                        href={`https://wa.me/${deal.lead!.phone.replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <Phone className="h-3 w-3" />
+                        {deal.lead!.phone}
+                      </a>
+                    )}
+                    {deal.lead!.email && (
+                      <a
+                        href={`mailto:${deal.lead!.email}`}
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <Mail className="h-3 w-3" />
+                        {deal.lead!.email}
+                      </a>
+                    )}
+                    <p className="text-xs text-muted-foreground/70 italic">{t("fromLead")}</p>
+                  </>
                 )}
               </div>
             )}
@@ -552,6 +706,18 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Log activity dialog */}
+      <ActivityFormDialog
+        open={showActivityDialog}
+        onClose={() => setShowActivityDialog(false)}
+        dealId={deal.id}
+        leadId={deal.lead_id ?? undefined}
+        onSuccess={() => {
+          setShowActivityDialog(false);
+          refetch();
+        }}
+      />
     </PageMotion>
   );
 }

@@ -96,6 +96,8 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 			FirstName:   deal.Lead.FirstName,
 			LastName:    deal.Lead.LastName,
 			CompanyName: deal.Lead.CompanyName,
+			Phone:       deal.Lead.Phone,
+			Email:       deal.Lead.Email,
 		}
 	}
 

@@ -31,6 +31,7 @@ interface ActivityFormDialogProps {
   readonly onClose: () => void;
   readonly onSuccess?: () => void;
   readonly leadId?: string;
+  readonly dealId?: string;
 }
 
 export function ActivityFormDialog({
@@ -38,6 +39,7 @@ export function ActivityFormDialog({
   onClose,
   onSuccess,
   leadId,
+  dealId,
 }: ActivityFormDialogProps) {
   const t = useTranslations("crmActivity");
   const tCommon = useTranslations("common");
@@ -52,6 +54,7 @@ export function ActivityFormDialog({
     },
     onSuccess,
     defaultLeadId: leadId,
+    defaultDealId: dealId,
   };
 
   const { form, onSubmit, isSubmitting } = useActivityForm(formProps);

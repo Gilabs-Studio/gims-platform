@@ -188,6 +188,8 @@ type DealLeadInfo struct {
 	FirstName   string `json:"first_name"`
 	LastName    string `json:"last_name"`
 	CompanyName string `json:"company_name"`
+	Phone       string `json:"phone"`
+	Email       string `json:"email"`
 }
 
 // DealFormDataResponse holds all options required by the deal form

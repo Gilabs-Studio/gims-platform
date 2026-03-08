@@ -183,7 +183,7 @@ export function LeadList() {
               </TableRow>
             ) : (
               data.items.map((item) => {
-                const isConverted = !!item.customer_id;
+                const isConverted = !!item.converted_at;
                 const statusColor = item.lead_status?.color ?? undefined;
 
                 return (
@@ -221,6 +221,15 @@ export function LeadList() {
                       <Badge
                         variant="outline"
                         style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
+                        className={isConverted && item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                        onClick={
+                          isConverted && item.deal_id
+                            ? (e) => {
+                                e.stopPropagation();
+                                router.push(`/crm/pipeline/${item.deal_id}`);
+                              }
+                            : undefined
+                        }
                       >
                         {item.lead_status?.name ?? "-"}
                       </Badge>
