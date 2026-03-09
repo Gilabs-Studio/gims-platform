@@ -101,8 +101,6 @@ type TaskLeadInfo struct {
 // TaskFormDataResponse returns dropdown options for task forms
 type TaskFormDataResponse struct {
 	Employees []TaskEmployeeOption `json:"employees"`
-	Customers []TaskCustomerOption `json:"customers"`
-	Contacts  []TaskContactOption  `json:"contacts"`
 	Deals     []TaskDealOption     `json:"deals"`
 	Leads     []TaskLeadOption     `json:"leads"`
 }
@@ -112,20 +110,6 @@ type TaskEmployeeOption struct {
 	ID           string `json:"id"`
 	EmployeeCode string `json:"employee_code"`
 	Name         string `json:"name"`
-}
-
-// TaskCustomerOption represents a customer option for task forms
-type TaskCustomerOption struct {
-	ID   string `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
-}
-
-// TaskContactOption represents a contact option for task forms
-type TaskContactOption struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
 }
 
 // TaskDealOption represents a deal option for task forms

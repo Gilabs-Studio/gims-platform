@@ -9,6 +9,10 @@ import {
   AlertTriangle,
   Tag,
   Bell,
+  PlayCircle,
+  CheckCircle2,
+  XCircle,
+  UserCircle2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -18,7 +22,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/routing";
 import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { useCompleteTask, useMarkTaskInProgress, useCancelTask } from "../hooks/use-tasks";
 import type { Task } from "../types";
 
 const STATUS_VARIANT_MAP: Record<
@@ -51,10 +60,12 @@ function InfoRow({
   icon: Icon,
   label,
   value,
+  href,
 }: {
   readonly icon: React.ComponentType<{ className?: string }>;
   readonly label: string;
   readonly value: string | null | undefined;
+  readonly href?: string;
 }) {
   if (!value) return null;
   return (
@@ -62,7 +73,13 @@ function InfoRow({
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium wrap-break-word">{value}</p>
+        {href ? (
+          <Link href={href as Parameters<typeof Link>[0]["href"]} className="text-sm font-medium text-primary hover:underline">
+            {value}
+          </Link>
+        ) : (
+          <p className="text-sm font-medium wrap-break-word">{value}</p>
+        )}
       </div>
     </div>
   );
@@ -74,8 +91,51 @@ export function TaskDetailDialog({
   task,
 }: TaskDetailDialogProps) {
   const t = useTranslations("crmTask");
+  const tCommon = useTranslations("common");
+
+  const canUpdate = useUserPermission("crm_task.update");
+  const canViewDeal = useUserPermission("crm_deal.read");
+  const canViewLead = useUserPermission("crm_lead.read");
+  const completeMutation = useCompleteTask();
+  const inProgressMutation = useMarkTaskInProgress();
+  const cancelMutation = useCancelTask();
+
+  const handleComplete = async () => {
+    if (!task) return;
+    try {
+      await completeMutation.mutateAsync(task.id);
+      toast.success(t("completed"));
+      onClose();
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const handleInProgress = async () => {
+    if (!task) return;
+    try {
+      await inProgressMutation.mutateAsync(task.id);
+      toast.success(t("inProgress"));
+      onClose();
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!task) return;
+    try {
+      await cancelMutation.mutateAsync(task.id);
+      toast.success(t("cancelled"));
+      onClose();
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
 
   if (!task) return null;
+
+  const isActionable = canUpdate && task.status !== "completed" && task.status !== "cancelled";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -151,6 +211,13 @@ export function TaskDetailDialog({
               icon={Handshake}
               label={t("form.deal")}
               value={task.deal?.title}
+              href={canViewDeal && task.deal ? `/crm/pipeline/${task.deal.id}` : undefined}
+            />
+            <InfoRow
+              icon={UserCircle2}
+              label={t("form.lead")}
+              value={task.lead?.name}
+              href={canViewLead && task.lead ? `/crm/leads/${task.lead.id}` : undefined}
             />
             <InfoRow
               icon={Clock}
@@ -191,6 +258,44 @@ export function TaskDetailDialog({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Action buttons — only for active tasks the user has permission to update */}
+          {isActionable && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t">
+              {task.status === "pending" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleInProgress}
+                  disabled={inProgressMutation.isPending}
+                  className="cursor-pointer"
+                >
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  {t("actions.inProgress")}
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleComplete}
+                disabled={completeMutation.isPending}
+                className="cursor-pointer"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {t("actions.complete")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancel}
+                disabled={cancelMutation.isPending}
+                className="cursor-pointer text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                {t("actions.cancel")}
+              </Button>
             </div>
           )}
         </div>

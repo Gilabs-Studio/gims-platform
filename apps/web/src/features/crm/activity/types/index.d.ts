@@ -93,6 +93,14 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+export interface VisitProductInterest {
+  product_name: string;
+  product_sku?: string;
+  interest_level: number;
+  quantity?: number;
+  notes?: string;
+}
+
 export interface VisitActivityMetadata {
   visit_code?: string;
   purpose?: string;
@@ -106,4 +114,5 @@ export interface VisitActivityMetadata {
   check_out_lng?: number | null;
   address?: string;
   contact_person?: string;
+  products?: VisitProductInterest[];
 }

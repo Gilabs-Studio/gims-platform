@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, Loader2, Camera, X, Check, CalendarIcon } from "lucide-react";
+import { MapPin, Loader2, Camera, X, Check, CalendarIcon, Plus, Trash2, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useCreateVisitReport } from "../hooks/use-visit-reports";
+import { useCreateVisitReport, useVisitReportFormData } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
 import { activityKeys } from "@/features/crm/activity/hooks/use-activities";
 import { toast } from "sonner";
@@ -62,6 +62,12 @@ interface GpsState {
   accuracy: number;
 }
 
+interface ProductInterestItem {
+  product_id: string;
+  interest_level: number;
+  notes: string;
+}
+
 export function LogVisitDialog({
   open,
   onClose,
@@ -79,6 +85,8 @@ export function LogVisitDialog({
   const tCommon = useTranslations("common");
   const qc = useQueryClient();
   const createMutation = useCreateVisitReport();
+  const { data: formDataRes } = useVisitReportFormData({ enabled: open });
+  const products = formDataRes?.data?.products ?? [];
 
   // Form state
   const [purpose, setPurpose] = useState("");
@@ -87,6 +95,7 @@ export function LogVisitDialog({
   const [selectedContactId, setSelectedContactId] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [productItems, setProductItems] = useState<ProductInterestItem[]>([]);
 
   // GPS check-in state only (checkout is a separate action)
   const [checkInGps, setCheckInGps] = useState<GpsState | null>(null);
@@ -123,6 +132,7 @@ export function LogVisitDialog({
     setCapturingGps(false);
     setUploadingPhoto(false);
     setCalendarOpen(false);
+    setProductItems([]);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -214,6 +224,13 @@ export function LogVisitDialog({
       purpose: purpose.trim(),
       contact_person: contactPerson.trim() || undefined,
       contact_phone: contactPhone.trim() || undefined,
+      details: productItems
+        .filter((pi) => pi.product_id)
+        .map((pi) => ({
+          product_id: pi.product_id,
+          interest_level: pi.interest_level,
+          notes: pi.notes || undefined,
+        })),
     };
 
     try {
@@ -257,7 +274,7 @@ export function LogVisitDialog({
     purpose, selectedDate, selectedTime,
     defaultEmployeeId, leadId, dealId, customerId, contactId,
     contactPerson, contactPhone, checkInGps,
-    photos, createMutation, handleClose, onSuccess,
+    photos, productItems, createMutation, handleClose, onSuccess,
     qc, t, tCommon,
   ]);
 
@@ -409,6 +426,83 @@ export function LogVisitDialog({
 
           {/* Date + Time */}
           <div className="grid grid-cols-2 gap-3">
+
+          {/* Product Interest */}
+          <div className="col-span-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5" />
+                {t("sections.productInterest")}
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="cursor-pointer gap-1 text-xs h-7"
+                onClick={() => setProductItems((prev) => [...prev, { product_id: "", interest_level: 3, notes: "" }])}
+              >
+                <Plus className="h-3 w-3" /> {tCommon("add")}
+              </Button>
+            </div>
+            {productItems.length > 0 && (
+              <div className="space-y-2">
+                {productItems.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-2 rounded border p-2">
+                    <div className="flex-1 space-y-1.5">
+                      <Select
+                        value={item.product_id}
+                        onValueChange={(val) =>
+                          setProductItems((prev) =>
+                            prev.map((p, i) => (i === idx ? { ...p, product_id: val } : p))
+                          )
+                        }
+                      >
+                        <SelectTrigger className="cursor-pointer h-8 text-xs">
+                          <SelectValue placeholder={t("form.selectProduct")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="cursor-pointer text-xs">
+                              {p.name} {p.code && `(${p.code})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs whitespace-nowrap">{t("form.interestLevel")}</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={5}
+                          value={item.interest_level}
+                          onChange={(e) =>
+                            setProductItems((prev) =>
+                              prev.map((p, i) =>
+                                i === idx ? { ...p, interest_level: Math.min(5, Math.max(0, Number(e.target.value))) } : p
+                              )
+                            )
+                          }
+                          className="h-7 w-16 text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {"★".repeat(item.interest_level)}{"☆".repeat(5 - item.interest_level)}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 cursor-pointer text-destructive"
+                      onClick={() => setProductItems((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
             <div className="space-y-1.5">
               <Label>{t("form.visitDate")}</Label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>

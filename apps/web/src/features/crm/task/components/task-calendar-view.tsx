@@ -5,13 +5,12 @@ import {
   Calendar as CalendarIcon,
   Clock,
   MapPin,
-  User,
+  AlertTriangle,
   Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -20,15 +19,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "@/i18n/routing";
 import { ScheduleDetailDialog } from "@/features/crm/schedule/components/schedule-detail-dialog";
 import { useSchedules } from "@/features/crm/schedule/hooks/use-schedules";
+import { useTasks } from "@/features/crm/task/hooks/use-tasks";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import type { Schedule } from "@/features/crm/schedule/types";
+import type { Task } from "@/features/crm/task/types";
 
 const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline",
-  confirmed: "secondary",
+  confirmed: "default",
   completed: "default",
   cancelled: "destructive",
 };
@@ -42,11 +46,16 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 
 export function TaskCalendarView() {
   const t = useTranslations("crmSchedule");
+  const tTask = useTranslations("crmTask");
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [detailItem, setDetailItem] = useState<Schedule | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+
+  const canViewLead = useUserPermission("crm_lead.read");
+  const canViewDeal = useUserPermission("crm_deal.read");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const { data: allSchedulesRes, isLoading } = useSchedules({
     page: 1,
@@ -54,7 +63,13 @@ export function TaskCalendarView() {
     status: statusFilter || undefined,
   });
 
+  const { data: overdueTasksRes } = useTasks({
+    is_overdue: true,
+    per_page: 50,
+  });
+
   const allItems = allSchedulesRes?.data ?? [];
+  const overdueItems: Task[] = overdueTasksRes?.data ?? [];
 
   const scheduleDatesMap = useMemo(() => {
     const map = new Map<string, Schedule[]>();
@@ -100,10 +115,10 @@ export function TaskCalendarView() {
         </Select>
       </div>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>{t("autoCreatedFromTask")}</AlertDescription>
-      </Alert>
+      <div className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm text-muted-foreground">
+        <Info className="h-4 w-4 shrink-0" />
+        <span>{t("autoCreatedFromTask")}</span>
+      </div>
 
       {/* Calendar + Schedule List grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
@@ -132,56 +147,145 @@ export function TaskCalendarView() {
           </div>
         </div>
 
-        {/* Schedule list for selected date */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold">
-            <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-            {selectedDate
-              ? selectedDate.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-              : t("title")}
-          </div>
+        {/* Right panel: overdue + date-based schedules */}
+        <div className="space-y-6">
 
-          {isLoading ? (
+          {/* Overdue Tasks Section */}
+          {overdueItems.length > 0 && (
             <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="rounded-lg border p-4 space-y-2">
-                  <Skeleton className="h-5 w-48" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              ))}
+              <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {tTask("overdue")}
+                <span className="text-xs font-normal text-muted-foreground">({overdueItems.length})</span>
+              </div>
+              <div className="space-y-2">
+                {overdueItems.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2"
+                  >
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <span className="font-medium text-sm line-clamp-1 flex-1">{task.title}</span>
+                      <Badge variant="destructive" className="text-xs shrink-0">
+                        {tTask(`priorities.${task.priority}` as Parameters<typeof tTask>[0])}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {task.assigned_to_employee && (
+                        <span className="flex items-center gap-1.5">
+                          <Avatar className="h-5 w-5 shrink-0">
+                            <AvatarFallback dataSeed={task.assigned_to_employee.name} />
+                          </Avatar>
+                          {task.assigned_to_employee.name}
+                        </span>
+                      )}
+                      {task.due_date && (
+                        <span className="flex items-center gap-1 text-destructive font-medium">
+                          <Clock className="h-3 w-3" />
+                          {formatDate(task.due_date)}
+                        </span>
+                      )}
+                    </div>
+
+                    {(task.lead ?? task.deal ?? task.customer) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        {task.lead && (
+                          canViewLead ? (
+                            <Link
+                              href={`/crm/leads/${task.lead.id}`}
+                              className="text-xs text-primary hover:underline font-medium"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {task.lead.name}
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{task.lead.name}</span>
+                          )
+                        )}
+                        {task.deal && (
+                          canViewDeal ? (
+                            <Link
+                              href={`/crm/pipeline/${task.deal.id}`}
+                              className="text-xs text-primary hover:underline font-medium"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {task.deal.title}
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{task.deal.title}</span>
+                          )
+                        )}
+                        {task.customer && (
+                          canViewCustomer ? (
+                            <Link
+                              href={`/master-data/customers/${task.customer.id}`}
+                              className="text-xs text-primary hover:underline font-medium"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {task.customer.name}
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{task.customer.name}</span>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : selectedDateSchedules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
+          )}
+
+          {/* Schedule list for selected date */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-lg font-semibold">
+              <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+              {selectedDate
+                ? selectedDate.toLocaleDateString(undefined, {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : t("title")}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {selectedDateSchedules.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => setDetailItem(item)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setDetailItem(item);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1.5 min-w-0 flex-1">
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border p-4 space-y-2">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                ))}
+              </div>
+            ) : selectedDateSchedules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedDateSchedules.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setDetailItem(item)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetailItem(item);
+                      }
+                    }}
+                  >
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-medium text-sm">{item.title}</h4>
-                        <Badge variant={STATUS_VARIANT_MAP[item.status] ?? "outline"} className="text-xs">
+                        <h4 className="font-medium text-sm flex-1 line-clamp-1">{item.title}</h4>
+                        <Badge variant={STATUS_VARIANT_MAP[item.status] ?? "outline"} className="text-xs shrink-0">
                           {t(`statuses.${item.status}` as Parameters<typeof t>[0])}
                         </Badge>
                       </div>
@@ -193,8 +297,10 @@ export function TaskCalendarView() {
                           {item.end_at && ` - ${formatDate(item.end_at)}`}
                         </span>
                         {item.employee && (
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
+                          <span className="flex items-center gap-1.5">
+                            <Avatar className="h-5 w-5 shrink-0">
+                              <AvatarFallback dataSeed={item.employee.name} />
+                            </Avatar>
                             {item.employee.name}
                           </span>
                         )}
@@ -207,16 +313,22 @@ export function TaskCalendarView() {
                       </div>
 
                       {item.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
                           {item.description}
+                        </p>
+                      )}
+
+                      {item.task && (
+                        <p className="text-xs text-muted-foreground/70 line-clamp-1">
+                          {tTask("form.title")}: {item.task.title}
                         </p>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

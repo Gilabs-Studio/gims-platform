@@ -67,6 +67,7 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   activities?: ActivityResponse[] | null;
+  product_items?: LeadProductItem[] | null;
 }
 
 export interface LeadSourceInfo {
@@ -379,4 +380,18 @@ export interface ApiResponse<T> {
   data: T;
   meta?: { pagination?: PaginationMeta; filters?: Record<string, unknown> };
   error?: string;
+}
+
+export interface LeadProductItem {
+  id: string;
+  lead_id: string;
+  product_id?: string | null;
+  product_name: string;
+  product_sku: string;
+  interest_level: number;
+  quantity: number;
+  unit_price: number;
+  notes: string;
+  source_visit_report_id?: string | null;
+  created_at: string;
 }

@@ -10,6 +10,7 @@ export const crmTaskEn = {
     assigned: "Task assigned successfully",
     completed: "Task marked as completed",
     inProgress: "Task marked as in progress",
+    cancelled: "Task cancelled",
     addTask: "Create Task",
     searchPlaceholder: "Search tasks...",
     emptyState: "No tasks found",
@@ -58,6 +59,7 @@ export const crmTaskEn = {
       statusPlaceholder: "Select status",
       dueDate: "Due Date",
       dueDatePlaceholder: "Select due date",
+      dueTime: "Due Time",
       assignedTo: "Assigned To",
       assignedToPlaceholder: "Select employee",
       assignedFrom: "Assigned By",
@@ -80,6 +82,7 @@ export const crmTaskEn = {
       assign: "Assign",
       complete: "Mark Complete",
       inProgress: "Mark In Progress",
+      cancel: "Cancel Task",
     },
     reminder: {
       title: "Reminders",

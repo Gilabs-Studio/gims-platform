@@ -64,5 +64,11 @@ export const crmActivityId = {
       timestamp: "Tanggal & Waktu",
       createdAt: "Dibuat",
     },
+    productInterest: {
+      title: "Minat Produk",
+      product: "Produk",
+      interest: "Minat",
+      qty: "Qty",
+    },
   },
 };

@@ -35,6 +35,11 @@ const (
 	TaskID2 = "d1000001-0000-0000-0000-000000000002"
 	TaskID3 = "d1000001-0000-0000-0000-000000000003"
 	TaskID4 = "d1000001-0000-0000-0000-000000000004"
+	// Admin user tasks (prefix: d1 continued)
+	TaskID5 = "d1000001-0000-0000-0000-000000000005"
+	TaskID6 = "d1000001-0000-0000-0000-000000000006"
+	TaskID7 = "d1000001-0000-0000-0000-000000000007"
+	TaskID8 = "d1000001-0000-0000-0000-000000000008"
 
 	// Reminders (prefix: d2)
 	ReminderID1 = "d2000001-0000-0000-0000-000000000001"
@@ -316,8 +321,6 @@ func seedCRMTasks() error {
 			DueDate:      &dueTomorrow,
 			AssignedTo:   &salesRep1,
 			AssignedFrom: &manager,
-			CustomerID:   strPtr(Customer1ID),
-			ContactID:    strPtr(ContactID1),
 			LeadID:       strPtr(LeadID1),
 			CreatedBy:    &adminID,
 		},
@@ -330,8 +333,6 @@ func seedCRMTasks() error {
 			Priority:    "urgent",
 			DueDate:     &dueNextWeek,
 			AssignedTo:  &salesRep2,
-			CustomerID:  strPtr(Customer4ID),
-			ContactID:   strPtr(ContactID4),
 			DealID:      strPtr(DealID1),
 			CreatedBy:   &adminID,
 		},
@@ -344,8 +345,6 @@ func seedCRMTasks() error {
 			Priority:    "medium",
 			DueDate:     &dueTomorrow,
 			AssignedTo:  &salesRep2,
-			CustomerID:  strPtr(Customer3ID),
-			ContactID:   strPtr(ContactID3),
 			LeadID:      strPtr(LeadID3),
 			CreatedBy:   &adminID,
 		},
@@ -358,9 +357,58 @@ func seedCRMTasks() error {
 			Priority:    "high",
 			DueDate:     &dueYesterday,
 			AssignedTo:  &financeStaff,
-			CustomerID:  strPtr(Customer5ID),
-			ContactID:   strPtr(ContactID5),
 			CreatedBy:   &adminID,
+		},
+		// Admin user tasks — used to test action buttons as the admin account
+		{
+			ID:           TaskID5,
+			Title:        "Review Q4 Sales Pipeline",
+			Description:  "Analyze all active deals in the pipeline and prioritize closing opportunities",
+			Type:         "general",
+			Status:       "pending",
+			Priority:     "high",
+			DueDate:      &dueNextWeek,
+			AssignedTo:   &adminID,
+			AssignedFrom: &adminID,
+			DealID:       strPtr(DealID1),
+			CreatedBy:    &adminID,
+		},
+		{
+			ID:           TaskID6,
+			Title:        "Prepare monthly CRM activity report",
+			Description:  "Compile activity logs and visit reports for the monthly management review",
+			Type:         "general",
+			Status:       "in_progress",
+			Priority:     "medium",
+			DueDate:      &dueNextWeek,
+			AssignedTo:   &adminID,
+			AssignedFrom: &adminID,
+			CreatedBy:    &adminID,
+		},
+		{
+			ID:           TaskID7,
+			Title:        "System onboarding check for new leads",
+			Description:  "Verify that newly imported leads have correct assignment and contact info",
+			Type:         "general",
+			Status:       "completed",
+			Priority:     "low",
+			DueDate:      &dueYesterday,
+			AssignedTo:   &adminID,
+			AssignedFrom: &adminID,
+			LeadID:       strPtr(LeadID2),
+			CreatedBy:    &adminID,
+		},
+		{
+			ID:           TaskID8,
+			Title:        "Send product brochure to PT Kimia Farma",
+			Description:  "Email updated product brochure with pricing to the purchasing contact",
+			Type:         "email",
+			Status:       "pending",
+			Priority:     "urgent",
+			DueDate:      &dueTomorrow,
+			AssignedTo:   &adminID,
+			AssignedFrom: &manager,
+			CreatedBy:    &adminID,
 		},
 	}
 

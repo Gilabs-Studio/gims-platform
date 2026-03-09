@@ -278,6 +278,25 @@ func (h *TaskHandler) MarkInProgress(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
+// Cancel handles POST request to cancel a task
+func (h *TaskHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "ID is required",
+		}, nil)
+		return
+	}
+
+	result, err := h.uc.Cancel(c.Request.Context(), id)
+	if err != nil {
+		handleTaskError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // GetFormData handles GET request to get form data for task forms
 func (h *TaskHandler) GetFormData(c *gin.Context) {
 	formData, err := h.uc.GetFormData(c.Request.Context())
@@ -451,6 +470,14 @@ func handleTaskError(c *gin.Context, err error) {
 		}, nil)
 	case "cannot reopen a completed or cancelled task":
 		errors.ErrorResponse(c, "CRM_TASK_STATE_INVALID", map[string]interface{}{
+			"message": err.Error(),
+		}, nil)
+	case "task is already cancelled":
+		errors.ErrorResponse(c, "CRM_TASK_ALREADY_CANCELLED", map[string]interface{}{
+			"message": err.Error(),
+		}, nil)
+	case "cannot cancel a completed task":
+		errors.ErrorResponse(c, "CRM_TASK_ALREADY_COMPLETED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
 	case "reminder not found":

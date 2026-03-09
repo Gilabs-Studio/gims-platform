@@ -9,15 +9,18 @@ import {
   Circle,
   Clock,
   ListTodo,
-  Plus,
+  Pencil,
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "@/i18n/routing";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { useCompleteTask } from "../hooks/use-tasks";
 import { TaskDetailDialog } from "./task-detail-dialog";
+import { TaskFormDialog } from "./task-form-dialog";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
 import type { Task } from "../types";
@@ -39,21 +42,21 @@ const PRIORITY_COLORS: Record<string, string> = {
 interface TaskEmbedListProps {
   tasks: Task[];
   isLoading: boolean;
-  canCreate: boolean;
-  onAddTask: () => void;
   emptyMessage: string;
 }
 
 export function TaskEmbedList({
   tasks,
   isLoading,
-  canCreate,
-  onAddTask,
   emptyMessage,
 }: TaskEmbedListProps) {
   const t = useTranslations("crmTask");
+  const tCommon = useTranslations("common");
   const completeMutation = useCompleteTask();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const canViewDeal = useUserPermission("crm_deal.read");
+  const canViewLead = useUserPermission("crm_lead.read");
 
   const handleComplete = async (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -80,36 +83,12 @@ export function TaskEmbedList({
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <ListTodo className="h-10 w-10 text-muted-foreground/40 mb-3" />
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-        {canCreate && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3 cursor-pointer"
-            onClick={onAddTask}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("title")}
-          </Button>
-        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      {canCreate && (
-        <div className="flex justify-end mb-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="cursor-pointer"
-            onClick={onAddTask}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("title")}
-          </Button>
-        </div>
-      )}
 
       {tasks.map((task) => {
         const StatusIcon = STATUS_ICON[task.status] ?? Circle;
@@ -142,7 +121,7 @@ export function TaskEmbedList({
               <p
                 className={cn(
                   "text-sm font-medium truncate",
-                  task.status === "completed" && "line-through text-muted-foreground"
+                  task.status === "completed" && "relative text-muted-foreground after:absolute after:inset-x-0 after:top-1/2 after:h-px after:bg-current"
                 )}
               >
                 {task.title}
@@ -165,6 +144,37 @@ export function TaskEmbedList({
                   </span>
                 )}
               </div>
+              {/* Deal / Lead chips */}
+              {(task.deal ?? task.lead) && (
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                  {task.deal && (
+                    canViewDeal ? (
+                      <Link
+                        href={`/crm/pipeline/${task.deal.id}`}
+                        className="text-[10px] text-primary hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {task.deal.title}
+                      </Link>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">{task.deal.title}</span>
+                    )
+                  )}
+                  {task.lead && (
+                    canViewLead ? (
+                      <Link
+                        href={`/crm/leads/${task.lead.id}`}
+                        className="text-[10px] text-primary hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {task.lead.name}
+                      </Link>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">{task.lead.name}</span>
+                    )
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Assigned employee avatar */}
@@ -179,6 +189,19 @@ export function TaskEmbedList({
                     .toUpperCase()}
                 </AvatarFallback>
               </Avatar>
+            )}
+
+            {/* Edit action */}
+            {isActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 cursor-pointer text-xs"
+                onClick={(e) => { e.stopPropagation(); setEditingTask(task); }}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                {tCommon("edit")}
+              </Button>
             )}
 
             {/* Quick complete action — stop propagation to avoid opening detail */}
@@ -202,6 +225,13 @@ export function TaskEmbedList({
         open={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         task={selectedTask}
+      />
+
+      <TaskFormDialog
+        open={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        task={editingTask}
+        onSuccess={() => setEditingTask(null)}
       />
     </div>
   );

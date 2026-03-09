@@ -21,6 +21,7 @@ export const crmDealId = {
     information: "Informasi",
     tasks: "Tugas",
     noTasks: "Belum ada tugas",
+    createTask: "Buat Tugas",
     addTask: "Tambah Tugas",
     visitReport: "Laporan Kunjungan",
     visitReports: "Laporan Kunjungan",

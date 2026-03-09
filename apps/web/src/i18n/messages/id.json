@@ -48,7 +48,9 @@
     "createdBy": "Dibuat oleh",
     "days": "hari",
     "validationError": "Periksa kembali isian form",
-    "myActivities": "Aktivitas Saya"
+    "myActivities": "Aktivitas Saya",
+    "add": "Tambah",
+    "remove": "Hapus"
   },
   "notFound": {
     "label": "404",

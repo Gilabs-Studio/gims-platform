@@ -21,6 +21,7 @@ export const crmDealEn = {
     information: "Information",
     tasks: "Tasks",
     noTasks: "No tasks yet",
+    createTask: "Create Task",
     addTask: "Add Task",
     visitReport: "Visit Report",
     visitReports: "Visit Reports",

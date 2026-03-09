@@ -29,6 +29,7 @@ type LeadUsecase interface {
 	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
 	GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error)
 	GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error)
+	GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error)
 }
 
 type leadUsecase struct {
@@ -468,6 +469,27 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	// best-effort — do not block conversion if history creation fails
 	_ = u.dealRepo.CreateHistory(ctx, initialHistory)
 
+	// Copy lead product items to deal product items
+	leadProducts, lpErr := u.leadRepo.ListProductItems(ctx, lead.ID)
+	if lpErr == nil && len(leadProducts) > 0 {
+		dealItems := make([]models.DealProductItem, 0, len(leadProducts))
+		for _, lp := range leadProducts {
+			item := models.DealProductItem{
+				DealID:      newDeal.ID,
+				ProductID:   lp.ProductID,
+				ProductName: lp.ProductName,
+				ProductSKU:  lp.ProductSKU,
+				UnitPrice:   lp.UnitPrice,
+				Quantity:    lp.Quantity,
+				Notes:       lp.Notes,
+			}
+			item.Subtotal = item.UnitPrice * float64(item.Quantity)
+			dealItems = append(dealItems, item)
+		}
+		// best-effort — do not block conversion if product copy fails
+		_ = u.dealRepo.CreateItems(ctx, dealItems)
+	}
+
 	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
 	if convertedBy != "" {
 		conversionActivity := &models.Activity{
@@ -839,4 +861,28 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 func (u *leadUsecase) GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error) {
 	return u.leadRepo.GetAnalytics(ctx)
+}
+
+func (u *leadUsecase) GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error) {
+	items, err := u.leadRepo.ListProductItems(ctx, leadID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]dto.LeadProductItemResponse, 0, len(items))
+	for _, item := range items {
+		result = append(result, dto.LeadProductItemResponse{
+			ID:                  item.ID,
+			LeadID:              item.LeadID,
+			ProductID:           item.ProductID,
+			ProductName:         item.ProductName,
+			ProductSKU:          item.ProductSKU,
+			InterestLevel:       item.InterestLevel,
+			Quantity:            item.Quantity,
+			UnitPrice:           item.UnitPrice,
+			Notes:               item.Notes,
+			SourceVisitReportID: item.SourceVisitReportID,
+			CreatedAt:           item.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		})
+	}
+	return result, nil
 }

@@ -21,6 +21,7 @@ import {
   ReceiptText,
   Trash2,
   User,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -362,13 +363,26 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
 
               <TabsContent value="tasks" className="mt-3">
                 {visitedTabs.has("tasks") && (
-                  <TaskEmbedList
-                    tasks={tasksData?.data ?? []}
-                    isLoading={isTasksLoading}
-                    canCreate={canCreateTask}
-                    onAddTask={() => setShowTaskDialog(true)}
-                    emptyMessage={t("noTasks")}
-                  />
+                  <>
+                    {canCreateTask && (
+                      <div className="flex justify-end mb-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() => setShowTaskDialog(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-1.5" />
+                          {t("createTask")}
+                        </Button>
+                      </div>
+                    )}
+                    <TaskEmbedList
+                      tasks={tasksData?.data ?? []}
+                      isLoading={isTasksLoading}
+                      emptyMessage={t("noTasks")}
+                    />
+                  </>
                 )}
               </TabsContent>
 
@@ -867,6 +881,8 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
         open={showTaskDialog}
         onClose={() => setShowTaskDialog(false)}
         defaultDealId={deal.id}
+        defaultLeadId={deal.lead_id ?? undefined}
+        defaultAssignedToId={deal.assigned_employee?.id}
         onSuccess={() => setShowTaskDialog(false)}
       />
 

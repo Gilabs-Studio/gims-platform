@@ -306,6 +306,25 @@ func (h *LeadHandler) GetAnalytics(c *gin.Context) {
 	response.SuccessResponse(c, analytics, nil)
 }
 
+// GetProductItems handles GET request to get product items for a lead
+func (h *LeadHandler) GetProductItems(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "ID is required",
+		}, nil)
+		return
+	}
+
+	items, err := h.uc.GetProductItems(c.Request.Context(), id)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, items, nil)
+}
+
 // handleLeadError maps business errors to appropriate HTTP responses
 func handleLeadError(c *gin.Context, err error) {
 	switch err.Error() {

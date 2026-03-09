@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { MapPin, LogOut, Loader2 } from "lucide-react";
+import { MapPin, LogOut, Loader2, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
   const checkInMutation = useCheckInVisitReport();
   const visitReportQuery = useVisitReportById(visitReportId ?? "");
   const t = useTranslations("crmVisitReport");
+  const ta = useTranslations("crmActivity");
 
   const handleCheckOut = useCallback(async () => {
     if (!visitReportId) return;
@@ -188,6 +189,43 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
       )}
 
       {/* duplicate checkout removed — actions are inline next to check-in */}
+
+      {/* Product interest table */}
+      {meta.products && meta.products.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Package className="h-3 w-3" />
+            {ta("productInterest.title")}
+          </div>
+          <div className="overflow-x-auto rounded border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="px-2 py-1 text-left font-medium">{ta("productInterest.product")}</th>
+                  <th className="px-2 py-1 text-center font-medium">{ta("productInterest.interest")}</th>
+                  <th className="px-2 py-1 text-center font-medium">{ta("productInterest.qty")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {meta.products.map((p, idx) => (
+                  <tr key={`${p.product_name}-${idx}`} className="border-t">
+                    <td className="px-2 py-1">
+                      <span>{p.product_name}</span>
+                      {p.product_sku && (
+                        <span className="ml-1 text-muted-foreground">({p.product_sku})</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
+                    </td>
+                    <td className="px-2 py-1 text-center">{p.quantity ?? "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Link to visit report detail */}
       {visitReportId && (

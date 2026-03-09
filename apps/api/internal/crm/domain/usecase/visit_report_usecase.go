@@ -39,19 +39,29 @@ const visitActivityTypeID = "ce000001-0000-0000-0000-000000000001"
 
 // VisitActivityMetadata defines the JSONB metadata structure for visit activities
 type VisitActivityMetadata struct {
-	VisitCode     string   `json:"visit_code"`
-	Purpose       string   `json:"purpose"`
-	Outcome       string   `json:"outcome"`
-	Result        string   `json:"result"`
-	Photos        []string `json:"photos"`
-	CheckInAt     *string  `json:"check_in_at,omitempty"`
-	CheckOutAt    *string  `json:"check_out_at,omitempty"`
-	CheckInLat    *float64 `json:"check_in_lat,omitempty"`
-	CheckInLng    *float64 `json:"check_in_lng,omitempty"`
-	CheckOutLat   *float64 `json:"check_out_lat,omitempty"`
-	CheckOutLng   *float64 `json:"check_out_lng,omitempty"`
-	Address       string   `json:"address"`
-	ContactPerson string   `json:"contact_person"`
+	VisitCode     string                    `json:"visit_code"`
+	Purpose       string                    `json:"purpose"`
+	Outcome       string                    `json:"outcome"`
+	Result        string                    `json:"result"`
+	Photos        []string                  `json:"photos"`
+	CheckInAt     *string                   `json:"check_in_at,omitempty"`
+	CheckOutAt    *string                   `json:"check_out_at,omitempty"`
+	CheckInLat    *float64                  `json:"check_in_lat,omitempty"`
+	CheckInLng    *float64                  `json:"check_in_lng,omitempty"`
+	CheckOutLat   *float64                  `json:"check_out_lat,omitempty"`
+	CheckOutLng   *float64                  `json:"check_out_lng,omitempty"`
+	Address       string                    `json:"address"`
+	ContactPerson string                    `json:"contact_person"`
+	Products      []VisitActivityProductInfo `json:"products,omitempty"`
+}
+
+// VisitActivityProductInfo holds product interest data embedded in activity metadata
+type VisitActivityProductInfo struct {
+	ProductName   string `json:"product_name"`
+	ProductSKU    string `json:"product_sku,omitempty"`
+	InterestLevel int    `json:"interest_level"`
+	Quantity      int    `json:"quantity,omitempty"`
+	Notes         string `json:"notes,omitempty"`
 }
 
 // VisitReportUsecase defines the interface for visit report business logic
@@ -456,6 +466,9 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 
 	// Auto-create activity on submit
 	u.autoCreateVisitActivity(ctx, id)
+
+	// Sync product interests to the associated lead
+	u.syncProductItemsToLead(ctx, id)
 
 	updated, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
@@ -889,6 +902,23 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
 	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
 
+	// Build product interest list from visit report details
+	var products []VisitActivityProductInfo
+	for _, detail := range visit.Details {
+		p := VisitActivityProductInfo{
+			InterestLevel: detail.InterestLevel,
+			Notes:         detail.Notes,
+		}
+		if detail.Product != nil {
+			p.ProductName = detail.Product.Name
+			p.ProductSKU = detail.Product.Sku
+		}
+		if detail.Quantity != nil {
+			p.Quantity = int(*detail.Quantity)
+		}
+		products = append(products, p)
+	}
+
 	metadata := VisitActivityMetadata{
 		VisitCode:     visit.Code,
 		Purpose:       visit.Purpose,
@@ -903,6 +933,7 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 		CheckOutLng:   checkOutLng,
 		Address:       visit.Address,
 		ContactPerson: visit.ContactPerson,
+		Products:      products,
 	}
 
 	metadataJSON, marshalErr := json.Marshal(metadata)
@@ -955,6 +986,82 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 
 	if createErr := u.activityRepo.Create(ctx, activity); createErr != nil {
 		fmt.Printf("[WARN] failed to auto-create activity for visit %s: %v\n", visit.Code, createErr)
+	}
+}
+
+// syncProductItemsToLead syncs visit report product interests to the associated lead's product items.
+// It merges by product_id: existing items are updated, new ones are appended.
+func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitReportID string) {
+	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
+	if err != nil || visit.LeadID == nil || len(visit.Details) == 0 {
+		return
+	}
+
+	leadID := *visit.LeadID
+
+	// Fetch existing product items for this lead
+	existing, err := u.leadRepo.ListProductItems(ctx, leadID)
+	if err != nil {
+		fmt.Printf("[WARN] failed to fetch lead product items for sync: %v\n", err)
+		return
+	}
+
+	// Build lookup map by product_id for dedup
+	existingByProductID := make(map[string]*models.LeadProductItem)
+	for i := range existing {
+		if existing[i].ProductID != nil {
+			existingByProductID[*existing[i].ProductID] = &existing[i]
+		}
+	}
+
+	var items []models.LeadProductItem
+	seen := make(map[string]bool)
+
+	for _, detail := range visit.Details {
+		if detail.ProductID == "" || seen[detail.ProductID] {
+			continue
+		}
+		seen[detail.ProductID] = true
+
+		productID := detail.ProductID
+		item := models.LeadProductItem{
+			LeadID:              leadID,
+			ProductID:           &productID,
+			InterestLevel:       detail.InterestLevel,
+			Notes:               detail.Notes,
+			SourceVisitReportID: &visitReportID,
+		}
+
+		if detail.Product != nil {
+			item.ProductName = detail.Product.Name
+			item.ProductSKU = detail.Product.Sku
+		}
+		if detail.Quantity != nil {
+			item.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			item.UnitPrice = *detail.Price
+		}
+
+		// Preserve existing item ID if same product exists to enable update instead of duplicate
+		if existingItem, ok := existingByProductID[productID]; ok {
+			item.ID = existingItem.ID
+		}
+
+		items = append(items, item)
+	}
+
+	// Also keep existing items whose product_id was NOT in this visit report
+	for pid, existingItem := range existingByProductID {
+		if !seen[pid] {
+			items = append(items, *existingItem)
+		}
+	}
+
+	if len(items) > 0 {
+		if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
+			fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
+		}
 	}
 }
 

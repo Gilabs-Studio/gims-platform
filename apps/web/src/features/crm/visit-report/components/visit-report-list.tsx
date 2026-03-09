@@ -159,20 +159,20 @@ export function VisitReportList() {
         {/* View mode toggle */}
         <div className="flex items-center rounded-md border p-0.5 ml-auto">
           <Button
-            variant={viewMode === "table" ? "secondary" : "ghost"}
-            size="icon"
-            className="cursor-pointer h-7 w-7"
-            onClick={() => setViewMode("table")}
-          >
-            <LayoutList className="h-4 w-4" />
-          </Button>
-          <Button
             variant={viewMode === "calendar" ? "secondary" : "ghost"}
             size="icon"
             className="cursor-pointer h-7 w-7"
             onClick={() => setViewMode("calendar")}
           >
             <CalendarDays className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="icon"
+            className="cursor-pointer h-7 w-7"
+            onClick={() => setViewMode("table")}
+          >
+            <LayoutList className="h-4 w-4" />
           </Button>
         </div>
       </div>

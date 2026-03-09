@@ -53,7 +53,9 @@
     "createdBy": "Created by",
     "days": "days",
     "validationError": "Please check the form for errors",
-    "myActivities": "My Activities"
+    "myActivities": "My Activities",
+    "add": "Add",
+    "remove": "Remove"
   },
   "notFound": {
     "label": "404",

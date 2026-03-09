@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taskService } from "../services/task-service";
+import { scheduleKeys } from "../../schedule/hooks/use-schedules";
 import type {
   TaskListParams,
   CreateTaskData,
@@ -50,6 +51,7 @@ export function useCreateTask() {
     mutationFn: (data: CreateTaskData) => taskService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
     },
   });
 }
@@ -61,6 +63,7 @@ export function useUpdateTask() {
       taskService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
     },
   });
 }
@@ -100,6 +103,16 @@ export function useMarkTaskInProgress() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => taskService.markInProgress(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+    },
+  });
+}
+
+export function useCancelTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => taskService.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },

@@ -16,12 +16,14 @@ import {
   Mail,
   MapPin,
   Navigation,
+  Package,
   Pencil,
   Phone,
   Target,
   Trash2,
   User,
   XCircle,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,7 @@ import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
 import { formatCurrency, formatDate, formatWhatsAppLink, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData } from "../hooks/use-leads";
+import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData, useLeadProductItems } from "../hooks/use-leads";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
@@ -318,6 +320,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
+  const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId);
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
@@ -587,6 +590,15 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="productItems" className="cursor-pointer gap-1.5">
+                  <Package className="h-4 w-4" />
+                  {t("tabs.productItems")}
+                  {(productItemsData?.data?.length ?? 0) > 0 && (
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                      {productItemsData!.data!.length}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="information" className="cursor-pointer">
                   {t("tabs.information")}
                 </TabsTrigger>
@@ -606,13 +618,72 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
               {/* ── Tasks Tab ── */}
               <TabsContent value="tasks" className="mt-4">
+                {canCreateTask && (
+                  <div className="flex justify-end mb-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() => setShowTaskDialog(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      {t("createTask")}
+                    </Button>
+                  </div>
+                )}
                 <TaskEmbedList
                   tasks={tasksData?.data ?? []}
                   isLoading={isTasksLoading}
-                  canCreate={canCreateTask}
-                  onAddTask={() => setShowTaskDialog(true)}
                   emptyMessage={t("noTasks")}
                 />
+              </TabsContent>
+
+              {/* ── Product Items Tab ── */}
+              <TabsContent value="productItems" className="mt-4">
+                {isProductItemsLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 w-full rounded" />
+                    ))}
+                  </div>
+                ) : (productItemsData?.data?.length ?? 0) === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Package className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">{t("productItems.empty")}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("productItems.emptyHint")}</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="px-3 py-2 text-left font-medium">{t("productItems.product")}</th>
+                          <th className="px-3 py-2 text-left font-medium">{t("productItems.sku")}</th>
+                          <th className="px-3 py-2 text-center font-medium">{t("productItems.interest")}</th>
+                          <th className="px-3 py-2 text-center font-medium">{t("productItems.qty")}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t("productItems.unitPrice")}</th>
+                          <th className="px-3 py-2 text-left font-medium">{t("productItems.notes")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productItemsData!.data!.map((item) => (
+                          <tr key={item.id} className="border-t">
+                            <td className="px-3 py-2 font-medium">{item.product_name}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{item.product_sku || "-"}</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="text-amber-500">
+                                {"★".repeat(item.interest_level)}{"☆".repeat(Math.max(0, 5 - item.interest_level))}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">{item.quantity}</td>
+                            <td className="px-3 py-2 text-right">{item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{item.notes || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </TabsContent>
 
               {/* ── Information Tab (other info) ── */}
@@ -1009,6 +1080,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
         open={showTaskDialog}
         onClose={() => setShowTaskDialog(false)}
         defaultLeadId={lead.id}
+        defaultAssignedToId={lead.assigned_employee?.id}
         onSuccess={() => setShowTaskDialog(false)}
       />
 

@@ -26,6 +26,7 @@ type TaskUsecase interface {
 	Assign(ctx context.Context, id string, req dto.AssignTaskRequest, assignedFrom string) (dto.TaskResponse, error)
 	Complete(ctx context.Context, id string) (dto.TaskResponse, error)
 	MarkInProgress(ctx context.Context, id string) (dto.TaskResponse, error)
+	Cancel(ctx context.Context, id string) (dto.TaskResponse, error)
 	GetFormData(ctx context.Context) (*dto.TaskFormDataResponse, error)
 	// Reminder nested CRUD
 	ListReminders(ctx context.Context, taskID string) ([]dto.ReminderResponse, error)
@@ -324,6 +325,32 @@ func (u *taskUsecase) MarkInProgress(ctx context.Context, id string) (dto.TaskRe
 	return mapper.ToTaskResponse(updated), nil
 }
 
+func (u *taskUsecase) Cancel(ctx context.Context, id string) (dto.TaskResponse, error) {
+	task, err := u.taskRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.TaskResponse{}, errors.New("task not found")
+	}
+
+	if task.Status == string(models.TaskStatusCancelled) {
+		return dto.TaskResponse{}, errors.New("task is already cancelled")
+	}
+	if task.Status == string(models.TaskStatusCompleted) {
+		return dto.TaskResponse{}, errors.New("cannot cancel a completed task")
+	}
+
+	task.Status = string(models.TaskStatusCancelled)
+
+	if err := u.taskRepo.Update(ctx, task); err != nil {
+		return dto.TaskResponse{}, fmt.Errorf("failed to cancel task: %w", err)
+	}
+
+	updated, err := u.taskRepo.FindByID(ctx, task.ID)
+	if err != nil {
+		return dto.TaskResponse{}, err
+	}
+	return mapper.ToTaskResponse(updated), nil
+}
+
 func (u *taskUsecase) GetFormData(ctx context.Context) (*dto.TaskFormDataResponse, error) {
 	// Fetch employees
 	employees, _, err := u.employeeRepo.List(ctx, orgRepos.EmployeeListParams{
@@ -336,34 +363,6 @@ func (u *taskUsecase) GetFormData(ctx context.Context) (*dto.TaskFormDataRespons
 	for _, emp := range employees {
 		employeeOptions = append(employeeOptions, dto.TaskEmployeeOption{
 			ID: emp.ID, EmployeeCode: emp.EmployeeCode, Name: emp.Name,
-		})
-	}
-
-	// Fetch customers
-	customers, _, err := u.customerRepo.List(ctx, customerRepos.CustomerListParams{
-		ListParams: customerRepos.ListParams{Search: "", SortBy: "name", SortDir: "ASC", Limit: 500},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch customers: %w", err)
-	}
-	customerOptions := make([]dto.TaskCustomerOption, 0, len(customers))
-	for _, cust := range customers {
-		customerOptions = append(customerOptions, dto.TaskCustomerOption{
-			ID: cust.ID, Code: cust.Code, Name: cust.Name,
-		})
-	}
-
-	// Fetch contacts
-	contacts, _, err := u.contactRepo.List(ctx, repositories.ContactListParams{
-		ListParams: repositories.ListParams{SortBy: "name", SortDir: "ASC", Limit: 500},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch contacts: %w", err)
-	}
-	contactOptions := make([]dto.TaskContactOption, 0, len(contacts))
-	for _, c := range contacts {
-		contactOptions = append(contactOptions, dto.TaskContactOption{
-			ID: c.ID, Name: c.Name, Email: c.Email,
 		})
 	}
 
@@ -393,8 +392,6 @@ func (u *taskUsecase) GetFormData(ctx context.Context) (*dto.TaskFormDataRespons
 
 	return &dto.TaskFormDataResponse{
 		Employees: employeeOptions,
-		Customers: customerOptions,
-		Contacts:  contactOptions,
 		Deals:     dealOptions,
 		Leads:     leadOptions,
 	}, nil

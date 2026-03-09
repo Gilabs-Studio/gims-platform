@@ -64,5 +64,11 @@ export const crmActivityEn = {
       timestamp: "Date & Time",
       createdAt: "Created",
     },
+    productInterest: {
+      title: "Product Interest",
+      product: "Product",
+      interest: "Interest",
+      qty: "Qty",
+    },
   },
 };

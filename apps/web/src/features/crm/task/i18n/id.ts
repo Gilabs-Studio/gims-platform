@@ -10,6 +10,7 @@ export const crmTaskId = {
     assigned: "Tugas berhasil ditugaskan",
     completed: "Tugas ditandai selesai",
     inProgress: "Tugas ditandai sedang dikerjakan",
+    cancelled: "Tugas dibatalkan",
     addTask: "Buat Tugas",
     searchPlaceholder: "Cari tugas...",
     emptyState: "Tidak ada tugas ditemukan",
@@ -58,6 +59,7 @@ export const crmTaskId = {
       statusPlaceholder: "Pilih status",
       dueDate: "Tenggat Waktu",
       dueDatePlaceholder: "Pilih tenggat waktu",
+      dueTime: "Jam Tenggat",
       assignedTo: "Ditugaskan Ke",
       assignedToPlaceholder: "Pilih karyawan",
       assignedFrom: "Ditugaskan Oleh",
@@ -80,6 +82,7 @@ export const crmTaskId = {
       assign: "Tugaskan",
       complete: "Tandai Selesai",
       inProgress: "Tandai Sedang Dikerjakan",
+      cancel: "Batalkan Tugas",
     },
     reminder: {
       title: "Pengingat",
