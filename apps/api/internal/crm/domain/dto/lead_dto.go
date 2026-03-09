@@ -207,6 +207,24 @@ type LeadResponse struct {
 	Activities []ActivityResponse `json:"activities,omitempty"`
 	// Tasks (populated on detail)
 	Tasks []TaskSummaryResponse `json:"tasks,omitempty"`
+	// Product items (populated on detail)
+	ProductItems []LeadProductItemResponse `json:"product_items,omitempty"`
+}
+
+// LeadProductItemResponse is the DTO for a lead product item
+type LeadProductItemResponse struct {
+	ID                  string  `json:"id"`
+	LeadID              string  `json:"lead_id"`
+	ProductID           *string `json:"product_id"`
+	ProductName         string  `json:"product_name"`
+	ProductSKU          string  `json:"product_sku"`
+	InterestLevel       int     `json:"interest_level"`
+	Quantity            int     `json:"quantity"`
+	UnitPrice           float64 `json:"unit_price"`
+	Notes               string  `json:"notes"`
+	SourceVisitReportID *string `json:"source_visit_report_id"`
+	LastSurveyAnswers   *string `json:"last_survey_answers"`
+	CreatedAt           string  `json:"created_at"`
 }
 
 // LeadSourceInfo is a compact representation of lead source

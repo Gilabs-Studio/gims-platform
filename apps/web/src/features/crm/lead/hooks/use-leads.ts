@@ -12,6 +12,7 @@ export const leadKeys = {
   detail: (id: string) => [...leadKeys.details(), id] as const,
   formData: () => [...leadKeys.all, "form-data"] as const,
   analytics: () => [...leadKeys.all, "analytics"] as const,
+  productItems: (id: string) => [...leadKeys.all, "product-items", id] as const,
 };
 
 export function useLeads(params?: LeadListParams) {
@@ -44,6 +45,14 @@ export function useLeadAnalytics() {
     queryKey: leadKeys.analytics(),
     queryFn: () => leadService.getAnalytics(),
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useLeadProductItems(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: leadKeys.productItems(id),
+    queryFn: () => leadService.getProductItems(id),
+    enabled: (options?.enabled ?? true) && !!id,
   });
 }
 

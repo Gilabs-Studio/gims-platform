@@ -215,6 +215,7 @@ func AutoMigrate() error {
 		&crm.Contact{},
 		// CRM Lead entity (Sprint 19)
 		&crm.Lead{},
+		&crm.LeadProductItem{},
 		// CRM Deal entities (Sprint 20)
 		&crm.Deal{},
 		&crm.DealProductItem{},

@@ -37,6 +37,9 @@ type LeadRepository interface {
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string) (bool, error)
 	GetAnalytics(ctx context.Context) (*LeadAnalytics, error)
+	// Product items
+	ListProductItems(ctx context.Context, leadID string) ([]models.LeadProductItem, error)
+	UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error
 }
 
 // LeadAnalytics holds aggregated lead statistics
@@ -81,6 +84,8 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 		Preload("Area").
 		Preload("Deal").
 		Preload("Deal.PipelineStage").
+		Preload("ProductItems").
+		Preload("ProductItems.Product").
 		Preload("Activities", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC").Limit(50)
 		}).
@@ -278,4 +283,31 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 	r.db.WithContext(ctx).Model(&models.Lead{}).Select("COALESCE(AVG(lead_score), 0)").Scan(&analytics.AvgScore)
 
 	return analytics, nil
+}
+
+func (r *leadRepository) ListProductItems(ctx context.Context, leadID string) ([]models.LeadProductItem, error) {
+	var items []models.LeadProductItem
+	err := r.db.WithContext(ctx).
+		Preload("Product").
+		Where("lead_id = ?", leadID).
+		Order("created_at ASC").
+		Find(&items).Error
+	return items, err
+}
+
+// UpsertProductItems replaces all product items for a lead (delete + create) with dedup on product_id
+func (r *leadRepository) UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Use Unscoped to hard-delete so the UUID primary keys are truly freed before re-insert
+		if err := tx.Unscoped().Where("lead_id = ?", leadID).Delete(&models.LeadProductItem{}).Error; err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			return nil
+		}
+		for i := range items {
+			items[i].LeadID = leadID
+		}
+		return tx.Create(&items).Error
+	})
 }

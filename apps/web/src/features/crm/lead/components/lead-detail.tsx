@@ -61,6 +61,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import type { Lead, LeadStatusOption } from "../types";
 import type { PaymentTermsFormOption } from "@/features/master-data/customer/types";
+import { useProduct } from "@/features/master-data/product/hooks/use-products";
+import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
 
 interface LeadDetailProps {
   leadId: string;
@@ -309,6 +311,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const canCreateActivity = useUserPermission("crm_activity.create");
   const canCreateVisit = useUserPermission("crm_visit.create");
   const canCreateTask = useUserPermission("crm_task.create");
+  const canViewProduct = useUserPermission("product.read");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -318,9 +321,11 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
   const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId);
+  const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
@@ -668,7 +673,19 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       <tbody>
                         {productItemsData!.data!.map((item) => (
                           <tr key={item.id} className="border-t">
-                            <td className="px-3 py-2 font-medium">{item.product_name}</td>
+                            <td className="px-3 py-2 font-medium">
+                              {canViewProduct && item.product_id ? (
+                                <button
+                                  type="button"
+                                  className="text-left hover:underline text-primary cursor-pointer"
+                                  onClick={() => setSelectedProductId(item.product_id ?? null)}
+                                >
+                                  {item.product_name}
+                                </button>
+                              ) : (
+                                item.product_name
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-muted-foreground">{item.product_sku || "-"}</td>
                             <td className="px-3 py-2 text-center">
                               <span className="text-amber-500">
@@ -866,14 +883,30 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   {/* Location (moved to sidebar) */}
                   {(lead.latitude != null || lead.longitude != null || lead.address) && (
                     <div className="rounded-lg border p-3 space-y-2">
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                        <MapPin className="h-4 w-4 inline-block mr-1" />
-                        {t("sections.location")}
-                      </h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                          <MapPin className="h-4 w-4 inline-block mr-1" />
+                          {t("sections.location")}
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs cursor-pointer"
+                          onClick={() => setShowMapPicker(true)}
+                        >
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {lead.latitude != null ? t("updateLocation") : t("setLocation")}
+                        </Button>
+                      </div>
                       {lead.latitude != null && lead.longitude != null ? (
-                        <div className="w-full h-64 rounded-md border overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full h-48 rounded-md border overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group relative"
+                          onClick={() => setShowMapPicker(true)}
+                          title={t("clickToUpdateLocation")}
+                        >
                           <MapView
-                            className="h-full"
+                            className="h-full w-full"
                             defaultZoom={9}
                             markers={[{
                               id: lead.id,
@@ -895,12 +928,23 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                               </>
                             )}
                           />
-                        </div>
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
+                            <Badge variant="secondary" className="text-xs shadow">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {t("clickToUpdateLocation")}
+                            </Badge>
+                          </div>
+                        </button>
                       ) : (
-                        <div className="h-28 flex flex-col items-center justify-center bg-muted/30 rounded-md gap-2 border border-dashed">
+                        <button
+                          type="button"
+                          className="w-full h-28 flex flex-col items-center justify-center bg-muted/30 hover:bg-muted/50 rounded-md gap-2 border border-dashed cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => setShowMapPicker(true)}
+                        >
                           <MapPin className="h-6 w-6 text-muted-foreground/40" />
                           <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
-                        </div>
+                          <p className="text-xs text-primary">{t("setLocation")}</p>
+                        </button>
                       )}
                       <div className="text-xs space-y-1">
                         {lead.address && <p className="text-muted-foreground">{lead.address}</p>}
@@ -1114,6 +1158,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
         onCoordinateSelect={handleLocationSave}
         title={t("pickLocation")}
         description={t("pickLocationDesc")}
+      />
+
+      {/* Product detail dialog (RBAC-gated via canViewProduct) */}
+      <ProductDetailDialog
+        open={!!selectedProductId}
+        onOpenChange={(open) => { if (!open) setSelectedProductId(null); }}
+        product={selectedProductQuery.data?.data ?? null}
       />
     </PageMotion>
   );

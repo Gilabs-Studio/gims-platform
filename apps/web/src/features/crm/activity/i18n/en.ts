@@ -69,6 +69,8 @@ export const crmActivityEn = {
       product: "Product",
       interest: "Interest",
       qty: "Qty",
+      price: "Price",
+      surveyAnswers: "Survey",
     },
   },
 };

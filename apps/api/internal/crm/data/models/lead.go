@@ -8,6 +8,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -96,8 +97,9 @@ type Lead struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Associations
-	Activities []Activity `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
-	Tasks      []Task     `gorm:"foreignKey:LeadID" json:"tasks,omitempty"`
+	Activities   []Activity        `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
+	Tasks        []Task            `gorm:"foreignKey:LeadID" json:"tasks,omitempty"`
+	ProductItems []LeadProductItem `gorm:"foreignKey:LeadID" json:"product_items,omitempty"`
 }
 
 func (Lead) TableName() string {
@@ -156,4 +158,35 @@ func (l *Lead) CalculateLeadScore() int {
 // IsConverted returns true if lead has been converted
 func (l *Lead) IsConverted() bool {
 	return l.ConvertedAt != nil
+}
+
+// LeadProductItem represents a product of interest associated with a lead
+type LeadProductItem struct {
+	ID                  string                 `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	LeadID              string                 `gorm:"type:uuid;not null;index" json:"lead_id"`
+	ProductID           *string                `gorm:"type:uuid;index" json:"product_id"`
+	Product             *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	ProductName         string                 `gorm:"type:varchar(200);not null" json:"product_name"`
+	ProductSKU          string                 `gorm:"type:varchar(50)" json:"product_sku"`
+	InterestLevel       int                    `gorm:"type:int;default:0" json:"interest_level"`
+	Quantity            int                    `gorm:"type:int;default:1" json:"quantity"`
+	UnitPrice           float64                `gorm:"type:decimal(15,2);default:0" json:"unit_price"`
+	Notes               string                 `gorm:"type:text" json:"notes"`
+	SourceVisitReportID *string                `gorm:"type:uuid;index" json:"source_visit_report_id"`
+	LastSurveyAnswers   *string                `gorm:"type:jsonb" json:"last_survey_answers"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (LeadProductItem) TableName() string {
+	return "crm_lead_product_items"
+}
+
+func (i *LeadProductItem) BeforeCreate(tx *gorm.DB) error {
+	if i.ID == "" {
+		i.ID = uuid.New().String()
+	}
+	return nil
 }

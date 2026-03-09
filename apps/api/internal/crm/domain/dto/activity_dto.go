@@ -12,9 +12,9 @@ type CreateActivityRequest struct {
 	DealID         *string `json:"deal_id" binding:"omitempty,uuid"`
 	LeadID         *string `json:"lead_id" binding:"omitempty,uuid"`
 	VisitReportID  *string `json:"visit_report_id" binding:"omitempty,uuid"`
-	Description    string  `json:"description" binding:"required,min=1"`
-	Timestamp      *string `json:"timestamp"` // ISO 8601 format, defaults to now if empty
-	Metadata       *string `json:"metadata"`
+	Description    string          `json:"description" binding:"required,min=1"`
+	Timestamp      *string         `json:"timestamp"` // ISO 8601 format, defaults to now if empty
+	Metadata       json.RawMessage `json:"metadata"`
 }
 
 // ActivityResponse represents the activity data returned to client

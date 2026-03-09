@@ -55,13 +55,23 @@ type VisitActivityMetadata struct {
 	Products      []VisitActivityProductInfo `json:"products,omitempty"`
 }
 
+// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata
+type SurveyAnswerInfo struct {
+	QuestionText string `json:"question_text"`
+	OptionText   string `json:"option_text"`
+	Score        int    `json:"score"`
+}
+
 // VisitActivityProductInfo holds product interest data embedded in activity metadata
 type VisitActivityProductInfo struct {
-	ProductName   string `json:"product_name"`
-	ProductSKU    string `json:"product_sku,omitempty"`
-	InterestLevel int    `json:"interest_level"`
-	Quantity      int    `json:"quantity,omitempty"`
-	Notes         string `json:"notes,omitempty"`
+	ProductID     string             `json:"product_id,omitempty"`
+	ProductName   string             `json:"product_name"`
+	ProductSKU    string             `json:"product_sku,omitempty"`
+	InterestLevel int                `json:"interest_level"`
+	Quantity      int                `json:"quantity,omitempty"`
+	UnitPrice     float64            `json:"unit_price,omitempty"`
+	Notes         string             `json:"notes,omitempty"`
+	SurveyAnswers []SurveyAnswerInfo `json:"survey_answers,omitempty"`
 }
 
 // VisitReportUsecase defines the interface for visit report business logic
@@ -906,15 +916,29 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 	var products []VisitActivityProductInfo
 	for _, detail := range visit.Details {
 		p := VisitActivityProductInfo{
+			ProductID:     detail.ProductID,
 			InterestLevel: detail.InterestLevel,
 			Notes:         detail.Notes,
 		}
 		if detail.Product != nil {
 			p.ProductName = detail.Product.Name
-			p.ProductSKU = detail.Product.Sku
+			p.ProductSKU = detail.Product.Code
 		}
 		if detail.Quantity != nil {
 			p.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			p.UnitPrice = *detail.Price
+		}
+		for _, a := range detail.Answers {
+			sa := SurveyAnswerInfo{Score: a.Score}
+			if a.Question != nil {
+				sa.QuestionText = a.Question.QuestionText
+			}
+			if a.Option != nil {
+				sa.OptionText = a.Option.OptionText
+			}
+			p.SurveyAnswers = append(p.SurveyAnswers, sa)
 		}
 		products = append(products, p)
 	}
@@ -1034,13 +1058,29 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 
 		if detail.Product != nil {
 			item.ProductName = detail.Product.Name
-			item.ProductSKU = detail.Product.Sku
+			item.ProductSKU = detail.Product.Code
 		}
 		if detail.Quantity != nil {
 			item.Quantity = int(*detail.Quantity)
 		}
 		if detail.Price != nil {
 			item.UnitPrice = *detail.Price
+		}
+
+		// Serialize survey answers to JSONB for lead product item persistence
+		if len(detail.Answers) > 0 {
+			type answerInfo struct {
+				QuestionID string `json:"question_id"`
+				OptionID   string `json:"option_id"`
+			}
+			ans := make([]answerInfo, 0, len(detail.Answers))
+			for _, a := range detail.Answers {
+				ans = append(ans, answerInfo{QuestionID: a.QuestionID, OptionID: a.OptionID})
+			}
+			if b, err := json.Marshal(ans); err == nil {
+				s := string(b)
+				item.LastSurveyAnswers = &s
+			}
 		}
 
 		// Preserve existing item ID if same product exists to enable update instead of duplicate

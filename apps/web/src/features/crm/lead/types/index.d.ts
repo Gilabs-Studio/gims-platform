@@ -393,5 +393,6 @@ export interface LeadProductItem {
   unit_price: number;
   notes: string;
   source_visit_report_id?: string | null;
+  last_survey_answers?: string | null;
   created_at: string;
 }

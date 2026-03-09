@@ -96,9 +96,12 @@ export interface ApiResponse<T> {
 export interface VisitProductInterest {
   product_name: string;
   product_sku?: string;
+  product_id?: string;
   interest_level: number;
   quantity?: number;
+  unit_price?: number;
   notes?: string;
+  survey_answers?: { question_text: string; option_text: string; score: number }[];
 }
 
 export interface VisitActivityMetadata {

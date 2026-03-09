@@ -68,8 +68,14 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 		VisitReportID:  req.VisitReportID,
 		EmployeeID:     employeeID,
 		Description:    req.Description,
-		Timestamp:      timestamp,
-		Metadata:       req.Metadata,
+		Timestamp: timestamp,
+		Metadata: func() *string {
+			if len(req.Metadata) == 0 || string(req.Metadata) == "null" {
+				return nil
+			}
+			s := string(req.Metadata)
+			return &s
+		}(),
 	}
 
 	if err := u.activityRepo.Create(ctx, activity); err != nil {

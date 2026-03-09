@@ -141,6 +141,27 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		resp.Tasks = ToTaskSummaryResponseList(lead.Tasks)
 	}
 
+	if len(lead.ProductItems) > 0 {
+		items := make([]dto.LeadProductItemResponse, 0, len(lead.ProductItems))
+		for _, item := range lead.ProductItems {
+			items = append(items, dto.LeadProductItemResponse{
+				ID:                  item.ID,
+				LeadID:              item.LeadID,
+				ProductID:           item.ProductID,
+				ProductName:         item.ProductName,
+				ProductSKU:          item.ProductSKU,
+				InterestLevel:       item.InterestLevel,
+				Quantity:            item.Quantity,
+				UnitPrice:           item.UnitPrice,
+				Notes:               item.Notes,
+				SourceVisitReportID: item.SourceVisitReportID,
+				LastSurveyAnswers:   item.LastSurveyAnswers,
+				CreatedAt:           item.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+			})
+		}
+		resp.ProductItems = items
+	}
+
 	return resp
 }
 

@@ -27,6 +27,7 @@ func RegisterLeadRoutes(r *gin.RouterGroup, h *handler.LeadHandler) {
 	g.GET("", middleware.RequirePermission(leadRead), h.List)
 	g.POST("", middleware.RequirePermission(leadCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(leadRead), h.GetByID)
+	g.GET("/:id/product-items", middleware.RequirePermission(leadRead), h.GetProductItems)
 	g.PUT("/:id", middleware.RequirePermission(leadUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(leadDelete), h.Delete)
 

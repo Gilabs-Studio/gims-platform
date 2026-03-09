@@ -6,15 +6,23 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { OutcomeBadge } from "./outcome-badge";
 import { Link } from "@/i18n/routing";
-import { formatTime, resolveImageUrl } from "@/lib/utils";
+import { formatCurrency, formatTime, resolveImageUrl } from "@/lib/utils";
 import { useCheckOutVisitReport } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { useVisitReportById, visitReportKeys } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { useCheckInVisitReport } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { useTranslations } from "next-intl";
 import { activityKeys } from "../hooks/use-activities";
 import type { VisitActivityMetadata } from "../types";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { useProduct } from "@/features/master-data/product/hooks/use-products";
+import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
 
 const MAX_VISIBLE_PHOTOS = 5;
 
@@ -26,12 +34,15 @@ interface VisitActivityCardProps {
 /** Renders visit-specific details (photos, GPS, outcome, checkout) inside an activity timeline card. */
 export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProps) {
   const [checkingOut, setCheckingOut] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const qc = useQueryClient();
   const checkOutMutation = useCheckOutVisitReport();
   const checkInMutation = useCheckInVisitReport();
   const visitReportQuery = useVisitReportById(visitReportId ?? "");
   const t = useTranslations("crmVisitReport");
   const ta = useTranslations("crmActivity");
+  const canViewProduct = useUserPermission("product.read");
+  const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
 
   const handleCheckOut = useCallback(async () => {
     if (!visitReportId) return;
@@ -204,21 +215,60 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
                   <th className="px-2 py-1 text-left font-medium">{ta("productInterest.product")}</th>
                   <th className="px-2 py-1 text-center font-medium">{ta("productInterest.interest")}</th>
                   <th className="px-2 py-1 text-center font-medium">{ta("productInterest.qty")}</th>
+                  <th className="px-2 py-1 text-right font-medium">{ta("productInterest.price")}</th>
                 </tr>
               </thead>
               <tbody>
                 {meta.products.map((p, idx) => (
                   <tr key={`${p.product_name}-${idx}`} className="border-t">
                     <td className="px-2 py-1">
-                      <span>{p.product_name}</span>
+                      {canViewProduct && p.product_id ? (
+                        <button
+                          type="button"
+                          className="text-left hover:underline text-primary cursor-pointer"
+                          onClick={() => setSelectedProductId(p.product_id ?? null)}
+                        >
+                          {p.product_name}
+                        </button>
+                      ) : (
+                        <span>{p.product_name}</span>
+                      )}
                       {p.product_sku && (
                         <span className="ml-1 text-muted-foreground">({p.product_sku})</span>
                       )}
                     </td>
                     <td className="px-2 py-1 text-center">
-                      {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-amber-500 cursor-help select-none">
+                            {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[220px]">
+                          <p className="font-medium mb-1">{p.interest_level}/5</p>
+                          {p.notes && (
+                            <p className="text-xs text-muted-foreground mb-1">{p.notes}</p>
+                          )}
+                          {p.survey_answers && p.survey_answers.length > 0 && (
+                            <ul className="space-y-0.5 mt-1 border-t pt-1">
+                              {p.survey_answers.map((sa, i) => (
+                                <li key={i} className="text-xs">
+                                  <span className="font-medium">{sa.question_text}:</span>{" "}
+                                  <span className="text-muted-foreground">{sa.option_text}</span>
+                                  {sa.score !== 0 && (
+                                    <span className="ml-1 text-amber-500">({sa.score})</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="px-2 py-1 text-center">{p.quantity ?? "-"}</td>
+                    <td className="px-2 py-1 text-right">
+                      {p.unit_price && p.unit_price > 0 ? formatCurrency(p.unit_price) : "-"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -226,6 +276,13 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
           </div>
         </div>
       )}
+
+      {/* Product detail dialog */}
+      <ProductDetailDialog
+        open={!!selectedProductId}
+        onOpenChange={(open) => { if (!open) setSelectedProductId(null); }}
+        product={selectedProductQuery.data?.data ?? null}
+      />
 
       {/* Link to visit report detail */}
       {visitReportId && (
