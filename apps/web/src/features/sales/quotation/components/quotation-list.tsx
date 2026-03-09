@@ -332,7 +332,7 @@ export function QuotationList() {
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
-                              {t("actions.send")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           {quotation.status === "sent" && (
@@ -391,15 +391,6 @@ export function QuotationList() {
                               {t("convertToOrder")}
                             </DropdownMenuItem>
                           )}
-                          {canDelete && quotation.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(quotation.id)}
-                              className="text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("common.delete")}
-                            </DropdownMenuItem>
-                          )}
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingQuotationId(quotation.id)}
@@ -407,6 +398,15 @@ export function QuotationList() {
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && quotation.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() => setDeletingId(quotation.id)}
+                              className="text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("common.delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

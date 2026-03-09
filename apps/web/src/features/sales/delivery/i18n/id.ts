@@ -126,6 +126,7 @@ export const deliveryId = {
     // Actions
     actions: {
       send: "Kirim",
+      submit: "Ajukan",
       approve: "Setujui",
       reject: "Tolak",
       prepare: "Siapkan",

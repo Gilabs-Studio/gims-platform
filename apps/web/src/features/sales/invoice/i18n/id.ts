@@ -141,6 +141,7 @@ export const invoiceId = {
     // Actions
     actions: {
       send: "Kirim",
+      submit: "Ajukan",
       approve: "Setujui",
       reject: "Tolak",
       pay: "Catat Pembayaran",

@@ -356,7 +356,7 @@ export function OrderList() {
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
-                              {t("actions.send")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           {order.status === "submitted" && (
@@ -408,15 +408,6 @@ export function OrderList() {
                               {t("actions.createInvoice")}
                             </DropdownMenuItem>
                           )}
-                          {canDelete && order.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(order.id)}
-                              className="text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("common.delete")}
-                            </DropdownMenuItem>
-                          )}
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingOrderId(order.id)}
@@ -424,6 +415,15 @@ export function OrderList() {
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && order.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() => setDeletingId(order.id)}
+                              className="text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("common.delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

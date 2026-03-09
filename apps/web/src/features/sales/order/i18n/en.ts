@@ -150,6 +150,7 @@ export const orderEn = {
     // Actions
     actions: {
       send: "Send",
+      submit: "Submit",
       approve: "Approve",
       reject: "Reject",
       confirm: "Confirm",

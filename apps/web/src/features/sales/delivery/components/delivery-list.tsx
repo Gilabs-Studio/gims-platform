@@ -376,7 +376,7 @@ export function DeliveryList() {
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
-                              {t("actions.send")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           {delivery.status === "sent" && (

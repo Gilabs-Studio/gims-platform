@@ -125,6 +125,7 @@ export const quotationId = {
     // Actions
     actions: {
       send: "Kirim",
+      submit: "Ajukan",
       approve: "Setujui",
       reject: "Tolak",
       convert: "Konversi ke Pesanan",

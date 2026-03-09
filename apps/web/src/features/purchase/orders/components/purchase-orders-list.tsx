@@ -559,7 +559,7 @@ export function PurchaseOrdersList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer"
+                                className="cursor-pointer text-violet-600 focus:text-violet-600"
                                 onClick={() => setPrintingId(it.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />

@@ -141,6 +141,7 @@ export const invoiceEn = {
     // Actions
     actions: {
       send: "Send",
+      submit: "Submit",
       approve: "Approve",
       reject: "Reject",
       pay: "Record Payment",

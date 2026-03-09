@@ -126,6 +126,7 @@ export const deliveryEn = {
     // Actions
     actions: {
       send: "Send",
+      submit: "Submit",
       approve: "Approve",
       reject: "Reject",
       prepare: "Prepare",

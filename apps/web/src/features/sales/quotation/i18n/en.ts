@@ -125,6 +125,7 @@ export const quotationEn = {
     // Actions
     actions: {
       send: "Send",
+      submit: "Submit",
       approve: "Approve",
       reject: "Reject",
       convert: "Convert to Order",

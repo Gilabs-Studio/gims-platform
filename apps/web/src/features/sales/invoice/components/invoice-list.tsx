@@ -365,7 +365,7 @@ export function InvoiceList() {
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                             >
                               <Send className="h-4 w-4 mr-2" />
-                              {t("actions.send")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           {invoice.status === "sent" && (
@@ -417,15 +417,6 @@ export function InvoiceList() {
                               {t("actions.cancel")}
                             </DropdownMenuItem>
                           )}
-                          {canDelete && (invoice.status === "draft" || invoice.status === "unpaid") && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(invoice.id)}
-                              className="text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("common.delete")}
-                            </DropdownMenuItem>
-                          )}
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingInvoiceId(invoice.id)}
@@ -433,6 +424,15 @@ export function InvoiceList() {
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && (invoice.status === "draft" || invoice.status === "unpaid") && (
+                            <DropdownMenuItem
+                              onClick={() => setDeletingId(invoice.id)}
+                              className="text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("common.delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
