@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTaskForm, type UseTaskFormProps } from "../hooks/use-task-form";
-import { useTaskFormData, useCreateReminder } from "../hooks/use-tasks";
+import { useTaskFormData, useCreateReminder, useUpdateReminder, useDeleteReminder } from "../hooks/use-tasks";
 import type { Task } from "../types";
 
 const TASK_TYPE_OPTIONS = ["general", "call", "email", "meeting", "follow_up"] as const;
@@ -68,7 +68,10 @@ export function TaskFormDialog({
   const [reminderType, setReminderType] = useState<"in_app" | "email">("in_app");
   const [reminderMessage, setReminderMessage] = useState("");
   const [reminderDateOpen, setReminderDateOpen] = useState(false);
+  const [existingReminderId, setExistingReminderId] = useState<string | null>(null);
   const createReminder = useCreateReminder();
+  const updateReminder = useUpdateReminder();
+  const deleteReminder = useDeleteReminder();
 
   const formProps: UseTaskFormProps = {
     open,
@@ -85,14 +88,18 @@ export function TaskFormDialog({
         const [hours, minutes] = reminderTime.split(":").map(Number);
         const remindAtDate = new Date(reminderDate);
         remindAtDate.setHours(hours ?? 9, minutes ?? 0, 0, 0);
-        await createReminder.mutateAsync({
-          taskId,
-          data: {
-            remind_at: remindAtDate.toISOString(),
-            reminder_type: reminderType,
-            message: reminderMessage || `Reminder for task`,
-          },
-        });
+        const reminderData = {
+          remind_at: remindAtDate.toISOString(),
+          reminder_type: reminderType,
+          message: reminderMessage || `Reminder for task`,
+        };
+        if (existingReminderId) {
+          await updateReminder.mutateAsync({ taskId, reminderId: existingReminderId, data: reminderData });
+        } else {
+          await createReminder.mutateAsync({ taskId, data: reminderData });
+        }
+      } else if (!reminderEnabled && existingReminderId) {
+        await deleteReminder.mutateAsync({ taskId, reminderId: existingReminderId });
       }
     },
     defaultValues: {
@@ -126,12 +133,26 @@ export function TaskFormDialog({
       setDueDate(null);
       setDueTime("09:00");
     }
-    // Reset reminder state on open
-    setReminderEnabled(false);
-    setReminderDate(null);
-    setReminderTime("09:00");
-    setReminderType("in_app");
-    setReminderMessage("");
+    // Pre-fill reminder state from existing reminder, or reset if none
+    const existingReminder = task?.reminders?.[0] ?? null;
+    if (existingReminder) {
+      const remindAt = new Date(existingReminder.remind_at);
+      setExistingReminderId(existingReminder.id);
+      setReminderEnabled(true);
+      setReminderDate(remindAt);
+      setReminderTime(
+        `${String(remindAt.getHours()).padStart(2, "0")}:${String(remindAt.getMinutes()).padStart(2, "0")}`
+      );
+      setReminderType(existingReminder.reminder_type);
+      setReminderMessage(existingReminder.message);
+    } else {
+      setExistingReminderId(null);
+      setReminderEnabled(false);
+      setReminderDate(null);
+      setReminderTime("09:00");
+      setReminderType("in_app");
+      setReminderMessage("");
+    }
     setDueDateOpen(false);
   }, [open, task?.id, task?.due_date]);
 
@@ -299,7 +320,8 @@ export function TaskFormDialog({
                 control={control}
                 name="assigned_to"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  // key forces re-mount once employees are loaded so the Select displays the correct label
+                  <Select key={`${field.value ?? ""}-${employees.length}`} value={field.value ?? ""} onValueChange={field.onChange}>
                     <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>

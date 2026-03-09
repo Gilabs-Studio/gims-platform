@@ -264,9 +264,10 @@ export function TaskDetailDialog({
           {/* Action buttons — only for active tasks the user has permission to update */}
           {isActionable && (
             <div className="flex flex-wrap gap-2 pt-2 border-t">
+              {/* pending: show Mark In Progress (primary) */}
               {task.status === "pending" && (
                 <Button
-                  variant="secondary"
+                  variant="default"
                   size="sm"
                   onClick={handleInProgress}
                   disabled={inProgressMutation.isPending}
@@ -276,16 +277,19 @@ export function TaskDetailDialog({
                   {t("actions.inProgress")}
                 </Button>
               )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleComplete}
-                disabled={completeMutation.isPending}
-                className="cursor-pointer"
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {t("actions.complete")}
-              </Button>
+              {/* in_progress: show Mark Complete (green) */}
+              {task.status === "in_progress" && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleComplete}
+                  disabled={completeMutation.isPending}
+                  className="cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {t("actions.complete")}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

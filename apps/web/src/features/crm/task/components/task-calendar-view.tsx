@@ -7,6 +7,7 @@ import {
   MapPin,
   AlertTriangle,
   Info,
+  Bell,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,7 @@ import { Filter } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "@/i18n/routing";
 import { ScheduleDetailDialog } from "@/features/crm/schedule/components/schedule-detail-dialog";
+import { TaskDetailDialog } from "@/features/crm/task/components/task-detail-dialog";
 import { useSchedules } from "@/features/crm/schedule/hooks/use-schedules";
 import { useTasks } from "@/features/crm/task/hooks/use-tasks";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -51,6 +53,7 @@ export function TaskCalendarView() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [detailItem, setDetailItem] = useState<Schedule | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
 
   const canViewLead = useUserPermission("crm_lead.read");
@@ -68,8 +71,8 @@ export function TaskCalendarView() {
     per_page: 50,
   });
 
-  const allItems = allSchedulesRes?.data ?? [];
-  const overdueItems: Task[] = overdueTasksRes?.data ?? [];
+  const allItems = useMemo(() => allSchedulesRes?.data ?? [], [allSchedulesRes]);
+  const overdueItems = useMemo<Task[]>(() => overdueTasksRes?.data ?? [], [overdueTasksRes]);
 
   const scheduleDatesMap = useMemo(() => {
     const map = new Map<string, Schedule[]>();
@@ -87,10 +90,27 @@ export function TaskCalendarView() {
     return scheduleDatesMap.get(selectedDate.toDateString()) ?? [];
   }, [selectedDate, scheduleDatesMap]);
 
-  const datesWithSchedules = useMemo(
-    () => Array.from(scheduleDatesMap.keys()).map((d) => new Date(d)),
-    [scheduleDatesMap],
-  );
+  const datesWithSchedules = useMemo(() => {
+    const scheduleDates = Array.from(scheduleDatesMap.keys()).map((d) => new Date(d));
+    const overdueTaskDates = overdueItems
+      .filter((t) => t.due_date)
+      .map((t) => {
+        const [y, mo, d] = t.due_date!.split("-").map(Number);
+        return new Date(y!, mo! - 1, d!);
+      });
+    return [...scheduleDates, ...overdueTaskDates];
+  }, [scheduleDatesMap, overdueItems]);
+
+  // Overdue tasks whose due_date matches the currently selected date
+  const selectedDateTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    const selStr = [
+      selectedDate.getFullYear(),
+      String(selectedDate.getMonth() + 1).padStart(2, "0"),
+      String(selectedDate.getDate()).padStart(2, "0"),
+    ].join("-");
+    return overdueItems.filter((t) => t.due_date === selStr);
+  }, [selectedDate, overdueItems]);
 
   return (
     <div className="space-y-4">
@@ -162,7 +182,30 @@ export function TaskCalendarView() {
                 {overdueItems.map((task) => (
                   <div
                     key={task.id}
-                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2"
+                    role="button"
+                    tabIndex={0}
+                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2 cursor-pointer hover:bg-destructive/10 transition-colors"
+                    onClick={() => {
+                      if (task.due_date) {
+                        const [y, mo, d] = task.due_date.split("-").map(Number);
+                        const date = new Date(y!, mo! - 1, d!);
+                        setSelectedDate(date);
+                        setCalendarMonth(date);
+                      }
+                      setSelectedTask(task);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (task.due_date) {
+                          const [y, mo, d] = task.due_date.split("-").map(Number);
+                          const date = new Date(y!, mo! - 1, d!);
+                          setSelectedDate(date);
+                          setCalendarMonth(date);
+                        }
+                        setSelectedTask(task);
+                      }
+                    }}
                   >
                     <div className="flex items-start gap-2 flex-wrap">
                       <span className="font-medium text-sm line-clamp-1 flex-1">{task.title}</span>
@@ -231,6 +274,27 @@ export function TaskCalendarView() {
                         )}
                       </div>
                     )}
+                    {/* Reminder mini-cards */}
+                    {task.reminders?.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {task.reminders.map((reminder) => (
+                          <div
+                            key={reminder.id}
+                            className="flex items-start gap-2 rounded border border-dashed px-2 py-1.5 bg-background/60"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Bell className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{reminder.message}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
+                                {reminder.is_sent && <span className="ml-1 text-green-600">✔ {tTask("reminder.sent")}</span>}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -261,13 +325,66 @@ export function TaskCalendarView() {
                   </div>
                 ))}
               </div>
-            ) : selectedDateSchedules.length === 0 ? (
+            ) : selectedDateSchedules.length === 0 && selectedDateTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
                 <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Overdue tasks that fall on the selected date */}
+                {selectedDateTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    role="button"
+                    tabIndex={0}
+                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 cursor-pointer hover:bg-destructive/10 transition-colors"
+                    onClick={() => setSelectedTask(task)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedTask(task);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <span className="font-medium text-sm flex-1 line-clamp-1">{task.title}</span>
+                      <Badge variant="destructive" className="text-xs shrink-0">
+                        {tTask(`priorities.${task.priority}` as Parameters<typeof tTask>[0])}
+                      </Badge>
+                    </div>
+                    {task.assigned_to_employee && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                        <Avatar className="h-5 w-5 shrink-0">
+                          <AvatarFallback dataSeed={task.assigned_to_employee.name} />
+                        </Avatar>
+                        {task.assigned_to_employee.name}
+                      </span>
+                    )}
+                    {/* Reminder mini-cards */}
+                    {task.reminders?.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {task.reminders.map((reminder) => (
+                          <div
+                            key={reminder.id}
+                            className="flex items-start gap-2 rounded border border-dashed px-2 py-1.5 bg-background/60"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Bell className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{reminder.message}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
+                                {reminder.is_sent && <span className="ml-1 text-green-600">✔ {tTask("reminder.sent")}</span>}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Regular schedules for the selected date */}
                 {selectedDateSchedules.map((item) => (
                   <div
                     key={item.id}
@@ -332,11 +449,16 @@ export function TaskCalendarView() {
         </div>
       </div>
 
-      {/* Detail Dialog */}
+      {/* Detail Dialogs */}
       <ScheduleDetailDialog
         open={!!detailItem}
         onClose={() => setDetailItem(null)}
         schedule={detailItem}
+      />
+      <TaskDetailDialog
+        open={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        task={selectedTask}
       />
     </div>
   );

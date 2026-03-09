@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
+  Bell,
   Calendar,
   CheckCircle2,
   Circle,
@@ -94,15 +95,16 @@ export function TaskEmbedList({
         const StatusIcon = STATUS_ICON[task.status] ?? Circle;
         const isActive = task.status === "pending" || task.status === "in_progress";
         return (
-          <div
-            key={task.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => setSelectedTask(task)}
-            onKeyDown={(e) => e.key === "Enter" && setSelectedTask(task)}
+          <div key={task.id} className="space-y-1">
+            {/* Task card */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedTask(task)}
+              onKeyDown={(e) => e.key === "Enter" && setSelectedTask(task)}
             className={cn(
               "flex items-center gap-3 rounded-lg border p-3 transition-colors cursor-pointer hover:bg-muted/50",
-              task.is_overdue && isActive && "border-red-200 bg-red-50/50"
+              task.is_overdue && isActive && "border-destructive/30 bg-destructive/10"
             )}
           >
             {/* Status icon */}
@@ -177,18 +179,21 @@ export function TaskEmbedList({
               )}
             </div>
 
-            {/* Assigned employee avatar */}
+            {/* Assigned employee avatar + name */}
             {task.assigned_to_employee && (
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px]">
-                  {task.assigned_to_employee.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-[10px]">
+                    {task.assigned_to_employee.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground max-w-20 truncate">{task.assigned_to_employee.name}</span>
+              </div>
             )}
 
             {/* Edit action */}
@@ -217,6 +222,33 @@ export function TaskEmbedList({
                 {t("actions.complete")}
               </Button>
             )}
+          </div>
+
+          {/* Reminder cards — shown beneath the task card */}
+          {task.reminders?.length > 0 && (
+            <div className="ml-7 space-y-1">
+              {task.reminders.map((reminder) => (
+                <div
+                  key={reminder.id}
+                  className="flex items-start gap-2 rounded-md border border-dashed px-3 py-2 bg-muted/40"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Bell className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{reminder.message}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {formatDate(reminder.remind_at)}
+                      {" · "}
+                      {t(`reminder.types.${reminder.reminder_type}` as Parameters<typeof t>[0])}
+                      {reminder.is_sent && (
+                        <span className="ml-1 text-green-600">✔ {t("reminder.sent")}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           </div>
         );
       })}
