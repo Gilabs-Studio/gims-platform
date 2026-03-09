@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, Loader2, Camera, X, Check } from "lucide-react";
+import { MapPin, Loader2, Camera, X, Check, CalendarIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useCreateVisitReport } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
 import { activityKeys } from "@/features/crm/activity/hooks/use-activities";
@@ -81,7 +85,6 @@ export function LogVisitDialog({
   const [contactPerson, setContactPerson] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [selectedContactId, setSelectedContactId] = useState("");
-  const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -89,9 +92,21 @@ export function LogVisitDialog({
   const [checkInGps, setCheckInGps] = useState<GpsState | null>(null);
   const [capturingGps, setCapturingGps] = useState(false);
 
-  // Initialize contact fields from props when dialog opens
+  // Date / time state
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [selectedTime, setSelectedTime] = useState<string>(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Initialize fields from props when dialog opens
   useEffect(() => {
     if (open) {
+      const now = new Date();
+      setSelectedDate(now);
+      setSelectedTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+      setCalendarOpen(false);
       setContactPerson(defaultContactPerson ?? "");
       setContactPhone(defaultContactPhone ?? "");
       setSelectedContactId("");
@@ -103,11 +118,11 @@ export function LogVisitDialog({
     setContactPerson("");
     setContactPhone("");
     setSelectedContactId("");
-    setNotes("");
     setPhotos([]);
     setCheckInGps(null);
     setCapturingGps(false);
     setUploadingPhoto(false);
+    setCalendarOpen(false);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -188,9 +203,9 @@ export function LogVisitDialog({
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
     const payload: CreateVisitReportData = {
-      visit_date: today,
+      visit_date: format(selectedDate, "yyyy-MM-dd"),
+      scheduled_time: selectedTime || undefined,
       employee_id: defaultEmployeeId ?? "",
       lead_id: leadId ?? null,
       deal_id: dealId ?? null,
@@ -199,7 +214,6 @@ export function LogVisitDialog({
       purpose: purpose.trim(),
       contact_person: contactPerson.trim() || undefined,
       contact_phone: contactPhone.trim() || undefined,
-      notes: notes.trim() || undefined,
     };
 
     try {
@@ -240,8 +254,9 @@ export function LogVisitDialog({
       toast.error(tCommon("error"));
     }
   }, [
-    purpose, defaultEmployeeId, leadId, dealId, customerId, contactId,
-    contactPerson, contactPhone, notes, checkInGps,
+    purpose, selectedDate, selectedTime,
+    defaultEmployeeId, leadId, dealId, customerId, contactId,
+    contactPerson, contactPhone, checkInGps,
     photos, createMutation, handleClose, onSuccess,
     qc, t, tCommon,
   ]);
@@ -259,17 +274,6 @@ export function LogVisitDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Purpose */}
-          <div className="space-y-1.5">
-            <Label>{t("form.purpose")} *</Label>
-            <Textarea
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder={t("form.purposePlaceholder")}
-              rows={2}
-            />
-          </div>
-
           {/* Contact — dropdown if contacts available, otherwise free-text inputs */}
           {hasContacts ? (
             <div className="space-y-1.5">
@@ -325,6 +329,17 @@ export function LogVisitDialog({
               </div>
             </div>
           )}
+
+          {/* Purpose */}
+          <div className="space-y-1.5">
+            <Label>{t("form.purpose")} *</Label>
+            <Textarea
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder={t("form.purposePlaceholder")}
+              rows={2}
+            />
+          </div>
 
           {/* GPS Check-in */}
           <div className="space-y-1.5">
@@ -392,15 +407,26 @@ export function LogVisitDialog({
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label>{t("form.notes")}</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t("form.notesPlaceholder")}
-              rows={2}
-            />
+          {/* Date + Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t("form.visitDate")}</Label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className={cn("w-full justify-start text-left font-normal cursor-pointer", !selectedDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "dd MMM yyyy") : t("form.visitDatePlaceholder")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={selectedDate} onSelect={(date: Date | undefined) => { if (date) { setSelectedDate(date); setCalendarOpen(false); } }} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("form.scheduledTime")}</Label>
+              <Input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} />
+            </div>
           </div>
         </div>
 

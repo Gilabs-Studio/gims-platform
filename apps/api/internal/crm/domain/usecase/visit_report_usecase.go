@@ -191,7 +191,8 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 	}
 
 	if req.ScheduledTime != nil && *req.ScheduledTime != "" {
-		scheduledTime, err := time.Parse("15:04", *req.ScheduledTime)
+		// Parse scheduled time in application timezone so it is anchored to company/app TZ
+		scheduledTime, err := time.ParseInLocation("15:04", *req.ScheduledTime, apptime.Location())
 		if err == nil {
 			report.ScheduledTime = &scheduledTime
 		}
@@ -245,7 +246,8 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		}
 	}
 	if req.ScheduledTime != nil {
-		scheduledTime, err := time.Parse("15:04", *req.ScheduledTime)
+		// Parse scheduled time in application timezone so edits preserve FE-provided wall clock
+		scheduledTime, err := time.ParseInLocation("15:04", *req.ScheduledTime, apptime.Location())
 		if err == nil {
 			report.ScheduledTime = &scheduledTime
 		}
@@ -910,10 +912,26 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 	}
 	metadataStr := string(metadataJSON)
 
-	// Determine timestamp: use check-in time, then visit date
-	timestamp := visit.VisitDate
+	// Determine timestamp priority:
+	// 1. Actual check-in time (most accurate)
+	// 2. Visit date + scheduled time, anchored to app timezone (WIB)
+	// 3. Visit date at midnight in app timezone (avoids UTC midnight → 07:00 WIB display)
+	loc := apptime.Location()
+	timestamp := time.Date(
+		visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(),
+		0, 0, 0, 0, loc,
+	)
 	if visit.CheckInAt != nil {
-		timestamp = *visit.CheckInAt
+		// CheckInAt is stored as plain timestamp: numeric value = WIB wall clock, but GORM reads
+		// it back tagged as UTC. Re-anchor to app timezone so pgx stores the correct UTC offset.
+		ci := *visit.CheckInAt
+		timestamp = time.Date(ci.Year(), ci.Month(), ci.Day(), ci.Hour(), ci.Minute(), ci.Second(), 0, loc)
+	} else if visit.ScheduledTime != nil {
+		st := *visit.ScheduledTime
+		timestamp = time.Date(
+			visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(),
+			st.Hour(), st.Minute(), 0, 0, loc,
+		)
 	}
 
 	actTypeID := visitActivityTypeID
