@@ -145,6 +145,8 @@ export interface PurchaseOrderItemDetail {
   subtotal: number;
   notes?: string | null;
   product?: unknown;
+  quantity_received?: number;
+  quantity_remaining?: number;
 }
 
 export interface PurchaseOrderDetail {

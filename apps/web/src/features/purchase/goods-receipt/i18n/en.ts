@@ -72,6 +72,7 @@ export const goodsReceiptEn = {
       product: "Product",
       orderedQty: "Ordered",
       receivedQty: "Received",
+      remainingQty: "Remaining",
       notes: "Notes",
     },
   },

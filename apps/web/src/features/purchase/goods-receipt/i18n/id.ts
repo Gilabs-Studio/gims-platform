@@ -72,6 +72,7 @@ export const goodsReceiptId = {
       product: "Produk",
       orderedQty: "Dipesan",
       receivedQty: "Diterima",
+      remainingQty: "Sisa",
       notes: "Catatan",
     },
   },

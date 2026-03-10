@@ -79,7 +79,41 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		}
 		return nil, err
 	}
-	return uc.mapper.ToDetailResponse(po), nil
+	res := uc.mapper.ToDetailResponse(po)
+
+	// Compute per-item received quantity from all active GRs (excludes REJECTED only).
+	// Using NOT IN so that DRAFT/SUBMITTED/APPROVED GRs also reduce the remaining
+	// quantity, preventing duplicate entries across concurrent GRs for the same PO.
+	type receivedRow struct {
+		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
+		TotalReceived       float64 `gorm:"column:total_received"`
+	}
+	var receivedRows []receivedRow
+	if err := uc.db.WithContext(ctx).
+		Table("goods_receipt_items").
+		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
+		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
+		Where("gr.purchase_order_id = ?", id).
+		Where("gr.status NOT IN ?", []string{"REJECTED"}).
+		Group("goods_receipt_items.purchase_order_item_id").
+		Scan(&receivedRows).Error; err != nil {
+		return nil, err
+	}
+	receivedByItemID := make(map[string]float64, len(receivedRows))
+	for _, r := range receivedRows {
+		receivedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
+	}
+	for i := range res.Items {
+		received := receivedByItemID[res.Items[i].ID]
+		res.Items[i].QuantityReceived = received
+		remaining := res.Items[i].Quantity - received
+		if remaining < 0 {
+			remaining = 0
+		}
+		res.Items[i].QuantityRemaining = remaining
+	}
+
+	return res, nil
 }
 
 func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurchaseOrderRequest) (*dto.PurchaseOrderDetailResponse, error) {

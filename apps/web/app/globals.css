@@ -22,6 +22,10 @@
   --color-popover-foreground: hsl(var(--popover-foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
+  --color-warning: hsl(var(--chart-3));
+  --color-warning-foreground: hsl(0 0% 100%);
+  --color-success: hsl(var(--chart-2));
+  --color-success-foreground: hsl(0 0% 100%);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -314,13 +318,7 @@
   }
 
   /* Semantic warning text utility using theme variable --chart-3 */
-  .text-warning {
-    color: hsl(var(--chart-3));
-  }
-
-  .dark .text-warning {
-    color: hsl(var(--chart-3));
-  }
+  /* Note: text-warning and bg-warning are generated from --color-warning in @theme */
 }
 
 /* Sonner Toast Custom Styling - Match Theme */

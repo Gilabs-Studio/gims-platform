@@ -39,7 +39,6 @@ export function useGoodsReceiptAddData(options?: { enabled?: boolean }) {
     queryKey: goodsReceiptKeys.addData(),
     queryFn: () => goodsReceiptsService.addData(),
     enabled: options?.enabled !== undefined ? options.enabled : true,
-    staleTime: 60_000,
   });
 }
 
@@ -50,6 +49,7 @@ export function useCreateGoodsReceipt() {
     mutationFn: (data: CreateGoodsReceiptInput) => goodsReceiptsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.addData() });
       // Invalidate PO list so fulfillment + GR column reflects the new GR immediately.
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },

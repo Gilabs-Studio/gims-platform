@@ -653,29 +653,6 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// Exclude POs that already have a pending (DRAFT/SUBMITTED/APPROVED) goods receipt.
-	type poStatusRow struct {
-		PurchaseOrderID string `gorm:"column:purchase_order_id"`
-	}
-	pendingGRRows := make([]poStatusRow, 0)
-	if err := uc.db.WithContext(ctx).
-		Model(&models.GoodsReceipt{}).
-		Select("purchase_order_id").
-		Where("purchase_order_id IN ?", poIDs).
-		Where("status IN ?", []string{
-			string(models.GoodsReceiptStatusDraft),
-			string(models.GoodsReceiptStatusSubmitted),
-			string(models.GoodsReceiptStatusApproved),
-		}).
-		Group("purchase_order_id").
-		Scan(&pendingGRRows).Error; err != nil {
-		return nil, err
-	}
-	pendingByPO := make(map[string]bool, len(pendingGRRows))
-	for _, r := range pendingGRRows {
-		pendingByPO[r.PurchaseOrderID] = true
-	}
-
 	// Compute total received qty per PO item for CONFIRMED/CLOSED GRs.
 	type receivedRow struct {
 		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
@@ -707,12 +684,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		// Skip POs with an active (pending) GR.
-		if pendingByPO[po.ID] {
-			continue
-		}
-
-		// Skip POs that are 100% fulfilled (all items fully received).
+		// Skip POs that are 100% fulfilled (all items fully received via CONFIRMED/CLOSED GRs).
 		if len(po.Items) > 0 {
 			fullyFulfilled := true
 			for _, poIt := range po.Items {

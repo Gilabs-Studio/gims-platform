@@ -91,14 +91,16 @@ type RevisePurchaseOrderRequest struct {
 // Responses
 
 type PurchaseOrderItemResponse struct {
-	ID        string   `json:"id"`
-	ProductID string   `json:"product_id"`
-	Quantity  float64  `json:"quantity"`
-	Price     float64  `json:"price"`
-	Discount  float64  `json:"discount"`
-	Subtotal  float64  `json:"subtotal"`
-	Notes     *string  `json:"notes"`
-	Product   interface{} `json:"product,omitempty"`
+	ID                string      `json:"id"`
+	ProductID         string      `json:"product_id"`
+	Quantity          float64     `json:"quantity"`
+	Price             float64     `json:"price"`
+	Discount          float64     `json:"discount"`
+	Subtotal          float64     `json:"subtotal"`
+	Notes             *string     `json:"notes"`
+	Product           interface{} `json:"product,omitempty"`
+	QuantityReceived  float64     `json:"quantity_received"`
+	QuantityRemaining float64     `json:"quantity_remaining"`
 }
 
 type PurchaseOrderListResponse struct {
