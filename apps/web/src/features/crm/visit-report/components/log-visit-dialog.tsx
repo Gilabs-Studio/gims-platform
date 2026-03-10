@@ -602,7 +602,7 @@ export function LogVisitDialog({
                           variant="ghost"
                           size="icon"
                           onClick={() => setProductItems((prev) => prev.filter((_, i) => i !== idx))}
-                          className="cursor-pointer text-destructive"
+                          className="cursor-pointer text-destructive self-start"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

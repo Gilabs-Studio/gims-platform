@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -301,22 +302,21 @@ export function LogActivityDialog({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("logActivity.title")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            {t("logActivity.title")}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={onSubmit}>
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as "info" | "products")}
-          >
-            <TabsList className="w-full mb-4">
-              <TabsTrigger value="info" className="flex-1 cursor-pointer">
-                {t("logActivity.title")}
-              </TabsTrigger>
-              <TabsTrigger value="products" className="flex-1 cursor-pointer">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "products")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="info">{t("logActivity.title")}</TabsTrigger>
+              <TabsTrigger value="products" className="flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5" />
                 {tVisit("sections.productInterest")}
                 {productItems.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-xs">
+                  <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
                     {productItems.length}
                   </Badge>
                 )}
@@ -324,7 +324,7 @@ export function LogActivityDialog({
             </TabsList>
 
             {/* ── Tab 1: Activity Info ── */}
-            <TabsContent value="info" className="space-y-4">
+            <TabsContent value="info" className="space-y-4 py-2">
               <Field orientation="vertical">
                 <FieldLabel>{t("logActivity.form.type")} *</FieldLabel>
                 <Controller
@@ -475,7 +475,7 @@ export function LogActivityDialog({
             </TabsContent>
 
             {/* ── Tab 2: Product Interest ── */}
-            <TabsContent value="products" className="space-y-4">
+            <TabsContent value="products" className="space-y-4 py-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">
                   {tVisit("sections.productInterest")}
@@ -508,6 +508,7 @@ export function LogActivityDialog({
                   <div key={idx} className="border rounded-lg p-4 space-y-4 bg-card">
 
                     <div className="grid grid-cols-2 gap-4">
+                      {/* Product Select */}
                       <div className="col-span-2 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Label>{tVisit("form.product")} *</Label>
@@ -515,10 +516,8 @@ export function LogActivityDialog({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() =>
-                              setProductItems((prev) => prev.filter((_, i) => i !== idx))
-                            }
-                            className="cursor-pointer text-destructive"
+                            onClick={() => setProductItems((prev) => prev.filter((_, i) => i !== idx))}
+                            className="cursor-pointer text-destructive self-start"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -541,17 +540,11 @@ export function LogActivityDialog({
                           }
                         >
                           <SelectTrigger className="cursor-pointer">
-                            <SelectValue
-                              placeholder={tVisit("form.selectProduct")}
-                            />
+                            <SelectValue placeholder={tVisit("form.selectProduct")} />
                           </SelectTrigger>
                           <SelectContent>
                             {products.map((p) => (
-                              <SelectItem
-                                key={p.id}
-                                value={p.id}
-                                className="cursor-pointer"
-                              >
+                              <SelectItem key={p.id} value={p.id} className="cursor-pointer">
                                 {p.name} {p.code && `(${p.code})`}
                               </SelectItem>
                             ))}
@@ -559,172 +552,84 @@ export function LogActivityDialog({
                         </Select>
                       </div>
 
-                      {/* Interest Survey using radio buttons */}
+                      {/* Interest Survey (when questions configured) */}
                       {questions.length > 0 && (
-                        <div className="col-span-2 space-y-3 border rounded-md p-4 bg-muted/50">
-                          <h4 className="text-sm font-medium">
-                            {tVisit("form.interestSurvey")}
-                          </h4>
-                          {[...questions]
-                            .sort((a, b) => a.sequence - b.sequence)
-                            .map((q) => {
-                              const currentAnswer = item.answers.find(
-                                (a) => a.question_id === q.id,
-                              );
-                              return (
-                                <div key={q.id} className="space-y-1.5">
-                                  <Label className="text-xs">
-                                    {q.question_text}
-                                  </Label>
-                                  <div className="flex flex-wrap gap-4">
-                                    {q.options.map((opt) => (
-                                      <div
-                                        key={opt.id}
-                                        className="flex items-center gap-1.5"
-                                      >
-                                        <input
-                                          type="radio"
-                                          id={`la-${idx}-${q.id}-${opt.id}`}
-                                          checked={
-                                            currentAnswer?.option_id === opt.id &&
-                                            currentAnswer?.answer !== false
-                                          }
-                                          onChange={() => {
-                                            const otherAnswers =
-                                              item.answers.filter(
-                                                (a) =>
-                                                  a.question_id !== q.id,
-                                              );
-                                            const newAnswers = [
-                                              ...otherAnswers,
-                                              {
-                                                question_id: q.id,
-                                                option_id: opt.id,
-                                                answer: true,
-                                              },
-                                            ];
-                                            const newScore =
-                                              calculateInterest(newAnswers);
-                                            setProductItems((prev) =>
-                                              prev.map((p, i) =>
-                                                i === idx
-                                                  ? {
-                                                      ...p,
-                                                      answers: newAnswers,
-                                                      interest_level: newScore,
-                                                    }
-                                                  : p,
-                                              ),
-                                            );
-                                          }}
-                                          className="h-4 w-4 cursor-pointer accent-primary"
-                                        />
-                                        <label
-                                          htmlFor={`la-${idx}-${q.id}-${opt.id}`}
-                                          className="text-xs cursor-pointer"
-                                        >
-                                          {opt.option_text}
-                                        </label>
-                                      </div>
-                                    ))}
-                                  </div>
+                        <div className="col-span-2 space-y-3 border rounded-md p-4 bg-muted/50 -mt-2">
+                          <h4 className="text-sm font-medium">{tVisit("form.interestSurvey")}</h4>
+                          {[...questions].sort((a, b) => a.sequence - b.sequence).map((q) => {
+                            const currentAnswer = item.answers.find((a) => a.question_id === q.id);
+                            return (
+                              <div key={q.id} className="space-y-1.5">
+                                <Label className="text-xs">{q.question_text}</Label>
+                                <div className="flex flex-wrap gap-4">
+                                  {q.options.map((opt) => (
+                                    <div key={opt.id} className="flex items-center gap-1.5">
+                                      <input
+                                        type="radio"
+                                        id={`la-${idx}-${q.id}-${opt.id}`}
+                                        checked={currentAnswer?.option_id === opt.id && currentAnswer?.answer !== false}
+                                        onChange={() => {
+                                          const otherAnswers = item.answers.filter((a) => a.question_id !== q.id);
+                                          const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: true }];
+                                          const newScore = calculateInterest(newAnswers);
+                                          setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, answers: newAnswers, interest_level: newScore } : p)));
+                                        }}
+                                        className="h-4 w-4 cursor-pointer accent-primary"
+                                      />
+                                      <label htmlFor={`la-${idx}-${q.id}-${opt.id}`} className="text-xs cursor-pointer">
+                                        {opt.option_text}
+                                      </label>
+                                    </div>
+                                  ))}
                                 </div>
-                              );
-                            })}
+                              </div>
+                            );
+                          })}
                           {item.answers.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {tVisit("form.calculatedInterest")}:{" "}
-                              {item.interest_level}/5
-                            </p>
+                            <p className="text-xs text-muted-foreground">{tVisit("form.calculatedInterest")}: {item.interest_level}/5</p>
                           )}
                         </div>
                       )}
 
+                      {questions.length === 0 && (
+                        <div className="col-span-2 text-xs text-muted-foreground p-2">{tVisit("form.noInterestSurvey")}</div>
+                      )}
+
+                      {/* Interest Level */}
                       <div className="space-y-1.5">
                         <Label>{tVisit("form.interestLevel")} (0-5)</Label>
                         <Select
                           value={item.interest_level.toString()}
-                          onValueChange={(v) =>
-                            setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx
-                                  ? { ...p, interest_level: parseInt(v) }
-                                  : p,
-                              )
-                            )
-                          }
-                          disabled={
-                            questions.length > 0 && item.answers.length > 0
-                          }
+                          onValueChange={(v) => setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, interest_level: parseInt(v) } : p)))}
+                          disabled={questions.length > 0 && item.answers.length > 0}
                         >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {[0, 1, 2, 3, 4, 5].map((n) => (
-                              <SelectItem
-                                key={n}
-                                value={n.toString()}
-                                className="cursor-pointer"
-                              >
-                                {n} {"★".repeat(n)}
-                                {"☆".repeat(5 - n)}
+                              <SelectItem key={n} value={n.toString()} className="cursor-pointer">
+                                {n} {"★".repeat(n)}{"☆".repeat(5 - n)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {questions.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {tVisit("form.interestCalculated")}
-                          </p>
-                        )}
+                        {questions.length > 0 && <p className="text-xs text-muted-foreground">{tVisit("form.interestCalculated")}</p>}
                       </div>
 
                       <div className="space-y-1.5">
                         <Label>{tVisit("form.notes")}</Label>
-                        <Input
-                          value={item.notes}
-                          onChange={(e) =>
-                            setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx
-                                  ? { ...p, notes: e.target.value }
-                                  : p,
-                              )
-                            )
-                          }
-                          placeholder={tVisit("form.notesPlaceholder")}
-                        />
+                        <Input value={item.notes} onChange={(e) => setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, notes: e.target.value } : p)))} placeholder={tVisit("form.notesPlaceholder")} />
                       </div>
 
                       <div className="space-y-1.5">
                         <Label>{tVisit("form.quantity")}</Label>
-                        <NumericInput
-                          value={item.quantity}
-                          onChange={(val) =>
-                            setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx ? { ...p, quantity: val ?? 0 } : p,
-                              )
-                            )
-                          }
-                          min={0}
-                        />
+                        <NumericInput value={item.quantity} onChange={(val) => setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: val ?? 0 } : p)))} min={0} />
                       </div>
 
                       <div className="space-y-1.5">
                         <Label>{tVisit("form.price")}</Label>
-                        <NumericInput
-                          value={item.price}
-                          onChange={(val) =>
-                            setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx ? { ...p, price: val ?? 0 } : p,
-                              )
-                            )
-                          }
-                          min={0}
-                        />
+                        <NumericInput value={item.price} onChange={(val) => setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, price: val ?? 0 } : p)))} min={0} />
                       </div>
                     </div>
                   </div>
@@ -740,23 +645,19 @@ export function LogActivityDialog({
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isPending}
-              className="cursor-pointer"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} disabled={isPending} className="cursor-pointer">
               {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending} className="cursor-pointer">
-              {isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <Plus className="h-4 w-4 mr-1.5" />
               )}
               {t("logActivity.submit")}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
