@@ -606,11 +606,16 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       <tbody>
                         {productItemsData!.data!.map((item) => (
                           <tr
-                            key={item.id}
-                            className={`border-t ${item.is_deleted ? "opacity-50 bg-muted/30" : ""}`}
-                          >
-                            <td className="px-3 py-2 font-medium">
-                              <span className={item.is_deleted ? "line-through text-muted-foreground" : ""}>
+                              key={item.id}
+                              className={`${item.is_deleted ? "" : "border-t"} ${item.is_deleted ? "opacity-50 bg-muted/30" : ""}`}
+                            >
+                            <td className="px-3 py-2 font-medium relative">
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              <span className={item.is_deleted ? "text-muted-foreground" : ""}>
                                 {canViewProduct && item.product_id && !item.is_deleted ? (
                                   <button
                                     type="button"
@@ -624,8 +629,21 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                                 )}
                               </span>
                             </td>
-                            <td className={`px-3 py-2 text-muted-foreground ${item.is_deleted ? "line-through" : ""}`}>{item.product_sku || "-"}</td>
-                            <td className="px-3 py-2 text-center">
+                            <td className={`px-3 py-2 text-muted-foreground relative`}>
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              {item.product_sku || "-"}
+                            </td>
+                            <td className="px-3 py-2 text-center relative">
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className={`cursor-help select-none ${item.is_deleted ? "text-muted-foreground" : "text-amber-500"}`}>
@@ -661,9 +679,30 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                                 </TooltipContent>
                               </Tooltip>
                             </td>
-                            <td className={`px-3 py-2 text-center ${item.is_deleted ? "line-through text-muted-foreground" : ""}`}>{item.quantity}</td>
-                            <td className={`px-3 py-2 text-right ${item.is_deleted ? "line-through text-muted-foreground" : ""}`}>{item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}</td>
-                            <td className={`px-3 py-2 text-muted-foreground ${item.is_deleted ? "line-through" : ""}`}>{item.notes || "-"}</td>
+                            <td className={`px-3 py-2 text-center relative ${item.is_deleted ? "text-muted-foreground" : ""}`}>
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              {item.quantity}
+                            </td>
+                            <td className={`px-3 py-2 text-right relative ${item.is_deleted ? "text-muted-foreground" : ""}`}>
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              {item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}
+                            </td>
+                            <td className={`px-3 py-2 text-muted-foreground relative`}>
+                              {item.is_deleted && (
+                                <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                  <div className="border-t border-muted-foreground/50" />
+                                </div>
+                              )}
+                              {item.notes || "-"}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

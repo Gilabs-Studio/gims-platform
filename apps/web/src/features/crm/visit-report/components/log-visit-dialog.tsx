@@ -588,25 +588,25 @@ export function LogVisitDialog({
               </Button>
             </div>
 
-            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2 pb-10">
               {productItems.map((item, idx) => (
-                <div key={idx} className="border rounded-lg p-4 space-y-4 relative bg-card">
-                  <div className="absolute top-2 right-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setProductItems((prev) => prev.filter((_, i) => i !== idx))}
-                      className="cursor-pointer text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div key={idx} className="border rounded-lg p-4 space-y-4 bg-card">
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Product Select */}
                     <div className="col-span-2 space-y-1.5">
-                      <Label>{t("form.product")} *</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>{t("form.product")} *</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setProductItems((prev) => prev.filter((_, i) => i !== idx))}
+                          className="cursor-pointer text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <Select
                         value={item.product_id}
                         onValueChange={(val) =>
