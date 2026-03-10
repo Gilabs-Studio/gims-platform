@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -72,12 +74,45 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		}
 	}
 
+	// If no customer linked but the deal has lead info, expose a snapshot
+	// of the potential customer (no customer ID) so UI can display prospect name.
+	if resp.Customer == nil && deal.Lead != nil {
+		name := deal.Lead.CompanyName
+		if name == "" {
+			name = strings.TrimSpace(deal.Lead.FirstName + " " + deal.Lead.LastName)
+		}
+		if name != "" {
+			resp.Customer = &dto.DealCustomerInfo{
+				ID:   "",
+				Code: deal.Lead.Code,
+				Name: name,
+			}
+		}
+	}
+
 	if deal.Contact != nil {
 		resp.Contact = &dto.DealContactInfo{
 			ID:    deal.Contact.ID,
 			Name:  deal.Contact.Name,
 			Phone: deal.Contact.Phone,
 			Email: deal.Contact.Email,
+		}
+	}
+
+	// If no contact linked but lead has person info, expose a snapshot contact
+	if resp.Contact == nil && deal.Lead != nil {
+		contactName := strings.TrimSpace(deal.Lead.FirstName + " " + deal.Lead.LastName)
+		if contactName == "" && deal.Lead.CompanyName != "" {
+			// fallback to company as contact name when person not provided
+			contactName = deal.Lead.CompanyName
+		}
+		if contactName != "" || deal.Lead.Phone != "" || deal.Lead.Email != "" {
+			resp.Contact = &dto.DealContactInfo{
+				ID:    "",
+				Name:  contactName,
+				Phone: deal.Lead.Phone,
+				Email: deal.Lead.Email,
+			}
 		}
 	}
 

@@ -233,6 +233,16 @@ func (u *dealUsecase) ListByStage(ctx context.Context, params repositories.Deals
 	if err != nil {
 		return nil, 0, err
 	}
+	// Ensure lead is populated for each deal when repository did not preload it.
+	// This can happen in some DB/ORM configs; fetching missing lead ensures
+	// the mapper can create snapshot customer/contact from lead data.
+	for i := range deals {
+		if deals[i].Lead == nil && deals[i].LeadID != nil && *deals[i].LeadID != "" {
+			if lead, lerr := u.leadRepo.FindByID(ctx, *deals[i].LeadID); lerr == nil && lead != nil {
+				deals[i].Lead = lead
+			}
+		}
+	}
 	return mapper.ToDealResponseList(deals), total, nil
 }
 

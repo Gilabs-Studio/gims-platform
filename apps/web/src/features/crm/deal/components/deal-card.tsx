@@ -112,7 +112,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Building2 className="h-3 w-3 shrink-0" />
             <span className="truncate">{deal.customer?.name ?? deal.lead!.company_name}</span>
-            {!deal.customer && deal.lead?.company_name && (
+              {!deal.customer_id && deal.lead?.company_name && (
               <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40 py-0 shrink-0">
                 {t("potential")}
               </Badge>
@@ -126,11 +126,11 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <span className="truncate">
               {deal.contact?.name ?? `${deal.lead!.first_name} ${deal.lead!.last_name}`.trim()}
             </span>
-            {!deal.contact && (deal.lead?.first_name || deal.lead?.last_name) && (
-              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40 py-0 shrink-0">
-                {t("potential")}
-              </Badge>
-            )}
+              {!deal.contact_id && (deal.lead?.first_name || deal.lead?.last_name) && (
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40 py-0 shrink-0">
+                  {t("potential")}
+                </Badge>
+              )}
           </div>
         )}
 
