@@ -54,6 +54,7 @@ import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByDeal } from "@/features/crm/task/hooks/use-tasks";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
+import { useDealActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -105,6 +106,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
 
   const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId);
+  const { totalCount: activitiesCount } = useDealActivityTimeline(dealId);
 
   const deal: Deal | undefined = response?.data;
   const { data: leadResponse } = useLeadById(deal?.lead_id ?? "");
@@ -325,22 +327,32 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               onValueChange={(v) => setVisitedTabs((prev) => new Set([...prev, v]))}
             >
               <TabsList>
-                <TabsTrigger value="activities" className="cursor-pointer">
-                  <History className="h-4 w-4 mr-1" />
+                <TabsTrigger value="activities" className="cursor-pointer gap-1.5">
+                  <History className="h-4 w-4" />
                   {t("activities")}
-                </TabsTrigger>
-                <TabsTrigger value="tasks" className="cursor-pointer">
-                  <ListTodo className="h-4 w-4 mr-1" />
-                  {t("tasks")}
-                  {(tasksData?.data?.length ?? 0) > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-xs">
-                      {tasksData?.data?.length}
-                    </Badge>
+                  {activitiesCount > 0 && (
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                      {activitiesCount}
+                    </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="items" className="cursor-pointer">
-                  <Package className="h-4 w-4 mr-1" />
-                  {t("productItems")} ({deal.items?.length ?? 0})
+                <TabsTrigger value="tasks" className="cursor-pointer gap-1.5">
+                  <ListTodo className="h-4 w-4" />
+                  {t("tasks")}
+                  {(tasksData?.data?.length ?? 0) > 0 && (
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                      {tasksData!.data!.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="items" className="cursor-pointer gap-1.5">
+                  <Package className="h-4 w-4" />
+                  {t("productItems")}
+                  {(deal.items?.length ?? 0) > 0 && (
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                      {deal.items.length}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="information" className="cursor-pointer">
                   <FileText className="h-4 w-4 mr-1" />
@@ -717,38 +729,52 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                 {t("bantTitle")}
               </h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`}
-                  />
-                  <span>{t("budget")}</span>
+              <div className="space-y-2 text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                    />
+                    <span className="font-medium text-muted-foreground uppercase">{t("budget")}</span>
+                  </div>
+                  {deal.budget_amount > 0 && (
+                    <p className="pl-3.5 font-medium">{formatCurrency(deal.budget_amount)}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`}
-                  />
-                  <span>{t("authority")}</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                    />
+                    <span className="font-medium text-muted-foreground uppercase">{t("authority")}</span>
+                  </div>
+                  {deal.auth_person && (
+                    <p className="pl-3.5 text-muted-foreground">{deal.auth_person}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`}
-                  />
-                  <span>{t("need")}</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                    />
+                    <span className="font-medium text-muted-foreground uppercase">{t("need")}</span>
+                  </div>
+                  {deal.need_description && (
+                    <p className="pl-3.5 text-muted-foreground whitespace-pre-wrap">{deal.need_description}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`}
-                  />
-                  <span>{t("timeline")}</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                    />
+                    <span className="font-medium text-muted-foreground uppercase">{t("timeline")}</span>
+                  </div>
+                  {deal.expected_close_date && (
+                    <p className="pl-3.5 text-muted-foreground">{formatDate(deal.expected_close_date)}</p>
+                  )}
                 </div>
               </div>
-              {deal.budget_amount > 0 && (
-                <div className="flex items-center gap-1 text-xs">
-                  <DollarSign className="h-3 w-3" />
-                  <span>{formatCurrency(deal.budget_amount)}</span>
-                </div>
-              )}
             </div>
 
             {/* Lead */}

@@ -9,7 +9,6 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
-  DollarSign,
   ExternalLink,
   History,
   ListTodo,
@@ -1000,30 +999,44 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                     {t("sections.bant")}
                   </h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center gap-1">
-                      <span className={`inline-block h-2 w-2 rounded-full ${lead.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
-                      <span>{t("form.budgetConfirmed")}</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className="font-medium text-muted-foreground uppercase">Budget</span>
+                      </div>
+                      {lead.budget_amount > 0 && (
+                        <p className="pl-3.5 font-medium">{formatCurrency(lead.budget_amount)}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`inline-block h-2 w-2 rounded-full ${lead.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
-                      <span>{t("form.authConfirmed")}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className="font-medium text-muted-foreground uppercase">Authority</span>
+                      </div>
+                      {lead.auth_person && (
+                        <p className="pl-3.5 text-muted-foreground">{lead.auth_person}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`inline-block h-2 w-2 rounded-full ${lead.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
-                      <span>{t("form.needConfirmed")}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className="font-medium text-muted-foreground uppercase">Need</span>
+                      </div>
+                      {lead.need_description && (
+                        <p className="pl-3.5 text-muted-foreground whitespace-pre-wrap">{lead.need_description}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`inline-block h-2 w-2 rounded-full ${lead.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
-                      <span>{t("form.timeConfirmed")}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className="font-medium text-muted-foreground uppercase">Timeline</span>
+                      </div>
+                      {lead.time_expected && (
+                        <p className="pl-3.5 text-muted-foreground">{formatDate(lead.time_expected)}</p>
+                      )}
                     </div>
                   </div>
-                  {lead.budget_confirmed && lead.budget_amount > 0 && (
-                    <div className="flex items-center gap-1 text-xs">
-                      <DollarSign className="h-3 w-3" />
-                      <span>{formatCurrency(lead.budget_amount)}</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Conversion details (only when converted) */}

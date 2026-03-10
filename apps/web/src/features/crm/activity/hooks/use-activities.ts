@@ -168,6 +168,7 @@ export function useDealActivityTimeline(dealId: string, leadId?: string) {
     hasMore,
     fetchMore,
     refetch,
+    totalCount: page1Query.data?.meta?.pagination?.total ?? allActivities.length,
   };
 }
 

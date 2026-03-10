@@ -35,6 +35,8 @@ type TaskRepository interface {
 	List(ctx context.Context, params TaskListParams) ([]models.Task, int64, error)
 	Update(ctx context.Context, task *models.Task) error
 	Delete(ctx context.Context, id string) error
+	// UpdateDealIDByLeadID associates all tasks linked to the given lead with a new deal.
+	UpdateDealIDByLeadID(ctx context.Context, leadID, dealID string) error
 }
 
 type taskRepository struct {
@@ -140,4 +142,10 @@ func (r *taskRepository) Update(ctx context.Context, task *models.Task) error {
 
 func (r *taskRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Task{}).Error
+}
+
+func (r *taskRepository) UpdateDealIDByLeadID(ctx context.Context, leadID, dealID string) error {
+	return r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("lead_id = ? AND deal_id IS NULL", leadID).
+		Update("deal_id", dealID).Error
 }
