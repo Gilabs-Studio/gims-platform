@@ -56,7 +56,8 @@ export const crmDealEn = {
     moveStageConvertLabel: "Convert to Sales Quotation",
     moveStageConvertDescription: "Automatically create a sales quotation from this deal upon moving to Won stage.",
     moveStageConvertNoItems: "Cannot convert: deal has no product items.",
-    moveStageConvertNoCustomer: "Cannot convert: deal has no customer assigned.",
+    moveStageConvertNoCustomer: "Cannot convert: deal has no customer or linked lead.",
+    moveStageConvertAutoCreateCustomer: "A new customer will be auto-created from the linked lead data.",
     convertedToSQBadge: "Converted to SQ",
 
     // Kanban
@@ -80,7 +81,7 @@ export const crmDealEn = {
     pipelineStage: "Pipeline Stage",
     pipelineStagePlaceholder: "Select pipeline stage",
     customer: "Customer",
-    potential: "Potential",
+    potential: "Prospect",
     customerPlaceholder: "Select customer",
     selectCustomer: "Select customer",
     contact: "Contact",

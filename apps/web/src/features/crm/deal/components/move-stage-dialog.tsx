@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, AlertTriangle } from "lucide-react";
+import { FileText, AlertTriangle, Info } from "lucide-react";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDealFormData, useMoveDealStage } from "../hooks/use-deals";
 import {
@@ -101,10 +101,13 @@ export function MoveStageDialog({
   // Determine if selected stage is a Won stage (for convert checkbox)
   const isWonStage = selectedStage?.is_won === true;
 
-  // Check if deal has items and customer (prerequisites for conversion)
+  // Check prerequisites for conversion.
+  // Backend auto-creates customer from lead when moving to Won, so only items + (customer OR lead) are required.
   const hasItems = (deal?.items?.length ?? 0) > 0;
   const hasCustomer = !!deal?.customer_id;
-  const hasPrerequisites = hasItems && hasCustomer;
+  const hasLeadData = !!deal?.lead_id;
+  const hasPrerequisites = hasItems && (hasCustomer || hasLeadData);
+  const willAutoCreateCustomer = !hasCustomer && hasLeadData;
   // Permission to create a Sales Quotation determines whether the checkbox is shown
   const hasPermission = useUserPermission("sales_quotation.create");
 
@@ -292,7 +295,13 @@ export function MoveStageDialog({
                         <p className="text-xs text-amber-600 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {!hasItems && t("moveStageConvertNoItems")}
-                          {hasItems && !hasCustomer && t("moveStageConvertNoCustomer")}
+                          {hasItems && !hasCustomer && !hasLeadData && t("moveStageConvertNoCustomer")}
+                        </p>
+                      )}
+                      {willAutoCreateCustomer && isWonStage && (
+                        <p className="text-xs text-blue-600 flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          {t("moveStageConvertAutoCreateCustomer")}
                         </p>
                       )}
                     </div>

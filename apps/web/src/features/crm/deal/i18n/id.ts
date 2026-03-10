@@ -56,7 +56,8 @@ export const crmDealId = {
     moveStageConvertLabel: "Konversi ke Sales Quotation",
     moveStageConvertDescription: "Otomatis membuat sales quotation dari deal ini saat dipindahkan ke tahap Won.",
     moveStageConvertNoItems: "Tidak bisa konversi: deal tidak memiliki item produk.",
-    moveStageConvertNoCustomer: "Tidak bisa konversi: deal belum memiliki pelanggan.",
+    moveStageConvertNoCustomer: "Tidak bisa konversi: deal tidak memiliki customer atau lead yang ditautkan.",
+    moveStageConvertAutoCreateCustomer: "Customer baru akan dibuat otomatis dari data lead yang ditautkan.",
     convertedToSQBadge: "Dikonversi ke SQ",
 
     // Kanban
@@ -80,7 +81,7 @@ export const crmDealId = {
     pipelineStage: "Tahap Pipeline",
     pipelineStagePlaceholder: "Pilih tahap pipeline",
     customer: "Pelanggan",
-    potential: "Potensial",
+    potential: "Calon Customer",
     customerPlaceholder: "Pilih pelanggan",
     selectCustomer: "Pilih pelanggan",
     contact: "Kontak",
