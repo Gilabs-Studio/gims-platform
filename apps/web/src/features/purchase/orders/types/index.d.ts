@@ -49,6 +49,8 @@ export interface PurchaseOrderSISummary {
   id: string;
   code: string;
   status: string;
+  goods_receipt_id?: string | null;
+  goods_receipt_code?: string | null;
 }
 
 export interface POFulfillmentSummary {

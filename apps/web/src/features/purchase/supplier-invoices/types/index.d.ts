@@ -198,6 +198,8 @@ export interface SupplierInvoiceAddGoodsReceipt {
   status: string;
   items: SupplierInvoiceAddGoodsReceiptItem[];
   invoice_dp?: SupplierInvoiceAddDownPaymentMini | null;
+  default_payment_terms_id?: string | null;
+  default_payment_terms_name?: string | null;
 }
 
 export interface SupplierInvoiceAddPurchaseOrder {

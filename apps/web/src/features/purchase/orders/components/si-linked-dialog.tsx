@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
+import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import type { PurchaseOrderSISummary } from "../types";
 
 interface SILinkedDialogProps {
@@ -23,9 +24,13 @@ export function SILinkedDialog({
   onOpenChange,
 }: SILinkedDialogProps) {
   const t = useTranslations("supplierInvoice");
+  const tGR = useTranslations("goodsReceipt");
   const canViewSI = useUserPermission("supplier_invoice.read");
+  const canViewGR = useUserPermission("goods_receipt.read");
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedGRId, setSelectedGRId] = useState<string | null>(null);
+  const [grDetailOpen, setGRDetailOpen] = useState(false);
 
   return (
     <>
@@ -49,6 +54,7 @@ export function SILinkedDialog({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("columns.code")}</TableHead>
+                    <TableHead>{tGR("fields.code")}</TableHead>
                     <TableHead>{t("columns.status")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -73,10 +79,30 @@ export function SILinkedDialog({
                           >
                             {si.code}
                           </button>
+                          </TableCell>
+                          <TableCell>
+                            {si.goods_receipt_id && si.goods_receipt_code ? (
+                            canViewGR ? (
+                              <button
+                                type="button"
+                                className="font-medium text-primary hover:underline cursor-pointer"
+                                onClick={() => {
+                                  setSelectedGRId(si.goods_receipt_id!);
+                                  setGRDetailOpen(true);
+                                }}
+                              >
+                                {si.goods_receipt_code}
+                              </button>
+                            ) : (
+                              <span>{si.goods_receipt_code}</span>
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <SupplierInvoiceStatusBadge status={si.status} className="text-xs" />
-                        </TableCell>
+                            <SupplierInvoiceStatusBadge status={si.status} />
+                          </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -94,6 +120,15 @@ export function SILinkedDialog({
           setSelectedSIId(null);
         }}
         invoiceId={selectedSIId}
+      />
+
+      <GoodsReceiptDetail
+        open={grDetailOpen}
+        onClose={() => {
+          setGRDetailOpen(false);
+          setSelectedGRId(null);
+        }}
+        goodsReceiptId={selectedGRId}
       />
     </>
   );

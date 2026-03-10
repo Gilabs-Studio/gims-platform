@@ -5,7 +5,6 @@ export const goodsReceiptEn = {
   toast: {
     created: "Goods receipt created",
     updated: "Goods receipt updated",
-    confirmed: "Goods receipt confirmed",
     submitted: "Goods receipt submitted for approval",
     approved: "Goods receipt approved",
     rejected: "Goods receipt rejected",
@@ -54,6 +53,7 @@ export const goodsReceiptEn = {
     workflowHistory: "Workflow History",
   },
   fields: {
+    code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Receipt Date",
     supplier: "Supplier",
@@ -91,7 +91,6 @@ export const goodsReceiptEn = {
     approved: "Approved",
     closed: "Closed",
     rejected: "Rejected",
-    confirmed: "Confirmed",
   },
   actions: {
     create: "Create",

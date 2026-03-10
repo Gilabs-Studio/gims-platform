@@ -161,7 +161,7 @@ func SeedIntegrationFlow() error {
 				PurchaseOrderID: po.ID,
 				SupplierID:      supplier.ID,
 				ReceiptDate:     &receiptDate,
-				Status:          purchaseModels.GoodsReceiptStatusConfirmed,
+				Status:          purchaseModels.GoodsReceiptStatusClosed,
 				CreatedBy:       adminID,
 				Items: []purchaseModels.GoodsReceiptItem{
 					{

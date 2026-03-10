@@ -36,6 +36,8 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
+import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 
 import {
   useGoodsReceipt,
@@ -44,7 +46,6 @@ import {
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
   useCloseGoodsReceipt,
-  useConvertGoodsReceiptToSI,
 } from "../hooks/use-goods-receipts";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
@@ -68,6 +69,9 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
+  const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
+  const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
+  const [isSIFormOpen, setIsSIFormOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
@@ -77,7 +81,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");
   const canClose = useUserPermission("goods_receipt.close");
-  const canConvert = useUserPermission("goods_receipt.convert");
   const canPrint = useUserPermission("goods_receipt.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
@@ -94,7 +97,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
   const closeMutation = useCloseGoodsReceipt();
-  const convertMutation = useConvertGoodsReceiptToSI();
 
   if (!goodsReceiptId) return null;
 
@@ -142,21 +144,13 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     }
   };
 
-  const handleClose = async () => {
+  // Compound action: Close the GR (triggers stock/journal/asset) then open the SI creation form.
+  const handleConvertToSI = async () => {
     if (!id) return;
     try {
       await closeMutation.mutateAsync(id);
       toast.success(t("toast.closed"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  };
-
-  const handleConvert = async () => {
-    if (!id) return;
-    try {
-      await convertMutation.mutateAsync(id);
-      toast.success(t("toast.converted"));
+      setIsSIFormOpen(true);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -255,20 +249,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={handleClose}
+                    onClick={handleConvertToSI}
                     disabled={closeMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    title={t("actions.close")}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "CLOSED" && canConvert && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleConvert}
-                    disabled={convertMutation.isPending}
                     className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                     title={t("convertToSupplierInvoice")}
                   >
@@ -413,9 +395,18 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                                   <div className="flex items-center gap-3">
                                     <span>{new Date(gr.converted_at).toLocaleString()}</span>
                                     {gr.converted_to_supplier_invoice_id && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {t("fields.supplierInvoice")}
-                                      </Badge>
+                                      <button
+                                        type="button"
+                                        className="cursor-pointer"
+                                        onClick={() => {
+                                          setSelectedSIId(gr.converted_to_supplier_invoice_id ?? null);
+                                          setIsSIDetailOpen(true);
+                                        }}
+                                      >
+                                        <Badge variant="outline" className="text-xs hover:bg-accent">
+                                          {t("fields.supplierInvoice")}
+                                        </Badge>
+                                      </button>
                                     )}
                                   </div>
                                 </TableCell>
@@ -525,6 +516,22 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
           setSelectedPurchaseOrderId(null);
         }}
         purchaseOrderId={selectedPurchaseOrderId}
+      />
+
+      <SupplierInvoiceDetail
+        open={isSIDetailOpen}
+        onClose={() => {
+          setIsSIDetailOpen(false);
+          setSelectedSIId(null);
+        }}
+        invoiceId={selectedSIId}
+      />
+
+      <SupplierInvoiceFormDialog
+        open={isSIFormOpen}
+        onOpenChange={(v) => setIsSIFormOpen(v)}
+        defaultPurchaseOrderId={gr?.purchase_order?.id ?? null}
+        defaultGoodsReceiptId={gr?.id ?? null}
       />
     </>
   );

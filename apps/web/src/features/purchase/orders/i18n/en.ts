@@ -151,6 +151,7 @@ export const purchaseOrderEn = {
     reject: "Reject",
     close: "Close",
     createGR: "Create Goods Receipt",
+    createSI: "Create Supplier Invoice",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",

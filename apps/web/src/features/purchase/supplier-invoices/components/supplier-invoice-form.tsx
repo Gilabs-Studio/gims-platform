@@ -47,10 +47,16 @@ export function SupplierInvoiceFormDialog({
   open,
   onOpenChange,
   invoiceId,
+  defaultPurchaseOrderId,
+  defaultGoodsReceiptId,
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
+  defaultPurchaseOrderId?: string | null;
+  defaultGoodsReceiptId?: string | null;
+  onSuccess?: (invoiceId: string) => void;
 }) {
   const t = useTranslations("supplierInvoice");
   const isEdit = !!invoiceId;
@@ -95,6 +101,12 @@ export function SupplierInvoiceFormDialog({
   const selectedGRId = form.watch("goods_receipt_id");
   const setFormValue = form.setValue;
 
+  const filteredGRs = useMemo(() => {
+    const all = addData?.goods_receipts ?? [];
+    if (!defaultPurchaseOrderId) return all;
+    return all.filter((gr) => gr.purchase_order?.id === defaultPurchaseOrderId);
+  }, [addData?.goods_receipts, defaultPurchaseOrderId]);
+
   const selectedGR = useMemo(() => {
     if (!addData?.goods_receipts?.length || !selectedGRId) return null;
     return addData.goods_receipts.find((gr) => gr.id === selectedGRId) ?? null;
@@ -106,7 +118,7 @@ export function SupplierInvoiceFormDialog({
 
     if (!isEdit) {
       form.reset({
-        goods_receipt_id: "",
+        goods_receipt_id: defaultGoodsReceiptId ?? "",
         payment_terms_id: "",
         invoice_number: "",
         invoice_date: "",
@@ -142,7 +154,7 @@ export function SupplierInvoiceFormDialog({
         discount: it.discount,
       })),
     });
-  }, [open, isEdit, detailQuery.data, form]);
+  }, [open, isEdit, detailQuery.data, form, defaultGoodsReceiptId]);
 
   useEffect(() => {
     if (!open || isEdit || !selectedGR) return;
@@ -150,13 +162,20 @@ export function SupplierInvoiceFormDialog({
       "items",
       selectedGR.items.map((it) => ({
         product_id: it.product?.id ?? "",
+        product_name: it.product?.name ?? "",
+        product_code: it.product?.code ?? "",
         quantity: it.quantity_received,
         price: it.price,
         discount: 0,
       })),
       { shouldValidate: true },
     );
-  }, [open, isEdit, selectedGR, setFormValue]);
+    // Auto-fill payment terms from the GR's linked PO when not already set
+    const currentPT = form.getValues("payment_terms_id");
+    if (!currentPT && selectedGR.default_payment_terms_id) {
+      setFormValue("payment_terms_id", selectedGR.default_payment_terms_id, { shouldValidate: true });
+    }
+  }, [open, isEdit, selectedGR, setFormValue, form]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
     form.setValue("payment_terms_id", item.id, { shouldValidate: true });
@@ -195,12 +214,16 @@ export function SupplierInvoiceFormDialog({
         const response = await updateMutation.mutateAsync({ id: invoiceId, data: cleaned });
         if (!response.success) throw new Error(response.error ?? "update_failed");
         toast.success(t("toast.updated"));
+        onOpenChange(false);
       } else {
         const response = await createMutation.mutateAsync(cleaned);
         if (!response.success) throw new Error(response.error ?? "create_failed");
         toast.success(t("toast.created"));
+        onOpenChange(false);
+        if (response.data?.id) {
+          onSuccess?.(response.data.id);
+        }
       }
-      onOpenChange(false);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -221,7 +244,28 @@ export function SupplierInvoiceFormDialog({
             <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
           </TabsList>
 
-          <form className="space-y-6 mt-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            className="space-y-6 mt-4"
+            onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              // If there are validation errors, switch to the tab containing the first error
+              if (!errors) return;
+              // Basic tab fields
+              const basicFields = ["goods_receipt_id", "payment_terms_id", "invoice_number", "invoice_date", "due_date"];
+              const errorKeys = Object.keys(errors || {}) as string[];
+              // If any basic field has error, focus basic tab
+              if (errorKeys.some((k) => basicFields.includes(k))) {
+                setActiveTab("basic");
+                return;
+              }
+              // If items has errors, focus items tab
+              if (errorKeys.includes("items")) {
+                setActiveTab("items");
+                return;
+              }
+              // Default to basic
+              setActiveTab("basic");
+            })}
+          >
             <TabsContent value="basic" className="space-y-4 mt-0">
               <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
                 <FileText className="h-4 w-4 text-primary" />
@@ -241,18 +285,21 @@ export function SupplierInvoiceFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                    {(addData?.goods_receipts ?? []).map((gr) => (
+                  {filteredGRs.map((gr) => (
                       <SelectItem key={gr.id} value={gr.id} className="cursor-pointer">
                         {gr.code}{gr.purchase_order ? ` (PO: ${gr.purchase_order.code})` : ""}{gr.supplier ? ` - ${gr.supplier.name}` : ""}
                       </SelectItem>
                     ))}
-                    {isEdit && detailQuery.data?.data?.goods_receipt && !(addData?.goods_receipts ?? []).some((x) => x.id === detailQuery.data?.data?.goods_receipt?.id) && (
+                    {isEdit && detailQuery.data?.data?.goods_receipt && !filteredGRs.some((x) => x.id === detailQuery.data?.data?.goods_receipt?.id) && (
                       <SelectItem value={detailQuery.data.data.goods_receipt.id} className="cursor-pointer">
                         {detailQuery.data.data.goods_receipt.code}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.goods_receipt_id && (
+                  <p className="text-sm text-destructive mt-1">{form.formState.errors.goods_receipt_id.message}</p>
+                )}
               </Field>
 
               {/* Payment Terms + Invoice Number — paired row */}
@@ -274,6 +321,9 @@ export function SupplierInvoiceFormDialog({
                       />
                     )}
                   />
+                  {form.formState.errors.payment_terms_id && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.payment_terms_id.message}</p>
+                  )}
                 </Field>
 
                 <Field orientation="vertical">
@@ -283,6 +333,9 @@ export function SupplierInvoiceFormDialog({
                     onChange={(e) => setFormValue("invoice_number", e.target.value, { shouldValidate: true })}
                     disabled={isBusy}
                   />
+                  {form.formState.errors.invoice_number && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_number.message}</p>
+                  )}
                 </Field>
               </div>
 
@@ -319,6 +372,9 @@ export function SupplierInvoiceFormDialog({
                       </Popover>
                     )}
                   />
+                  {form.formState.errors.invoice_date && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_date.message}</p>
+                  )}
                 </Field>
 
                 <Field orientation="vertical">
@@ -352,6 +408,9 @@ export function SupplierInvoiceFormDialog({
                       </Popover>
                     )}
                   />
+                  {form.formState.errors.due_date && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.due_date.message}</p>
+                  )}
                 </Field>
               </div>
 
@@ -432,8 +491,8 @@ export function SupplierInvoiceFormDialog({
                                             <div className="col-span-2">
                                                 <FieldLabel>{t("items.fields.product")}</FieldLabel>
                                                 <div className="mt-1 p-2 rounded-md bg-muted/50 text-sm">
-                                                    <p className="font-medium">{(row as { product_code?: string; product_name?: string }).product_code || row.product_id}</p>
-                                                    <p className="text-xs text-muted-foreground">{(row as { product_code?: string; product_name?: string }).product_name || ""}</p>
+                                                    <p className="font-medium">{(row as { product_code?: string; product_name?: string }).product_name || (row as { product_code?: string }).product_code || row.product_id}</p>
+                                                    <p className="text-xs text-muted-foreground">{(row as { product_code?: string }).product_code ?? ""}</p>
                                                 </div>
                                             </div>
 
@@ -527,15 +586,22 @@ export function SupplierInvoiceFormDialog({
                     <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
                         {t("actions.back") || "Back"}
                     </Button>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
-                            {t("actions.cancel")}
-                        </Button>
-                        <Button type="submit" disabled={isBusy} className="cursor-pointer">
-                            <ButtonLoading loading={isBusy}>
-                                {t("actions.save")}
-                            </ButtonLoading>
-                        </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        {form.formState.errors.items && (
+                          <p className="text-sm text-destructive">
+                            {(form.formState.errors.items as { message?: string }).message ?? "At least one item is required"}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
+                                {t("actions.cancel")}
+                            </Button>
+                            <Button type="submit" disabled={isBusy} className="cursor-pointer">
+                                <ButtonLoading loading={isBusy}>
+                                    {t("actions.save")}
+                                </ButtonLoading>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </TabsContent>

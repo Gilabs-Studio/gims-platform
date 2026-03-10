@@ -653,7 +653,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// Compute total received qty per PO item for CONFIRMED/CLOSED GRs.
+	// Compute total received qty per PO item for CLOSED GRs.
 	type receivedRow struct {
 		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
@@ -666,7 +666,6 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id IN ?", poIDs).
 		Where("gr.status IN ?", []string{
-			string(models.GoodsReceiptStatusConfirmed),
 			string(models.GoodsReceiptStatusClosed),
 		}).
 		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
@@ -684,7 +683,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		// Skip POs that are 100% fulfilled (all items fully received via CONFIRMED/CLOSED GRs).
+		// Skip POs that are 100% fulfilled (all items fully received via CLOSED GRs).
 		if len(po.Items) > 0 {
 			fullyFulfilled := true
 			for _, poIt := range po.Items {
@@ -865,7 +864,7 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			return err
 		}
 
-		// Validate quantities do not exceed ordered qty (sum of CONFIRMED/CLOSED GRs + this GR).
+		// Validate quantities do not exceed ordered qty (sum of CLOSED GRs + this GR).
 		for _, it := range gr.Items {
 			ordered := 0.0
 			for _, poIt := range po.Items {
@@ -882,7 +881,6 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
 				Where("goods_receipts.status IN ?", []string{
-					string(models.GoodsReceiptStatusConfirmed),
 					string(models.GoodsReceiptStatusClosed),
 				}).
 				Where("goods_receipt_items.purchase_order_item_id = ?", it.PurchaseOrderItemID).
@@ -914,7 +912,6 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
 				Where("goods_receipts.status IN ?", []string{
-					string(models.GoodsReceiptStatusConfirmed),
 					string(models.GoodsReceiptStatusClosed),
 				}).
 				Where("goods_receipt_items.purchase_order_item_id = ?", poIt.ID).

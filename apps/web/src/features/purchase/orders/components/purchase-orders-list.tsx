@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Download,
   Eye,
+  FileText,
   MoreHorizontal,
   Package,
   Pencil,
@@ -72,6 +73,7 @@ import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
 import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -106,6 +108,10 @@ export function PurchaseOrdersList() {
   const [grFormOpen, setGrFormOpen] = useState(false);
   const [grFormPOId, setGrFormPOId] = useState<string | null>(null);
 
+  // Create SI shortcut from PO row
+  const [siFormOpen, setSiFormOpen] = useState(false);
+  const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
+
   // GR detail opened after successful create
   const [grCreatedId, setGrCreatedId] = useState<string | null>(null);
   const [grCreatedDetailOpen, setGrCreatedDetailOpen] = useState(false);
@@ -128,6 +134,7 @@ export function PurchaseOrdersList() {
   const canViewSI = useUserPermission("supplier_invoice.read");
   const canViewPR = useUserPermission("purchase_requisition.read");
   const canCreateGR = useUserPermission("goods_receipt.create");
+  const canCreateSI = useUserPermission("supplier_invoice.create");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -557,6 +564,19 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canCreateSI && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                onClick={() => {
+                                  setSiFormPOId(it.id);
+                                  setSiFormOpen(true);
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                {t("actions.createSI")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canPrint && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-violet-600 focus:text-violet-600"
@@ -645,6 +665,16 @@ export function PurchaseOrdersList() {
           setGrCreatedId(null);
         }}
         goodsReceiptId={grCreatedId}
+      />
+
+      {/* Create SI shortcut — pre-fills the PO context from the selected row */}
+      <SupplierInvoiceFormDialog
+        open={siFormOpen}
+        onOpenChange={(open) => {
+          setSiFormOpen(open);
+          if (!open) setSiFormPOId(null);
+        }}
+        defaultPurchaseOrderId={siFormPOId}
       />
 
       {printingId && (

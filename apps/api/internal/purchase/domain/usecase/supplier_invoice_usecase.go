@@ -99,12 +99,13 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		ptRes = append(ptRes, dto.SupplierInvoiceAddPaymentTerms{ID: pt.ID, Name: pt.Name})
 	}
 
-	// Fetch CLOSED Goods Receipts as the source for creating Supplier Invoices
+	// Fetch APPROVED/CLOSED Goods Receipts as the source for creating Supplier Invoices
 	var grs []*models.GoodsReceipt
 	if err := uc.db.WithContext(ctx).
 		Model(&models.GoodsReceipt{}).
-		Where("status = ?", string(models.GoodsReceiptStatusClosed)).
+		Where("status IN ?", []string{string(models.GoodsReceiptStatusApproved), string(models.GoodsReceiptStatusClosed)}).
 		Preload("PurchaseOrder").
+		Preload("PurchaseOrder.PaymentTerms").
 		Preload("Supplier").
 		Preload("Items").
 		Preload("Items.Product").
@@ -162,14 +163,29 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 			poMini = &dto.SupplierInvoicePurchaseOrderMini{ID: gr.PurchaseOrder.ID, Code: gr.PurchaseOrder.Code}
 		}
 
+		var defaultPTID *string
+		var defaultPTName *string
+		if gr.PurchaseOrder != nil && gr.PurchaseOrder.PaymentTermsID != nil {
+			defaultPTID = gr.PurchaseOrder.PaymentTermsID
+			if gr.PurchaseOrder.PaymentTerms != nil {
+				name := gr.PurchaseOrder.PaymentTerms.Name
+				defaultPTName = &name
+			} else if gr.PurchaseOrder.PaymentTermsNameSnapshot != "" {
+				name := gr.PurchaseOrder.PaymentTermsNameSnapshot
+				defaultPTName = &name
+			}
+		}
+
 		addGR := dto.SupplierInvoiceAddGoodsReceipt{
-			ID:            gr.ID,
-			Code:          gr.Code,
-			PurchaseOrder: poMini,
-			Supplier:      sup,
-			ReceiptDate:   gr.ReceiptDate,
-			Status:        string(gr.Status),
-			Items:         items,
+			ID:                   gr.ID,
+			Code:                 gr.Code,
+			PurchaseOrder:        poMini,
+			Supplier:             sup,
+			ReceiptDate:          gr.ReceiptDate,
+			Status:               string(gr.Status),
+			Items:                items,
+			DefaultPaymentTermsID:   defaultPTID,
+			DefaultPaymentTermsName: defaultPTName,
 		}
 
 		// Attach latest DP invoice if exists for the PO behind this GR
@@ -215,7 +231,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			}
 			return err
 		}
-		if gr.Status != models.GoodsReceiptStatusClosed {
+		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusClosed {
 			return ErrInvalidStatus
 		}
 
@@ -433,7 +449,7 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			}
 			return err
 		}
-		if gr.Status != models.GoodsReceiptStatusClosed {
+		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusClosed {
 			return ErrInvalidStatus
 		}
 
@@ -802,7 +818,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			Select("product_id, SUM(quantity_received) as qty").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
-				string(models.GoodsReceiptStatusConfirmed),
+				string(models.GoodsReceiptStatusApproved),
 				string(models.GoodsReceiptStatusClosed),
 			}).
 			Group("product_id").Scan(&receivedSums).Error; err != nil {

@@ -35,9 +35,11 @@ type POFulfillmentSummary struct {
 
 // SupplierInvoiceSummary is a minimal Supplier Invoice view used in list responses.
 type SupplierInvoiceSummary struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Status string `json:"status"`
+	ID               string  `json:"id"`
+	Code             string  `json:"code"`
+	Status           string  `json:"status"`
+	GoodsReceiptID   *string `json:"goods_receipt_id,omitempty"`
+	GoodsReceiptCode *string `json:"goods_receipt_code,omitempty"`
 }
 
 type PurchaseOrderItemRequest struct {

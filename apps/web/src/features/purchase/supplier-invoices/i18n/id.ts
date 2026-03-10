@@ -112,7 +112,7 @@ export const supplierInvoiceId = {
     view: "Lihat",
     edit: "Ubah",
     delete: "Hapus",
-    pending: "Aktifkan",
+    pending: "Tutup",
     submit: "Ajukan",
     approve: "Setujui",
     reject: "Tolak",

@@ -194,14 +194,16 @@ type SupplierInvoiceAddDownPaymentMini struct {
 }
 
 type SupplierInvoiceAddGoodsReceipt struct {
-	ID            string                               `json:"id"`
-	Code          string                               `json:"code"`
-	PurchaseOrder *SupplierInvoicePurchaseOrderMini    `json:"purchase_order,omitempty"`
-	Supplier      *SupplierInvoiceAddSupplierMini      `json:"supplier,omitempty"`
-	ReceiptDate   *time.Time                           `json:"receipt_date,omitempty"`
-	Status        string                               `json:"status"`
-	Items         []SupplierInvoiceAddGoodsReceiptItem `json:"items"`
-	InvoiceDP     *SupplierInvoiceAddDownPaymentMini   `json:"invoice_dp,omitempty"`
+	ID                      string                               `json:"id"`
+	Code                    string                               `json:"code"`
+	PurchaseOrder           *SupplierInvoicePurchaseOrderMini    `json:"purchase_order,omitempty"`
+	Supplier                *SupplierInvoiceAddSupplierMini      `json:"supplier,omitempty"`
+	ReceiptDate             *time.Time                           `json:"receipt_date,omitempty"`
+	Status                  string                               `json:"status"`
+	Items                   []SupplierInvoiceAddGoodsReceiptItem `json:"items"`
+	InvoiceDP               *SupplierInvoiceAddDownPaymentMini   `json:"invoice_dp,omitempty"`
+	DefaultPaymentTermsID   *string                              `json:"default_payment_terms_id,omitempty"`
+	DefaultPaymentTermsName *string                              `json:"default_payment_terms_name,omitempty"`
 }
 
 // SupplierInvoiceAddPurchaseOrderItem kept for backward compat with DP add-data.

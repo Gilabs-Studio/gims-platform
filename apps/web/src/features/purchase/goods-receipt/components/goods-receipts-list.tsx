@@ -49,16 +49,15 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 
 import {
-  useConfirmGoodsReceipt,
   useDeleteGoodsReceipt,
   useGoodsReceipts,
   useSubmitGoodsReceipt,
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
   useCloseGoodsReceipt,
-  useConvertGoodsReceiptToSI,
 } from "../hooks/use-goods-receipts";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
@@ -90,12 +89,14 @@ export function GoodsReceiptsList() {
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
+  const [siFormOpen, setSiFormOpen] = useState(false);
+  const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
+  const [siFormGRId, setSiFormGRId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
   const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
-  const canConfirm = useUserPermission("goods_receipt.confirm");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
@@ -103,7 +104,6 @@ export function GoodsReceiptsList() {
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");
   const canClose = useUserPermission("goods_receipt.close");
-  const canConvert = useUserPermission("goods_receipt.convert");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
 
@@ -120,12 +120,10 @@ export function GoodsReceiptsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteGoodsReceipt();
-  const confirmMutation = useConfirmGoodsReceipt();
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
   const closeMutation = useCloseGoodsReceipt();
-  const convertMutation = useConvertGoodsReceiptToSI();
 
   if (isError) {
     return (
@@ -160,8 +158,8 @@ export function GoodsReceiptsList() {
   };
 
   const canShowActions =
-    canView || canAuditTrail || canConfirm || canUpdate || canDelete ||
-    canSubmit || canApprove || canReject || canClose || canConvert;
+    canView || canAuditTrail || canUpdate || canDelete ||
+    canSubmit || canApprove || canReject || canClose;
 
   return (
     <div className="space-y-6">
@@ -202,7 +200,6 @@ export function GoodsReceiptsList() {
             <SelectItem value="APPROVED">{t("status.approved")}</SelectItem>
             <SelectItem value="CLOSED">{t("status.closed")}</SelectItem>
             <SelectItem value="REJECTED">{t("status.rejected")}</SelectItem>
-            <SelectItem value="CONFIRMED">{t("status.confirmed")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -362,20 +359,23 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canConfirm && (it.status ?? "").toUpperCase() === "DRAFT" && (
+                          {canClose && (it.status ?? "").toUpperCase() === "APPROVED" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
                               onClick={async () => {
                                 try {
-                                  await confirmMutation.mutateAsync(it.id);
-                                  toast.success(t("toast.confirmed"));
+                                  await closeMutation.mutateAsync(it.id);
+                                  toast.success(t("toast.closed"));
+                                  setSiFormPOId(it.purchase_order?.id ?? null);
+                                  setSiFormGRId(it.id);
+                                  setSiFormOpen(true);
                                 } catch {
                                   toast.error(t("toast.failed"));
                                 }
                               }}
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.confirm")}
+                              <FileText className="h-4 w-4 mr-2" />
+                              {t("convertToSupplierInvoice")}
                             </DropdownMenuItem>
                           )}
 
@@ -410,40 +410,6 @@ export function GoodsReceiptsList() {
                             >
                               <XCircle className="h-4 w-4 mr-2" />
                               {t("actions.reject")}
-                            </DropdownMenuItem>
-                          )}
-
-                          {canClose && (it.status ?? "").toUpperCase() === "APPROVED" && (
-                            <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
-                              onClick={async () => {
-                                try {
-                                  await closeMutation.mutateAsync(it.id);
-                                  toast.success(t("toast.closed"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
-                                }
-                              }}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.close")}
-                            </DropdownMenuItem>
-                          )}
-
-                          {canConvert && (it.status ?? "").toUpperCase() === "CLOSED" && (
-                            <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
-                              onClick={async () => {
-                                try {
-                                  await convertMutation.mutateAsync(it.id);
-                                  toast.success(t("toast.converted"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
-                                }
-                              }}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              {t("actions.convert")}
                             </DropdownMenuItem>
                           )}
 
@@ -556,6 +522,19 @@ export function GoodsReceiptsList() {
           }
         }}
         isLoading={deleteMutation.isPending}
+      />
+
+      <SupplierInvoiceFormDialog
+        open={siFormOpen}
+        onOpenChange={(v) => {
+          setSiFormOpen(v);
+          if (!v) {
+            setSiFormPOId(null);
+            setSiFormGRId(null);
+          }
+        }}
+        defaultPurchaseOrderId={siFormPOId}
+        defaultGoodsReceiptId={siFormGRId}
       />
     </div>
   );

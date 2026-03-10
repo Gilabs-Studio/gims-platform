@@ -50,6 +50,8 @@ export function useCreateSupplierInvoice() {
     mutationFn: (data: CreateSupplierInvoiceInput) => supplierInvoicesService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.lists() });
+      // Invalidate PO queries so the SI count badges and SI linked dialogs refresh
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
   });
 }

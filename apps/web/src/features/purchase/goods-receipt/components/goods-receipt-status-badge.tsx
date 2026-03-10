@@ -47,13 +47,6 @@ export function GoodsReceiptStatusBadge({ status, className }: GoodsReceiptStatu
           {t("rejected")}
         </Badge>
       );
-    case "confirmed":
-      return (
-        <Badge variant="success" className={className}>
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("confirmed")}
-        </Badge>
-      );
     default:
       return <Badge variant="outline" className={className}>{status}</Badge>;
   }

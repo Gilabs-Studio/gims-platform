@@ -28,7 +28,7 @@ type batchKey struct {
 }
 
 // SeedStockMovement generates stock movements from real relational entities:
-// - IN  movements from confirmed Goods Receipt items
+// - IN  movements from closed Goods Receipt items
 // - OUT movements from shipped/delivered Delivery Order items
 // - ADJUST movements from posted Stock Opname items with variance
 // No dummy data is created — all references point to existing seeded records.
@@ -88,7 +88,7 @@ func SeedStockMovement() error {
 
 	var events []movementEvent
 
-	// 1. IN movements from confirmed Goods Receipts
+	// 1. IN movements from closed Goods Receipts
 	newINCount := seedGoodsReceiptMovements(&events, productCostMap, batchLookup, batches, adminID)
 
 	// 2. OUT movements from shipped/delivered Delivery Orders
@@ -137,19 +137,19 @@ func SeedStockMovement() error {
 	return nil
 }
 
-// seedGoodsReceiptMovements creates IN movements from confirmed GR items
+// seedGoodsReceiptMovements creates IN movements from closed GR items
 func seedGoodsReceiptMovements(events *[]movementEvent, costMap map[string]float64, batchLookup map[batchKey]string, batches []inventoryModels.InventoryBatch, adminID string) int {
 	db := database.DB
 	count := 0
 
 	var receipts []purchaseModels.GoodsReceipt
 	if err := db.Preload("Items").
-		Where("status = ?", purchaseModels.GoodsReceiptStatusConfirmed).
+		Where("status = ?", purchaseModels.GoodsReceiptStatusClosed).
 		Find(&receipts).Error; err != nil {
 		log.Printf("Warning: Failed to fetch goods receipts: %v", err)
 		return 0
 	}
-	log.Printf("Found %d confirmed goods receipts for IN movements", len(receipts))
+	log.Printf("Found %d closed goods receipts for IN movements", len(receipts))
 
 	for _, gr := range receipts {
 		movementDate := gr.CreatedAt
