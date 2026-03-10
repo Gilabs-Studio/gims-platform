@@ -1,6 +1,6 @@
 export const productAnalysisReportEn = {
   productAnalysisReport: {
-    title: "Product Analysis",
+    title: "Top Product",
     description:
       "Analyze product sales performance and trends across all products",
     performance_list: "Product Performance List",

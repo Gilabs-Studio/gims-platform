@@ -490,9 +490,9 @@ func SeedPermissions() error {
 		{"/reports/sales-overview", "report_sales_overview.read", "View Sales Overview Report", "VIEW", "report_sales_overview"},
 		{"/reports/sales-overview", "report_sales_overview.export", "Export Sales Overview Report", "EXPORT", "report_sales_overview"},
 
-		// Reports - Product Analysis
-		{"/reports/product-analysis", "report_product_analysis.read", "View Product Analysis Report", "VIEW", "report_product_analysis"},
-		{"/reports/product-analysis", "report_product_analysis.export", "Export Product Analysis Report", "EXPORT", "report_product_analysis"},
+		// Reports - Top Product
+		{"/reports/product-analysis", "report_product_analysis.read", "View Top Product Report", "VIEW", "report_product_analysis"},
+		{"/reports/product-analysis", "report_product_analysis.export", "Export Top Product Report", "EXPORT", "report_product_analysis"},
 
 		// Reports - Geo Performance
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},

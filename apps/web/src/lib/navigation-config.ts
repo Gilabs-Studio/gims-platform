@@ -255,7 +255,7 @@ export const navigationConfig: NavItem[] = [
         permission: "report_sales_overview.read",
       },
       {
-        name: "Product Analysis",
+        name: "Top Product",
         url: "/reports/product-analysis",
         icon: "bar-chart-3",
         permission: "report_product_analysis.read",

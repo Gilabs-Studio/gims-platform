@@ -602,7 +602,7 @@ func SeedMenus() error {
 	if _, err := createChildMenu("Sales Overview", "trending-up", "/reports/sales-overview", &reportsMenu.ID, 1); err != nil {
 		return err
 	}
-	if _, err := createChildMenu("Product Analysis", "bar-chart-3", "/reports/product-analysis", &reportsMenu.ID, 2); err != nil {
+	if _, err := createChildMenu("Top Product", "bar-chart-3", "/reports/product-analysis", &reportsMenu.ID, 2); err != nil {
 		return err
 	}
 	if _, err := createChildMenu("Geo Performance", "map", "/reports/geo-performance", &reportsMenu.ID, 3); err != nil {
