@@ -36,8 +36,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import { useCreateActivity } from "@/features/crm/activity/hooks/use-activities";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useCreateActivity, activityKeys } from "@/features/crm/activity/hooks/use-activities";
+import { activityService } from "@/features/crm/activity/services/activity-service";
 import { getActivityTypeIcon } from "@/features/crm/activity/utils";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
@@ -107,6 +108,16 @@ export function LogActivityDialog({
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", {
     enabled: open && !!leadId,
+  });
+
+  // Fetch recent activities sorted by timestamp desc to determine the authoritative product state.
+  // The latest activity's product list is the source of truth — not the accumulated DB state,
+  // which may be stale due to activities being saved out of timestamp order.
+  const { data: recentActivitiesRes } = useQuery({
+    queryKey: activityKeys.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
+    queryFn: () => activityService.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
+    enabled: open && !!leadId,
+    staleTime: 60 * 1000,
   });
 
   const calculateInterest = useCallback(
@@ -183,35 +194,77 @@ export function LogActivityDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Pre-populate product items from existing lead data, merging any manually added items
+  // Pre-populate product items using the LATEST ACTIVITY BY TIMESTAMP as the authoritative source.
+  // This fixes a bug where saving a backdated activity (e.g. Activity 2 at 06:00, logged after
+  // Visit 1 at 07:00) would cause the backend to revive products already removed by Visit 1.
+  // By seeding from the latest-timestamp activity, we ensure the dialog reflects the correct
+  // final state regardless of activity creation order.
   useEffect(() => {
     if (!open) return;
-    const existingItems = leadProductItemsRes?.data;
-    if (!existingItems?.length) return;
+
+    // Find the most recent activity (by timestamp) that has products in its metadata.
+    const latestWithProducts = recentActivitiesRes?.data?.find((a) => {
+      const meta = a.metadata as { products?: unknown[] } | null;
+      return Array.isArray(meta?.products) && (meta!.products as unknown[]).length > 0;
+    });
+
+    type RawProduct = { product_id?: string; interest_level?: number; notes?: string; quantity?: number; unit_price?: number };
+
+    const latestProductMap: Map<string, RawProduct> | null = latestWithProducts
+      ? new Map(
+          ((latestWithProducts.metadata as { products?: RawProduct[] }).products ?? [])
+            .filter((p): p is RawProduct & { product_id: string } => !!p.product_id)
+            .map((p) => [p.product_id, p]),
+        )
+      : null;
+
+    // If no activity has products, fall back to accumulated lead product items (minus deleted).
+    const fallbackItems = (leadProductItemsRes?.data ?? []).filter(
+      (i) => i.product_id && !i.is_deleted,
+    );
+
+    if (!latestProductMap && !fallbackItems.length) return;
 
     setProductItems((prev) => {
       const merged = new Map<string, ProductInterestItem>();
-      for (const item of existingItems) {
-        if (!item.product_id) continue;
-        let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
-        if (item.last_survey_answers) {
-          try {
-            restoredAnswers = JSON.parse(item.last_survey_answers);
-          } catch {
-            restoredAnswers = [];
+
+      if (latestProductMap) {
+        // Seed from the latest activity's product list — only these products are "active".
+        for (const [productId, p] of latestProductMap) {
+          // Restore survey answer IDs from leadProductItems (activity only stores display text).
+          const existing = leadProductItemsRes?.data?.find((i) => i.product_id === productId);
+          let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
+          if (existing?.last_survey_answers) {
+            try { restoredAnswers = JSON.parse(existing.last_survey_answers); } catch { /* ignore */ }
           }
+          merged.set(productId, {
+            product_id: productId,
+            interest_level: p.interest_level ?? existing?.interest_level ?? 0,
+            notes: p.notes ?? existing?.notes ?? "",
+            quantity: p.quantity ?? existing?.quantity ?? 0,
+            price: p.unit_price ?? existing?.unit_price ?? 0,
+            answers: restoredAnswers,
+          });
         }
-        merged.set(item.product_id, {
-          product_id: item.product_id,
-          interest_level: item.interest_level ?? 0,
-          notes: item.notes ?? "",
-          quantity: item.quantity ?? 0,
-          price: item.unit_price ?? 0,
-          answers: restoredAnswers,
-        });
+      } else {
+        // Fallback: accumulated lead product items (skipping soft-deleted entries).
+        for (const item of fallbackItems) {
+          let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
+          if (item.last_survey_answers) {
+            try { restoredAnswers = JSON.parse(item.last_survey_answers); } catch { /* ignore */ }
+          }
+          merged.set(item.product_id!, {
+            product_id: item.product_id!,
+            interest_level: item.interest_level ?? 0,
+            notes: item.notes ?? "",
+            quantity: item.quantity ?? 0,
+            price: item.unit_price ?? 0,
+            answers: restoredAnswers,
+          });
+        }
       }
-      // Only preserve prev items that are user-added (product not in the API response)
-      // API data is always authoritative for known products to avoid stale data from previous session
+
+      // Preserve manually-added items from a previous open that aren't in the API data.
       for (const item of prev) {
         if (item.product_id && !merged.has(item.product_id)) {
           merged.set(item.product_id, item);
@@ -219,7 +272,7 @@ export function LogActivityDialog({
       }
       return Array.from(merged.values());
     });
-  }, [open, leadProductItemsRes]);
+  }, [open, recentActivitiesRes, leadProductItemsRes]);
 
   // Recalculate interest_level once questions load (async timing fix)
   // The pre-populate effect may run before questions are fetched, leaving interest_level = 0

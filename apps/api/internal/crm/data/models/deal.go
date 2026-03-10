@@ -124,7 +124,7 @@ type DealProductItem struct {
 	DiscountAmount  float64 `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`
 	Subtotal        float64 `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
 	Notes           string  `gorm:"type:text" json:"notes"`
-
+	InterestLevel   int                    `gorm:"type:int;default:0" json:"interest_level"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

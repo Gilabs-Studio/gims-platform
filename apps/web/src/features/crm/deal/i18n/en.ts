@@ -27,6 +27,9 @@ export const crmDealEn = {
     visitReports: "Visit Reports",
     noVisitReports: "No visit reports",
     noLocation: "No location set",
+    locationUpdated: "Location updated successfully",
+    setLocation: "Set Location",
+    updateLocation: "Update Location",
 
     // Actions
     edit: "Edit",
@@ -111,11 +114,17 @@ export const crmDealEn = {
     productPlaceholder: "Select product",
     selectProduct: "Select product",
     unitPrice: "Unit Price",
+    sku: "SKU",
     qty: "Quantity",
     discountPct: "Discount %",
     itemNotes: "Notes",
     subtotal: "Subtotal",
     total: "Total",
+    productsTotal: "Products Total",
+    bantBudget: "BANT Budget",
+    interest: "Interest",
+    removeItem: "Remove item",
+    restoreItem: "Restore item",
 
     // BANT
     bantTitle: "BANT Qualification",

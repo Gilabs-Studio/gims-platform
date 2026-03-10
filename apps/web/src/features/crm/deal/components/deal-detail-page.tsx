@@ -7,7 +7,6 @@ import {
   ArrowRightLeft,
   Building2,
   Calendar,
-  DollarSign,
   ExternalLink,
   FileText,
   History,
@@ -38,10 +37,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
-import { useLeadById } from "@/features/crm/lead/hooks/use-leads";
+import { useLeadById, useUpdateLead, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
+import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
+import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
@@ -56,11 +62,15 @@ import { useTasksByDeal } from "@/features/crm/task/hooks/use-tasks";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { useDealActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { MapView } from "@/components/ui/map/map-view";
+import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { Marker, Popup } from "react-leaflet";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import type { Deal } from "../types";
+import type { LeadProductItem } from "@/features/crm/lead/types";
+import { useProduct } from "@/features/master-data/product/hooks/use-products";
 
 interface DealDetailPageProps {
   dealId: string;
@@ -95,6 +105,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canConvert = useUserPermission("sales_quotation.create");
   const canCreateVisit = useUserPermission("crm_visit.create");
   const canCreateTask = useUserPermission("crm_task.create");
+  const canViewProduct = useUserPermission("product.read");
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -103,12 +114,41 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
 
   const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId);
-  const { totalCount: activitiesCount } = useDealActivityTimeline(dealId);
-
   const deal: Deal | undefined = response?.data;
+  const { totalCount: activitiesCount } = useDealActivityTimeline(dealId, deal?.lead_id ?? undefined);
+  const updateLeadMutation = useUpdateLead();
+  // Fetch the lead's current product items for live interest levels, deleted state, and survey answers
+  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", { enabled: !!deal?.lead_id });
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: !!deal?.lead_id });
+  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
+
+  const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);
+  const leadInterestMap = new Map<string, number>(leadItems.map((p) => [p.product_id!, p.interest_level]));
+  const leadDeletedSet = new Set<string>(leadItems.filter((p) => p.is_deleted).map((p) => p.product_id!));
+  const leadItemByProductId = new Map<string, LeadProductItem>(leadItems.map((p) => [p.product_id!, p]));
+
+  function resolveLastSurveyAnswers(raw: string | null | undefined) {
+    if (!raw) return [];
+    try {
+      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
+      return parsed.flatMap((ans) => {
+        const q = interestQuestions.find((q) => q.id === ans.question_id);
+        const opt = q?.options.find((o) => o.id === ans.option_id);
+        if (!q || !opt) return [];
+        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
+
   const { data: leadResponse } = useLeadById(deal?.lead_id ?? "");
   const visitReportUrl =
     deal?.visit_report ??
@@ -138,6 +178,18 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
     toast.success(t("stageMoved"));
     refetch();
   }, [t, refetch]);
+
+  const handleLocationSave = useCallback(async (lat: number, lng: number) => {
+    if (!deal?.lead_id) return;
+    try {
+      await updateLeadMutation.mutateAsync({ id: deal.lead_id, data: { latitude: lat, longitude: lng } });
+      toast.success(t("locationUpdated"));
+      await refetch();
+      setShowMapPicker(false);
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  }, [deal, updateLeadMutation, t, tCommon, refetch]);
 
   if (isLoading) {
     return <DealDetailSkeleton />;
@@ -300,7 +352,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
         {/* Main content: two columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left: deal info */}
-          <div className="md:col-span-2 space-y-5">
+          <div className="md:col-span-2 space-y-4">
             {/* Description */}
             {deal.description && (
               <div className="rounded-lg border p-4">
@@ -348,9 +400,9 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <TabsTrigger value="items" className="cursor-pointer gap-1.5">
                   <Package className="h-4 w-4" />
                   {t("productItems")}
-                  {(deal.items?.length ?? 0) > 0 && (
+                  {(deal.items?.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length ?? 0) > 0 && (
                     <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                      {deal.items.length}
+                      {deal.items!.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -406,51 +458,161 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         {t("noItems")}
                       </p>
                     ) : (
-                      <div className="rounded-lg border overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="text-left p-3 font-medium">{t("product")}</th>
-                              <th className="text-right p-3 font-medium">{t("unitPrice")}</th>
-                              <th className="text-right p-3 font-medium">{t("qty")}</th>
-                              <th className="text-right p-3 font-medium">{t("discountPct")}</th>
-                              <th className="text-right p-3 font-medium">{t("subtotal")}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {deal.items.map((item) => (
-                              <tr key={item.id} className="border-t">
-                                <td className="p-3">
-                                  <p className="font-medium">{item.product_name}</p>
-                                  {item.product_sku && (
-                                    <p className="text-xs text-muted-foreground">{item.product_sku}</p>
-                                  )}
-                                </td>
-                                <td className="text-right p-3">{formatCurrency(item.unit_price)}</td>
-                                <td className="text-right p-3">{item.quantity}</td>
-                                <td className="text-right p-3">
-                                  {item.discount_percent > 0 ? `${item.discount_percent}%` : "-"}
-                                </td>
-                                <td className="text-right p-3 font-medium">
-                                  {formatCurrency(item.subtotal)}
-                                </td>
+                      <>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-muted/50">
+                                <th className="px-3 py-2 text-left font-medium">{t("product")}</th>
+                                <th className="px-3 py-2 text-left font-medium">{t("sku")}</th>
+                                <th className="px-3 py-2 text-center font-medium">{t("interest")}</th>
+                                <th className="px-3 py-2 text-center font-medium">{t("qty")}</th>
+                                <th className="px-3 py-2 text-right font-medium">{t("unitPrice")}</th>
+                                <th className="px-3 py-2 text-right font-medium">{t("subtotal")}</th>
+                                <th className="px-3 py-2 text-left font-medium">{t("itemNotes")}</th>
                               </tr>
-                            ))}
-                            <tr className="border-t bg-muted/30">
-                              <td colSpan={4} className="text-right p-3 font-semibold">
-                                {t("total")}
-                              </td>
-                              <td className="text-right p-3 font-semibold">
-                                {formatCurrency(deal.value)}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {deal.items.map((item) => {
+                                const isEffectivelyDeleted = item.is_deleted || (item.product_id ? leadDeletedSet.has(item.product_id) : false);
+                                const interestLevel = item.product_id
+                                  ? (leadInterestMap.get(item.product_id) ?? item.interest_level ?? 0)
+                                  : (item.interest_level ?? 0);
+                                const leadItem = item.product_id ? leadItemByProductId.get(item.product_id) : undefined;
+                                return (
+                                  <tr
+                                    key={item.id}
+                                    className={`${isEffectivelyDeleted ? "" : "border-t"} ${isEffectivelyDeleted ? "opacity-50 bg-muted/30" : ""}`}
+                                  >
+                                    <td className="px-3 py-2 font-medium relative">
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      <span className={isEffectivelyDeleted ? "text-muted-foreground" : ""}>
+                                        {canViewProduct && item.product_id && !isEffectivelyDeleted ? (
+                                          <button
+                                            type="button"
+                                            className="text-left hover:underline text-primary cursor-pointer"
+                                            onClick={() => setSelectedProductId(item.product_id ?? null)}
+                                          >
+                                            {item.product_name}
+                                          </button>
+                                        ) : (
+                                          item.product_name
+                                        )}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground relative">
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      {item.product_sku || "-"}
+                                    </td>
+                                    <td className="px-3 py-2 text-center relative">
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className={`cursor-help select-none ${isEffectivelyDeleted ? "text-muted-foreground" : "text-amber-500"}`}>
+                                            {"★".repeat(interestLevel)}{"☆".repeat(Math.max(0, 5 - interestLevel))}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-[260px] p-2">
+                                          <div className="space-y-1">
+                                            <p className="font-semibold text-xs">{t("interest")}: {interestLevel}/5</p>
+                                            {leadItem?.notes && (
+                                              <p className="text-xs text-muted-foreground italic border-t pt-1">{leadItem.notes}</p>
+                                            )}
+                                            {(() => {
+                                              const resolved = resolveLastSurveyAnswers(leadItem?.last_survey_answers);
+                                              if (!resolved.length) return null;
+                                              return (
+                                                <ul className="space-y-1 border-t pt-1">
+                                                  {resolved.map((sa, i) => (
+                                                    <li key={i} className="text-xs grid grid-cols-[1fr_auto] gap-x-2 items-start">
+                                                      <span className="text-muted-foreground">{sa.question_text}</span>
+                                                      <span className="font-medium text-right whitespace-nowrap">
+                                                        {sa.option_text}
+                                                        {sa.score !== 0 && (
+                                                          <span className="ml-1 text-amber-500">({sa.score})</span>
+                                                        )}
+                                                      </span>
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              );
+                                            })()}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </td>
+                                    <td className={`px-3 py-2 text-center relative ${isEffectivelyDeleted ? "text-muted-foreground" : ""}`}>
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      {item.quantity}
+                                    </td>
+                                    <td className={`px-3 py-2 text-right relative ${isEffectivelyDeleted ? "text-muted-foreground" : ""}`}>
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      {item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}
+                                    </td>
+                                    <td className={`px-3 py-2 text-right font-medium relative ${isEffectivelyDeleted ? "text-muted-foreground" : ""}`}>
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      {formatCurrency(item.subtotal)}
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground relative">
+                                      {isEffectivelyDeleted && (
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                          <div className="border-t border-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      {item.notes || "-"}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Total as a separate element outside the table: show products total vs BANT budget */}
+                        <div className="flex justify-end items-center gap-6 mt-2 px-3 py-2.5 rounded-lg border bg-muted/30">
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-muted-foreground">{t("productsTotal")}</div>
+                            <div className="text-sm font-semibold">{formatCurrency(
+                              (deal.items ?? [])
+                                .filter((i) => !(i.is_deleted || (i.product_id ? leadDeletedSet.has(i.product_id) : false)))
+                                .reduce((s, it) => s + (it.subtotal ?? 0), 0)
+                            )}</div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-muted-foreground">{t("bantBudget")}</div>
+                            <div className="text-sm font-semibold">{deal.budget_amount > 0 ? formatCurrency(deal.budget_amount) : "-"}</div>
+                          </div>
+                        </div>
+                      </>
                     )}
 
                     {/* Stock availability check for deal items */}
-                    {deal.items && deal.items.length > 0 && (
+                    {deal.items && deal.items.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length > 0 && (
                       <div className="mt-4">
                         <DealStockCheck dealId={deal.id} />
                       </div>
@@ -651,13 +813,26 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
             )}
 
             {/* Location (moved to sidebar) */}
-            {deal.lead && (deal.lead.latitude != null || deal.lead.address) && (
+            {deal.lead_id && (
               <div className="rounded-lg border p-3 space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                  <MapPin className="h-4 w-4 inline-block mr-1" />
-                  {t("location")}
-                </h4>
-                {deal.lead.latitude != null && deal.lead.longitude != null ? (
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    <MapPin className="h-4 w-4 inline-block mr-1" />
+                    {t("location")}
+                  </h4>
+                  {canUpdate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs cursor-pointer"
+                      onClick={() => setShowMapPicker(true)}
+                    >
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {deal.lead?.latitude != null ? t("updateLocation") : t("setLocation")}
+                    </Button>
+                  )}
+                </div>
+                {deal.lead?.latitude != null && deal.lead?.longitude != null ? (
                   <div className="w-full h-64 rounded-md border overflow-hidden">
                     <MapView
                       className="h-full"
@@ -685,23 +860,25 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     <p className="text-xs text-muted-foreground">{t("noLocation")}</p>
                   </div>
                 )}
-                <div className="text-xs space-y-1">
-                  {deal.lead.address && <p className="text-muted-foreground">{deal.lead.address}</p>}
-                  {(deal.lead.city || deal.lead.province) && (
-                    <p className="text-muted-foreground">{[deal.lead.city, deal.lead.province].filter(Boolean).join(", ")}</p>
-                  )}
-                  {deal.lead.latitude != null && deal.lead.longitude != null && (
-                    <a
-                      href={`https://www.google.com/maps?q=${deal.lead.latitude},${deal.lead.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
-                    >
-                      <Navigation className="h-3 w-3" />
-                      {t("openInMaps")}
-                    </a>
-                  )}
-                </div>
+                {deal.lead && (
+                  <div className="text-xs space-y-1">
+                    {deal.lead.address && <p className="text-muted-foreground">{deal.lead.address}</p>}
+                    {(deal.lead.city || deal.lead.province) && (
+                      <p className="text-muted-foreground">{[deal.lead.city, deal.lead.province].filter(Boolean).join(", ")}</p>
+                    )}
+                    {deal.lead.latitude != null && deal.lead.longitude != null && (
+                      <a
+                        href={`https://www.google.com/maps?q=${deal.lead.latitude},${deal.lead.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        <Navigation className="h-3 w-3" />
+                        {t("openInMaps")}
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -937,6 +1114,22 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           }}
         />
       )}
+
+      {/* Map picker for updating lead location */}
+      <MapPickerModal
+        open={showMapPicker}
+        onOpenChange={setShowMapPicker}
+        latitude={deal.lead?.latitude != null ? Number(deal.lead.latitude) : 0}
+        longitude={deal.lead?.longitude != null ? Number(deal.lead.longitude) : 0}
+        onCoordinateSelect={handleLocationSave}
+      />
+
+      {/* Product detail dialog (RBAC-gated via canViewProduct) */}
+      <ProductDetailDialog
+        open={!!selectedProductId}
+        onOpenChange={(open) => { if (!open) setSelectedProductId(null); }}
+        product={selectedProductQuery.data?.data ?? null}
+      />
     </PageMotion>
   );
 }
@@ -963,7 +1156,7 @@ function DealDetailSkeleton() {
         ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-5">
+        <div className="md:col-span-2 space-y-4">
           <Skeleton className="h-24 w-full rounded-lg" />
           <Skeleton className="h-64 w-full rounded-lg" />
         </div>

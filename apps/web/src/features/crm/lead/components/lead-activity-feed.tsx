@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { History, MapPin, Package, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,9 @@ import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
 import { useLeadActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { getActivityTypeIcon, parseVisitMetadata } from "@/features/crm/activity/utils";
 import { VisitActivityCard } from "@/features/crm/activity/components/visit-activity-card";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { useProduct } from "@/features/master-data/product/hooks/use-products";
+import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 
 interface LeadActivityFeedProps {
@@ -36,6 +40,10 @@ export function LeadActivityFeed({
 }: LeadActivityFeedProps) {
   const t = useTranslations("crmLead");
   const ta = useTranslations("crmActivity");
+
+  const canViewProduct = useUserPermission("product.read");
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
 
   const {
     activities,
@@ -207,7 +215,17 @@ export function LeadActivityFeed({
                                 {meta.products.map((p, idx) => (
                                   <tr key={`${p.product_name}-${idx}`} className="border-t">
                                     <td className="px-2 py-1">
-                                      {p.product_name}
+                                      {canViewProduct && p.product_id ? (
+                                        <button
+                                          type="button"
+                                          className="text-left hover:underline text-primary cursor-pointer"
+                                          onClick={() => setSelectedProductId(p.product_id ?? null)}
+                                        >
+                                          {p.product_name}
+                                        </button>
+                                      ) : (
+                                        <span>{p.product_name}</span>
+                                      )}
                                       {p.product_sku && (
                                         <span className="ml-1 text-muted-foreground">({p.product_sku})</span>
                                       )}
@@ -268,6 +286,13 @@ export function LeadActivityFeed({
           />
         </>
       )}
+
+      {/* Product detail dialog (RBAC-gated via canViewProduct) */}
+      <ProductDetailDialog
+        open={!!selectedProductId}
+        onOpenChange={(open) => { if (!open) setSelectedProductId(null); }}
+        product={selectedProductQuery.data?.data ?? null}
+      />
     </div>
   );
 }

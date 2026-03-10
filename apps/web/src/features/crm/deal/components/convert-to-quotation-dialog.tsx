@@ -62,7 +62,7 @@ export function ConvertToQuotationDialog({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const itemCount = deal.items?.length ?? 0;
+  const itemCount = deal.items?.filter(i => !i.is_deleted).length ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

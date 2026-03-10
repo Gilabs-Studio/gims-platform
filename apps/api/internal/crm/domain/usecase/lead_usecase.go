@@ -39,6 +39,7 @@ type leadUsecase struct {
 	dealRepo          repositories.DealRepository
 	pipelineStageRepo repositories.PipelineStageRepository
 	activityRepo      repositories.ActivityRepository
+	taskRepo          repositories.TaskRepository
 	employeeRepo      orgRepos.EmployeeRepository
 	businessTypeRepo  orgRepos.BusinessTypeRepository
 	areaRepo          orgRepos.AreaRepository
@@ -53,6 +54,7 @@ func NewLeadUsecase(
 	dealRepo repositories.DealRepository,
 	pipelineStageRepo repositories.PipelineStageRepository,
 	activityRepo repositories.ActivityRepository,
+	taskRepo repositories.TaskRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 	businessTypeRepo orgRepos.BusinessTypeRepository,
 	areaRepo orgRepos.AreaRepository,
@@ -65,6 +67,7 @@ func NewLeadUsecase(
 		dealRepo:          dealRepo,
 		pipelineStageRepo: pipelineStageRepo,
 		activityRepo:      activityRepo,
+		taskRepo:          taskRepo,
 		employeeRepo:      employeeRepo,
 		businessTypeRepo:  businessTypeRepo,
 		areaRepo:          areaRepo,
@@ -196,9 +199,38 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		return dto.LeadResponse{}, errors.New("lead not found")
 	}
 
-	// Prevent updates on converted leads
+	// Prevent updates on converted leads; geographical coordinates are the only allowed exception
+	// since an active deal may need to pin the customer's location.
 	if lead.ConvertedAt != nil {
-		return dto.LeadResponse{}, errors.New("cannot update a converted lead")
+		if req.Latitude == nil && req.Longitude == nil {
+			return dto.LeadResponse{}, errors.New("cannot update a converted lead")
+		}
+		// Coordinate-only update path: apply and return early
+		if req.Latitude != nil {
+			lead.Latitude = req.Latitude
+		}
+		if req.Longitude != nil {
+			lead.Longitude = req.Longitude
+		}
+		// Nil associations to prevent GORM FK side-effects
+		lead.LeadSource = nil
+		lead.LeadStatus = nil
+		lead.AssignedEmployee = nil
+		lead.Customer = nil
+		lead.Contact = nil
+		lead.Deal = nil
+		lead.BusinessType = nil
+		lead.Area = nil
+		lead.PaymentTerms = nil
+		lead.Activities = nil
+		if err := u.leadRepo.Update(ctx, lead); err != nil {
+			return dto.LeadResponse{}, fmt.Errorf("failed to update lead location: %w", err)
+		}
+		updated, err := u.leadRepo.FindByID(ctx, id)
+		if err != nil {
+			return dto.LeadResponse{}, err
+		}
+		return mapper.ToLeadResponse(updated), nil
 	}
 
 	// Validate lead source if changing
@@ -469,30 +501,45 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	// best-effort — do not block conversion if history creation fails
 	_ = u.dealRepo.CreateHistory(ctx, initialHistory)
 
-	// Copy lead product items to deal product items
+	// Copy lead product items to deal product items, preserving interest level and eliminated state
 	leadProducts, lpErr := u.leadRepo.ListProductItems(ctx, lead.ID)
 	if lpErr == nil && len(leadProducts) > 0 {
 		dealItems := make([]models.DealProductItem, 0, len(leadProducts))
+		eliminatedIDs := make([]string, 0)
 		for _, lp := range leadProducts {
+			itemID := uuid.New().String()
 			item := models.DealProductItem{
-				DealID:      newDeal.ID,
-				ProductID:   lp.ProductID,
-				ProductName: lp.ProductName,
-				ProductSKU:  lp.ProductSKU,
-				UnitPrice:   lp.UnitPrice,
-				Quantity:    lp.Quantity,
-				Notes:       lp.Notes,
+				ID:            itemID,
+				DealID:        newDeal.ID,
+				ProductID:     lp.ProductID,
+				ProductName:   lp.ProductName,
+				ProductSKU:    lp.ProductSKU,
+				InterestLevel: lp.InterestLevel,
+				UnitPrice:     lp.UnitPrice,
+				Quantity:      lp.Quantity,
+				Notes:         lp.Notes,
 			}
 			item.Subtotal = item.UnitPrice * float64(item.Quantity)
 			dealItems = append(dealItems, item)
+			// Track items that were eliminated in the lead (soft-deleted)
+			if lp.DeletedAt.Valid {
+				eliminatedIDs = append(eliminatedIDs, itemID)
+			}
 		}
 		// best-effort — do not block conversion if product copy fails
 		_ = u.dealRepo.CreateItems(ctx, dealItems)
+		// Preserve eliminated state from lead items in the deal
+		for _, id := range eliminatedIDs {
+			_ = u.dealRepo.SoftDeleteItemByID(ctx, id, newDeal.ID)
+		}
 	}
 
+	// Associate lead tasks with the new deal so they appear in the deal task tab.
+	// best-effort — do not block conversion if this fails
+	_ = u.taskRepo.UpdateDealIDByLeadID(ctx, lead.ID, newDeal.ID)
+
 	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
-	if convertedBy != "" {
-		conversionActivity := &models.Activity{
+	if convertedBy != "" {		conversionActivity := &models.Activity{
 			Type:        "conversion",
 			DealID:      &newDeal.ID,
 			LeadID:      &lead.ID,

@@ -697,7 +697,7 @@ export function DealFormDialog({
                           <Input {...register("need_description")} />
                         </Field>
 
-                        <div className="flex items-center gap-2 col-span-2">
+                        <div className="flex items-center gap-2">
                           <Controller
                             name="time_confirmed"
                             control={control}
@@ -707,6 +707,48 @@ export function DealFormDialog({
                           />
                           <FieldLabel className="cursor-pointer">{t("timeConfirmed")}</FieldLabel>
                         </div>
+                        <Field orientation="vertical">
+                          <FieldLabel>{t("expectedCloseDate")}</FieldLabel>
+                          <Controller
+                            name="expected_close_date"
+                            control={control}
+                            render={({ field }) => (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal cursor-pointer",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value
+                                      ? formatDate(new Date(field.value))
+                                      : t("selectDate")}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date: Date | undefined) => {
+                                      if (date) {
+                                        const y = date.getFullYear();
+                                        const m = String(date.getMonth() + 1).padStart(2, "0");
+                                        const d = String(date.getDate()).padStart(2, "0");
+                                        field.onChange(`${y}-${m}-${d}`);
+                                      } else {
+                                        field.onChange("");
+                                      }
+                                    }}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          />
+                        </Field>
                       </div>
                     </div>
 

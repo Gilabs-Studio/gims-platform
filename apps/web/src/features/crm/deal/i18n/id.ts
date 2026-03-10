@@ -27,6 +27,9 @@ export const crmDealId = {
     visitReports: "Laporan Kunjungan",
     noVisitReports: "Tidak ada laporan kunjungan",
     noLocation: "Belum ada lokasi",
+    locationUpdated: "Lokasi berhasil diperbarui",
+    setLocation: "Set Lokasi",
+    updateLocation: "Perbarui Lokasi",
 
     // Actions
     edit: "Edit",
@@ -111,11 +114,17 @@ export const crmDealId = {
     productPlaceholder: "Pilih produk",
     selectProduct: "Pilih produk",
     unitPrice: "Harga Satuan",
+    sku: "SKU",
     qty: "Jumlah",
     discountPct: "Diskon %",
     itemNotes: "Catatan",
     subtotal: "Subtotal",
     total: "Total",
+    productsTotal: "Total Produk",
+    bantBudget: "Budget BANT",
+    interest: "Minat",
+    removeItem: "Hapus item",
+    restoreItem: "Pulihkan item",
 
     // BANT
     bantTitle: "Kualifikasi BANT",

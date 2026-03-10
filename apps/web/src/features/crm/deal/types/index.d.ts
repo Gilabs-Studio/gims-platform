@@ -106,6 +106,8 @@ export interface DealProductItem {
   discount_amount: number;
   subtotal: number;
   notes: string;
+  interest_level?: number;
+  is_deleted?: boolean;
 }
 
 export interface DealHistory {

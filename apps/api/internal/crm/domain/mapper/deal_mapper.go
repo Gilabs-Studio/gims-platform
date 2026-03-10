@@ -121,6 +121,8 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 			DiscountAmount:  item.DiscountAmount,
 			Subtotal:        item.Subtotal,
 			Notes:           item.Notes,
+			InterestLevel:   item.InterestLevel,
+			IsDeleted:       item.DeletedAt.Valid,
 		})
 	}
 

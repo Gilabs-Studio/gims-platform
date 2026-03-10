@@ -131,6 +131,8 @@ type DealProductItemResponse struct {
 	DiscountAmount  float64 `json:"discount_amount"`
 	Subtotal        float64 `json:"subtotal"`
 	Notes           string  `json:"notes"`
+	InterestLevel   int     `json:"interest_level"`
+	IsDeleted       bool    `json:"is_deleted"`
 }
 
 // DealHistoryResponse defines the response for a deal stage transition

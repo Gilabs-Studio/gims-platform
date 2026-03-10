@@ -39,6 +39,8 @@ type DealUsecase interface {
 	GetForecast(ctx context.Context) (dto.DealForecastResponse, error)
 	ConvertToQuotation(ctx context.Context, dealID string, req dto.ConvertToQuotationRequest, userID string) (dto.ConvertToQuotationResponse, error)
 	StockCheck(ctx context.Context, dealID string) (dto.StockCheckResponse, error)
+	SoftDeleteItem(ctx context.Context, dealID, itemID string) error
+	RestoreItem(ctx context.Context, dealID, itemID string) error
 }
 
 type dealUsecase struct {
@@ -815,10 +817,13 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to generate quotation code: %w", err)
 	}
 
-	// Build quotation items from deal product items
+	// Build quotation items from active (non-deleted) deal product items only
 	var subtotal float64
 	quotationItems := make([]salesModels.SalesQuotationItem, 0, len(deal.Items))
 	for _, dealItem := range deal.Items {
+		if dealItem.DeletedAt.Valid {
+			continue // skip soft-deleted items
+		}
 		item := salesModels.SalesQuotationItem{
 			ID:       uuid.New().String(),
 			Quantity: float64(dealItem.Quantity),
@@ -1105,5 +1110,22 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 		}
 	}
 
+	return nil
+}
+
+
+// SoftDeleteItem soft-deletes a single deal product item by ID (marks it as deleted without removing it).
+func (u *dealUsecase) SoftDeleteItem(ctx context.Context, dealID, itemID string) error {
+	if err := u.dealRepo.SoftDeleteItemByID(ctx, itemID, dealID); err != nil {
+		return fmt.Errorf("failed to remove deal item: %w", err)
+	}
+	return nil
+}
+
+// RestoreItem restores a previously soft-deleted deal product item.
+func (u *dealUsecase) RestoreItem(ctx context.Context, dealID, itemID string) error {
+	if err := u.dealRepo.RestoreItemByID(ctx, itemID, dealID); err != nil {
+		return fmt.Errorf("failed to restore deal item: %w", err)
+	}
 	return nil
 }
