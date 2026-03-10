@@ -30,6 +30,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -51,6 +56,8 @@ import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
+import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByLead } from "@/features/crm/task/hooks/use-tasks";
@@ -80,99 +87,6 @@ const STATUS_ORDER_FALLBACK: Record<string, number> = {
 function getSortOrder(status: LeadStatusOption): number {
   if (status.order != null) return status.order;
   return STATUS_ORDER_FALLBACK[status.code?.toLowerCase() ?? ""] ?? 99;
-}
-
-
-
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-  href,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string | null | undefined;
-  href?: string;
-}) {
-  if (!value) return null;
-  return (
-    <div className="flex items-start gap-3">
-      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline cursor-pointer"
-          >
-            {value}
-          </a>
-        ) : (
-          <p className="text-sm">{value}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Sequential status stepper — each step is clickable to update the lead status
-function StatusStepper({
-  statuses,
-  currentStatusId,
-  onStatusChange,
-  disabled,
-}: {
-  statuses: LeadStatusOption[];
-  currentStatusId: string | null | undefined;
-  onStatusChange: (statusId: string) => void;
-  disabled?: boolean;
-}) {
-  // Exclude the "converted" status — it is set only via the dedicated Convert flow
-  const sorted = [...statuses]
-    .filter((s) => !s.is_converted)
-    .sort((a, b) => getSortOrder(a) - getSortOrder(b));
-  const currentIndex = sorted.findIndex((s) => s.id === currentStatusId);
-
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {sorted.map((status, index) => {
-        const isCurrent = status.id === currentStatusId;
-        const isPast = index < currentIndex;
-        const color = status.color || "#6366f1";
-        return (
-          <div key={status.id} className="flex items-center gap-1">
-            {index > 0 && (
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-            )}
-            <button
-              onClick={() => !disabled && !isCurrent && onStatusChange(status.id)}
-              disabled={disabled || isCurrent}
-              title={status.name}
-              className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap select-none",
-                isCurrent
-                  ? "text-white shadow-sm cursor-default"
-                  : isPast
-                  ? "opacity-60 cursor-pointer hover:opacity-90"
-                  : "border cursor-pointer hover:opacity-80",
-                disabled && !isCurrent && "cursor-not-allowed opacity-40"
-              )}
-              style={
-                isCurrent
-                  ? { backgroundColor: color }
-                  : { borderColor: color, color }
-              }
-            >
-              {status.name}
-            </button>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // Conversion readiness checklist — shows which customer fields are populated
@@ -326,6 +240,25 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
   const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId);
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
+  // Fetch interest questions for resolving survey answers in the product tooltip
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: true });
+  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
+
+  /** Resolves raw { question_id, option_id }[] JSON to display-friendly text array */
+  function resolveLastSurveyAnswers(raw: string | null | undefined) {
+    if (!raw) return [];
+    try {
+      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
+      return parsed.flatMap((ans) => {
+        const q = interestQuestions.find((q) => q.id === ans.question_id);
+        const opt = q?.options.find((o) => o.id === ans.option_id);
+        if (!q || !opt) return [];
+        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
+      });
+    } catch {
+      return [];
+    }
+  }
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
@@ -598,9 +531,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <TabsTrigger value="productItems" className="cursor-pointer gap-1.5">
                   <Package className="h-4 w-4" />
                   {t("tabs.productItems")}
-                  {(productItemsData?.data?.length ?? 0) > 0 && (
+                  {(productItemsData?.data?.filter(i => !i.is_deleted).length ?? 0) > 0 && (
                     <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                      {productItemsData!.data!.length}
+                      {productItemsData!.data!.filter(i => !i.is_deleted).length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -672,29 +605,65 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       </thead>
                       <tbody>
                         {productItemsData!.data!.map((item) => (
-                          <tr key={item.id} className="border-t">
+                          <tr
+                            key={item.id}
+                            className={`border-t ${item.is_deleted ? "opacity-50 bg-muted/30" : ""}`}
+                          >
                             <td className="px-3 py-2 font-medium">
-                              {canViewProduct && item.product_id ? (
-                                <button
-                                  type="button"
-                                  className="text-left hover:underline text-primary cursor-pointer"
-                                  onClick={() => setSelectedProductId(item.product_id ?? null)}
-                                >
-                                  {item.product_name}
-                                </button>
-                              ) : (
-                                item.product_name
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">{item.product_sku || "-"}</td>
-                            <td className="px-3 py-2 text-center">
-                              <span className="text-amber-500">
-                                {"★".repeat(item.interest_level)}{"☆".repeat(Math.max(0, 5 - item.interest_level))}
+                              <span className={item.is_deleted ? "line-through text-muted-foreground" : ""}>
+                                {canViewProduct && item.product_id && !item.is_deleted ? (
+                                  <button
+                                    type="button"
+                                    className="text-left hover:underline text-primary cursor-pointer"
+                                    onClick={() => setSelectedProductId(item.product_id ?? null)}
+                                  >
+                                    {item.product_name}
+                                  </button>
+                                ) : (
+                                  item.product_name
+                                )}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-center">{item.quantity}</td>
-                            <td className="px-3 py-2 text-right">{item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{item.notes || "-"}</td>
+                            <td className={`px-3 py-2 text-muted-foreground ${item.is_deleted ? "line-through" : ""}`}>{item.product_sku || "-"}</td>
+                            <td className="px-3 py-2 text-center">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className={`cursor-help select-none ${item.is_deleted ? "text-muted-foreground" : "text-amber-500"}`}>
+                                    {"★".repeat(item.interest_level)}{"☆".repeat(Math.max(0, 5 - item.interest_level))}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[260px] p-2">
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-xs">{t("productItems.interest")}: {item.interest_level}/5</p>
+                                    {item.notes && (
+                                      <p className="text-xs text-muted-foreground italic border-t pt-1">{item.notes}</p>
+                                    )}
+                                    {(() => {
+                                      const resolved = resolveLastSurveyAnswers(item.last_survey_answers);
+                                      if (!resolved.length) return null;
+                                      return (
+                                        <ul className="space-y-1 border-t pt-1">
+                                          {resolved.map((sa, i) => (
+                                            <li key={i} className="text-xs grid grid-cols-[1fr_auto] gap-x-2 items-start">
+                                              <span className="text-muted-foreground">{sa.question_text}</span>
+                                              <span className="font-medium text-right whitespace-nowrap">
+                                                {sa.option_text}
+                                                {sa.score !== 0 && (
+                                                  <span className="ml-1 text-amber-500">({sa.score})</span>
+                                                )}
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      );
+                                    })()}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+                            <td className={`px-3 py-2 text-center ${item.is_deleted ? "line-through text-muted-foreground" : ""}`}>{item.quantity}</td>
+                            <td className={`px-3 py-2 text-right ${item.is_deleted ? "line-through text-muted-foreground" : ""}`}>{item.unit_price > 0 ? formatCurrency(item.unit_price) : "-"}</td>
+                            <td className={`px-3 py-2 text-muted-foreground ${item.is_deleted ? "line-through" : ""}`}>{item.notes || "-"}</td>
                           </tr>
                         ))}
                       </tbody>

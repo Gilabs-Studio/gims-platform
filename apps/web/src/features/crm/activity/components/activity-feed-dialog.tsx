@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { History, Calendar, ExternalLink } from "lucide-react";
+import { History, Calendar, ExternalLink, Package } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
@@ -204,6 +206,78 @@ export function ActivityFeedDialog({
                             {activity.type === "visit" && (() => {
                               const meta = parseVisitMetadata(activity.metadata);
                               return meta ? <VisitActivityCard meta={meta} visitReportId={activity.visit_report_id} /> : null;
+                            })()}
+
+                            {/* Product table for non-visit activities */}
+                            {activity.type !== "visit" && (() => {
+                              const meta = parseVisitMetadata(activity.metadata);
+                              if (!meta?.products?.length) return null;
+                              return (
+                                <div className="mt-1 space-y-1">
+                                  <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <Package className="h-3 w-3" />
+                                    {t("productInterest.title")}
+                                  </div>
+                                  <div className="overflow-x-auto rounded border">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-muted/50">
+                                          <th className="px-2 py-1 text-left font-medium">{t("productInterest.product")}</th>
+                                          <th className="px-2 py-1 text-center font-medium">{t("productInterest.interest")}</th>
+                                          <th className="px-2 py-1 text-center font-medium">{t("productInterest.qty")}</th>
+                                          <th className="px-2 py-1 text-right font-medium">{t("productInterest.price")}</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {meta.products.map((p, idx) => (
+                                          <tr key={`${p.product_name}-${idx}`} className="border-t">
+                                            <td className="px-2 py-1">
+                                              {p.product_name}
+                                              {p.product_sku && (
+                                                <span className="ml-1 text-muted-foreground">({p.product_sku})</span>
+                                              )}
+                                            </td>
+                                            <td className="px-2 py-1 text-center">
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <span className="text-amber-500 cursor-help select-none">
+                                                    {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
+                                                  </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="max-w-[260px] p-2">
+                                                  <div className="space-y-1">
+                                                    <p className="font-semibold text-xs">{t("productInterest.interestSurvey")} · {p.interest_level}/5</p>
+                                                    {p.notes && (
+                                                      <p className="text-xs text-muted-foreground italic border-t pt-1">{p.notes}</p>
+                                                    )}
+                                                    {p.survey_answers && p.survey_answers.length > 0 && (
+                                                      <ul className="space-y-1 border-t pt-1">
+                                                        {p.survey_answers.map((sa, i) => (
+                                                          <li key={i} className="text-xs grid grid-cols-[1fr_auto] gap-x-2 items-start">
+                                                            <span className="text-muted-foreground">{sa.question_text}</span>
+                                                            <span className="font-medium text-right whitespace-nowrap">
+                                                              {sa.option_text}
+                                                              {sa.score !== 0 && <span className="ml-1 text-amber-500">({sa.score})</span>}
+                                                            </span>
+                                                          </li>
+                                                        ))}
+                                                      </ul>
+                                                    )}
+                                                  </div>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </td>
+                                            <td className="px-2 py-1 text-center">{p.quantity ?? "-"}</td>
+                                            <td className="px-2 py-1 text-right">
+                                              {p.unit_price && p.unit_price > 0 ? formatCurrency(p.unit_price) : "-"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
                             })()}
 
                             {entityLink?.label && (

@@ -244,24 +244,28 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
                             {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-[220px]">
-                          <p className="font-medium mb-1">{p.interest_level}/5</p>
-                          {p.notes && (
-                            <p className="text-xs text-muted-foreground mb-1">{p.notes}</p>
-                          )}
-                          {p.survey_answers && p.survey_answers.length > 0 && (
-                            <ul className="space-y-0.5 mt-1 border-t pt-1">
-                              {p.survey_answers.map((sa, i) => (
-                                <li key={i} className="text-xs">
-                                  <span className="font-medium">{sa.question_text}:</span>{" "}
-                                  <span className="text-muted-foreground">{sa.option_text}</span>
-                                  {sa.score !== 0 && (
-                                    <span className="ml-1 text-amber-500">({sa.score})</span>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                        <TooltipContent side="top" className="max-w-[260px] p-2">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-xs">{ta("productInterest.interestSurvey")} · {p.interest_level}/5</p>
+                            {p.notes && (
+                              <p className="text-xs text-muted-foreground italic border-t pt-1">{p.notes}</p>
+                            )}
+                            {p.survey_answers && p.survey_answers.length > 0 && (
+                              <ul className="space-y-1 border-t pt-1">
+                                {p.survey_answers.map((sa, i) => (
+                                  <li key={i} className="text-xs grid grid-cols-[1fr_auto] gap-x-2 items-start">
+                                    <span className="text-muted-foreground">{sa.question_text}</span>
+                                    <span className="font-medium text-right whitespace-nowrap">
+                                      {sa.option_text}
+                                      {sa.score !== 0 && (
+                                        <span className="ml-1 text-amber-500">({sa.score})</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </td>

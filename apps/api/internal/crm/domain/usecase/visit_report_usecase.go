@@ -1072,10 +1072,11 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 			type answerInfo struct {
 				QuestionID string `json:"question_id"`
 				OptionID   string `json:"option_id"`
+				Answer     bool   `json:"answer,omitempty"`
 			}
 			ans := make([]answerInfo, 0, len(detail.Answers))
 			for _, a := range detail.Answers {
-				ans = append(ans, answerInfo{QuestionID: a.QuestionID, OptionID: a.OptionID})
+				ans = append(ans, answerInfo{QuestionID: a.QuestionID, OptionID: a.OptionID, Answer: true})
 			}
 			if b, err := json.Marshal(ans); err == nil {
 				s := string(b)
@@ -1091,17 +1092,8 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 		items = append(items, item)
 	}
 
-	// Also keep existing items whose product_id was NOT in this visit report
-	for pid, existingItem := range existingByProductID {
-		if !seen[pid] {
-			items = append(items, *existingItem)
-		}
-	}
-
-	if len(items) > 0 {
-		if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
-			fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
-		}
+	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
+		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
 	}
 }
 

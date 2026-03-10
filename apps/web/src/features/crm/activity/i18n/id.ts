@@ -71,6 +71,7 @@ export const crmActivityId = {
       qty: "Qty",
       price: "Harga",
       surveyAnswers: "Survei",
+      interestSurvey: "Survei Minat",
     },
   },
 };

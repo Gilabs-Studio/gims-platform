@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { useCreateVisitReport, useVisitReportFormData } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
 import { activityKeys } from "@/features/crm/activity/hooks/use-activities";
-import { useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
+import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/utils";
 import type { CreateVisitReportData, VisitInterestQuestion } from "../types";
@@ -71,7 +71,7 @@ interface ProductInterestItem {
   notes: string;
   quantity: number;
   price: number;
-  answers: { question_id: string; option_id: string }[];
+  answers: { question_id: string; option_id: string; answer?: boolean }[];
 }
 
 export function LogVisitDialog({
@@ -102,7 +102,7 @@ export function LogVisitDialog({
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", { enabled: open && !!leadId });
 
   const calculateInterest = useCallback(
-    (answers: { question_id: string; option_id: string }[]) => {
+    (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers || answers.length === 0) return 0;
       const questionMap = new Map(questions.map((q) => [q.id, q]));
       let score = 0;
@@ -160,10 +160,10 @@ export function LogVisitDialog({
     if (!open || !leadProductItemsRes?.data?.length) return;
     setProductItems((prev) => {
       const merged = new Map<string, ProductInterestItem>();
-      // Seed from lead's stored product items
+      // Seed from lead's stored product items (API data is authoritative for known products)
       for (const item of leadProductItemsRes.data) {
         if (!item.product_id) continue;
-        let restoredAnswers: { question_id: string; option_id: string }[] = [];
+        let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
         if (item.last_survey_answers) {
           try {
             restoredAnswers = JSON.parse(item.last_survey_answers);
@@ -180,13 +180,31 @@ export function LogVisitDialog({
           answers: restoredAnswers,
         });
       }
-      // Keep any items the user manually added (overwrite lead data if same product)
+      // Only preserve prev items that are user-added (product not in the API response)
+      // API data is always authoritative for known products to avoid stale data from previous session
       for (const item of prev) {
-        if (item.product_id) merged.set(item.product_id, item);
+        if (item.product_id && !merged.has(item.product_id)) {
+          merged.set(item.product_id, item);
+        }
       }
       return Array.from(merged.values());
     });
   }, [open, leadProductItemsRes]);
+
+  // Recalculate interest_level once questions load (async timing fix)
+  // The pre-populate effect may run before questions are fetched, leaving interest_level = 0
+  useEffect(() => {
+    if (!questions.length) return;
+    setProductItems((prev) =>
+      prev.map((p) =>
+        p.answers.length > 0
+          ? { ...p, interest_level: calculateInterest(p.answers) }
+          : p,
+      ),
+    );
+  // calculateInterest is stable (depends on questions which is the trigger here)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions]);
 
   const resetForm = useCallback(() => {
     setPurpose("");
@@ -333,6 +351,10 @@ export function LogVisitDialog({
 
       // Invalidate activity queries to refresh timelines
       qc.invalidateQueries({ queryKey: activityKeys.all });
+      // Invalidate lead product items so the product interest tab reflects the visit's survey answers
+      if (leadId) {
+        qc.invalidateQueries({ queryKey: leadKeys.productItems(leadId) });
+      }
 
       toast.success(t("created"));
       handleClose();
@@ -589,7 +611,16 @@ export function LogVisitDialog({
                         value={item.product_id}
                         onValueChange={(val) =>
                           setProductItems((prev) =>
-                            prev.map((p, i) => (i === idx ? { ...p, product_id: val } : p))
+                            prev.map((p, i) => {
+                              if (i !== idx) return p;
+                              const found = products.find((prod) => prod.id === val);
+                              return {
+                                ...p,
+                                product_id: val,
+                                // Auto-fill selling price only when price is unset (0)
+                                price: p.price === 0 && found?.selling_price ? found.selling_price : p.price,
+                              };
+                            })
                           )
                         }
                       >
@@ -621,10 +652,10 @@ export function LogVisitDialog({
                                     <input
                                       type="radio"
                                       id={`lv-${idx}-${q.id}-${opt.id}`}
-                                      checked={currentAnswer?.option_id === opt.id}
+                                      checked={currentAnswer?.option_id === opt.id && currentAnswer?.answer !== false}
                                       onChange={() => {
                                         const otherAnswers = item.answers.filter((a) => a.question_id !== q.id);
-                                        const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id }];
+                                        const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: true }];
                                         const newScore = calculateInterest(newAnswers);
                                         setProductItems((prev) =>
                                           prev.map((p, i) =>
@@ -685,6 +716,20 @@ export function LogVisitDialog({
                       )}
                     </div>
 
+                    {/* Notes */}
+                    <div className="space-y-1.5">
+                      <Label>{t("form.notes")}</Label>
+                      <Input
+                        value={item.notes}
+                        onChange={(e) =>
+                          setProductItems((prev) =>
+                            prev.map((p, i) => (i === idx ? { ...p, notes: e.target.value } : p))
+                          )
+                        }
+                        placeholder={t("form.notesPlaceholder")}
+                      />
+                    </div>
+
                     {/* Quantity */}
                     <div className="space-y-1.5">
                       <Label>{t("form.quantity")}</Label>
@@ -710,20 +755,6 @@ export function LogVisitDialog({
                           )
                         }
                         min={0}
-                      />
-                    </div>
-
-                    {/* Notes — compact full-width row */}
-                    <div className="col-span-2">
-                      <Input
-                        value={item.notes}
-                        onChange={(e) =>
-                          setProductItems((prev) =>
-                            prev.map((p, i) => (i === idx ? { ...p, notes: e.target.value } : p))
-                          )
-                        }
-                        placeholder={t("form.notesPlaceholder")}
-                        className="text-sm h-8"
                       />
                     </div>
                   </div>

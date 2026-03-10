@@ -394,5 +394,6 @@ export interface LeadProductItem {
   notes: string;
   source_visit_report_id?: string | null;
   last_survey_answers?: string | null;
+  is_deleted?: boolean;
   created_at: string;
 }

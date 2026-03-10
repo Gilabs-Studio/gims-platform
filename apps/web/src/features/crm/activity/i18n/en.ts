@@ -71,6 +71,7 @@ export const crmActivityEn = {
       qty: "Qty",
       price: "Price",
       surveyAnswers: "Survey",
+      interestSurvey: "Interest Survey",
     },
   },
 };

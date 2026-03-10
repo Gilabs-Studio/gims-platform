@@ -35,10 +35,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCreateActivity } from "@/features/crm/activity/hooks/use-activities";
 import { getActivityTypeIcon } from "@/features/crm/activity/utils";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
-import { useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
+import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
 import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
@@ -55,7 +56,7 @@ interface ProductInterestItem {
   notes: string;
   quantity: number;
   price: number;
-  answers: { question_id: string; option_id: string }[];
+  answers: { question_id: string; option_id: string; answer?: boolean }[];
 }
 
 interface LogActivityDialogProps {
@@ -91,6 +92,7 @@ export function LogActivityDialog({
   const tCommon = useTranslations("common");
   const tVisit = useTranslations("crmVisitReport");
 
+  const qc = useQueryClient();
   const { mutateAsync: createActivity, isPending } = useCreateActivity();
 
   // Form data for product interest (products list + survey questions)
@@ -107,7 +109,7 @@ export function LogActivityDialog({
   });
 
   const calculateInterest = useCallback(
-    (answers: { question_id: string; option_id: string }[]) => {
+    (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers.length) return 0;
       const questionMap = new Map(questions.map((q) => [q.id, q]));
       let score = 0;
@@ -190,7 +192,7 @@ export function LogActivityDialog({
       const merged = new Map<string, ProductInterestItem>();
       for (const item of existingItems) {
         if (!item.product_id) continue;
-        let restoredAnswers: { question_id: string; option_id: string }[] = [];
+        let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
         if (item.last_survey_answers) {
           try {
             restoredAnswers = JSON.parse(item.last_survey_answers);
@@ -207,13 +209,31 @@ export function LogActivityDialog({
           answers: restoredAnswers,
         });
       }
-      // Manually-added items take precedence over pre-populated ones
+      // Only preserve prev items that are user-added (product not in the API response)
+      // API data is always authoritative for known products to avoid stale data from previous session
       for (const item of prev) {
-        if (item.product_id) merged.set(item.product_id, item);
+        if (item.product_id && !merged.has(item.product_id)) {
+          merged.set(item.product_id, item);
+        }
       }
       return Array.from(merged.values());
     });
   }, [open, leadProductItemsRes]);
+
+  // Recalculate interest_level once questions load (async timing fix)
+  // The pre-populate effect may run before questions are fetched, leaving interest_level = 0
+  useEffect(() => {
+    if (!questions.length) return;
+    setProductItems((prev) =>
+      prev.map((p) =>
+        p.answers.length > 0
+          ? { ...p, interest_level: calculateInterest(p.answers) }
+          : p,
+      ),
+    );
+  // calculateInterest is stable (depends on questions which is the trigger here)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -230,14 +250,25 @@ export function LogActivityDialog({
           ? {
               products: filledProducts.map((pi) => {
                 const product = products.find((p) => p.id === pi.product_id);
+                const surveyAnswers = pi.answers
+                  .map((ans) => {
+                    const q = questions.find((q) => q.id === ans.question_id);
+                    if (!q) return null;
+                    const opt = q.options.find((o) => o.id === ans.option_id);
+                    if (!opt) return null;
+                    return { question_text: q.question_text, option_text: opt.option_text, score: opt.score };
+                  })
+                  .filter((sa): sa is { question_text: string; option_text: string; score: number } => sa !== null);
                 return {
                   product_id: pi.product_id,
                   product_name: product?.name ?? pi.product_id,
                   product_sku: product?.code ?? undefined,
                   interest_level: pi.interest_level,
+                  unit_price: pi.price || undefined,
                   quantity: pi.quantity || undefined,
                   notes: pi.notes || undefined,
                   answers: pi.answers.length > 0 ? pi.answers : undefined,
+                  survey_answers: surveyAnswers.length > 0 ? surveyAnswers : undefined,
                 };
               }),
             }
@@ -254,6 +285,10 @@ export function LogActivityDialog({
         ...(metadata ? { metadata } : {}),
       });
 
+      // Invalidate lead product items so the tab reflects the newly added products
+      if (leadId) {
+        qc.invalidateQueries({ queryKey: leadKeys.productItems(leadId) });
+      }
       toast.success(t("logActivity.created"));
       onClose();
       onSuccess?.();
@@ -497,9 +532,16 @@ export function LogActivityDialog({
                           value={item.product_id}
                           onValueChange={(val) =>
                             setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx ? { ...p, product_id: val } : p,
-                              )
+                              prev.map((p, i) => {
+                                if (i !== idx) return p;
+                                const found = products.find((prod) => prod.id === val);
+                                return {
+                                  ...p,
+                                  product_id: val,
+                                  // Auto-fill selling price only when price is unset (0)
+                                  price: p.price === 0 && found?.selling_price ? found.selling_price : p.price,
+                                };
+                              })
                             )
                           }
                         >
@@ -549,7 +591,8 @@ export function LogActivityDialog({
                                           type="radio"
                                           id={`la-${idx}-${q.id}-${opt.id}`}
                                           checked={
-                                            currentAnswer?.option_id === opt.id
+                                            currentAnswer?.option_id === opt.id &&
+                                            currentAnswer?.answer !== false
                                           }
                                           onChange={() => {
                                             const otherAnswers =
@@ -562,6 +605,7 @@ export function LogActivityDialog({
                                               {
                                                 question_id: q.id,
                                                 option_id: opt.id,
+                                                answer: true,
                                               },
                                             ];
                                             const newScore =
@@ -642,6 +686,23 @@ export function LogActivityDialog({
                       </div>
 
                       <div className="space-y-1.5">
+                        <Label>{tVisit("form.notes")}</Label>
+                        <Input
+                          value={item.notes}
+                          onChange={(e) =>
+                            setProductItems((prev) =>
+                              prev.map((p, i) =>
+                                i === idx
+                                  ? { ...p, notes: e.target.value }
+                                  : p,
+                              )
+                            )
+                          }
+                          placeholder={tVisit("form.notesPlaceholder")}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
                         <Label>{tVisit("form.quantity")}</Label>
                         <NumericInput
                           value={item.quantity}
@@ -668,24 +729,6 @@ export function LogActivityDialog({
                             )
                           }
                           min={0}
-                        />
-                      </div>
-
-                      {/* Notes — compact full-width row */}
-                      <div className="col-span-2">
-                        <Input
-                          value={item.notes}
-                          onChange={(e) =>
-                            setProductItems((prev) =>
-                              prev.map((p, i) =>
-                                i === idx
-                                  ? { ...p, notes: e.target.value }
-                                  : p,
-                              )
-                            )
-                          }
-                          placeholder={tVisit("form.notesPlaceholder")}
-                          className="text-sm h-8"
                         />
                       </div>
                     </div>

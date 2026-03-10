@@ -287,7 +287,7 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 
 func (r *leadRepository) ListProductItems(ctx context.Context, leadID string) ([]models.LeadProductItem, error) {
 	var items []models.LeadProductItem
-	err := r.db.WithContext(ctx).
+	err := r.db.Unscoped().WithContext(ctx).
 		Preload("Product").
 		Where("lead_id = ?", leadID).
 		Order("created_at ASC").
@@ -295,19 +295,45 @@ func (r *leadRepository) ListProductItems(ctx context.Context, leadID string) ([
 	return items, err
 }
 
-// UpsertProductItems replaces all product items for a lead (delete + create) with dedup on product_id
+// UpsertProductItems syncs product items for a lead using soft-delete semantics:
+// items in the new list are created or restored+updated; items absent from the new list are soft-deleted.
 func (r *leadRepository) UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Use Unscoped to hard-delete so the UUID primary keys are truly freed before re-insert
-		if err := tx.Unscoped().Where("lead_id = ?", leadID).Delete(&models.LeadProductItem{}).Error; err != nil {
+		// Collect product IDs that are active in the new list
+		activeProductIDs := make([]string, 0, len(items))
+		for _, item := range items {
+			if item.ProductID != nil {
+				activeProductIDs = append(activeProductIDs, *item.ProductID)
+			}
+		}
+
+		// Soft-delete items NOT in the new list
+		q := tx.Where("lead_id = ?", leadID)
+		if len(activeProductIDs) > 0 {
+			q = q.Where("product_id NOT IN ?", activeProductIDs)
+		}
+		if err := q.Delete(&models.LeadProductItem{}).Error; err != nil {
 			return err
 		}
+
 		if len(items) == 0 {
 			return nil
 		}
+
+		// Upsert items in the new list: restore soft-deleted ones if they have an ID, else create
 		for i := range items {
 			items[i].LeadID = leadID
+			items[i].DeletedAt = gorm.DeletedAt{} // ensure restored
+			if items[i].ID != "" {
+				if err := tx.Unscoped().Save(&items[i]).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Create(&items[i]).Error; err != nil {
+					return err
+				}
+			}
 		}
-		return tx.Create(&items).Error
+		return nil
 	})
 }

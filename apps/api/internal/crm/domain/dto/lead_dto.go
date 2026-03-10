@@ -224,6 +224,7 @@ type LeadProductItemResponse struct {
 	Notes               string  `json:"notes"`
 	SourceVisitReportID *string `json:"source_visit_report_id"`
 	LastSurveyAnswers   *string `json:"last_survey_answers"`
+	IsDeleted           bool    `json:"is_deleted"`
 	CreatedAt           string  `json:"created_at"`
 }
 
