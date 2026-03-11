@@ -1,33 +1,10 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
-import type { Layer, LeafletMouseEvent } from "leaflet";
-import L from "leaflet";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { GeoJSON } from "react-leaflet";
+import type { Layer, LeafletMouseEvent, Path } from "leaflet";
 import type { GeoRegionData } from "../types";
-
-// Resolve static image src in a Turbopack-compatible way (same pattern as components/ui/map)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getImageSrc(img: any): string {
-  if (typeof img === "string" && img) return img;
-  if (typeof img?.src === "string" && img.src) return img.src;
-  if (typeof img?.default === "string" && img.default) return img.default;
-  if (typeof img?.default?.src === "string" && img.default.src) return img.default.src;
-  return "";
-}
-
-// Fix Leaflet default icon paths using bundled static assets (avoids CDN dependency)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: getImageSrc(markerIcon),
-  iconRetinaUrl: getImageSrc(markerIcon2x),
-  shadowUrl: getImageSrc(markerShadow),
-});
+import { MapView } from "@/components/ui/map/map-view";
 
 // Color scale from light to dark (7 steps, matched to geo-widget)
 const COLOR_SCALE = [
@@ -85,7 +62,10 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
 
   const geoJsonKey = useMemo(() => regions.map((r) => r.name).join(","), [regions]);
 
+  const hasData = regions.length > 0;
   const onEachFeature = (feature: GeoJSON.Feature, layer: Layer) => {
+    if (!hasData) return; // suppress tooltips/hover interactions when no data available
+
     const rawName = (feature.properties?.WADMPR as string) ?? "";
     const regionData = areaLookup.get(normalizeName(rawName));
 
@@ -97,27 +77,44 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
         </div>`,
         { sticky: true, className: "leaflet-tooltip-province" },
       );
-    } else {
-      layer.bindTooltip(`<strong>${rawName}</strong><br/><span>No data</span>`, { sticky: true });
+      layer.on({
+        mouseover: (e: LeafletMouseEvent) => {
+          (e.target as Path).setStyle({ weight: 2, fillOpacity: 1 });
+        },
+        mouseout: (e: LeafletMouseEvent) => {
+          (e.target as Path).setStyle({ weight: 0.5, fillOpacity: 0.75 });
+        },
+      });
     }
-
-    layer.on({
-      mouseover: (e: LeafletMouseEvent) => {
-        (e.target as L.Path).setStyle({ weight: 2, fillOpacity: 1 });
-      },
-      mouseout: (e: LeafletMouseEvent) => {
-        (e.target as L.Path).setStyle({ weight: 0.5, fillOpacity: 0.75 });
-      },
-    });
   };
 
   const styleFeature = (feature?: GeoJSON.Feature) => {
+    if (!hasData) {
+      // No data: show only faint outlines, no filled white areas
+      return {
+        fillColor: "transparent",
+        weight: 0.6,
+        opacity: 0.8,
+        color: "#94a3b8",
+        fillOpacity: 0,
+      };
+    }
+
     const rawName = (feature?.properties?.WADMPR as string) ?? "";
     const regionData = areaLookup.get(normalizeName(rawName));
-    const fillColor = regionData
-      ? getColorForValue(regionData.value, maxValue)
-      : "#f1f5f9";
 
+    if (!regionData) {
+      // No data for this province: render transparent fill and faint outline
+      return {
+        fillColor: "transparent",
+        weight: 0.6,
+        opacity: 0.8,
+        color: "#94a3b8",
+        fillOpacity: 0,
+      };
+    }
+
+    const fillColor = getColorForValue(regionData.value, maxValue);
     return {
       fillColor,
       weight: 0.5,
@@ -127,18 +124,16 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
     };
   };
 
+  // MapView handles CSS import, tile layer, and icon setup internally (via map-inner.tsx)
   return (
-    <MapContainer
-      center={[-2.5, 118.0]}
-      zoom={5}
-      style={{ height: "350px", width: "100%", borderRadius: "0.5rem" }}
-      scrollWheelZoom={false}
-      attributionControl={false}
+    <MapView
+      markers={[]}
+      renderMarkers={() => null}
+      defaultCenter={[-2.5, 118.0]}
+      defaultZoom={5}
+      showLayerControl={false}
+      className="h-[350px] w-full rounded-lg overflow-hidden"
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
-      />
       {geoJson && (
         <GeoJSON
           key={geoJsonKey}
@@ -147,6 +142,6 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
           onEachFeature={onEachFeature}
         />
       )}
-    </MapContainer>
+    </MapView>
   );
 }

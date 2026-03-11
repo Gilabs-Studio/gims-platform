@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo } from "react";
 import type { GeoOverviewData } from "../types";
+import { MapIcon } from "lucide-react";
 
 // Load Leaflet map only on the client to avoid SSR issues
 const GeoMapLeaflet = dynamic(
@@ -30,7 +31,7 @@ const COLOR_SCALE = [
 
 export function GeoWidget({ data }: GeoWidgetProps) {
   const t = useTranslations("dashboard");
-  const regions = data?.regions ?? [];
+  const regions = useMemo(() => data?.regions ?? [], [data?.regions]);
 
   const sortedRegions = useMemo(
     () => [...regions].sort((a, b) => b.value - a.value),
@@ -53,16 +54,18 @@ export function GeoWidget({ data }: GeoWidgetProps) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Leaflet choropleth map */}
+          {/* Leaflet choropleth map or empty placeholder */}
           <div className="lg:col-span-2">
             {regions.length === 0 ? (
-              <div className="flex h-[350px] items-center justify-center rounded-lg border bg-secondary/30">
-                <p className="text-sm text-muted-foreground">{t("noData")}</p>
+              <div className="relative flex h-[350px] items-center justify-center rounded-lg border bg-secondary/30">
+                <div className="text-center text-muted-foreground">
+                  <MapIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
+                  <p className="text-sm">{t("noData")}</p>
+                </div>
               </div>
             ) : (
               <>
                 <GeoMapLeaflet regions={regions} />
-                {/* Color legend below map */}
                 <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                   <span>{t("widgets.geographic_overview.low")}</span>
                   {COLOR_SCALE.map((c) => (

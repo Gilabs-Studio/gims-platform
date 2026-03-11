@@ -6,11 +6,12 @@ import { GripVertical, X, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WidgetConfig, WidgetSize } from "../types";
 
+// Grid column-span per size. grid-flow-dense on the parent fills gaps automatically.
 const SIZE_CLASSES: Record<WidgetSize, string> = {
   sm: "col-span-1",
-  md: "col-span-1 lg:col-span-2",
-  lg: "col-span-1 lg:col-span-3",
-  xl: "col-span-1 lg:col-span-4",
+  md: "col-span-1 sm:col-span-2",
+  lg: "col-span-1 sm:col-span-2 lg:col-span-3",
+  xl: "col-span-1 sm:col-span-2 lg:col-span-4",
 };
 
 const NEXT_SIZE: Record<WidgetSize, WidgetSize> = {
@@ -57,7 +58,7 @@ export function SortableWidget({
       ref={setNodeRef}
       style={style}
       className={`relative ${SIZE_CLASSES[widget.size]} ${
-        isEditMode ? "mt-4 rounded-lg ring-2 ring-dashed ring-primary/30" : ""
+        isEditMode ? "rounded-lg ring-2 ring-dashed ring-primary/30" : ""
       }`}
     >
       {isEditMode && !isDragging && (

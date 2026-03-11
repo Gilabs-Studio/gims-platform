@@ -181,7 +181,7 @@ export function DashboardGrid() {
           </div>
         </div>
 
-        {/* Widget Grid */}
+        {/* Widget Grid — grid-flow-dense fills vertical gaps automatically (no empty cells) */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -191,7 +191,7 @@ export function DashboardGrid() {
             items={visibleWidgets.map((w) => w.id)}
             strategy={rectSortingStrategy}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 grid-flow-dense">
               {visibleWidgets.map((widget) => (
                 <SortableWidget
                   key={widget.id}
