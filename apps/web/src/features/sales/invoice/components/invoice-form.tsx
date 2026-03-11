@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatDate, formatCurrency } from "@/lib/utils";
+import { cn, formatDate, formatCurrency, parseLocalDate, toLocalDateString } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import type { CustomerInvoice } from "../types";
 import { useInvoiceForm } from "../hooks/use-invoice-form";
@@ -99,6 +99,29 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                   <h3 className="text-sm font-medium">{t("common.invoice")}</h3>
                 </div>
             <div className="grid gap-4 grid-cols-2">
+              {/* Sales Order — select first so downstream fields can auto-fill */}
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("salesOrder")}</FieldLabel>
+                <Controller
+                  name="sales_order_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("salesOrder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orders.map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            {order.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+
               <Field orientation="vertical">
                 <FieldLabel>{t("invoiceDate")} *</FieldLabel>
                 <Controller
@@ -116,15 +139,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(new Date(field.value)) : t("common.selectDate")}
+                          {field.value ? formatDate(field.value) : t("common.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
+                          selected={field.value ? parseLocalDate(field.value) : undefined}
                           onSelect={(date: Date | undefined) => {
-                            field.onChange(date ? date.toISOString().split('T')[0] : "");
+                            field.onChange(date ? toLocalDateString(date) : "");
                           }}
                         />
                       </PopoverContent>
@@ -153,15 +176,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(new Date(field.value)) : t("common.selectDate")}
+                          {field.value ? formatDate(field.value) : t("common.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
+                          selected={field.value ? parseLocalDate(field.value) : undefined}
                           onSelect={(date: Date | undefined) => {
-                            field.onChange(date ? date.toISOString().split('T')[0] : undefined);
+                            field.onChange(date ? toLocalDateString(date) : undefined);
                           }}
                         />
                       </PopoverContent>
@@ -199,7 +222,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
+                      options={paymentTerms.map(term => ({ value: term.id, label: term.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       placeholder={t("paymentTerms")}
@@ -211,28 +234,6 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                 {errors.payment_terms_id && (
                   <FieldError>{errors.payment_terms_id.message}</FieldError>
                 )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("salesOrder")}</FieldLabel>
-                <Controller
-                  name="sales_order_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("salesOrder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orders.map((order) => (
-                          <SelectItem key={order.id} value={order.id}>
-                            {order.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
               </Field>
             </div>
           </div>

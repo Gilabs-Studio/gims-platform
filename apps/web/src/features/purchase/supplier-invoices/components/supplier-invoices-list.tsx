@@ -83,8 +83,8 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
 
   if (diffDays < 0) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
         <div className="flex items-center gap-1 text-destructive">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           <span className="text-xs font-semibold">{Math.abs(diffDays)}d overdue</span>
@@ -94,16 +94,16 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
   }
   if (diffDays === 0) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
         <span className="text-xs font-semibold text-amber-500">Due today</span>
       </div>
     );
   }
   if (diffDays <= 7) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
         <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
       </div>
     );
@@ -292,7 +292,7 @@ export function SupplierInvoicesList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[160px]">{t("columns.code")}</TableHead>
+              <TableHead className="w-40">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>

@@ -132,4 +132,10 @@ type CustomerInvoiceItemResponse struct {
 type SalesOrderBriefResponse struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
+	// Snapshot customer fields copied from sales order
+	CustomerID    *string `json:"customer_id,omitempty"`
+	Customer      *CustomerResponse `json:"customer,omitempty"`
+	CustomerName  string `json:"customer_name,omitempty"`
+	CustomerPhone string `json:"customer_phone,omitempty"`
+	CustomerEmail string `json:"customer_email,omitempty"`
 }

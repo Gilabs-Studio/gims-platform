@@ -175,10 +175,6 @@ export function DashboardGrid() {
                   <LayoutDashboard className="h-4 w-4" />
                   {t("customize")}
                 </Button>
-                <Button size="sm" className="cursor-pointer gap-1.5">
-                  <Download className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden lg:inline">{t("download")}</span>
-                </Button>
               </>
             )}
           </div>

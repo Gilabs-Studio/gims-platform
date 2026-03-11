@@ -20,12 +20,62 @@ import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
+import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
-import { formatCurrency } from "@/lib/utils";
+import type { DeliveryOrder } from "../../delivery/types";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
+// ─── Due Date Cell ────────────────────────────────────────────────────────────
+
+function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) {
+  const st = (status ?? "").toLowerCase();
+  const isSettled = st === "paid" || st === "cancelled" || st === "rejected";
+
+  if (!dueDate) return <span className="text-sm text-muted-foreground">—</span>;
+
+  const formatted = formatDate(dueDate);
+  if (isSettled) return <span className="text-sm text-muted-foreground">{formatted}</span>;
+
+  const due = new Date(dueDate);
+  const now = new Date();
+  due.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <div className="flex items-center gap-1 text-destructive">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span className="text-xs font-semibold">{Math.abs(diffDays)}d overdue</span>
+        </div>
+      </div>
+    );
+  }
+  if (diffDays === 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-semibold text-amber-500">Due today</span>
+      </div>
+    );
+  }
+  if (diffDays <= 7) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+      </div>
+    );
+  }
+  return <span className="text-sm">{formatted}</span>;
+}
 
 export function InvoiceList() {
   const t = useTranslations("invoice");
@@ -41,6 +91,10 @@ export function InvoiceList() {
   const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
   const [isDPOpen, setIsDPOpen] = useState(false);
+  const [selectedDOId, setSelectedDOId] = useState<string | null>(null);
+  const [isDOOpen, setIsDOOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
@@ -57,6 +111,7 @@ export function InvoiceList() {
   const canView = useUserPermission("customer_invoice.read");
   const canApprove = useUserPermission("customer_invoice.approve");
   const canViewSalesOrder = useUserPermission("sales_order.read");
+  const canViewCustomer = useUserPermission("customer.read");
   const canCreatePayment = useUserPermission("sales_payment.create");
   const canPrint = useUserPermission("customer_invoice.print");
 
@@ -254,15 +309,16 @@ export function InvoiceList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("code")}</TableHead>
+              <TableHead className="w-40">{t("code")}</TableHead>
               <TableHead>{t("invoiceDate")}</TableHead>
               <TableHead>{t("dueDate")}</TableHead>
               <TableHead>{t("salesOrder")}</TableHead>
               <TableHead>{t("dpCode")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("customer")}</TableHead>
               <TableHead className="text-right">{t("totalAmount")}</TableHead>
               <TableHead className="text-right">{t("paidAmount")}</TableHead>
               <TableHead className="text-right">{t("remainingAmount")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -270,21 +326,22 @@ export function InvoiceList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
-                  <TableCell />
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -294,15 +351,9 @@ export function InvoiceList() {
                   <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(invoice)}>
                     {invoice.code}
                   </TableCell>
+                  <TableCell>{formatDate(invoice.invoice_date)}</TableCell>
                   <TableCell>
-                    {invoice.invoice_date
-                      ? new Date(invoice.invoice_date).toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {invoice.due_date
-                      ? new Date(invoice.due_date).toLocaleDateString()
-                      : "-"}
+                    <DueDateCell dueDate={invoice.due_date} status={invoice.status} />
                   </TableCell>
                   <TableCell>
                     {invoice.sales_order && canViewSalesOrder ? (
@@ -319,6 +370,7 @@ export function InvoiceList() {
                       <span>{invoice.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
+                  
                   <TableCell>
                     {invoice.down_payment_invoice_code && invoice.down_payment_invoice_id ? (
                       <button
@@ -326,18 +378,57 @@ export function InvoiceList() {
                           setSelectedDPId(invoice.down_payment_invoice_id!);
                           setIsDPOpen(true);
                         }}
-                        className="font-medium text-primary hover:underline cursor-pointer"
+                        className="text-xs font-mono font-medium text-primary hover:underline cursor-pointer"
                       >
                         {invoice.down_payment_invoice_code}
                       </button>
                     ) : (
-                      <span className="text-muted-foreground">-</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(invoice)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(invoice.amount ?? 0)}</TableCell>
+                  <TableCell>
+                    {invoice.sales_order?.customer ? (
+                      canViewCustomer ? (
+                        <button
+                          type="button"
+                          className="text-sm text-primary hover:underline cursor-pointer text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomer({ id: invoice.sales_order!.customer!.id, name: invoice.sales_order!.customer!.name });
+                            setIsCustomerOpen(true);
+                          }}
+                        >
+                          {invoice.sales_order.customer.name}
+                        </button>
+                      ) : (
+                        <span className="text-sm">{invoice.sales_order.customer.name}</span>
+                      )
+                    ) : invoice.sales_order?.customer_id ? (
+                      canViewCustomer ? (
+                        <button
+                          type="button"
+                          className="text-sm text-primary hover:underline cursor-pointer text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomer({ id: invoice.sales_order!.customer_id as string, name: invoice.sales_order!.customer_name ?? "" });
+                            setIsCustomerOpen(true);
+                          }}
+                        >
+                          {invoice.sales_order.customer_name}
+                        </button>
+                      ) : (
+                        <span className="text-sm">{invoice.sales_order.customer_name}</span>
+                      )
+                    ) : invoice.sales_order?.customer_name ? (
+                      <span className="text-sm">{invoice.sales_order.customer_name}</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">{formatCurrency(invoice.amount ?? 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
+                  <TableCell>{getStatusBadge(invoice)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
@@ -488,6 +579,28 @@ export function InvoiceList() {
           open={isDPOpen}
           onOpenChange={setIsDPOpen}
           id={selectedDPId}
+        />
+      )}
+
+      {selectedDOId && (
+        <DeliveryDetailModal
+          open={isDOOpen}
+          onClose={() => {
+            setIsDOOpen(false);
+            setSelectedDOId(null);
+          }}
+          delivery={{ id: selectedDOId } as unknown as DeliveryOrder}
+        />
+      )}
+
+      {selectedCustomer && (
+        <CustomerDetailModal
+          open={isCustomerOpen}
+          onOpenChange={(open) => {
+            setIsCustomerOpen(open);
+            if (!open) setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer as never}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,7 @@ import {
 import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-invoices";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useOrders } from "@/features/sales/order/hooks/use-orders";
+import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
 import type { CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -59,13 +59,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
 
   const paymentTerms = useMemo(() => {
     const data = paymentTermsData?.data ?? [];
-    return sortOptions(data, (a) => a.code ? `${a.code} - ${a.name}` : a.name);
+    return sortOptions(data, (a) => a.name);
   }, [paymentTermsData?.data]);
 
   const orders = useMemo(() => {
     const data = ordersData?.data ?? [];
     return sortOptions(data, (a) => a.code);
   }, [ordersData?.data]);
+
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
@@ -112,10 +113,49 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     getValues,
   } = form;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "items",
   });
+
+  // Watch sales_order_id to auto-fill related fields (create mode only)
+  const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+  const lastAutoFilledSORef = useRef<string | undefined>(undefined);
+
+  const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
+    enabled: !isEdit && open && !!watchedSalesOrderId,
+  });
+
+  // Auto-fill payment terms + items from selected SO
+  useEffect(() => {
+    if (isEdit || !open || !watchedSalesOrderId) return;
+    if (lastAutoFilledSORef.current === watchedSalesOrderId) return;
+    if (!selectedOrderData?.data) return;
+
+    const order = selectedOrderData.data;
+    lastAutoFilledSORef.current = watchedSalesOrderId;
+
+    if (order.payment_terms_id) {
+      setValue("payment_terms_id", order.payment_terms_id);
+    }
+    if (order.tax_rate != null) {
+      setValue("tax_rate", order.tax_rate);
+    }
+    if (order.delivery_cost != null) {
+      setValue("delivery_cost", order.delivery_cost);
+    }
+    if (order.items && order.items.length > 0) {
+      replace(
+        order.items.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount ?? 0,
+          hpp_amount: 0,
+        }))
+      );
+    }
+  }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -156,6 +196,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     if (!open) {
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
+      lastAutoFilledSORef.current = undefined;
       return;
     }
 
