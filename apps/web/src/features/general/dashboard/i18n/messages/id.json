@@ -1,50 +1,136 @@
 {
   "dashboard": {
-    "title": "Dashboard",
-    "deliveries": {
-      "title": "Pengiriman",
-      "total": "Total",
-      "pending": "Tertunda",
+    "title": "Dasbor",
+    "error": "Gagal memuat data dasbor. Silakan coba lagi.",
+    "loading": "Memuat...",
+    "noData": "Tidak ada data tersedia",
+    "customize": "Kustomisasi",
+    "doneEditing": "Selesai",
+    "addWidget": "Tambah Widget",
+    "resetLayout": "Reset",
+    "emptyDashboard": "Dasbor Anda kosong. Tambahkan widget untuk memulai.",
+    "download": "Unduh",
+    "compareLastMonth": "Dibanding bulan lalu",
+    "revenueChart": {
+      "title": "Grafik Pendapatan",
+      "subtitle": "12 periode terakhir",
+      "revenue": "Pendapatan",
+      "costs": "Biaya"
+    },
+    "stats": {
+      "totalBalance": "Total Saldo",
+      "totalRevenue": "Total Pendapatan",
+      "totalExpense": "Total Pengeluaran",
+      "totalOrders": "Total Pesanan"
+    },
+    "bestSelling": {
+      "title": "Produk Terlaris",
+      "subtitle": "Produk dengan Penjualan Tertinggi",
+      "itemsSold": "terjual"
+    },
+    "trackOrders": {
+      "title": "Lacak Status Pesanan",
+      "subtitle": "Analisis pertumbuhan dan perubahan pola pengunjung",
+      "newOrder": "Pesanan Baru",
+      "onProgress": "Diproses",
       "completed": "Selesai",
-      "empty": "Tidak ada data tersedia"
+      "return": "Dikembalikan",
+      "filterOrders": "Cari pesanan...",
+      "columns": "Kolom",
+      "id": "ID",
+      "customerName": "Nama Pelanggan",
+      "issueDate": "Tanggal",
+      "amount": "Jumlah",
+      "status": "Status",
+      "export": "Ekspor"
     },
-    "revenueCosts": {
-      "title": "Pendapatan & Biaya",
-      "empty": "Tidak ada data tersedia"
+    "widgetPicker": {
+      "title": "Tambah Widget",
+      "all": "Semua",
+      "added": "Ditambahkan"
     },
-    "balance": {
-      "title": "Saldo",
-      "empty": "Tidak ada data tersedia"
-    },
-    "costsByCategory": {
-      "title": "Biaya per Kategori",
-      "empty": "Tidak ada data tersedia"
-    },
-    "invoices": {
-      "title": "Faktur",
-      "summary": {
+    "widgets": {
+      "total_revenue": {
+        "title": "Total Pendapatan",
+        "description": "Total pendapatan dari semua saluran penjualan"
+      },
+      "total_orders": {
+        "title": "Total Pesanan",
+        "description": "Jumlah pesanan penjualan dalam periode"
+      },
+      "total_customers": {
+        "title": "Total Pelanggan",
+        "description": "Jumlah pelanggan aktif"
+      },
+      "total_products": {
+        "title": "Total Produk",
+        "description": "Jumlah produk aktif dalam katalog"
+      },
+      "employee_count": {
+        "title": "Karyawan",
+        "description": "Total karyawan aktif"
+      },
+      "revenue_chart": {
+        "title": "Tren Pendapatan",
+        "description": "Grafik tren pendapatan bulanan"
+      },
+      "costs_chart": {
+        "title": "Tren Biaya",
+        "description": "Grafik tren biaya bulanan"
+      },
+      "revenue_vs_costs": {
+        "title": "Pendapatan vs Biaya",
+        "description": "Perbandingan pendapatan dan biaya"
+      },
+      "balance_overview": {
+        "title": "Saldo",
+        "description": "Ikhtisar saldo akun saat ini"
+      },
+      "costs_by_category": {
+        "title": "Biaya per Kategori",
+        "description": "Rincian biaya berdasarkan kategori"
+      },
+      "invoices_summary": {
+        "title": "Faktur",
+        "description": "Ringkasan status faktur",
         "total": "Total",
-        "unpaid": "Belum Dibayar",
-        "recentRequests": "Permintaan Terbaru",
-        "paid": "Dibayar"
+        "paid": "Lunas",
+        "unpaid": "Belum Lunas",
+        "overdue": "Jatuh Tempo"
       },
-      "tabs": {
-        "all": "Semua",
-        "unpaid": "Belum Dibayar",
-        "recentRequest": "Permintaan Terbaru",
-        "paid": "Dibayar"
+      "recent_invoices": {
+        "title": "Faktur Terbaru",
+        "description": "Transaksi faktur terbaru"
       },
-      "table": {
-        "company": "Perusahaan",
-        "issueDate": "Tanggal Terbit",
-        "contact": "Kontak",
-        "value": "Nilai"
+      "sales_performance": {
+        "title": "Kinerja Penjualan",
+        "description": "Tenaga penjualan berkinerja terbaik"
       },
-      "empty": "Tidak ada faktur ditemukan",
-      "error": "Gagal memuat faktur. Silakan coba lagi."
-    },
-    "error": "Gagal memuat data dashboard. Silakan coba lagi.",
-    "loading": "Memuat..."
+      "top_products": {
+        "title": "Produk Teratas",
+        "description": "Produk dengan penjualan tertinggi",
+        "sold": "terjual"
+      },
+      "delivery_status": {
+        "title": "Pengiriman",
+        "description": "Ikhtisar status pengiriman",
+        "totalLabel": "total pengiriman",
+        "pending": "Menunggu",
+        "inTransit": "Dalam Perjalanan",
+        "delivered": "Terkirim"
+      },
+      "geographic_overview": {
+        "title": "Ikhtisar Geografis",
+        "description": "Peta performa regional dengan GeoJSON",
+        "entries": "entri",
+        "low": "Rendah",
+        "high": "Tinggi"
+      },
+      "warehouse_overview": {
+        "title": "Ikhtisar Gudang",
+        "description": "Stok dan utilisasi per gudang",
+        "items": "barang"
+      }
+    }
   }
 }
-

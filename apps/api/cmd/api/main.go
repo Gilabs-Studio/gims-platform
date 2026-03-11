@@ -67,6 +67,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	generalPresentation "github.com/gilabs/gims/api/internal/general/presentation"
 	reportPresentation "github.com/gilabs/gims/api/internal/report/presentation"
 
 	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
@@ -332,6 +333,9 @@ func main() {
 
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// General module (Dashboard)
+		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)

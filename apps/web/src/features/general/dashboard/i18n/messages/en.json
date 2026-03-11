@@ -1,50 +1,136 @@
 {
   "dashboard": {
     "title": "Dashboard",
-    "deliveries": {
-      "title": "Deliveries",
-      "total": "Total",
-      "pending": "Pending",
-      "completed": "Completed",
-      "empty": "No data available"
-    },
-    "revenueCosts": {
-      "title": "Revenue & Costs",
-      "empty": "No data available"
-    },
-    "balance": {
-      "title": "Balance",
-      "empty": "No data available"
-    },
-    "costsByCategory": {
-      "title": "Costs by Category",
-      "empty": "No data available"
-    },
-    "invoices": {
-      "title": "Invoices",
-      "summary": {
-        "total": "Total",
-        "unpaid": "Unpaid",
-        "recentRequests": "Requests",
-        "paid": "Paid"
-      },
-      "tabs": {
-        "all": "All",
-        "unpaid": "Unpaid",
-        "recentRequest": "Requests",
-        "paid": "Paid"
-      },
-      "table": {
-        "company": "Company",
-        "issueDate": "Issue Date",
-        "contact": "Contact",
-        "value": "Value"
-      },
-      "empty": "No invoices found",
-      "error": "Failed to load invoices. Please try again."
-    },
     "error": "Failed to load dashboard data. Please try again.",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "noData": "No data available",
+    "customize": "Customize",
+    "doneEditing": "Done",
+    "addWidget": "Add Widget",
+    "resetLayout": "Reset",
+    "emptyDashboard": "Your dashboard is empty. Add widgets to get started.",
+    "download": "Download",
+    "compareLastMonth": "Compare from last month",
+    "revenueChart": {
+      "title": "Revenue Chart",
+      "subtitle": "Last 12 periods",
+      "revenue": "Revenue",
+      "costs": "Costs"
+    },
+    "stats": {
+      "totalBalance": "Total Balance",
+      "totalRevenue": "Total Revenue",
+      "totalExpense": "Total Expense",
+      "totalOrders": "Total Orders"
+    },
+    "bestSelling": {
+      "title": "Best Selling Products",
+      "subtitle": "Top-Selling Products at a Glance",
+      "itemsSold": "items sold"
+    },
+    "trackOrders": {
+      "title": "Track Order Status",
+      "subtitle": "Analyze growth and changes in visitor patterns",
+      "newOrder": "New Order",
+      "onProgress": "On Progress",
+      "completed": "Completed",
+      "return": "Return",
+      "filterOrders": "Filter orders...",
+      "columns": "Columns",
+      "id": "ID",
+      "customerName": "Customer Name",
+      "issueDate": "Issue Date",
+      "amount": "Amount",
+      "status": "Status",
+      "export": "Export"
+    },
+    "widgetPicker": {
+      "title": "Add Widget",
+      "all": "All",
+      "added": "Added"
+    },
+    "widgets": {
+      "total_revenue": {
+        "title": "Total Revenue",
+        "description": "Total revenue across all sales channels"
+      },
+      "total_orders": {
+        "title": "Total Orders",
+        "description": "Number of sales orders in the period"
+      },
+      "total_customers": {
+        "title": "Total Customers",
+        "description": "Active customer count"
+      },
+      "total_products": {
+        "title": "Total Products",
+        "description": "Active product count in catalog"
+      },
+      "employee_count": {
+        "title": "Employees",
+        "description": "Total active employees"
+      },
+      "revenue_chart": {
+        "title": "Revenue Trend",
+        "description": "Monthly revenue trend chart"
+      },
+      "costs_chart": {
+        "title": "Costs Trend",
+        "description": "Monthly costs trend chart"
+      },
+      "revenue_vs_costs": {
+        "title": "Revenue vs Costs",
+        "description": "Comparison of revenue and costs"
+      },
+      "balance_overview": {
+        "title": "Balance",
+        "description": "Current account balance overview"
+      },
+      "costs_by_category": {
+        "title": "Costs by Category",
+        "description": "Breakdown of costs by category"
+      },
+      "invoices_summary": {
+        "title": "Invoices",
+        "description": "Invoice status summary",
+        "total": "Total",
+        "paid": "Paid",
+        "unpaid": "Unpaid",
+        "overdue": "Overdue"
+      },
+      "recent_invoices": {
+        "title": "Recent Invoices",
+        "description": "Latest invoice transactions"
+      },
+      "sales_performance": {
+        "title": "Sales Performance",
+        "description": "Top performing sales representatives"
+      },
+      "top_products": {
+        "title": "Top Products",
+        "description": "Best selling products",
+        "sold": "sold"
+      },
+      "delivery_status": {
+        "title": "Deliveries",
+        "description": "Delivery status overview",
+        "totalLabel": "total deliveries",
+        "pending": "Pending",
+        "inTransit": "In Transit",
+        "delivered": "Delivered"
+      },
+      "geographic_overview": {
+        "title": "Geographic Overview",
+        "description": "Regional performance map with GeoJSON",
+        "entries": "entries",
+        "low": "Low",
+        "high": "High"
+      },
+      "warehouse_overview": {
+        "title": "Warehouse Overview",
+        "description": "Stock and utilization per warehouse",
+        "items": "items"
+      }
+    }
   }
 }
-
