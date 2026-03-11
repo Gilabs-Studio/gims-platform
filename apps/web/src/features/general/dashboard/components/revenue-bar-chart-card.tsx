@@ -71,7 +71,7 @@ export function RevenueBarChartCard({
       <CardHeader>
         <CardTitle>{t("revenueChart.title")}</CardTitle>
         <CardDescription>
-          {t("revenueChart.subtitle", { n: periods.length || 12 })}
+          {t("revenueChart.subtitle")}
         </CardDescription>
         {/* Toggle buttons — anchored top-right on md+ screens */}
         <div className="end-0 top-0 flex divide-x rounded-md border md:absolute md:rounded-none md:rounded-bl-md md:border-e-transparent md:border-t-transparent">

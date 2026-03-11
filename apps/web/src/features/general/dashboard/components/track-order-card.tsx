@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import type { DeliveryStatusData, InvoiceRow } from "../types";
 
-type InvoiceStatus = InvoiceRow["status"];
+type InvoiceStatus = "unpaid" | "paid" | "overdue";
 type BadgeVariant = "info" | "success" | "destructive";
 
 const STATUS_CONFIG: Record<
@@ -197,7 +197,7 @@ export function TrackOrderCard({
                       ))
                     ) : (
                       filteredInvoices.slice(0, 8).map((inv) => {
-                        const cfg = STATUS_CONFIG[inv.status] ?? {
+                        const cfg = STATUS_CONFIG[inv.status as InvoiceStatus] ?? {
                           variant: "info" as BadgeVariant,
                           label: inv.status,
                         };

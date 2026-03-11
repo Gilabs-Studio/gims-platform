@@ -9,10 +9,12 @@ interface RecentInvoicesWidgetProps {
   readonly data?: InvoiceRow[];
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  paid: "bg-chart-2/10 text-chart-2 border-chart-2/20",
-  unpaid: "bg-chart-3/10 text-chart-3 border-chart-3/20",
-  overdue: "bg-destructive/10 text-destructive border-destructive/20",
+type BadgeVariant = "success" | "warning" | "destructive";
+
+const STATUS_VARIANT: Record<string, BadgeVariant> = {
+  paid: "success",
+  unpaid: "warning",
+  overdue: "destructive",
 };
 
 export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
@@ -48,10 +50,7 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
                   <span className="text-sm font-semibold">
                     {inv.value_formatted}
                   </span>
-                  <Badge
-                    variant="outline"
-                    className={STATUS_STYLES[inv.status] ?? ""}
-                  >
+                  <Badge variant={STATUS_VARIANT[inv.status] ?? "warning"}>
                     {inv.status}
                   </Badge>
                 </div>

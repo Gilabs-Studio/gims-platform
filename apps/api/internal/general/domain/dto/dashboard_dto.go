@@ -8,20 +8,21 @@ type DashboardRequest struct {
 }
 
 // DashboardOverviewResponse is the top-level dashboard API response.
+// Field names exactly match the TypeScript DashboardOverviewData interface.
 type DashboardOverviewResponse struct {
-	KPI              KPIData            `json:"kpi"`
-	RevenueChart     []PeriodChartPoint `json:"revenue_chart"`
-	CostsChart       []PeriodChartPoint `json:"costs_chart"`
-	RevenueVsCosts   []PeriodChartPoint `json:"revenue_vs_costs"`
-	Balance          BalanceData        `json:"balance"`
-	CostsByCategory  []CostCategoryItem `json:"costs_by_category"`
-	InvoicesSummary  InvoiceSummaryData `json:"invoices_summary"`
-	RecentInvoices   []InvoiceRow       `json:"recent_invoices"`
-	SalesPerformance []SalesPerformRow  `json:"sales_performance"`
-	TopProducts      []TopProductRow    `json:"top_products"`
-	DeliveryStatus   DeliveryStatusData `json:"delivery_status"`
-	GeoOverview      GeoOverviewData    `json:"geo_overview"`
-	Warehouses       []WarehouseItem    `json:"warehouses"`
+	KPI                KPIData               `json:"kpi"`
+	RevenueChart       PeriodChartData       `json:"revenue_chart"`
+	CostsChart         PeriodChartData       `json:"costs_chart"`
+	RevenueVsCosts     PeriodChartData       `json:"revenue_vs_costs"`
+	BalanceOverview    BalanceOverviewData   `json:"balance_overview"`
+	CostsByCategory    []CostCategoryItem    `json:"costs_by_category"`
+	InvoicesSummary    InvoiceSummaryData    `json:"invoices_summary"`
+	RecentInvoices     []InvoiceRow          `json:"recent_invoices"`
+	SalesPerformance   []SalesPerformanceRow `json:"sales_performance"`
+	TopProducts        []TopProductRow       `json:"top_products"`
+	DeliveryStatus     DeliveryStatusData    `json:"delivery_status"`
+	GeographicOverview GeoOverviewData       `json:"geographic_overview"`
+	WarehouseOverview  WarehouseOverviewData `json:"warehouse_overview"`
 }
 
 // KPIData contains the five main KPI summary cards.
@@ -33,32 +34,65 @@ type KPIData struct {
 	EmployeeCount  KPICard `json:"employee_count"`
 }
 
-// KPICard represents a single KPI metric with period-over-period change.
+// KPICard represents a single KPI metric.
+// Formatted is computed by the usecase layer; repository only sets Value and ChangePercent.
 type KPICard struct {
-	Value  float64 `json:"value"`
-	Change float64 `json:"change"`
+	Value         float64 `json:"value"`
+	Formatted     string  `json:"formatted"`
+	ChangePercent float64 `json:"change_percent"`
 }
 
-// PeriodChartPoint is a data point for time-series charts.
+// ChartSeriesData is a named data series for a time-series chart widget.
+type ChartSeriesData struct {
+	Label     string    `json:"label"`
+	Data      []float64 `json:"data"`
+	Formatted []string  `json:"formatted"`
+}
+
+// PeriodChartData is the response format consumed by all chart widgets.
+type PeriodChartData struct {
+	Series []ChartSeriesData `json:"series"`
+	Period []string          `json:"period"`
+}
+
+// PeriodChartPoint is an internal data point used only by the repository layer.
+// It is not serialised to JSON directly.
 type PeriodChartPoint struct {
-	Period  string  `json:"period"`
-	Revenue float64 `json:"revenue,omitempty"`
-	Costs   float64 `json:"costs,omitempty"`
-	Amount  float64 `json:"amount,omitempty"`
+	Period  string
+	Revenue float64
+	Costs   float64
+	Amount  float64
 }
 
-// BalanceData represents the balance widget data.
+// BalanceChartPoint is a single time-series entry for the balance trend chart.
+type BalanceChartPoint struct {
+	Period    string  `json:"period"`
+	Value     float64 `json:"value"`
+	Formatted string  `json:"formatted"`
+}
+
+// BalanceOverviewData is the response for the balance widget.
+type BalanceOverviewData struct {
+	Value         float64             `json:"value"`
+	Formatted     string              `json:"formatted"`
+	ChangePercent float64             `json:"change_percent"`
+	ChartData     []BalanceChartPoint `json:"chart_data"`
+}
+
+// BalanceData is the raw balance data returned by the repository.
+// It is transformed into BalanceOverviewData in the usecase layer.
 type BalanceData struct {
-	Current float64            `json:"current"`
-	Change  float64            `json:"change"`
-	Trend   []PeriodChartPoint `json:"trend"`
+	Current float64
+	Change  float64
+	Trend   []PeriodChartPoint
 }
 
 // CostCategoryItem represents a single cost breakdown entry.
 type CostCategoryItem struct {
-	Category   string  `json:"category"`
-	Amount     float64 `json:"amount"`
-	Percentage float64 `json:"percentage"`
+	Category        string  `json:"category"`
+	Amount          float64 `json:"amount"`
+	AmountFormatted string  `json:"amount_formatted"`
+	Percentage      float64 `json:"percentage"`
 }
 
 // InvoiceSummaryData contains invoice status counts.
@@ -70,27 +104,35 @@ type InvoiceSummaryData struct {
 }
 
 // InvoiceRow represents a single recent invoice entry.
+// Field names match the TypeScript InvoiceRow interface.
 type InvoiceRow struct {
-	ID           string  `json:"id"`
-	InvoiceCode  string  `json:"invoice_code"`
-	CustomerName string  `json:"customer_name"`
-	Amount       float64 `json:"amount"`
-	Status       string  `json:"status"`
-	DueDate      string  `json:"due_date"`
+	ID             string  `json:"id"`
+	Company        string  `json:"company"`          // customer name
+	Contact        string  `json:"contact"`           // invoice code
+	IssueDate      string  `json:"issue_date"`        // due date
+	Value          float64 `json:"value"`
+	ValueFormatted string  `json:"value_formatted"`
+	Status         string  `json:"status"` // "paid" | "unpaid" | "overdue"
 }
 
-// SalesPerformRow represents a sales representative performance entry.
-type SalesPerformRow struct {
-	Name    string  `json:"name"`
-	Revenue float64 `json:"revenue"`
-	Target  float64 `json:"target"`
+// SalesPerformanceRow represents a sales representative performance entry.
+type SalesPerformanceRow struct {
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Revenue          float64 `json:"revenue"`
+	RevenueFormatted string  `json:"revenue_formatted"`
+	Orders           int     `json:"orders"`
+	TargetPercent    float64 `json:"target_percent"`
 }
 
 // TopProductRow represents a top-selling product.
 type TopProductRow struct {
-	Name         string  `json:"name"`
-	QuantitySold float64 `json:"quantity_sold"`
-	Revenue      float64 `json:"revenue"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	SKU              string  `json:"sku"`
+	QuantitySold     float64 `json:"quantity_sold"`
+	Revenue          float64 `json:"revenue"`
+	RevenueFormatted string  `json:"revenue_formatted"`
 }
 
 // DeliveryStatusData contains delivery status breakdown.
@@ -102,37 +144,53 @@ type DeliveryStatusData struct {
 }
 
 // GeoOverviewData contains geographic performance data.
+// Field names match the TypeScript GeoOverviewData interface.
 type GeoOverviewData struct {
-	Regions []GeoRegionData `json:"regions"`
+	Regions        []GeoRegionData `json:"regions"`
+	TotalValue     float64         `json:"total_value"`
+	TotalFormatted string          `json:"total_formatted"`
 }
 
-// GeoRegionData represents performance data for a province/region.
+// GeoRegionData represents performance data for a single province/region.
+// Field names match the TypeScript GeoRegionData interface.
 type GeoRegionData struct {
-	ProvinceID   string  `json:"province_id"`
-	ProvinceName string  `json:"province_name"`
-	TotalOrders  int     `json:"total_orders"`
-	Revenue      float64 `json:"revenue"`
+	Name      string  `json:"name"`      // province name
+	Code      string  `json:"code"`      // province id
+	Value     float64 `json:"value"`     // revenue
+	Formatted string  `json:"formatted"` // formatted revenue
+	Count     int     `json:"count"`     // total orders
 }
 
-// WarehouseItem represents a warehouse utilization overview.
+// WarehouseItem represents a single warehouse in the overview widget.
+// Field names match the TypeScript WarehouseItem interface.
 type WarehouseItem struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	ItemCount   int     `json:"item_count"`
-	Capacity    float64 `json:"capacity"`
-	Utilization float64 `json:"utilization"`
+	ID                 string  `json:"id"`
+	Name               string  `json:"name"`
+	Location           string  `json:"location"`
+	StockValue         float64 `json:"stock_value"`
+	StockFormatted     string  `json:"stock_formatted"`
+	ItemCount          int     `json:"item_count"`
+	UtilizationPercent float64 `json:"utilization_percent"`
+}
+
+// WarehouseOverviewData wraps the warehouse list with aggregate totals.
+// Field names match the TypeScript WarehouseOverviewData interface.
+type WarehouseOverviewData struct {
+	Warehouses          []WarehouseItem `json:"warehouses"`
+	TotalStockValue     float64         `json:"total_stock_value"`
+	TotalStockFormatted string          `json:"total_stock_formatted"`
 }
 
 // ---- Dashboard Layout DTOs ----
 
 // DashboardLayoutSaveRequest is the request body for saving a user's layout.
 type DashboardLayoutSaveRequest struct {
-DashboardType string `json:"dashboard_type" binding:"required"`
-LayoutJSON    string `json:"layout_json" binding:"required"`
+	DashboardType string `json:"dashboard_type" binding:"required"`
+	LayoutJSON    string `json:"layout_json" binding:"required"`
 }
 
 // DashboardLayoutResponse is the API response for a user's saved layout.
 type DashboardLayoutResponse struct {
-DashboardType string `json:"dashboard_type"`
-LayoutJSON    string `json:"layout_json"`
+	DashboardType string `json:"dashboard_type"`
+	LayoutJSON    string `json:"layout_json"`
 }

@@ -28,7 +28,7 @@ export function TopProductsWidget({ data }: TopProductsWidgetProps) {
           <div className="space-y-2">
             {rows.slice(0, 6).map((row, i) => (
               <div
-                key={row.id}
+                key={row.id || `tp-${i}`}
                 className="flex items-center justify-between rounded-lg border p-3"
               >
                 <div className="flex items-center gap-3">

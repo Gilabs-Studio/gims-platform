@@ -22,7 +22,7 @@ type DashboardRepository interface {
 	GetCostsByCategory(ctx context.Context, start, end time.Time) ([]dto.CostCategoryItem, error)
 	GetInvoiceSummary(ctx context.Context, start, end time.Time) (dto.InvoiceSummaryData, error)
 	GetRecentInvoices(ctx context.Context, limit int) ([]dto.InvoiceRow, error)
-	GetSalesPerformance(ctx context.Context, start, end time.Time, limit int) ([]dto.SalesPerformRow, error)
+	GetSalesPerformance(ctx context.Context, start, end time.Time, limit int) ([]dto.SalesPerformanceRow, error)
 	GetTopProducts(ctx context.Context, start, end time.Time, limit int) ([]dto.TopProductRow, error)
 	GetDeliveryStatus(ctx context.Context, start, end time.Time) (dto.DeliveryStatusData, error)
 	GetGeoOverview(ctx context.Context, start, end time.Time) (dto.GeoOverviewData, error)
@@ -61,7 +61,7 @@ func (r *dashboardRepository) GetRevenueKPI(ctx context.Context, start, end time
 	r.db.WithContext(ctx).Table("sales_orders").
 		Where(approvedClosedWhere, approvedStatuses, prevStart, prevEnd).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&previous)
-	return dto.KPICard{Value: current, Change: calcChange(previous, current)}, nil
+	return dto.KPICard{Value: current, ChangePercent: calcChange(previous, current)}, nil
 }
 
 func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.Time) (dto.KPICard, error) {
@@ -77,7 +77,7 @@ func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.
 	r.db.WithContext(ctx).Table("sales_orders").
 		Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", prevStart, prevEnd).
 		Count(&previous)
-	return dto.KPICard{Value: float64(current), Change: calcChange(float64(previous), float64(current))}, nil
+	return dto.KPICard{Value: float64(current), ChangePercent: calcChange(float64(previous), float64(current))}, nil
 }
 
 func (r *dashboardRepository) GetCustomersKPI(ctx context.Context) (dto.KPICard, error) {
@@ -262,7 +262,7 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("customer_invoices").
 		Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
-		Select("customer_invoices.id, customer_invoices.code, sales_orders.customer_name, customer_invoices.amount, customer_invoices.status, customer_invoices.due_date").
+		Select("customer_invoices.id, customer_invoices.code, COALESCE(sales_orders.customer_name, '') as customer_name, customer_invoices.amount, customer_invoices.status, customer_invoices.due_date").
 		Where("customer_invoices.deleted_at IS NULL").
 		Order("customer_invoices.created_at DESC").Limit(limit).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -274,24 +274,41 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 			dueStr = row.DueDate.Format("2006-01-02")
 		}
 		invoices = append(invoices, dto.InvoiceRow{
-			ID: row.ID, InvoiceCode: row.Code, CustomerName: row.CustomerName,
-			Amount: row.Amount, Status: row.Status, DueDate: dueStr,
+			ID:        row.ID,
+			Company:   row.CustomerName,
+			Contact:   row.Code,
+			IssueDate: dueStr,
+			Value:     row.Amount,
+			Status:    normalizeInvoiceStatus(row.Status),
 		})
 	}
 	return invoices, nil
 }
 
-func (r *dashboardRepository) GetSalesPerformance(ctx context.Context, start, end time.Time, limit int) ([]dto.SalesPerformRow, error) {
+func normalizeInvoiceStatus(status string) string {
+	switch status {
+	case "paid":
+		return "paid"
+	case "overdue":
+		return "overdue"
+	default:
+		return "unpaid"
+	}
+}
+
+func (r *dashboardRepository) GetSalesPerformance(ctx context.Context, start, end time.Time, limit int) ([]dto.SalesPerformanceRow, error) {
 	type row struct {
-		Name    string
-		Revenue float64
+		EmployeeID string
+		Name       string
+		Revenue    float64
+		Orders     int64
 	}
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Joins("JOIN employees ON employees.id = sales_orders.sales_rep_id").
-		Select("employees.name as name, COALESCE(SUM(sales_orders.total_amount), 0) as revenue").
+		Select("employees.id::text as employee_id, employees.name as name, COALESCE(SUM(sales_orders.total_amount), 0) as revenue, COUNT(sales_orders.id) as orders").
 		Where(salesOrderWhere, approvedStatuses, start, end).
-		Group("employees.name").Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
+		Group("employees.id, employees.name").Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	maxRevenue := float64(0)
@@ -300,16 +317,28 @@ func (r *dashboardRepository) GetSalesPerformance(ctx context.Context, start, en
 			maxRevenue = row.Revenue
 		}
 	}
-	perfs := make([]dto.SalesPerformRow, 0, len(rows))
+	perfs := make([]dto.SalesPerformanceRow, 0, len(rows))
 	for _, row := range rows {
-		perfs = append(perfs, dto.SalesPerformRow{Name: row.Name, Revenue: row.Revenue, Target: maxRevenue})
+		targetPct := float64(0)
+		if maxRevenue > 0 {
+			targetPct = (row.Revenue / maxRevenue) * 100
+		}
+		perfs = append(perfs, dto.SalesPerformanceRow{
+			ID:            row.EmployeeID,
+			Name:          row.Name,
+			Revenue:       row.Revenue,
+			Orders:        int(row.Orders),
+			TargetPercent: targetPct,
+		})
 	}
 	return perfs, nil
 }
 
 func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end time.Time, limit int) ([]dto.TopProductRow, error) {
 	type row struct {
+		ProductID    string
 		Name         string
+		SKU          string
 		QuantitySold float64
 		Revenue      float64
 	}
@@ -317,14 +346,20 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 	if err := r.db.WithContext(ctx).Table("sales_order_items").
 		Joins("JOIN sales_orders ON sales_orders.id = sales_order_items.sales_order_id").
 		Joins("JOIN products ON products.id = sales_order_items.product_id").
-		Select("products.name as name, COALESCE(SUM(sales_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(sales_order_items.subtotal), 0) as revenue").
+		Select("products.id::text as product_id, products.name as name, COALESCE(products.sku, '') as sku, COALESCE(SUM(sales_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(sales_order_items.subtotal), 0) as revenue").
 		Where(salesOrderWhere, approvedStatuses, start, end).
-		Group("products.name").Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
+		Group("products.id, products.name, products.sku").Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	products := make([]dto.TopProductRow, 0, len(rows))
 	for _, row := range rows {
-		products = append(products, dto.TopProductRow{Name: row.Name, QuantitySold: row.QuantitySold, Revenue: row.Revenue})
+		products = append(products, dto.TopProductRow{
+			ID:           row.ProductID,
+			Name:         row.Name,
+			SKU:          row.SKU,
+			QuantitySold: row.QuantitySold,
+			Revenue:      row.Revenue,
+		})
 	}
 	return products, nil
 }
@@ -350,41 +385,54 @@ func (r *dashboardRepository) GetDeliveryStatus(ctx context.Context, start, end 
 
 func (r *dashboardRepository) GetGeoOverview(ctx context.Context, start, end time.Time) (dto.GeoOverviewData, error) {
 	type row struct {
-		ProvinceID   string
-		ProvinceName string
-		TotalOrders  int
-		Revenue      float64
+		Code         string
+		Name         string
+		Count        int
+		Value        float64
 	}
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Joins("JOIN customers ON customers.id = sales_orders.customer_id").
 		Joins("LEFT JOIN provinces ON provinces.id = customers.province_id").
-		Select("COALESCE(provinces.id::text, 'unknown') as province_id, COALESCE(provinces.name, 'Unknown') as province_name, COUNT(sales_orders.id) as total_orders, COALESCE(SUM(sales_orders.total_amount), 0) as revenue").
+		Select("COALESCE(provinces.id::text, 'unknown') as code, COALESCE(provinces.name, 'Unknown') as name, COUNT(sales_orders.id) as count, COALESCE(SUM(sales_orders.total_amount), 0) as value").
 		Where(salesOrderWhere, approvedStatuses, start, end).
-		Group("provinces.id, provinces.name").Order("revenue DESC").Scan(&rows).Error; err != nil {
+		Group("provinces.id, provinces.name").Order("value DESC").Scan(&rows).Error; err != nil {
 		return dto.GeoOverviewData{}, err
 	}
 	regions := make([]dto.GeoRegionData, 0, len(rows))
+	var totalValue float64
 	for _, row := range rows {
+		totalValue += row.Value
 		regions = append(regions, dto.GeoRegionData{
-			ProvinceID: row.ProvinceID, ProvinceName: row.ProvinceName,
-			TotalOrders: row.TotalOrders, Revenue: row.Revenue,
+			Code:  row.Code,
+			Name:  row.Name,
+			Value: row.Value,
+			Count: row.Count,
 		})
 	}
-	return dto.GeoOverviewData{Regions: regions}, nil
+	return dto.GeoOverviewData{Regions: regions, TotalValue: totalValue}, nil
 }
 
 func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.WarehouseItem, error) {
 	type row struct {
-		ID        string
-		Name      string
-		Capacity  float64
-		ItemCount int
+		ID         string
+		Name       string
+		Address    string
+		Capacity   float64
+		ItemCount  int
+		StockValue float64
 	}
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("warehouses").
-		Select("warehouses.id, warehouses.name, warehouses.capacity, COALESCE(inv.item_count, 0) as item_count").
-		Joins("LEFT JOIN (SELECT warehouse_id, COUNT(DISTINCT product_id) as item_count FROM inventories WHERE deleted_at IS NULL GROUP BY warehouse_id) inv ON inv.warehouse_id = warehouses.id").
+		Select("warehouses.id, warehouses.name, COALESCE(warehouses.address, '') as address, COALESCE(warehouses.capacity, 0) as capacity, COALESCE(inv.item_count, 0) as item_count, COALESCE(inv.stock_value, 0) as stock_value").
+		Joins(`LEFT JOIN (
+			SELECT ib.warehouse_id,
+				COUNT(DISTINCT ib.product_id) as item_count,
+				COALESCE(SUM(ib.current_quantity * ib.cost_price), 0) as stock_value
+			FROM inventory_batches ib
+			WHERE ib.deleted_at IS NULL AND ib.is_active = true
+			GROUP BY ib.warehouse_id
+		) inv ON inv.warehouse_id = warehouses.id`).
 		Where("warehouses.is_active = ? AND warehouses.deleted_at IS NULL", true).
 		Order("warehouses.name ASC").Scan(&rows).Error; err != nil {
 		return nil, err
@@ -399,8 +447,12 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 			}
 		}
 		items = append(items, dto.WarehouseItem{
-			ID: row.ID, Name: row.Name, ItemCount: row.ItemCount,
-			Capacity: row.Capacity, Utilization: utilization,
+			ID:                 row.ID,
+			Name:               row.Name,
+			Location:           row.Address,
+			StockValue:         row.StockValue,
+			ItemCount:          row.ItemCount,
+			UtilizationPercent: utilization,
 		})
 	}
 	return items, nil

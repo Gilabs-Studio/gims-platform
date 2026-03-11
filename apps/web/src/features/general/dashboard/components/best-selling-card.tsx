@@ -65,8 +65,11 @@ export function BestSellingCard({ data, isLoading }: BestSellingCardProps) {
                   <div className="text-xs text-muted-foreground">{row.sku}</div>
                 </div>
               </div>
-              <div className="text-sm font-medium text-green-600">
-                {row.quantity_sold} {t("bestSelling.itemsSold")}
+              <div className="text-right">
+                <div className="text-sm font-semibold">{row.revenue_formatted}</div>
+                <div className="text-xs text-muted-foreground">
+                  {row.quantity_sold} {t("bestSelling.itemsSold")}
+                </div>
               </div>
             </div>
           ))
