@@ -45,7 +45,6 @@ import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useAppr
 import { visitReportService } from "../services/visit-report-service";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
-import { VisitReportFormDialog } from "./visit-report-form-dialog";
 import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
 import { VisitReportPhotos } from "./visit-report-photos";
 
@@ -59,10 +58,10 @@ interface VisitReportDetailProps {
   readonly visitId: string;
 }
 
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "destructive" | "outline" | "success"> = {
   draft: "secondary",
   submitted: "default",
-  approved: "default",
+  approved: "success",
   rejected: "destructive",
 };
 
@@ -78,13 +77,12 @@ function InfoRow({ icon: Icon, label, value }: {
   label: string;
   value: string | null | undefined;
 }) {
-  if (!value) return null;
   return (
     <div className="flex items-start gap-3">
-      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0 opacity-50" />
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm">{value}</p>
+        <p className="text-sm">{value || "-"}</p>
       </div>
     </div>
   );
@@ -124,7 +122,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const { user } = useAuthStore();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -329,7 +326,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 variant="outline"
                 size="sm"
                 className="cursor-pointer"
-                onClick={() => setShowEditDialog(true)}
+                onClick={() => router.push(`/crm/visits/${visit.id}/edit`)}
               >
                 <Pencil className="h-4 w-4 mr-1" />
                 {tCommon("edit")}
@@ -540,12 +537,12 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               <h4 className="text-xs font-semibold text-muted-foreground uppercase">
                 {t("actions.checkIn")} / {t("actions.checkOut")}
               </h4>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="space-y-4">
+                <div className="flex items-start gap-2">
                   {visit.check_in_at ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                   ) : (
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                    <XCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   )}
                   <div>
                     <p className="text-xs text-muted-foreground">{t("detail.checkedInAt")}</p>
@@ -559,7 +556,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                     const lng = loc.lng ?? loc.longitude;
                     if (lat != null && lng != null) {
                       return (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6 -mt-3">
                           <MapPin className="h-3 w-3" />
                           <span>{lat.toFixed(6)}, {lng.toFixed(6)}{loc.accuracy != null ? ` ±${Math.round(loc.accuracy)}m` : ""}</span>
                         </div>
@@ -568,11 +565,11 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                   } catch { /* skip invalid */ }
                   return null;
                 })()}
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-2">
                   {visit.check_out_at ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                   ) : (
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                    <XCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   )}
                   <div>
                     <p className="text-xs text-muted-foreground">{t("detail.checkedOutAt")}</p>
@@ -747,15 +744,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
           </div>
         </div>
       </div>
-
-      {/* Edit Dialog */}
-      {canUpdate && isDraft && (
-        <VisitReportFormDialog
-          open={showEditDialog}
-          onClose={() => setShowEditDialog(false)}
-          visit={visit}
-        />
-      )}
 
       {/* Reject Dialog */}
       {canApprove && isSubmitted && (

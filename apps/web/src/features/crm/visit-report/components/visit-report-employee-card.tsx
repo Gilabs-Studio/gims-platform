@@ -27,10 +27,10 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { useRouter } from "@/i18n/routing";
 import type { VisitReportEmployeeSummary, VisitReportStatus, VisitReportOutcome } from "../types";
 
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive"> = {
+const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive" | "success"> = {
   draft: "secondary",
-  submitted: "outline",
-  approved: "default",
+  submitted: "default",
+  approved: "success",
   rejected: "destructive",
 };
 
@@ -178,7 +178,7 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                   {/* Row: navigate to detail on click */}
                   <button
                     type="button"
-                    className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5 cursor-pointer text-left"
+                    className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5 cursor-pointer text-left items-center"
                     onClick={() => router.push(`/crm/visits/${visit.id}`)}
                   >
                     <span className="font-mono text-xs text-muted-foreground">{visit.code}</span>
@@ -202,56 +202,61 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                     </div>
                   </button>
 
-                  {/* Check-in indicator */}
-                  {visit.check_in_at && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-                      <MapPin className="h-3 w-3" />
-                      {formatTime(visit.check_in_at)}
-                    </span>
-                  )}
+                  {/* Fixed width container for trailing elements so they don't break flex alignment */}
+                  <div className="flex items-center justify-end gap-3 shrink-0 w-[160px]">
+                    {/* Check-in indicator */}
+                    <div className="flex justify-end w-[60px]">
+                      {visit.check_in_at && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {formatTime(visit.check_in_at)}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Action shortcuts */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {visit.status === "draft" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-primary"
-                        title={t("actions.submit")}
-                        disabled={submitMutation.isPending}
-                        onClick={() => submitMutation.mutate({ id: visit.id })}
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {visit.status === "submitted" && canApprove && (
-                      <>
+                    {/* Action shortcuts */}
+                    <div className="flex items-center justify-end gap-1 w-[88px]">
+                      {visit.status === "draft" && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-green-600"
-                          title={t("actions.approve")}
-                          disabled={approveMutation.isPending}
-                          onClick={() => approveMutation.mutate({ id: visit.id })}
+                          className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-primary"
+                          title={t("actions.submit")}
+                          disabled={submitMutation.isPending}
+                          onClick={() => submitMutation.mutate({ id: visit.id })}
                         >
-                          <ThumbsUp className="h-3.5 w-3.5" />
+                          <Send className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
-                          title={t("actions.reject")}
-                          disabled={rejectMutation.isPending}
-                          onClick={() => rejectMutation.mutate({ id: visit.id, data: { reason: "" } })}
-                        >
-                          <ThumbsDown className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                    <Eye
-                      className="h-3.5 w-3.5 text-muted-foreground cursor-pointer"
-                      onClick={() => router.push(`/crm/visits/${visit.id}`)}
-                    />
+                      )}
+                      {visit.status === "submitted" && canApprove && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-green-600"
+                            title={t("actions.approve")}
+                            disabled={approveMutation.isPending}
+                            onClick={() => approveMutation.mutate({ id: visit.id })}
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
+                            title={t("actions.reject")}
+                            disabled={rejectMutation.isPending}
+                            onClick={() => rejectMutation.mutate({ id: visit.id, data: { reason: "" } })}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      <Eye
+                        className="h-3.5 w-3.5 text-muted-foreground cursor-pointer"
+                        onClick={() => router.push(`/crm/visits/${visit.id}`)}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}

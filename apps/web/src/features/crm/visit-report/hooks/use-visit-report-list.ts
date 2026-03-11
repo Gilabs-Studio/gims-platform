@@ -8,11 +8,13 @@ import { useVisitReports, useDeleteVisitReport, useCheckInVisitReport, useCheckO
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useRouter } from "@/i18n/routing";
 import type { VisitReport, VisitReportStatus, VisitReportOutcome } from "../types";
 
 export function useVisitReportList() {
   const t = useTranslations("crmVisitReport");
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   const canCreate = useUserPermission("crm_visit.create");
   const canUpdate = useUserPermission("crm_visit.update");
@@ -31,8 +33,6 @@ export function useVisitReportList() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [outcomeFilter, setOutcomeFilter] = useState<string>("");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<VisitReport | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useVisitReports({
@@ -78,13 +78,11 @@ export function useVisitReportList() {
   }, [items, pagination?.total]);
 
   const handleCreate = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
+    router.push("/crm/visits/create");
   };
 
   const handleEdit = (item: VisitReport) => {
-    setEditingItem(item);
-    setDialogOpen(true);
+    router.push(`/crm/visits/${item.id}/edit`);
   };
 
   const handleDelete = async () => {
@@ -99,8 +97,7 @@ export function useVisitReportList() {
   };
 
   const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditingItem(null);
+    // No-op
   };
 
   const handleCheckIn = async (id: string) => {
@@ -178,8 +175,6 @@ export function useVisitReportList() {
       pageSize,
       statusFilter,
       outcomeFilter,
-      dialogOpen,
-      editingItem,
       deleteId,
     },
     actions: {

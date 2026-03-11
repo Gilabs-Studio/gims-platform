@@ -50,7 +50,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { VisitReportFormDialog } from "./visit-report-form-dialog";
 import { VisitReportCalendarView } from "./visit-report-calendar-view";
 import { VisitReportEmployeeView } from "./visit-report-employee-view";
 import { useVisitReportList } from "../hooks/use-visit-report-list";
@@ -58,10 +57,10 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import type { VisitReportStatus, VisitReportOutcome } from "../types";
 
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive"> = {
+const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive" | "success"> = {
   draft: "secondary",
-  submitted: "outline",
-  approved: "default",
+  submitted: "default",
+  approved: "success",
   rejected: "destructive",
 };
 
@@ -407,18 +406,12 @@ export function VisitReportList() {
   );
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
         </div>
-        {permissions.canCreate && (
-          <Button onClick={actions.handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("addVisit")}
-          </Button>
-        )}
       </div>
 
       {/* Team scope: two tabs — By Date (list) | By Employee (expandable cards) */}
@@ -449,14 +442,6 @@ export function VisitReportList() {
       )}
 
       {/* Dialogs */}
-      {(permissions.canCreate || permissions.canUpdate) && (
-        <VisitReportFormDialog
-          open={state.dialogOpen}
-          onClose={actions.handleDialogClose}
-          visit={state.editingItem}
-        />
-      )}
-
       {permissions.canDelete && (
         <DeleteDialog
           open={!!state.deleteId}
