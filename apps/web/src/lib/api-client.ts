@@ -500,7 +500,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(customError);
     } else if (status >= 500) {
       const msg = formatError("backend", "serverError");
-      toast.error(msg.title, { description: msg.description });
+      const description = (errorData?.error?.details?.message as string) || msg.description;
+      toast.error(msg.title, { description });
     } else {
       const requestUrl = error.config?.url || "";
       if (!requestUrl.includes("/auth/login")) {

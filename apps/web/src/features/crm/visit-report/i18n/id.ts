@@ -156,6 +156,7 @@ export const crmVisitReportId = {
       quantityMin: "Kuantitas tidak boleh negatif",
       priceMin: "Harga tidak boleh negatif",
       rejectionReasonMin: "Alasan penolakan minimal 5 karakter",
+      cannotApproveOwn: "Anda tidak dapat menyetujui laporan kunjungan Anda sendiri.",
     },
     tabs: {
       byDate: "Berdasarkan Tanggal",

@@ -15,15 +15,18 @@ import {
   Send,
   ThumbsUp,
   ThumbsDown,
+  Info,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useVisitReports, useSubmitVisitReport, useApproveVisitReport, useRejectVisitReport } from "../hooks/use-visit-reports";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useRouter } from "@/i18n/routing";
 import type { VisitReportEmployeeSummary, VisitReportStatus, VisitReportOutcome } from "../types";
 
@@ -58,6 +61,7 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
   const t = useTranslations("crmVisitReport");
   const tCommon = useTranslations("common");
   const router = useRouter();
+  const { user } = useAuthStore();
   const [expanded, setExpanded] = useState(false);
 
   const canApprove = useUserPermission("crm_visit.approve");
@@ -229,28 +233,44 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                         </Button>
                       )}
                       {visit.status === "submitted" && canApprove && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-green-600"
-                            title={t("actions.approve")}
-                            disabled={approveMutation.isPending}
-                            onClick={() => approveMutation.mutate({ id: visit.id })}
-                          >
-                            <ThumbsUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
-                            title={t("actions.reject")}
-                            disabled={rejectMutation.isPending}
-                            onClick={() => rejectMutation.mutate({ id: visit.id, data: { reason: "" } })}
-                          >
-                            <ThumbsDown className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-green-600"
+                                    title={t("actions.approve")}
+                                    disabled={approveMutation.isPending || (!!user && visit.created_by === user.id)}
+                                    onClick={() => approveMutation.mutate({ id: visit.id })}
+                                  >
+                                    <ThumbsUp className="h-3.5 w-3.5" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!!user && visit.created_by === user.id && (
+                                <TooltipContent>
+                                  <p className="flex items-center gap-1.5 text-xs">
+                                    <Info className="h-3 w-3" />
+                                    {t("validation.cannotApproveOwn")}
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
+                              title={t("actions.reject")}
+                              disabled={rejectMutation.isPending}
+                              onClick={() => rejectMutation.mutate({ id: visit.id, data: { reason: "" } })}
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TooltipProvider>
                       )}
                       <Eye
                         className="h-3.5 w-3.5 text-muted-foreground cursor-pointer"

@@ -156,6 +156,7 @@ export const crmVisitReportEn = {
       quantityMin: "Quantity cannot be negative",
       priceMin: "Price cannot be negative",
       rejectionReasonMin: "Rejection reason must be at least 5 characters",
+      cannotApproveOwn: "You cannot approve your own visit report.",
     },
     tabs: {
       byDate: "By Date",

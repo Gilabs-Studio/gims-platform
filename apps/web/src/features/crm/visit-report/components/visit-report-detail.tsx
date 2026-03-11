@@ -24,7 +24,9 @@ import {
   LogOut,
   Loader2,
   Navigation,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -163,8 +165,9 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
     try {
       await approveMutation.mutateAsync({ id: visit.id, data: {} });
       toast.success(t("approved"));
-    } catch {
-      toast.error(tCommon("error"));
+    } catch (err) {
+      // API client now handles global 500 error messages from 'details.message'
+      // but we can add more specific handling here if needed
     }
   };
 
@@ -292,34 +295,51 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               </Button>
             )}
             {isSubmitted && canApprove && (
-              <>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="cursor-pointer"
-                  onClick={handleApprove}
-                  disabled={approveMutation.isPending || visit.status !== "submitted"}
-                >
-                  <ThumbsUp className="h-4 w-4 mr-1" />
-                  {t("actions.approve")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (visit.status !== "submitted") {
-                      toast.error(tCommon("error") || "Visit must be submitted before rejection");
-                      return;
-                    }
-                    setShowRejectDialog(true);
-                  }}
-                  disabled={visit.status !== "submitted"}
-                >
-                  <ThumbsDown className="h-4 w-4 mr-1" />
-                  {t("actions.reject")}
-                </Button>
-              </>
+              <TooltipProvider>
+                <div className="flex gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={handleApprove}
+                          disabled={approveMutation.isPending || visit.status !== "submitted" || isOwner}
+                        >
+                          <ThumbsUp className="h-4 w-4 mr-1" />
+                          {t("actions.approve")}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {isOwner && (
+                      <TooltipContent>
+                        <p className="flex items-center gap-1.5">
+                          <Info className="h-3.5 w-3.5" />
+                          {t("validation.cannotApproveOwn")}
+                        </p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (visit.status !== "submitted") {
+                        toast.error(tCommon("error") || "Visit must be submitted before rejection");
+                        return;
+                      }
+                      setShowRejectDialog(true);
+                    }}
+                    disabled={visit.status !== "submitted"}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-1" />
+                    {t("actions.reject")}
+                  </Button>
+                </div>
+              </TooltipProvider>
             )}
             {isDraft && canUpdate && isOwner && (
               <Button
