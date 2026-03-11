@@ -136,6 +136,7 @@ export interface CostCategoryItem {
 /** Invoice row */
 export interface InvoiceRow {
   id: string;
+  customer_id?: string;
   company: string;
   issue_date: string;
   contact: string;

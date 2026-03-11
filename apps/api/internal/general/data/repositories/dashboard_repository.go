@@ -255,6 +255,7 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 	type row struct {
 		ID           string
 		Code         string
+		CustomerID   string
 		CustomerName string
 		Amount       float64
 		Status       string
@@ -263,7 +264,7 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("customer_invoices").
 		Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
-		Select("customer_invoices.id, customer_invoices.code, COALESCE(sales_orders.customer_name, '') as customer_name, customer_invoices.amount, customer_invoices.status, customer_invoices.due_date").
+		Select("customer_invoices.id, customer_invoices.code, COALESCE(sales_orders.customer_id::text, '') as customer_id, COALESCE(sales_orders.customer_name, '') as customer_name, customer_invoices.amount, customer_invoices.status, customer_invoices.due_date").
 		Where("customer_invoices.deleted_at IS NULL").
 		Order("customer_invoices.created_at DESC").Limit(limit).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -275,12 +276,13 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 			dueStr = row.DueDate.Format("2006-01-02")
 		}
 		invoices = append(invoices, dto.InvoiceRow{
-			ID:        row.ID,
-			Company:   row.CustomerName,
-			Contact:   row.Code,
-			IssueDate: dueStr,
-			Value:     row.Amount,
-			Status:    normalizeInvoiceStatus(row.Status),
+			ID:         row.ID,
+			CustomerID: row.CustomerID,
+			Company:    row.CustomerName,
+			Contact:    row.Code,
+			IssueDate:  dueStr,
+			Value:      row.Amount,
+			Status:     normalizeInvoiceStatus(row.Status),
 		})
 	}
 	return invoices, nil

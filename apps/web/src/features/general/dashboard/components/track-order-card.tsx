@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
+import type { Customer } from "@/features/master-data/customer/types";
 import type { DeliveryStatusData, InvoiceRow } from "../types";
 
 type InvoiceStatus = "unpaid" | "paid" | "overdue";
@@ -41,6 +44,8 @@ export function TrackOrderCard({
 }: TrackOrderCardProps) {
   const t = useTranslations("dashboard");
   const [filter, setFilter] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const canViewCustomer = useHasPermission("customer.read");
 
   const total = deliveryStatus?.total ?? 0;
   const pending = deliveryStatus?.pending ?? 0;
@@ -96,7 +101,8 @@ export function TrackOrderCard({
   );
 
   return (
-    <Card className="h-full">
+    <>
+      <Card className="h-full">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
@@ -170,9 +176,6 @@ export function TrackOrderCard({
                   <thead>
                     <tr className="border-b">
                       <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                        {t("trackOrders.id")}
-                      </th>
-                      <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
                         {t("trackOrders.customerName")}
                       </th>
                       <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
@@ -206,11 +209,18 @@ export function TrackOrderCard({
                             key={inv.id}
                             className="border-b transition-colors last:border-0 hover:bg-muted/50"
                           >
-                            <td className="p-4 font-mono text-xs whitespace-nowrap">
-                              {inv.id.slice(0, 8)}
-                            </td>
                             <td className="p-4 whitespace-nowrap">
-                              {inv.company}
+                              {canViewCustomer && inv.customer_id ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCustomerId(inv.customer_id!)}
+                                  className="text-sm font-medium text-primary hover:underline cursor-pointer"
+                                >
+                                  {inv.company}
+                                </button>
+                              ) : (
+                                <span className="text-sm font-medium">{inv.company}</span>
+                              )}
                             </td>
                             <td className="p-4 whitespace-nowrap text-muted-foreground">
                               {inv.issue_date}
@@ -238,5 +248,14 @@ export function TrackOrderCard({
         </div>
       </CardContent>
     </Card>
+
+    {canViewCustomer && (
+      <CustomerDetailModal
+        open={!!selectedCustomerId}
+        onOpenChange={(v) => { if (!v) setSelectedCustomerId(null); }}
+        customer={selectedCustomerId ? ({ id: selectedCustomerId } as unknown as Customer) : null}
+      />
+    )}
+    </>
   );
 }

@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { InvoiceDetailModal } from "@/features/sales/invoice/components/invoice-detail-modal";
+import type { CustomerInvoice } from "@/features/sales/invoice/types";
 import type { InvoiceRow } from "../types";
 
 interface RecentInvoicesWidgetProps {
@@ -20,9 +24,12 @@ const STATUS_VARIANT: Record<string, BadgeVariant> = {
 export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
   const t = useTranslations("dashboard");
   const invoices = data ?? [];
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const canViewInvoice = useHasPermission("customer_invoice.read");
 
   return (
-    <Card className="h-full">
+    <>
+      <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">
           {t("widgets.recent_invoices.title")}
@@ -38,10 +45,14 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
             {invoices.slice(0, 8).map((inv) => (
               <div
                 key={inv.id}
-                className="flex items-center justify-between rounded-lg border p-3"
+                onClick={canViewInvoice ? () => setSelectedInvoiceId(inv.id) : undefined}
+                role={canViewInvoice ? "button" : undefined}
+                tabIndex={canViewInvoice ? 0 : undefined}
+                onKeyDown={canViewInvoice ? (e) => { if (e.key === "Enter") setSelectedInvoiceId(inv.id); } : undefined}
+                className={"flex items-center justify-between rounded-lg border p-3" + (canViewInvoice ? " cursor-pointer hover:bg-muted/50" : "")}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{inv.company}</p>
+                  <p className={"truncate text-sm font-medium" + (canViewInvoice ? " text-primary" : "")}>{inv.company}</p>
                   <p className="text-xs text-muted-foreground">
                     {inv.contact} &middot; {inv.issue_date}
                   </p>
@@ -60,5 +71,14 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
         )}
       </CardContent>
     </Card>
+
+    {canViewInvoice && (
+      <InvoiceDetailModal
+        open={!!selectedInvoiceId}
+        onClose={() => setSelectedInvoiceId(null)}
+        invoice={selectedInvoiceId ? ({ id: selectedInvoiceId } as unknown as CustomerInvoice) : null}
+      />
+    )}
+    </>
   );
 }

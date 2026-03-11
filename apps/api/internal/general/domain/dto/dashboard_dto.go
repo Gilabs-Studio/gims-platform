@@ -107,6 +107,7 @@ type InvoiceSummaryData struct {
 // Field names match the TypeScript InvoiceRow interface.
 type InvoiceRow struct {
 	ID             string  `json:"id"`
+	CustomerID     string  `json:"customer_id"`       // customer UUID for detail modal
 	Company        string  `json:"company"`          // customer name
 	Contact        string  `json:"contact"`           // invoice code
 	IssueDate      string  `json:"issue_date"`        // due date
