@@ -22,6 +22,7 @@ type UserResponse struct {
 	Email       string            `json:"email"`
 	Name        string            `json:"name"`
 	AvatarURL   string            `json:"avatar_url"`
+	EmployeeID  string            `json:"employee_id,omitempty"`
 	Role        string            `json:"role"`
 	RoleName    string            `json:"role_name"`
 	Permissions map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})

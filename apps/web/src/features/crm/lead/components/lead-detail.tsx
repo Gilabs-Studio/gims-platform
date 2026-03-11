@@ -62,6 +62,7 @@ import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog"
 import { useTasksByLead } from "@/features/crm/task/hooks/use-tasks";
 import { LeadActivityFeed } from "./lead-activity-feed";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -214,6 +215,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
   const { data: formDataRes } = useLeadFormData();
   const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const authUser = useAuthStore((state) => state.user);
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
@@ -1114,7 +1116,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           open={showActivityDialog}
           onClose={() => setShowActivityDialog(false)}
           leadId={lead.id}
-          defaultEmployeeId={lead.assigned_employee?.id}
+          defaultEmployeeId={authUser?.employee_id || lead.assigned_employee?.id}
           employees={formDataRes?.data?.employees ?? []}
           activityTypes={activityTypes}
           onSuccess={() => {
@@ -1131,7 +1133,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           leadId={lead.id}
           customerId={lead.customer_id ?? undefined}
           contactId={lead.contact_id ?? undefined}
-          defaultEmployeeId={lead.assigned_employee?.id}
+          defaultEmployeeId={authUser?.employee_id || lead.assigned_employee?.id}
           defaultContactPerson={`${lead.first_name} ${lead.last_name}`.trim() || undefined}
           defaultContactPhone={lead.phone || undefined}
           onSuccess={() => {
@@ -1145,7 +1147,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
         open={showTaskDialog}
         onClose={() => setShowTaskDialog(false)}
         defaultLeadId={lead.id}
-        defaultAssignedToId={lead.assigned_employee?.id}
+        defaultAssignedToId={authUser?.employee_id || lead.assigned_employee?.id}
         onSuccess={() => setShowTaskDialog(false)}
       />
 

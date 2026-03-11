@@ -287,7 +287,7 @@ export function TaskFormDialog({
                     <Calendar
                       mode="single"
                       selected={dueDate ?? undefined}
-                      onSelect={(date) => {
+                      onSelect={(date: Date | undefined) => {
                         setDueDate(date ?? null);
                         setDueDateOpen(false);
                       }}
@@ -380,7 +380,7 @@ export function TaskFormDialog({
                         <Calendar
                           mode="single"
                           selected={reminderDate ?? undefined}
-                          onSelect={(date) => {
+                          onSelect={(date: Date | undefined) => {
                             setReminderDate(date ?? null);
                             setReminderDateOpen(false);
                           }}

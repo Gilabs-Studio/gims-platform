@@ -65,6 +65,7 @@ import { MapView } from "@/components/ui/map/map-view";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { Marker, Popup } from "react-leaflet";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
@@ -98,6 +99,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.employees ?? [];
+  const authUser = useAuthStore((state) => state.user);
 
   const canUpdate = useUserPermission("crm_deal.update");
   const canDelete = useUserPermission("crm_deal.delete");
@@ -1070,7 +1072,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
         onClose={() => setShowActivityDialog(false)}
         dealId={deal.id}
         leadId={deal.lead_id ?? undefined}
-        defaultEmployeeId={deal.assigned_employee?.id}
+        defaultEmployeeId={authUser?.employee_id || deal.assigned_employee?.id}
         employees={employees}
         activityTypes={activityTypes}
         onSuccess={() => {
@@ -1085,7 +1087,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
         onClose={() => setShowTaskDialog(false)}
         defaultDealId={deal.id}
         defaultLeadId={deal.lead_id ?? undefined}
-        defaultAssignedToId={deal.assigned_employee?.id}
+        defaultAssignedToId={authUser?.employee_id || deal.assigned_employee?.id}
         onSuccess={() => setShowTaskDialog(false)}
       />
 
@@ -1098,7 +1100,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
           leadId={deal.lead_id ?? undefined}
           customerId={deal.customer_id ?? undefined}
           contactId={deal.contact_id ?? undefined}
-          defaultEmployeeId={deal.assigned_employee?.id}
+          defaultEmployeeId={authUser?.employee_id || deal.assigned_employee?.id}
           defaultContactPerson={deal.contact?.name}
           defaultContactPhone={deal.contact?.phone}
           contacts={

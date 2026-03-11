@@ -15,6 +15,7 @@ import { useActivityList } from "../hooks/use-activity-list";
 import { useActivities } from "../hooks/use-activities";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { useLeadFormData } from "@/features/crm/lead/hooks/use-leads";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { formatDate } from "@/lib/utils";
 import type { Activity } from "../types";
 import { useState } from "react";
@@ -42,6 +43,7 @@ export function ActivityList() {
   const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.data?.employees ?? [];
+  const authUser = useAuthStore((state) => state.user);
 
   const { data: activitiesRes, isLoading, isError, refetch } = useActivities({
     page: state.page,
@@ -211,6 +213,7 @@ export function ActivityList() {
         <LogActivityDialog
           open={state.dialogOpen}
           onClose={actions.handleDialogClose}
+          defaultEmployeeId={authUser?.employee_id}
           employees={employees}
           activityTypes={activityTypes}
           onSuccess={() => {

@@ -45,6 +45,7 @@ import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-lea
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
 import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
 interface EmployeeOption {
   id: string;
@@ -96,6 +97,7 @@ export function LogActivityDialog({
 
   const qc = useQueryClient();
   const { mutateAsync: createActivity, isPending } = useCreateActivity();
+  const authUser = useAuthStore((state) => state.user);
 
   // Form data for product interest (products list + survey questions)
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
@@ -143,9 +145,6 @@ export function LogActivityDialog({
         activity_type_id: z
           .string()
           .min(1, t("logActivity.validation.typeRequired")),
-        employee_id: z
-          .string()
-          .min(1, t("logActivity.validation.employeeRequired")),
         description: z
           .string()
           .min(1, t("logActivity.validation.descriptionRequired")),
@@ -171,7 +170,6 @@ export function LogActivityDialog({
     resolver: zodResolver(schema),
     defaultValues: {
       activity_type_id: "",
-      employee_id: defaultEmployeeId ?? "",
       description: "",
     },
   });
@@ -187,7 +185,6 @@ export function LogActivityDialog({
       setProductItems([]);
       reset({
         activity_type_id: activityTypes[0]?.id ?? "",
-        employee_id: defaultEmployeeId ?? "",
         description: "",
       });
     }
@@ -331,7 +328,7 @@ export function LogActivityDialog({
       await createActivity({
         type: selectedType?.code ?? "call",
         activity_type_id: data.activity_type_id,
-        employee_id: data.employee_id,
+        employee_id: authUser?.employee_id ?? "",
         description: data.description,
         ...(leadId ? { lead_id: leadId } : {}),
         ...(dealId ? { deal_id: dealId } : {}),
@@ -425,39 +422,7 @@ export function LogActivityDialog({
                 )}
               </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("logActivity.form.employee")} *</FieldLabel>
-                <Controller
-                  control={control}
-                  name="employee_id"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue
-                          placeholder={t("logActivity.form.employeePlaceholder")}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem
-                            key={emp.id}
-                            value={emp.id}
-                            className="cursor-pointer"
-                          >
-                            {emp.name}
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              ({emp.employee_code})
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.employee_id && (
-                  <FieldError>{errors.employee_id.message}</FieldError>
-                )}
-              </Field>
+
 
               <Field orientation="vertical">
                 <FieldLabel>{t("logActivity.form.description")} *</FieldLabel>

@@ -36,6 +36,7 @@ import { activityService } from "@/features/crm/activity/services/activity-servi
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/utils";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { CreateVisitReportData, VisitInterestQuestion } from "../types";
 
 const MAX_PHOTOS = 5;
@@ -90,6 +91,7 @@ export function LogVisitDialog({
 }: LogVisitDialogProps) {
   const t = useTranslations("crmVisitReport");
   const tCommon = useTranslations("common");
+  const authUser = useAuthStore((state) => state.user);
   const qc = useQueryClient();
   const createMutation = useCreateVisitReport();
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
@@ -352,7 +354,7 @@ export function LogVisitDialog({
     const payload: CreateVisitReportData = {
       visit_date: format(selectedDate, "yyyy-MM-dd"),
       scheduled_time: selectedTime || undefined,
-      employee_id: defaultEmployeeId ?? "",
+      employee_id: authUser?.employee_id ?? "",
       lead_id: leadId ?? null,
       deal_id: dealId ?? null,
       customer_id: customerId ?? null,
@@ -415,7 +417,7 @@ export function LogVisitDialog({
     }
   }, [
     purpose, selectedDate, selectedTime,
-    defaultEmployeeId, leadId, dealId, customerId, contactId,
+    authUser, leadId, dealId, customerId, contactId,
     contactPerson, contactPhone, checkInGps,
     photos, productItems, createMutation, handleClose, onSuccess,
     qc, t, tCommon,
