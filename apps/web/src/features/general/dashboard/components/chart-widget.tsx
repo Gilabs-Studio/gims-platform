@@ -44,7 +44,7 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="h-full">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">
             {t(`widgets.${widgetType}.title` as Parameters<typeof t>[0])}
@@ -61,7 +61,7 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
   const isBarChart = widgetType === "revenue_vs_costs";
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">
           {t(`widgets.${widgetType}.title` as Parameters<typeof t>[0])}

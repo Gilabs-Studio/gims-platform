@@ -17,7 +17,7 @@ export function StatSummaryCard({ label, data }: StatSummaryCardProps) {
   const hasChange = changePercent !== 0;
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="space-y-1">
         <CardDescription>{label}</CardDescription>
         <div className="text-2xl font-bold lg:text-3xl">

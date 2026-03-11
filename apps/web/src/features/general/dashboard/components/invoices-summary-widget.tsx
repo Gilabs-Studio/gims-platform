@@ -44,7 +44,7 @@ export function InvoicesSummaryWidget({ data }: InvoicesSummaryWidgetProps) {
   ];
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">
           {t("widgets.invoices_summary.title")}

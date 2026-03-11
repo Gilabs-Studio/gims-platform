@@ -52,7 +52,7 @@ export function KpiWidget({ widgetType, data, iconName }: KpiWidgetProps) {
   const isPositive = changePercent >= 0;
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden h-full">
       <CardContent className="flex items-center gap-4 p-5">
         <div className={`rounded-xl p-3 ${bgClass}`}>
           <Icon className={`h-6 w-6 ${colorClass}`} />

@@ -21,7 +21,7 @@ export function CostsCategoryWidget({ data }: CostsCategoryWidgetProps) {
   const items = data ?? [];
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">
           {t("widgets.costs_by_category.title")}

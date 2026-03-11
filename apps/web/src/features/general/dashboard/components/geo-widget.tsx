@@ -39,7 +39,7 @@ export function GeoWidget({ data }: GeoWidgetProps) {
   );
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
