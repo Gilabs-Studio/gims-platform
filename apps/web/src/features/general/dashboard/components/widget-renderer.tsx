@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { WidgetConfig, DashboardOverviewData, KpiCardData } from "../types";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { ChartWidget } from "./chart-widget";
 import { BalanceWidget } from "./balance-widget";
 import { CostsCategoryWidget } from "./costs-category-widget";
@@ -10,7 +11,6 @@ import { InvoicesSummaryWidget } from "./invoices-summary-widget";
 import { RecentInvoicesWidget } from "./recent-invoices-widget";
 import { DeliveryWidget } from "./delivery-widget";
 import { SalesPerformanceWidget } from "./sales-performance-widget";
-import { TopProductsWidget } from "./top-products-widget";
 import { GeoWidget } from "./geo-widget";
 import { WarehouseWidget } from "./warehouse-widget";
 import { RevenueBarChartCard } from "./revenue-bar-chart-card";
@@ -28,7 +28,11 @@ interface WidgetRendererProps {
 export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps) {
   const t = useTranslations("dashboard");
   const registry = WIDGET_REGISTRY[widget.type];
+  // Always call hooks unconditionally before any early returns
+  const canView = useUserPermission(registry?.permission ?? "");
+
   if (!registry) return null;
+  if (!canView) return null;
 
   // Compute total expense from costs_by_category (used by stat_summary_expense)
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -76,8 +80,6 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
       return <DeliveryWidget data={data?.delivery_status} />;
     case "sales_performance":
       return <SalesPerformanceWidget data={data?.sales_performance} />;
-    case "top_products":
-      return <TopProductsWidget data={data?.top_products} />;
     case "geographic_overview":
       return <GeoWidget data={data?.geographic_overview} />;
     case "warehouse_overview":

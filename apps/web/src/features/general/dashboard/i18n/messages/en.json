@@ -129,7 +129,11 @@
       "warehouse_overview": {
         "title": "Warehouse Overview",
         "description": "Stock and utilization per warehouse",
-        "items": "items"
+        "items": "items",
+        "stockStatus": "Stock Status",
+        "inStock": "In Stock",
+        "lowStock": "Low Stock",
+        "outOfStock": "Out of Stock"
       }
     }
   }

@@ -90,11 +90,14 @@ func SeedPurchaseFinanceE2E() error {
 			{Code: "6400", Name: "Rent Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 			{Code: "6500", Name: "Utility Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 			{Code: "6600", Name: "Marketing Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeAsset, IsActive: true},
-			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeAsset, IsActive: true},
+			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeCashBank, IsActive: true},
+			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeCashBank, IsActive: true},
 		}
 		for i := range extraCOA {
-			tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoNothing: true}).Create(&extraCOA[i])
+			tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "code"}},
+				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
+			}).Create(&extraCOA[i])
 		}
 
 		getCOA := func(code string) string {

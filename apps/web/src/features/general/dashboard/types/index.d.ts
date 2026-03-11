@@ -36,7 +36,6 @@ export type WidgetType =
   | "balance_overview"
   | "costs_by_category"
   | "sales_performance"
-  | "top_products"
   | "geographic_overview"
   | "warehouse_overview"
   | "employee_count"
@@ -58,6 +57,8 @@ export interface WidgetRegistryEntry {
   titleKey: string;
   descriptionKey: string;
   icon: string;
+  /** Permission code required to view this widget (e.g. "sales_order.read"). Omit for always-visible widgets. */
+  permission?: string;
 }
 
 /** Dashboard layout persisted to localStorage */
@@ -192,6 +193,9 @@ export interface WarehouseItem {
   stock_formatted: string;
   item_count: number;
   utilization_percent: number;
+  in_stock_count: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
 }
 
 /** Dashboard overview API response (aggregated) */

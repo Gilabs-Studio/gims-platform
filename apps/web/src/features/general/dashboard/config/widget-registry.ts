@@ -13,6 +13,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.total_revenue.title",
     descriptionKey: "widgets.total_revenue.description",
     icon: "DollarSign",
+    permission: "sales_order.read",
   },
   total_orders: {
     type: "total_orders",
@@ -21,6 +22,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.total_orders.title",
     descriptionKey: "widgets.total_orders.description",
     icon: "ShoppingCart",
+    permission: "sales_order.read",
   },
   total_customers: {
     type: "total_customers",
@@ -29,6 +31,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.total_customers.title",
     descriptionKey: "widgets.total_customers.description",
     icon: "Users",
+    permission: "customer.read",
   },
   total_products: {
     type: "total_products",
@@ -37,6 +40,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.total_products.title",
     descriptionKey: "widgets.total_products.description",
     icon: "Package",
+    permission: "product.read",
   },
   employee_count: {
     type: "employee_count",
@@ -45,6 +49,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.employee_count.title",
     descriptionKey: "widgets.employee_count.description",
     icon: "UserCheck",
+    permission: "employee.read",
   },
   revenue_chart: {
     type: "revenue_chart",
@@ -53,6 +58,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.revenue_chart.title",
     descriptionKey: "widgets.revenue_chart.description",
     icon: "TrendingUp",
+    permission: "sales_order.read",
   },
   costs_chart: {
     type: "costs_chart",
@@ -61,6 +67,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.costs_chart.title",
     descriptionKey: "widgets.costs_chart.description",
     icon: "TrendingDown",
+    permission: "journal.read",
   },
   revenue_vs_costs: {
     type: "revenue_vs_costs",
@@ -69,6 +76,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.revenue_vs_costs.title",
     descriptionKey: "widgets.revenue_vs_costs.description",
     icon: "BarChart3",
+    permission: "journal.read",
   },
   balance_overview: {
     type: "balance_overview",
@@ -77,6 +85,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.balance_overview.title",
     descriptionKey: "widgets.balance_overview.description",
     icon: "Wallet",
+    permission: "journal.read",
   },
   costs_by_category: {
     type: "costs_by_category",
@@ -85,6 +94,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.costs_by_category.title",
     descriptionKey: "widgets.costs_by_category.description",
     icon: "PieChart",
+    permission: "journal.read",
   },
   invoices_summary: {
     type: "invoices_summary",
@@ -93,6 +103,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.invoices_summary.title",
     descriptionKey: "widgets.invoices_summary.description",
     icon: "FileText",
+    permission: "customer_invoice.read",
   },
   recent_invoices: {
     type: "recent_invoices",
@@ -101,6 +112,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.recent_invoices.title",
     descriptionKey: "widgets.recent_invoices.description",
     icon: "Receipt",
+    permission: "customer_invoice.read",
   },
   sales_performance: {
     type: "sales_performance",
@@ -109,14 +121,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.sales_performance.title",
     descriptionKey: "widgets.sales_performance.description",
     icon: "Award",
-  },
-  top_products: {
-    type: "top_products",
-    category: "sales",
-    defaultSize: "lg",
-    titleKey: "widgets.top_products.title",
-    descriptionKey: "widgets.top_products.description",
-    icon: "Star",
+    permission: "sales_order.read",
   },
   delivery_status: {
     type: "delivery_status",
@@ -125,6 +130,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.delivery_status.title",
     descriptionKey: "widgets.delivery_status.description",
     icon: "Truck",
+    permission: "delivery_order.read",
   },
   geographic_overview: {
     type: "geographic_overview",
@@ -133,6 +139,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.geographic_overview.title",
     descriptionKey: "widgets.geographic_overview.description",
     icon: "Map",
+    permission: "report_geo_performance.read",
   },
   warehouse_overview: {
     type: "warehouse_overview",
@@ -141,6 +148,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.warehouse_overview.title",
     descriptionKey: "widgets.warehouse_overview.description",
     icon: "Warehouse",
+    permission: "inventory.read",
   },
   // Composite widgets for the reference Sales Dashboard layout
   revenue_bar_chart: {
@@ -150,6 +158,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "revenueChart.title",
     descriptionKey: "revenueChart.subtitle",
     icon: "BarChart3",
+    permission: "sales_order.read",
   },
   stat_summary_balance: {
     type: "stat_summary_balance",
@@ -158,6 +167,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "stats.totalBalance",
     descriptionKey: "stats.totalBalance",
     icon: "Wallet",
+    permission: "journal.read",
   },
   stat_summary_revenue: {
     type: "stat_summary_revenue",
@@ -166,6 +176,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "stats.totalRevenue",
     descriptionKey: "stats.totalRevenue",
     icon: "TrendingUp",
+    permission: "sales_order.read",
   },
   stat_summary_expense: {
     type: "stat_summary_expense",
@@ -174,6 +185,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "stats.totalExpense",
     descriptionKey: "stats.totalExpense",
     icon: "TrendingDown",
+    permission: "journal.read",
   },
   stat_summary_orders: {
     type: "stat_summary_orders",
@@ -182,6 +194,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "stats.totalOrders",
     descriptionKey: "stats.totalOrders",
     icon: "ShoppingCart",
+    permission: "sales_order.read",
   },
   best_selling: {
     type: "best_selling",
@@ -190,6 +203,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "bestSelling.title",
     descriptionKey: "bestSelling.subtitle",
     icon: "Star",
+    permission: "sales_order.read",
   },
   track_orders: {
     type: "track_orders",
@@ -198,6 +212,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "trackOrders.title",
     descriptionKey: "trackOrders.subtitle",
     icon: "Truck",
+    permission: "delivery_order.read",
   },
 };
 

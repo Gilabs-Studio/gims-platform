@@ -41,7 +41,7 @@ func NewDashboardRepository(db *gorm.DB) DashboardRepository {
 const (
 	approvedClosedWhere = "status IN (?) AND order_date BETWEEN ? AND ? AND deleted_at IS NULL"
 	journalJoinEntries  = "JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id"
-	journalJoinAccounts = "JOIN chart_of_accounts ON chart_of_accounts.id = journal_lines.account_id"
+	journalJoinAccounts = "JOIN chart_of_accounts ON chart_of_accounts.id = journal_lines.chart_of_account_id"
 	expenseWhere        = "chart_of_accounts.type = ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?"
 	salesOrderWhere     = "sales_orders.status IN (?) AND sales_orders.order_date BETWEEN ? AND ? AND sales_orders.deleted_at IS NULL"
 )
@@ -134,7 +134,7 @@ func (r *dashboardRepository) GetCostsChart(ctx context.Context, start, end time
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
-		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit_amount), 0) as amount").
+		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit), 0) as amount").
 		Where(expenseWhere, "EXPENSE", start, end, "posted").
 		Group("period").Order("period ASC").Scan(&rows).Error; err != nil {
 		return nil, err
@@ -180,8 +180,9 @@ func (r *dashboardRepository) GetBalance(ctx context.Context, start, end time.Ti
 	var current float64
 	r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
-		Select("COALESCE(SUM(journal_lines.debit_amount) - SUM(journal_lines.credit_amount), 0)").
-		Where("chart_of_accounts.type = ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?", "CASH_BANK", "posted").
+		Select("COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0)").
+		Where("chart_of_accounts.type IN ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
+			[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, "posted").
 		Scan(&current)
 
 	type row struct {
@@ -191,9 +192,9 @@ func (r *dashboardRepository) GetBalance(ctx context.Context, start, end time.Ti
 	var rows []row
 	r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
-		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit_amount) - SUM(journal_lines.credit_amount), 0) as amount").
-		Where("chart_of_accounts.type = ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
-			"CASH_BANK", start, end, "posted").
+		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0) as amount").
+		Where("chart_of_accounts.type IN ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
+			[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, start, end, "posted").
 		Group("period").Order("period ASC").Scan(&rows)
 
 	trend := make([]dto.PeriodChartPoint, 0, len(rows))
@@ -211,7 +212,7 @@ func (r *dashboardRepository) GetCostsByCategory(ctx context.Context, start, end
 	var rows []row
 	if err := r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
-		Select("chart_of_accounts.name as category, COALESCE(SUM(journal_lines.debit_amount), 0) as amount").
+		Select("chart_of_accounts.name as category, COALESCE(SUM(journal_lines.debit), 0) as amount").
 		Where(expenseWhere, "EXPENSE", start, end, "posted").
 		Group("chart_of_accounts.name").Order("amount DESC").Limit(10).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -415,26 +416,59 @@ func (r *dashboardRepository) GetGeoOverview(ctx context.Context, start, end tim
 
 func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.WarehouseItem, error) {
 	type row struct {
-		ID         string
-		Name       string
-		Address    string
-		Capacity   float64
-		ItemCount  int
-		StockValue float64
+		ID              string
+		Name            string
+		Address         string
+		Capacity        float64
+		ItemCount       int
+		StockValue      float64
+		InStockCount    int
+		LowStockCount   int
+		OutOfStockCount int
 	}
 	var rows []row
-	if err := r.db.WithContext(ctx).Table("warehouses").
-		Select("warehouses.id, warehouses.name, COALESCE(warehouses.address, '') as address, COALESCE(warehouses.capacity, 0) as capacity, COALESCE(inv.item_count, 0) as item_count, COALESCE(inv.stock_value, 0) as stock_value").
-		Joins(`LEFT JOIN (
-			SELECT ib.warehouse_id,
-				COUNT(DISTINCT ib.product_id) as item_count,
-				COALESCE(SUM(ib.current_quantity * ib.cost_price), 0) as stock_value
+	// Use a CTE mirroring the inventory feature's stock-status logic:
+	// out_of_stock: available <= 0
+	// low_stock:    available > 0 AND available <= products.min_stock
+	// in_stock:     available > products.min_stock (or min_stock = 0 and available > 0)
+	if err := r.db.WithContext(ctx).Raw(`
+		WITH stock_levels AS (
+			SELECT
+				ib.warehouse_id,
+				ib.product_id,
+				p.min_stock,
+				COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) AS available
 			FROM inventory_batches ib
-			WHERE ib.deleted_at IS NULL AND ib.is_active = true
-			GROUP BY ib.warehouse_id
-		) inv ON inv.warehouse_id = warehouses.id`).
-		Where("warehouses.is_active = ? AND warehouses.deleted_at IS NULL", true).
-		Order("warehouses.name ASC").Scan(&rows).Error; err != nil {
+			JOIN products p ON p.id = ib.product_id
+			WHERE ib.deleted_at IS NULL AND ib.is_active = true AND p.deleted_at IS NULL
+			GROUP BY ib.warehouse_id, ib.product_id, p.min_stock
+		),
+		warehouse_stats AS (
+			SELECT
+				ib2.warehouse_id,
+				COUNT(DISTINCT ib2.product_id)                         AS item_count,
+				COALESCE(SUM(ib2.current_quantity * ib2.cost_price), 0) AS stock_value
+			FROM inventory_batches ib2
+			WHERE ib2.deleted_at IS NULL AND ib2.is_active = true
+			GROUP BY ib2.warehouse_id
+		)
+		SELECT
+			w.id,
+			w.name,
+			COALESCE(w.address, '')      AS address,
+			COALESCE(w.capacity, 0)      AS capacity,
+			COALESCE(ws.item_count, 0)   AS item_count,
+			COALESCE(ws.stock_value, 0)  AS stock_value,
+			COUNT(CASE WHEN sl.available > sl.min_stock OR (sl.min_stock = 0 AND sl.available > 0) THEN 1 END) AS in_stock_count,
+			COUNT(CASE WHEN sl.available > 0 AND sl.available <= sl.min_stock AND sl.min_stock > 0 THEN 1 END)  AS low_stock_count,
+			COUNT(CASE WHEN sl.available <= 0 THEN 1 END)                                                       AS out_of_stock_count
+		FROM warehouses w
+		LEFT JOIN warehouse_stats ws ON ws.warehouse_id = w.id
+		LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
+		WHERE w.is_active = true AND w.deleted_at IS NULL
+		GROUP BY w.id, w.name, w.address, w.capacity, ws.item_count, ws.stock_value
+		ORDER BY w.name ASC
+	`).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	items := make([]dto.WarehouseItem, 0, len(rows))
@@ -453,6 +487,9 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 			StockValue:         row.StockValue,
 			ItemCount:          row.ItemCount,
 			UtilizationPercent: utilization,
+			InStockCount:       row.InStockCount,
+			LowStockCount:      row.LowStockCount,
+			OutOfStockCount:    row.OutOfStockCount,
 		})
 	}
 	return items, nil

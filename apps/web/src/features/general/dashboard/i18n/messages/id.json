@@ -129,7 +129,11 @@
       "warehouse_overview": {
         "title": "Ikhtisar Gudang",
         "description": "Stok dan utilisasi per gudang",
-        "items": "barang"
+        "items": "barang",
+        "stockStatus": "Status Stok",
+        "inStock": "Stok Baik",
+        "lowStock": "Stok Rendah",
+        "outOfStock": "Kehabisan Stok"
       }
     }
   }
