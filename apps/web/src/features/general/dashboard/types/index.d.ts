@@ -12,12 +12,22 @@ export type WidgetCategory =
 /** Widget size presets for the grid */
 export type WidgetSize = "sm" | "md" | "lg" | "xl";
 
+/** Number of columns a widget occupies in the 4-column grid */
+export type WidgetColSpan = 1 | 2 | 3 | 4;
+
+/** Number of rows a widget occupies (controls height) */
+export type WidgetRowSpan = 1 | 2 | 3;
+
 /** Widget configuration stored per-user */
 export interface WidgetConfig {
   id: string;
   type: WidgetType;
   title: string;
   size: WidgetSize;
+  /** Column span override (1–4). Takes precedence over `size` when present. */
+  colSpan?: WidgetColSpan;
+  /** Row span override (1–3). Controls widget height. Defaults to 1 if absent. */
+  rowSpan?: WidgetRowSpan;
   order: number;
   visible: boolean;
 }
@@ -54,6 +64,14 @@ export interface WidgetRegistryEntry {
   type: WidgetType;
   category: WidgetCategory;
   defaultSize: WidgetSize;
+  /** Default column span in the 4-column grid. */
+  defaultColSpan: WidgetColSpan;
+  /** Default row span (height). */
+  defaultRowSpan: WidgetRowSpan;
+  /** Minimum column span — prevents the widget from being too narrow for its content. */
+  minColSpan?: WidgetColSpan;
+  /** Minimum row span. */
+  minRowSpan?: WidgetRowSpan;
   titleKey: string;
   descriptionKey: string;
   icon: string;

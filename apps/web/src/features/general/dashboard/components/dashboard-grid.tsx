@@ -42,7 +42,8 @@ export function DashboardGrid() {
     setWidgets,
     reorderWidgets,
     removeWidget,
-    resizeWidget,
+    resizeWidgetCol,
+    resizeWidgetRow,
     addWidget,
     resetLayout,
     toggleEditMode,
@@ -102,6 +103,8 @@ export function DashboardGrid() {
         type,
         title: "",
         size: registry.defaultSize,
+        colSpan: registry.defaultColSpan,
+        rowSpan: registry.defaultRowSpan,
         order: widgets.length,
         visible: true,
       });
@@ -198,7 +201,8 @@ export function DashboardGrid() {
                   widget={widget}
                   isEditMode={isEditMode}
                   onRemove={removeWidget}
-                  onResize={resizeWidget}
+                  onResizeCol={resizeWidgetCol}
+                  onResizeRow={resizeWidgetRow}
                 >
                   <WidgetRenderer
                     widget={widget}

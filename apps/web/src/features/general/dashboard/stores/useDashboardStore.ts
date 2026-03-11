@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { WidgetConfig, DashboardDateFilter } from "../types";
+import type { WidgetConfig, WidgetColSpan, WidgetRowSpan, DashboardDateFilter } from "../types";
 import { DEFAULT_WIDGETS } from "../config/widget-registry";
 
 interface DashboardState {
@@ -13,6 +13,8 @@ interface DashboardState {
   addWidget: (widget: WidgetConfig) => void;
   removeWidget: (widgetId: string) => void;
   resizeWidget: (widgetId: string, size: WidgetConfig["size"]) => void;
+  resizeWidgetCol: (widgetId: string, colSpan: WidgetColSpan) => void;
+  resizeWidgetRow: (widgetId: string, rowSpan: WidgetRowSpan) => void;
   resetLayout: () => void;
   toggleEditMode: () => void;
   setDateFilter: (filter: Partial<DashboardDateFilter>) => void;
@@ -72,6 +74,22 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const { widgets } = get();
     const updated = widgets.map((w) =>
       w.id === widgetId ? { ...w, size } : w,
+    );
+    set({ widgets: updated });
+  },
+
+  resizeWidgetCol: (widgetId, colSpan) => {
+    const { widgets } = get();
+    const updated = widgets.map((w) =>
+      w.id === widgetId ? { ...w, colSpan } : w,
+    );
+    set({ widgets: updated });
+  },
+
+  resizeWidgetRow: (widgetId, rowSpan) => {
+    const { widgets } = get();
+    const updated = widgets.map((w) =>
+      w.id === widgetId ? { ...w, rowSpan } : w,
     );
     set({ widgets: updated });
   },
