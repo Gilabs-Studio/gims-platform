@@ -183,6 +183,15 @@ export const orderEn = {
     cancelledAt: "Cancelled At",
     cancellationReason: "Cancellation Reason",
 
+    // Payment Overview (SO detail)
+    paymentOverview: {
+      title: "Payment Overview",
+      orderTotal: "Order Total",
+      downPayment: "Down Payment",
+      invoiced: "Invoiced",
+      remaining: "Remaining",
+    },
+
     // Print
     printOrder: "Print Sales Order",
     printSelectCompany: "Select the company to display on the document.",

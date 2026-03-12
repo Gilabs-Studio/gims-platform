@@ -328,7 +328,11 @@ export function OrderList() {
                     )}
                   </TableCell>
 
-                  <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
+                  <TableCell>
+                    {order.status === "approved"
+                      ? `${formatCurrency(order.customer_invoices?.reduce((s, i) => s + (i.paid_amount ?? 0), 0) ?? 0)} / ${formatCurrency(order.total_amount ?? 0)}`
+                      : formatCurrency(order.total_amount ?? 0)}
+                  </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
