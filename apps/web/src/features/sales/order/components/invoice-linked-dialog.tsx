@@ -69,8 +69,12 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
   const invoices = data?.data ?? [];
   const dpInvoices = dpData?.data ?? [];
 
+  // Exclude any invoice items that are actually down-payment records (avoid showing DP in both tabs)
+  const dpCodes = new Set(dpInvoices.map((d) => d.code));
+  const visibleInvoices = invoices.filter((inv) => !dpCodes.has(inv.code));
+
   const totalDPAmount = dpInvoices.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
-  const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+  const totalInvoiceAmount = visibleInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
   const hasNoPermission = !canViewInvoice && !canViewDP;
 
@@ -143,14 +147,14 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                             <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                           </TableRow>
                         ))
-                      ) : invoices.length === 0 ? (
+                      ) : visibleInvoices.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                             {t("notFound")}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        invoices.map((invoice) => (
+                        visibleInvoices.map((invoice) => (
                           <TableRow key={invoice.id}>
                             <TableCell>
                               {canViewInvoice ? (

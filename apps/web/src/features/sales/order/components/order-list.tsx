@@ -15,7 +15,7 @@ import { DOStatusBadge } from "./do-status-badge";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt, Printer } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt, Printer, Banknote } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -25,6 +25,7 @@ import { OrderPrintDialog } from "./order-print-dialog";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
+import { CustomerInvoiceDPFormDialog } from "../../customer-invoice-down-payments/components/customer-invoice-dp-form";
 import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
@@ -62,6 +63,7 @@ export function OrderList() {
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canCreateInvoiceDP = useUserPermission("customer_invoice_dp.create");
   const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
@@ -70,6 +72,8 @@ export function OrderList() {
   const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
   const [createDOForOrderId, setCreateDOForOrderId] = useState<string | null>(null);
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
+  const [createInvoiceDPForOrderId, setCreateInvoiceDPForOrderId] = useState<string | null>(null);
+  const [createInvoiceDPDefaultAmount, setCreateInvoiceDPDefaultAmount] = useState<number | undefined>(undefined);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   const deleteOrder = useDeleteOrder();
@@ -412,6 +416,18 @@ export function OrderList() {
                               {t("actions.createInvoice")}
                             </DropdownMenuItem>
                           )}
+                          {canCreateInvoiceDP && order.status === "approved" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setCreateInvoiceDPForOrderId(order.id);
+                                setCreateInvoiceDPDefaultAmount(order.total_amount ?? 0);
+                              }}
+                              className="cursor-pointer text-green-600 focus:text-green-600"
+                            >
+                              <Banknote className="h-4 w-4 mr-2" />
+                              {t("actions.createInvoiceDP")}
+                            </DropdownMenuItem>
+                          )}
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingOrderId(order.id)}
@@ -531,6 +547,16 @@ export function OrderList() {
           open={!!createInvoiceForOrderId}
           onClose={() => setCreateInvoiceForOrderId(null)}
           defaultSalesOrderId={createInvoiceForOrderId}
+        />
+      )}
+
+      {/* Create Customer Invoice DP from approved SO */}
+      {createInvoiceDPForOrderId && (
+        <CustomerInvoiceDPFormDialog
+          open={!!createInvoiceDPForOrderId}
+          onOpenChange={(open) => { if (!open) { setCreateInvoiceDPForOrderId(null); setCreateInvoiceDPDefaultAmount(undefined); } }}
+          defaultSalesOrderId={createInvoiceDPForOrderId}
+          defaultAmount={createInvoiceDPDefaultAmount}
         />
       )}
 

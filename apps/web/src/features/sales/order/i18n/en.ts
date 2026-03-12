@@ -158,6 +158,7 @@ export const orderEn = {
       convert: "Convert from Quotation",
       createDelivery: "Create Delivery Order",
       createInvoice: "Create Invoice",
+      createInvoiceDP: "Create Invoice DP",
     },
 
     // Validation

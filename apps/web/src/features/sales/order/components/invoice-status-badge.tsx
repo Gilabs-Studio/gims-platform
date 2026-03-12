@@ -9,8 +9,9 @@ interface InvoiceStatusBadgeProps {
 
 export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProps) {
   const t = useTranslations("invoice.status");
+  const normalizedStatus = (status ?? "").toLowerCase();
 
-  switch (status) {
+  switch (normalizedStatus) {
     case "draft":
       return (
         <Badge variant="secondary" className={className}>

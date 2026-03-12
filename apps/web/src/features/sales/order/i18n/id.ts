@@ -158,6 +158,7 @@ export const orderId = {
       convert: "Konversi dari Penawaran",
       createDelivery: "Buat Surat Jalan",
       createInvoice: "Buat Faktur",
+      createInvoiceDP: "Buat Faktur DP",
     },
 
     // Validation

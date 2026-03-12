@@ -55,10 +55,14 @@ export function CustomerInvoiceDPFormDialog({
   open,
   onOpenChange,
   invoiceId,
+  defaultSalesOrderId,
+  defaultAmount,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
+  defaultSalesOrderId?: string;
+  defaultAmount?: number;
 }) {
   const t = useTranslations("customerInvoiceDP");
 
@@ -91,10 +95,10 @@ export function CustomerInvoiceDPFormDialog({
 
     if (!isEdit) {
       form.reset({
-        sales_order_id: "",
-        invoice_date: "",
+        sales_order_id: defaultSalesOrderId ?? "",
+        invoice_date: format(new Date(), "yyyy-MM-dd"),
         due_date: "",
-        amount: 0,
+        amount: defaultAmount ?? 0,
         notes: null,
       });
       return;
@@ -110,7 +114,7 @@ export function CustomerInvoiceDPFormDialog({
       amount: detail.amount,
       notes: detail.notes ?? null,
     });
-  }, [open, isEdit, detailQuery.data, form]);
+  }, [open, isEdit, detailQuery.data, form, defaultSalesOrderId, defaultAmount]);
 
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
@@ -180,7 +184,7 @@ export function CustomerInvoiceDPFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
@@ -257,9 +261,9 @@ export function CustomerInvoiceDPFormDialog({
                       </TableHeader>
                       <TableBody>
                         {selectedSO.items.map((item) => (
-                          <TableRow key={item.id} className="text-xs">
+                            <TableRow key={item.id} className="text-xs">
                             <TableCell className="py-1.5">
-                              {item.product?.name ?? "-"}
+                              {item.product?.name ?? item.product?.code ?? item.product?.id ?? "-"}
                             </TableCell>
                             <TableCell className="py-1.5 text-right">{item.quantity}</TableCell>
                             <TableCell className="py-1.5 text-right">{formatCurrency(item.price)}</TableCell>
