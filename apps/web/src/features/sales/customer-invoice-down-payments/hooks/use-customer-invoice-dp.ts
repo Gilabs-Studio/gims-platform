@@ -18,10 +18,11 @@ export const customerInvoiceDPKeys = {
   auditTrail: (id: string) => [...customerInvoiceDPKeys.all, "audit-trail", id] as const,
 };
 
-export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams) {
+export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customerInvoiceDPKeys.list(params),
     queryFn: () => customerInvoiceDPService.list(params),
+    enabled: options?.enabled !== undefined ? options.enabled : true,
   });
 }
 

@@ -80,6 +80,7 @@ export const customerInvoiceDPEn = {
     edit: "Edit",
     delete: "Delete",
     submit: "Submit",
+    createPayment: "Create Payment",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",

@@ -25,6 +25,7 @@ export interface CustomerInvoiceDPListParams {
   per_page?: number;
   search?: string;
   status?: string;
+  sales_order_id?: string;
   sort_by?: string;
   sort_dir?: string;
   limit?: number;

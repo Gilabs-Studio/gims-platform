@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
-import { CalendarIcon, FileText, ShoppingCart } from "lucide-react";
+import { CalendarIcon, FileText, ShoppingCart, DollarSign, Paperclip, X, Upload } from "lucide-react";
 import { format } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,9 @@ import {
   type CustomerInvoiceDPFormData,
 } from "../schemas/customer-invoice-dp.schema";
 
+const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export function CustomerInvoiceDPFormDialog({
   open,
   onOpenChange,
@@ -67,6 +70,8 @@ export function CustomerInvoiceDPFormDialog({
   const createMutation = useCreateCustomerInvoiceDP();
   const updateMutation = useUpdateCustomerInvoiceDP();
 
+  const [attachments, setAttachments] = useState<File[]>([]);
+
   const form = useForm<CustomerInvoiceDPFormData>({
     resolver: zodResolver(customerInvoiceDPSchema),
     defaultValues: {
@@ -79,7 +84,10 @@ export function CustomerInvoiceDPFormDialog({
   });
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setAttachments([]);
+      return;
+    }
 
     if (!isEdit) {
       form.reset({
@@ -111,6 +119,40 @@ export function CustomerInvoiceDPFormDialog({
     if (!addData?.sales_orders?.length || !selectedSOId) return null;
     return addData.sales_orders.find((so) => so.id === selectedSOId) ?? null;
   }, [addData?.sales_orders, selectedSOId]);
+
+  const dpAmount = form.watch("amount");
+
+  // Invoice summary computations
+  const invoiceSummary = useMemo(() => {
+    if (!selectedSO) return null;
+    const orderTotal = selectedSO.total_amount ?? 0;
+    const dpApplied = dpAmount ?? 0;
+    const remaining = Math.max(0, orderTotal - dpApplied);
+    const dpPercentage = orderTotal > 0 ? ((dpApplied / orderTotal) * 100).toFixed(1) : "0.0";
+    return { orderTotal, dpApplied, remaining, dpPercentage };
+  }, [selectedSO, dpAmount]);
+
+  const handleFileAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const validFiles = files.filter((file) => {
+      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        toast.error(`${file.name}: Invalid file type. Allowed: JPG, PNG, PDF`);
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name}: File too large. Max 10MB`);
+        return false;
+      }
+      return true;
+    });
+    setAttachments((prev) => [...prev, ...validFiles]);
+    // Reset file input
+    e.target.value = "";
+  }, []);
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   const isBusy =
     addDataQuery.isLoading ||
@@ -165,7 +207,7 @@ export function CustomerInvoiceDPFormDialog({
               <SelectContent>
                 {(addData?.sales_orders ?? []).map((so) => (
                   <SelectItem key={so.id} value={so.id} className="cursor-pointer">
-                    {so.code}
+                    {so.code} — {formatCurrency(so.total_amount ?? 0)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -234,7 +276,7 @@ export function CustomerInvoiceDPFormDialog({
 
           {/* Financial Section */}
           <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-            <FileText className="h-4 w-4 text-primary" />
+            <DollarSign className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-medium">{t("form.sections.financial")}</h3>
           </div>
 
@@ -309,18 +351,91 @@ export function CustomerInvoiceDPFormDialog({
                 disabled={isBusy}
               />
             </Field>
-
-            <Field orientation="vertical" className="col-span-2">
-              <FieldLabel>{t("fields.notes")}</FieldLabel>
-              <Textarea
-                value={form.watch("notes") ?? ""}
-                onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
-                disabled={isBusy}
-              />
-            </Field>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          {/* Invoice Summary */}
+          {invoiceSummary && (
+            <div className="rounded-lg border bg-card p-4 space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                Invoice Summary
+              </h4>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Order Total</span>
+                  <span className="font-medium">{formatCurrency(invoiceSummary.orderTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-primary">
+                  <span>Down Payment ({invoiceSummary.dpPercentage}%)</span>
+                  <span className="font-medium">{formatCurrency(invoiceSummary.dpApplied)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
+                  <span>Remaining After DP</span>
+                  <span className="text-muted-foreground">{formatCurrency(invoiceSummary.remaining)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Attachments Section */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+              <Paperclip className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium">Attachments</h3>
+              <span className="text-xs text-muted-foreground">(Optional)</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Upload transfer receipt, payment slip, or contract. Allowed: JPG, PNG, PDF (max 10MB each)
+            </p>
+
+            <div className="space-y-2">
+              {attachments.map((file, idx) => (
+                <div key={`${file.name}-${idx}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded border bg-muted/20">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      ({(file.size / 1024).toFixed(0)} KB)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 cursor-pointer text-destructive hover:text-destructive"
+                    onClick={() => removeAttachment(idx)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              <label className="flex items-center justify-center gap-2 px-3 py-3 rounded border border-dashed cursor-pointer hover:bg-muted/30 transition-colors">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Add attachment</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  multiple
+                  onChange={handleFileAdd}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <Field orientation="vertical">
+            <FieldLabel>{t("fields.notes")}</FieldLabel>
+            <Textarea
+              value={form.watch("notes") ?? ""}
+              onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
+              disabled={isBusy}
+              rows={3}
+            />
+          </Field>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
               {t("actions.cancel")}
             </Button>

@@ -9,6 +9,7 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  CreditCard,
   Download,
   Eye,
   FileText,
@@ -45,6 +46,7 @@ import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
+import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
@@ -143,6 +145,7 @@ export function CustomerInvoiceDPList() {
   const [printingDPId, setPrintingDPId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
+  const [createPaymentForDPId, setCreatePaymentForDPId] = useState<string | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -165,6 +168,7 @@ export function CustomerInvoiceDPList() {
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canExport = useUserPermission("customer_invoice_dp.export");
   const canPrint = useUserPermission("customer_invoice_dp.print");
+  const canCreatePayment = useUserPermission("sales_payment.create");
   const canViewCustomer = useUserPermission("customer.read");
   const canViewSalesOrder = useUserPermission("sales_order.read");
 
@@ -208,7 +212,7 @@ export function CustomerInvoiceDPList() {
   const pagination = data?.meta?.pagination;
 
   const canShowActions =
-    canUpdate || canPending || canDelete || canPrint;
+    canUpdate || canPending || canDelete || canPrint || canCreatePayment;
 
   const getStatusBadge = (status: CustomerInvoiceDPStatus) => {
     switch (normalizeStatus(status)) {
@@ -481,6 +485,18 @@ export function CustomerInvoiceDPList() {
                               {tCommon("print")}
                             </DropdownMenuItem>
                           ) : null}
+                          {canCreatePayment &&
+                          (normalizeStatus(row.status) === "unpaid" ||
+                            normalizeStatus(row.status) === "partial" ||
+                            normalizeStatus(row.status) === "approved") ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              onClick={() => setCreatePaymentForDPId(row.id)}
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              {t("actions.createPayment")}
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -551,6 +567,14 @@ export function CustomerInvoiceDPList() {
           open={!!selectedSOId}
           onClose={() => setSelectedSOId(null)}
           order={{ id: selectedSOId } as unknown as SalesOrder}
+        />
+      )}
+
+      {createPaymentForDPId && (
+        <SalesPaymentForm
+          open={!!createPaymentForDPId}
+          onClose={() => setCreatePaymentForDPId(null)}
+          defaultDPId={createPaymentForDPId}
         />
       )}
     </div>

@@ -80,6 +80,7 @@ export const customerInvoiceDPId = {
     edit: "Ubah",
     delete: "Hapus",
     submit: "Ajukan",
+    createPayment: "Buat Pembayaran",
     auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",

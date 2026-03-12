@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,6 +26,7 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  CreditCard,
   FileText,
   History,
   ShieldAlert,
@@ -35,6 +37,7 @@ import { CustomerDetailModal } from "@/features/master-data/customer/components/
 import type { Customer } from "@/features/master-data/customer/types";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
+import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import {
   useCustomerInvoiceDP,
   useCustomerInvoiceDPAuditTrail,
@@ -119,9 +122,11 @@ export function CustomerInvoiceDPDetailModal({
 
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
 
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
+  const canCreatePayment = useUserPermission("sales_payment.create");
 
   const { data, isLoading, isError } = useCustomerInvoiceDP(id as string, {
     enabled: !!id && open,
@@ -154,6 +159,20 @@ export function CustomerInvoiceDPDetailModal({
                 </div>
               )}
             </div>
+            {row && canCreatePayment &&
+              (normalizeStatus(row.status) === "unpaid" ||
+                normalizeStatus(row.status) === "partial" ||
+                normalizeStatus(row.status) === "approved") ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCreatePaymentOpen(true)}
+                className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                title={t("actions.createPayment")}
+              >
+                <CreditCard className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
         </DialogHeader>
 
@@ -330,6 +349,14 @@ export function CustomerInvoiceDPDetailModal({
           open={!!selectedCustomerId}
           onOpenChange={(open) => { if (!open) setSelectedCustomerId(null); }}
           customer={{ id: selectedCustomerId } as Customer}
+        />
+      )}
+
+      {row && (
+        <SalesPaymentForm
+          open={isCreatePaymentOpen}
+          onClose={() => setIsCreatePaymentOpen(false)}
+          defaultDPId={row.id}
         />
       )}
     </Dialog>
