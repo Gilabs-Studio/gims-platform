@@ -37,10 +37,12 @@ export function SupplierInvoiceDPFormDialog({
   open,
   onOpenChange,
   invoiceId,
+  defaultPurchaseOrderId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
+  defaultPurchaseOrderId?: string | null;
 }) {
   const t = useTranslations("supplierInvoiceDP");
   const isEdit = !!invoiceId;
@@ -65,7 +67,7 @@ export function SupplierInvoiceDPFormDialog({
   useEffect(() => {
     if (!open) return;
     if (!isEdit) {
-      form.reset({ purchase_order_id: "", invoice_date: "", due_date: "", amount: 0, notes: null });
+      form.reset({ purchase_order_id: defaultPurchaseOrderId ?? "", invoice_date: "", due_date: "", amount: 0, notes: null });
       return;
     }
     const detail = detailQuery.data?.success ? detailQuery.data.data : null;
@@ -77,7 +79,7 @@ export function SupplierInvoiceDPFormDialog({
       amount: detail.amount,
       notes: detail.notes ?? null,
     });
-  }, [open, isEdit, detailQuery.data, form]);
+  }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId]);
 
   const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;

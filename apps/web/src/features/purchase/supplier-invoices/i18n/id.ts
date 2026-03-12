@@ -96,6 +96,7 @@ export const supplierInvoiceId = {
     status: "Status",
     notFound: "Tidak ada faktur supplier",
   },
+  notFound: "Tidak ada faktur supplier",
   status: {
     draft: "Draft",
     submitted: "Diajukan",

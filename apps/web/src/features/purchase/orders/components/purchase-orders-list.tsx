@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Banknote,
   CheckCircle2,
   Download,
   Eye,
@@ -12,6 +13,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  Receipt,
   Search,
   Send,
   ShoppingCart,
@@ -74,6 +76,7 @@ import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
 import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
+import { SupplierInvoiceDPFormDialog } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-form";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -112,6 +115,10 @@ export function PurchaseOrdersList() {
   const [siFormOpen, setSiFormOpen] = useState(false);
   const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
 
+  // Create SI DP shortcut from PO row
+  const [siDPFormOpen, setSiDPFormOpen] = useState(false);
+  const [siDPFormPOId, setSiDPFormPOId] = useState<string | null>(null);
+
   // GR detail opened after successful create
   const [grCreatedId, setGrCreatedId] = useState<string | null>(null);
   const [grCreatedDetailOpen, setGrCreatedDetailOpen] = useState(false);
@@ -135,6 +142,7 @@ export function PurchaseOrdersList() {
   const canViewPR = useUserPermission("purchase_requisition.read");
   const canCreateGR = useUserPermission("goods_receipt.create");
   const canCreateSI = useUserPermission("supplier_invoice.create");
+  const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -440,9 +448,18 @@ export function PurchaseOrdersList() {
                     {/* Supplier Invoices */}
                     <TableCell>{renderSIBadges(it)}</TableCell>
 
-                    {/* Total */}
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(it.total_amount)}
+                    {/* Total Amount */}
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        {it.supplier_invoices && it.supplier_invoices.length > 0 && status === "APPROVED" && (
+                          <span className="text-xs text-muted-foreground">
+                            {it.supplier_invoices.filter((si) =>
+                              ["PAID", "PARTIAL"].includes(si.status ?? "")
+                            ).length}/{it.supplier_invoices.length} paid
+                          </span>
+                        )}
+                        <span className="font-medium font-mono">{formatCurrency(it.total_amount)}</span>
+                      </div>
                     </TableCell>
 
                     {/* Actions */}
@@ -553,7 +570,7 @@ export function PurchaseOrdersList() {
                             {canCreateGR && status === "APPROVED" &&
                               (!it.fulfillment || it.fulfillment.total_remaining > 0) && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={() => {
                                   setGrFormPOId(it.id);
                                   setGrFormOpen(true);
@@ -566,14 +583,27 @@ export function PurchaseOrdersList() {
 
                             {canCreateSI && status === "APPROVED" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-green-600 focus:text-green-600"
                                 onClick={() => {
                                   setSiFormPOId(it.id);
                                   setSiFormOpen(true);
                                 }}
                               >
-                                <FileText className="h-4 w-4 mr-2" />
+                                <Receipt className="h-4 w-4 mr-2" />
                                 {t("actions.createSI")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canCreateSIDP && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                onClick={() => {
+                                  setSiDPFormPOId(it.id);
+                                  setSiDPFormOpen(true);
+                                }}
+                              >
+                                <Banknote className="h-4 w-4 mr-2" />
+                                {t("actions.createSIDP")}
                               </DropdownMenuItem>
                             )}
 
@@ -677,6 +707,16 @@ export function PurchaseOrdersList() {
         defaultPurchaseOrderId={siFormPOId}
       />
 
+      {/* Create SI DP shortcut — pre-fills the PO from the selected row */}
+      <SupplierInvoiceDPFormDialog
+        open={siDPFormOpen}
+        onOpenChange={(open) => {
+          setSiDPFormOpen(open);
+          if (!open) setSiDPFormPOId(null);
+        }}
+        defaultPurchaseOrderId={siDPFormPOId}
+      />
+
       {printingId && (
         <PurchaseOrderPrintDialog
           open={!!printingId}
@@ -716,7 +756,7 @@ export function PurchaseOrdersList() {
       {siDialogItem && (
         <SILinkedDialog
           purchaseOrderCode={siDialogItem.code}
-          items={siDialogItem.supplier_invoices ?? []}
+          purchaseOrderId={siDialogItem.id}
           open={!!siDialogItem}
           onOpenChange={(open) => { if (!open) setSiDialogItem(null); }}
         />

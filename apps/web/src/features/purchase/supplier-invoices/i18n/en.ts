@@ -96,6 +96,7 @@ export const supplierInvoiceEn = {
     status: "Status",
     notFound: "No supplier invoices found",
   },
+  notFound: "No supplier invoices found",
   status: {
     draft: "Draft",
     submitted: "Submitted",

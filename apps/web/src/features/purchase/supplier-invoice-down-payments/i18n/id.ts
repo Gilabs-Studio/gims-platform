@@ -60,9 +60,12 @@ export const supplierInvoiceDPId = {
     dueDate: "Jatuh Tempo",
     purchaseOrder: "PO",
     amount: "Total",
+    remainingAmount: "Sisa",
     status: "Status",
     createdAt: "Dibuat",
   },
+  notFound: "Tidak ada DP faktur",
+  paidAmount: "Terbayar",
   status: {
     draft: "Draft",
     submitted: "Diajukan",

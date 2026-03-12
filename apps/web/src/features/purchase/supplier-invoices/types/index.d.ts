@@ -28,6 +28,7 @@ export interface SupplierInvoiceListParams {
   sort_by?: string;
   sort_dir?: string;
   limit?: number;
+  purchase_order_id?: string;
 }
 
 export type SupplierInvoiceStatus =

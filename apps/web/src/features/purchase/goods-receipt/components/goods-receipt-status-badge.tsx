@@ -35,7 +35,7 @@ export function GoodsReceiptStatusBadge({ status, className }: GoodsReceiptStatu
       );
     case "closed":
       return (
-        <Badge variant="outline" className={`border-violet-500 text-violet-700 ${className ?? ""}`}>
+        <Badge variant="secondary" className={`bg-slate-700 hover:bg-slate-800 text-white border-transparent ${className ?? ""}`}>
           <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("closed")}
         </Badge>

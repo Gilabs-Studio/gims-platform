@@ -1,5 +1,5 @@
 export const supplierInvoiceDPEn = {
-  title: "Supplier Invoice Down Payments",
+  title: "Supplier Invoice DP",
   description: "Create down payment invoices for purchase orders.",
   search: "Search by code, invoice number...",
   toast: {
@@ -60,9 +60,12 @@ export const supplierInvoiceDPEn = {
     dueDate: "Due Date",
     purchaseOrder: "PO",
     amount: "Amount",
+    remainingAmount: "Remaining",
     status: "Status",
     createdAt: "Created At",
   },
+  notFound: "No down payment invoices found",
+  paidAmount: "Paid",
   status: {
     draft: "Draft",
     submitted: "Submitted",
