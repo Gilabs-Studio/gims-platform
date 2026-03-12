@@ -5,13 +5,19 @@ export const customerInvoiceDPId = {
   toast: {
     created: "DP faktur berhasil dibuat",
     updated: "DP faktur berhasil diperbarui",
-    pending: "DP faktur berhasil diproses menjadi unpaid",
+    submitted: "DP faktur berhasil diajukan",
     deleted: "DP faktur berhasil dihapus",
     failed: "Terjadi kesalahan",
   },
   detail: {
     title: "Detail Down Payment",
     failed: "Gagal memuat data DP faktur",
+    orderDate: "Tanggal Order",
+    totalAmount: "Total",
+    product: "Produk",
+    qty: "Jumlah",
+    price: "Harga",
+    subtotal: "Subtotal",
   },
   tabs: {
     general: "Umum",
@@ -31,6 +37,11 @@ export const customerInvoiceDPId = {
     createTitle: "Buat DP Faktur",
     editTitle: "Ubah DP Faktur",
     invalid: "Periksa kembali kolom yang wajib diisi",
+    salesOrderDetail: "Detail Sales Order",
+    sections: {
+      invoiceInfo: "Info Faktur",
+      financial: "Keuangan",
+    },
   },
   fields: {
     salesOrder: "Sales Order",
@@ -54,9 +65,13 @@ export const customerInvoiceDPId = {
   },
   status: {
     draft: "Draft",
+    submitted: "Diajukan",
+    approved: "Disetujui",
+    rejected: "Ditolak",
     unpaid: "Belum Dibayar",
     partial: "Sebagian",
     paid: "Lunas",
+    cancelled: "Dibatalkan",
   },
   actions: {
     create: "Buat",
@@ -64,7 +79,7 @@ export const customerInvoiceDPId = {
     view: "Lihat",
     edit: "Ubah",
     delete: "Hapus",
-    pending: "Pending",
+    submit: "Ajukan",
     auditTrail: "Jejak Audit",
     save: "Simpan",
     cancel: "Batal",

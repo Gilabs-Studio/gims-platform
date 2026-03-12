@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   AlertCircle,
   AlertTriangle,
+  Ban,
   CheckCircle2,
   Clock,
   Download,
@@ -17,6 +18,7 @@ import {
   Search,
   Trash2,
   Printer,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -196,7 +198,7 @@ export function CustomerInvoiceDPList() {
     try {
       const response = await pendingMutation.mutateAsync(id);
       if (!response.success) throw new Error(response.error ?? "pending_failed");
-      toast.success(t("toast.pending"));
+      toast.success(t("toast.submitted"));
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -228,6 +230,34 @@ export function CustomerInvoiceDPList() {
         return (
           <Badge variant="info" className="text-xs font-medium">
             <AlertCircle className="h-3 w-3" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "submitted":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Clock className="h-3 w-3" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="success" className="text-xs font-medium">
+            <CheckCircle2 className="h-3 w-3" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive" className="text-xs font-medium">
+            <XCircle className="h-3 w-3" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">
+            <Ban className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -429,7 +459,7 @@ export function CustomerInvoiceDPList() {
                               onClick={() => handlePending(row.id)}
                             >
                               <Clock className="h-4 w-4 mr-2" />
-                              {t("actions.pending")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           ) : null}
 

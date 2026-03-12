@@ -13,14 +13,14 @@ import (
 type CustomerInvoiceStatus string
 
 const (
-	CustomerInvoiceStatusDraft     CustomerInvoiceStatus = "draft"
-	CustomerInvoiceStatusSent      CustomerInvoiceStatus = "sent"
-	CustomerInvoiceStatusApproved  CustomerInvoiceStatus = "approved"
-	CustomerInvoiceStatusRejected  CustomerInvoiceStatus = "rejected"
-	CustomerInvoiceStatusUnpaid    CustomerInvoiceStatus = "unpaid"
-	CustomerInvoiceStatusPartial   CustomerInvoiceStatus = "partial"
-	CustomerInvoiceStatusPaid      CustomerInvoiceStatus = "paid"
-	CustomerInvoiceStatusCancelled CustomerInvoiceStatus = "cancelled"
+	CustomerInvoiceStatusDraft     CustomerInvoiceStatus = "DRAFT"
+	CustomerInvoiceStatusSubmitted CustomerInvoiceStatus = "SUBMITTED"
+	CustomerInvoiceStatusApproved  CustomerInvoiceStatus = "APPROVED"
+	CustomerInvoiceStatusRejected  CustomerInvoiceStatus = "REJECTED"
+	CustomerInvoiceStatusUnpaid    CustomerInvoiceStatus = "UNPAID"
+	CustomerInvoiceStatusPartial   CustomerInvoiceStatus = "PARTIAL"
+	CustomerInvoiceStatusPaid      CustomerInvoiceStatus = "PAID"
+	CustomerInvoiceStatusCancelled CustomerInvoiceStatus = "CANCELLED"
 )
 
 // CustomerInvoiceType represents the type of invoice
@@ -69,7 +69,7 @@ type CustomerInvoice struct {
 	DownPaymentInvoice   *CustomerInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
 	// Status and workflow
-	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
+	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
 	Notes  string                `gorm:"type:text" json:"notes"`
 
 	// Payment timestamp

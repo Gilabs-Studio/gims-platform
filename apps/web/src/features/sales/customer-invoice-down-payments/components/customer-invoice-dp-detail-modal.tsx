@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -21,12 +22,19 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   AlertCircle,
+  Ban,
   CheckCircle2,
   Clock,
   FileText,
   History,
   ShieldAlert,
+  XCircle,
 } from "lucide-react";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
+import type { Customer } from "@/features/master-data/customer/types";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import type { SalesOrder } from "@/features/sales/order/types";
 import {
   useCustomerInvoiceDP,
   useCustomerInvoiceDPAuditTrail,
@@ -60,6 +68,34 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
           {t("status.partial")}
         </Badge>
       );
+    case "submitted":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Clock className="h-3 w-3" />
+          {t("status.submitted")}
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3" />
+          {t("status.approved")}
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium">
+          <XCircle className="h-3 w-3" />
+          {t("status.rejected")}
+        </Badge>
+      );
+    case "cancelled":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">
+          <Ban className="h-3 w-3" />
+          {t("status.cancelled")}
+        </Badge>
+      );
     default:
       return (
         <Badge variant="secondary" className="text-xs font-medium">
@@ -80,6 +116,12 @@ export function CustomerInvoiceDPDetailModal({
   id: string | null;
 }) {
   const t = useTranslations("customerInvoiceDP");
+
+  const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  const canViewSalesOrder = useUserPermission("sales_order.read");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const { data, isLoading, isError } = useCustomerInvoiceDP(id as string, {
     enabled: !!id && open,
@@ -159,11 +201,33 @@ export function CustomerInvoiceDPDetailModal({
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50">{t("fields.salesOrder")}</TableCell>
-                      <TableCell className="font-mono">{row?.sales_order?.code ?? "-"}</TableCell>
+                      <TableCell className="font-mono">
+                        {canViewSalesOrder && row?.sales_order?.id ? (
+                          <button
+                            type="button"
+                            className="font-mono text-primary underline-offset-4 hover:underline cursor-pointer"
+                            onClick={() => setSelectedSOId(row.sales_order!.id)}
+                          >
+                            {row.sales_order.code}
+                          </button>
+                        ) : (
+                          row?.sales_order?.code ?? "-"
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium bg-muted/50">{t("columns.customer")}</TableCell>
                       <TableCell>
-                        {row?.sales_order?.customer_name ?? (
-                          <span className="text-muted-foreground">-</span>
+                        {canViewCustomer && row?.sales_order?.customer_id ? (
+                          <button
+                            type="button"
+                            className="text-primary underline-offset-4 hover:underline cursor-pointer"
+                            onClick={() => setSelectedCustomerId(row.sales_order!.customer_id!)}
+                          >
+                            {row.sales_order.customer_name ?? "-"}
+                          </button>
+                        ) : (
+                          row?.sales_order?.customer_name ?? (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         )}
                       </TableCell>
                     </TableRow>
@@ -185,7 +249,7 @@ export function CustomerInvoiceDPDetailModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4 text-center space-y-1 bg-primary/5">
                   <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">
-                    {t("fields.amount")}
+                    {t("columns.amount")}
                   </p>
                   <p className="text-2xl font-bold font-mono text-primary">
                     {formatCurrency(row?.amount ?? 0)}
@@ -253,9 +317,21 @@ export function CustomerInvoiceDPDetailModal({
               </Tabs>
         )}
       </DialogContent>
+      {selectedSOId && (
+        <OrderDetailModal
+          open={!!selectedSOId}
+          onClose={() => setSelectedSOId(null)}
+          order={{ id: selectedSOId } as SalesOrder}
+        />
+      )}
+
+      {selectedCustomerId && (
+        <CustomerDetailModal
+          open={!!selectedCustomerId}
+          onOpenChange={(open) => { if (!open) setSelectedCustomerId(null); }}
+          customer={{ id: selectedCustomerId } as Customer}
+        />
+      )}
     </Dialog>
   );
 }
-
-
-// removed duplicate helper functions and duplicate modal export (kept the tabbed modal above)

@@ -30,7 +30,15 @@ export interface CustomerInvoiceDPListParams {
   limit?: number;
 }
 
-export type CustomerInvoiceDPStatus = "DRAFT" | "UNPAID" | "PARTIAL" | "PAID";
+export type CustomerInvoiceDPStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "UNPAID"
+  | "PARTIAL"
+  | "PAID"
+  | "CANCELLED";
 
 export interface CustomerInvoiceDPSalesOrderMini {
   id: string;
@@ -57,9 +65,34 @@ export interface CustomerInvoiceDPListItem {
 
 export type CustomerInvoiceDPDetail = CustomerInvoiceDPListItem;
 
+export interface CustomerInvoiceDPAddCustomer {
+  id: string;
+  name: string;
+}
+
+export interface CustomerInvoiceDPAddProduct {
+  id: string;
+  name: string;
+  code: string;
+  image_url?: string;
+}
+
+export interface CustomerInvoiceDPAddSalesOrderItem {
+  id: string;
+  product?: CustomerInvoiceDPAddProduct | null;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
 export interface CustomerInvoiceDPAddSalesOrder {
   id: string;
   code: string;
+  customer?: CustomerInvoiceDPAddCustomer | null;
+  order_date: string;
+  status: string;
+  total_amount: number;
+  items: CustomerInvoiceDPAddSalesOrderItem[];
 }
 
 export interface CustomerInvoiceDPAddResponse {

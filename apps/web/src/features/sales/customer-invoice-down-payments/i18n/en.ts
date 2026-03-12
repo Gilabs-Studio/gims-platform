@@ -5,13 +5,19 @@ export const customerInvoiceDPEn = {
   toast: {
     created: "Down payment invoice created",
     updated: "Down payment invoice updated",
-    pending: "Down payment invoice set to unpaid",
+    submitted: "Down payment invoice submitted",
     deleted: "Down payment invoice deleted",
     failed: "Something went wrong",
   },
   detail: {
     title: "Down Payment Detail",
     failed: "Failed to load down payment invoice",
+    orderDate: "Order Date",
+    totalAmount: "Total",
+    product: "Product",
+    qty: "Qty",
+    price: "Price",
+    subtotal: "Subtotal",
   },
   tabs: {
     general: "General",
@@ -31,6 +37,11 @@ export const customerInvoiceDPEn = {
     createTitle: "Create Down Payment Invoice",
     editTitle: "Edit Down Payment Invoice",
     invalid: "Please check required fields",
+    salesOrderDetail: "Sales Order Detail",
+    sections: {
+      invoiceInfo: "Invoice Info",
+      financial: "Financial",
+    },
   },
   fields: {
     salesOrder: "Sales Order",
@@ -54,9 +65,13 @@ export const customerInvoiceDPEn = {
   },
   status: {
     draft: "Draft",
+    submitted: "Submitted",
+    approved: "Approved",
+    rejected: "Rejected",
     unpaid: "Unpaid",
     partial: "Partial",
     paid: "Paid",
+    cancelled: "Cancelled",
   },
   actions: {
     create: "Create",
@@ -64,7 +79,7 @@ export const customerInvoiceDPEn = {
     view: "View",
     edit: "Edit",
     delete: "Delete",
-    pending: "Pending",
+    submit: "Submit",
     auditTrail: "Audit Trail",
     save: "Save",
     cancel: "Cancel",

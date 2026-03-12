@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, FileText, ShoppingCart } from "lucide-react";
 import { format } from "date-fns";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Popover,
@@ -24,8 +25,16 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
 import {
@@ -89,11 +98,19 @@ export function CustomerInvoiceDPFormDialog({
     form.reset({
       sales_order_id: detail.sales_order?.id ?? "",
       invoice_date: detail.invoice_date,
-      due_date: detail.due_date,
+      due_date: detail.due_date ?? "",
       amount: detail.amount,
       notes: detail.notes ?? null,
     });
   }, [open, isEdit, detailQuery.data, form]);
+
+  const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
+
+  const selectedSOId = form.watch("sales_order_id");
+  const selectedSO = useMemo(() => {
+    if (!addData?.sales_orders?.length || !selectedSOId) return null;
+    return addData.sales_orders.find((so) => so.id === selectedSOId) ?? null;
+  }, [addData?.sales_orders, selectedSOId]);
 
   const isBusy =
     addDataQuery.isLoading ||
@@ -119,41 +136,111 @@ export function CustomerInvoiceDPFormDialog({
     }
   }
 
-  const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
 
         {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
-        <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label>{t("fields.salesOrder")}</Label>
+        <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+          {/* Invoice Info Section */}
+          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">{t("form.sections.invoiceInfo")}</h3>
+          </div>
+
+          <Field orientation="vertical">
+            <FieldLabel>{t("fields.salesOrder")}</FieldLabel>
             <Select
               value={form.watch("sales_order_id")}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
               disabled={isBusy || isEdit}
             >
-              <SelectTrigger>
+              <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder={t("placeholders.select")} />
               </SelectTrigger>
               <SelectContent>
-                {(addData?.sales_orders ?? []).map((po) => (
-                  <SelectItem key={po.id} value={po.id}>
-                    {po.code}
+                {(addData?.sales_orders ?? []).map((so) => (
+                  <SelectItem key={so.id} value={so.id} className="cursor-pointer">
+                    {so.code}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+
+          {/* Sales Order Detail Card */}
+          {selectedSO && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3">
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">{t("form.salesOrderDetail")}</span>
+                </div>
+                <Badge variant="outline" className="text-xs font-mono uppercase">
+                  {selectedSO.status}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                {selectedSO.customer && (
+                  <>
+                    <span className="text-muted-foreground">{t("columns.customer")}</span>
+                    <span className="font-medium">{selectedSO.customer.name}</span>
+                  </>
+                )}
+                <span className="text-muted-foreground">{t("detail.orderDate") ?? "Order Date"}</span>
+                <span>{selectedSO.order_date ? format(new Date(selectedSO.order_date), "dd MMM yyyy") : "-"}</span>
+                <span className="text-muted-foreground">{t("detail.totalAmount") ?? "Total"}</span>
+                <span className="font-semibold text-primary">{formatCurrency(selectedSO.total_amount ?? 0)}</span>
+              </div>
+
+              {selectedSO.items && selectedSO.items.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Items ({selectedSO.items.length})
+                  </p>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs h-8">{t("detail.product") ?? "Product"}</TableHead>
+                          <TableHead className="text-xs h-8 text-right">{t("detail.qty") ?? "Qty"}</TableHead>
+                          <TableHead className="text-xs h-8 text-right">{t("detail.price") ?? "Price"}</TableHead>
+                          <TableHead className="text-xs h-8 text-right">{t("detail.subtotal") ?? "Subtotal"}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedSO.items.map((item) => (
+                          <TableRow key={item.id} className="text-xs">
+                            <TableCell className="py-1.5">
+                              {item.product?.name ?? "-"}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">{item.quantity}</TableCell>
+                            <TableCell className="py-1.5 text-right">{formatCurrency(item.price)}</TableCell>
+                            <TableCell className="py-1.5 text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Financial Section */}
+          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">{t("form.sections.financial")}</h3>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{t("fields.invoiceDate")}</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <Field orientation="vertical">
+              <FieldLabel>{t("fields.invoiceDate")}</FieldLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -175,15 +262,16 @@ export function CustomerInvoiceDPFormDialog({
                   <Calendar
                     mode="single"
                     selected={form.watch("invoice_date") ? new Date(form.watch("invoice_date")) : undefined}
-                    onSelect={(date) =>
+                    onSelect={(date: Date | undefined) =>
                       form.setValue("invoice_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
                   />
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("fields.dueDate")}</Label>
+            </Field>
+
+            <Field orientation="vertical">
+              <FieldLabel>{t("fields.dueDate")}</FieldLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -205,32 +293,34 @@ export function CustomerInvoiceDPFormDialog({
                   <Calendar
                     mode="single"
                     selected={form.watch("due_date") ? new Date(form.watch("due_date")) : undefined}
-                    onSelect={(date) =>
+                    onSelect={(date: Date | undefined) =>
                       form.setValue("due_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
                   />
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>{t("fields.amount")}</Label>
+            </Field>
+
+            <Field orientation="vertical" className="col-span-2">
+              <FieldLabel>{t("fields.amount")}</FieldLabel>
               <NumericInput
                 value={form.watch("amount")}
                 onChange={(value) => form.setValue("amount", value ?? 0, { shouldValidate: true })}
                 disabled={isBusy}
               />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>{t("fields.notes")}</Label>
+            </Field>
+
+            <Field orientation="vertical" className="col-span-2">
+              <FieldLabel>{t("fields.notes")}</FieldLabel>
               <Textarea
                 value={form.watch("notes") ?? ""}
                 onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
                 disabled={isBusy}
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
               {t("actions.cancel")}
             </Button>

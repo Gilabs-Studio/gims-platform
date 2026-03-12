@@ -383,7 +383,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		if ci.Status != models.CustomerInvoiceStatusDraft {
 			return ErrCustomerInvoiceConflict
 		}
-		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusUnpaid).Error; err != nil {
+		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusSubmitted).Error; err != nil {
 			return err
 		}
 
