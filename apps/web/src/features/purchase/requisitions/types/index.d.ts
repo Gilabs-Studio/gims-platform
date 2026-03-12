@@ -87,7 +87,7 @@ export interface PurchaseRequisitionListItem {
   supplier?: PurchaseRequisitionParty;
   payment_terms?: PurchaseRequisitionPaymentTerms;
   business_unit?: PurchaseRequisitionBusinessUnit;
-  employee?: { id: string; name: string } | null;
+  employee?: { id: string; name: string; email?: string } | null;
   user?: PurchaseRequisitionUser;
 
   created_at: string;
@@ -210,7 +210,7 @@ export interface PurchaseRequisitionDetail {
   supplier?: PurchaseRequisitionParty;
   payment_terms?: PurchaseRequisitionPaymentTerms;
   business_unit?: PurchaseRequisitionBusinessUnit;
-  employee?: { id: string; name: string } | null;
+  employee?: { id: string; name: string; email?: string } | null;
   user?: PurchaseRequisitionUser;
 
   items: PurchaseRequisitionItem[];

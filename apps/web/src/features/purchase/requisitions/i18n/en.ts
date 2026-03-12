@@ -133,6 +133,9 @@ export const purchaseRequisitionEn = {
     total: "Total",
   },
 
+  // Top-level helper keys
+  totalAmount: "Total Amount",
+
   auditTrail: {
     title: "Audit Trail",
     empty: "No audit trail entries",
