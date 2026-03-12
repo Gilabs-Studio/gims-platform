@@ -194,10 +194,12 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 
 	// 3. DP Invoice & Payment
 	dpAmount := math.Round(so.TotalAmount * 0.3)
+	dpDueDate := dpDate.AddDate(0, 0, 30)
 	dpInv := salesModels.CustomerInvoice{
 		ID:           uuid.New().String(),
 		Code:         fmt.Sprintf("CIDP-INT-%s", in.tag),
 		InvoiceDate:  dpDate,
+		DueDate:      &dpDueDate,
 		Type:         salesModels.CustomerInvoiceTypeDownPayment,
 		SalesOrderID: &so.ID,
 		Amount:       dpAmount,

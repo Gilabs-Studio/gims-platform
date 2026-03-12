@@ -5,32 +5,21 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertCircle,
-  Banknote,
-  Calendar,
+  AlertTriangle,
   CheckCircle2,
   Clock,
   Download,
   Eye,
   FileText,
-  History,
-  Hash,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
-  DollarSign,
-  FileEdit,
   Trash2,
   Printer,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -53,14 +42,16 @@ import {
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
+import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import type { SalesOrder } from "@/features/sales/order/types";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
 
 import {
   useDeleteCustomerInvoiceDP,
   usePendingCustomerInvoiceDP,
-  useCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
@@ -86,6 +77,51 @@ function normalizeStatus(status?: string | null): string {
   return (status ?? "").toLowerCase();
 }
 
+function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) {
+  const st = (status ?? "").toLowerCase();
+  const isSettled = st === "paid" || st === "cancelled" || st === "rejected";
+
+  if (!dueDate) return <span className="text-sm text-muted-foreground">—</span>;
+
+  const formatted = formatDate(dueDate);
+  if (isSettled) return <span className="text-sm text-muted-foreground">{formatted}</span>;
+
+  const due = new Date(dueDate);
+  const now = new Date();
+  due.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <div className="flex items-center gap-1 text-destructive">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span className="text-xs font-semibold">{Math.abs(diffDays)}d overdue</span>
+        </div>
+      </div>
+    );
+  }
+  if (diffDays === 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-semibold text-amber-500">Due today</span>
+      </div>
+    );
+  }
+  if (diffDays <= 7) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+      </div>
+    );
+  }
+  return <span className="text-sm">{formatted}</span>;
+}
+
 export function CustomerInvoiceDPList() {
   const t = useTranslations("customerInvoiceDP");
   const tCommon = useTranslations("common");
@@ -101,11 +137,10 @@ export function CustomerInvoiceDPList() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
-
   const [deletingRow, setDeletingRow] = useState<CustomerInvoiceDPListItem | null>(null);
   const [printingDPId, setPrintingDPId] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -127,8 +162,9 @@ export function CustomerInvoiceDPList() {
   const canDelete = useUserPermission("customer_invoice_dp.delete");
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canExport = useUserPermission("customer_invoice_dp.export");
-  const canAuditTrail = useUserPermission("customer_invoice_dp.audit_trail");
   const canPrint = useUserPermission("customer_invoice_dp.print");
+  const canViewCustomer = useUserPermission("customer.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   async function handleExport() {
     try {
@@ -170,7 +206,7 @@ export function CustomerInvoiceDPList() {
   const pagination = data?.meta?.pagination;
 
   const canShowActions =
-    canUpdate || canPending || canAuditTrail || canDelete;
+    canUpdate || canPending || canDelete || canPrint;
 
   const getStatusBadge = (status: CustomerInvoiceDPStatus) => {
     switch (normalizeStatus(status)) {
@@ -262,11 +298,11 @@ export function CustomerInvoiceDPList() {
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.salesOrder")}</TableHead>
+              <TableHead>{t("columns.customer")}</TableHead>
               <TableHead>{t("columns.relatedInvoiceCode")}</TableHead>
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
               <TableHead className="text-right">{t("columns.remainingAmount")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead>{t("columns.createdAt")}</TableHead>
               {canShowActions ? <TableHead className="w-[70px]" /> : null}
             </TableRow>
           </TableHeader>
@@ -293,10 +329,55 @@ export function CustomerInvoiceDPList() {
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.code}</TableCell>
+                  <TableCell className="font-medium">
+                    <button
+                      className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => { setDetailId(row.id); setDetailOpen(true); }}
+                    >
+                      {row.code}
+                    </button>
+                  </TableCell>
                   <TableCell>{safeDate(row.invoice_date)}</TableCell>
-                  <TableCell>{safeDate(row.due_date)}</TableCell>
-                  <TableCell>{row.sales_order?.code ?? "-"}</TableCell>
+                  <TableCell>
+                    <DueDateCell dueDate={row.due_date ?? undefined} status={row.status} />
+                  </TableCell>
+                  <TableCell>
+                    {row.sales_order?.id ? (
+                      canViewSalesOrder ? (
+                        <button
+                          className="font-mono text-primary hover:underline cursor-pointer text-sm font-medium"
+                          onClick={() => setSelectedSOId(row.sales_order!.id)}
+                        >
+                          {row.sales_order.code}
+                        </button>
+                      ) : (
+                        <span className="font-mono text-sm">{row.sales_order.code}</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.sales_order?.customer_id ? (
+                      canViewCustomer ? (
+                        <button
+                          className="text-primary hover:underline cursor-pointer text-sm font-medium"
+                          onClick={() =>
+                            setSelectedCustomer({
+                              id: row.sales_order!.customer_id as string,
+                              name: row.sales_order?.customer_name ?? "",
+                            })
+                          }
+                        >
+                          {row.sales_order.customer_name || "-"}
+                        </button>
+                      ) : (
+                        <span className="text-sm">{row.sales_order.customer_name || "-"}</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {row.related_invoice_code ? (
                       <Badge variant="outline" className="font-mono">
@@ -309,10 +390,8 @@ export function CustomerInvoiceDPList() {
                   <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
-                  <TableCell className="flex items-center justify-between gap-2">
-                    <span>{safeDate(row.created_at)}</span>
-
-                    {canShowActions ? (
+                  {canShowActions ? (
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -344,26 +423,13 @@ export function CustomerInvoiceDPList() {
                             </DropdownMenuItem>
                           ) : null}
 
-                          {canPending ? (
+                          {canPending && normalizeStatus(row.status) === "draft" ? (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => handlePending(row.id)}
                             >
                               <Clock className="h-4 w-4 mr-2" />
                               {t("actions.pending")}
-                            </DropdownMenuItem>
-                          ) : null}
-
-                          {canAuditTrail ? (
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setAuditId(row.id);
-                                setAuditOpen(true);
-                              }}
-                            >
-                              <History className="h-4 w-4 mr-2" />
-                              {t("actions.auditTrail")}
                             </DropdownMenuItem>
                           ) : null}
 
@@ -387,8 +453,8 @@ export function CustomerInvoiceDPList() {
                           ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : null}
-                  </TableCell>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             )}
@@ -415,25 +481,11 @@ export function CustomerInvoiceDPList() {
         invoiceId={editId}
       />
 
-      {/* Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{t("detail.title")}</DialogTitle>
-          </DialogHeader>
-          {detailId ? <CustomerInvoiceDPDetailView id={detailId} /> : null}
-        </DialogContent>
-      </Dialog>
-
-      {/* Audit Trail Dialog */}
-      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{t("auditTrail.title")}</DialogTitle>
-          </DialogHeader>
-          {auditId ? <CustomerInvoiceDPAuditTrailView id={auditId} /> : null}
-        </DialogContent>
-      </Dialog>
+      <CustomerInvoiceDPDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        id={detailId}
+      />
 
       <DeleteDialog
         open={!!deletingRow}
@@ -453,153 +505,24 @@ export function CustomerInvoiceDPList() {
           invoiceDpId={printingDPId}
         />
       )}
-    </div>
-  );
-}
 
-/* ───────────────────── Detail View ───────────────────── */
+      {selectedCustomer && (
+        <CustomerDetailModal
+          open={!!selectedCustomer}
+          onOpenChange={(open) => {
+            if (!open) setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer as never}
+        />
+      )}
 
-function DPStatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: ReturnType<typeof useTranslations> }) {
-  switch (normalizeStatus(status)) {
-    case "paid":
-      return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3" />
-          {t("status.paid")}
-        </Badge>
-      );
-    case "unpaid":
-      return (
-        <Badge variant="warning" className="text-xs font-medium">
-          <Clock className="h-3 w-3" />
-          {t("status.unpaid")}
-        </Badge>
-      );
-    case "partial":
-      return (
-        <Badge variant="info" className="text-xs font-medium">
-          <AlertCircle className="h-3 w-3" />
-          {t("status.partial")}
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="secondary" className="text-xs font-medium">
-          <FileText className="h-3 w-3" />
-          {t("status.draft")}
-        </Badge>
-      );
-  }
-}
-
-function CustomerInvoiceDPDetailView({ id }: { id: string }) {
-  const t = useTranslations("customerInvoiceDP");
-  const { data, isLoading, isError } = useCustomerInvoiceDP(id, { enabled: !!id });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4 pt-2">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-  if (isError || !data?.success)
-    return <div className="text-center py-8 text-destructive">{t("detail.failed")}</div>;
-
-  const row = data.data;
-
-  return (
-    <div className="space-y-6 pt-2">
-      {/* Header card */}
-      <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
-        <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-          <FileText className="h-6 w-6" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-lg">{row.code}</h3>
-          <p className="text-sm text-muted-foreground font-mono">{row.invoice_number}</p>
-        </div>
-        <div className="shrink-0">
-          <DPStatusBadge status={row.status} t={t} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* invoice dates */}
-        <div className="space-y-3">
-          <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
-            <Calendar className="h-4 w-4" />
-            {t("fields.invoiceDate")}
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">{t("fields.invoiceDate")}</span>
-              <span className="col-span-2 font-medium">{formatDate(row.invoice_date)}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">{t("fields.dueDate")}</span>
-              <span className="col-span-2 font-medium">{formatDate(row.due_date)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* reference */}
-        <div className="space-y-3">
-          <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
-            <Hash className="h-4 w-4" />
-            {t("fields.salesOrder")}
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">{t("fields.salesOrder")}</span>
-              <span className="col-span-2 font-mono font-medium text-primary">{row.sales_order?.code ?? "-"}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Amount */}
-      <div className="bg-card border rounded-lg overflow-hidden">
-        <div className="p-4 text-center space-y-1 bg-primary/5">
-          <p className="text-xs text-muted-foreground uppercase font-semibold">{t("fields.amount")}</p>
-          <p className="text-2xl font-bold font-mono text-primary">{formatCurrency(row.amount)}</p>
-        </div>
-      </div>
-
-      {row.notes ? (
-        <>
-          <Separator />
-          <div className="space-y-2">
-            <h4 className="font-semibold flex items-center gap-2 text-sm">
-              <Banknote className="h-4 w-4" />
-              {t("fields.notes")}
-            </h4>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap rounded-md bg-muted/30 p-3 border">
-              {row.notes}
-            </p>
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-/* ───────────────────── Audit Trail View ───────────────────── */
-
-function CustomerInvoiceDPAuditTrailView({ id }: { id: string }) {
-  const t = useTranslations("customerInvoiceDP");
-  const tCommon = useTranslations("common");
-
-  const { data, isLoading, isError } = useCustomerInvoiceDP(id, { enabled: !!id });
-
-  // For now, use a simple placeholder – can be enhanced with a dedicated audit trail hook later
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
-  if (isError) return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
-
-  return (
-    <div className="text-center py-8 text-muted-foreground">
-      {t("auditTrail.empty")}
+      {selectedSOId && (
+        <OrderDetailModal
+          open={!!selectedSOId}
+          onClose={() => setSelectedSOId(null)}
+          order={{ id: selectedSOId } as unknown as SalesOrder}
+        />
+      )}
     </div>
   );
 }

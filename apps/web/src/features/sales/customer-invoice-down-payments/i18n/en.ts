@@ -13,6 +13,10 @@ export const customerInvoiceDPEn = {
     title: "Down Payment Detail",
     failed: "Failed to load down payment invoice",
   },
+  tabs: {
+    general: "General",
+    auditTrail: "Audit Trail",
+  },
   auditTrail: {
     title: "Audit Trail",
     empty: "No audit trail entries",
@@ -42,11 +46,11 @@ export const customerInvoiceDPEn = {
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     salesOrder: "SO",
-    amount: "Amount",
-    remainingAmount: "Remaining Amount",
+    customer: "Customer",
+    amount: "Paid",
+    remainingAmount: "Remaining",
     relatedInvoiceCode: "Regular Invoice",
     status: "Status",
-    createdAt: "Created At",
   },
   status: {
     draft: "Draft",
@@ -67,6 +71,7 @@ export const customerInvoiceDPEn = {
   },
   placeholders: {
     select: "Select...",
+    pickDate: "Pick a date",
   },
 
   // Print

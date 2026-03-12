@@ -4,19 +4,28 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumericInput } from "@/components/ui/numeric-input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 import {
@@ -145,28 +154,69 @@ export function CustomerInvoiceDPFormDialog({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>{t("fields.invoiceDate")}</Label>
-              <Input
-                type="date"
-                value={form.watch("invoice_date")}
-                onChange={(e) => form.setValue("invoice_date", e.target.value, { shouldValidate: true })}
-                disabled={isBusy}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isBusy}
+                    className={cn(
+                      "w-full justify-start text-left font-normal cursor-pointer",
+                      !form.watch("invoice_date") && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.watch("invoice_date")
+                      ? format(new Date(form.watch("invoice_date")), "dd MMM yyyy")
+                      : t("placeholders.pickDate")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.watch("invoice_date") ? new Date(form.watch("invoice_date")) : undefined}
+                    onSelect={(date) =>
+                      form.setValue("invoice_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>{t("fields.dueDate")}</Label>
-              <Input
-                type="date"
-                value={form.watch("due_date")}
-                onChange={(e) => form.setValue("due_date", e.target.value, { shouldValidate: true })}
-                disabled={isBusy}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isBusy}
+                    className={cn(
+                      "w-full justify-start text-left font-normal cursor-pointer",
+                      !form.watch("due_date") && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.watch("due_date")
+                      ? format(new Date(form.watch("due_date")), "dd MMM yyyy")
+                      : t("placeholders.pickDate")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.watch("due_date") ? new Date(form.watch("due_date")) : undefined}
+                    onSelect={(date) =>
+                      form.setValue("due_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>{t("fields.amount")}</Label>
-              <Input
-                type="number"
+              <NumericInput
                 value={form.watch("amount")}
-                onChange={(e) => form.setValue("amount", Number(e.target.value), { shouldValidate: true })}
+                onChange={(value) => form.setValue("amount", value ?? 0, { shouldValidate: true })}
                 disabled={isBusy}
               />
             </div>

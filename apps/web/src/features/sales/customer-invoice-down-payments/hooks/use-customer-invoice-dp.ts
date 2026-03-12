@@ -15,6 +15,7 @@ export const customerInvoiceDPKeys = {
   details: () => [...customerInvoiceDPKeys.all, "detail"] as const,
   detail: (id: string) => [...customerInvoiceDPKeys.details(), id] as const,
   addData: () => [...customerInvoiceDPKeys.all, "add"] as const,
+  auditTrail: (id: string) => [...customerInvoiceDPKeys.all, "audit-trail", id] as const,
 };
 
 export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams) {
@@ -85,5 +86,13 @@ export function usePendingCustomerInvoiceDP() {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
     },
+  });
+}
+
+export function useCustomerInvoiceDPAuditTrail(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: customerInvoiceDPKeys.auditTrail(id),
+    queryFn: () => customerInvoiceDPService.auditTrail(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }

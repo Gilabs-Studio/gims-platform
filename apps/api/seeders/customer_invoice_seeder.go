@@ -254,9 +254,11 @@ func SeedCustomerInvoice() error {
 				dpCtx := context.Background()
 				dpCode, _ := invoiceRepo.GetNextInvoiceNumber(dpCtx, "CIDP")
 
+				dpDueDate := invoiceDate.AddDate(0, 0, 28)
 				dpInvoice := salesModels.CustomerInvoice{
 					Code:         dpCode,
 					InvoiceDate:  invoiceDate.AddDate(0, 0, -2), // DP was 2 days ago
+					DueDate:      &dpDueDate,
 					Type:         salesModels.CustomerInvoiceTypeDownPayment,
 					SalesOrderID: &linkedOrder.ID,
 					Amount:       dpAmount,

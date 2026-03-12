@@ -13,6 +13,10 @@ export const customerInvoiceDPId = {
     title: "Detail Down Payment",
     failed: "Gagal memuat data DP faktur",
   },
+  tabs: {
+    general: "Umum",
+    auditTrail: "Jejak Audit",
+  },
   auditTrail: {
     title: "Jejak Audit",
     empty: "Belum ada data jejak audit",
@@ -42,11 +46,11 @@ export const customerInvoiceDPId = {
     invoiceDate: "Tanggal",
     dueDate: "Jatuh Tempo",
     salesOrder: "SO",
-    amount: "Total",
-    remainingAmount: "Sisa Belum Dibayar",
+    customer: "Customer",
+    amount: "Terbayar",
+    remainingAmount: "Sisa",
     relatedInvoiceCode: "Faktur Reguler",
     status: "Status",
-    createdAt: "Dibuat",
   },
   status: {
     draft: "Draft",
@@ -67,6 +71,7 @@ export const customerInvoiceDPId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
 
   // Print

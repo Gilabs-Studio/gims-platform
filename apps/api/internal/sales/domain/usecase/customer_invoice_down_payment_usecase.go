@@ -88,6 +88,10 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 			soDto.CustomerID = ci.SalesOrder.CustomerID
 			custID = *ci.SalesOrder.CustomerID
 		}
+		if ci.SalesOrder.CustomerName != "" {
+			name := ci.SalesOrder.CustomerName
+			soDto.CustomerName = &name
+		}
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
@@ -128,6 +132,13 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 	var soDto *dto.CustomerInvoiceDownPaymentSalesOrder
 	if ci.SalesOrder != nil {
 		soDto = &dto.CustomerInvoiceDownPaymentSalesOrder{ID: ci.SalesOrder.ID, Code: ci.SalesOrder.Code}
+		if ci.SalesOrder.CustomerID != nil {
+			soDto.CustomerID = ci.SalesOrder.CustomerID
+		}
+		if ci.SalesOrder.CustomerName != "" {
+			name := ci.SalesOrder.CustomerName
+			soDto.CustomerName = &name
+		}
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
@@ -243,19 +254,19 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		if err := tx.Create(&ci).Error; err != nil {
 			return err
 		}
-
-		loaded, err := uc.repo.FindByID(ctx, ci.ID)
-		if err != nil {
-			return err
-		}
-		out = loaded
+		out = &ci
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "customer_invoice_dp.create", out.ID, map[string]interface{}{"after": out})
-	return uc.mapToDetail(ctx, out), nil
+	// Reload after commit so relations (SalesOrder, Customer) are visible on the main connection.
+	loaded, err := uc.repo.FindByID(ctx, out.ID)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.create", loaded.ID, map[string]interface{}{"after": loaded})
+	return uc.mapToDetail(ctx, loaded), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {

@@ -35,6 +35,8 @@ export type CustomerInvoiceDPStatus = "DRAFT" | "UNPAID" | "PARTIAL" | "PAID";
 export interface CustomerInvoiceDPSalesOrderMini {
   id: string;
   code: string;
+  customer_id?: string | null;
+  customer_name?: string | null;
 }
 
 export interface CustomerInvoiceDPListItem {
@@ -44,7 +46,7 @@ export interface CustomerInvoiceDPListItem {
   related_invoice_code?: string;
   invoice_number: string;
   invoice_date: string;
-  due_date: string;
+  due_date?: string | null;
   amount: number;
   remaining_amount?: number;
   status: CustomerInvoiceDPStatus;
@@ -73,3 +75,19 @@ export interface CreateCustomerInvoiceDPInput {
 }
 
 export type UpdateCustomerInvoiceDPInput = CreateCustomerInvoiceDPInput;
+
+export interface CustomerInvoiceAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata?: Record<string, unknown>;
+  user?: AuditTrailUser | null;
+  created_at: string;
+}
+
+export interface AuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}

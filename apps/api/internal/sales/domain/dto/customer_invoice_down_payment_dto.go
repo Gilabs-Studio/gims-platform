@@ -57,9 +57,10 @@ type CustomerInvoiceDownPaymentListResponse struct {
 }
 
 type CustomerInvoiceDownPaymentSalesOrder struct {
-	ID         string  `json:"id"`
-	Code       string  `json:"code"`
-	CustomerID *string `json:"customer_id,omitempty"`
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	CustomerID   *string `json:"customer_id,omitempty"`
+	CustomerName *string `json:"customer_name,omitempty"`
 }
 
 // CustomerInvoiceDownPaymentAddResponse is used for the fetch dropdowns on create screen
