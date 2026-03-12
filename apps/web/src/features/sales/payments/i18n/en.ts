@@ -29,9 +29,12 @@ export const salesPaymentEn = {
     title: "Create Payment",
     submit: "Save",
     cancel: "Cancel",
+    amountLockedHint: "Amount is pre-filled and cannot be changed.",
   },
   fields: {
     invoice: "Invoice",
+    downPayment: "Down Payment",
+    paymentDetails: "Payment Details",
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",

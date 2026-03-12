@@ -26,11 +26,14 @@ export const salesPaymentId = {
     cash: "Tunai",
   },
   form: {
+    amountLockedHint: "Jumlah sudah diisi otomatis dan tidak dapat diubah.",
     title: "Buat Pembayaran",
     submit: "Simpan",
     cancel: "Batal",
   },
   fields: {
+    downPayment: "Down Payment",
+    paymentDetails: "Detail Pembayaran",
     invoice: "Invoice",
     bankAccount: "Rekening Bank",
     paymentDate: "Tanggal Pembayaran",

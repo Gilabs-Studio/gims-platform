@@ -99,6 +99,8 @@ export const deliveryEn = {
     noItems: "No items found",
     unknownProduct: "No product selected",
     created: "Delivery order created successfully",
+    shipSuccess: "Delivery order marked as shipped",
+    deliverSuccess: "Delivery order marked as delivered",
     updated: "Delivery order updated successfully",
     deleted: "Delivery order deleted successfully",
     statusUpdated: "Delivery order status updated successfully",
