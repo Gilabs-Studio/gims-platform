@@ -25,19 +25,25 @@ import {
   AlertCircle,
   Ban,
   CheckCircle2,
-  Clock,
+  Send,
   CreditCard,
-  FileText,
   History,
   ShieldAlert,
   XCircle,
+  Pencil,
+  Printer,
+  FileText,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
+import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
+import { usePendingCustomerInvoiceDP, useApproveCustomerInvoiceDP } from "../hooks/use-customer-invoice-dp";
 import {
   useCustomerInvoiceDP,
   useCustomerInvoiceDPAuditTrail,
@@ -60,7 +66,7 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
     case "unpaid":
       return (
         <Badge variant="warning" className="text-xs font-medium">
-          <Clock className="h-3 w-3" />
+          <Send className="h-3 w-3" />
           {t("status.unpaid")}
         </Badge>
       );
@@ -74,7 +80,7 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
     case "submitted":
       return (
         <Badge variant="info" className="text-xs font-medium">
-          <Clock className="h-3 w-3" />
+          <Send className="h-3 w-3" />
           {t("status.submitted")}
         </Badge>
       );
@@ -127,6 +133,10 @@ export function CustomerInvoiceDPDetailModal({
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
   const canCreatePayment = useUserPermission("sales_payment.create");
+  const canUpdate = useUserPermission("customer_invoice_dp.update");
+  const canPending = useUserPermission("customer_invoice_dp.pending");
+  const canPrint = useUserPermission("customer_invoice_dp.print");
+  const canApprove = useUserPermission("customer_invoice_dp.approve");
 
   const { data, isLoading, isError } = useCustomerInvoiceDP(id as string, {
     enabled: !!id && open,
@@ -138,6 +148,16 @@ export function CustomerInvoiceDPDetailModal({
   );
 
   const row = data?.data;
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const pendingMutation = usePendingCustomerInvoiceDP();
+  const approveMutation = useApproveCustomerInvoiceDP();
+
+  const CustomerInvoiceDPFormDialog = dynamic(
+    () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
+    { ssr: false },
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -159,20 +179,92 @@ export function CustomerInvoiceDPDetailModal({
                 </div>
               )}
             </div>
-            {row && canCreatePayment &&
-              (normalizeStatus(row.status) === "unpaid" ||
-                normalizeStatus(row.status) === "partial" ||
-                normalizeStatus(row.status) === "approved") ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsCreatePaymentOpen(true)}
-                className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                title={t("actions.createPayment")}
-              >
-                <CreditCard className="h-4 w-4" />
-              </Button>
-            ) : null}
+            <div className="flex items-center gap-1">
+              {row && canCreatePayment &&
+                (normalizeStatus(row.status) === "unpaid" ||
+                  normalizeStatus(row.status) === "partial" ||
+                  normalizeStatus(row.status) === "approved") ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsCreatePaymentOpen(true)}
+                  className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  title={t("actions.createPayment")}
+                >
+                  <CreditCard className="h-4 w-4" />
+                </Button>
+              ) : null}
+
+              {row && canUpdate && normalizeStatus(row.status) === "draft" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsEditOpen(true)}
+                  className="cursor-pointer"
+                  title={t("actions.edit")}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              ) : null}
+
+              {row && canPending && normalizeStatus(row.status) === "draft" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    if (!row?.id) return;
+                    try {
+                      const resp = await pendingMutation.mutateAsync(row.id);
+                      if (!resp.success) throw new Error(resp.error ?? "pending_failed");
+                      toast.success(t("toast.submitted"));
+                    } catch {
+                      toast.error(t("toast.failed"));
+                    }
+                  }}
+                  className="cursor-pointer text-primary hover:text-primary/80 hover:bg-primary/5"
+                  title={t("actions.submit")}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              ) : null}
+
+              {row && canPrint ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (!row?.id) return;
+                    customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
+                  }}
+                  className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                  title={t("actions.print")}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              ) : null}
+
+              {row && canApprove && normalizeStatus(row.status) === "submitted" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    if (!row?.id) return;
+                    try {
+                      await approveMutation.mutateAsync(row.id);
+                      toast.success(t("statusUpdated"));
+                    } catch {
+                      toast.error(t("toast.failed"));
+                    }
+                  }}
+                  className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title={t("actions.approve")}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+              ) : null}
+
+              {/* Delete action removed from detail modal (use list view for deletion) */}
+            </div>
           </div>
         </DialogHeader>
 
@@ -359,6 +451,18 @@ export function CustomerInvoiceDPDetailModal({
           defaultDPId={row.id}
         />
       )}
+
+      {row && (
+        <CustomerInvoiceDPFormDialog
+          open={isEditOpen}
+          onOpenChange={(open) => { if (!open) setIsEditOpen(false); }}
+          invoiceId={row?.id}
+          defaultSalesOrderId={row?.sales_order?.id}
+          defaultAmount={row?.amount}
+        />
+      )}
+
+      {/* Delete dialog removed from detail modal; deletion should be done from list view */}
     </Dialog>
   );
 }

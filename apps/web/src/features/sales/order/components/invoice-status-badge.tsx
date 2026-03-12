@@ -23,9 +23,23 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
       return (
         <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
-          {t("sent")}
+            {t("sent")}
         </Badge>
       );
+      case "submitted":
+        return (
+          <Badge variant="info" className={className}>
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("sent")}
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge variant="info" className={className}>
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("pending")}
+          </Badge>
+        );
     case "approved":
       return (
         <Badge variant="success" className={className}>
@@ -69,6 +83,8 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
         </Badge>
       );
     default:
-      return <Badge variant="outline" className={className}>{status}</Badge>;
+      // Try to resolve a localized label first, fallback to raw status
+      const label = t(normalizedStatus) || status;
+      return <Badge variant="outline" className={className}>{label}</Badge>;
   }
 }

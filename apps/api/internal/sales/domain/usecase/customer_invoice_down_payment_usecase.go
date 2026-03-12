@@ -32,6 +32,8 @@ type CustomerInvoiceDownPaymentUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	// Note: Submit/Reject/Cancel not exposed for down payment flow
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
@@ -401,6 +403,46 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.pending", id, map[string]interface{}{"after": out})
+	return uc.mapToDetail(ctx, out), nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ci models.CustomerInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if ci.Type != models.CustomerInvoiceTypeDownPayment {
+			return ErrCustomerInvoiceNotFound
+		}
+		if ci.Status != models.CustomerInvoiceStatusSubmitted {
+			return ErrCustomerInvoiceConflict
+		}
+		now := apptime.Now()
+		// Approve and transition to UNPAID so it appears in the payment form
+		if err := tx.Model(&ci).Updates(map[string]interface{}{
+			"status":           models.CustomerInvoiceStatusUnpaid,
+			"approved_at":      &now,
+			"remaining_amount": ci.Amount,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrCustomerInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.approve", id, nil)
 	return uc.mapToDetail(ctx, out), nil
 }
 

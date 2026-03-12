@@ -64,7 +64,7 @@ export const quotationId = {
     // Quotation
     title: "Penawaran Penjualan",
     subtitle: "Kelola penawaran penjualan dan konversi ke pesanan penjualan",
-    code: "Kode Penawaran",
+    code: "Kode",
     quotationDate: "Tanggal Penawaran",
     validUntil: "Berlaku Sampai",
     paymentTerms: "Syarat Pembayaran",

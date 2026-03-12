@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle2,
-  Clock,
+  Send,
   CreditCard,
   Download,
   Eye,
@@ -226,7 +226,7 @@ export function CustomerInvoiceDPList() {
       case "unpaid":
         return (
           <Badge variant="warning" className="text-xs font-medium">
-            <Clock className="h-3 w-3" />
+            <Send className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -240,7 +240,7 @@ export function CustomerInvoiceDPList() {
       case "submitted":
         return (
           <Badge variant="info" className="text-xs font-medium">
-            <Clock className="h-3 w-3" />
+            <Send className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -459,10 +459,10 @@ export function CustomerInvoiceDPList() {
 
                           {canPending && normalizeStatus(row.status) === "draft" ? (
                             <DropdownMenuItem
-                              className="cursor-pointer"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => handlePending(row.id)}
                             >
-                              <Clock className="h-4 w-4 mr-2" />
+                              <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
                             </DropdownMenuItem>
                           ) : null}

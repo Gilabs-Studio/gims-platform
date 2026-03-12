@@ -1,5 +1,5 @@
 export const customerInvoiceDPEn = {
-  title: "Customer Invoice Down Payments",
+  title: "Customer Invoice DP",
   description: "Create down payment invoices for sales orders.",
   search: "Search by code, invoice number...",
   toast: {
@@ -58,11 +58,12 @@ export const customerInvoiceDPEn = {
     dueDate: "Due Date",
     salesOrder: "SO",
     customer: "Customer",
-    amount: "Paid",
+    amount: "Amount",
     remainingAmount: "Remaining",
     relatedInvoiceCode: "Regular Invoice",
     status: "Status",
   },
+  statusUpdated: "Down payment invoice status updated successfully",
   status: {
     draft: "Draft",
     submitted: "Submitted",
@@ -79,6 +80,8 @@ export const customerInvoiceDPEn = {
     view: "View",
     edit: "Edit",
     delete: "Delete",
+    print: "Print",
+    approve: "Approve",
     submit: "Submit",
     createPayment: "Create Payment",
     auditTrail: "Audit Trail",

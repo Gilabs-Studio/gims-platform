@@ -389,15 +389,6 @@ export function OrderList() {
                               )}
                             </>
                           )}
-                          {canUpdate && order.status !== "cancelled" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(order.id, "cancelled")}
-                              className="text-destructive cursor-pointer focus:text-destructive"
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              {t("actions.cancel")}
-                            </DropdownMenuItem>
-                          )}
                           {canCreateDO && order.status === "approved" && (
                             <DropdownMenuItem
                               onClick={() => setCreateDOForOrderId(order.id)}
@@ -435,6 +426,17 @@ export function OrderList() {
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {/** Place Cancel as the bottom-most destructive action for visibility */}
+                          {canUpdate && order.status !== "cancelled" && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(order.id, "cancelled")}
+                              className="text-destructive cursor-pointer focus:text-destructive"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              {t("actions.cancel")}
                             </DropdownMenuItem>
                           )}
                           {canDelete && order.status === "draft" && (

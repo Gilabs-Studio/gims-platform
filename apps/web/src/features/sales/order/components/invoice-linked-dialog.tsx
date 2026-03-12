@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { FileText, Receipt } from "lucide-react";
+import { Receipt, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -104,19 +104,19 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                 <div className="rounded-lg border p-3 text-center bg-muted/30">
                   <p className="text-xs text-muted-foreground uppercase font-semibold">Final Invoices</p>
                   <p className="text-lg font-bold font-mono">{formatCurrency(totalInvoiceAmount)}</p>
-                  <p className="text-xs text-muted-foreground">{invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}</p>
+                  <p className="text-xs text-muted-foreground">{visibleInvoices.length} {visibleInvoices.length === 1 ? "invoice" : "invoices"}</p>
                 </div>
               </div>
             )}
 
             <Tabs defaultValue="invoices" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="invoices" className="flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" />
-                  {t("title")} ({invoices.length})
+                  <Receipt className="h-3.5 w-3.5" />
+                  {t("title")} ({visibleInvoices.length})
                 </TabsTrigger>
                 <TabsTrigger value="dp" className="flex items-center gap-1.5">
-                  <Receipt className="h-3.5 w-3.5" />
+                  <Banknote className="h-3.5 w-3.5" />
                   {tDP("title")} ({dpInvoices.length})
                 </TabsTrigger>
               </TabsList>

@@ -79,7 +79,7 @@ export const invoiceId = {
     subtitle: "Kelola faktur pelanggan dan lacak pembayaran",
     code: "Kode",
     dpCode: "DP Ref",
-    invoiceNumber: "Nomor Faktur",
+    invoiceNumber: "Kode",
     invoiceDate: "Tanggal Faktur",
     dueDate: "Tanggal Jatuh Tempo",
     amount: "Jumlah",

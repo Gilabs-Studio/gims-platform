@@ -224,6 +224,8 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.update", "Edit Down Payments", "EDIT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.delete", "Delete Down Payments", "DELETE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.pending", "Pending Down Payments", "PENDING", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.submit", "Submit Down Payments", "SUBMIT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.approve", "Approve Down Payments", "APPROVE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},

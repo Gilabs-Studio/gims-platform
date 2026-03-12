@@ -79,7 +79,7 @@ export const invoiceEn = {
     subtitle: "Manage customer invoices and track payments",
     code: "Code",
     dpCode: "DP Ref",
-    invoiceNumber: "Invoice Number",
+    invoiceNumber: "Code",
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     amount: "Amount",

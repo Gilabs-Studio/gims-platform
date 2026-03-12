@@ -28,6 +28,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -168,80 +169,7 @@ export function InvoiceList() {
     return new Date(invoice.due_date) < new Date();
   };
 
-  const getStatusBadge = (invoice: CustomerInvoice) => {
-    const status = invoice.status;
-    const overdue = isOverdue(invoice);
-
-    if (overdue && status !== "paid" && status !== "cancelled") {
-      return (
-        <Badge variant="destructive" className="text-xs font-medium">
-          <AlertTriangle className="h-3 w-3 mr-1" />
-          {t("overdue")}
-        </Badge>
-      );
-    }
-
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "sent":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1" />
-            {t("status.pending")}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.approved")}
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.rejected")}
-          </Badge>
-        );
-      case "unpaid":
-        return (
-          <Badge variant="outline" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1" />
-            {t("status.unpaid")}
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <DollarSign className="h-3 w-3 mr-1" />
-            {t("status.partial")}
-          </Badge>
-        );
-      case "paid":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.paid")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
-    }
-  };
+  
 
   if (isError) {
     return (
@@ -425,7 +353,16 @@ export function InvoiceList() {
                   <TableCell className="text-right font-medium">{formatCurrency(invoice.amount ?? 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
-                  <TableCell>{getStatusBadge(invoice)}</TableCell>
+                  <TableCell>
+                    {isOverdue(invoice) && invoice.status !== "paid" && invoice.status !== "cancelled" ? (
+                      <Badge variant="destructive" className="text-xs font-medium">
+                        <AlertTriangle className="h-3 w-3 mr-1.5" />
+                        {t("overdue")}
+                      </Badge>
+                    ) : (
+                      <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
+                    )}
+                  </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>

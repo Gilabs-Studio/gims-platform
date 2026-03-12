@@ -75,6 +75,11 @@ type CustomerInvoice struct {
 	// Payment timestamp
 	PaymentAt *time.Time `json:"payment_at"`
 
+	// Workflow timestamps
+	SubmittedAt *time.Time `gorm:"type:timestamp" json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time `gorm:"type:timestamp" json:"approved_at,omitempty"`
+	RejectedAt  *time.Time `gorm:"type:timestamp" json:"rejected_at,omitempty"`
+
 	// Tax Invoice relation (optional)
 	TaxInvoiceID *string `gorm:"type:uuid;index" json:"tax_invoice_id"`
 

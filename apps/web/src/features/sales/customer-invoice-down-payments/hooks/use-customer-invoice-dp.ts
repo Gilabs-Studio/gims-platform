@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orderKeys } from "../../order/hooks/use-orders";
+import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import type {
   CreateCustomerInvoiceDPInput,
@@ -51,13 +52,13 @@ export function useCreateCustomerInvoiceDP() {
     mutationFn: (data: CreateCustomerInvoiceDPInput) => customerInvoiceDPService.create(data),
     onMutate: async (newDP) => {
       await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
-      const previous = queryClient.getQueryData<any>(orderKeys.lists());
+      const previous = queryClient.getQueryData<SalesOrderListResponse | undefined>(orderKeys.lists());
 
-      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old?: SalesOrderListResponse) => {
         if (!old?.data) return old;
         return {
           ...old,
-          data: old.data.map((order: any) => {
+          data: old.data.map((order: SalesOrder) => {
             if (order.id !== newDP.sales_order_id) return order;
             const tmpInvoice = {
               id: `tmp-${Date.now()}`,
@@ -75,7 +76,7 @@ export function useCreateCustomerInvoiceDP() {
 
       return { previous };
     },
-    onError: (_err, _newDP, context: any) => {
+    onError: (_err, _newDP, context?: { previous?: SalesOrderListResponse | undefined }) => {
       if (context?.previous) {
         queryClient.setQueriesData({ queryKey: orderKeys.lists() }, context.previous);
       }
@@ -128,6 +129,18 @@ export function usePendingCustomerInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => customerInvoiceDPService.pending(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
+    },
+  });
+}
+
+export function useApproveCustomerInvoiceDP() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => customerInvoiceDPService.approve(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
