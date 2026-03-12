@@ -15,6 +15,7 @@ import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-inv
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
+import { useCustomerInvoiceDPs } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import type { CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -125,6 +126,29 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
   const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
     enabled: !isEdit && open && !!watchedSalesOrderId,
   });
+
+  // Fetch DP invoices linked to the selected SO for DP detection
+  const { data: dpInvoicesData } = useCustomerInvoiceDPs(
+    { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
+    { enabled: open && !!watchedSalesOrderId },
+  );
+
+  // Compute detected down payments and financial summary
+  const detectedDownPayments = useMemo(() => {
+    const list = dpInvoicesData?.data ?? [];
+    // Only include paid/partial/approved DPs
+    return list.filter((dp) => {
+      const status = (dp.status ?? "").toLowerCase();
+      return status === "paid" || status === "partial" || status === "approved";
+    });
+  }, [dpInvoicesData?.data]);
+
+  const dpSummary = useMemo(() => {
+    const totalDP = detectedDownPayments.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
+    const orderTotal = selectedOrderData?.data?.total_amount ?? 0;
+    const amountDue = Math.max(0, orderTotal - totalDP);
+    return { totalDP, orderTotal, amountDue };
+  }, [detectedDownPayments, selectedOrderData?.data?.total_amount]);
 
   // Auto-fill payment terms + items from selected SO
   useEffect(() => {
@@ -434,5 +458,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     openQuickCreate,
     closeQuickCreate,
     handlePaymentTermCreated,
+    detectedDownPayments,
+    dpSummary,
   };
 }

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, CreditCard, Printer } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, Printer } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
 import { InvoicePrintDialog } from "./invoice-print-dialog";
@@ -19,7 +19,6 @@ import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
-import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
 import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
@@ -112,10 +111,8 @@ export function InvoiceList() {
   const canApprove = useUserPermission("customer_invoice.approve");
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
-  const canCreatePayment = useUserPermission("sales_payment.create");
   const canPrint = useUserPermission("customer_invoice.print");
 
-  const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
 
   const deleteInvoice = useDeleteInvoice();
@@ -490,15 +487,6 @@ export function InvoiceList() {
                               {t("actions.pay")}
                             </DropdownMenuItem>
                           )}
-                          {canCreatePayment && (invoice.status === "unpaid" || invoice.status === "partial") && (
-                            <DropdownMenuItem
-                              onClick={() => setCreatePaymentForInvoiceId(invoice.id)}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
-                            >
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              {t("actions.createPayment")}
-                            </DropdownMenuItem>
-                          )}
                           {canUpdate && invoice.status === "unpaid" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(invoice.id, "cancelled")}
@@ -613,15 +601,6 @@ export function InvoiceList() {
           description={t("deleteDesc")}
           itemName={t("common.invoice")}
           isLoading={deleteInvoice.isPending}
-        />
-      )}
-
-      {/* Create Payment from unpaid/partial invoice */}
-      {createPaymentForInvoiceId && (
-        <SalesPaymentForm
-          open={!!createPaymentForInvoiceId}
-          onClose={() => setCreatePaymentForInvoiceId(null)}
-          defaultInvoiceId={createPaymentForInvoiceId}
         />
       )}
 
