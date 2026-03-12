@@ -23,7 +23,8 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatWhatsAppLink } from "@/lib/utils";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,6 +59,7 @@ export function InvoiceDetailModal({
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const {
     canViewProduct,
@@ -66,6 +68,9 @@ export function InvoiceDetailModal({
     isSalesOrderOpen, setIsSalesOrderOpen, selectedSalesOrderId,
     openProduct, openSalesOrder,
   } = useInvoiceDetail();
+
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   if (!invoice) return null;
 
@@ -267,13 +272,44 @@ export function InvoiceDetailModal({
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_name ?? "-"}</TableCell>
+                              <TableCell>
+                                {canViewCustomer && displayInvoice.sales_order.customer_id ? (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedCustomerId(displayInvoice.sales_order.customer_id ?? null);
+                                      setIsCustomerOpen(true);
+                                    }}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    {displayInvoice.sales_order.customer_name ?? displayInvoice.sales_order.customer_id}
+                                  </button>
+                                ) : (
+                                  <span>{displayInvoice.sales_order.customer_name ?? "-"}</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayInvoice.sales_order.customer_phone ? (
+                                  <a
+                                    href={formatWhatsAppLink(displayInvoice.sales_order.customer_phone)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayInvoice.sales_order.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayInvoice.sales_order.customer_email ? (
+                                  <a href={`mailto:${displayInvoice.sales_order.customer_email}`} className="text-primary hover:underline">
+                                    {displayInvoice.sales_order.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50"></TableCell>
                               <TableCell></TableCell>
                             </TableRow>
@@ -444,6 +480,12 @@ export function InvoiceDetailModal({
         open={isSalesOrderOpen}
         onClose={() => setIsSalesOrderOpen(false)}
         order={selectedSalesOrderId ? { id: selectedSalesOrderId } as unknown as SalesOrder : null}
+      />
+
+      <CustomerDetailModal
+        open={isCustomerOpen}
+        onOpenChange={setIsCustomerOpen}
+        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
       />
 
       <QuotationProductDetailModal

@@ -33,6 +33,7 @@ import type { Employee as MdEmployee } from "@/features/master-data/employee/typ
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import type { SalesQuotation } from "../../quotation/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
@@ -67,9 +68,13 @@ export function OrderDetailModal({
   const canCancel = useUserPermission("sales_order.cancel");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const [isCreateDOOpen, setIsCreateDOOpen] = useState(false);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const {
     canViewEmployee,
@@ -367,7 +372,21 @@ export function OrderDetailModal({
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayOrder.customer_name ?? "-"}</TableCell>
+                                <TableCell>
+                                  {canViewCustomer && displayOrder.customer_id ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCustomerId(displayOrder.customer_id ?? null);
+                                        setIsCustomerOpen(true);
+                                      }}
+                                      className="text-primary hover:underline cursor-pointer text-left"
+                                    >
+                                      {displayOrder.customer_name ?? displayOrder.customer_id}
+                                    </button>
+                                  ) : (
+                                    <span>{displayOrder.customer_name ?? "-"}</span>
+                                  )}
+                                </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayOrder.customer_contact ?? "-"}</TableCell>
                             </TableRow>
@@ -621,6 +640,12 @@ export function OrderDetailModal({
         open={isEmployeeOpen}
         onOpenChange={setIsEmployeeOpen}
         employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
+      />
+
+      <CustomerDetailModal
+        open={isCustomerOpen}
+        onOpenChange={setIsCustomerOpen}
+        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
       />
 
       <QuotationDetailModal

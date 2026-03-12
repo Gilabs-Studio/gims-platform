@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { SalesQuotation } from "../types";
 import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,6 +72,7 @@ export function QuotationDetailModal({
   const canReject = useUserPermission("sales_quotation.reject");
   const canConvert = useUserPermission("sales_quotation.convert");
   const canPrint = useUserPermission("sales_quotation.print");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const {
     canViewEmployee,
@@ -93,6 +95,9 @@ export function QuotationDetailModal({
   const itemsPagination = itemsData?.meta?.pagination;
 
   const totalItems = itemsPagination?.total ?? 0;
+
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -376,7 +381,21 @@ export function QuotationDetailModal({
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayQuotation.customer_name ?? "-"}</TableCell>
+                              <TableCell>
+                                {canViewCustomer && displayQuotation.customer_id ? (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedCustomerId(displayQuotation.customer_id ?? null);
+                                      setIsCustomerOpen(true);
+                                    }}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    {displayQuotation.customer_name ?? displayQuotation.customer_id}
+                                  </button>
+                                ) : (
+                                  <span>{displayQuotation.customer_name ?? "-"}</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
                             </TableRow>
@@ -574,6 +593,12 @@ export function QuotationDetailModal({
         open={isEmployeeOpen}
         onOpenChange={setIsEmployeeOpen}
         employee={selectedEmployee as unknown as MdEmployee}
+      />
+
+      <CustomerDetailModal
+        open={isCustomerOpen}
+        onOpenChange={setIsCustomerOpen}
+        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
       />
 
       <QuotationProductDetailModal
