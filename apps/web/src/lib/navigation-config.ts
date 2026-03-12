@@ -112,7 +112,7 @@ export const navigationConfig: NavItem[] = [
       { name: "Purchase Orders", url: "/purchase/purchase-orders", icon: "shopping-cart", permission: "purchase_order.read" },
       { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
       { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
-      { name: "Down Payments", url: "/purchase/supplier-invoice-down-payments", icon: "banknote", permission: "supplier_invoice_dp.read" },
+      { name: "Supplier Invoices DP", url: "/purchase/supplier-invoice-down-payments", icon: "banknote", permission: "supplier_invoice_dp.read" },
       { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
     ],
   },
