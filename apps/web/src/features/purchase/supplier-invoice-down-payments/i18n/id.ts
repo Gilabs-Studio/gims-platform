@@ -97,6 +97,13 @@ export const supplierInvoiceDPId = {
     select: "Pilih...",
     pickDate: "Pilih tanggal",
   },
+
+  common: {
+    view: "Lihat",
+    cancel: "Batal",
+    error: "Terjadi kesalahan",
+  },
+
   // Dialog cetak
   print: "Cetak",
   printSupplierInvoiceDP: "Cetak Invoice Uang Muka",

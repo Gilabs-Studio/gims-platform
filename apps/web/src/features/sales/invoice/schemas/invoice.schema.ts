@@ -31,6 +31,7 @@ export const getInvoiceSchema = (t?: TranslationFn) => z.object({
   due_date: z.string().optional(),
   type: z.enum(["regular", "proforma"] as const).default("regular"),
   sales_order_id: z.string().uuid().optional(),
+  delivery_order_id: z.string().uuid().optional(),
   payment_terms_id: z.string()
     .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID"))
     .optional(),

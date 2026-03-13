@@ -100,10 +100,10 @@ export function OrderDetailModal({
     const invoiceList = invoicesData?.data ?? [];
     const dpList = dpData?.data ?? [];
 
-    const totalInvoiced = invoiceList.reduce((sum, inv) => sum + (inv.total_amount ?? inv.amount ?? 0), 0);
+    const totalInvoiced = invoiceList.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
     const totalPaidInvoice = invoiceList.reduce((sum, inv) => sum + (inv.paid_amount ?? 0), 0);
     const totalDP = dpList.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
-    const totalPaidDP = dpList.reduce((sum, dp) => sum + (dp.paid_amount ?? 0), 0);
+    const totalPaidDP = 0; // payment tracking not available for DPs in list item type
 
     const orderTotal = order.total_amount ?? 0;
     const totalBilled = totalInvoiced + totalDP;

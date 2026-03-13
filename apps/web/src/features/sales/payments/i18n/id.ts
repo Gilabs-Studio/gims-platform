@@ -35,6 +35,7 @@ export const salesPaymentId = {
     cancel: "Batal",
   },
   fields: {
+    code: "Pembayaran #",
     downPayment: "Down Payment",
     paymentDetails: "Detail Pembayaran",
     invoice: "Invoice",
@@ -80,6 +81,9 @@ export const salesPaymentId = {
       print: "Cetak",
     },
   },
+
+  notFound: "Tidak ada pembayaran",
+  forbidden: "Anda tidak memiliki izin untuk melihat pembayaran.",
 
   // Print dialog
   print: "Cetak",

@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { PurchasePaymentForm } from "@/features/purchase/payments/components/purchase-payment-form";
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 import { Button } from "@/components/ui/button";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
@@ -145,6 +146,14 @@ function SupplierInvoiceDPDetailView({
   const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
   const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
 
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
+  };
+
   const submitMutation = useSubmitSupplierInvoiceDP();
   const approveMutation = useApproveSupplierInvoiceDP();
   const rejectMutation = useRejectSupplierInvoiceDP();
@@ -222,7 +231,25 @@ function SupplierInvoiceDPDetailView({
                   <TableCell className="font-mono font-semibold">{data.code}</TableCell>
                   <TableCell className="font-medium bg-muted/50 w-44">{t("fields.status")}</TableCell>
                   <TableCell>
-                    <SupplierInvoiceDownPaymentStatusBadge status={data.status} />
+                    {(() => {
+                      const clickable = isPaymentStatus(data.status);
+                      if (!clickable) {
+                        return <SupplierInvoiceDownPaymentStatusBadge status={data.status} />;
+                      }
+                      return (
+                        <button
+                          type="button"
+                          className="inline-flex items-center cursor-pointer"
+                          title={tCommon("view")}
+                          onClick={() => {
+                            setSelectedInvoiceForPayments({ id: data.id, code: data.code });
+                            setIsPaymentDetailOpen(true);
+                          }}
+                        >
+                          <SupplierInvoiceDownPaymentStatusBadge status={data.status} />
+                        </button>
+                      );
+                    })()}
                   </TableCell>
                 </TableRow>
                 <TableRow>
@@ -339,6 +366,20 @@ function SupplierInvoiceDPDetailView({
           open={isCreatePaymentOpen}
           onClose={() => setIsCreatePaymentOpen(false)}
           defaultInvoiceId={data.id}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
 

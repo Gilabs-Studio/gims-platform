@@ -35,6 +35,7 @@ export type GoodsReceiptStatus =
   | "SUBMITTED"
   | "APPROVED"
   | "CLOSED"
+  | "PARTIAL"
   | "REJECTED"
   | "CONFIRMED"; // legacy
 

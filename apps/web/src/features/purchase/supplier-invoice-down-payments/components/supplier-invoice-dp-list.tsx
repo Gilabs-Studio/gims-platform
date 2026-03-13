@@ -58,6 +58,7 @@ import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
 import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
 import { SupplierInvoiceDPDetailModal } from "./supplier-invoice-dp-detail-modal";
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 const SupplierInvoiceDPFormDialog = dynamic(
   () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
@@ -127,6 +128,13 @@ export function SupplierInvoiceDPList() {
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
+  };
 
   const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
   const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
@@ -339,7 +347,26 @@ export function SupplierInvoiceDPList() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(row.amount)}</TableCell>
                     <TableCell>
-                      <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                      {(() => {
+                        const clickable = isPaymentStatus(row.status);
+                        if (!clickable) {
+                          return <SupplierInvoiceDownPaymentStatusBadge status={row.status} />;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className="inline-flex items-center cursor-pointer"
+                            title={t("common.view")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoiceForPayments({ id: row.id, code: (row.invoice_number || row.code) ?? "" });
+                              setIsPaymentDetailOpen(true);
+                            }}
+                          >
+                            <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                          </button>
+                        );
+                      })()}
                     </TableCell>
                     {canShowActions && (
                       <TableCell>
@@ -542,6 +569,20 @@ export function SupplierInvoiceDPList() {
           open={!!printingId}
           onClose={() => setPrintingId(null)}
           invoiceId={printingId}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
 

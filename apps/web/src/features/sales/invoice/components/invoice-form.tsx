@@ -30,9 +30,10 @@ interface InvoiceFormProps {
   readonly onClose: () => void;
   readonly invoice?: CustomerInvoice | null;
   readonly defaultSalesOrderId?: string;
+  readonly defaultDeliveryOrderId?: string;
 }
 
-export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: InvoiceFormProps) {
+export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defaultDeliveryOrderId }: InvoiceFormProps) {
   const {
     form,
     t,
@@ -64,7 +65,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
-  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId });
+  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
 

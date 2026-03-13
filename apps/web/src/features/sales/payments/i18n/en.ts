@@ -35,6 +35,7 @@ export const salesPaymentEn = {
     amountRequired: "Amount is required.",
   },
   fields: {
+    code: "Payment #",
     invoice: "Invoice",
     downPayment: "Down Payment",
     paymentDetails: "Payment Details",
@@ -80,6 +81,9 @@ export const salesPaymentEn = {
       print: "Print",
     },
   },
+
+  notFound: "No payments found",
+  forbidden: "You don't have permission to view payments.",
 
   // Print dialog
   print: "Print",

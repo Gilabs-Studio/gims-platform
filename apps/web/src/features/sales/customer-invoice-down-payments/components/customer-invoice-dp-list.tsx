@@ -46,6 +46,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
+import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
@@ -84,6 +85,16 @@ function safeDate(value?: string | null): string {
 function normalizeStatus(status?: string | null): string {
   const normalized = (status ?? "").toLowerCase();
   return normalized === "approved" ? "unpaid" : normalized;
+}
+
+function isPaymentStatus(status?: string | null): boolean {
+  const normalized = normalizeStatus(status);
+  return (
+    normalized === "waiting_payment" ||
+    normalized === "paid" ||
+    normalized === "partial" ||
+    normalized === "unpaid"
+  );
 }
 
 interface QueryListData<T> {
@@ -167,6 +178,10 @@ export function CustomerInvoiceDPList() {
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [createPaymentForDPId, setCreatePaymentForDPId] = useState<string | null>(null);
+
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] =
+    useState<{ id: string; code: string } | null>(null);
 
   const listParams = useMemo(
     () => ({
@@ -445,7 +460,25 @@ export function CustomerInvoiceDPList() {
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount)}</TableCell>
-                  <TableCell>{getStatusBadge(row.status)}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const clickable = isPaymentStatus(row.status);
+                      if (!clickable) return getStatusBadge(row.status);
+                      return (
+                        <button
+                          type="button"
+                          className="inline-flex items-center cursor-pointer"
+                          title={tCommon("view")}
+                          onClick={() => {
+                            setSelectedInvoiceForPayments({ id: row.id, code: row.code });
+                            setIsPaymentDetailOpen(true);
+                          }}
+                        >
+                          {getStatusBadge(row.status)}
+                        </button>
+                      );
+                    })()}
+                  </TableCell>
                   {canShowActions ? (
                     <TableCell>
                       <DropdownMenu>
@@ -634,6 +667,20 @@ export function CustomerInvoiceDPList() {
           open={!!createPaymentForDPId}
           onClose={() => setCreatePaymentForDPId(null)}
           defaultDPId={createPaymentForDPId}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <SalesPaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
     </div>

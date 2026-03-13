@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { InvoiceForm } from "./invoice-form";
+import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import {
   useDeleteInvoice,
   useUpdateInvoiceStatus,
@@ -72,6 +73,15 @@ export function InvoiceDetailModal({
 
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  // payment dialog state
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
+  };
 
   const customerProp: Customer | null = selectedCustomerId
     ? ({
@@ -178,7 +188,25 @@ export function InvoiceDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayInvoice?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {invoice && getStatusBadge(invoice.status)}
+                  {invoice && (() => {
+                    const clickable = isPaymentStatus(invoice.status);
+                    if (!clickable) {
+                      return getStatusBadge(invoice.status);
+                    }
+                    return (
+                      <button
+                        type="button"
+                        className="inline-flex items-center cursor-pointer"
+                        title={t("common.view")}
+                        onClick={() => {
+                          setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.code || invoice.invoice_number || "" });
+                          setIsPaymentOpen(true);
+                        }}
+                      >
+                        {getStatusBadge(invoice.status)}
+                      </button>
+                    );
+                  })()}
                   <span className="text-sm text-muted-foreground">
                     {displayInvoice?.invoice_date && new Date(displayInvoice.invoice_date).toLocaleDateString()}
                   </span>
@@ -512,6 +540,20 @@ export function InvoiceDetailModal({
         onOpenChange={setIsProductOpen}
         productId={selectedProductId}
       />
+
+      {isPaymentOpen && selectedInvoiceForPayments && (
+        <SalesPaymentsLinkedDialog
+          open={isPaymentOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
 
     </>
   );

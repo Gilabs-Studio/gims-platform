@@ -19,6 +19,7 @@ import { invoiceKeys } from "../hooks/use-invoices";
 import { orderKeys } from "../../order/hooks/use-orders";
 import { InvoicePrintDialog } from "./invoice-print-dialog";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
+import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
@@ -120,6 +121,8 @@ export function InvoiceList() {
 
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
@@ -204,6 +207,11 @@ export function InvoiceList() {
     if (invoice.status === "paid" || invoice.status === "cancelled") return false;
     if (!invoice.due_date) return false;
     return new Date(invoice.due_date) < new Date();
+  };
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "partial" || normalized === "waiting_payment" || normalized === "paid";
   };
 
   
@@ -398,7 +406,26 @@ export function InvoiceList() {
                         {t("overdue")}
                       </Badge>
                     ) : (
-                      <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
+                      (() => {
+                        const clickable = isPaymentStatus(invoice.status);
+                        if (!clickable) {
+                          return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className="inline-flex items-center cursor-pointer"
+                            title={t("common.view")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.invoice_number || invoice.code });
+                              setIsPaymentDetailOpen(true);
+                            }}
+                          >
+                            <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
+                          </button>
+                        );
+                      })()
                     )}
                   </TableCell>
                   <TableCell>
@@ -592,6 +619,20 @@ export function InvoiceList() {
           open={!!createPaymentForInvoiceId}
           onClose={() => setCreatePaymentForInvoiceId(null)}
           defaultInvoiceId={createPaymentForInvoiceId}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <SalesPaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
     </div>

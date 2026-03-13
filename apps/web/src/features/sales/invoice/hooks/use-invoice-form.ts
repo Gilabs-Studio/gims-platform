@@ -26,9 +26,10 @@ export interface UseInvoiceFormProps {
   open: boolean;
   onClose: () => void;
   defaultSalesOrderId?: string;
+  defaultDeliveryOrderId?: string;
 }
 
-export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: UseInvoiceFormProps) {
+export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId }: UseInvoiceFormProps) {
   const isEdit = !!invoice;
   const t = useTranslations("invoice");
   const createInvoice = useCreateInvoice();
@@ -98,6 +99,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
           sales_order_id: defaultSalesOrderId ?? undefined,
+          delivery_order_id: defaultDeliveryOrderId ?? undefined,
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
@@ -106,7 +108,6 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
   });
 
   const {
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -278,13 +279,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
         invoice_date: new Date().toISOString().split("T")[0],
         type: "regular",
         sales_order_id: defaultSalesOrderId ?? undefined,
+        delivery_order_id: defaultDeliveryOrderId ?? undefined,
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
       });
     }
-  }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId]);
+  }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId, defaultDeliveryOrderId]);
 
   const saveToLocalStorage = (data: CreateInvoiceFormData | UpdateInvoiceFormData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

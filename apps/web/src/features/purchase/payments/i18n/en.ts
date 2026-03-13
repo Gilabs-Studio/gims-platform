@@ -38,6 +38,7 @@ export const purchasePaymentEn = {
     cancel: "Cancel",
   },
   fields: {
+    code: "Payment #",
     invoice: "Invoice",
     paymentDetails: "Payment Details",
     bankAccount: "Bank Account",
@@ -80,6 +81,9 @@ export const purchasePaymentEn = {
       auditTrail: "Audit Trail",
     },
   },
+  notFound: "No payments found",
+  forbidden: "You don't have permission to view payments.",
+
   // Print dialog
   print: "Print",
   printPurchasePayment: "Print Purchase Payment",

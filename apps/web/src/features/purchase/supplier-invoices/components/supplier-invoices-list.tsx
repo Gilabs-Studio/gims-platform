@@ -121,6 +121,8 @@ const PurchasePaymentForm = dynamic(
   { ssr: false },
 );
 
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
+
 export function SupplierInvoicesList() {
   const t = useTranslations("supplierInvoice");
   const tCommon = useTranslations("common");
@@ -153,6 +155,13 @@ export function SupplierInvoicesList() {
 
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
+  };
 
   const listParams = useMemo(
     () => ({
@@ -422,7 +431,26 @@ export function SupplierInvoicesList() {
                     <TableCell className="text-right">{formatCurrency(row.paid_amount ?? 0)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount ?? 0)}</TableCell>
                     <TableCell>
-                      <SupplierInvoiceStatusBadge status={row.status} />
+                      {(() => {
+                        const clickable = isPaymentStatus(row.status);
+                        if (!clickable) {
+                          return <SupplierInvoiceStatusBadge status={row.status} />;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className="inline-flex items-center cursor-pointer"
+                            title={t("actions.view")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoiceForPayments({ id: row.id, code: (row.invoice_number || row.code) ?? "" });
+                              setIsPaymentDetailOpen(true);
+                            }}
+                          >
+                            <SupplierInvoiceStatusBadge status={row.status} />
+                          </button>
+                        );
+                      })()}
                     </TableCell>
                     {canShowActions && (
                       <TableCell>
@@ -629,6 +657,20 @@ export function SupplierInvoicesList() {
           open={!!createPaymentForInvoiceId}
           onClose={() => setCreatePaymentForInvoiceId(null)}
           defaultInvoiceId={createPaymentForInvoiceId}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
 

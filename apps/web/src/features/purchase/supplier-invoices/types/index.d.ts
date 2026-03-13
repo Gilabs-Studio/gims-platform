@@ -187,6 +187,10 @@ export interface SupplierInvoiceAddGoodsReceiptItem {
   purchase_order_item_id: string;
   product?: SupplierInvoiceAddProductMini | null;
   quantity_received: number;
+  quantity_invoiced: number;
+  quantity_remaining: number;
+  quantity_invoiced: number;
+  quantity_remaining: number;
   price: number;
   sub_total: number;
 }

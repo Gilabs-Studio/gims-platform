@@ -97,6 +97,11 @@ export const supplierInvoiceDPEn = {
     select: "Select...",
     pickDate: "Pick a date",
   },
+  common: {
+    view: "View",
+    cancel: "Cancel",
+    error: "Something went wrong",
+  },
   // Print dialog
   print: "Print",
   printSupplierInvoiceDP: "Print Down Payment Invoice",
