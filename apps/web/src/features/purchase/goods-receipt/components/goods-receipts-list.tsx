@@ -57,7 +57,6 @@ import {
   useSubmitGoodsReceipt,
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
-  useCloseGoodsReceipt,
 } from "../hooks/use-goods-receipts";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
@@ -123,7 +122,6 @@ export function GoodsReceiptsList() {
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
-  const closeMutation = useCloseGoodsReceipt();
 
   if (isError) {
     return (
@@ -362,16 +360,10 @@ export function GoodsReceiptsList() {
                           {canClose && (it.status ?? "").toUpperCase() === "APPROVED" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
-                              onClick={async () => {
-                                try {
-                                  await closeMutation.mutateAsync(it.id);
-                                  toast.success(t("toast.closed"));
-                                  setSiFormPOId(it.purchase_order?.id ?? null);
-                                  setSiFormGRId(it.id);
-                                  setSiFormOpen(true);
-                                } catch {
-                                  toast.error(t("toast.failed"));
-                                }
+                              onClick={() => {
+                                setSiFormPOId(it.purchase_order?.id ?? null);
+                                setSiFormGRId(it.id);
+                                setSiFormOpen(true);
                               }}
                             >
                               <FileText className="h-4 w-4 mr-2" />

@@ -45,7 +45,6 @@ import {
   useSubmitGoodsReceipt,
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
-  useCloseGoodsReceipt,
 } from "../hooks/use-goods-receipts";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
@@ -96,7 +95,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
-  const closeMutation = useCloseGoodsReceipt();
 
   if (!goodsReceiptId) return null;
 
@@ -144,16 +142,10 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     }
   };
 
-  // Compound action: Close the GR (triggers stock/journal/asset) then open the SI creation form.
-  const handleConvertToSI = async () => {
+  // Open SI form first; conversion is completed when SI is submitted.
+  const handleConvertToSI = () => {
     if (!id) return;
-    try {
-      await closeMutation.mutateAsync(id);
-      toast.success(t("toast.closed"));
-      setIsSIFormOpen(true);
-    } catch {
-      toast.error(t("toast.failed"));
-    }
+    setIsSIFormOpen(true);
   };
 
   return (
@@ -250,7 +242,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     variant="ghost"
                     size="icon"
                     onClick={handleConvertToSI}
-                    disabled={closeMutation.isPending}
                     className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                     title={t("convertToSupplierInvoice")}
                   >
@@ -339,7 +330,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                                       setSelectedSupplierId(gr.supplier!.id);
                                       setIsSupplierOpen(true);
                                     }}
-                                    className="text-primary hover:underline cursor-pointer text-left text-sm text-sm"
+                                    className="text-primary hover:underline cursor-pointer text-left text-sm"
                                   >
                                     {gr.supplier.name}
                                   </button>
