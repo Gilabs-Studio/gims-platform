@@ -20,6 +20,8 @@ import { DeliverDialog } from "./deliver-dialog";
 import {
   useDeleteDeliveryOrder,
   useDeliveryOrder,
+  useUpdateDeliveryOrderStatus,
+  useApproveDeliveryOrder,
   useShipDeliveryOrder,
   useDeliverDeliveryOrder,
 } from "../hooks/use-deliveries";
@@ -65,7 +67,12 @@ export function DeliveryDetailModal({
   const canDelete = useUserPermission("delivery_order.delete");
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
+  const canApprove = useUserPermission("delivery_order.approve");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canUpdate = useUserPermission("delivery_order.update");
+
+  const updateStatus = useUpdateDeliveryOrderStatus();
+  const approveMutation = useApproveDeliveryOrder();
 
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
 
@@ -173,6 +180,98 @@ export function DeliveryDetailModal({
                     title={t("common.edit")}
                   >
                     <Edit className="h-4 w-4" />
+                  </Button>
+                )}
+                {canUpdate && displayDelivery?.status === "draft" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={async () => {
+                      if (!delivery?.id) return;
+                      try {
+                        await updateStatus.mutateAsync({ id: delivery.id, data: { status: "sent" } });
+                        toast.success(t("actions.submitSuccess") || t("statusUpdated"));
+                        onClose();
+                      } catch (error) {
+                        console.error("Failed to submit delivery:", error);
+                        toast.error(t("common.error"));
+                      }
+                    }}
+                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={t("actions.submit")}
+                    disabled={updateStatus.isPending}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+                {displayDelivery?.status === "sent" && (
+                  <>
+                    {canApprove && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async () => {
+                          if (!delivery?.id) return;
+                          try {
+                            await approveMutation.mutateAsync(delivery.id);
+                            toast.success(t("statusUpdated"));
+                            onClose();
+                          } catch (error) {
+                            console.error("Failed to approve delivery:", error);
+                            toast.error(t("common.error"));
+                          }
+                        }}
+                        className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title={t("actions.approve")}
+                        disabled={approveMutation.isPending}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canUpdate && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async () => {
+                          if (!delivery?.id) return;
+                          try {
+                            await updateStatus.mutateAsync({ id: delivery.id, data: { status: "rejected" } });
+                            toast.success(t("statusUpdated"));
+                            onClose();
+                          } catch (error) {
+                            console.error("Failed to reject delivery:", error);
+                            toast.error(t("common.error"));
+                          }
+                        }}
+                        className="cursor-pointer text-destructive hover:text-destructive"
+                        title={t("actions.reject")}
+                        disabled={updateStatus.isPending}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+                {displayDelivery?.status === "approved" && canUpdate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={async () => {
+                      if (!delivery?.id) return;
+                      try {
+                        await updateStatus.mutateAsync({ id: delivery.id, data: { status: "prepared" } });
+                        toast.success(t("statusUpdated"));
+                        onClose();
+                      } catch (error) {
+                        console.error("Failed to prepare delivery:", error);
+                        toast.error(t("common.error"));
+                      }
+                    }}
+                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={t("actions.prepare")}
+                    disabled={updateStatus.isPending}
+                  >
+                    <Package className="h-4 w-4" />
                   </Button>
                 )}
                 {canDelete && delivery?.status === "draft" && (
@@ -486,11 +585,12 @@ export function DeliveryDetailModal({
       />
 
       {/* Create Invoice from delivered DO's sales order */}
-      {delivery && isCreateInvoiceOpen && displayDelivery?.sales_order_id && (
+      {delivery && isCreateInvoiceOpen && (
         <InvoiceForm
           open={isCreateInvoiceOpen}
           onClose={() => setIsCreateInvoiceOpen(false)}
-          defaultSalesOrderId={displayDelivery.sales_order_id}
+          defaultSalesOrderId={displayDelivery?.sales_order_id}
+          defaultDeliveryOrderId={displayDelivery?.id}
         />
       )}
     </>

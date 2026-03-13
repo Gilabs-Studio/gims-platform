@@ -129,6 +129,7 @@ export const deliveryId = {
     actions: {
       send: "Kirim",
       submit: "Ajukan",
+      submitSuccess: "Surat jalan berhasil diajukan",
       approve: "Setujui",
       reject: "Tolak",
       prepare: "Siapkan",

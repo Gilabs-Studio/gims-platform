@@ -129,6 +129,7 @@ export const deliveryEn = {
     actions: {
       send: "Send",
       submit: "Submit",
+      submitSuccess: "Delivery order submitted",
       approve: "Approve",
       reject: "Reject",
       prepare: "Prepare",
