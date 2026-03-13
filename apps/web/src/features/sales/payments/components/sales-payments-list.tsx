@@ -247,6 +247,23 @@ export function SalesPaymentsList() {
                               {t("actions.view")}
                             </DropdownMenuItem>
 
+                            {canConfirm && isPending && (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await confirmMutation.mutateAsync(item.id);
+                                    toast.success(t("toast.confirmed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                                className="cursor-pointer text-green-600 focus:text-green-600"
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.confirm")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canAuditTrail && (
                               <DropdownMenuItem
                                 onClick={() => {
@@ -260,32 +277,6 @@ export function SalesPaymentsList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canConfirm && isPending && (
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    await confirmMutation.mutateAsync(item.id);
-                                    toast.success(t("toast.confirmed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.confirm")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canDelete && isPending && (
-                              <DropdownMenuItem
-                                onClick={() => setDeletingItem(item)}
-                                className="cursor-pointer text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                {t("actions.delete")}
-                              </DropdownMenuItem>
-                            )}
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingPaymentId(item.id)}
@@ -293,6 +284,15 @@ export function SalesPaymentsList() {
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
+                              </DropdownMenuItem>
+                            )}
+                            {canDelete && isPending && (
+                              <DropdownMenuItem
+                                onClick={() => setDeletingItem(item)}
+                                className="cursor-pointer text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {t("actions.delete")}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>

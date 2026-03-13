@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Calendar, CheckCircle2, Clock } from "lucide-react";
 
 import {
   Dialog,
@@ -9,22 +10,33 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Banknote,
-  Calendar,
-  CreditCard,
-  FileText,
-  Hash,
-} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 import { usePurchasePayment } from "../hooks/use-purchase-payments";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
+import { Badge } from "@/components/ui/badge";
 
 interface PurchasePaymentDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly paymentId?: string | null;
+}
+function StatusBadge({ status, t }: { status?: string | null; t: ReturnType<typeof useTranslations> }) {
+  const normalized = (status ?? "").toUpperCase();
+  if (normalized === "CONFIRMED") {
+    return (
+      <Badge variant="success" className="text-xs font-medium">
+        <CheckCircle2 className="h-3 w-3 mr-1" />
+        {t("status.confirmed")}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="warning" className="text-xs font-medium">
+      <Clock className="h-3 w-3 mr-1" />
+      {t("status.pending")}
+    </Badge>
+  );
 }
 
 export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaymentDetailProps) {
@@ -43,87 +55,97 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
         if (!v) onClose();
       }}
     >
-      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <DialogTitle className="text-xl">
+      <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="mb-2">
+          <div className="flex items-center gap-3">
+            <DialogTitle className="text-xl font-semibold tracking-tight">
               {detail?.invoice?.invoice_number ?? t("actions.view")}
             </DialogTitle>
-            {detail && <PurchasePaymentStatusBadge status={detail.status ?? ""} />}
+            {detail && <StatusBadge status={detail.status ?? ""} t={t} />}
           </div>
         </DialogHeader>
 
         {isFetching ? (
-          <div className="space-y-3">
+          <div className="space-y-4 pt-2">
             <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-40 w-full" />
           </div>
         ) : isError || !detail ? (
-          <div className="text-sm text-destructive">{t("toast.failed")}</div>
+          <div className="text-sm text-destructive py-4">{t("toast.failed")}</div>
         ) : (
-          <div className="space-y-6 pt-2">
-            {/* Header Card */}
-            <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border">
-              <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                <CreditCard className="h-6 w-6" />
+          <div className="space-y-6">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {t("fields.referenceNumber")}
+                </p>
+                <p className="text-lg font-mono font-medium text-foreground/90">
+                  {detail.reference_number ?? "-"}
+                </p>
               </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-lg">{detail.invoice?.invoice_number ?? "-"}</h3>
-                <p className="text-sm text-muted-foreground">{t("fields.invoice")}</p>
-              </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <div className="flex items-center gap-1 justify-end">
-                  <Calendar className="h-3 w-3" />
-                  {formatDate(detail.payment_date)}
-                </div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-muted/40 px-3 py-1.5 rounded-full border">
+                <Calendar className="h-4 w-4" />
+                <span className="font-medium">{formatDate(detail.payment_date)}</span>
               </div>
             </div>
 
-            {/* Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
-                  <Banknote className="h-4 w-4" />
-                  {t("fields.bankAccount")}
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="grid grid-cols-3 gap-2">
+            <Separator />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold border-b pb-2">{t("fields.bankAccount")}</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t("fields.bankAccount")}</span>
-                    <span className="col-span-2 font-medium">{detail.bank_account?.name ?? "-"}</span>
+                    <span className="font-medium text-right">{detail.bank_account?.name ?? "-"}</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t("fields.method")}</span>
-                    <span className="col-span-2 font-medium capitalize">{(detail.method ?? "").toLowerCase()}</span>
+                    <span className="font-medium capitalize text-right">{detail.method?.toLowerCase() ?? "-"}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="font-semibold flex items-center gap-2 text-sm border-b pb-2">
-                  <FileText className="h-4 w-4" />
-                  {t("fields.notes")}
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-muted-foreground">{t("fields.referenceNumber")}</span>
-                    <span className="col-span-2 font-mono font-medium">{detail.reference_number ?? "-"}</span>
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold border-b pb-2">{t("overview.title")}</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("overview.invoiceDate")}</span>
+                    <span className="font-medium text-right">{formatDate(detail.invoice?.invoice_date)}</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-muted-foreground">{t("fields.notes")}</span>
-                    <span className="col-span-2 font-medium">{detail.notes ?? "-"}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("overview.dueDate")}</span>
+                    <span className="font-medium text-right">{formatDate(detail.invoice?.due_date)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("overview.status")}</span>
+                    <span className="font-medium text-right">{detail.invoice?.status ?? "-"}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Amount Card */}
-            <div className="bg-card border rounded-lg overflow-hidden">
-              <div className="p-4 flex justify-between items-center px-6 bg-muted/20">
-                <div className="flex items-center gap-2">
-                  <Hash className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold">{t("fields.amount")}</span>
+            {detail.notes && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">{t("fields.notes")}</h4>
+                <div className="text-sm text-muted-foreground bg-muted/30 p-3.5 rounded-md border min-h-[80px] whitespace-pre-wrap">
+                  {detail.notes}
                 </div>
-                <span className="font-mono font-bold text-xl">{formatCurrency(detail.amount)}</span>
+              </div>
+            )}
+
+            <div className="rounded-lg border bg-muted/10 p-5">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-medium text-muted-foreground">{t("overview.amount")}</span>
+                <span className="font-mono font-medium text-muted-foreground">
+                  {formatCurrency(detail.invoice?.amount ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="font-semibold">{t("fields.amount")}</span>
+                <span className="text-2xl font-bold font-mono text-primary">
+                  {formatCurrency(detail.amount)}
+                </span>
               </div>
             </div>
           </div>
