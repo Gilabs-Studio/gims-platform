@@ -50,6 +50,7 @@ import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { SILinkedDialog } from "./si-linked-dialog";
 
 interface GoodsReceiptDetailProps {
   readonly open: boolean;
@@ -71,6 +72,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
   const [isSIFormOpen, setIsSIFormOpen] = useState(false);
+  const [siLinkedOpen, setSiLinkedOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
@@ -159,7 +161,16 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   {gr?.code ?? t("detail.title")}
                 </DialogTitle>
                 <div className="flex items-center gap-3">
-                  {gr && <GoodsReceiptStatusBadge status={gr.status} />}
+                  {gr && (
+                    <GoodsReceiptStatusBadge
+                      status={gr.status}
+                      onClick={
+                        status === "CLOSED" || status === "PARTIAL"
+                          ? () => setSiLinkedOpen(true)
+                          : undefined
+                      }
+                    />
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {gr?.receipt_date && new Date(gr.receipt_date).toLocaleDateString()}
                   </span>
@@ -237,7 +248,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
-                {status === "APPROVED" && canClose && (
+                {(status === "APPROVED" || status === "PARTIAL") && canClose && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -281,7 +292,14 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.status")}</TableCell>
                         <TableCell>
-                          <GoodsReceiptStatusBadge status={gr.status} />
+                          <GoodsReceiptStatusBadge
+                            status={gr.status}
+                            onClick={
+                              status === "CLOSED" || status === "PARTIAL"
+                                ? () => setSiLinkedOpen(true)
+                                : undefined
+                            }
+                          />
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.purchaseOrder")}</TableCell>
                         <TableCell>
@@ -524,6 +542,16 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         defaultPurchaseOrderId={gr?.purchase_order?.id ?? null}
         defaultGoodsReceiptId={gr?.id ?? null}
       />
+      
+      {gr && siLinkedOpen && (
+        <SILinkedDialog
+          open={siLinkedOpen}
+          onOpenChange={setSiLinkedOpen}
+          goodsReceiptCode={gr.code}
+          goodsReceiptId={gr.id}
+          purchaseOrderId={gr.purchase_order?.id ?? ""}
+        />
+      )}
     </>
   );
 }

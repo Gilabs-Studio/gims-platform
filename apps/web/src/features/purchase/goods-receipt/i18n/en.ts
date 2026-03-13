@@ -89,6 +89,7 @@ export const goodsReceiptEn = {
     draft: "Draft",
     submitted: "Submitted",
     approved: "Approved",
+    partial: "Partial",
     closed: "Closed",
     rejected: "Rejected",
   },

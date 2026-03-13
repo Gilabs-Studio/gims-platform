@@ -27,6 +27,7 @@ func getNextSupplierInvoiceCodeLocked(tx *gorm.DB, prefix string) (string, error
 
 	var last string
 	_ = tx.Model(&models.SupplierInvoice{}).
+		Unscoped().
 		Where("code LIKE ?", like).
 		Order("code DESC").
 		Limit(1).

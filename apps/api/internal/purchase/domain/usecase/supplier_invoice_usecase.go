@@ -99,11 +99,11 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		ptRes = append(ptRes, dto.SupplierInvoiceAddPaymentTerms{ID: pt.ID, Name: pt.Name})
 	}
 
-	// Fetch APPROVED/CLOSED Goods Receipts as the source for creating Supplier Invoices
+	// Fetch APPROVED/PARTIAL/CLOSED Goods Receipts as the source for creating Supplier Invoices
 	var grs []*models.GoodsReceipt
 	if err := uc.db.WithContext(ctx).
 		Model(&models.GoodsReceipt{}).
-		Where("status IN ?", []string{string(models.GoodsReceiptStatusApproved), string(models.GoodsReceiptStatusClosed)}).
+		Where("status IN ?", []string{string(models.GoodsReceiptStatusApproved), string(models.GoodsReceiptStatusPartial), string(models.GoodsReceiptStatusClosed)}).
 		Preload("PurchaseOrder").
 		Preload("PurchaseOrder.PaymentTerms").
 		Preload("Supplier").
@@ -134,6 +134,36 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		priceMap[p.ID] = p.Price
 	}
 
+	grIDs := make([]string, 0, len(grs))
+	for _, gr := range grs {
+		grIDs = append(grIDs, gr.ID)
+	}
+	type grQtySum struct {
+		GoodsReceiptID string
+		ProductID      string
+		Qty            float64
+	}
+	var invoicedSums []grQtySum
+	if len(grIDs) > 0 {
+		uc.db.WithContext(ctx).Table("supplier_invoice_items").
+			Select("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
+			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
+			Where("supplier_invoices.goods_receipt_id IN ? AND supplier_invoices.status NOT IN ?", grIDs, []string{
+				string(models.SupplierInvoiceStatusRejected),
+				string(models.SupplierInvoiceStatusCancelled),
+			}).
+			Where("supplier_invoices.deleted_at IS NULL").
+			Group("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id").
+			Scan(&invoicedSums)
+	}
+	grInvoicedMap := make(map[string]map[string]float64)
+	for _, s := range invoicedSums {
+		if grInvoicedMap[s.GoodsReceiptID] == nil {
+			grInvoicedMap[s.GoodsReceiptID] = make(map[string]float64)
+		}
+		grInvoicedMap[s.GoodsReceiptID][s.ProductID] = s.Qty
+	}
+
 	grRes := make([]dto.SupplierInvoiceAddGoodsReceipt, 0, len(grs))
 	for _, gr := range grs {
 		items := make([]dto.SupplierInvoiceAddGoodsReceiptItem, 0, len(gr.Items))
@@ -143,13 +173,23 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 				prod = &dto.SupplierInvoiceAddProductMini{ID: it.Product.ID, Name: it.Product.Name, Code: it.Product.Code, ImageURL: it.Product.ImageURL}
 			}
 			price := priceMap[it.PurchaseOrderItemID]
+			qtyInv := 0.0
+			if grInvoicedMap[gr.ID] != nil {
+				qtyInv = grInvoicedMap[gr.ID][it.ProductID]
+			}
+			qtyRem := it.QuantityReceived - qtyInv
+			if qtyRem < 0 {
+				qtyRem = 0
+			}
 			items = append(items, dto.SupplierInvoiceAddGoodsReceiptItem{
 				ID:                  it.ID,
 				PurchaseOrderItemID: it.PurchaseOrderItemID,
 				Product:             prod,
 				QuantityReceived:    it.QuantityReceived,
+				QuantityInvoiced:    qtyInv,
+				QuantityRemaining:   qtyRem,
 				Price:               price,
-				SubTotal:            it.QuantityReceived * price,
+				SubTotal:            qtyRem * price,
 			})
 		}
 
@@ -177,13 +217,13 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		}
 
 		addGR := dto.SupplierInvoiceAddGoodsReceipt{
-			ID:                   gr.ID,
-			Code:                 gr.Code,
-			PurchaseOrder:        poMini,
-			Supplier:             sup,
-			ReceiptDate:          gr.ReceiptDate,
-			Status:               string(gr.Status),
-			Items:                items,
+			ID:                      gr.ID,
+			Code:                    gr.Code,
+			PurchaseOrder:           poMini,
+			Supplier:                sup,
+			ReceiptDate:             gr.ReceiptDate,
+			Status:                  string(gr.Status),
+			Items:                   items,
 			DefaultPaymentTermsID:   defaultPTID,
 			DefaultPaymentTermsName: defaultPTName,
 		}
@@ -231,7 +271,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			}
 			return err
 		}
-		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusClosed {
+		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusPartial && gr.Status != models.GoodsReceiptStatusClosed {
 			return ErrInvalidStatus
 		}
 
@@ -267,26 +307,9 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		items := make([]models.SupplierInvoiceItem, 0, len(req.Items))
 		subTotal := 0.0
 
-		// Validate items against GR items (by product_id) — qty must not exceed received
-		receivedQtyByProduct := make(map[string]float64)
-		poItemIDByProduct := make(map[string]string)
-		for _, it := range gr.Items {
-			receivedQtyByProduct[it.ProductID] += it.QuantityReceived
-			poItemIDByProduct[it.ProductID] = it.PurchaseOrderItemID
-		}
-
-		reqQtyByProduct := make(map[string]float64)
-		for _, it := range req.Items {
-			reqQtyByProduct[it.ProductID] += it.Quantity
-		}
-		for pid, q := range reqQtyByProduct {
-			received := receivedQtyByProduct[pid]
-			if received <= 0 {
-				return ErrSupplierInvoiceConflict
-			}
-			if q > received+0.0001 {
-				return ErrSupplierInvoiceConflict
-			}
+		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, "")
+		if err != nil {
+			return err
 		}
 
 		for _, it := range req.Items {
@@ -369,6 +392,12 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}
+
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
 		createdID = si.ID
 		return nil
 	})
@@ -449,7 +478,7 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			}
 			return err
 		}
-		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusClosed {
+		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusPartial && gr.Status != models.GoodsReceiptStatusClosed {
 			return ErrInvalidStatus
 		}
 
@@ -475,23 +504,9 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			return err
 		}
 
-		// Validate items against GR items (by product_id) — qty must not exceed received
-		receivedQtyByProduct := make(map[string]float64)
-		poItemIDByProduct := make(map[string]string)
-		for _, it := range gr.Items {
-			receivedQtyByProduct[it.ProductID] += it.QuantityReceived
-			poItemIDByProduct[it.ProductID] = it.PurchaseOrderItemID
-		}
-
-		reqQtyByProduct := make(map[string]float64)
-		for _, it := range req.Items {
-			reqQtyByProduct[it.ProductID] += it.Quantity
-		}
-		for pid, q := range reqQtyByProduct {
-			received := receivedQtyByProduct[pid]
-			if received <= 0 || q > received+0.0001 {
-				return ErrSupplierInvoiceConflict
-			}
+		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, id)
+		if err != nil {
+			return err
 		}
 
 		newItems := make([]models.SupplierInvoiceItem, 0, len(req.Items))
@@ -604,6 +619,21 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		if err := tx.Create(&newItems).Error; err != nil {
 			return err
 		}
+		oldGRID := ""
+		if si.GoodsReceiptID != nil {
+			oldGRID = *si.GoodsReceiptID
+		}
+
+		if oldGRID != "" && oldGRID != gr.ID {
+			if err := uc.syncGoodsReceiptStatus(tx, oldGRID); err != nil {
+				return err
+			}
+		}
+
+		if err := uc.syncGoodsReceiptStatus(tx, gr.ID); err != nil {
+			return err
+		}
+
 		updatedID = si.ID
 		return nil
 	})
@@ -663,10 +693,18 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 			return ErrSupplierInvoiceConflict
 		}
 		now := apptime.Now()
-		return tx.Model(&si).Updates(map[string]interface{}{
+		if err := tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusSubmitted,
 			"submitted_at": &now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -698,10 +736,18 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 			return ErrSupplierInvoiceConflict
 		}
 		now := apptime.Now()
-		return tx.Model(&si).Updates(map[string]interface{}{
+		if err := tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusApproved,
 			"approved_at": &now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -733,10 +779,18 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 			return ErrSupplierInvoiceConflict
 		}
 		now := apptime.Now()
-		return tx.Model(&si).Updates(map[string]interface{}{
+		if err := tx.Model(&si).Updates(map[string]interface{}{
 			"status":      models.SupplierInvoiceStatusRejected,
 			"rejected_at": &now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -771,10 +825,18 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 			return ErrSupplierInvoiceConflict
 		}
 		now := apptime.Now()
-		return tx.Model(&si).Updates(map[string]interface{}{
+		if err := tx.Model(&si).Updates(map[string]interface{}{
 			"status":       models.SupplierInvoiceStatusCancelled,
 			"cancelled_at": &now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -819,6 +881,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
 				string(models.GoodsReceiptStatusApproved),
+				string(models.GoodsReceiptStatusPartial),
 				string(models.GoodsReceiptStatusClosed),
 			}).
 			Group("product_id").Scan(&receivedSums).Error; err != nil {
@@ -1110,4 +1173,74 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 
 	return entries, total, nil
+}
+
+func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(tx *gorm.DB, grID string) error {
+	if grID == "" {
+		return nil
+	}
+	var gr models.GoodsReceipt
+	if err := tx.Preload("Items").First(&gr, "id = ?", grID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
+		return err
+	}
+	// We only sync if GR is already Approved or Partial or Closed
+	if gr.Status == models.GoodsReceiptStatusDraft || gr.Status == models.GoodsReceiptStatusSubmitted || gr.Status == models.GoodsReceiptStatusRejected {
+		return nil
+	}
+
+	type qtySum struct {
+		ProductID string
+		Qty       float64
+	}
+	var invoicedSums []qtySum
+	if err := tx.Table("supplier_invoice_items").
+		Select("supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
+		Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
+		Where("supplier_invoices.goods_receipt_id = ? AND supplier_invoices.status NOT IN ?",
+			gr.ID, []string{
+				string(models.SupplierInvoiceStatusRejected),
+				string(models.SupplierInvoiceStatusCancelled),
+			}).
+		Where("supplier_invoices.deleted_at IS NULL").
+		Group("supplier_invoice_items.product_id").
+		Scan(&invoicedSums).Error; err != nil {
+		return err
+	}
+
+	invoicedMap := make(map[string]float64)
+	for _, s := range invoicedSums {
+		invoicedMap[s.ProductID] = s.Qty
+	}
+
+	allDone := true
+	hasAny := false
+	for _, it := range gr.Items {
+		inv := invoicedMap[it.ProductID]
+		if inv > 0 {
+			hasAny = true
+		}
+		if inv < it.QuantityReceived-0.0001 {
+			allDone = false
+		}
+	}
+
+	newStatus := models.GoodsReceiptStatusApproved
+	if allDone && len(gr.Items) > 0 {
+		newStatus = models.GoodsReceiptStatusClosed
+	} else if hasAny {
+		newStatus = models.GoodsReceiptStatusPartial
+	}
+
+	if gr.Status != newStatus {
+		updates := map[string]interface{}{"status": newStatus}
+		if newStatus == models.GoodsReceiptStatusClosed {
+			now := apptime.Now()
+			updates["closed_at"] = &now
+		}
+		return tx.Model(&gr).Updates(updates).Error
+	}
+	return nil
 }

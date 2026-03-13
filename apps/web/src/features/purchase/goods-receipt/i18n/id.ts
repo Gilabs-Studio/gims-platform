@@ -89,6 +89,7 @@ export const goodsReceiptId = {
     draft: "Draft",
     submitted: "Diajukan",
     approved: "Disetujui",
+    partial: "Parsial",
     closed: "Ditutup",
     rejected: "Ditolak",
   },

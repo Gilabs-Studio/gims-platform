@@ -207,10 +207,10 @@ export function SupplierInvoiceFormDialog({
         product_id: it.product?.id ?? "",
         product_name: it.product?.name ?? "",
         product_code: it.product?.code ?? "",
-        quantity: it.quantity_received,
+        quantity: it.quantity_remaining,
         price: it.price,
         discount: 0,
-      })),
+      })).filter(it => it.quantity > 0),
       { shouldValidate: true },
     );
     // Auto-fill payment terms from the GR's linked PO when not already set
@@ -543,6 +543,7 @@ export function SupplierInvoiceFormDialog({
                                                 <FieldLabel>{t("items.fields.quantity")}</FieldLabel>
                                                 <NumericInput
                                                     value={row.quantity ?? 0}
+                                                    max={selectedGR?.items.find(x => x.product?.id === row.product_id)?.quantity_remaining}
                                                     onChange={(v) => {
                                                       const items = form.getValues("items");
                                                       items[idx] = { ...items[idx], quantity: v ?? 0 };

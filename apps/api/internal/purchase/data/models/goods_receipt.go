@@ -15,6 +15,7 @@ const (
 	GoodsReceiptStatusDraft     GoodsReceiptStatus = "DRAFT"
 	GoodsReceiptStatusSubmitted GoodsReceiptStatus = "SUBMITTED"
 	GoodsReceiptStatusApproved  GoodsReceiptStatus = "APPROVED"
+	GoodsReceiptStatusPartial   GoodsReceiptStatus = "PARTIAL"
 	GoodsReceiptStatusClosed    GoodsReceiptStatus = "CLOSED"
 	GoodsReceiptStatusRejected  GoodsReceiptStatus = "REJECTED"
 	// Kept for backward compatibility with existing data.

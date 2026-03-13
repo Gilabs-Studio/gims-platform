@@ -169,6 +169,8 @@ type SupplierInvoiceAddGoodsReceiptItem struct {
 	PurchaseOrderItemID string                         `json:"purchase_order_item_id"`
 	Product             *SupplierInvoiceAddProductMini `json:"product,omitempty"`
 	QuantityReceived    float64                        `json:"quantity_received"`
+	QuantityInvoiced    float64                        `json:"quantity_invoiced"`
+	QuantityRemaining   float64                        `json:"quantity_remaining"`
 	Price               float64                        `json:"price"`
 	SubTotal            float64                        `json:"sub_total"`
 }

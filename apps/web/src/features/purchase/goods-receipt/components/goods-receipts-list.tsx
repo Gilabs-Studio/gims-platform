@@ -65,6 +65,7 @@ import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { SILinkedDialog } from "./si-linked-dialog";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -91,6 +92,7 @@ export function GoodsReceiptsList() {
   const [siFormOpen, setSiFormOpen] = useState(false);
   const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
   const [siFormGRId, setSiFormGRId] = useState<string | null>(null);
+  const [siLinkedData, setSiLinkedData] = useState<{ id: string; code: string; purchase_order_id: string } | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -306,7 +308,14 @@ export function GoodsReceiptsList() {
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
-                    <GoodsReceiptStatusBadge status={it.status ?? ""} />
+                    <GoodsReceiptStatusBadge
+                      status={it.status ?? ""}
+                      onClick={
+                        it.status === "CLOSED" || it.status === "PARTIAL"
+                          ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
+                          : undefined
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     {canShowActions && (
@@ -357,7 +366,7 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
-                          {canClose && (it.status ?? "").toUpperCase() === "APPROVED" && (
+                          {canClose && ["APPROVED", "PARTIAL"].includes((it.status ?? "").toUpperCase()) && (
                             <DropdownMenuItem
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
                               onClick={() => {
@@ -528,6 +537,16 @@ export function GoodsReceiptsList() {
         defaultPurchaseOrderId={siFormPOId}
         defaultGoodsReceiptId={siFormGRId}
       />
+
+      {siLinkedData && (
+        <SILinkedDialog
+          open={!!siLinkedData}
+          onOpenChange={(isOpen) => !isOpen && setSiLinkedData(null)}
+          goodsReceiptCode={siLinkedData.code}
+          goodsReceiptId={siLinkedData.id}
+          purchaseOrderId={siLinkedData.purchase_order_id}
+        />
+      )}
     </div>
   );
 }
