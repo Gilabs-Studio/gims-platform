@@ -499,7 +499,7 @@ export function CustomerInvoiceDPList() {
                             {t("actions.view")}
                           </DropdownMenuItem>
 
-                          {canUpdate ? (
+                          {canUpdate && normalizeStatus(row.status) === "draft" ? (
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => {
@@ -522,7 +522,7 @@ export function CustomerInvoiceDPList() {
                             </DropdownMenuItem>
                           ) : null}
 
-                          {canDelete ? (
+                          {canDelete && normalizeStatus(row.status) === "draft" ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
                               onClick={() => setDeletingRow(row)}
