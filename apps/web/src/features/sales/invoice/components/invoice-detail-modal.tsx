@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { InvoiceForm } from "./invoice-form";
+import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import {
   useDeleteInvoice,
@@ -61,6 +62,7 @@ export function InvoiceDetailModal({
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
+  const canCreatePayment = useUserPermission("sales_payment.create") || canPay;
   const canViewCustomer = useUserPermission("customer.read");
 
   const {
@@ -77,6 +79,7 @@ export function InvoiceDetailModal({
   // payment dialog state
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
@@ -96,6 +99,7 @@ export function InvoiceDetailModal({
 
   if (!invoice) return null;
 
+  const status = (invoice.status ?? "").toLowerCase();
   const displayInvoice = detailData?.data ?? invoice;
   const allItems = displayInvoice.items ?? [];
   const totalItems = allItems.length;
@@ -103,55 +107,6 @@ export function InvoiceDetailModal({
     (itemsPage - 1) * pageSize,
     itemsPage * pageSize
   );
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "unpaid":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.unpaid")}
-          </Badge>
-        );
-      case "waiting_payment":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.waiting_payment")}
-          </Badge>
-        );
-      case "sent":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.pending")}
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <DollarSign className="h-3 w-3 mr-1.5" />
-            {t("status.partial")}
-          </Badge>
-        );
-      case "paid":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.paid")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1.5" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge className="text-xs font-medium">{status}</Badge>;
-    }
-  };
 
   const handleDelete = async () => {
     if (!invoice?.id) return;
@@ -161,6 +116,20 @@ export function InvoiceDetailModal({
       onClose();
     } catch (error) {
       console.error("Failed to delete invoice:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleSubmitInvoice = async () => {
+    if (!invoice?.id) return;
+    try {
+      await updateStatus.mutateAsync({
+        id: invoice.id,
+        data: { status: "sent" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch (error) {
+      console.error("Failed to submit invoice:", error);
       toast.error(t("common.error"));
     }
   };
@@ -191,7 +160,7 @@ export function InvoiceDetailModal({
                   {invoice && (() => {
                     const clickable = isPaymentStatus(invoice.status);
                     if (!clickable) {
-                      return getStatusBadge(invoice.status);
+                      return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
                     }
                     return (
                       <button
@@ -203,7 +172,7 @@ export function InvoiceDetailModal({
                           setIsPaymentOpen(true);
                         }}
                       >
-                        {getStatusBadge(invoice.status)}
+                        <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
                       </button>
                     );
                   })()}
@@ -213,7 +182,7 @@ export function InvoiceDetailModal({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && invoice?.status === "unpaid" && (
+                {canEdit && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -224,7 +193,18 @@ export function InvoiceDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && invoice?.status === "unpaid" && (
+                {canEdit && status === "draft" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSubmitInvoice}
+                    className="cursor-pointer text-primary hover:text-primary/80 hover:bg-primary/5"
+                    title={t("actions.submit")}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+                {canDelete && (status === "draft" || status === "unpaid") && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -235,7 +215,18 @@ export function InvoiceDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-                {canPay && (invoice?.status === "unpaid" || invoice?.status === "partial") && (
+                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreatePaymentOpen(true)}
+                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={t("actions.createPayment")}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </Button>
+                )}
+                {canPay && ["unpaid", "partial", "waiting_payment"].includes(status) && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -271,7 +262,9 @@ export function InvoiceDetailModal({
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
-                        <TableCell>{getStatusBadge(displayInvoice.status)}</TableCell>
+                        <TableCell>
+                          <InvoiceStatusBadge status={displayInvoice.status} className="text-xs font-medium" />
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("dueDate")}</TableCell>
                         <TableCell>
                           {displayInvoice.due_date 
@@ -552,6 +545,14 @@ export function InvoiceDetailModal({
           }}
           invoiceId={selectedInvoiceForPayments.id}
           invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
+
+      {isCreatePaymentOpen && invoice?.id && (
+        <SalesPaymentForm
+          open={isCreatePaymentOpen}
+          onClose={() => setIsCreatePaymentOpen(false)}
+          defaultInvoiceId={invoice.id}
         />
       )}
 

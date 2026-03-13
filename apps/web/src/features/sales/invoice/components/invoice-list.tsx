@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, Printer } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CreditCard, XCircle, CheckCircle2, AlertTriangle, Send, Printer } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,8 +26,8 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
-import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
-import type { SalesOrder } from "../../order/types";
+import type { CustomerInvoice, CustomerInvoiceListResponse, CustomerInvoiceStatus } from "../types";
+import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
 import type { DeliveryOrder } from "../../delivery/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -115,6 +115,8 @@ export function InvoiceList() {
   const canDelete = useUserPermission("customer_invoice.delete");
   const canView = useUserPermission("customer_invoice.read");
   const canApprove = useUserPermission("customer_invoice.approve");
+  const canPay = useUserPermission("customer_invoice.pay");
+  const canCreatePayment = useUserPermission("sales_payment.create") || canPay;
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
   const canPrint = useUserPermission("customer_invoice.print");
@@ -175,32 +177,47 @@ export function InvoiceList() {
   const handleOpenCreatePayment = (invoice: CustomerInvoice) => {
     try {
       queryClient.cancelQueries({ queryKey: invoiceKeys.lists() });
-      queryClient.setQueriesData({ queryKey: invoiceKeys.lists() }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: invoiceKeys.lists() }, (old: CustomerInvoiceListResponse | undefined) => {
         if (!old?.data) return old;
-        return { ...old, data: old.data.map((inv: CustomerInvoice) => (inv.id === invoice.id ? { ...inv, status: "waiting_payment" } : inv)) };
+        return {
+          ...old,
+          data: old.data.map((inv) =>
+            inv.id === invoice.id ? { ...inv, status: "waiting_payment" } : inv,
+          ),
+        };
       });
 
       const soId = invoice.sales_order?.id;
       if (soId) {
-        queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((order: any) => {
-              if (order.id !== soId) return order;
-              const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
-              return {
-                ...order,
-                customer_invoices: existing.map((ci: any) => (ci.id === invoice.id ? { ...ci, status: "waiting_payment" } : ci)),
-              };
-            }),
-          };
-        });
+        queryClient.setQueriesData(
+          { queryKey: orderKeys.lists() },
+          (old: SalesOrderListResponse | undefined) => {
+            if (!old?.data) return old;
+            return {
+              ...old,
+              data: old.data.map((order) => {
+                if (order.id !== soId) return order;
+                const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
+                return {
+                  ...order,
+                  customer_invoices: existing.map((ci) =>
+                    ci.id === invoice.id ? { ...ci, status: "waiting_payment" } : ci,
+                  ),
+                };
+              }),
+            };
+          },
+        );
       }
     } catch (e) {
       // noop
     }
     setCreatePaymentForInvoiceId(invoice.id);
+  };
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
   };
 
   const isOverdue = (invoice: CustomerInvoice) => {
@@ -209,12 +226,243 @@ export function InvoiceList() {
     return new Date(invoice.due_date) < new Date();
   };
 
-  const isPaymentStatus = (status?: string): boolean => {
-    const normalized = (status ?? "").toLowerCase();
-    return normalized === "partial" || normalized === "waiting_payment" || normalized === "paid";
-  };
+  const renderInvoiceRows = () => {
+    if (isLoading) {
+      return Array.from({ length: 5 }).map((_, i) => (
+        <TableRow key={i}>
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+          <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+          <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+          <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+          <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+          <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+        </TableRow>
+      ));
+    }
 
-  
+    if (!invoices.length) {
+      return (
+        <TableRow>
+          <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+            {t("notFound")}
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return invoices.map((invoice) => {
+      const status = (invoice.status ?? "").toLowerCase();
+      return (
+        <TableRow key={invoice.id}>
+          <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(invoice)}>
+            {invoice.code}
+          </TableCell>
+          <TableCell>{formatDate(invoice.invoice_date)}</TableCell>
+          <TableCell>
+            <DueDateCell dueDate={invoice.due_date} status={invoice.status} />
+          </TableCell>
+          <TableCell>
+            {invoice.sales_order && canViewSalesOrder ? (
+              <button
+                onClick={() => {
+                  setSelectedSalesOrderId(invoice.sales_order!.id);
+                  setIsSalesOrderOpen(true);
+                }}
+                className="font-medium text-primary hover:underline cursor-pointer"
+              >
+                {invoice.sales_order.code}
+              </button>
+            ) : (
+              <span>{invoice.sales_order?.code ?? "-"}</span>
+            )}
+          </TableCell>
+          <TableCell>
+            {invoice.down_payment_invoice_code && invoice.down_payment_invoice_id ? (
+              <button
+                onClick={() => {
+                  setSelectedDPId(invoice.down_payment_invoice_id!);
+                  setIsDPOpen(true);
+                }}
+                className="text-xs font-mono font-medium text-primary hover:underline cursor-pointer"
+              >
+                {invoice.down_payment_invoice_code}
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell>
+            {invoice.sales_order?.customer ? (
+              canViewCustomer ? (
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline cursor-pointer text-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomer({ id: invoice.sales_order!.customer!.id, name: invoice.sales_order!.customer!.name });
+                    setIsCustomerOpen(true);
+                  }}
+                >
+                  {invoice.sales_order.customer.name}
+                </button>
+              ) : (
+                <span className="text-sm">{invoice.sales_order.customer.name}</span>
+              )
+            ) : invoice.sales_order?.customer_id ? (
+              canViewCustomer ? (
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline cursor-pointer text-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomer({ id: invoice.sales_order!.customer_id as string, name: invoice.sales_order!.customer_name ?? "" });
+                    setIsCustomerOpen(true);
+                  }}
+                >
+                  {invoice.sales_order.customer_name}
+                </button>
+              ) : (
+                <span className="text-sm">{invoice.sales_order.customer_name}</span>
+              )
+            ) : invoice.sales_order?.customer_name ? (
+              <span className="text-sm">{invoice.sales_order.customer_name}</span>
+            ) : (
+              <span className="text-sm text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right font-medium">{formatCurrency(invoice.amount ?? 0)}</TableCell>
+          <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
+          <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
+          <TableCell>
+            {isOverdue(invoice) && invoice.status !== "paid" && invoice.status !== "cancelled" ? (
+              <Badge variant="destructive" className="text-xs font-medium">
+                <AlertTriangle className="h-3 w-3 mr-1.5" />
+                {t("overdue")}
+              </Badge>
+            ) : (
+              (() => {
+                const clickable = isPaymentStatus(invoice.status);
+                if (!clickable) {
+                  return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
+                }
+                return (
+                  <button
+                    type="button"
+                    className="inline-flex items-center cursor-pointer"
+                    title={t("common.view")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.invoice_number || invoice.code });
+                      setIsPaymentDetailOpen(true);
+                    }}
+                  >
+                    <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
+                  </button>
+                );
+              })()
+            )}
+          </TableCell>
+          <TableCell>
+            {(canUpdate || canDelete || canView) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="cursor-pointer">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canView && (
+                    <DropdownMenuItem onClick={() => handleView(invoice)} className="cursor-pointer">
+                      <Eye className="h-4 w-4 mr-2" />
+                      {t("common.view")}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && status === "draft" && (
+                    <DropdownMenuItem onClick={() => handleEdit(invoice)} className="cursor-pointer">
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t("common.edit")}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && status === "draft" && (
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange(invoice.id, "sent")}
+                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      {t("actions.submit")}
+                    </DropdownMenuItem>
+                  )}
+                  {status === "sent" && (
+                    <>
+                      {canApprove && (
+                        <DropdownMenuItem
+                          onClick={() => approveInvoice.mutateAsync(invoice.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                          className="cursor-pointer text-green-600 focus:text-green-600"
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          {t("actions.approve")}
+                        </DropdownMenuItem>
+                      )}
+                      {canUpdate && (
+                        <DropdownMenuItem
+                          onClick={() => handleStatusChange(invoice.id, "rejected")}
+                          className="cursor-pointer text-destructive focus:text-destructive"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          {t("actions.reject")}
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+                  {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                    <DropdownMenuItem
+                      onClick={() => handleOpenCreatePayment(invoice)}
+                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      {t("actions.createPayment")}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && status === "unpaid" && (
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange(invoice.id, "cancelled")}
+                      className="cursor-pointer text-destructive"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {t("actions.cancel")}
+                    </DropdownMenuItem>
+                  )}
+                  {canPrint && (
+                    <DropdownMenuItem
+                      onClick={() => setPrintingInvoiceId(invoice.id)}
+                      className="cursor-pointer text-violet-600 focus:text-violet-600"
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      {t("print")}
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (status === "draft" || status === "unpaid") && (
+                    <DropdownMenuItem
+                      onClick={() => setDeletingId(invoice.id)}
+                      className="text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t("common.delete")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
 
   if (isError) {
     return (
@@ -317,211 +565,7 @@ export function InvoiceList() {
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(invoice)}>
-                    {invoice.code}
-                  </TableCell>
-                  <TableCell>{formatDate(invoice.invoice_date)}</TableCell>
-                  <TableCell>
-                    <DueDateCell dueDate={invoice.due_date} status={invoice.status} />
-                  </TableCell>
-                  <TableCell>
-                    {invoice.sales_order && canViewSalesOrder ? (
-                      <button
-                        onClick={() => {
-                          setSelectedSalesOrderId(invoice.sales_order!.id);
-                          setIsSalesOrderOpen(true);
-                        }}
-                        className="font-medium text-primary hover:underline cursor-pointer"
-                      >
-                        {invoice.sales_order.code}
-                      </button>
-                    ) : (
-                      <span>{invoice.sales_order?.code ?? "-"}</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell>
-                    {invoice.down_payment_invoice_code && invoice.down_payment_invoice_id ? (
-                      <button
-                        onClick={() => {
-                          setSelectedDPId(invoice.down_payment_invoice_id!);
-                          setIsDPOpen(true);
-                        }}
-                        className="text-xs font-mono font-medium text-primary hover:underline cursor-pointer"
-                      >
-                        {invoice.down_payment_invoice_code}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {invoice.sales_order?.customer ? (
-                      canViewCustomer ? (
-                        <button
-                          type="button"
-                          className="text-sm text-primary hover:underline cursor-pointer text-left"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCustomer({ id: invoice.sales_order!.customer!.id, name: invoice.sales_order!.customer!.name });
-                            setIsCustomerOpen(true);
-                          }}
-                        >
-                          {invoice.sales_order.customer.name}
-                        </button>
-                      ) : (
-                        <span className="text-sm">{invoice.sales_order.customer.name}</span>
-                      )
-                    ) : invoice.sales_order?.customer_id ? (
-                      canViewCustomer ? (
-                        <button
-                          type="button"
-                          className="text-sm text-primary hover:underline cursor-pointer text-left"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCustomer({ id: invoice.sales_order!.customer_id as string, name: invoice.sales_order!.customer_name ?? "" });
-                            setIsCustomerOpen(true);
-                          }}
-                        >
-                          {invoice.sales_order.customer_name}
-                        </button>
-                      ) : (
-                        <span className="text-sm">{invoice.sales_order.customer_name}</span>
-                      )
-                    ) : invoice.sales_order?.customer_name ? (
-                      <span className="text-sm">{invoice.sales_order.customer_name}</span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(invoice.amount ?? 0)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(invoice.paid_amount ?? 0)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(invoice.remaining_amount ?? invoice.amount ?? 0)}</TableCell>
-                  <TableCell>
-                    {isOverdue(invoice) && invoice.status !== "paid" && invoice.status !== "cancelled" ? (
-                      <Badge variant="destructive" className="text-xs font-medium">
-                        <AlertTriangle className="h-3 w-3 mr-1.5" />
-                        {t("overdue")}
-                      </Badge>
-                    ) : (
-                      (() => {
-                        const clickable = isPaymentStatus(invoice.status);
-                        if (!clickable) {
-                          return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
-                        }
-                        return (
-                          <button
-                            type="button"
-                            className="inline-flex items-center cursor-pointer"
-                            title={t("common.view")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.invoice_number || invoice.code });
-                              setIsPaymentDetailOpen(true);
-                            }}
-                          >
-                            <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
-                          </button>
-                        );
-                      })()
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {(canUpdate || canDelete || canView) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canView && (
-                            <DropdownMenuItem onClick={() => handleView(invoice)} className="cursor-pointer">
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t("common.view")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && invoice.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleEdit(invoice)} className="cursor-pointer">
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t("common.edit")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && invoice.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(invoice.id, "sent")}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              {t("actions.submit")}
-                            </DropdownMenuItem>
-                          )}
-                          {invoice.status === "sent" && (
-                            <>
-                              {canApprove && (
-                                <DropdownMenuItem
-                                  onClick={() => approveInvoice.mutateAsync(invoice.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer text-green-600 focus:text-green-600"
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  {t("actions.approve")}
-                                </DropdownMenuItem>
-                              )}
-                              {canUpdate && (
-                                <DropdownMenuItem
-                                  onClick={() => handleStatusChange(invoice.id, "rejected")}
-                                  className="cursor-pointer text-destructive focus:text-destructive"
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  {t("actions.reject")}
-                                </DropdownMenuItem>
-                              )}
-                            </>
-                          )}
-                          {canUpdate && (invoice.status === "unpaid" || invoice.status === "partial") && (
-                            <DropdownMenuItem
-                              onClick={() => handleView(invoice)}
-                              className="cursor-pointer text-green-600 focus:text-green-600"
-                            >
-                              <DollarSign className="h-4 w-4 mr-2" />
-                              {t("actions.pay")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && invoice.status === "unpaid" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(invoice.id, "cancelled")}
-                              className="cursor-pointer text-destructive"
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              {t("actions.cancel")}
-                            </DropdownMenuItem>
-                          )}
-                          {canPrint && (
-                            <DropdownMenuItem
-                              onClick={() => setPrintingInvoiceId(invoice.id)}
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
-                            >
-                              <Printer className="h-4 w-4 mr-2" />
-                              {t("print")}
-                            </DropdownMenuItem>
-                          )}
-                          {canDelete && (invoice.status === "draft" || invoice.status === "unpaid") && (
-                            <DropdownMenuItem
-                              onClick={() => setDeletingId(invoice.id)}
-                              className="text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t("common.delete")}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+              renderInvoiceRows()
             )}
           </TableBody>
         </Table>

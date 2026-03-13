@@ -17,6 +17,7 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { InvoiceDetailModal } from "../../invoice/components/invoice-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
+import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import type { CustomerInvoice } from "../../invoice/types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
@@ -108,6 +109,13 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
   const [selectedInvoice, setSelectedInvoice] = useState<CustomerInvoice | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
+  };
 
   // Fetch regular invoices
   const { data, isLoading } = useQuery({
@@ -239,7 +247,21 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                                 : "-"}
                             </TableCell>
                             <TableCell>
-                              <InvoiceStatusBadge status={invoice.status} className="text-xs" />
+                              {isPaymentStatus(invoice.status) ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center cursor-pointer"
+                                  title={t("common.view")}
+                                  onClick={() => {
+                                    setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.code });
+                                    setIsPaymentOpen(true);
+                                  }}
+                                >
+                                  <InvoiceStatusBadge status={invoice.status} className="text-xs" />
+                                </button>
+                              ) : (
+                                <InvoiceStatusBadge status={invoice.status} className="text-xs" />
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               {formatCurrency(invoice.amount ?? 0)}
@@ -344,6 +366,18 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
         onOpenChange={(isOpen) => { if (!isOpen) setSelectedDPId(null); }}
         id={selectedDPId}
       />
+
+      {selectedInvoiceForPayments && (
+        <SalesPaymentsLinkedDialog
+          open={isPaymentOpen}
+          onOpenChange={(open) => {
+            setIsPaymentOpen(open);
+            if (!open) setSelectedInvoiceForPayments(null);
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
     </Dialog>
   );
 }
