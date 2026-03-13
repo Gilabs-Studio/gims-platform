@@ -10,6 +10,7 @@ export const purchasePaymentId = {
   },
   actions: {
     create: "Buat",
+    change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
     view: "Lihat",
@@ -32,11 +33,13 @@ export const purchasePaymentId = {
   },
   form: {
     title: "Buat Pembayaran",
+    amountHandledBySystem: "Jumlah dihitung oleh sistem",
     submit: "Simpan",
     cancel: "Batal",
   },
   fields: {
     invoice: "Invoice",
+    paymentDetails: "Detail Pembayaran",
     bankAccount: "Rekening Bank",
     paymentDate: "Tanggal Pembayaran",
     amount: "Jumlah",

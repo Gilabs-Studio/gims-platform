@@ -10,6 +10,7 @@ export const purchasePaymentEn = {
   },
   actions: {
     create: "Create",
+    change: "Change",
     export: "Export",
     confirm: "Confirm",
     view: "View",
@@ -32,11 +33,13 @@ export const purchasePaymentEn = {
   },
   form: {
     title: "Create Payment",
+    amountHandledBySystem: "Amount is calculated by the system",
     submit: "Save",
     cancel: "Cancel",
   },
   fields: {
     invoice: "Invoice",
+    paymentDetails: "Payment Details",
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
