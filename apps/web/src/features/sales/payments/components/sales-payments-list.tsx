@@ -86,6 +86,11 @@ export function SalesPaymentsList() {
   const deleteMutation = useDeleteSalesPayment();
   const confirmMutation = useConfirmSalesPayment();
 
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
+
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
@@ -191,7 +196,20 @@ export function SalesPaymentsList() {
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}</TableCell>
+                    <TableCell
+                      className={`font-medium ${canView ? "text-primary hover:underline cursor-pointer" : ""}`}
+                      onClick={() => canView && handleView(item.id)}
+                      role={canView ? "button" : undefined}
+                      tabIndex={canView ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (!canView) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleView(item.id);
+                        }
+                      }}
+                    >
+                      {item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}
+                    </TableCell>
                     <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>

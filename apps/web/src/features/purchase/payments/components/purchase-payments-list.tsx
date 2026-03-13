@@ -216,7 +216,7 @@ export function PurchasePaymentsList() {
                     <TableCell>
                       <PurchasePaymentStatusBadge status={item.status ?? ""} />
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right">
                       {formatCurrency(item.amount)}
                     </TableCell>
                     <TableCell>
