@@ -44,6 +44,8 @@
     "print": "Print",
     "filterBy": "Filter by",
     "status": "Status",
+    "workflow": "Workflow",
+    "financial": "Financial",
     "supplierInvoice": "Supplier Invoice",
     "supplierInvoiceDP": "Supplier Invoice Down Payment",
     "purchasePayment": "Purchase Payment",

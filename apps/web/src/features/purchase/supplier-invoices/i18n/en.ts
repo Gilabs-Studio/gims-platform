@@ -24,6 +24,7 @@ export const supplierInvoiceEn = {
   },
   sections: {
     invoiceInfo: "Invoice Information",
+    supplier: "Supplier",
     financial: "Financial Summary",
   },
   auditTrail: {
@@ -53,6 +54,7 @@ export const supplierInvoiceEn = {
   fields: {
     purchaseOrder: "Purchase Order",
     goodsReceipt: "Goods Receipt",
+    supplier: "Supplier",
     paymentTerms: "Payment Terms",
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",

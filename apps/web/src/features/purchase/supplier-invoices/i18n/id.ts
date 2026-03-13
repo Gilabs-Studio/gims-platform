@@ -24,6 +24,7 @@ export const supplierInvoiceId = {
   },
   sections: {
     invoiceInfo: "Informasi Faktur",
+    supplier: "Supplier",
     financial: "Ringkasan Keuangan",
   },
   auditTrail: {
@@ -53,6 +54,7 @@ export const supplierInvoiceId = {
   fields: {
     purchaseOrder: "Purchase Order",
     goodsReceipt: "Goods Receipt",
+    supplier: "Supplier",
     paymentTerms: "Termin Pembayaran",
     invoiceNumber: "Nomor Faktur",
     invoiceDate: "Tanggal Faktur",

@@ -39,6 +39,8 @@
     "print": "Cetak",
     "filterBy": "Filter berdasarkan",
     "status": "Status",
+    "workflow": "Alur Kerja",
+    "financial": "Keuangan",
     "supplierInvoice": "Invoice Supplier",
     "supplierInvoiceDP": "DP Invoice Supplier",
     "purchasePayment": "Pembayaran Pembelian",
