@@ -10,6 +10,7 @@ export const salesPaymentId = {
   },
   actions: {
     create: "Buat",
+    change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
     view: "Lihat",
@@ -27,6 +28,8 @@ export const salesPaymentId = {
   },
   form: {
     amountLockedHint: "Jumlah sudah diisi otomatis dan tidak dapat diubah.",
+    amountHandledBySystem: "Jumlah ditentukan dan diproses oleh sistem.",
+    amountRequired: "Jumlah diperlukan.",
     title: "Buat Pembayaran",
     submit: "Simpan",
     cancel: "Batal",
@@ -45,6 +48,7 @@ export const salesPaymentId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
   overview: {
     title: "Ringkasan Tagihan",

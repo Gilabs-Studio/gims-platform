@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useCallback } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo, useCallback, useState } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, FileText, CreditCard, DollarSign, Building2 } from "lucide-react";
+import { Loader2, FileText, CreditCard, DollarSign, Building2, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { NumericInput } from "@/components/ui/numeric-input";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +45,6 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
-  const isLocked = isLockedToInvoice || isLockedToDP;
 
   const createMutation = useCreateSalesPayment();
 
@@ -63,8 +65,8 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
   });
 
   const addData = addDataResponse?.data;
-  const invoices = addData?.invoices ?? [];
-  const bankAccounts = bankAccountsResponse?.data ?? [];
+  const invoices = useMemo(() => addData?.invoices ?? [], [addData]);
+  const bankAccounts = useMemo(() => bankAccountsResponse?.data ?? [], [bankAccountsResponse]);
   const dpDetail = dpDetailResponse?.data;
 
   const resolver = useMemo(() => zodResolver(salesPaymentSchema) as Resolver<SalesPaymentFormData>, []);
@@ -74,17 +76,15 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     handleSubmit,
     control,
     reset,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<SalesPaymentFormData>({
     resolver,
     defaultValues: {
-      invoice_id: defaultInvoiceId ?? null,
+      invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
-      amount: 0,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -94,20 +94,19 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
   useEffect(() => {
     if (!open) return;
     reset({
-      invoice_id: defaultInvoiceId ?? null,
+      invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
-      amount: 0,
       method: "BANK",
       reference_number: null,
       notes: null,
     });
   }, [open, reset, defaultInvoiceId, defaultDPId]);
 
-  const invoiceId = watch("invoice_id");
-  const method = watch("method");
-  const bankAccountId = watch("bank_account_id");
+  const invoiceId = useWatch({ control, name: "invoice_id" });
+  const method = useWatch({ control, name: "method" });
+  const bankAccountId = useWatch({ control, name: "bank_account_id" });
 
   const selectedInvoice = useMemo(() => {
     if (!invoiceId || isLockedToDP) return null;
@@ -119,21 +118,17 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     return bankAccounts.find((acc) => acc.id === bankAccountId) ?? null;
   }, [bankAccountId, bankAccounts]);
 
-  // Pre-fill amount from selected or locked invoice
-  useEffect(() => {
-    if (selectedInvoice?.remaining_amount !== undefined) {
-      setValue("amount", selectedInvoice.remaining_amount, { shouldValidate: !isLockedToInvoice });
-    } else if (!isLocked && !selectedInvoice) {
-      setValue("amount", 0, { shouldValidate: true });
-    }
-  }, [selectedInvoice, isLockedToInvoice, isLocked, setValue]);
-
-  // Pre-fill amount from DP detail
-  useEffect(() => {
+  const computedAmount = useMemo(() => {
     if (isLockedToDP && dpDetail) {
-      setValue("amount", dpDetail.remaining_amount ?? dpDetail.amount, { shouldValidate: false });
+      return dpDetail.remaining_amount ?? dpDetail.amount;
     }
-  }, [dpDetail, isLockedToDP, setValue]);
+    if (selectedInvoice) {
+      return selectedInvoice.remaining_amount ?? selectedInvoice.amount;
+    }
+    return undefined;
+  }, [isLockedToDP, dpDetail, selectedInvoice]);
+
+  // Note: amount is handled by backend; no client-side amount field.
 
   // Clear bank account when switching to CASH
   const handleMethodChange = useCallback(
@@ -147,6 +142,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const submitting = createMutation.isPending;
   const isFetchingReference = isFetchingAddData || isLoadingDP;
+  const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
   return (
     <Dialog
@@ -163,13 +159,18 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
+            if (computedAmount === undefined) {
+              toast.error(t("form.amountRequired") ?? "Amount is required");
+              return;
+            }
             try {
+              const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
               await createMutation.mutateAsync({
-                invoice_id: values.invoice_id ?? null,
+                invoice_id: invoiceIdForRequest,
                 dp_id: values.dp_id ?? null,
                 bank_account_id: values.bank_account_id ?? null,
                 payment_date: values.payment_date,
-                amount: values.amount,
+                amount: computedAmount,
                 method: values.method,
                 reference_number: values.reference_number ?? null,
                 notes: values.notes ?? null,
@@ -363,7 +364,35 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
               <Field>
                 <FieldLabel>{t("fields.paymentDate")}</FieldLabel>
-                <Input type="date" {...register("payment_date")} disabled={submitting} />
+                <Controller
+                  control={control}
+                  name="payment_date"
+                  render={({ field }) => (
+                    <Popover open={paymentDateOpen} onOpenChange={setPaymentDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={submitting}
+                          className="w-full justify-start text-left font-normal cursor-pointer"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? formatDate(field.value) : t("placeholders.pickDate")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date: Date | undefined) => {
+                            field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                            setPaymentDateOpen(false);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
                 {errors.payment_date?.message ? (
                   <FieldError>{String(errors.payment_date.message)}</FieldError>
                 ) : null}
@@ -373,56 +402,68 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                 <>
                   <Field className="sm:col-span-2">
                     <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="bank_account_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={(v) => field.onChange(v)}
-                          disabled={isLoadingBankAccounts || submitting}
-                        >
-                          <SelectTrigger className="cursor-pointer">
-                            <SelectValue placeholder={t("placeholders.select")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {bankAccounts.map((acc) => (
-                              <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
-                                <div className="flex flex-col">
-                                  <span>{acc.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {acc.account_number} · {acc.account_holder}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
+                    {!selectedBankAccount ? (
+                      <Controller
+                        control={control}
+                        name="bank_account_id"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value ?? ""}
+                            onValueChange={(v) => field.onChange(v)}
+                            disabled={isLoadingBankAccounts || submitting}
+                          >
+                            <SelectTrigger className="cursor-pointer transition-all duration-200">
+                              <SelectValue placeholder={t("placeholders.select")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bankAccounts.map((acc) => (
+                                <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
+                                  <div className="flex flex-col">
+                                    <span>{acc.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {acc.account_number} · {acc.account_holder}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    ) : (
+                      <div className="rounded-md border p-3 bg-muted/30 animate-in fade-in-0 zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-medium">{selectedBankAccount.name}</span>
+                            {selectedBankAccount.currency && (
+                              <Badge variant="outline" className="text-xs py-0">
+                                {selectedBankAccount.currency}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 cursor-pointer"
+                            disabled={submitting}
+                            onClick={() => setValue("bank_account_id", null, { shouldValidate: true })}
+                          >
+                            {t("actions.change")}
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {selectedBankAccount.account_number} · {selectedBankAccount.account_holder}
+                        </div>
+                      </div>
+                    )}
                     {errors.bank_account_id?.message ? (
                       <FieldError>{String(errors.bank_account_id.message)}</FieldError>
                     ) : null}
                   </Field>
 
-                  {selectedBankAccount ? (
-                    <div className="sm:col-span-2 rounded-md border p-3 bg-muted/30">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-sm font-medium">{selectedBankAccount.name}</span>
-                        {selectedBankAccount.currency && (
-                          <Badge variant="outline" className="text-xs py-0">
-                            {selectedBankAccount.currency}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {selectedBankAccount.account_number} · {selectedBankAccount.account_holder}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <Field>
+                  <Field className="sm:col-span-2">
                     <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
                     <Input {...register("reference_number")} disabled={submitting} />
                   </Field>
@@ -441,22 +482,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
             <div className="mt-4">
               <Field>
                 <FieldLabel>{t("fields.amount")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="amount"
-                  render={({ field }) => (
-                    <NumericInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      min={0}
-                      disabled={submitting || isLocked}
-                    />
-                  )}
-                />
-                {isLocked ? (
-                  <p className="text-xs text-muted-foreground mt-1">{t("form.amountLockedHint")}</p>
-                ) : null}
-                {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                <p className="text-sm text-muted-foreground">{t("form.amountHandledBySystem")}</p>
               </Field>
             </div>
           </div>

@@ -6,7 +6,6 @@ export const salesPaymentSchema = z
     dp_id: z.string().nullable().optional(),
     bank_account_id: z.string().nullable().optional(),
     payment_date: z.string().min(1),
-    amount: z.number().positive(),
     method: z.enum(["BANK", "CASH"]),
     reference_number: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),

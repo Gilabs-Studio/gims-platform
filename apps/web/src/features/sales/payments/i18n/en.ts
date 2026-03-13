@@ -10,6 +10,7 @@ export const salesPaymentEn = {
   },
   actions: {
     create: "Create",
+    change: "Change",
     export: "Export",
     confirm: "Confirm",
     view: "View",
@@ -30,6 +31,8 @@ export const salesPaymentEn = {
     submit: "Save",
     cancel: "Cancel",
     amountLockedHint: "Amount is pre-filled and cannot be changed.",
+    amountHandledBySystem: "Amount is determined and processed by the system.",
+    amountRequired: "Amount is required.",
   },
   fields: {
     invoice: "Invoice",
@@ -45,6 +48,7 @@ export const salesPaymentEn = {
   },
   placeholders: {
     select: "Select...",
+    pickDate: "Pick a date",
   },
   overview: {
     title: "Invoice Overview",
