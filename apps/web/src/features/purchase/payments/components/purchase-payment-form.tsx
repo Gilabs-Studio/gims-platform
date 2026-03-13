@@ -10,6 +10,7 @@ import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,6 +27,13 @@ import { purchasePaymentSchema, type PurchasePaymentFormData } from "../schemas/
 import { useCreatePurchasePayment, usePurchasePaymentAddData } from "../hooks/use-purchase-payments";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Unable to create payment. Please check your input and try again.";
+}
 
 function todayISO(): string {
   const d = new Date();
@@ -138,12 +146,17 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   const submitting = createMutation.isPending;
   const isFetchingReference = isFetchingAddData || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const changeActionLabel = t.has("actions.change") ? t("actions.change") : "Change";
 
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) onClose();
+        if (!v) {
+          setSubmitError(null);
+          onClose();
+        }
       }}
     >
       <DialogContent size="lg">
@@ -154,8 +167,11 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
+            setSubmitError(null);
             if (computedAmount === undefined) {
-              toast.error(t("form.amountRequired") ?? "Amount is required");
+              const errorMessage = t.has("form.amountRequired") ? t("form.amountRequired") : "Amount is required";
+              setSubmitError(errorMessage);
+              toast.error(errorMessage);
               return;
             }
             try {
@@ -171,12 +187,22 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                 notes: values.notes ?? null,
               });
               toast.success(t("toast.created"));
+              setSubmitError(null);
               onClose();
-            } catch {
+            } catch (error) {
+              const errorMessage = getErrorMessage(error);
+              setSubmitError(errorMessage);
               toast.error(t("toast.failed"));
             }
           })}
         >
+          {submitError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t.has("toast.failed") ? t("toast.failed") : "Failed"}</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          ) : null}
+
           {/* Reference Section — Invoice or Down Payment */}
           <div>
             <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
@@ -419,7 +445,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                             disabled={submitting}
                             onClick={() => setValue("bank_account_id", null, { shouldValidate: true })}
                           >
-                            {t("actions.change")}
+                            {changeActionLabel}
                           </Button>
                         </div>
                         <div className="text-xs text-muted-foreground">{selectedBankAccount.account_number} · {selectedBankAccount.account_holder}</div>
@@ -459,7 +485,16 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
           </Field>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer" disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSubmitError(null);
+                onClose();
+              }}
+              className="cursor-pointer"
+              disabled={submitting}
+            >
               {t("form.cancel")}
             </Button>
             <Button type="submit" className="cursor-pointer" disabled={submitting || isFetchingReference || isLoadingBankAccounts}>

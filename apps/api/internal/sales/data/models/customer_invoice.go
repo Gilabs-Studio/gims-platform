@@ -13,14 +13,15 @@ import (
 type CustomerInvoiceStatus string
 
 const (
-	CustomerInvoiceStatusDraft     CustomerInvoiceStatus = "DRAFT"
-	CustomerInvoiceStatusSubmitted CustomerInvoiceStatus = "SUBMITTED"
-	CustomerInvoiceStatusApproved  CustomerInvoiceStatus = "APPROVED"
-	CustomerInvoiceStatusRejected  CustomerInvoiceStatus = "REJECTED"
-	CustomerInvoiceStatusUnpaid    CustomerInvoiceStatus = "UNPAID"
-	CustomerInvoiceStatusPartial   CustomerInvoiceStatus = "PARTIAL"
-	CustomerInvoiceStatusPaid      CustomerInvoiceStatus = "PAID"
-	CustomerInvoiceStatusCancelled CustomerInvoiceStatus = "CANCELLED"
+	CustomerInvoiceStatusDraft          CustomerInvoiceStatus = "DRAFT"
+	CustomerInvoiceStatusSubmitted      CustomerInvoiceStatus = "SUBMITTED"
+	CustomerInvoiceStatusApproved       CustomerInvoiceStatus = "APPROVED"
+	CustomerInvoiceStatusRejected       CustomerInvoiceStatus = "REJECTED"
+	CustomerInvoiceStatusUnpaid         CustomerInvoiceStatus = "UNPAID"
+	CustomerInvoiceStatusWaitingPayment CustomerInvoiceStatus = "WAITING_PAYMENT"
+	CustomerInvoiceStatusPartial        CustomerInvoiceStatus = "PARTIAL"
+	CustomerInvoiceStatusPaid           CustomerInvoiceStatus = "PAID"
+	CustomerInvoiceStatusCancelled      CustomerInvoiceStatus = "CANCELLED"
 )
 
 // CustomerInvoiceType represents the type of invoice

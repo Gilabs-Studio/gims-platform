@@ -9,7 +9,8 @@ interface InvoiceStatusBadgeProps {
 
 export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProps) {
   const t = useTranslations("invoice.status");
-  const normalizedStatus = (status ?? "").toLowerCase();
+  const rawStatus = (status ?? "").toLowerCase();
+  const normalizedStatus = rawStatus === "approved" ? "unpaid" : rawStatus;
 
   switch (normalizedStatus) {
     case "draft":
@@ -40,13 +41,6 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
             {t("pending")}
           </Badge>
         );
-    case "approved":
-      return (
-        <Badge variant="success" className={className}>
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("approved")}
-        </Badge>
-      );
     case "rejected":
       return (
         <Badge variant="destructive" className={className}>
@@ -59,6 +53,13 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
         <Badge variant="warning" className={className}>
           <CreditCard className="h-3 w-3 mr-1.5" />
           {t("unpaid")}
+        </Badge>
+      );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("waiting_payment")}
         </Badge>
       );
     case "partial":

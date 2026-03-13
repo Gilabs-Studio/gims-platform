@@ -20,14 +20,15 @@ const (
 )
 
 const (
-	SupplierInvoiceStatusDraft     SupplierInvoiceStatus = "DRAFT"
-	SupplierInvoiceStatusSubmitted SupplierInvoiceStatus = "SUBMITTED"
-	SupplierInvoiceStatusApproved  SupplierInvoiceStatus = "APPROVED"
-	SupplierInvoiceStatusRejected  SupplierInvoiceStatus = "REJECTED"
-	SupplierInvoiceStatusCancelled SupplierInvoiceStatus = "CANCELLED"
-	SupplierInvoiceStatusUnpaid    SupplierInvoiceStatus = "UNPAID"
-	SupplierInvoiceStatusPartial   SupplierInvoiceStatus = "PARTIAL"
-	SupplierInvoiceStatusPaid      SupplierInvoiceStatus = "PAID"
+	SupplierInvoiceStatusDraft          SupplierInvoiceStatus = "DRAFT"
+	SupplierInvoiceStatusSubmitted      SupplierInvoiceStatus = "SUBMITTED"
+	SupplierInvoiceStatusApproved       SupplierInvoiceStatus = "APPROVED"
+	SupplierInvoiceStatusRejected       SupplierInvoiceStatus = "REJECTED"
+	SupplierInvoiceStatusCancelled      SupplierInvoiceStatus = "CANCELLED"
+	SupplierInvoiceStatusUnpaid         SupplierInvoiceStatus = "UNPAID"
+	SupplierInvoiceStatusWaitingPayment SupplierInvoiceStatus = "WAITING_PAYMENT"
+	SupplierInvoiceStatusPartial        SupplierInvoiceStatus = "PARTIAL"
+	SupplierInvoiceStatusPaid           SupplierInvoiceStatus = "PAID"
 )
 
 type SupplierInvoice struct {

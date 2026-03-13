@@ -38,6 +38,7 @@ export type SupplierInvoiceStatus =
   | "REJECTED"
   | "CANCELLED"
   | "UNPAID"
+  | "WAITING_PAYMENT"
   | "PARTIAL"
   | "PAID";
 export type SupplierInvoiceType = "NORMAL" | "DOWN_PAYMENT";

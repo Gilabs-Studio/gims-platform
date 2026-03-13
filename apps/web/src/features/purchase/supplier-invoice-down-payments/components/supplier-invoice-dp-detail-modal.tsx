@@ -441,6 +441,9 @@ export function SupplierInvoiceDPDetailModal({
   const [printOpen, setPrintOpen] = useState(false);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const normalizedDetailStatus = (detail?.status ?? "").toLowerCase() === "approved"
+    ? "unpaid"
+    : (detail?.status ?? "").toLowerCase();
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onOpenChange(false)}>
@@ -462,9 +465,7 @@ export function SupplierInvoiceDPDetailModal({
             </div>
 
             <div className="flex items-center gap-1">
-              {detail && canCreatePayment && (detail.status ?? "").toLowerCase() === "unpaid" ||
-              detail && canCreatePayment && (detail.status ?? "").toLowerCase() === "partial" ||
-              detail && canCreatePayment && (detail.status ?? "").toLowerCase() === "approved" ? (
+              {detail && canCreatePayment && (normalizedDetailStatus === "unpaid" || normalizedDetailStatus === "partial") ? (
                 <Button
                   variant="ghost"
                   size="icon"

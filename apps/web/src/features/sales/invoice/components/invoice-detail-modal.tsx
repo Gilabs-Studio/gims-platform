@@ -27,11 +27,12 @@ import { formatCurrency, formatWhatsAppLink } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { useInvoiceDetail } from "../hooks/use-invoice-detail";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import type { Customer } from "@/features/master-data/customer/types";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -52,7 +53,7 @@ export function InvoiceDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("invoice");
 
-  const { data: detailData, isLoading } = useInvoice(invoice?.id ?? "", {
+  const { data: detailData } = useInvoice(invoice?.id ?? "", {
     enabled: open && !!invoice?.id,
   });
 
@@ -72,6 +73,17 @@ export function InvoiceDetailModal({
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
+  const customerProp: Customer | null = selectedCustomerId
+    ? ({
+        id: selectedCustomerId,
+        code: "",
+        name: "",
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Customer)
+    : null;
+
   if (!invoice) return null;
 
   const displayInvoice = detailData?.data ?? invoice;
@@ -89,6 +101,13 @@ export function InvoiceDetailModal({
           <Badge variant="secondary" className="text-xs font-medium">
             <Clock className="h-3 w-3 mr-1.5" />
             {t("status.unpaid")}
+          </Badge>
+        );
+      case "waiting_payment":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1.5" />
+            {t("status.waiting_payment")}
           </Badge>
         );
       case "sent":
@@ -276,9 +295,9 @@ export function InvoiceDetailModal({
                                 {canViewCustomer && displayInvoice.sales_order.customer_id ? (
                                   <button
                                     onClick={() => {
-                                      setSelectedCustomerId(displayInvoice.sales_order.customer_id ?? null);
-                                      setIsCustomerOpen(true);
-                                    }}
+                                        setSelectedCustomerId(displayInvoice.sales_order?.customer_id ?? null);
+                                        setIsCustomerOpen(true);
+                                      }}
                                     className="text-primary hover:underline cursor-pointer text-left"
                                   >
                                     {displayInvoice.sales_order.customer_name ?? displayInvoice.sales_order.customer_id}
@@ -485,7 +504,7 @@ export function InvoiceDetailModal({
       <CustomerDetailModal
         open={isCustomerOpen}
         onOpenChange={setIsCustomerOpen}
-        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
+        customer={customerProp}
       />
 
       <QuotationProductDetailModal

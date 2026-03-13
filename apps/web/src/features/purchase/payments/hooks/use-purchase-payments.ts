@@ -3,6 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { purchasePaymentsService } from "../services/purchase-payments-service";
+import { supplierInvoiceKeys } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { supplierInvoiceDPKeys } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
+import { purchaseOrderKeys } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import type { CreatePurchasePaymentInput, PurchasePaymentListParams } from "../types";
 
 export const purchasePaymentKeys = {
@@ -47,6 +50,9 @@ export function useCreatePurchasePayment() {
     mutationFn: (data: CreatePurchasePaymentInput) => purchasePaymentsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
     },
   });
 }
@@ -58,6 +64,9 @@ export function useDeletePurchasePayment() {
     mutationFn: (id: string) => purchasePaymentsService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
     },
   });
 }
@@ -70,6 +79,9 @@ export function useConfirmPurchasePayment() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
     },
   });
 }

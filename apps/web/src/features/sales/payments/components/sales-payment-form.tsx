@@ -207,15 +207,21 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                         <span className="text-xs text-muted-foreground">{t("overview.invoiceDate")}</span>
                         <span className="text-xs font-medium">{formatDate(dpDetail.invoice_date)}</span>
                       </div>
+                      {dpDetail.due_date ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">{t("overview.dueDate")}</span>
+                          <span className="text-xs font-medium">{formatDate(dpDetail.due_date)}</span>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
                         <span className="text-xs font-medium">{formatCurrency(dpDetail.amount)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
-                        <span className="text-xs font-medium text-primary">
-                          {formatCurrency(dpDetail.remaining_amount ?? dpDetail.amount)}
-                        </span>
+                        <span className="text-xs font-medium text-primary">{formatCurrency(dpDetail.remaining_amount ?? dpDetail.amount)}</span>
                       </div>
                       {dpDetail.sales_order?.code && (
                         <div className="flex items-center justify-between gap-3">
@@ -303,17 +309,32 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                   </Field>
 
                   {selectedInvoice ? (
-                    <div className="mt-3 rounded-md border p-3">
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
-                          <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                    <div className="mt-4">
+                      <div className="rounded-md border p-3 bg-muted/30">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <span className="text-sm font-medium">{t("fields.invoice")}</span>
+                          <Badge variant="outline" className="font-mono">
+                            {selectedInvoice.code}
+                            {selectedInvoice.invoice_number ? ` (${selectedInvoice.invoice_number})` : ""}
+                          </Badge>
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
-                          <span className="text-xs font-medium text-primary">
-                            {formatCurrency(selectedInvoice.remaining_amount)}
-                          </span>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.invoiceDate")}</span>
+                            <span className="text-xs font-medium">{formatDate(selectedInvoice.invoice_date)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.dueDate")}</span>
+                            <span className="text-xs font-medium">{formatDate(selectedInvoice.due_date)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
+                            <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
+                            <span className="text-xs font-medium text-primary">{formatCurrency(selectedInvoice.remaining_amount)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

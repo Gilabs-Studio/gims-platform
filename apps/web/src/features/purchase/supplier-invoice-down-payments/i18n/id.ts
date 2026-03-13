@@ -73,6 +73,7 @@ export const supplierInvoiceDPId = {
     rejected: "Ditolak",
     cancelled: "Dibatalkan",
     unpaid: "Belum Dibayar",
+    waiting_payment: "Menunggu Pembayaran",
     partial: "Sebagian",
     paid: "Lunas",
   },

@@ -73,6 +73,7 @@ export const supplierInvoiceDPEn = {
     rejected: "Rejected",
     cancelled: "Cancelled",
     unpaid: "Unpaid",
+    waiting_payment: "Waiting Payment",
     partial: "Partial",
     paid: "Paid",
   },

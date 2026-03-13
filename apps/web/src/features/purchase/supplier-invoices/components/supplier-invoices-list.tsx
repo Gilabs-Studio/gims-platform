@@ -260,6 +260,7 @@ export function SupplierInvoicesList() {
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
+            <SelectItem value="waiting_payment">{t("status.waiting_payment")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>
           </SelectContent>

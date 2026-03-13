@@ -52,7 +52,8 @@ import {
 import type { CustomerInvoiceDPStatus } from "../types";
 
 function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
+  const normalized = (status ?? "").toLowerCase();
+  return normalized === "approved" ? "unpaid" : normalized;
 }
 
 function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: ReturnType<typeof useTranslations> }) {
@@ -79,13 +80,6 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
           {t("status.pending")}
         </Badge>
       );
-    case "approved":
-      return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("status.approved")}
-        </Badge>
-      );
     case "rejected":
       return (
         <Badge variant="destructive" className="text-xs font-medium">
@@ -98,6 +92,13 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
         <Badge variant="warning" className="text-xs font-medium">
           <CreditCard className="h-3 w-3 mr-1.5" />
           {t("status.unpaid")}
+        </Badge>
+      );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_payment")}
         </Badge>
       );
     case "partial":
@@ -193,8 +194,7 @@ export function CustomerInvoiceDPDetailModal({
             <div className="flex items-center gap-1">
               {row && canCreatePayment &&
                 (normalizeStatus(row.status) === "unpaid" ||
-                  normalizeStatus(row.status) === "partial" ||
-                  normalizeStatus(row.status) === "approved") ? (
+                  normalizeStatus(row.status) === "partial") ? (
                 <Button
                   variant="ghost"
                   size="icon"

@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Send,
@@ -13,7 +12,6 @@ import {
   PieChart,
   Download,
   Eye,
-  FileText,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -52,6 +50,9 @@ import { CustomerDetailModal } from "@/features/master-data/customer/components/
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useQueryClient } from "@tanstack/react-query";
+import { customerInvoiceDPKeys } from "../hooks/use-customer-invoice-dp";
+import { orderKeys } from "@/features/sales/order/hooks/use-orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -68,7 +69,9 @@ const CustomerInvoiceDPFormDialog = dynamic(
 );
 
 function statusLabel(t: ReturnType<typeof useTranslations>, status: CustomerInvoiceDPStatus) {
-  return t(`status.${status.toLowerCase()}`);
+  const normalized = (status ?? "").toLowerCase();
+  const effectiveStatus = normalized === "approved" ? "unpaid" : normalized;
+  return t(`status.${effectiveStatus}`);
 }
 
 function safeDate(value?: string | null): string {
@@ -79,7 +82,24 @@ function safeDate(value?: string | null): string {
 }
 
 function normalizeStatus(status?: string | null): string {
-  return (status ?? "").toLowerCase();
+  const normalized = (status ?? "").toLowerCase();
+  return normalized === "approved" ? "unpaid" : normalized;
+}
+
+interface QueryListData<T> {
+  data: T[];
+  [key: string]: unknown;
+}
+
+interface CachedOrderInvoiceLike {
+  id: string;
+  status?: string;
+}
+
+interface CachedOrderLike {
+  id: string;
+  customer_invoices?: CachedOrderInvoiceLike[];
+  [key: string]: unknown;
 }
 
 function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) {
@@ -162,6 +182,7 @@ export function CustomerInvoiceDPList() {
 
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
+  const queryClient = useQueryClient();
 
   const canCreate = useUserPermission("customer_invoice_dp.create");
   const canUpdate = useUserPermission("customer_invoice_dp.update");
@@ -231,6 +252,13 @@ export function CustomerInvoiceDPList() {
             {statusLabel(t, status)}
           </Badge>
         );
+      case "waiting_payment":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1.5" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
       case "partial":
         return (
           <Badge variant="warning" className="text-xs font-medium">
@@ -242,13 +270,6 @@ export function CustomerInvoiceDPList() {
         return (
           <Badge variant="info" className="text-xs font-medium">
             <Send className="h-3 w-3 mr-1.5" />
-            {statusLabel(t, status)}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -488,11 +509,48 @@ export function CustomerInvoiceDPList() {
                           ) : null}
                           {canCreatePayment &&
                           (normalizeStatus(row.status) === "unpaid" ||
-                            normalizeStatus(row.status) === "partial" ||
-                            normalizeStatus(row.status) === "approved") ? (
+                            normalizeStatus(row.status) === "partial") ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-blue-600 focus:text-blue-600"
-                              onClick={() => setCreatePaymentForDPId(row.id)}
+                              onClick={() => {
+                                try {
+                                  queryClient.cancelQueries({ queryKey: customerInvoiceDPKeys.lists() });
+                                  queryClient.setQueriesData({ queryKey: customerInvoiceDPKeys.lists() }, (old: unknown) => {
+                                    if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
+                                      return old;
+                                    }
+
+                                    const previous = old as QueryListData<CustomerInvoiceDPListItem>;
+                                    return {
+                                      ...previous,
+                                      data: previous.data.map((dp) => (dp.id === row.id ? { ...dp, status: "waiting_payment" } : dp)),
+                                    };
+                                  });
+
+                                  const soId = row.sales_order?.id;
+                                  if (soId) {
+                                    queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: unknown) => {
+                                      if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
+                                        return old;
+                                      }
+
+                                      const previous = old as QueryListData<CachedOrderLike>;
+                                      return {
+                                        ...previous,
+                                        data: previous.data.map((order) => {
+                                          if (order.id !== soId) return order;
+                                          const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
+                                          return {
+                                            ...order,
+                                            customer_invoices: existing.map((ci) => (ci.id === row.id ? { ...ci, status: "waiting_payment" } : ci)),
+                                          };
+                                        }),
+                                      };
+                                    });
+                                  }
+                                } catch {}
+                                setCreatePaymentForDPId(row.id);
+                              }}
                             >
                               <CreditCard className="h-4 w-4 mr-2" />
                               {t("actions.createPayment")}

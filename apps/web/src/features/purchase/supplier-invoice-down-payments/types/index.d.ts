@@ -38,6 +38,7 @@ export type SupplierInvoiceDPStatus =
   | "REJECTED"
   | "CANCELLED"
   | "UNPAID"
+  | "WAITING_PAYMENT"
   | "PARTIAL"
   | "PAID";
 

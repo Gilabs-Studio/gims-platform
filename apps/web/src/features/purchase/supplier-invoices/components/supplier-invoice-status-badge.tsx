@@ -26,6 +26,13 @@ export function SupplierInvoiceStatusBadge({ status, className }: SupplierInvoic
           {t("unpaid")}
         </Badge>
       );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("waiting_payment")}
+        </Badge>
+      );
     case "partial":
       return (
         <Badge variant="warning" className={className}>

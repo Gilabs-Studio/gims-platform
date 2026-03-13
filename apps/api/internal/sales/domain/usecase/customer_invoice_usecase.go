@@ -515,12 +515,13 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 // isValidStatusTransition checks if the status transition is valid
 func isValidStatusTransition(from, to models.CustomerInvoiceStatus) bool {
 	validTransitions := map[models.CustomerInvoiceStatus][]models.CustomerInvoiceStatus{
-		models.CustomerInvoiceStatusDraft:     {models.CustomerInvoiceStatusSubmitted, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusSubmitted: {models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusRejected},
-		models.CustomerInvoiceStatusApproved: {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusRejected: {models.CustomerInvoiceStatusDraft},
-		models.CustomerInvoiceStatusUnpaid:   {models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusPartial:  {models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusDraft:          {models.CustomerInvoiceStatusSubmitted, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusSubmitted:      {models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusRejected},
+		models.CustomerInvoiceStatusApproved:       {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusRejected:       {models.CustomerInvoiceStatusDraft},
+		models.CustomerInvoiceStatusUnpaid:         {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusWaitingPayment: {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusPartial:        {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
 	}
 
 	allowed, ok := validTransitions[from]

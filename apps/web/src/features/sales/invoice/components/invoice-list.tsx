@@ -14,7 +14,11 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, DollarSign, XCircle, CheckCircle2, Clock, AlertTriangle, FileText, Send, Printer } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useQueryClient } from "@tanstack/react-query";
+import { invoiceKeys } from "../hooks/use-invoices";
+import { orderKeys } from "../../order/hooks/use-orders";
 import { InvoicePrintDialog } from "./invoice-print-dialog";
+import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { InvoiceForm } from "./invoice-form";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
@@ -115,10 +119,12 @@ export function InvoiceList() {
   const canPrint = useUserPermission("customer_invoice.print");
 
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
+  const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
 
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
   const approveInvoice = useApproveInvoice();
+  const queryClient = useQueryClient();
   const invoices = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -161,6 +167,37 @@ export function InvoiceList() {
     } catch {
       toast.error(t("common.error"));
     }
+  };
+
+  const handleOpenCreatePayment = (invoice: CustomerInvoice) => {
+    try {
+      queryClient.cancelQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.setQueriesData({ queryKey: invoiceKeys.lists() }, (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((inv: CustomerInvoice) => (inv.id === invoice.id ? { ...inv, status: "waiting_payment" } : inv)) };
+      });
+
+      const soId = invoice.sales_order?.id;
+      if (soId) {
+        queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((order: any) => {
+              if (order.id !== soId) return order;
+              const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
+              return {
+                ...order,
+                customer_invoices: existing.map((ci: any) => (ci.id === invoice.id ? { ...ci, status: "waiting_payment" } : ci)),
+              };
+            }),
+          };
+        });
+      }
+    } catch (e) {
+      // noop
+    }
+    setCreatePaymentForInvoiceId(invoice.id);
   };
 
   const isOverdue = (invoice: CustomerInvoice) => {
@@ -216,6 +253,7 @@ export function InvoiceList() {
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
+            <SelectItem value="waiting_payment">{t("status.waiting_payment")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
@@ -546,6 +584,14 @@ export function InvoiceList() {
           open={!!printingInvoiceId}
           onClose={() => setPrintingInvoiceId(null)}
           invoiceId={printingInvoiceId}
+        />
+      )}
+
+      {createPaymentForInvoiceId && (
+        <SalesPaymentForm
+          open={!!createPaymentForInvoiceId}
+          onClose={() => setCreatePaymentForInvoiceId(null)}
+          defaultInvoiceId={createPaymentForInvoiceId}
         />
       )}
     </div>

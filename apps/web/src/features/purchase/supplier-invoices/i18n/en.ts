@@ -104,6 +104,7 @@ export const supplierInvoiceEn = {
     rejected: "Rejected",
     cancelled: "Cancelled",
     unpaid: "Unpaid",
+    waiting_payment: "Waiting Payment",
     partial: "Partial",
     paid: "Paid",
   },
