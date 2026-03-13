@@ -20,6 +20,7 @@ import { SupplierInvoiceDPDetailModal } from "@/features/purchase/supplier-invoi
 import { SupplierInvoiceDownPaymentStatusBadge } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-down-payment-status-badge";
 import { supplierInvoiceDPService } from "@/features/purchase/supplier-invoice-down-payments/services/supplier-invoice-dp-service";
 import { supplierInvoiceDPKeys } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 interface SILinkedDialogProps {
   purchaseOrderCode: string;
@@ -37,6 +38,13 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
+  };
 
   // Fetch supplier invoices linked to the purchase order
   const { data: siData, isLoading: siLoading } = useQuery({
@@ -164,7 +172,21 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
                               <TableCell>{formatDate(inv.invoice_date)}</TableCell>
                               <TableCell>{inv.due_date ? formatDate(inv.due_date) : "—"}</TableCell>
                               <TableCell>
-                                <SupplierInvoiceStatusBadge status={inv.status} className="text-xs" />
+                                {isPaymentStatus(inv.status) ? (
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center cursor-pointer"
+                                    title={t("common.view")}
+                                    onClick={() => {
+                                      setSelectedInvoiceForPayments({ id: inv.id, code: inv.code });
+                                      setIsPaymentOpen(true);
+                                    }}
+                                  >
+                                    <SupplierInvoiceStatusBadge status={inv.status} className="text-xs" />
+                                  </button>
+                                ) : (
+                                  <SupplierInvoiceStatusBadge status={inv.status} className="text-xs" />
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-mono font-medium">{formatCurrency(inv.amount)}</TableCell>
                               <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(inv.paid_amount)}</TableCell>
@@ -228,7 +250,21 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
                               <TableCell>{formatDate(dp.invoice_date)}</TableCell>
                               <TableCell>{dp.due_date ? formatDate(dp.due_date) : "—"}</TableCell>
                               <TableCell>
-                                <SupplierInvoiceDownPaymentStatusBadge status={dp.status} className="text-xs" />
+                                {isPaymentStatus(dp.status) ? (
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center cursor-pointer"
+                                    title={t("common.view")}
+                                    onClick={() => {
+                                      setSelectedInvoiceForPayments({ id: dp.id, code: dp.code });
+                                      setIsPaymentOpen(true);
+                                    }}
+                                  >
+                                    <SupplierInvoiceDownPaymentStatusBadge status={dp.status} className="text-xs" />
+                                  </button>
+                                ) : (
+                                  <SupplierInvoiceDownPaymentStatusBadge status={dp.status} className="text-xs" />
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-mono font-medium">{formatCurrency(dp.paid_amount ?? 0)}</TableCell>
                               <TableCell className="text-right font-mono font-medium">{formatCurrency(dp.amount)}</TableCell>
@@ -249,6 +285,18 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
       <SupplierInvoiceDetail open={detailOpen} onClose={() => { setDetailOpen(false); setSelectedSIId(null); }} invoiceId={selectedSIId} />
 
       <SupplierInvoiceDPDetailModal open={!!selectedDPId} onOpenChange={(isOpen) => { if (!isOpen) setSelectedDPId(null); }} id={selectedDPId ?? ""} />
+
+      {selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentOpen}
+          onOpenChange={(open) => {
+            setIsPaymentOpen(open);
+            if (!open) setSelectedInvoiceForPayments(null);
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
     </>
   );
 }
