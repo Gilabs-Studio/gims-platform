@@ -30,6 +30,8 @@ import {
   Truck,
   Map,
   Warehouse,
+  ClipboardCheck,
+  PackageCheck,
 } from "lucide-react";
 import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
@@ -52,12 +54,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Truck,
   Map,
   Warehouse,
+  ClipboardCheck,
+  PackageCheck,
 };
 
 const CATEGORY_LABELS: Record<WidgetCategory, string> = {
   overview: "Overview",
   finance: "Finance",
   sales: "Sales",
+  purchase: "Purchase",
   inventory: "Inventory",
   geographic: "Geographic",
   hr: "HR",

@@ -134,7 +134,33 @@
         "inStock": "Stok Baik",
         "lowStock": "Stok Rendah",
         "outOfStock": "Kehabisan Stok"
+      },
+      "pending_approvals_sales": {
+        "title": "Persetujuan Tertunda - Penjualan",
+        "description": "Dokumen yang menunggu persetujuan di jalur penjualan"
+      },
+      "pending_approvals_purchase": {
+        "title": "Persetujuan Tertunda - Pembelian",
+        "description": "Dokumen yang menunggu persetujuan di jalur pembelian"
       }
+    },
+    "approvals": {
+      "tabs": {
+        "quotations": "Penawaran",
+        "salesOrders": "Pesanan Jual",
+        "deliveryOrders": "Pengiriman",
+        "customerInvoices": "Faktur",
+        "requisitions": "Permintaan",
+        "purchaseOrders": "PO",
+        "goodsReceipts": "Penerimaan",
+        "supplierInvoices": "Faktur Pemasok"
+      },
+      "actions": {
+        "reviewNow": "Tinjau Sekarang",
+        "openModule": "Buka Modul"
+      },
+      "pendingCount": "Tertunda:",
+      "empty": "Tidak ada persetujuan yang tertunda"
     }
   }
 }

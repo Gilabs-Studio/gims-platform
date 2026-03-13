@@ -17,6 +17,8 @@ import { RevenueBarChartCard } from "./revenue-bar-chart-card";
 import { StatSummaryCard } from "./stat-summary-card";
 import { BestSellingCard } from "./best-selling-card";
 import { TrackOrderCard } from "./track-order-card";
+import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
+import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
 
 interface WidgetRendererProps {
@@ -112,6 +114,10 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
           isLoading={isLoading}
         />
       );
+    case "pending_approvals_sales":
+      return <PendingApprovalsSalesWidget />;
+    case "pending_approvals_purchase":
+      return <PendingApprovalsPurchaseWidget />;
 
     default:
       return null;

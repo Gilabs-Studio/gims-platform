@@ -5,6 +5,7 @@ export type WidgetCategory =
   | "overview"
   | "finance"
   | "sales"
+  | "purchase"
   | "inventory"
   | "geographic"
   | "hr";
@@ -57,7 +58,10 @@ export type WidgetType =
   | "stat_summary_expense"
   | "stat_summary_orders"
   | "best_selling"
-  | "track_orders";
+  | "track_orders"
+  // Approval list widgets
+  | "pending_approvals_sales"
+  | "pending_approvals_purchase";
 
 /** Widget registry entry - metadata describing a widget */
 export interface WidgetRegistryEntry {

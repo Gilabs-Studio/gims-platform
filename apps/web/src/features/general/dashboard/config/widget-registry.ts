@@ -310,6 +310,30 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     icon: "Truck",
     permission: "delivery_order.read",
   },
+  pending_approvals_sales: {
+    type: "pending_approvals_sales",
+    category: "sales",
+    defaultSize: "xl",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "widgets.pending_approvals_sales.title",
+    descriptionKey: "widgets.pending_approvals_sales.description",
+    icon: "ClipboardCheck",
+  },
+  pending_approvals_purchase: {
+    type: "pending_approvals_purchase",
+    category: "purchase",
+    defaultSize: "xl",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "widgets.pending_approvals_purchase.title",
+    descriptionKey: "widgets.pending_approvals_purchase.description",
+    icon: "PackageCheck",
+  },
 };
 
 /** Default layout for new users — mirrors the reference Sales Dashboard design */

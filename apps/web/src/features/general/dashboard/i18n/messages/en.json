@@ -134,7 +134,33 @@
         "inStock": "In Stock",
         "lowStock": "Low Stock",
         "outOfStock": "Out of Stock"
+      },
+      "pending_approvals_sales": {
+        "title": "Pending Approval - Sales",
+        "description": "Documents awaiting approval in the sales pipeline"
+      },
+      "pending_approvals_purchase": {
+        "title": "Pending Approval - Purchase",
+        "description": "Documents awaiting approval in the purchase pipeline"
       }
+    },
+    "approvals": {
+      "tabs": {
+        "quotations": "Quotations",
+        "salesOrders": "Sales Orders",
+        "deliveryOrders": "Delivery Orders",
+        "customerInvoices": "Invoices",
+        "requisitions": "Requisitions",
+        "purchaseOrders": "PO",
+        "goodsReceipts": "Goods Receipts",
+        "supplierInvoices": "Supplier Invoices"
+      },
+      "actions": {
+        "reviewNow": "Review Now",
+        "openModule": "Open Module"
+      },
+      "pendingCount": "Pending:",
+      "empty": "No pending approvals"
     }
   }
 }

@@ -54,6 +54,8 @@ export function QuotationDetailModal({
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const t = useTranslations("quotation");
 
   const { data: detailData, isLoading } = useQuotation(quotation?.id ?? "", {
@@ -95,9 +97,6 @@ export function QuotationDetailModal({
   const itemsPagination = itemsData?.meta?.pagination;
 
   const totalItems = itemsPagination?.total ?? 0;
-
-  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const getStatusBadge = (status?: string) => {
     switch (status) {

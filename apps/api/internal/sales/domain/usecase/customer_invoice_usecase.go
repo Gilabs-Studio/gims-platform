@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -62,6 +63,8 @@ func NewCustomerInvoiceUsecase(
 }
 
 func (uc *customerInvoiceUsecase) List(ctx context.Context, req *dto.ListCustomerInvoicesRequest) ([]dto.CustomerInvoiceResponse, *utils.PaginationResult, error) {
+	req.Status = normalizeCustomerInvoiceListStatus(req.Status)
+
 	invoices, total, err := uc.invoiceRepo.List(ctx, req)
 	if err != nil {
 		return nil, nil, err
@@ -87,6 +90,24 @@ func (uc *customerInvoiceUsecase) List(ctx context.Context, req *dto.ListCustome
 	}
 
 	return mapper.MapCustomerInvoicesToResponse(invoices), pagination, nil
+}
+
+func normalizeCustomerInvoiceListStatus(status string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(status))
+	if normalized == "" {
+		return ""
+	}
+
+	// Backward-compatible alias: older clients use "sent" for pending approval.
+	if normalized == "SENT" {
+		return "SUBMITTED"
+	}
+
+	if normalized == "CANCELED" {
+		return "CANCELLED"
+	}
+
+	return normalized
 }
 
 func (uc *customerInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error) {
