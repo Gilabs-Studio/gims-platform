@@ -6,10 +6,11 @@ import { useTranslations } from "next-intl";
 import {
   AlertCircle,
   AlertTriangle,
-  Ban,
   CheckCircle2,
   Send,
   CreditCard,
+  Clock,
+  PieChart,
   Download,
   Eye,
   FileText,
@@ -226,21 +227,21 @@ export function CustomerInvoiceDPList() {
       case "unpaid":
         return (
           <Badge variant="warning" className="text-xs font-medium">
-            <Send className="h-3 w-3" />
+            <CreditCard className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "partial":
         return (
-          <Badge variant="info" className="text-xs font-medium">
-            <AlertCircle className="h-3 w-3" />
+          <Badge variant="warning" className="text-xs font-medium">
+            <PieChart className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );
       case "submitted":
         return (
           <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3" />
+            <Send className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -260,8 +261,8 @@ export function CustomerInvoiceDPList() {
         );
       case "cancelled":
         return (
-          <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">
-            <Ban className="h-3 w-3" />
+          <Badge variant="destructive" className="text-xs font-medium">
+            <XCircle className="h-3 w-3" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -269,7 +270,7 @@ export function CustomerInvoiceDPList() {
       default:
         return (
           <Badge variant="secondary" className="text-xs font-medium">
-            <FileText className="h-3 w-3" />
+            <Clock className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );

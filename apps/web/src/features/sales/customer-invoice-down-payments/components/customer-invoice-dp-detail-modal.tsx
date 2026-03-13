@@ -23,10 +23,11 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   AlertCircle,
-  Ban,
   CheckCircle2,
   Send,
   CreditCard,
+  Clock,
+  PieChart,
   History,
   ShieldAlert,
   XCircle,
@@ -56,62 +57,72 @@ function normalizeStatus(status?: string | null): string {
 
 function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: ReturnType<typeof useTranslations> }) {
   switch (normalizeStatus(status)) {
-    case "paid":
+    case "draft":
       return (
-        <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3" />
-          {t("status.paid")}
-        </Badge>
-      );
-    case "unpaid":
-      return (
-        <Badge variant="warning" className="text-xs font-medium">
-          <Send className="h-3 w-3" />
-          {t("status.unpaid")}
-        </Badge>
-      );
-    case "partial":
-      return (
-        <Badge variant="info" className="text-xs font-medium">
-          <AlertCircle className="h-3 w-3" />
-          {t("status.partial")}
+        <Badge variant="secondary" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.draft")}
         </Badge>
       );
     case "submitted":
+    case "sent":
       return (
         <Badge variant="info" className="text-xs font-medium">
-          <Send className="h-3 w-3" />
+          <Send className="h-3 w-3 mr-1.5" />
           {t("status.submitted")}
+        </Badge>
+      );
+    case "pending":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Send className="h-3 w-3 mr-1.5" />
+          {t("status.pending")}
         </Badge>
       );
     case "approved":
       return (
         <Badge variant="success" className="text-xs font-medium">
-          <CheckCircle2 className="h-3 w-3" />
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("status.approved")}
         </Badge>
       );
     case "rejected":
       return (
         <Badge variant="destructive" className="text-xs font-medium">
-          <XCircle className="h-3 w-3" />
+          <XCircle className="h-3 w-3 mr-1.5" />
           {t("status.rejected")}
+        </Badge>
+      );
+    case "unpaid":
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <CreditCard className="h-3 w-3 mr-1.5" />
+          {t("status.unpaid")}
+        </Badge>
+      );
+    case "partial":
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <PieChart className="h-3 w-3 mr-1.5" />
+          {t("status.partial")}
+        </Badge>
+      );
+    case "paid":
+      return (
+        <Badge variant="success" className="text-xs font-medium">
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
+          {t("status.paid")}
         </Badge>
       );
     case "cancelled":
       return (
-        <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">
-          <Ban className="h-3 w-3" />
+        <Badge variant="destructive" className="text-xs font-medium">
+          <XCircle className="h-3 w-3 mr-1.5" />
           {t("status.cancelled")}
         </Badge>
       );
     default:
-      return (
-        <Badge variant="secondary" className="text-xs font-medium">
-          <FileText className="h-3 w-3" />
-          {t("status.draft")}
-        </Badge>
-      );
+      return <Badge variant="outline" className="text-xs font-medium">{status ?? t("status.unknown")}</Badge>;
   }
 }
 

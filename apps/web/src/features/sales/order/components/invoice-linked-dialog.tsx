@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { Receipt, Banknote } from "lucide-react";
+import { Receipt, Banknote, CheckCircle2, Clock, CreditCard, PieChart, Send, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,19 +21,69 @@ import type { CustomerInvoice } from "../../invoice/types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 function DPStatusBadge({ status, className }: { status?: string; className?: string }) {
+  const t = useTranslations("customerInvoiceDP");
   const normalized = (status ?? "").toLowerCase();
-  const map: Record<string, { variant: "default" | "secondary" | "success" | "warning" | "info" | "destructive"; label: string }> = {
-    draft: { variant: "secondary", label: "Draft" },
-    submitted: { variant: "info", label: "Submitted" },
-    approved: { variant: "success", label: "Approved" },
-    rejected: { variant: "destructive", label: "Rejected" },
-    unpaid: { variant: "warning", label: "Unpaid" },
-    partial: { variant: "info", label: "Partial" },
-    paid: { variant: "success", label: "Paid" },
-    cancelled: { variant: "secondary", label: "Cancelled" },
-  };
-  const cfg = map[normalized] ?? { variant: "secondary" as const, label: status ?? "-" };
-  return <Badge variant={cfg.variant} className={className}>{cfg.label}</Badge>;
+
+  switch (normalized) {
+    case "draft":
+      return (
+        <Badge variant="secondary" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.draft") || "Draft"}
+        </Badge>
+      );
+    case "submitted":
+      return (
+        <Badge variant="info" className={className}>
+          <Send className="h-3 w-3 mr-1.5" />
+          {t("status.submitted") || "Submitted"}
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge variant="success" className={className}>
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
+          {t("status.approved") || "Approved"}
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge variant="destructive" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("status.rejected") || "Rejected"}
+        </Badge>
+      );
+    case "unpaid":
+      return (
+        <Badge variant="warning" className={className}>
+          <CreditCard className="h-3 w-3 mr-1.5" />
+          {t("status.unpaid") || "Unpaid"}
+        </Badge>
+      );
+    case "partial":
+      return (
+        <Badge variant="warning" className={className}>
+          <PieChart className="h-3 w-3 mr-1.5" />
+          {t("status.partial") || "Partial"}
+        </Badge>
+      );
+    case "paid":
+      return (
+        <Badge variant="success" className={className}>
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
+          {t("status.paid") || "Paid"}
+        </Badge>
+      );
+    case "cancelled":
+      return (
+        <Badge variant="destructive" className={className}>
+          <XCircle className="h-3 w-3 mr-1.5" />
+          {t("status.cancelled") || "Cancelled"}
+        </Badge>
+      );
+    default:
+      return <Badge variant="outline" className={className}>{status ?? "-"}</Badge>;
+  }
 }
 
 interface InvoiceLinkedDialogProps {
