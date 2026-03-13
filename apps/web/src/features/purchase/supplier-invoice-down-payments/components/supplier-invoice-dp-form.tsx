@@ -28,6 +28,7 @@ import {
   useSupplierInvoiceDPAddData,
   useUpdateSupplierInvoiceDP,
 } from "../hooks/use-supplier-invoice-dp";
+import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import {
   supplierInvoiceDPSchema,
   type SupplierInvoiceDPFormData,
@@ -64,10 +65,26 @@ export function SupplierInvoiceDPFormDialog({
     },
   });
 
+  const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
+
   useEffect(() => {
     if (!open) return;
     if (!isEdit) {
-      form.reset({ purchase_order_id: defaultPurchaseOrderId ?? "", invoice_date: "", due_date: "", amount: 0, notes: null });
+      const initial: SupplierInvoiceDPFormData = {
+        purchase_order_id: defaultPurchaseOrderId ?? "",
+        invoice_date: "",
+        due_date: "",
+        amount: 0,
+        notes: null,
+      };
+      // If opened from a PO, try to prefill amount from PO total
+      if (defaultPurchaseOrderId) {
+        const po = poQuery.data?.success ? poQuery.data.data : null;
+        if (po) {
+          initial.amount = po.total_amount ?? 0;
+        }
+      }
+      form.reset(initial);
       return;
     }
     const detail = detailQuery.data?.success ? detailQuery.data.data : null;
@@ -79,7 +96,7 @@ export function SupplierInvoiceDPFormDialog({
       amount: detail.amount,
       notes: detail.notes ?? null,
     });
-  }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId]);
+  }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId, poQuery.data]);
 
   const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;

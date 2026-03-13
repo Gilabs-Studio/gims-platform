@@ -2,6 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
+import { purchaseOrderKeys } from "@/features/purchase/orders/hooks/use-purchase-orders";
+import type { SupplierInvoiceDPDetail } from "../types";
+import type { PurchaseOrderListItem, PurchaseOrderSISummary } from "@/features/purchase/orders/types";
 import type {
   CreateSupplierInvoiceDPInput,
   SupplierInvoiceDPAuditTrailParams,
@@ -20,6 +23,46 @@ export const supplierInvoiceDPKeys = {
   auditTrail: (id: string, params?: SupplierInvoiceDPAuditTrailParams) =>
     [...supplierInvoiceDPKeys.auditTrails(), id, params] as const,
 };
+
+function upsertInvoiceSummaryAtFront(
+  invoices: PurchaseOrderSISummary[],
+  next: PurchaseOrderSISummary,
+): PurchaseOrderSISummary[] {
+  const withoutCurrent = invoices.filter((entry) => entry.id !== next.id);
+  return [next, ...withoutCurrent];
+}
+
+function applyInvoiceDPToPurchaseOrderLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  si: SupplierInvoiceDPDetail | undefined,
+) {
+  const poId = si?.purchase_order?.id ?? null;
+  if (!si || !poId) return;
+
+  const queries = queryClient.getQueriesData({ queryKey: purchaseOrderKeys.lists() });
+  queries.forEach(([key, old]) => {
+    if (!old || typeof old !== "object" || !("data" in (old as Record<string, unknown>))) return;
+    queryClient.setQueryData(key as readonly unknown[], (prev: unknown) => {
+      if (!prev || typeof prev !== "object" || !("data" in (prev as Record<string, unknown>))) return prev;
+      const p = prev as { data: PurchaseOrderListItem[] };
+      const newData = p.data.map((po) => {
+        if (po.id !== poId) return po;
+        const existing: PurchaseOrderSISummary[] = Array.isArray(po.supplier_invoices) ? po.supplier_invoices : [];
+        const found = existing.find((entry) => entry.id === si.id);
+        const nextEntry: PurchaseOrderSISummary = {
+          id: si.id,
+          code: si.code ?? found?.code ?? "",
+          status: si.status ?? found?.status ?? "DRAFT",
+        };
+        return {
+          ...po,
+          supplier_invoices: upsertInvoiceSummaryAtFront(existing, nextEntry),
+        } as PurchaseOrderListItem;
+      });
+      return { ...p, data: newData } as { data: PurchaseOrderListItem[] };
+    });
+  });
+}
 
 export function useSupplierInvoiceDPs(params?: SupplierInvoiceDPListParams) {
   return useQuery({
@@ -50,8 +93,13 @@ export function useCreateSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (data: CreateSupplierInvoiceDPInput) => supplierInvoiceDPService.create(data),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
+      // Optimistically update PO list so DP count shows immediately
+      try {
+        const si: SupplierInvoiceDPDetail | undefined = res?.data;
+        applyInvoiceDPToPurchaseOrderLists(queryClient, si);
+      } catch {}
     },
   });
 }
@@ -62,9 +110,13 @@ export function useUpdateSupplierInvoiceDP() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateSupplierInvoiceDPInput }) =>
       supplierInvoiceDPService.update(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(variables.id) });
+      try {
+        const si: SupplierInvoiceDPDetail | undefined = res?.data;
+        applyInvoiceDPToPurchaseOrderLists(queryClient, si);
+      } catch {}
     },
   });
 }
@@ -85,9 +137,10 @@ export function usePendingSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => supplierInvoiceDPService.pending(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
+      applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -97,9 +150,10 @@ export function useSubmitSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => supplierInvoiceDPService.submit(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
+      applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -109,9 +163,10 @@ export function useApproveSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => supplierInvoiceDPService.approve(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
+      applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -121,9 +176,10 @@ export function useRejectSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => supplierInvoiceDPService.reject(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
+      applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -133,10 +189,11 @@ export function useCancelSupplierInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => supplierInvoiceDPService.cancel(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.auditTrails() });
+      applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }

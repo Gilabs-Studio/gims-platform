@@ -78,6 +78,7 @@ export const supplierInvoiceDPId = {
   },
   actions: {
     create: "Buat",
+    createPayment: "Buat Pembayaran",
     export: "Ekspor",
     view: "Lihat",
     edit: "Ubah",

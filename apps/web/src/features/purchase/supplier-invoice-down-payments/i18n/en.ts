@@ -78,6 +78,7 @@ export const supplierInvoiceDPEn = {
   },
   actions: {
     create: "Create",
+    createPayment: "Create Payment",
     export: "Export",
     view: "View",
     edit: "Edit",

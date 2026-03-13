@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import {
   Banknote,
   CheckCircle2,
   Download,
   Eye,
-  FileText,
   MoreHorizontal,
   Package,
   Pencil,
@@ -61,6 +60,7 @@ import {
   useRejectPurchaseOrder,
   useSubmitPurchaseOrder,
 } from "../hooks/use-purchase-orders";
+
 import { purchaseOrdersService } from "../services/purchase-orders-service";
 import type { PurchaseOrderListItem, PurchaseOrderStatus } from "../types";
 import { GoodsReceiptStatusBadge } from "@/features/purchase/goods-receipt/components/goods-receipt-status-badge";
@@ -162,6 +162,9 @@ export function PurchaseOrdersList() {
   const rejectMutation = useRejectPurchaseOrder();
   const closeMutation = useClosePurchaseOrder();
 
+  // Note: cache subscribe removed to avoid refetch loops. Supplier-invoice hooks
+  // already apply typed optimistic updates to purchase-order list cache.
+
   if (isError) {
     return (
       <div className="text-center py-8 text-destructive">
@@ -200,7 +203,6 @@ export function PurchaseOrdersList() {
   const renderGRBadges = (it: PurchaseOrderListItem) => {
     const grItems = it.goods_receipts;
     if (!grItems?.length) return <span className="text-muted-foreground text-xs">—</span>;
-    const totalReceived = it.fulfillment?.total_received ?? 0;
     return (
       <button
         type="button"

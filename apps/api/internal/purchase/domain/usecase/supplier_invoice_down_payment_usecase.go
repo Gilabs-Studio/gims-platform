@@ -52,18 +52,11 @@ func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.Supplie
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceDownPaymentAddResponse, error) {
-	// Fetch APPROVED POs that have at least one UNPAID or PARTIAL normal supplier invoice
+	// Fetch APPROVED POs for DP creation.
+	// DP can be created before GR/regular supplier invoice exists.
 	var pos []*models.PurchaseOrder
 	err := uc.db.WithContext(ctx).
 		Where("status = ?", models.PurchaseOrderStatusApproved).
-		Where("id IN (?)",
-			uc.db.Model(&models.SupplierInvoice{}).
-				Select("purchase_order_id").
-				Where("type = ? AND status IN (?) AND deleted_at IS NULL",
-					models.SupplierInvoiceTypeNormal,
-					[]string{string(models.SupplierInvoiceStatusUnpaid), string(models.SupplierInvoiceStatusPartial)},
-				),
-		).
 		Preload("Items").
 		Preload("Items.Product").
 		Preload("Supplier").

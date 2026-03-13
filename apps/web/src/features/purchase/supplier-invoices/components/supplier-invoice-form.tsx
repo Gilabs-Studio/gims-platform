@@ -30,6 +30,7 @@ import {
   useSupplierInvoiceAddData,
   useUpdateSupplierInvoice,
 } from "../hooks/use-supplier-invoices";
+import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import {
   supplierInvoiceSchema,
   type SupplierInvoiceFormData,
@@ -38,6 +39,17 @@ import {
 // Local narrow types to avoid `any` casts
 type PaymentTermOption = { id: string; name: string; code?: string };
 type ProductRef = { id?: string; name?: string; code?: string };
+
+// Purchase Order item shape (narrowed) used when mapping PO -> invoice items
+type POItem = {
+  product_id: string;
+  product?: ProductRef | null;
+  quantity: number;
+  price: number;
+  discount?: number | null;
+};
+
+type InvoiceItem = SupplierInvoiceFormData["items"][number];
 
 type QuickCreateType = "paymentTerm" | null;
 
@@ -68,6 +80,7 @@ export function SupplierInvoiceFormDialog({
 
   const addDataQuery = useSupplierInvoiceAddData({ enabled: open });
   const detailQuery = useSupplierInvoice(invoiceId ?? "", { enabled: open && isEdit });
+  const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
 
   const createMutation = useCreateSupplierInvoice();
   const updateMutation = useUpdateSupplierInvoice();
@@ -117,7 +130,8 @@ export function SupplierInvoiceFormDialog({
     setActiveTab("basic");
 
     if (!isEdit) {
-      form.reset({
+      // Base initial values
+      const initial: SupplierInvoiceFormData = {
         goods_receipt_id: defaultGoodsReceiptId ?? "",
         payment_terms_id: "",
         invoice_number: "",
@@ -127,8 +141,37 @@ export function SupplierInvoiceFormDialog({
         delivery_cost: 0,
         other_cost: 0,
         notes: null,
-        items: [],
-      });
+        items: [] as InvoiceItem[],
+      };
+
+      // If opened from a PO without a preselected GR, try to auto-fill from PO
+      if (defaultPurchaseOrderId && !defaultGoodsReceiptId) {
+        // If there's exactly one GR for that PO, select it so the GR-based autofill runs
+        if (filteredGRs.length === 1) {
+          initial.goods_receipt_id = filteredGRs[0].id;
+        } else {
+          const po = poQuery.data?.success ? poQuery.data.data : null;
+          if (po) {
+            initial.payment_terms_id = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
+            initial.tax_rate = po.tax_rate ?? 0;
+            initial.delivery_cost = po.delivery_cost ?? 0;
+            initial.other_cost = po.other_cost ?? 0;
+            initial.items = (po.items ?? []).map((it) => {
+              const prod = it.product as ProductRef | undefined;
+              return {
+                product_id: it.product_id,
+                product_name: prod?.name ?? "",
+                product_code: prod?.code ?? "",
+                quantity: it.quantity,
+                price: it.price,
+                discount: it.discount ?? 0,
+              };
+            });
+          }
+        }
+      }
+
+      form.reset(initial);
       return;
     }
 
@@ -154,7 +197,7 @@ export function SupplierInvoiceFormDialog({
         discount: it.discount,
       })),
     });
-  }, [open, isEdit, detailQuery.data, form, defaultGoodsReceiptId]);
+  }, [open, isEdit, detailQuery.data, form, defaultGoodsReceiptId, defaultPurchaseOrderId, filteredGRs, poQuery.data]);
 
   useEffect(() => {
     if (!open || isEdit || !selectedGR) return;
