@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
-import { Clock, Loader2, MapPin, Home, Briefcase } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Clock, Loader2, MapPin, Home, Briefcase, MapPinOff, Navigation } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -16,8 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { CheckInType } from "../types";
+import type { CheckInType, TodayAttendance } from "../types";
 import { cn } from "@/lib/utils";
+import { ClockInLateReasonDialog } from "./clock-in-late-reason-dialog";
+import { ClockInCameraDialog } from "./clock-in-camera-dialog";
+import { useLocationPermission } from "../hooks/use-location-permission";
+import { useGeolocation, calculateDistance } from "../hooks/use-geolocation";
 
 const CHECK_IN_TYPES: { value: CheckInType; icon: typeof Home }[] = [
   { value: "NORMAL", icon: Briefcase },
@@ -65,16 +69,56 @@ export function UserMenuAttendance() {
   const { data: todayData, isLoading } = useTodayAttendance();
   const clockInMutation = useClockIn();
   const clockOutMutation = useClockOut();
+  const { isDenied, isPrompt, requestPermission } = useLocationPermission();
+  const geo = useGeolocation();
 
-  const today = todayData?.data;
+  const today = todayData?.data as TodayAttendance | undefined;
   const hasCheckedIn = today?.has_checked_in ?? false;
   const hasCheckedOut = today?.has_checked_out ?? false;
   const record = today?.attendance_record;
+  const ws = today?.work_schedule;
 
-  const handleClockIn = useCallback(
-    (checkInType: CheckInType) => {
+  // Proximity calculation
+  const proximityInfo = (() => {
+    if (!ws?.require_gps || !ws.office_latitude || !ws.office_longitude) return null;
+    if (!geo.hasLocation) return null;
+    const distance = calculateDistance(
+      geo.latitude!,
+      geo.longitude!,
+      ws.office_latitude,
+      ws.office_longitude
+    );
+    const isAtOffice = distance <= (ws.gps_radius_meter ?? 100);
+    return { distance: Math.round(distance), isAtOffice };
+  })();
+
+  // Dialog state for late reason and camera
+  const [pendingClockInType, setPendingClockInType] = useState<CheckInType | null>(null);
+  const [showLateReasonDialog, setShowLateReasonDialog] = useState(false);
+  const [showCameraDialog, setShowCameraDialog] = useState(false);
+
+  // WHY: Always send lat/lng for all check-in types
+  const executeClockIn = useCallback(
+    async (checkInType: CheckInType, lateReason?: string, photoUrl?: string) => {
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+
+      try {
+        const pos = await geo.getCurrentPosition();
+        latitude = pos.latitude;
+        longitude = pos.longitude;
+      } catch {
+        // Let backend decide if GPS is required
+      }
+
       clockInMutation.mutate(
-        { check_in_type: checkInType },
+        {
+          check_in_type: checkInType,
+          ...(latitude !== undefined ? { latitude } : {}),
+          ...(longitude !== undefined ? { longitude } : {}),
+          ...(lateReason ? { late_reason: lateReason } : {}),
+          ...(photoUrl ? { photo_url: photoUrl } : {}),
+        },
         {
           onSuccess: (responseData) => {
             const msg = getSuccessMessage(
@@ -82,6 +126,7 @@ export function UserMenuAttendance() {
               t("messages.clockInSuccess")
             );
             toast.success(msg);
+            setPendingClockInType(null);
           },
           onError: (err) => {
             const msg = getErrorMessage(err, t("messages.notClockedInYet"));
@@ -90,12 +135,69 @@ export function UserMenuAttendance() {
         }
       );
     },
-    [clockInMutation, t]
+    [clockInMutation, geo, t]
   );
 
-  const handleClockOut = useCallback(() => {
+  // WHY: Intercept clock-in to check if late (NORMAL → show reason dialog)
+  // or WFH/FIELD_WORK (show camera dialog for photo proof)
+  const handleClockIn = useCallback(
+    (checkInType: CheckInType) => {
+      if (checkInType === "WFH" || checkInType === "FIELD_WORK") {
+        setPendingClockInType(checkInType);
+        setShowCameraDialog(true);
+        return;
+      }
+
+      // NORMAL type: check if late
+      if (checkInType === "NORMAL" && today?.is_late) {
+        setPendingClockInType(checkInType);
+        setShowLateReasonDialog(true);
+        return;
+      }
+
+      // Not late, clock in directly
+      executeClockIn(checkInType);
+    },
+    [today?.is_late, executeClockIn]
+  );
+
+  const handleLateReasonConfirm = useCallback(
+    (reason: string) => {
+      if (pendingClockInType) {
+        executeClockIn(pendingClockInType, reason);
+      }
+      setShowLateReasonDialog(false);
+    },
+    [pendingClockInType, executeClockIn]
+  );
+
+  const handleCameraConfirm = useCallback(
+    (photoUrl: string) => {
+      if (pendingClockInType) {
+        executeClockIn(pendingClockInType, undefined, photoUrl);
+      }
+      setShowCameraDialog(false);
+    },
+    [pendingClockInType, executeClockIn]
+  );
+
+  const handleClockOut = useCallback(async () => {
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+
+    try {
+      const pos = await geo.getCurrentPosition();
+      latitude = pos.latitude;
+      longitude = pos.longitude;
+    } catch {
+      // Location unavailable — proceed without, backend decides
+    }
+
     clockOutMutation.mutate(
-      {},
+      {
+        ...(latitude !== undefined ? { latitude } : {}),
+        ...(longitude !== undefined ? { longitude } : {}),
+      },
       {
         onSuccess: (responseData) => {
           const msg = getSuccessMessage(
@@ -110,7 +212,7 @@ export function UserMenuAttendance() {
         },
       }
     );
-  }, [clockOutMutation, t]);
+  }, [clockOutMutation, geo, t]);
 
   const isPending = clockInMutation.isPending || clockOutMutation.isPending;
 
@@ -130,11 +232,51 @@ export function UserMenuAttendance() {
       : t("notClockedIn");
 
   return (
+    <>
     <div className="flex flex-col gap-1.5 px-1 py-1">
       <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
         <Clock className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{statusLine}</span>
       </div>
+
+      {/* Location permission denied alert */}
+      {isDenied && (
+        <div className="mx-1 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-2 text-xs text-destructive">
+          <MapPinOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium">{t("location.permissionDenied")}</p>
+            <p className="mt-0.5 text-muted-foreground">{t("location.enableInSettings")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Location permission prompt alert */}
+      {isPrompt && (
+        <div className="mx-1 flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-400">
+          <Navigation className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">{t("location.permissionPrompt")}</span>
+          <button
+            type="button"
+            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+            onClick={requestPermission}
+          >
+            {t("location.enable")}
+          </button>
+        </div>
+      )}
+
+      {/* Office proximity status */}
+      {proximityInfo && !hasCheckedOut && (
+        <div className="mx-2 flex items-center gap-1.5 text-xs">
+          <MapPin className={cn("h-3.5 w-3.5", proximityInfo.isAtOffice ? "text-emerald-500" : "text-amber-500")} />
+          <span className={cn(proximityInfo.isAtOffice ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+            {proximityInfo.isAtOffice
+              ? t("location.atOffice")
+              : t("location.notAtOffice", { distance: proximityInfo.distance })}
+          </span>
+        </div>
+      )}
+
       <div className="flex gap-1">
         {!hasCheckedIn && (
           <DropdownMenu>
@@ -143,7 +285,7 @@ export function UserMenuAttendance() {
                 variant="secondary"
                 size="sm"
                 className="h-8 flex-1 cursor-pointer text-xs"
-                disabled={isPending}
+                disabled={isPending || isDenied}
               >
                 {isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -167,12 +309,31 @@ export function UserMenuAttendance() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        {/* Re-request location permission button */}
+        {(isDenied || isPrompt) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 cursor-pointer text-xs text-amber-600 dark:text-amber-400 border-amber-500/50"
+            onClick={() => {
+              if (isDenied) {
+                toast.info(t("location.deniedInstructions"), { duration: 8000 });
+              } else {
+                requestPermission();
+              }
+            }}
+          >
+            <Navigation className="h-3.5 w-3.5 mr-1" />
+            {t("location.requestPermission")}
+          </Button>
+        )}
         {hasCheckedIn && !hasCheckedOut && (
           <Button
             variant="secondary"
             size="sm"
             className={cn("h-8 flex-1 cursor-pointer text-xs")}
-            disabled={isPending}
+            disabled={isPending || isDenied}
             onClick={handleClockOut}
           >
             {isPending ? (
@@ -184,5 +345,22 @@ export function UserMenuAttendance() {
         )}
       </div>
     </div>
+
+    <ClockInLateReasonDialog
+      open={showLateReasonDialog}
+      onOpenChange={setShowLateReasonDialog}
+      lateMinutes={today?.late_minutes ?? 0}
+      isPending={clockInMutation.isPending}
+      onConfirm={handleLateReasonConfirm}
+    />
+
+    <ClockInCameraDialog
+      open={showCameraDialog}
+      onOpenChange={setShowCameraDialog}
+      checkInType={pendingClockInType ?? "WFH"}
+      isPending={clockInMutation.isPending}
+      onConfirm={handleCameraConfirm}
+    />
+    </>
   );
 }

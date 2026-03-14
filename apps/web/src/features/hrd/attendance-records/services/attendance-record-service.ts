@@ -129,5 +129,16 @@ export const attendanceRecordService = {
     );
     return response.data;
   },
+
+  async uploadImage(file: File): Promise<{ success: boolean; data: { url: string; filename: string } }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post<{ success: boolean; data: { url: string; filename: string } }>(
+      "/upload/image",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  },
 };
 

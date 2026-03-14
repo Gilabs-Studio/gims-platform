@@ -31,6 +31,8 @@ var (
 	ErrHolidayNoCheckIn   = errors.New("cannot check in on holiday")
 	ErrHolidayNoCheckOut  = errors.New("cannot check out on holiday")
 	ErrOffDayNoCheckOut   = errors.New("cannot check out on off day")
+	ErrLateReasonRequired = errors.New("late reason is required when clocking in late")
+	ErrPhotoRequired      = errors.New("photo proof is required for WFH and field work clock-in")
 )
 
 // AttendanceRecordUsecase defines the interface for attendance record business logic
@@ -264,6 +266,20 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		status = models.AttendanceStatusWFH
 	}
 
+	// Validate late reason required for late NORMAL clock-in
+	if lateMinutes > 0 && req.CheckInType == string(models.CheckInTypeNormal) {
+		if len(req.LateReason) == 0 {
+			return nil, ErrLateReasonRequired
+		}
+	}
+
+	// Validate photo required for WFH / FIELD_WORK
+	if req.CheckInType == string(models.CheckInTypeWFH) || req.CheckInType == string(models.CheckInTypeFieldWork) {
+		if len(req.PhotoURL) == 0 {
+			return nil, ErrPhotoRequired
+		}
+	}
+
 	// Create or update attendance record
 	ar := existing
 	if ar == nil {
@@ -281,6 +297,8 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 	ar.CheckInAddress = req.Address
 	ar.CheckInNote = req.Note
 	ar.LateMinutes = lateMinutes
+	ar.LateReason = req.LateReason
+	ar.PhotoURL = req.PhotoURL
 	ar.Status = status
 
 	if existing == nil {

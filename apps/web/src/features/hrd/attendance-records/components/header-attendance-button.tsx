@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { LocationSettingsDialog } from "./location-settings-dialog";
 import {
   CalendarDays,
   Loader2,
@@ -15,6 +16,8 @@ import {
   AlertCircle,
   CalendarOff,
   Palmtree,
+  MapPinOff,
+  Navigation,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -37,6 +40,10 @@ import {
 } from "../hooks/use-attendance-records";
 import type { CheckInType, TodayAttendance, AttendanceRecord } from "../types";
 import { cn } from "@/lib/utils";
+import { ClockInLateReasonDialog } from "./clock-in-late-reason-dialog";
+import { ClockInCameraDialog } from "./clock-in-camera-dialog";
+import { useLocationPermission } from "../hooks/use-location-permission";
+import { useGeolocation, calculateDistance } from "../hooks/use-geolocation";
 
 type AttendanceDrawerTab = "calendar" | "leave";
 
@@ -145,12 +152,35 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
   const { data: todayData, isLoading } = useTodayAttendance();
   const clockInMutation = useClockIn();
   const clockOutMutation = useClockOut();
+  const { isDenied, isPrompt, requestPermission, requestPermissionOrFallback } = useLocationPermission();
+  const geo = useGeolocation();
 
   const today = todayData?.data as TodayAttendance | undefined;
   const hasCheckedIn = today?.has_checked_in ?? false;
   const hasCheckedOut = today?.has_checked_out ?? false;
   const record = today?.attendance_record as AttendanceRecord | null | undefined;
   const isPending = clockInMutation.isPending || clockOutMutation.isPending;
+  const ws = today?.work_schedule;
+
+  // Proximity calculation
+  const proximityInfo = (() => {
+    if (!ws?.require_gps || !ws.office_latitude || !ws.office_longitude) return null;
+    if (!geo.hasLocation) return null;
+    const distance = calculateDistance(
+      geo.latitude!,
+      geo.longitude!,
+      ws.office_latitude,
+      ws.office_longitude
+    );
+    const isAtOffice = distance <= (ws.gps_radius_meter ?? 100);
+    return { distance: Math.round(distance), isAtOffice };
+  })();
+
+  // Dialog state for late reason and camera
+  const [pendingClockInType, setPendingClockInType] = useState<CheckInType | null>(null);
+  const [showLateReasonDialog, setShowLateReasonDialog] = useState(false);
+  const [showCameraDialog, setShowCameraDialog] = useState(false);
+  const [showLocationSettings, setShowLocationSettings] = useState(false);
 
   // WHY: Block attendance actions on holidays and off-days to prevent invalid records
   const isHolidayOrOffDay = today?.is_holiday || !today?.is_working_day;
@@ -171,30 +201,109 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
         ? `${t("clockedIn")} ${formatTime(record?.check_in_time)}`
         : t("notClockedIn");
 
-  const handleClockIn = useCallback(
-    (checkInType: CheckInType) => {
+  // WHY: Always send lat/lng for all check-in types (NORMAL for validation, WFH/FIELD_WORK for tracking)
+  const executeClockIn = useCallback(
+    async (checkInType: CheckInType, lateReason?: string, photoUrl?: string) => {
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+
+      try {
+        const pos = await geo.getCurrentPosition();
+        latitude = pos.latitude;
+        longitude = pos.longitude;
+      } catch {
+        // If location fails for NORMAL type with GPS required, let the backend reject it
+      }
+
       clockInMutation.mutate(
-        { check_in_type: checkInType },
         {
-          onSuccess: () => toast.success(t("messages.clockInSuccess")),
+          check_in_type: checkInType,
+          ...(latitude !== undefined ? { latitude } : {}),
+          ...(longitude !== undefined ? { longitude } : {}),
+          ...(lateReason ? { late_reason: lateReason } : {}),
+          ...(photoUrl ? { photo_url: photoUrl } : {}),
+        },
+        {
+          onSuccess: () => {
+            toast.success(t("messages.clockInSuccess"));
+            setPendingClockInType(null);
+          },
           onError: (err) => toast.error(getErrorMessage(err, t("messages.notClockedInYet"))),
         }
       );
     },
-    [clockInMutation, t]
+    [clockInMutation, geo, t]
   );
 
-  const handleClockOut = useCallback(() => {
+  // WHY: Intercept clock-in to check if late (NORMAL → show reason dialog)
+  // or WFH/FIELD_WORK (show camera dialog for photo proof)
+  const handleClockIn = useCallback(
+    (checkInType: CheckInType) => {
+      if (checkInType === "WFH" || checkInType === "FIELD_WORK") {
+        setPendingClockInType(checkInType);
+        setShowCameraDialog(true);
+        return;
+      }
+
+      // NORMAL type: check if late
+      if (checkInType === "NORMAL" && today?.is_late) {
+        setPendingClockInType(checkInType);
+        setShowLateReasonDialog(true);
+        return;
+      }
+
+      // Not late, clock in directly
+      executeClockIn(checkInType);
+    },
+    [today?.is_late, executeClockIn]
+  );
+
+  const handleLateReasonConfirm = useCallback(
+    (reason: string) => {
+      if (pendingClockInType) {
+        executeClockIn(pendingClockInType, reason);
+      }
+      setShowLateReasonDialog(false);
+    },
+    [pendingClockInType, executeClockIn]
+  );
+
+  const handleCameraConfirm = useCallback(
+    (photoUrl: string) => {
+      if (pendingClockInType) {
+        executeClockIn(pendingClockInType, undefined, photoUrl);
+      }
+      setShowCameraDialog(false);
+    },
+    [pendingClockInType, executeClockIn]
+  );
+
+  const handleClockOut = useCallback(async () => {
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+
+    try {
+      const pos = await geo.getCurrentPosition();
+      latitude = pos.latitude;
+      longitude = pos.longitude;
+    } catch {
+      // Location unavailable — proceed without, backend decides
+    }
+
     clockOutMutation.mutate(
-      {},
+      {
+        ...(latitude !== undefined ? { latitude } : {}),
+        ...(longitude !== undefined ? { longitude } : {}),
+      },
       {
         onSuccess: () => toast.success(t("messages.clockOutSuccess")),
         onError: (err) => toast.error(getErrorMessage(err, t("messages.notClockedInYet"))),
       }
     );
-  }, [clockOutMutation, t]);
+  }, [clockOutMutation, geo, t]);
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -218,6 +327,45 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel>{t("today")}</DropdownMenuLabel>
         <div className="px-2 py-1 text-xs text-muted-foreground">{statusLine}</div>
+
+        {/* Location permission denied alert */}
+        {isDenied && (
+          <div className="mx-2 my-1 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-2 text-xs text-destructive">
+            <MapPinOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">{t("location.permissionDenied")}</p>
+              <p className="mt-0.5 text-muted-foreground">{t("location.enableInSettings")}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Location permission prompt alert */}
+        {isPrompt && (
+          <div className="mx-2 my-1 flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-400">
+            <Navigation className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">{t("location.permissionPrompt")}</span>
+            <button
+              type="button"
+              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+              onClick={requestPermission}
+            >
+              {t("location.enable")}
+            </button>
+          </div>
+        )}
+
+        {/* Office proximity status */}
+        {proximityInfo && !hasCheckedOut && (
+          <div className="mx-2 my-1 flex items-center gap-1.5 text-xs">
+            <MapPin className={cn("h-3.5 w-3.5", proximityInfo.isAtOffice ? "text-emerald-500" : "text-amber-500")} />
+            <span className={cn(proximityInfo.isAtOffice ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+              {proximityInfo.isAtOffice
+                ? t("location.atOffice")
+                : t("location.notAtOffice", { distance: proximityInfo.distance })}
+            </span>
+          </div>
+        )}
+
         <DropdownMenuSeparator />
 
         {!hasCheckedIn ? (
@@ -225,6 +373,11 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
             <DropdownMenuItem disabled className="opacity-50">
               <LogIn className="h-4 w-4" />
               <span>{t("clockIn")} — {blockReason}</span>
+            </DropdownMenuItem>
+          ) : isDenied ? (
+            <DropdownMenuItem disabled className="opacity-50">
+              <LogIn className="h-4 w-4" />
+              <span>{t("clockIn")} — {t("location.denied")}</span>
             </DropdownMenuItem>
           ) : (
           <DropdownMenuSub>
@@ -254,7 +407,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
         ) : (
           <DropdownMenuItem
             className="cursor-pointer"
-            disabled={hasCheckedOut || isPending || !!isHolidayOrOffDay}
+            disabled={hasCheckedOut || isPending || !!isHolidayOrOffDay || isDenied}
             onClick={handleClockOut}
           >
             {isPending ? (
@@ -262,7 +415,11 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
             ) : (
               <LogOut className="h-4 w-4" />
             )}
-            <span>{t("clockOut")}{isHolidayOrOffDay && hasCheckedIn ? ` — ${blockReason}` : ""}</span>
+            <span>
+              {t("clockOut")}
+              {isHolidayOrOffDay && hasCheckedIn ? ` — ${blockReason}` : ""}
+              {isDenied && hasCheckedIn && !isHolidayOrOffDay ? ` — ${t("location.denied")}` : ""}
+            </span>
           </DropdownMenuItem>
         )}
 
@@ -281,7 +438,53 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
           <Plane className="h-4 w-4" />
           <span>{t("requestLeaveAction")}</span>
         </DropdownMenuItem>
+
+        {/* Re-request location permission button */}
+        {(isDenied || isPrompt) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer text-amber-600 dark:text-amber-400"
+              onSelect={(e) => {
+                // WHY: preventDefault keeps the dropdown open so the
+                // browser's geolocation popup can appear on top of it.
+                // Without this, Radix closes the menu and the popup
+                // is swallowed / never shown.
+                e.preventDefault();
+                // Try the native browser popup first. If the browser
+                // has remembered a "deny" and won't show the popup,
+                // open the instructions dialog as a fallback.
+                requestPermissionOrFallback(() => setShowLocationSettings(true));
+              }}
+            >
+              <Navigation className="h-4 w-4" />
+              <span>{isDenied ? t("location.openSettings") : t("location.requestPermission")}</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <ClockInLateReasonDialog
+      open={showLateReasonDialog}
+      onOpenChange={setShowLateReasonDialog}
+      lateMinutes={today?.late_minutes ?? 0}
+      isPending={clockInMutation.isPending}
+      onConfirm={handleLateReasonConfirm}
+    />
+
+    <ClockInCameraDialog
+      open={showCameraDialog}
+      onOpenChange={setShowCameraDialog}
+      checkInType={pendingClockInType ?? "WFH"}
+      isPending={clockInMutation.isPending}
+      onConfirm={handleCameraConfirm}
+    />
+
+    <LocationSettingsDialog
+      open={showLocationSettings}
+      onOpenChange={setShowLocationSettings}
+    />
+    </>
   );
 }

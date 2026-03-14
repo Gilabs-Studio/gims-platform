@@ -201,6 +201,14 @@ func (h *AttendanceRecordHandler) ClockIn(c *gin.Context) {
 			errors.ErrorResponse(c, "HOLIDAY_NO_CHECK_IN", map[string]interface{}{
 				"message": "Cannot check in on a holiday",
 			}, nil)
+		case usecase.ErrLateReasonRequired:
+			errors.ErrorResponse(c, "LATE_REASON_REQUIRED", map[string]interface{}{
+				"message": "A reason is required when clocking in late",
+			}, nil)
+		case usecase.ErrPhotoRequired:
+			errors.ErrorResponse(c, "PHOTO_REQUIRED", map[string]interface{}{
+				"message": "Photo proof is required for WFH and field work clock-in",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}

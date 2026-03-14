@@ -65,6 +65,11 @@ type AttendanceRecord struct {
 	// If on leave, reference the leave request
 	LeaveRequestID *string `gorm:"type:uuid;index" json:"leave_request_id"`
 
+	// Late reason — required when employee clocks in late (NORMAL type)
+	LateReason string `gorm:"size:500" json:"late_reason"`
+	// Photo proof URL — required for WFH / FIELD_WORK clock-in (camera capture)
+	PhotoURL string `gorm:"size:500" json:"photo_url"`
+
 	// Notes and flags
 	Notes             string `gorm:"type:text" json:"notes"`
 	IsManualEntry     bool   `gorm:"default:false" json:"is_manual_entry"`     // If entry was manually created by admin

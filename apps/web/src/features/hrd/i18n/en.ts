@@ -230,6 +230,79 @@ export const hrdEn = {
         totalLateMinutes: "Late Minutes",
         attendanceRate: "Attendance Rate",
       },
+
+      // Late clock-in dialog
+      lateDialog: {
+        title: "Late Clock-In",
+        description: "You are {minutes} minutes late. Please provide a reason for your late arrival.",
+        reasonLabel: "Reason for being late",
+        reasonPlaceholder: "Explain the reason for your late arrival...",
+        cancel: "Cancel",
+        confirm: "Clock In",
+      },
+
+      // Camera photo proof dialog
+      cameraDialog: {
+        title: "Photo Proof Required",
+        description_WFH: "Please take a selfie as proof for your Work From Home attendance.",
+        description_FIELD_WORK: "Please take a selfie as proof for your Field Work attendance.",
+        capture: "Take Photo",
+        retake: "Retake",
+        confirm: "Use Photo & Clock In",
+        cancel: "Cancel",
+        retry: "Try Again",
+        permissionDenied: "Camera permission was denied. Please allow camera access in your browser settings.",
+        notAvailable: "Camera is not available on this device.",
+        uploading: "Uploading...",
+        uploadFailed: "Failed to upload photo. Please try again.",
+      },
+
+      // Geolocation / location permission
+      location: {
+        permissionDenied: "Location access denied",
+        enableInSettings: "Please enable location access in your browser settings to clock in/out.",
+        permissionPrompt: "Location access is needed for attendance.",
+        enable: "Enable",
+        denied: "Location denied",
+        atOffice: "At office",
+        notAtOffice: "Not at office ({distance}m away)",
+        requestPermission: "Enable Location Access",
+        openSettings: "Location Settings",
+        deniedInstructions: "Location access was blocked. To enable it: click the lock/tune icon in the address bar → Site settings → Location → Allow, then reload the page.",
+        settingsDialog: {
+          title: "Location Access Blocked",
+          description: "Location access has been denied by your browser. Follow the steps below to enable it, then reload the page.",
+          stepsTitle: "Steps for {browser}",
+          addressBarHint: "Look for the lock/tune icon at the left side of the address bar — click it to quickly access site permissions.",
+          retryPermission: "Retry Permission",
+          reloadPage: "Reload Page",
+          steps_chrome: {
+            1: "Click the lock/tune icon (🔒) at the left of the address bar",
+            2: "Find \"Location\" in the permissions list and set it to \"Allow\"",
+            3: "Click \"Reload\" or press the button below to apply changes",
+          },
+          steps_edge: {
+            1: "Click the lock icon (🔒) at the left of the address bar",
+            2: "Find \"Location\" and change it to \"Allow\"",
+            3: "Click \"Reload\" or press the button below to apply changes",
+          },
+          steps_firefox: {
+            1: "Click the lock icon (🔒) at the left of the address bar",
+            2: "Click \"Clear cookies and site data\" or go to \"Permissions\" → \"Access Your Location\" → remove the block",
+            3: "Reload the page using the button below",
+          },
+          steps_safari: {
+            1: "Go to Safari menu → Settings → Websites → Location",
+            2: "Find this website and change permission to \"Allow\"",
+            3: "Close Settings and reload the page using the button below",
+          },
+          steps_other: {
+            1: "Open your browser's site settings or permissions",
+            2: "Find \"Location\" permission and set it to \"Allow\" for this site",
+            3: "Reload the page using the button below",
+          },
+        },
+      },
     },
 
     // Work Schedule
