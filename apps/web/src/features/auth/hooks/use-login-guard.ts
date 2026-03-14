@@ -5,14 +5,10 @@ import { useAuthStore } from "../stores/use-auth-store";
 /**
  * Authentication guard hook specifically for the login page.
  *
- * Flow:
- * 1. ALWAYS verify session with backend via /auth/refresh-token
- * 2. If backend returns 200 OK → redirect to dashboard
- * 3. If backend returns 401/403 → clear localStorage & cookies, show login form
- * 4. While verifying → show loading spinner
- *
- * CRITICAL: We cannot check HttpOnly cookies from JavaScript.
- * Always verify with backend to determine auth state.
+ * This hook verifies the current session in the background, but it does not
+ * block rendering of the login form. This improves perceived performance by
+ * allowing users to start typing immediately while the browser checks if the
+ * existing session is still valid.
  */
 export function useLoginGuard() {
   const router = useRouter();
@@ -24,61 +20,56 @@ export function useLoginGuard() {
     logout,
   } = useAuthStore();
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const hasAttemptedVerification = useRef(false);
 
-  // Mark as hydrated after first render
+  // Mark as hydrated after first render (Zustand rehydration complete)
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // ALWAYS verify session with backend on login page
-  // This handles cases where HttpOnly cookies exist but localStorage was cleared
   const verifyAndRedirect = useCallback(async () => {
-    // Prevent concurrent/repeated verification attempts
-    if (hasAttemptedVerification.current) {
+    // Avoid repeated attempts when the component re-renders
+    if (hasAttemptedVerification.current || isRedirecting) {
       return;
     }
     hasAttemptedVerification.current = true;
 
-    // If already verified in this session, redirect immediately
+    // If we already have a verified session from this page load, avoid the
+    // extra round-trip and redirect immediately.
     if (isSessionVerified && localStorageAuth) {
       setIsRedirecting(true);
       router.push("/dashboard");
       return;
     }
 
-    // ALWAYS verify session with backend - we cannot check HttpOnly cookies
+    setIsVerifying(true);
+
     try {
       const { authService } = await import("../services/auth-service");
 
-      // Fetch CSRF token FIRST (sequential GET) so the subsequent POST uses
-      // the same token. prefetchCSRFToken now returns the token string; we
-      // discard it here because the module-level memoryCsrfToken is sufficient
-      // for the /auth/refresh-token probe (the token is only critical for the
-      // /auth/login POST, handled explicitly in handleLogin).
+      // CSRF prefetch is a best-effort optimization; it is not required for
+      // /auth/refresh-token but can help for the subsequent login request.
       try {
         await authService.prefetchCSRFToken();
       } catch {
-        // Non-fatal: the getMe() POST may still carry the cookie and the
-        // interceptor will attach whatever token it has from memory.
+        // Ignore — verification can still succeed without it.
       }
 
       const response = await authService.getMe();
 
-      // Session is valid - update user data and redirect to dashboard
       if (response?.data?.user) {
         setUser(response.data.user);
         setSessionVerified(true);
         setIsRedirecting(true);
         router.push("/dashboard");
-      } else {
-        // Response invalid - clear auth and show login form
-        logout();
-        setIsLoading(false);
+        return;
       }
+
+      // If response doesn't contain user, treat it as an invalid session.
+      logout();
     } catch (error: unknown) {
       const axiosError = error as {
         response?: { status?: number; data?: { error?: { code?: string } } };
@@ -86,66 +77,47 @@ export function useLoginGuard() {
       const status = axiosError?.response?.status;
       const errorCode = axiosError?.response?.data?.error?.code;
 
-      // Treat CSRF_INVALID as a non-fatal error: the cookie/header simply
-      // weren't in sync yet. Show the login form; handleLogin will re-fetch
-      // a fresh CSRF token before the actual login POST.
+      // CSRF mismatch can happen when the token is stale; let the user retry.
       if (errorCode === "CSRF_INVALID") {
-        setIsLoading(false);
         return;
       }
 
-      // 401 means session is genuinely expired — clean up and show login form
       if (status === 401) {
         logout();
-        // Also clear cookies since they're invalid
         const { fullAuthCleanup } = await import("../utils/clear-auth-cookies");
         await fullAuthCleanup();
       } else if (status === 403) {
-        // 403 Forbidden (non-CSRF) — session exists but lacks permissions.
-        // Show login form without wiping cookies so the user can re-login.
+        // Session exists but lacks permissions - keep cookies so user can re-login.
         logout();
       } else if (status === 429) {
-        // Rate limited - don't logout, but show login form for now
-        // User can try again later
+        // Rate limited - allow the user to try again once the cooldown expires.
       } else {
-        // Other errors (network, server) - clear auth for safety
         logout();
       }
-
-      setIsLoading(false);
+    } finally {
+      setIsVerifying(false);
     }
   }, [
     localStorageAuth,
     isSessionVerified,
+    isRedirecting,
     router,
     setUser,
     setSessionVerified,
     logout,
   ]);
 
-  // Run verification after hydration
+  // Start verification as soon as hydration is complete.
   useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-
+    if (!isHydrated) return;
     verifyAndRedirect();
   }, [isHydrated, verifyAndRedirect]);
 
   return {
-    /**
-     * True while checking authentication status or redirecting.
-     * Show loading spinner when true.
-     */
-    isLoading: !isHydrated || isLoading || isRedirecting,
+    // Indicates the login page is still checking whether the user is already logged in.
+    isLoading: isVerifying || isRedirecting,
 
-    /**
-     * True if user should see the login form.
-     * This is true when:
-     * 1. Hydration complete
-     * 2. Verification complete
-     * 3. User is not authenticated (not redirecting to dashboard)
-     */
-    shouldShowLoginForm: isHydrated && !isLoading && !isRedirecting,
+    // Allow the login form to render immediately after hydration.
+    shouldShowLoginForm: isHydrated && !isRedirecting,
   };
 }

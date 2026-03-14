@@ -180,7 +180,7 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/login">
+              <Link href="/login" prefetch={false}>
                 <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
                   Mulai sekarang
                 </Button>

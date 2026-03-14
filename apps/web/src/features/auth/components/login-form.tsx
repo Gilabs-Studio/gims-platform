@@ -130,23 +130,9 @@ export default function LoginForm() {
 
   const isFormLoading = isLoading || isSubmitting;
 
-  // Show loading spinner while verifying session with backend
-  if (isVerifying) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {t("verifyingSession") || "Verifying session..."}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Only show login form after verification is complete
+  // The login form is rendered immediately to reduce perceived latency.
+  // The session verification runs in the background and will redirect
+  // automatically if the user is already authenticated.
   if (!shouldShowLoginForm) {
     return null;
   }
@@ -165,6 +151,11 @@ export default function LoginForm() {
             <CardDescription className="text-sm text-muted-foreground">
               {t("description")}
             </CardDescription>
+            {isVerifying && (
+              <div className="rounded-md border border-border/60 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                {t("verifyingSession") || "Verifying session..."}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-5 px-6 pb-6 pt-2">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
