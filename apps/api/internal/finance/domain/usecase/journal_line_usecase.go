@@ -63,17 +63,18 @@ func (uc *journalLineUsecase) ListLines(ctx context.Context, req *dto.ListJourna
 	}
 
 	params := repositories.JournalLineListParams{
-		ChartOfAccountID: strings.TrimSpace(req.ChartOfAccountID),
-		AccountType:      strings.TrimSpace(req.AccountType),
-		ReferenceType:    req.ReferenceType,
-		JournalStatus:    strings.TrimSpace(req.JournalStatus),
-		StartDate:        startDate,
-		EndDate:          endDate,
-		Search:           strings.TrimSpace(req.Search),
-		SortBy:           req.SortBy,
-		SortDir:          req.SortDir,
-		Limit:            perPage,
-		Offset:           (page - 1) * perPage,
+		CashBankJournalID: strings.TrimSpace(req.CashBankJournalID),
+		ChartOfAccountID:  strings.TrimSpace(req.ChartOfAccountID),
+		AccountType:       strings.TrimSpace(req.AccountType),
+		ReferenceType:     req.ReferenceType,
+		JournalStatus:     strings.TrimSpace(req.JournalStatus),
+		StartDate:         startDate,
+		EndDate:           endDate,
+		Search:            strings.TrimSpace(req.Search),
+		SortBy:            req.SortBy,
+		SortDir:           req.SortDir,
+		Limit:             perPage,
+		Offset:            (page - 1) * perPage,
 	}
 
 	items, total, err := uc.lineRepo.List(ctx, params)
@@ -202,17 +203,18 @@ func (uc *journalLineUsecase) ExportLinesCSV(ctx context.Context, req *dto.ListJ
 	}
 
 	params := repositories.JournalLineListParams{
-		ChartOfAccountID: strings.TrimSpace(req.ChartOfAccountID),
-		AccountType:      strings.TrimSpace(req.AccountType),
-		ReferenceType:    req.ReferenceType,
-		JournalStatus:    strings.TrimSpace(req.JournalStatus),
-		StartDate:        startDate,
-		EndDate:          endDate,
-		Search:           strings.TrimSpace(req.Search),
-		SortBy:           req.SortBy,
-		SortDir:          req.SortDir,
-		Limit:            10000, // Safety limit for export
-		Offset:           0,
+		CashBankJournalID: strings.TrimSpace(req.CashBankJournalID),
+		ChartOfAccountID:  strings.TrimSpace(req.ChartOfAccountID),
+		AccountType:       strings.TrimSpace(req.AccountType),
+		ReferenceType:     req.ReferenceType,
+		JournalStatus:     strings.TrimSpace(req.JournalStatus),
+		StartDate:         startDate,
+		EndDate:           endDate,
+		Search:            strings.TrimSpace(req.Search),
+		SortBy:            req.SortBy,
+		SortDir:           req.SortDir,
+		Limit:             10000, // Safety limit for export
+		Offset:            0,
 	}
 
 	items, _, err := uc.lineRepo.List(ctx, params)

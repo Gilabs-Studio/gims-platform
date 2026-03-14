@@ -1,5 +1,12 @@
 import { apiClient } from "@/lib/api-client";
-import type { ApiResponse, CashBankJournal, CashBankJournalInput, ListCashBankParams } from "../types";
+import type {
+  ApiResponse,
+  CashBankFormData,
+  CashBankJournal,
+  CashBankJournalInput,
+  ListCashBankParams,
+} from "../types";
+import type { ListJournalLinesParams, ListJournalLinesResponse } from "@/features/finance/journal-lines/types";
 
 const BASE_URL = "/finance/cash-bank";
 
@@ -31,6 +38,22 @@ export const financeCashBankService = {
 
   post: async (id: string): Promise<ApiResponse<CashBankJournal>> => {
     const response = await apiClient.post<ApiResponse<CashBankJournal>>(`${BASE_URL}/${id}/post`);
+    return response.data;
+  },
+
+  getFormData: async (): Promise<ApiResponse<CashBankFormData>> => {
+    const response = await apiClient.get<ApiResponse<CashBankFormData>>(`${BASE_URL}/form-data`);
+    return response.data;
+  },
+
+  listLines: async (
+    id: string,
+    params?: ListJournalLinesParams
+  ): Promise<ApiResponse<ListJournalLinesResponse>> => {
+    const response = await apiClient.get<ApiResponse<ListJournalLinesResponse>>(
+      `${BASE_URL}/${id}/lines`,
+      { params }
+    );
     return response.data;
   },
 };

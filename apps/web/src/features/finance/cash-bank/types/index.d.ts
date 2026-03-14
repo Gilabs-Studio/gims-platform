@@ -26,6 +26,12 @@ export type CashBankStatus = "draft" | "posted";
 export interface CashBankJournalLine {
   id: string;
   chart_of_account_id: string;
+  chart_of_account?: {
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+  };
   reference_type?: string | null;
   reference_id?: string | null;
   amount: number;
@@ -40,6 +46,13 @@ export interface CashBankJournal {
   type: CashBankType;
   description: string;
   bank_account_id: string;
+  bank_account?: {
+    id: string;
+    name: string;
+    account_number: string;
+    account_holder?: string;
+    currency?: string;
+  } | null;
   total_amount: number;
   status: CashBankStatus;
   journal_entry_id?: string | null;
@@ -68,6 +81,33 @@ export interface CashBankJournalLineInput {
   memo: string;
   reference_type?: string | null;
   reference_id?: string | null;
+}
+
+export interface CoaFormOption {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+}
+
+export interface BankAccountFormOption {
+  id: string;
+  account_name: string;
+  account_number: string;
+  bank_name: string;
+  currency: string;
+  coa_id?: string | null;
+}
+
+export interface EnumOption {
+  value: string;
+  label: string;
+}
+
+export interface CashBankFormData {
+  chart_of_accounts: CoaFormOption[];
+  bank_accounts: BankAccountFormOption[];
+  types: EnumOption[];
 }
 
 export interface CashBankJournalInput {

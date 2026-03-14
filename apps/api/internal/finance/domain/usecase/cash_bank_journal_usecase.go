@@ -28,6 +28,7 @@ type CashBankJournalUsecase interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.CashBankJournalResponse, error)
 	List(ctx context.Context, req *dto.ListCashBankJournalsRequest) ([]dto.CashBankJournalResponse, int64, error)
+	ListLines(ctx context.Context, cashBankJournalID string, page, perPage int) (*dto.ListJournalLinesResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.CashBankJournalResponse, error)
 	GetFormData(ctx context.Context) (*dto.CashBankFormDataResponse, error)
 }
@@ -375,6 +376,79 @@ func (uc *cashBankJournalUsecase) List(ctx context.Context, req *dto.ListCashBan
 		res = append(res, mapped)
 	}
 	return res, total, nil
+}
+
+func (uc *cashBankJournalUsecase) ListLines(ctx context.Context, cashBankJournalID string, page, perPage int) (*dto.ListJournalLinesResponse, int64, error) {
+	cashBankJournalID = strings.TrimSpace(cashBankJournalID)
+	if cashBankJournalID == "" {
+		return nil, 0, errors.New("cash_bank_journal_id is required")
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	cb, err := uc.repo.FindByID(ctx, cashBankJournalID, true)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, 0, ErrCashBankNotFound
+		}
+		return nil, 0, err
+	}
+
+	total := int64(len(cb.Lines))
+	start := (page - 1) * perPage
+	end := start + perPage
+	if int64(start) > total {
+		start = int(total)
+	}
+	if int64(end) > total {
+		end = int(total)
+	}
+
+	lines := cb.Lines[start:end]
+	resLines := make([]dto.JournalLineDetailResponse, 0, len(lines))
+	for _, ln := range lines {
+		var debit, credit float64
+		if cb.Type == financeModels.CashBankTypeCashIn {
+			debit = ln.Amount
+		} else {
+			credit = ln.Amount
+		}
+
+		resLines = append(resLines, dto.JournalLineDetailResponse{
+			ID:                 ln.ID,
+			JournalEntryID:     cb.ID,
+			EntryDate:          cb.TransactionDate.Format("2006-01-02"),
+			JournalDescription: cb.Description,
+			JournalStatus:      string(cb.Status),
+			ReferenceType:      ln.ReferenceType,
+			ReferenceID:        ln.ReferenceID,
+			ChartOfAccountID:   ln.ChartOfAccountID,
+			ChartOfAccountCode: ln.ChartOfAccountCodeSnapshot,
+			ChartOfAccountName: ln.ChartOfAccountNameSnapshot,
+			ChartOfAccountType: ln.ChartOfAccountTypeSnapshot,
+			Debit:              debit,
+			Credit:             credit,
+			Memo:               ln.Memo,
+			RunningBalance:     0,
+			CreatedAt:          ln.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		})
+	}
+
+	resp := &dto.ListJournalLinesResponse{
+		Lines:       resLines,
+		TotalDebit:  0,
+		TotalCredit: 0,
+	}
+
+	return resp, total, nil
 }
 
 func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.CashBankJournalResponse, error) {

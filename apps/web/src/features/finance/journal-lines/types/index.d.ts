@@ -65,6 +65,7 @@ export interface ListJournalLinesParams {
   page?: number;
   per_page?: number;
   search?: string;
+  cash_bank_journal_id?: string;
   chart_of_account_id?: string;
   account_type?: AccountType;
   reference_type?: string;
