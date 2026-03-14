@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	coreDTO "github.com/gilabs/gims/api/internal/core/domain/dto"
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
@@ -137,6 +138,7 @@ func toCustomerBankResponse(m *models.CustomerBank) dto.CustomerBankResponse {
 		ID:            m.ID,
 		CustomerID:    m.CustomerID,
 		BankID:        m.BankID,
+		CurrencyID:    m.CurrencyID,
 		AccountNumber: m.AccountNumber,
 		AccountName:   m.AccountName,
 		Branch:        m.Branch,
@@ -156,6 +158,19 @@ func toCustomerBankResponse(m *models.CustomerBank) dto.CustomerBankResponse {
 			UpdatedAt: m.Bank.UpdatedAt,
 		}
 		resp.Bank = &bank
+	}
+	if m.Currency != nil {
+		currency := coreDTO.CurrencyResponse{
+			ID:            m.Currency.ID,
+			Code:          m.Currency.Code,
+			Name:          m.Currency.Name,
+			Symbol:        m.Currency.Symbol,
+			DecimalPlaces: m.Currency.DecimalPlaces,
+			IsActive:      m.Currency.IsActive,
+			CreatedAt:     m.Currency.CreatedAt,
+			UpdatedAt:     m.Currency.UpdatedAt,
+		}
+		resp.Currency = &currency
 	}
 
 	return resp

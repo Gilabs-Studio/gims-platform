@@ -84,7 +84,7 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		ProvinceID:     req.ProvinceID,
 		CityID:         req.CityID,
 		DistrictID:     req.DistrictID,
-		VillageID:      req.VillageID,		VillageName:   req.VillageName,		// Sales defaults
+		VillageID:      req.VillageID, VillageName: req.VillageName, // Sales defaults
 		DefaultBusinessTypeID: req.DefaultBusinessTypeID,
 		DefaultAreaID:         req.DefaultAreaID,
 		DefaultSalesRepID:     req.DefaultSalesRepID,
@@ -116,6 +116,7 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 			ID:            uuid.New().String(),
 			CustomerID:    customer.ID,
 			BankID:        bank.BankID,
+			CurrencyID:    &bank.CurrencyID,
 			AccountNumber: bank.AccountNumber,
 			AccountName:   bank.AccountName,
 			Branch:        bank.Branch,
@@ -349,6 +350,7 @@ func (u *customerUsecase) AddBankAccount(ctx context.Context, customerID string,
 		ID:            uuid.New().String(),
 		CustomerID:    customerID,
 		BankID:        req.BankID,
+		CurrencyID:    &req.CurrencyID,
 		AccountNumber: req.AccountNumber,
 		AccountName:   req.AccountName,
 		Branch:        req.Branch,
@@ -363,6 +365,7 @@ func (u *customerUsecase) AddBankAccount(ctx context.Context, customerID string,
 		ID:            bank.ID,
 		CustomerID:    bank.CustomerID,
 		BankID:        bank.BankID,
+		CurrencyID:    bank.CurrencyID,
 		AccountNumber: bank.AccountNumber,
 		AccountName:   bank.AccountName,
 		Branch:        bank.Branch,
@@ -376,6 +379,9 @@ func (u *customerUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 	bank := &models.CustomerBank{ID: id}
 	if req.BankID != "" {
 		bank.BankID = req.BankID
+	}
+	if req.CurrencyID != "" {
+		bank.CurrencyID = &req.CurrencyID
 	}
 	if req.AccountNumber != "" {
 		bank.AccountNumber = req.AccountNumber
@@ -397,6 +403,7 @@ func (u *customerUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 	return dto.CustomerBankResponse{
 		ID:            bank.ID,
 		BankID:        bank.BankID,
+		CurrencyID:    bank.CurrencyID,
 		AccountNumber: bank.AccountNumber,
 		AccountName:   bank.AccountName,
 		Branch:        bank.Branch,

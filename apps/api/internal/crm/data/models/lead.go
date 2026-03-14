@@ -88,6 +88,7 @@ type Lead struct {
 	CID                  string   `gorm:"type:varchar(200)" json:"cid"`
 	PlaceID              string   `gorm:"type:varchar(200)" json:"place_id"`
 	Website              string   `gorm:"type:varchar(255)" json:"website"`
+	BankAccountID        *string  `gorm:"type:uuid;index" json:"bank_account_id"`
 	BankAccountReference string   `gorm:"type:varchar(255)" json:"bank_account_reference"`
 
 	// Metadata

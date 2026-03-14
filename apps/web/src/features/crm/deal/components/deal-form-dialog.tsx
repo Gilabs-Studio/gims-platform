@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
+import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useDealFormData, useCreateDeal, useUpdateDeal } from "../hooks/use-deals";
 import { createDealSchema, type CreateDealFormData } from "../schemas/deal.schema";
 import type { Deal, DealPipelineStageOption, DealProductOption } from "../types";
@@ -51,6 +52,7 @@ export function DealFormDialog({
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
   const { data: formData, isLoading: isFormLoading } = useDealFormData({ enabled: open });
+  const { data: bankAccountsRes } = useFinanceBankAccounts({ per_page: 100, sort_by: "name", sort_dir: "asc" });
   const createMutation = useCreateDeal();
   const updateMutation = useUpdateDeal();
   const isEdit = !!deal;
@@ -67,6 +69,7 @@ export function DealFormDialog({
       contact_id: deal?.contact_id ?? "",
       assigned_to: deal?.assigned_to ?? "",
       lead_id: deal?.lead_id ?? "",
+      bank_account_id: deal?.bank_account_id ?? "",
       bank_account_reference: deal?.bank_account_reference ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
@@ -175,6 +178,7 @@ export function DealFormDialog({
   );
 
   const dealValue = watch("value");
+  const bankAccounts = bankAccountsRes?.data ?? [];
 
   const handleFormSubmit = (data: CreateDealFormData) => {
     const cleaned = {
@@ -183,6 +187,7 @@ export function DealFormDialog({
       contact_id: data.contact_id || undefined,
       assigned_to: data.assigned_to || undefined,
       lead_id: data.lead_id || undefined,
+      bank_account_id: data.bank_account_id || undefined,
       bank_account_reference: data.bank_account_reference || undefined,
       expected_close_date: data.expected_close_date || undefined,
       items: data.items?.map((item) => ({
@@ -442,6 +447,29 @@ export function DealFormDialog({
                                     {l.first_name} {l.last_name} ({l.code})
                                   </SelectItem>
                                 ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+
+                    <Field orientation="vertical" className="col-span-2">
+                      <FieldLabel>{t("bankAccount")}</FieldLabel>
+                      <Controller
+                        name="bank_account_id"
+                        control={control}
+                        render={({ field }) => (
+                          <Select value={field.value || "__none__"} onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}>
+                            <SelectTrigger className="cursor-pointer">
+                              <SelectValue placeholder={t("bankAccountPlaceholder")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__" className="cursor-pointer">-</SelectItem>
+                              {bankAccounts.map((account) => (
+                                <SelectItem key={account.id} value={account.id} className="cursor-pointer">
+                                  {account.name} - {account.account_number} ({account.currency}) [{t(`bankAccountOwnerType.${account.owner_type}`)}: {account.owner_name}]
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         )}

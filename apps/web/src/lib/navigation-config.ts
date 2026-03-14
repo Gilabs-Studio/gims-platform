@@ -79,6 +79,7 @@ export const navigationConfig: NavItem[] = [
         url: "/master-data/payment-courier",
         icon: "credit-card",
         children: [
+          { name: "Currencies", url: "/master-data/currencies", icon: "coins", permission: "currency.read" },
           { name: "Payment Terms", url: "/master-data/payment-terms", icon: "clock", permission: "payment_term.read" },
           { name: "Courier Agencies", url: "/master-data/courier-agencies", icon: "truck", permission: "courier_agency.read" },
           { name: "SO Sources", url: "/master-data/so-sources", icon: "file-text", permission: "so_source.read" },

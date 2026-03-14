@@ -96,6 +96,13 @@ export const crmDealEn = {
     lead: "Lead",
     leadPlaceholder: "Select lead (optional)",
     selectLead: "Select lead (optional)",
+    bankAccount: "Linked Bank Account",
+    bankAccountPlaceholder: "Select linked bank account",
+    bankAccountOwnerType: {
+      company: "Company",
+      customer: "Customer",
+      supplier: "Supplier",
+    },
     bankAccountReference: "Bank Account Reference",
     bankAccountReferencePlaceholder: "e.g. BCA 1234567890 a.n PT Example",
     expectedCloseDate: "Expected Close Date",

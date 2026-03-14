@@ -36,6 +36,7 @@ import { LeadSourceDialog } from "../../lead-source/components/lead-source-dialo
 import { LeadStatusDialog } from "../../lead-status/components/lead-status-dialog";
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
+import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useLeadForm, type UseLeadFormProps } from "../hooks/use-lead-form";
 import { useLeadFormData, leadKeys } from "../hooks/use-leads";
 import type { Lead } from "../types";
@@ -108,6 +109,7 @@ export function LeadFormDialog({
 
   const { form, onSubmit, isSubmitting } = useLeadForm(formProps);
   const { data: formDataRes } = useLeadFormData({ enabled: open });
+  const { data: bankAccountsRes } = useFinanceBankAccounts({ per_page: 100, sort_by: "name", sort_dir: "asc" });
 
   const formData = formDataRes?.data;
   const leadSources = formData?.lead_sources ?? [];
@@ -116,6 +118,7 @@ export function LeadFormDialog({
   const businessTypes = formData?.business_types ?? [];
   const areas = formData?.areas ?? [];
   const paymentTermsList = formData?.payment_terms ?? [];
+  const bankAccounts = bankAccountsRes?.data ?? [];
 
   const {
     register,
@@ -366,6 +369,30 @@ export function LeadFormDialog({
                 {...register("website")}
               />
               {errors.website && <FieldError>{errors.website.message}</FieldError>}
+            </Field>
+
+            <Field orientation="vertical" data-invalid={!!errors.bank_account_id}>
+              <FieldLabel>{t("form.bankAccount")}</FieldLabel>
+              <Controller
+                control={control}
+                name="bank_account_id"
+                render={({ field }) => (
+                  <Select value={field.value || "__none__"} onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}>
+                    <SelectTrigger aria-invalid={!!errors.bank_account_id} className="cursor-pointer">
+                      <SelectValue placeholder={t("form.bankAccountPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__" className="cursor-pointer">-</SelectItem>
+                      {bankAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id} className="cursor-pointer">
+                          {account.name} - {account.account_number} ({account.currency}) [{t(`form.bankAccountOwnerType.${account.owner_type}`)}: {account.owner_name}]
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.bank_account_id && <FieldError>{errors.bank_account_id.message}</FieldError>}
             </Field>
 
             <Field orientation="vertical" data-invalid={!!errors.bank_account_reference}>

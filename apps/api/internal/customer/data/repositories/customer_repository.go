@@ -50,6 +50,7 @@ func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.C
 		Preload("Village.District.City.Province").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
+		Preload("BankAccounts.Currency").
 		Preload("DefaultBusinessType").
 		Preload("DefaultArea").
 		Preload("DefaultSalesRep").
@@ -117,7 +118,8 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 		Preload("District").
 		Preload("CustomerType").
 		Preload("PhoneNumbers").
-		Preload("BankAccounts.Bank")
+		Preload("BankAccounts.Bank").
+		Preload("BankAccounts.Currency")
 
 	if err := query.Find(&customers).Error; err != nil {
 		return nil, 0, err

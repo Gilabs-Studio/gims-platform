@@ -13,6 +13,7 @@ type CreateDealRequest struct {
 	ContactID            *string `json:"contact_id" binding:"omitempty,uuid"`
 	AssignedTo           *string `json:"assigned_to" binding:"omitempty,uuid"`
 	LeadID               *string `json:"lead_id" binding:"omitempty,uuid"`
+	BankAccountID        *string `json:"bank_account_id" binding:"omitempty,uuid"`
 	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed bool                       `json:"budget_confirmed"`
@@ -48,6 +49,8 @@ type UpdateDealRequest struct {
 	CustomerID           *string  `json:"customer_id" binding:"omitempty,uuid"`
 	ContactID            *string  `json:"contact_id" binding:"omitempty,uuid"`
 	AssignedTo           *string  `json:"assigned_to" binding:"omitempty,uuid"`
+	LeadID               *string  `json:"lead_id" binding:"omitempty,uuid"`
+	BankAccountID        *string  `json:"bank_account_id" binding:"omitempty,uuid"`
 	BankAccountReference *string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed *bool                       `json:"budget_confirmed"`
@@ -98,6 +101,7 @@ type DealResponse struct {
 	AssignedEmployee     *DealEmployeeInfo      `json:"assigned_employee,omitempty"`
 	LeadID               *string                `json:"lead_id"`
 	Lead                 *DealLeadInfo          `json:"lead,omitempty"`
+	BankAccountID        *string                `json:"bank_account_id"`
 	BankAccountReference string                 `json:"bank_account_reference"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`

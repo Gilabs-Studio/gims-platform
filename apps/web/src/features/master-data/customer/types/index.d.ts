@@ -64,6 +64,13 @@ export interface CustomerBank {
   customer_id: string;
   bank_id: string;
   bank?: Bank;
+  currency_id?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol?: string;
+  } | null;
   account_number: string;
   account_name: string;
   branch?: string;
@@ -74,6 +81,7 @@ export interface CustomerBank {
 
 export interface CreateCustomerBankData {
   bank_id: string;
+  currency_id: string;
   account_number: string;
   account_name: string;
   branch?: string;
@@ -82,6 +90,7 @@ export interface CreateCustomerBankData {
 
 export interface UpdateCustomerBankData {
   bank_id?: string;
+  currency_id?: string;
   account_number?: string;
   account_name?: string;
   branch?: string;

@@ -312,9 +312,10 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Payment Terms", "clock", "/master-data/payment-terms", 1},
-		{"Courier Agencies", "truck", "/master-data/courier-agencies", 2},
-		{"SO Sources", "file-text", "/master-data/so-sources", 3},
+		{"Currencies", "coins", "/master-data/currencies", 1},
+		{"Payment Terms", "clock", "/master-data/payment-terms", 2},
+		{"Courier Agencies", "truck", "/master-data/courier-agencies", 3},
+		{"SO Sources", "file-text", "/master-data/so-sources", 4},
 	}
 	for _, child := range paymentChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &paymentMenu.ID, child.order); err != nil {

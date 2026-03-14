@@ -3,11 +3,11 @@ package handler
 import (
 	"strconv"
 
-	"github.com/gilabs/gims/api/internal/core/errors"
-	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/domain/usecase"
+	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -80,6 +80,56 @@ func (h *BankAccountHandler) List(c *gin.Context) {
 	}
 	if activePtr != nil {
 		meta.Filters["is_active"] = *activePtr
+	}
+	meta.Pagination.TotalPages = totalPages
+	meta.Pagination.HasNext = page < totalPages
+	meta.Pagination.HasPrev = page > 1
+
+	response.SuccessResponse(c, items, meta)
+}
+
+// ListUnified handles GET /finance/bank-accounts/unified
+func (h *BankAccountHandler) ListUnified(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	params := repositories.BankAccountListParams{
+		Search:  c.Query("search"),
+		SortBy:  c.DefaultQuery("sort_by", "created_at"),
+		SortDir: c.DefaultQuery("sort_dir", "desc"),
+		Limit:   perPage,
+		Offset:  (page - 1) * perPage,
+	}
+
+	items, total, err := h.uc.ListUnified(c.Request.Context(), params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+	meta := &response.Meta{
+		Pagination: response.NewPaginationMeta(page, perPage, int(total)),
+		Filters:    map[string]interface{}{},
+		Sort: &response.SortMeta{
+			Field: params.SortBy,
+			Order: params.SortDir,
+		},
+	}
+	if params.Search != "" {
+		meta.Filters["search"] = params.Search
 	}
 	meta.Pagination.TotalPages = totalPages
 	meta.Pagination.HasNext = page < totalPages

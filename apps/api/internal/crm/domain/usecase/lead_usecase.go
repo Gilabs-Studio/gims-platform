@@ -138,6 +138,7 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		EstimatedValue:       req.EstimatedValue,
 		Probability:          req.Probability,
 		Website:              req.Website,
+		BankAccountID:        req.BankAccountID,
 		BankAccountReference: req.BankAccountReference,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
@@ -309,6 +310,9 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Website != nil {
 		lead.Website = *req.Website
 	}
+	if req.BankAccountID != nil {
+		lead.BankAccountID = req.BankAccountID
+	}
 	if req.BankAccountReference != nil {
 		lead.BankAccountReference = *req.BankAccountReference
 	}
@@ -474,6 +478,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		Probability:          lead.Probability,
 		LeadID:               &lead.ID,
 		AssignedTo:           lead.AssignedTo,
+		BankAccountID:        lead.BankAccountID,
 		BankAccountReference: lead.BankAccountReference,
 		BudgetConfirmed:      lead.BudgetConfirmed,
 		BudgetAmount:         lead.BudgetAmount,

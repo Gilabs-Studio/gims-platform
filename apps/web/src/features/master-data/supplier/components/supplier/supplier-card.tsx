@@ -72,6 +72,7 @@ export function SupplierCard({
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
               <Landmark className="h-3 w-3 shrink-0" />
               {primaryBank.bank?.name ?? "Bank"} - {primaryBank.account_number}
+              {primaryBank.currency?.code ? ` (${primaryBank.currency.code})` : ""}
             </p>
           )}
         </div>

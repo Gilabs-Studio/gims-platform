@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa";
+import { useCurrencies } from "@/features/master-data/currencies/hooks/use-currencies";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { bankAccountFormSchema, type BankAccountFormValues } from "../schemas/bank-account.schema";
 import type { BankAccount } from "../types";
@@ -50,7 +51,9 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
   const updateMutation = useUpdateFinanceBankAccount();
 
   const { data: coaTree } = useFinanceCoaTree({ only_active: true });
+  const { data: currencyData } = useCurrencies({ per_page: 100, sort_by: "code", sort_dir: "asc" }, { enabled: open });
   const coaOptions = useMemo(() => flattenCoa(coaTree?.data ?? []), [coaTree?.data]);
+  const currencies = currencyData?.data ?? [];
 
   const initial: BankAccount | null = accountQuery.data?.data ?? null;
 
@@ -59,7 +62,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
       name: initial?.name ?? "",
       account_number: initial?.account_number ?? "",
       account_holder: initial?.account_holder ?? "",
-      currency: initial?.currency ?? "IDR",
+      currency_id: initial?.currency_id ?? "",
       chart_of_account_id: initial?.chart_of_account_id ?? null,
       village_id: initial?.village_id ?? null,
       bank_address: initial?.bank_address ?? "",
@@ -88,7 +91,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
         name: values.name,
         account_number: values.account_number,
         account_holder: values.account_holder,
-        currency: values.currency,
+        currency_id: values.currency_id,
         chart_of_account_id: values.chart_of_account_id ?? null,
         village_id: values.village_id ?? null,
         bank_address: values.bank_address,
@@ -138,8 +141,22 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="currency">{t("fields.currency")}</Label>
-              <Input id="currency" {...form.register("currency")} />
+              <Label>{t("fields.currency")}</Label>
+              <Select
+                value={form.watch("currency_id") || ""}
+                onValueChange={(value) => form.setValue("currency_id", value, { shouldDirty: true, shouldValidate: true })}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("placeholders.selectCurrency")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.id} value={currency.id} className="cursor-pointer">
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="bank_phone">{t("fields.bankPhone")}</Label>

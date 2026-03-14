@@ -125,6 +125,13 @@ export const crmLeadId = {
       pipelineStagePlaceholder: "Pilih tahap (default: Qualification)",
       pipelineStageHint: "Jika tidak dipilih, otomatis ke tahap pertama (Qualification)",
       website: "Media Sosial / Tautan",
+      bankAccount: "Rekening Tertaut",
+      bankAccountPlaceholder: "Pilih rekening tertaut",
+      bankAccountOwnerType: {
+        company: "Perusahaan",
+        customer: "Customer",
+        supplier: "Supplier",
+      },
       bankAccountReference: "Referensi Rekening",
       bankAccountReferencePlaceholder: "contoh: BCA 1234567890 a.n PT Contoh",
       visitLink: "Kunjungi Tautan",

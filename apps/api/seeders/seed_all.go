@@ -73,6 +73,9 @@ func SeedAll() error {
 	}
 
 	// Master Data seeders (Sprint 4)
+	if err := SeedCurrencies(); err != nil {
+		return err
+	}
 	if err := SeedPaymentTerms(); err != nil {
 		return err
 	}
@@ -322,6 +325,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedPaymentTerms(); err != nil {
+		return err
+	}
+
+	if err := SeedCurrencies(); err != nil {
 		return err
 	}
 

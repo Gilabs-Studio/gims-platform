@@ -1,22 +1,31 @@
 export const financeBankAccountsEn = {
   title: "Bank Accounts",
-  description: "Manage bank accounts linked to chart of accounts.",
+  description: "Manage company, customer, and supplier bank accounts in one place.",
   search: "Search bank accounts...",
   fields: {
     name: "Name",
     accountNumber: "Account Number",
     accountHolder: "Account Holder",
     currency: "Currency",
+    owner: "Owner",
+    ownerType: "Owner Type",
     status: "Status",
     coa: "Chart of Account",
     bankAddress: "Bank Address",
     bankPhone: "Bank Phone",
     transactionType: "Type",
     transactionDate: "Date",
+    referenceType: "Reference Type",
     referenceId: "Reference ID",
-    salesOrderId: "Sales Order ID",
+    referenceNumber: "Reference Number",
+    relatedEntity: "Related Entity",
     amount: "Amount",
     descriptionText: "Description",
+  },
+  ownerTypes: {
+    company: "Company",
+    customer: "Customer",
+    supplier: "Supplier",
   },
   status: {
     active: "Active",
@@ -36,6 +45,7 @@ export const financeBankAccountsEn = {
   },
   placeholders: {
     select: "Select...",
+    selectCurrency: "Select currency...",
   },
   toast: {
     created: "Bank account created",
@@ -47,5 +57,6 @@ export const financeBankAccountsEn = {
     title: "Bank Account Detail",
     transactionHistory: "Transaction History",
     noTransactions: "No transactions found",
+    externalOwnerHint: "Transaction history is only available for company-owned bank accounts.",
   },
 };

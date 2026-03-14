@@ -33,6 +33,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
+import { useCurrencies } from "@/features/master-data/currencies/hooks/use-currencies";
 import {
   useAddBankAccount,
   useUpdateBankAccount,
@@ -43,6 +44,7 @@ import type { SupplierBank, CreateSupplierBankData } from "../../types";
 
 const bankSchema = z.object({
   bank_id: z.string().min(1, "Bank is required"),
+  currency_id: z.string().min(1, "Currency is required"),
   account_number: z.string().min(3, "Account number is required"),
   account_name: z.string().min(3, "Account name is required"),
   branch: z.string().optional(),
@@ -51,13 +53,19 @@ const bankSchema = z.object({
 
 type BankFormData = z.infer<typeof bankSchema>;
 
+type SupplierBankListItem = SupplierBank | CreateSupplierBankData;
+
 interface SupplierBankListProps {
   supplierId?: string;
-  banks: CreateSupplierBankData[]; 
+  banks: SupplierBankListItem[];
   onAdd?: (bank: CreateSupplierBankData) => void;
   onUpdate?: (index: number, bank: CreateSupplierBankData) => void;
   onDelete?: (index: number) => void;
   isReadOnly?: boolean;
+}
+
+function isPersistedSupplierBank(bank: SupplierBankListItem): bank is SupplierBank {
+  return "id" in bank;
 }
 
 export function SupplierBankList({
@@ -74,14 +82,16 @@ export function SupplierBankList({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingItem, setEditingItem] = useState<SupplierBank | null>(null);
+  const [editingItem, setEditingItem] = useState<SupplierBankListItem | null>(null);
 
   const addMutation = useAddBankAccount();
   const updateMutation = useUpdateBankAccount();
   const deleteMutation = useDeleteBankAccount();
 
   const { data: bankOptionsData } = useBanks({ page: 1, per_page: 100 });
+  const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 100, sort_by: "code", sort_dir: "asc" });
   const bankOptions = bankOptionsData?.data ?? [];
+  const currencyOptions = currencyOptionsData?.data ?? [];
 
   const isSubmitting = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
@@ -97,6 +107,7 @@ export function SupplierBankList({
     resolver: zodResolver(bankSchema) as any,
     defaultValues: {
       bank_id: "",
+      currency_id: "",
       account_number: "",
       account_name: "",
       branch: "",
@@ -109,6 +120,7 @@ export function SupplierBankList({
     setEditingItem(null);
     reset({
       bank_id: "",
+      currency_id: "",
       account_number: "",
       account_name: "",
       branch: "",
@@ -117,11 +129,12 @@ export function SupplierBankList({
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (index: number, item: any) => {
+  const handleOpenEdit = (index: number, item: SupplierBankListItem) => {
     setEditingIndex(index);
     setEditingItem(item);
     reset({
       bank_id: item.bank_id,
+      currency_id: item.currency_id ?? "",
       account_number: item.account_number,
       account_name: item.account_name,
       branch: item.branch,
@@ -130,10 +143,10 @@ export function SupplierBankList({
     setDialogOpen(true);
   };
 
-  const handleDelete = async (index: number, item: any) => {
+  const handleDelete = async (index: number, item: SupplierBankListItem) => {
     if (!confirm(tCommon("deleteConfirm") || "Are you sure?")) return;
 
-    if (supplierId && item.id) {
+    if (supplierId && isPersistedSupplierBank(item)) {
       try {
         await deleteMutation.mutateAsync({ supplierId, bankId: item.id });
         toast.success(t("deleteSuccess"));
@@ -149,7 +162,7 @@ export function SupplierBankList({
   const onSubmit: SubmitHandler<BankFormData> = async (data) => {
     try {
       if (supplierId) {
-        if (editingItem && editingItem.id) {
+        if (editingItem && isPersistedSupplierBank(editingItem)) {
           await updateMutation.mutateAsync({
             supplierId,
             bankId: editingItem.id,
@@ -182,7 +195,13 @@ export function SupplierBankList({
     return bankOptions.find((b) => b.id === id)?.name || "Unknown Bank";
   };
 
+  const getCurrencyCode = (id?: string | null) => {
+    if (!id) return "-";
+    return currencyOptions.find((currency) => currency.id === id)?.code || "-";
+  };
+
   const bankId = watch("bank_id");
+  const currencyId = watch("currency_id");
   const isPrimary = watch("is_primary");
 
   return (
@@ -203,6 +222,7 @@ export function SupplierBankList({
               <TableHead>{t("form.bank")}</TableHead>
               <TableHead>{t("form.accountNumber")}</TableHead>
               <TableHead>{t("form.accountName")}</TableHead>
+              <TableHead>{t("form.currency")}</TableHead>
               <TableHead>{t("form.isPrimary")}</TableHead>
               {!isReadOnly && <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>}
             </TableRow>
@@ -211,7 +231,7 @@ export function SupplierBankList({
             {banks.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={isReadOnly ? 4 : 5}
+                  colSpan={isReadOnly ? 5 : 6}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
@@ -223,11 +243,12 @@ export function SupplierBankList({
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Landmark className="h-3 w-3 text-muted-foreground" />
-                      {(bank as any).bank?.name || getBankName(bank.bank_id)}
+                      {(isPersistedSupplierBank(bank) ? bank.bank?.name : undefined) || getBankName(bank.bank_id)}
                     </div>
                   </TableCell>
                   <TableCell className="font-mono">{bank.account_number}</TableCell>
                   <TableCell>{bank.account_name}</TableCell>
+                  <TableCell>{(isPersistedSupplierBank(bank) ? bank.currency?.code : undefined) ?? getCurrencyCode(bank.currency_id)}</TableCell>
                   <TableCell>
                     {bank.is_primary && (
                       <Badge variant="secondary" className="text-xs">
@@ -285,18 +306,38 @@ export function SupplierBankList({
                 value={bankId}
                 onValueChange={(val) => setValue("bank_id", val, { shouldValidate: true })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("form.bankPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {bankOptions.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
+                    <SelectItem key={b.id} value={b.id} className="cursor-pointer">
                       {b.name} - {b.code}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {errors.bank_id && <FieldError>{tValidation("bankRequired")}</FieldError>}
+            </Field>
+
+            <Field>
+              <FieldLabel>{t("form.currency")}</FieldLabel>
+              <Select
+                value={currencyId}
+                onValueChange={(val) => setValue("currency_id", val, { shouldValidate: true })}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("form.currencyPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencyOptions.map((currency) => (
+                    <SelectItem key={currency.id} value={currency.id} className="cursor-pointer">
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.currency_id && <FieldError>{tValidation("currencyRequired")}</FieldError>}
             </Field>
 
             <div className="grid grid-cols-2 gap-4">

@@ -187,6 +187,7 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 		ContactID:            req.ContactID,
 		AssignedTo:           req.AssignedTo,
 		LeadID:               req.LeadID,
+		BankAccountID:        req.BankAccountID,
 		BankAccountReference: req.BankAccountReference,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
@@ -293,6 +294,18 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 			return dto.DealResponse{}, errors.New("assigned employee not found")
 		}
 		deal.AssignedTo = req.AssignedTo
+	}
+	if req.LeadID != nil {
+		if *req.LeadID != "" {
+			_, err := u.leadRepo.FindByID(ctx, *req.LeadID)
+			if err != nil {
+				return dto.DealResponse{}, errors.New("lead not found")
+			}
+		}
+		deal.LeadID = req.LeadID
+	}
+	if req.BankAccountID != nil {
+		deal.BankAccountID = req.BankAccountID
 	}
 	if req.BankAccountReference != nil {
 		deal.BankAccountReference = *req.BankAccountReference

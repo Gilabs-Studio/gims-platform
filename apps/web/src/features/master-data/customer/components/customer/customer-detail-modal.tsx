@@ -325,6 +325,7 @@ export function CustomerDetailModal({
                                     </TableCell>
                                     <TableCell>
                                       <p>{bank.account_number}</p>
+                                      {bank.currency?.code && <p className="text-sm text-muted-foreground">{bank.currency.code}</p>}
                                       {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
                                     </TableCell>
                                     <TableCell className="text-right">

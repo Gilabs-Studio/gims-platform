@@ -24,6 +24,7 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		ContactID:            deal.ContactID,
 		AssignedTo:           deal.AssignedTo,
 		LeadID:               deal.LeadID,
+		BankAccountID:        deal.BankAccountID,
 		BankAccountReference: deal.BankAccountReference,
 		BudgetConfirmed:      deal.BudgetConfirmed,
 		BudgetAmount:         deal.BudgetAmount,

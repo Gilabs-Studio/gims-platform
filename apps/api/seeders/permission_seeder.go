@@ -156,6 +156,11 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
 
 		// Master Data - Payment & Courier
+		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
+		{"/master-data/currencies", "currency.create", "Create Currencies", "CREATE", "currency"},
+		{"/master-data/currencies", "currency.update", "Edit Currencies", "EDIT", "currency"},
+		{"/master-data/currencies", "currency.delete", "Delete Currencies", "DELETE", "currency"},
+
 		{"/master-data/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
 		{"/master-data/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
 		{"/master-data/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
@@ -453,7 +458,6 @@ func SeedPermissions() error {
 		{"/hrd/leave-requests", "leave_request.delete", "Delete Leave Requests", "DELETE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
-
 
 		{"/hrd/evaluation", "evaluation.read", "View Evaluations", "VIEW", "evaluation"},
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
@@ -816,7 +820,8 @@ func matchesModule(resource, module string) bool {
 func SyncAdminPermissions() error {
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
-		log.Printf("Skipping permission_seeder.go due to missing dependency: %v", err); return nil
+		log.Printf("Skipping permission_seeder.go due to missing dependency: %v", err)
+		return nil
 	}
 
 	var allPermissions []permission.Permission

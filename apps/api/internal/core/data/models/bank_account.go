@@ -13,6 +13,8 @@ type BankAccount struct {
 	Name             string         `gorm:"type:varchar(150);not null;index" json:"name"`
 	AccountNumber    string         `gorm:"type:varchar(50);not null;uniqueIndex" json:"account_number"`
 	AccountHolder    string         `gorm:"type:varchar(150);not null" json:"account_holder"`
+	CurrencyID       *string        `gorm:"type:uuid;index" json:"currency_id"`
+	CurrencyDetail   *Currency      `gorm:"foreignKey:CurrencyID" json:"currency_detail,omitempty"`
 	Currency         string         `gorm:"type:varchar(10);not null;default:'IDR';index" json:"currency"`
 	ChartOfAccountID *string        `gorm:"type:uuid;index" json:"chart_of_account_id"`
 	VillageID        *string        `gorm:"type:uuid;index" json:"village_id"`

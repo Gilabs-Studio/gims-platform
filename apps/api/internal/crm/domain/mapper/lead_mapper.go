@@ -55,6 +55,7 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		CID:                  lead.CID,
 		PlaceID:              lead.PlaceID,
 		Website:              lead.Website,
+		BankAccountID:        lead.BankAccountID,
 		BankAccountReference: lead.BankAccountReference,
 		BusinessTypeID:       lead.BusinessTypeID,
 		AreaID:               lead.AreaID,

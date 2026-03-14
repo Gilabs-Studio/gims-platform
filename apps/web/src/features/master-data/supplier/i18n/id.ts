@@ -172,6 +172,8 @@ export const supplierId: SupplierTranslations = {
     form: {
       bank: "Bank",
       bankPlaceholder: "Pilih bank",
+      currency: "Mata Uang",
+      currencyPlaceholder: "Pilih mata uang",
       accountNumber: "Nomor Rekening",
       accountNumberPlaceholder: "Masukkan nomor rekening",
       accountName: "Nama Pemilik Rekening",
@@ -198,5 +200,6 @@ export const supplierId: SupplierTranslations = {
     accountNumberRequired: "Nomor rekening wajib diisi",
     accountNameRequired: "Nama pemilik rekening wajib diisi",
     bankRequired: "Bank wajib dipilih",
+    currencyRequired: "Mata uang wajib dipilih",
   },
 };

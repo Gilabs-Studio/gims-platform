@@ -22,6 +22,7 @@ type CreateLeadRequest struct {
 	EstimatedValue       float64 `json:"estimated_value"`
 	Probability          int     `json:"probability" binding:"min=0,max=100"`
 	Website              string  `json:"website" binding:"omitempty,max=255"`
+	BankAccountID        *string `json:"bank_account_id" binding:"omitempty,uuid"`
 	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
@@ -61,6 +62,7 @@ type UpdateLeadRequest struct {
 	EstimatedValue       *float64 `json:"estimated_value"`
 	Probability          *int     `json:"probability" binding:"omitempty,min=0,max=100"`
 	Website              *string  `json:"website" binding:"omitempty,max=255"`
+	BankAccountID        *string  `json:"bank_account_id" binding:"omitempty,uuid"`
 	BankAccountReference *string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed *bool    `json:"budget_confirmed"`
@@ -199,6 +201,7 @@ type LeadResponse struct {
 	CID                  string   `json:"cid"`
 	PlaceID              string   `json:"place_id"`
 	Website              string   `json:"website"`
+	BankAccountID        *string  `json:"bank_account_id"`
 	BankAccountReference string   `json:"bank_account_reference"`
 	// Sales defaults
 	BusinessTypeID *string               `json:"business_type_id"`

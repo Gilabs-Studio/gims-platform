@@ -113,6 +113,7 @@ func AutoMigrate() error {
 		&core.CourierAgency{},
 		&core.SOSource{},
 		&core.LeaveType{},
+		&core.Currency{},
 		&core.BankAccount{},
 		// Finance entities (Sprint 10)
 		&finance.ChartOfAccount{},

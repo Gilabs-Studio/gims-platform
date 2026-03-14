@@ -308,14 +308,24 @@ func SeedCustomers() error {
 
 func seedCustomerBankAccounts(customers []models.Customer) {
 	codeToBankID := map[string]string{}
+	currencyCodeToID := map[string]string{}
 	var banks []supplierModels.Bank
 	if err := database.DB.Where("is_active = ?", true).Find(&banks).Error; err != nil {
 		log.Printf("Warning: Failed to query banks for customer bank seeding: %v", err)
 		return
 	}
+	var currencies []coreModels.Currency
+	if err := database.DB.Where("is_active = ?", true).Find(&currencies).Error; err != nil {
+		log.Printf("Warning: Failed to query currencies for customer bank seeding: %v", err)
+		return
+	}
 	for _, b := range banks {
 		codeToBankID[b.Code] = b.ID
 	}
+	for _, currency := range currencies {
+		currencyCodeToID[currency.Code] = currency.ID
+	}
+	defaultCurrencyID := currencyCodeToID["IDR"]
 
 	resolveBankID := func(preferredCode string) string {
 		if id := codeToBankID[preferredCode]; id != "" {
@@ -330,12 +340,12 @@ func seedCustomerBankAccounts(customers []models.Customer) {
 	}
 
 	entries := []models.CustomerBank{
-		{ID: "c0000004-0000-0000-0000-000000000001", CustomerID: Customer1ID, BankID: resolveBankID("BCA"), AccountNumber: "888100000001", AccountName: "PT Apotek Sehat Sentosa", Branch: "KCP Jakarta Selatan", IsPrimary: true},
-		{ID: "c0000004-0000-0000-0000-000000000002", CustomerID: Customer2ID, BankID: resolveBankID("MANDIRI"), AccountNumber: "888100000002", AccountName: "RS Harapan Kita Jakarta", Branch: "KCP Slipi", IsPrimary: true},
-		{ID: "c0000004-0000-0000-0000-000000000003", CustomerID: Customer3ID, BankID: resolveBankID("BNI"), AccountNumber: "888100000003", AccountName: "Klinik Pratama Medika", Branch: "KCP Bandung", IsPrimary: true},
-		{ID: "c0000004-0000-0000-0000-000000000004", CustomerID: Customer4ID, BankID: resolveBankID("BRI"), AccountNumber: "888100000004", AccountName: "RS Siloam Hospitals Surabaya", Branch: "KCP Surabaya", IsPrimary: true},
-		{ID: "c0000004-0000-0000-0000-000000000005", CustomerID: Customer5ID, BankID: resolveBankID("CIMB"), AccountNumber: "888100000005", AccountName: "Apotek Kimia Farma Cabang Bekasi", Branch: "KCP Bekasi", IsPrimary: true},
-		{ID: "c0000004-0000-0000-0000-000000000006", CustomerID: Customer6ID, BankID: resolveBankID("BCA"), AccountNumber: "888100000006", AccountName: "Puskesmas Cempaka Putih", Branch: "KCP Jakarta Pusat", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000001", CustomerID: Customer1ID, BankID: resolveBankID("BCA"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000001", AccountName: "PT Apotek Sehat Sentosa", Branch: "KCP Jakarta Selatan", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000002", CustomerID: Customer2ID, BankID: resolveBankID("MANDIRI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000002", AccountName: "RS Harapan Kita Jakarta", Branch: "KCP Slipi", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000003", CustomerID: Customer3ID, BankID: resolveBankID("BNI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000003", AccountName: "Klinik Pratama Medika", Branch: "KCP Bandung", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000004", CustomerID: Customer4ID, BankID: resolveBankID("BRI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000004", AccountName: "RS Siloam Hospitals Surabaya", Branch: "KCP Surabaya", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000005", CustomerID: Customer5ID, BankID: resolveBankID("CIMB"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000005", AccountName: "Apotek Kimia Farma Cabang Bekasi", Branch: "KCP Bekasi", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000006", CustomerID: Customer6ID, BankID: resolveBankID("BCA"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000006", AccountName: "Puskesmas Cempaka Putih", Branch: "KCP Jakarta Pusat", IsPrimary: true},
 	}
 
 	seededCustomerIDs := map[string]bool{}
@@ -364,6 +374,7 @@ func seedCustomerBankAccounts(customers []models.Customer) {
 		fallback := models.CustomerBank{
 			CustomerID:    c.ID,
 			BankID:        bankID,
+			CurrencyID:    &defaultCurrencyID,
 			AccountNumber: "8881" + c.Code[len(c.Code)-5:],
 			AccountName:   c.Name,
 			Branch:        "Main Branch",

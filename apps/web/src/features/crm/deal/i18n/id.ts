@@ -96,6 +96,13 @@ export const crmDealId = {
     lead: "Lead",
     leadPlaceholder: "Pilih lead (opsional)",
     selectLead: "Pilih lead (opsional)",
+    bankAccount: "Rekening Tertaut",
+    bankAccountPlaceholder: "Pilih rekening tertaut",
+    bankAccountOwnerType: {
+      company: "Perusahaan",
+      customer: "Customer",
+      supplier: "Supplier",
+    },
     bankAccountReference: "Referensi Rekening",
     bankAccountReferencePlaceholder: "contoh: BCA 1234567890 a.n PT Contoh",
     expectedCloseDate: "Tanggal Perkiraan Tutup",

@@ -27,6 +27,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/master-data/uom",
   "/master-data/procurement-types",
   "/master-data/warehouses",
+  "/master-data/currencies",
   "/master-data/payment-terms",
   "/master-data/courier-agencies",
   "/master-data/so-sources",
