@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   Pencil,
   Trash2,
-  Eye,
+  ToggleRight,
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ interface SalaryTableWithChartProps {
   readonly onEdit: (salary: SalaryStructure) => void;
   readonly onDelete: (salary: SalaryStructure) => void;
   readonly onApprove: (salary: SalaryStructure) => void;
-  readonly onDetail: (salary: SalaryStructure) => void;
+  readonly onToggleStatus: (salary: SalaryStructure) => void;
   readonly search: string;
   readonly onSearchChange: (search: string) => void;
   readonly page: number;
@@ -99,7 +99,7 @@ export function SalaryTableWithChart({
   onEdit,
   onDelete,
   onApprove,
-  onDetail,
+  onToggleStatus,
   search,
   onSearchChange,
   page,
@@ -291,10 +291,12 @@ export function SalaryTableWithChart({
                             {activeSalary && (
                               <DropdownMenuItem
                                 className="cursor-pointer"
-                                onClick={() => onDetail(activeSalary)}
+                                onClick={() => onToggleStatus(activeSalary)}
                               >
-                                <Eye className="h-4 w-4 mr-2" />
-                                {tCommon("detail")}
+                                <ToggleRight className="h-4 w-4 mr-2" />
+                                {activeSalary.status === "active"
+                                  ? t("actions.deactivate")
+                                  : t("actions.activate")}
                               </DropdownMenuItem>
                             )}
                             {canCreate && !hasDraft && (

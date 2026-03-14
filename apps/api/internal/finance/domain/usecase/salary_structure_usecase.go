@@ -27,6 +27,7 @@ type SalaryStructureUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.SalaryStructureResponse, error)
 	List(ctx context.Context, req *dto.ListSalaryStructuresRequest) ([]dto.SalaryStructureResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.SalaryStructureResponse, error)
+	ToggleStatus(ctx context.Context, id string) (*dto.SalaryStructureResponse, error)
 	GetStats(ctx context.Context) (*dto.SalaryStructureStatsResponse, error)
 	ListGrouped(ctx context.Context, req *dto.ListSalaryStructuresRequest) ([]dto.SalaryEmployeeGroup, int64, error)
 	GetFormData(ctx context.Context) (*dto.SalaryFormDataResponse, error)
@@ -209,6 +210,46 @@ func (uc *salaryStructureUsecase) Approve(ctx context.Context, id string) (*dto.
 
 	if err != nil {
 		return nil, err
+	}
+
+	full, _ := uc.repo.FindByID(ctx, id)
+	res := uc.mapper.ToResponse(full)
+	return &res, nil
+}
+
+func (uc *salaryStructureUsecase) ToggleStatus(ctx context.Context, id string) (*dto.SalaryStructureResponse, error) {
+	id = strings.TrimSpace(id)
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSalaryStructureNotFound
+		}
+		return nil, err
+	}
+
+	if item.Status == financeModels.SalaryStructureStatusDraft {
+		return nil, errors.New("cannot toggle status of draft salary structure")
+	}
+
+	if item.Status == financeModels.SalaryStructureStatusActive {
+		// Deactivate this record only
+		if err := uc.repo.UpdateStatus(ctx, id, financeModels.SalaryStructureStatusInactive); err != nil {
+			return nil, err
+		}
+	} else {
+		// Activate this inactive salary, deactivating any other active salary for the employee
+		err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := uc.repo.DeactivateAllByEmployeeID(ctx, tx, item.EmployeeID); err != nil {
+				return err
+			}
+			if err := uc.repo.UpdateStatus(ctx, id, financeModels.SalaryStructureStatusActive); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	full, _ := uc.repo.FindByID(ctx, id)

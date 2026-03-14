@@ -12,11 +12,11 @@ import { SalaryTableWithChart } from "./salary-table-with-chart";
 import { SalaryForm } from "./salary-form";
 import { SalaryApproveDialog } from "./salary-approve-dialog";
 import { SalaryDeleteDialog } from "./salary-delete-dialog";
-import { SalaryDetailModal } from "./salary-detail-modal";
 
 import {
   useApproveFinanceSalary,
   useDeleteFinanceSalary,
+  useToggleFinanceSalaryStatus,
   financeSalaryKeys,
 } from "../hooks/use-finance-salary";
 import type { SalaryStructure } from "../types";
@@ -33,7 +33,6 @@ export function SalaryPage() {
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,10 +65,24 @@ export function SalaryPage() {
     setDeleteOpen(true);
   }, []);
 
-  const handleDetailClick = useCallback((salary: SalaryStructure) => {
-    setSelectedSalary(salary);
-    setDetailOpen(true);
-  }, []);
+  const toggleStatusMutation = useToggleFinanceSalaryStatus();
+
+  const handleToggleStatus = useCallback(
+    async (salary: SalaryStructure) => {
+      try {
+        setSelectedSalary(salary);
+        await toggleStatusMutation.mutateAsync(salary.id);
+        toast.success(
+          salary.status === "active"
+            ? t("toast.deactivated")
+            : t("toast.activated")
+        );
+      } catch {
+        toast.error(t("toast.failed"));
+      }
+    },
+    [toggleStatusMutation, t]
+  );
 
   const handleApproveConfirm = useCallback(
     async (id: string) => {
@@ -121,7 +134,7 @@ export function SalaryPage() {
         onEdit={handleEdit}
         onApprove={handleApproveClick}
         onDelete={handleDeleteClick}
-        onDetail={handleDetailClick}
+        onToggleStatus={handleToggleStatus}
       />
 
       {/* Dialogs & Modals */}
@@ -147,12 +160,6 @@ export function SalaryPage() {
         salary={selectedSalary}
         onConfirm={handleDeleteConfirm}
         isLoading={deleteMutation.isPending}
-      />
-
-      <SalaryDetailModal
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        salary={selectedSalary}
       />
     </PageMotion>
   );

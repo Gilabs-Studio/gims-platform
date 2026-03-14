@@ -88,6 +88,16 @@ export function useApproveFinanceSalary() {
   });
 }
 
+export function useToggleFinanceSalaryStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeSalaryService.toggleStatus(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.all });
+    },
+  });
+}
+
 export function useFinanceSalaryFormData() {
   return useQuery({
     queryKey: financeSalaryKeys.formData(),

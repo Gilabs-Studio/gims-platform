@@ -96,6 +96,16 @@ func (h *SalaryStructureHandler) Approve(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})
 }
 
+func (h *SalaryStructureHandler) ToggleStatus(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.uc.ToggleStatus(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})
+}
+
 func (h *SalaryStructureHandler) GetStats(c *gin.Context) {
 	stats, err := h.uc.GetStats(c.Request.Context())
 	if err != nil {

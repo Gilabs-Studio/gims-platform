@@ -117,6 +117,5 @@ export interface SalaryModalState {
   isEditModalOpen: boolean;
   isDeleteModalOpen: boolean;
   isApproveModalOpen: boolean;
-  isDetailModalOpen: boolean;
   selectedSalaryId: string | null;
 }

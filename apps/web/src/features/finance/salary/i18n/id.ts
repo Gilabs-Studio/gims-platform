@@ -58,7 +58,8 @@ export const financeSalaryId = {
     clear: "Hapus",
     edit: "Edit",
     delete: "Hapus",
-    detail: "Lihat Detail",
+    activate: "Aktifkan",
+    deactivate: "Nonaktifkan",
   },
 
   approve: {
@@ -86,6 +87,8 @@ export const financeSalaryId = {
     updated: "Gaji berhasil diperbarui",
     deleted: "Gaji berhasil dihapus",
     approved: "Gaji berhasil disetujui",
+    activated: "Gaji berhasil diaktifkan",
+    deactivated: "Gaji berhasil dinonaktifkan",
     failed: "Operasi gagal. Silakan coba lagi.",
   },
 

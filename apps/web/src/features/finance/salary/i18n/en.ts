@@ -58,7 +58,8 @@ export const financeSalaryEn = {
     clear: "Clear",
     edit: "Edit",
     delete: "Delete",
-    detail: "View Detail",
+    activate: "Activate",
+    deactivate: "Deactivate",
   },
 
   approve: {
@@ -86,6 +87,8 @@ export const financeSalaryEn = {
     updated: "Salary updated successfully",
     deleted: "Salary deleted successfully",
     approved: "Salary approved successfully",
+    activated: "Salary activated successfully",
+    deactivated: "Salary deactivated successfully",
     failed: "Operation failed. Please try again.",
   },
 

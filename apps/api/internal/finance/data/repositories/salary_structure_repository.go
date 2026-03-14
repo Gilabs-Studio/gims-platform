@@ -40,6 +40,7 @@ type SalaryStructureRepository interface {
 	List(ctx context.Context, params SalaryStructureListParams) ([]financeModels.SalaryStructure, int64, error)
 	GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error)
 	DeactivateAllByEmployeeID(ctx context.Context, tx *gorm.DB, employeeID string) error
+	UpdateStatus(ctx context.Context, id string, status financeModels.SalaryStructureStatus) error
 	GetStats(ctx context.Context) (*SalaryStructureStatsResult, error)
 }
 
@@ -78,6 +79,13 @@ func (r *salaryStructureRepository) DeactivateAllByEmployeeID(ctx context.Contex
 	return tx.WithContext(ctx).Model(&financeModels.SalaryStructure{}).
 		Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).
 		Update("status", financeModels.SalaryStructureStatusInactive).Error
+}
+
+func (r *salaryStructureRepository) UpdateStatus(ctx context.Context, id string, status financeModels.SalaryStructureStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&financeModels.SalaryStructure{}).
+		Where("id = ?", id).
+		Update("status", status).Error
 }
 
 func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStructureListParams) ([]financeModels.SalaryStructure, int64, error) {
@@ -180,7 +188,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	    SELECT generate_series(
 	        (SELECT COALESCE(MIN(date_trunc('month', effective_date)), date_trunc('month', CURRENT_DATE))
 	            FROM salary_structures
-	            WHERE status IN ('active', 'inactive')
+	            WHERE status != 'draft'
 	        ),
 	        date_trunc('month', CURRENT_DATE),
 	        INTERVAL '1 month'
@@ -194,8 +202,12 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	        ROW_NUMBER() OVER (PARTITION BY m.period, s.employee_id ORDER BY s.effective_date DESC) AS rn
 	    FROM months m
 	    JOIN salary_structures s
-	        ON s.status IN ('active', 'inactive')
-	        AND s.effective_date < (m.period + INTERVAL '1 month')
+	        ON s.effective_date <= (m.period + INTERVAL '1 month' - INTERVAL '1 day')
+	        AND s.status != 'draft'
+	        AND (
+	            s.status = 'active'
+	            OR (s.status = 'inactive' AND date_trunc('month', s.updated_at) > m.period)
+	        )
 	)
 	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary
 	FROM history

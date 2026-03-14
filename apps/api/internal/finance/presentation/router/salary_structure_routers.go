@@ -24,6 +24,7 @@ func RegisterSalaryStructureRoutes(r *gin.RouterGroup, h *handler.SalaryStructur
 		g.GET("/form-data", middleware.RequirePermission(salaryRead), h.GetFormData)
 		g.GET("/:id", middleware.RequirePermission(salaryRead), h.GetByID)
 		g.PUT("/:id", middleware.RequirePermission(salaryUpdate), h.Update)
+		g.POST("/:id/toggle-status", middleware.RequirePermission(salaryUpdate), h.ToggleStatus)
 		g.DELETE("/:id", middleware.RequirePermission(salaryDelete), h.Delete)
 		g.POST("/:id/approve", middleware.RequirePermission(salaryApprove), h.Approve)
 	}

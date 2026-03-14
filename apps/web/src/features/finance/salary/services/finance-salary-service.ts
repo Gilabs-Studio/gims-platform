@@ -42,6 +42,11 @@ export const financeSalaryService = {
     return response.data;
   },
 
+  toggleStatus: async (id: string): Promise<ApiResponse<SalaryStructure>> => {
+    const response = await apiClient.post<ApiResponse<SalaryStructure>>(`${BASE_URL}/${id}/toggle-status`);
+    return response.data;
+  },
+
   getGrouped: async (params?: ListSalaryParams): Promise<ApiResponse<SalaryEmployeeGroup[]>> => {
     const response = await apiClient.get<ApiResponse<SalaryEmployeeGroup[]>>(`${BASE_URL}/grouped`, { params });
     return response.data;
