@@ -3,7 +3,9 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
@@ -17,6 +19,38 @@ func generateToken() string {
 		return ""
 	}
 	return hex.EncodeToString(bytes)
+}
+
+func shouldUseCrossSiteCSRFCookie(c *gin.Context) bool {
+	if config.AppConfig != nil {
+		env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+		if env == "production" || env == "prod" {
+			return true
+		}
+	}
+
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin == "" {
+		return false
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Host == "" {
+		return false
+	}
+
+	requestHost := c.Request.Host
+	if host, _, err := net.SplitHostPort(requestHost); err == nil {
+		requestHost = host
+	}
+
+	originHost := originURL.Hostname()
+	requestHostname := requestHost
+	if requestHostname == "" {
+		requestHostname = c.Request.URL.Hostname()
+	}
+
+	return !strings.EqualFold(originHost, requestHostname)
 }
 
 // CSRF middleware implements the Double-Submit Cookie pattern
@@ -80,10 +114,9 @@ func setCSRFCookie(c *gin.Context, token string) {
 	isSecure := false
 	sameSite := http.SameSiteLaxMode
 
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		// In production we default to Secure cookies.
+	if shouldUseCrossSiteCSRFCookie(c) {
+		// Cross-site browser requests require SameSite=None and Secure=true.
 		isSecure = true
-		// Set SameSite to None for cross-origin requests to work, which requires Secure=true.
 		sameSite = http.SameSiteNoneMode
 	}
 
