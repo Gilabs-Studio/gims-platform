@@ -11,20 +11,29 @@ import (
 )
 
 type UpCountryCostListParams struct {
-	Search    string
-	StartDate *time.Time
-	EndDate   *time.Time
-	Status    *financeModels.UpCountryCostStatus
-	Limit     int
-	Offset    int
-	SortBy    string
-	SortDir   string
+	Search     string
+	StartDate  *time.Time
+	EndDate    *time.Time
+	Status     *financeModels.UpCountryCostStatus
+	EmployeeID *string
+	Limit      int
+	Offset     int
+	SortBy     string
+	SortDir    string
+}
+
+type UpCountryCostStats struct {
+	TotalRequests   int64
+	PendingApproval int64
+	Approved        int64
+	TotalAmount     float64
 }
 
 type UpCountryCostRepository interface {
 	FindByID(ctx context.Context, id string, withRelations bool) (*financeModels.UpCountryCost, error)
 	List(ctx context.Context, params UpCountryCostListParams) ([]financeModels.UpCountryCost, int64, error)
 	GenerateCode(ctx context.Context, now time.Time) (string, error)
+	GetStats(ctx context.Context) (*UpCountryCostStats, error)
 }
 
 type upCountryCostRepository struct {
@@ -53,25 +62,30 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 
 	q := r.db.WithContext(ctx).Model(&financeModels.UpCountryCost{})
 
+	if params.EmployeeID != nil && *params.EmployeeID != "" {
+		q = q.Joins("JOIN up_country_cost_employees uce ON uce.up_country_cost_id = up_country_costs.id AND uce.deleted_at IS NULL").
+			Where("uce.employee_id = ?", *params.EmployeeID)
+	}
+
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("code ILIKE ? OR purpose ILIKE ? OR location ILIKE ?", like, like, like)
+		q = q.Where("up_country_costs.code ILIKE ? OR up_country_costs.purpose ILIKE ? OR up_country_costs.location ILIKE ?", like, like, like)
 	}
 	if params.Status != nil {
-		q = q.Where("status = ?", *params.Status)
+		q = q.Where("up_country_costs.status = ?", *params.Status)
 	}
 	if params.StartDate != nil {
-		q = q.Where("start_date >= ?", *params.StartDate)
+		q = q.Where("up_country_costs.start_date >= ?", *params.StartDate)
 	}
 	if params.EndDate != nil {
-		q = q.Where("end_date <= ?", *params.EndDate)
+		q = q.Where("up_country_costs.end_date <= ?", *params.EndDate)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	sortCol := "created_at"
+	sortCol := "up_country_costs.created_at"
 	if params.SortBy != "" {
 		sortCol = params.SortBy
 	}
@@ -86,7 +100,8 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 		q = q.Offset(params.Offset)
 	}
 
-	if err := q.Find(&items).Error; err != nil {
+	// Preload related data required by list UI (participants and item totals)
+	if err := q.Preload("Employees").Preload("Items").Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
@@ -101,4 +116,38 @@ func (r *upCountryCostRepository) GenerateCode(ctx context.Context, now time.Tim
 		return "", err
 	}
 	return prefix + fmt.Sprintf("%04d", count+1), nil
+}
+
+func (r *upCountryCostRepository) GetStats(ctx context.Context) (*UpCountryCostStats, error) {
+	type row struct {
+		Status string
+		Count  int64
+		Amount float64
+	}
+
+	var rows []row
+	if err := r.db.WithContext(ctx).
+		Model(&financeModels.UpCountryCost{}).
+		Select("status, COUNT(*) as count, COALESCE(SUM(ucci.total), 0) as amount").
+		Joins("LEFT JOIN (SELECT up_country_cost_id, SUM(amount) as total FROM up_country_cost_items WHERE deleted_at IS NULL GROUP BY up_country_cost_id) ucci ON ucci.up_country_cost_id = up_country_costs.id").
+		Where("up_country_costs.deleted_at IS NULL").
+		Group("status").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	stats := &UpCountryCostStats{}
+	for _, row := range rows {
+		stats.TotalRequests += row.Count
+		stats.TotalAmount += row.Amount
+		switch financeModels.UpCountryCostStatus(row.Status) {
+		case financeModels.UpCountryCostStatusSubmitted,
+			financeModels.UpCountryCostStatusManagerApproved:
+			stats.PendingApproval += row.Count
+		case financeModels.UpCountryCostStatusFinanceApproved,
+			financeModels.UpCountryCostStatusPaid:
+			stats.Approved += row.Count
+		}
+	}
+	return stats, nil
 }

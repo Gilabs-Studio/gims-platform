@@ -19,11 +19,19 @@ func RegisterUpCountryCostRoutes(r *gin.RouterGroup, h *handler.UpCountryCostHan
 	{
 		g.GET("", middleware.RequirePermission(upCountryCostRead), h.List)
 		g.POST("", middleware.RequirePermission(upCountryCostCreate), h.Create)
-		// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
+		// CRITICAL: Place fixed-path routes BEFORE /:id to avoid shadowing
+		g.GET("/stats", middleware.RequirePermission(upCountryCostRead), h.GetStats)
 		g.GET("/form-data", middleware.RequirePermission(upCountryCostRead), h.GetFormData)
 		g.GET("/:id", middleware.RequirePermission(upCountryCostRead), h.GetByID)
 		g.PUT("/:id", middleware.RequirePermission(upCountryCostUpdate), h.Update)
 		g.DELETE("/:id", middleware.RequirePermission(upCountryCostDelete), h.Delete)
+		// Workflow actions
+		g.POST("/:id/submit", middleware.RequirePermission(upCountryCostApprove), h.Submit)
+		g.POST("/:id/manager-approve", middleware.RequirePermission(upCountryCostApprove), h.ManagerApprove)
+		g.POST("/:id/manager-reject", middleware.RequirePermission(upCountryCostApprove), h.ManagerReject)
+		g.POST("/:id/finance-approve", middleware.RequirePermission(upCountryCostApprove), h.FinanceApprove)
+		g.POST("/:id/mark-paid", middleware.RequirePermission(upCountryCostApprove), h.MarkPaid)
+		// Legacy approve endpoint (kept for backward compatibility)
 		g.POST("/:id/approve", middleware.RequirePermission(upCountryCostApprove), h.Approve)
 	}
 }
