@@ -57,6 +57,7 @@ export interface Lead {
   cid?: string;
   place_id?: string;
   website?: string;
+  bank_account_reference?: string;
   // Sales defaults for customer conversion
   business_type_id?: string | null;
   business_type?: LeadBusinessTypeInfo | null;
@@ -179,6 +180,7 @@ export interface CreateLeadData {
   business_type_id?: string | null;
   area_id?: string | null;
   payment_terms_id?: string | null;
+  bank_account_reference?: string;
 }
 
 export interface UpdateLeadData {
@@ -216,6 +218,7 @@ export interface UpdateLeadData {
   business_type_id?: string | null;
   area_id?: string | null;
   payment_terms_id?: string | null;
+  bank_account_reference?: string;
 }
 
 export interface ConvertLeadData {

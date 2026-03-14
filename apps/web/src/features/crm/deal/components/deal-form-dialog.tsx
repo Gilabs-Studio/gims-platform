@@ -67,6 +67,7 @@ export function DealFormDialog({
       contact_id: deal?.contact_id ?? "",
       assigned_to: deal?.assigned_to ?? "",
       lead_id: deal?.lead_id ?? "",
+      bank_account_reference: deal?.bank_account_reference ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
       auth_confirmed: deal?.auth_confirmed ?? false,
@@ -182,6 +183,7 @@ export function DealFormDialog({
       contact_id: data.contact_id || undefined,
       assigned_to: data.assigned_to || undefined,
       lead_id: data.lead_id || undefined,
+      bank_account_reference: data.bank_account_reference || undefined,
       expected_close_date: data.expected_close_date || undefined,
       items: data.items?.map((item) => ({
         ...item,
@@ -444,6 +446,15 @@ export function DealFormDialog({
                           </Select>
                         )}
                       />
+                    </Field>
+
+                    <Field orientation="vertical" className="col-span-2">
+                      <FieldLabel>{t("bankAccountReference")}</FieldLabel>
+                      <Input
+                        {...register("bank_account_reference")}
+                        placeholder={t("bankAccountReferencePlaceholder")}
+                      />
+                      {errors.bank_account_reference && <FieldError>{errors.bank_account_reference.message}</FieldError>}
                     </Field>
 
                     <Field orientation="vertical" className="col-span-2">

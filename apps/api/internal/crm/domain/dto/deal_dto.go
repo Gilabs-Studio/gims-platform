@@ -4,24 +4,25 @@ import "github.com/google/uuid"
 
 // CreateDealRequest defines the request body for creating a deal
 type CreateDealRequest struct {
-	Title           string                    `json:"title" binding:"required,min=2,max=200"`
-	Description     string                    `json:"description"`
-	PipelineStageID string                    `json:"pipeline_stage_id" binding:"required,uuid"`
-	Value           float64                   `json:"value"`
-	ExpectedCloseDate *string                 `json:"expected_close_date"`
-	CustomerID      *string                   `json:"customer_id" binding:"omitempty,uuid"`
-	ContactID       *string                   `json:"contact_id" binding:"omitempty,uuid"`
-	AssignedTo      *string                   `json:"assigned_to" binding:"omitempty,uuid"`
-	LeadID          *string                   `json:"lead_id" binding:"omitempty,uuid"`
+	Title                string  `json:"title" binding:"required,min=2,max=200"`
+	Description          string  `json:"description"`
+	PipelineStageID      string  `json:"pipeline_stage_id" binding:"required,uuid"`
+	Value                float64 `json:"value"`
+	ExpectedCloseDate    *string `json:"expected_close_date"`
+	CustomerID           *string `json:"customer_id" binding:"omitempty,uuid"`
+	ContactID            *string `json:"contact_id" binding:"omitempty,uuid"`
+	AssignedTo           *string `json:"assigned_to" binding:"omitempty,uuid"`
+	LeadID               *string `json:"lead_id" binding:"omitempty,uuid"`
+	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
-	BudgetConfirmed bool                      `json:"budget_confirmed"`
-	BudgetAmount    float64                   `json:"budget_amount"`
-	AuthConfirmed   bool                      `json:"auth_confirmed"`
-	AuthPerson      string                    `json:"auth_person" binding:"max=200"`
-	NeedConfirmed   bool                      `json:"need_confirmed"`
-	NeedDescription string                    `json:"need_description"`
-	TimeConfirmed   bool                      `json:"time_confirmed"`
-	Notes           string                    `json:"notes"`
+	BudgetConfirmed bool                       `json:"budget_confirmed"`
+	BudgetAmount    float64                    `json:"budget_amount"`
+	AuthConfirmed   bool                       `json:"auth_confirmed"`
+	AuthPerson      string                     `json:"auth_person" binding:"max=200"`
+	NeedConfirmed   bool                       `json:"need_confirmed"`
+	NeedDescription string                     `json:"need_description"`
+	TimeConfirmed   bool                       `json:"time_confirmed"`
+	Notes           string                     `json:"notes"`
 	Items           []CreateDealProductItemDTO `json:"items"`
 }
 
@@ -39,33 +40,34 @@ type CreateDealProductItemDTO struct {
 
 // UpdateDealRequest defines the request body for updating a deal
 type UpdateDealRequest struct {
-	Title           *string `json:"title" binding:"omitempty,min=2,max=200"`
-	Description     *string `json:"description"`
-	PipelineStageID *string `json:"pipeline_stage_id" binding:"omitempty,uuid"`
-	Value           *float64 `json:"value"`
-	ExpectedCloseDate *string `json:"expected_close_date"`
-	CustomerID      *string  `json:"customer_id" binding:"omitempty,uuid"`
-	ContactID       *string  `json:"contact_id" binding:"omitempty,uuid"`
-	AssignedTo      *string  `json:"assigned_to" binding:"omitempty,uuid"`
+	Title                *string  `json:"title" binding:"omitempty,min=2,max=200"`
+	Description          *string  `json:"description"`
+	PipelineStageID      *string  `json:"pipeline_stage_id" binding:"omitempty,uuid"`
+	Value                *float64 `json:"value"`
+	ExpectedCloseDate    *string  `json:"expected_close_date"`
+	CustomerID           *string  `json:"customer_id" binding:"omitempty,uuid"`
+	ContactID            *string  `json:"contact_id" binding:"omitempty,uuid"`
+	AssignedTo           *string  `json:"assigned_to" binding:"omitempty,uuid"`
+	BankAccountReference *string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
-	BudgetConfirmed *bool    `json:"budget_confirmed"`
-	BudgetAmount    *float64 `json:"budget_amount"`
-	AuthConfirmed   *bool    `json:"auth_confirmed"`
-	AuthPerson      *string  `json:"auth_person" binding:"omitempty,max=200"`
-	NeedConfirmed   *bool    `json:"need_confirmed"`
-	NeedDescription *string  `json:"need_description"`
-	TimeConfirmed   *bool    `json:"time_confirmed"`
-	Notes           *string  `json:"notes"`
+	BudgetConfirmed *bool                       `json:"budget_confirmed"`
+	BudgetAmount    *float64                    `json:"budget_amount"`
+	AuthConfirmed   *bool                       `json:"auth_confirmed"`
+	AuthPerson      *string                     `json:"auth_person" binding:"omitempty,max=200"`
+	NeedConfirmed   *bool                       `json:"need_confirmed"`
+	NeedDescription *string                     `json:"need_description"`
+	TimeConfirmed   *bool                       `json:"time_confirmed"`
+	Notes           *string                     `json:"notes"`
 	Items           *[]CreateDealProductItemDTO `json:"items"`
 }
 
 // MoveDealStageRequest defines the request body for moving a deal to a different stage
 type MoveDealStageRequest struct {
-	ToStageID            string `json:"to_stage_id" binding:"required,uuid"`
-	Reason               string `json:"reason" binding:"required,min=2"`
-	Notes                string `json:"notes"`
-	CloseReason          string `json:"close_reason"`
-	ConvertToQuotation   bool   `json:"convert_to_quotation"`
+	ToStageID          string `json:"to_stage_id" binding:"required,uuid"`
+	Reason             string `json:"reason" binding:"required,min=2"`
+	Notes              string `json:"notes"`
+	CloseReason        string `json:"close_reason"`
+	ConvertToQuotation bool   `json:"convert_to_quotation"`
 }
 
 // MoveDealStageResponse extends DealResponse with optional conversion result
@@ -76,26 +78,27 @@ type MoveDealStageResponse struct {
 
 // DealResponse defines the response body for a deal
 type DealResponse struct {
-	ID                string                `json:"id"`
-	Code              string                `json:"code"`
-	Title             string                `json:"title"`
-	Description       string                `json:"description"`
-	Status            string                `json:"status"`
-	PipelineStageID   string                `json:"pipeline_stage_id"`
-	PipelineStage     *DealPipelineStageInfo `json:"pipeline_stage,omitempty"`
-	Value             float64               `json:"value"`
-	Probability       int                   `json:"probability"`
-	ExpectedCloseDate *string               `json:"expected_close_date"`
-	ActualCloseDate   *string               `json:"actual_close_date"`
-	CloseReason       string                `json:"close_reason"`
-	CustomerID        *string               `json:"customer_id"`
-	Customer          *DealCustomerInfo     `json:"customer,omitempty"`
-	ContactID         *string               `json:"contact_id"`
-	Contact           *DealContactInfo      `json:"contact,omitempty"`
-	AssignedTo        *string               `json:"assigned_to"`
-	AssignedEmployee  *DealEmployeeInfo     `json:"assigned_employee,omitempty"`
-	LeadID            *string               `json:"lead_id"`
-	Lead              *DealLeadInfo         `json:"lead,omitempty"`
+	ID                   string                 `json:"id"`
+	Code                 string                 `json:"code"`
+	Title                string                 `json:"title"`
+	Description          string                 `json:"description"`
+	Status               string                 `json:"status"`
+	PipelineStageID      string                 `json:"pipeline_stage_id"`
+	PipelineStage        *DealPipelineStageInfo `json:"pipeline_stage,omitempty"`
+	Value                float64                `json:"value"`
+	Probability          int                    `json:"probability"`
+	ExpectedCloseDate    *string                `json:"expected_close_date"`
+	ActualCloseDate      *string                `json:"actual_close_date"`
+	CloseReason          string                 `json:"close_reason"`
+	CustomerID           *string                `json:"customer_id"`
+	Customer             *DealCustomerInfo      `json:"customer,omitempty"`
+	ContactID            *string                `json:"contact_id"`
+	Contact              *DealContactInfo       `json:"contact,omitempty"`
+	AssignedTo           *string                `json:"assigned_to"`
+	AssignedEmployee     *DealEmployeeInfo      `json:"assigned_employee,omitempty"`
+	LeadID               *string                `json:"lead_id"`
+	Lead                 *DealLeadInfo          `json:"lead,omitempty"`
+	BankAccountReference string                 `json:"bank_account_reference"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
@@ -251,24 +254,24 @@ type DealProductOption struct {
 }
 
 type DealLeadOption struct {
-	ID          string  `json:"id"`
-	Code        string  `json:"code"`
-	FirstName   string  `json:"first_name"`
-	LastName    string  `json:"last_name"`
-	CompanyName string  `json:"company_name"`
-	IsConverted bool    `json:"is_converted"`
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	CompanyName string `json:"company_name"`
+	IsConverted bool   `json:"is_converted"`
 }
 
 // DealPipelineSummaryResponse holds pipeline summary for the frontend
 type DealPipelineSummaryResponse struct {
-	TotalDeals int64                     `json:"total_deals"`
-	TotalValue float64                   `json:"total_value"`
-	OpenDeals  int64                     `json:"open_deals"`
-	OpenValue  float64                   `json:"open_value"`
-	WonDeals   int64                     `json:"won_deals"`
-	WonValue   float64                   `json:"won_value"`
-	LostDeals  int64                     `json:"lost_deals"`
-	LostValue  float64                   `json:"lost_value"`
+	TotalDeals int64                      `json:"total_deals"`
+	TotalValue float64                    `json:"total_value"`
+	OpenDeals  int64                      `json:"open_deals"`
+	OpenValue  float64                    `json:"open_value"`
+	WonDeals   int64                      `json:"won_deals"`
+	WonValue   float64                    `json:"won_value"`
+	LostDeals  int64                      `json:"lost_deals"`
+	LostValue  float64                    `json:"lost_value"`
 	ByStage    []DealStageSummaryResponse `json:"by_stage"`
 }
 
@@ -282,8 +285,8 @@ type DealStageSummaryResponse struct {
 
 // DealForecastResponse holds deal forecast for the frontend
 type DealForecastResponse struct {
-	TotalWeightedValue float64                  `json:"total_weighted_value"`
-	TotalDeals         int64                    `json:"total_deals"`
+	TotalWeightedValue float64                     `json:"total_weighted_value"`
+	TotalDeals         int64                       `json:"total_deals"`
 	ByStage            []DealStageForecastResponse `json:"by_stage"`
 }
 

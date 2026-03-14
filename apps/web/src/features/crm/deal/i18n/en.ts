@@ -96,6 +96,8 @@ export const crmDealEn = {
     lead: "Lead",
     leadPlaceholder: "Select lead (optional)",
     selectLead: "Select lead (optional)",
+    bankAccountReference: "Bank Account Reference",
+    bankAccountReferencePlaceholder: "e.g. BCA 1234567890 a.n PT Example",
     expectedCloseDate: "Expected Close Date",
     expectedClose: "Expected Close",
     actualClose: "Actual Close",

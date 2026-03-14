@@ -11,6 +11,12 @@ export const financeBankAccountsEn = {
     coa: "Chart of Account",
     bankAddress: "Bank Address",
     bankPhone: "Bank Phone",
+    transactionType: "Type",
+    transactionDate: "Date",
+    referenceId: "Reference ID",
+    salesOrderId: "Sales Order ID",
+    amount: "Amount",
+    descriptionText: "Description",
   },
   status: {
     active: "Active",
@@ -20,6 +26,7 @@ export const financeBankAccountsEn = {
     create: "Create",
     edit: "Edit",
     delete: "Delete",
+    viewDetails: "View Details",
   },
   form: {
     createTitle: "Create Bank Account",
@@ -35,5 +42,10 @@ export const financeBankAccountsEn = {
     updated: "Bank account updated",
     deleted: "Bank account deleted",
     failed: "Action failed",
+  },
+  detail: {
+    title: "Bank Account Detail",
+    transactionHistory: "Transaction History",
+    noTransactions: "No transactions found",
   },
 };

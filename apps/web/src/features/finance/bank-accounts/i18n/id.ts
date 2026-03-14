@@ -11,6 +11,12 @@ export const financeBankAccountsId = {
     coa: "Chart of Account",
     bankAddress: "Alamat Bank",
     bankPhone: "Telepon Bank",
+    transactionType: "Jenis",
+    transactionDate: "Tanggal",
+    referenceId: "ID Referensi",
+    salesOrderId: "ID Sales Order",
+    amount: "Jumlah",
+    descriptionText: "Deskripsi",
   },
   status: {
     active: "Aktif",
@@ -20,6 +26,7 @@ export const financeBankAccountsId = {
     create: "Buat",
     edit: "Ubah",
     delete: "Hapus",
+    viewDetails: "Lihat Detail",
   },
   form: {
     createTitle: "Buat Rekening Bank",
@@ -35,5 +42,10 @@ export const financeBankAccountsId = {
     updated: "Rekening bank diperbarui",
     deleted: "Rekening bank dihapus",
     failed: "Aksi gagal",
+  },
+  detail: {
+    title: "Detail Rekening Bank",
+    transactionHistory: "Riwayat Transaksi",
+    noTransactions: "Belum ada transaksi",
   },
 };

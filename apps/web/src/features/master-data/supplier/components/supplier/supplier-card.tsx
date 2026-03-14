@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Building2, Landmark, MapPin, Eye, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type { Supplier } from "../../types";
@@ -30,6 +30,8 @@ export function SupplierCard({
   canUpdate,
   canDelete,
 }: SupplierCardProps) {
+  const primaryBank = supplier.bank_accounts?.find((b) => b.is_primary) ?? supplier.bank_accounts?.[0];
+
   return (
     <div
       onClick={onClick}
@@ -61,11 +63,17 @@ export function SupplierCard({
             )}
             {supplier.latitude != null && supplier.longitude != null && (
               <span className="text-xs text-muted-foreground">
-                📍 {Number(supplier.latitude).toFixed(4)},{" "}
+                {Number(supplier.latitude).toFixed(4)},
                 {Number(supplier.longitude).toFixed(4)}
               </span>
             )}
           </div>
+          {primaryBank && (
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <Landmark className="h-3 w-3 shrink-0" />
+              {primaryBank.bank?.name ?? "Bank"} - {primaryBank.account_number}
+            </p>
+          )}
         </div>
       </div>
 

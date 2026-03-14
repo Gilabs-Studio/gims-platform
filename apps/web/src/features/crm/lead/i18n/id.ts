@@ -125,6 +125,8 @@ export const crmLeadId = {
       pipelineStagePlaceholder: "Pilih tahap (default: Qualification)",
       pipelineStageHint: "Jika tidak dipilih, otomatis ke tahap pertama (Qualification)",
       website: "Media Sosial / Tautan",
+      bankAccountReference: "Referensi Rekening",
+      bankAccountReferencePlaceholder: "contoh: BCA 1234567890 a.n PT Contoh",
       visitLink: "Kunjungi Tautan",
       npwp: "NPWP",
       npwpPlaceholder: "Masukkan NPWP",

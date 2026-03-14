@@ -175,28 +175,29 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 	}
 
 	deal := &models.Deal{
-		ID:                uuid.New().String(),
-		Title:             req.Title,
-		Description:       req.Description,
-		Status:            models.DealStatusOpen,
-		PipelineStageID:   req.PipelineStageID,
-		Value:             dealValue,
-		Probability:       stage.Probability,
-		ExpectedCloseDate: expectedCloseDate,
-		CustomerID:        req.CustomerID,
-		ContactID:         req.ContactID,
-		AssignedTo:        req.AssignedTo,
-		LeadID:            req.LeadID,
-		BudgetConfirmed:   req.BudgetConfirmed,
-		BudgetAmount:      req.BudgetAmount,
-		AuthConfirmed:     req.AuthConfirmed,
-		AuthPerson:        req.AuthPerson,
-		NeedConfirmed:     req.NeedConfirmed,
-		NeedDescription:   req.NeedDescription,
-		TimeConfirmed:     req.TimeConfirmed,
-		Notes:             req.Notes,
-		CreatedBy:         &createdBy,
-		Items:             items,
+		ID:                   uuid.New().String(),
+		Title:                req.Title,
+		Description:          req.Description,
+		Status:               models.DealStatusOpen,
+		PipelineStageID:      req.PipelineStageID,
+		Value:                dealValue,
+		Probability:          stage.Probability,
+		ExpectedCloseDate:    expectedCloseDate,
+		CustomerID:           req.CustomerID,
+		ContactID:            req.ContactID,
+		AssignedTo:           req.AssignedTo,
+		LeadID:               req.LeadID,
+		BankAccountReference: req.BankAccountReference,
+		BudgetConfirmed:      req.BudgetConfirmed,
+		BudgetAmount:         req.BudgetAmount,
+		AuthConfirmed:        req.AuthConfirmed,
+		AuthPerson:           req.AuthPerson,
+		NeedConfirmed:        req.NeedConfirmed,
+		NeedDescription:      req.NeedDescription,
+		TimeConfirmed:        req.TimeConfirmed,
+		Notes:                req.Notes,
+		CreatedBy:            &createdBy,
+		Items:                items,
 	}
 
 	if err := u.dealRepo.Create(ctx, deal); err != nil {
@@ -292,6 +293,9 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 			return dto.DealResponse{}, errors.New("assigned employee not found")
 		}
 		deal.AssignedTo = req.AssignedTo
+	}
+	if req.BankAccountReference != nil {
+		deal.BankAccountReference = *req.BankAccountReference
 	}
 
 	// Apply partial updates
@@ -915,9 +919,9 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 
 // stockRow holds the aggregated stock data for a product
 type stockRow struct {
-	ProductID        string  `gorm:"column:product_id"`
-	AvailableStock   float64 `gorm:"column:available_stock"`
-	ReservedStock    float64 `gorm:"column:reserved_stock"`
+	ProductID      string  `gorm:"column:product_id"`
+	AvailableStock float64 `gorm:"column:available_stock"`
+	ReservedStock  float64 `gorm:"column:reserved_stock"`
 }
 
 // StockCheck queries ERP inventory for stock availability per deal product item
@@ -1068,13 +1072,13 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 			Phone:      leadData.Phone,
 			Email:      leadData.Email,
 			Position:   leadData.JobTitle,
-			Notes:      fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code) + func() string {
+			Notes: fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code) + func() string {
 				if leadData.Notes != "" {
 					return " - " + leadData.Notes
 				}
 				return ""
 			}(),
-			IsActive:   true,
+			IsActive: true,
 		}
 		if changedBy != "" {
 			newContact.CreatedBy = &changedBy
@@ -1122,7 +1126,6 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 
 	return nil
 }
-
 
 // SoftDeleteItem soft-deletes a single deal product item by ID (marks it as deleted without removing it).
 func (u *dealUsecase) SoftDeleteItem(ctx context.Context, dealID, itemID string) error {

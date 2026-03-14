@@ -4,24 +4,25 @@ import "github.com/google/uuid"
 
 // CreateLeadRequest defines the request body for creating a lead
 type CreateLeadRequest struct {
-	FirstName      string  `json:"first_name" binding:"required,min=1,max=100"`
-	LastName       string  `json:"last_name" binding:"max=100"`
-	CompanyName    string  `json:"company_name" binding:"max=200"`
-	Email          string  `json:"email" binding:"omitempty,email,max=100"`
-	Phone          string  `json:"phone" binding:"max=30"`
-	JobTitle       string  `json:"job_title" binding:"max=100"`
-	Address        string  `json:"address"`
-	City           string  `json:"city" binding:"max=100"`
-	Province       string  `json:"province" binding:"max=100"`
-	ProvinceID     *string `json:"province_id" binding:"omitempty,uuid"`
-	CityID         *string `json:"city_id" binding:"omitempty,uuid"`
-	DistrictID     *string `json:"district_id" binding:"omitempty,uuid"`
-	VillageName    string  `json:"village_name" binding:"max=200"`
-	LeadSourceID   *string `json:"lead_source_id" binding:"omitempty,uuid"`
-	LeadStatusID   *string `json:"lead_status_id" binding:"omitempty,uuid"`
-	EstimatedValue float64 `json:"estimated_value"`
-	Probability    int     `json:"probability" binding:"min=0,max=100"`
-	Website        string  `json:"website" binding:"omitempty,max=255"`
+	FirstName            string  `json:"first_name" binding:"required,min=1,max=100"`
+	LastName             string  `json:"last_name" binding:"max=100"`
+	CompanyName          string  `json:"company_name" binding:"max=200"`
+	Email                string  `json:"email" binding:"omitempty,email,max=100"`
+	Phone                string  `json:"phone" binding:"max=30"`
+	JobTitle             string  `json:"job_title" binding:"max=100"`
+	Address              string  `json:"address"`
+	City                 string  `json:"city" binding:"max=100"`
+	Province             string  `json:"province" binding:"max=100"`
+	ProvinceID           *string `json:"province_id" binding:"omitempty,uuid"`
+	CityID               *string `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID           *string `json:"district_id" binding:"omitempty,uuid"`
+	VillageName          string  `json:"village_name" binding:"max=200"`
+	LeadSourceID         *string `json:"lead_source_id" binding:"omitempty,uuid"`
+	LeadStatusID         *string `json:"lead_status_id" binding:"omitempty,uuid"`
+	EstimatedValue       float64 `json:"estimated_value"`
+	Probability          int     `json:"probability" binding:"min=0,max=100"`
+	Website              string  `json:"website" binding:"omitempty,max=255"`
+	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
@@ -42,24 +43,25 @@ type CreateLeadRequest struct {
 
 // UpdateLeadRequest defines the request body for updating a lead
 type UpdateLeadRequest struct {
-	FirstName      *string  `json:"first_name" binding:"omitempty,min=1,max=100"`
-	LastName       *string  `json:"last_name" binding:"omitempty,max=100"`
-	CompanyName    *string  `json:"company_name" binding:"omitempty,max=200"`
-	Email          *string  `json:"email" binding:"omitempty,email,max=100"`
-	Phone          *string  `json:"phone" binding:"omitempty,max=30"`
-	JobTitle       *string  `json:"job_title" binding:"omitempty,max=100"`
-	Address        *string  `json:"address"`
-	City           *string  `json:"city" binding:"omitempty,max=100"`
-	Province       *string  `json:"province" binding:"omitempty,max=100"`
-	ProvinceID     *string  `json:"province_id" binding:"omitempty,uuid"`
-	CityID         *string  `json:"city_id" binding:"omitempty,uuid"`
-	DistrictID     *string  `json:"district_id" binding:"omitempty,uuid"`
-	VillageName    *string  `json:"village_name" binding:"omitempty,max=200"`
-	LeadSourceID   *string  `json:"lead_source_id" binding:"omitempty,uuid"`
-	LeadStatusID   *string  `json:"lead_status_id" binding:"omitempty,uuid"`
-	EstimatedValue *float64 `json:"estimated_value"`
-	Probability    *int     `json:"probability" binding:"omitempty,min=0,max=100"`
-	Website        *string  `json:"website" binding:"omitempty,max=255"`
+	FirstName            *string  `json:"first_name" binding:"omitempty,min=1,max=100"`
+	LastName             *string  `json:"last_name" binding:"omitempty,max=100"`
+	CompanyName          *string  `json:"company_name" binding:"omitempty,max=200"`
+	Email                *string  `json:"email" binding:"omitempty,email,max=100"`
+	Phone                *string  `json:"phone" binding:"omitempty,max=30"`
+	JobTitle             *string  `json:"job_title" binding:"omitempty,max=100"`
+	Address              *string  `json:"address"`
+	City                 *string  `json:"city" binding:"omitempty,max=100"`
+	Province             *string  `json:"province" binding:"omitempty,max=100"`
+	ProvinceID           *string  `json:"province_id" binding:"omitempty,uuid"`
+	CityID               *string  `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID           *string  `json:"district_id" binding:"omitempty,uuid"`
+	VillageName          *string  `json:"village_name" binding:"omitempty,max=200"`
+	LeadSourceID         *string  `json:"lead_source_id" binding:"omitempty,uuid"`
+	LeadStatusID         *string  `json:"lead_status_id" binding:"omitempty,uuid"`
+	EstimatedValue       *float64 `json:"estimated_value"`
+	Probability          *int     `json:"probability" binding:"omitempty,min=0,max=100"`
+	Website              *string  `json:"website" binding:"omitempty,max=255"`
+	BankAccountReference *string  `json:"bank_account_reference" binding:"omitempty,max=255"`
 	// BANT
 	BudgetConfirmed *bool    `json:"budget_confirmed"`
 	BudgetAmount    *float64 `json:"budget_amount"`
@@ -116,49 +118,49 @@ type UpsertLeadItem struct {
 	Website        string  `json:"website" binding:"omitempty,max=255"`
 	Notes          string  `json:"notes"`
 	// External Scraping Fields
-	Latitude       *float64 `json:"latitude"`
-	Longitude      *float64 `json:"longitude"`
-	Rating         *float64 `json:"rating"`
-	RatingCount    *int     `json:"ratingCount"`
-	Types          any      `json:"types"`
-	OpeningHours   any      `json:"openingHours"`
-	ThumbnailURL   string   `json:"thumbnailUrl"`
-	CID            string   `json:"cid"`
-	PlaceID        string   `json:"placeId"`
+	Latitude     *float64 `json:"latitude"`
+	Longitude    *float64 `json:"longitude"`
+	Rating       *float64 `json:"rating"`
+	RatingCount  *int     `json:"ratingCount"`
+	Types        any      `json:"types"`
+	OpeningHours any      `json:"openingHours"`
+	ThumbnailURL string   `json:"thumbnailUrl"`
+	CID          string   `json:"cid"`
+	PlaceID      string   `json:"placeId"`
 }
 
 // BulkUpsertLeadResponse describes the outcome of a bulk upsert operation
 type BulkUpsertLeadResponse struct {
-	Created int              `json:"created"`
-	Updated int              `json:"updated"`
-	Errors  int              `json:"errors"`
-	Items   []LeadResponse   `json:"items"`
+	Created int            `json:"created"`
+	Updated int            `json:"updated"`
+	Errors  int            `json:"errors"`
+	Items   []LeadResponse `json:"items"`
 }
 
 // LeadResponse defines the response body for a lead
 type LeadResponse struct {
-	ID             string              `json:"id"`
-	Code           string              `json:"code"`
-	FirstName      string              `json:"first_name"`
-	LastName       string              `json:"last_name"`
-	CompanyName    string              `json:"company_name"`
-	Email          string              `json:"email"`
-	Phone          string              `json:"phone"`
-	JobTitle       string              `json:"job_title"`
-	Address        string              `json:"address"`
-	City           string              `json:"city"`
-	Province       string              `json:"province"`
-	ProvinceID     *string             `json:"province_id"`
-	CityID         *string             `json:"city_id"`
-	DistrictID     *string             `json:"district_id"`
-	VillageName    string              `json:"village_name"`
-	LeadSourceID   *string             `json:"lead_source_id"`
-	LeadSource     *LeadSourceInfo     `json:"lead_source,omitempty"`
-	LeadStatusID   *string             `json:"lead_status_id"`
-	LeadStatus     *LeadStatusInfo     `json:"lead_status,omitempty"`
-	LeadScore      int                 `json:"lead_score"`
-	Probability    int                 `json:"probability"`
-	EstimatedValue float64             `json:"estimated_value"`
+	ID             string          `json:"id"`
+	Code           string          `json:"code"`
+	FirstName      string          `json:"first_name"`
+	LastName       string          `json:"last_name"`
+	CompanyName    string          `json:"company_name"`
+	Email          string          `json:"email"`
+	Phone          string          `json:"phone"`
+	JobTitle       string          `json:"job_title"`
+	Address        string          `json:"address"`
+	City           string          `json:"city"`
+	Province       string          `json:"province"`
+	ProvinceID     *string         `json:"province_id"`
+	CityID         *string         `json:"city_id"`
+	DistrictID     *string         `json:"district_id"`
+	VillageName    string          `json:"village_name"`
+	LeadSourceID   *string         `json:"lead_source_id"`
+	LeadSource     *LeadSourceInfo `json:"lead_source,omitempty"`
+	LeadStatusID   *string         `json:"lead_status_id"`
+	LeadStatus     *LeadStatusInfo `json:"lead_status,omitempty"`
+	LeadScore      int             `json:"lead_score"`
+	Probability    int             `json:"probability"`
+	EstimatedValue float64         `json:"estimated_value"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
@@ -169,16 +171,16 @@ type LeadResponse struct {
 	TimeConfirmed   bool    `json:"time_confirmed"`
 	TimeExpected    *string `json:"time_expected"`
 	// Assignment
-	AssignedTo       *string             `json:"assigned_to"`
-	AssignedEmployee *LeadEmployeeInfo   `json:"assigned_employee,omitempty"`
+	AssignedTo       *string           `json:"assigned_to"`
+	AssignedEmployee *LeadEmployeeInfo `json:"assigned_employee,omitempty"`
 	// Conversion
-	CustomerID  *string          `json:"customer_id"`
+	CustomerID  *string           `json:"customer_id"`
 	Customer    *LeadCustomerInfo `json:"customer,omitempty"`
-	ContactID   *string          `json:"contact_id"`
-	DealID      *string          `json:"deal_id"`
-	Deal        *LeadDealInfo    `json:"deal,omitempty"`
-	ConvertedAt *string          `json:"converted_at"`
-	ConvertedBy *string          `json:"converted_by"`
+	ContactID   *string           `json:"contact_id"`
+	DealID      *string           `json:"deal_id"`
+	Deal        *LeadDealInfo     `json:"deal,omitempty"`
+	ConvertedAt *string           `json:"converted_at"`
+	ConvertedBy *string           `json:"converted_by"`
 	// Metadata
 	Notes     string  `json:"notes"`
 	NPWP      string  `json:"npwp"`
@@ -187,22 +189,23 @@ type LeadResponse struct {
 	UpdatedAt string  `json:"updated_at"`
 
 	// External Scraping Fields
-	Latitude       *float64 `json:"latitude"`
-	Longitude      *float64 `json:"longitude"`
-	Rating         *float64 `json:"rating"`
-	RatingCount    *int     `json:"rating_count"`
-	Types          string   `json:"types"`
-	OpeningHours   string   `json:"opening_hours"`
-	ThumbnailURL   string   `json:"thumbnail_url"`
-	CID            string   `json:"cid"`
-	PlaceID        string   `json:"place_id"`
-	Website        string   `json:"website"`
+	Latitude             *float64 `json:"latitude"`
+	Longitude            *float64 `json:"longitude"`
+	Rating               *float64 `json:"rating"`
+	RatingCount          *int     `json:"rating_count"`
+	Types                string   `json:"types"`
+	OpeningHours         string   `json:"opening_hours"`
+	ThumbnailURL         string   `json:"thumbnail_url"`
+	CID                  string   `json:"cid"`
+	PlaceID              string   `json:"place_id"`
+	Website              string   `json:"website"`
+	BankAccountReference string   `json:"bank_account_reference"`
 	// Sales defaults
-	BusinessTypeID *string             `json:"business_type_id"`
+	BusinessTypeID *string               `json:"business_type_id"`
 	BusinessType   *LeadBusinessTypeInfo `json:"business_type,omitempty"`
-	AreaID         *string             `json:"area_id"`
-	Area           *LeadAreaInfo       `json:"area,omitempty"`
-	PaymentTermsID *string             `json:"payment_terms_id"`
+	AreaID         *string               `json:"area_id"`
+	Area           *LeadAreaInfo         `json:"area,omitempty"`
+	PaymentTermsID *string               `json:"payment_terms_id"`
 	// Activities log (populated on detail)
 	Activities []ActivityResponse `json:"activities,omitempty"`
 	// Tasks (populated on detail)
@@ -282,13 +285,13 @@ type LeadAreaInfo struct {
 
 // LeadFormDataResponse holds all options required by the lead form
 type LeadFormDataResponse struct {
-	Employees      []LeadEmployeeOption        `json:"employees"`
-	LeadSources    []LeadSourceOption          `json:"lead_sources"`
-	LeadStatuses   []LeadStatusOption          `json:"lead_statuses"`
-	PipelineStages []LeadPipelineStageOption   `json:"pipeline_stages"`
-	BusinessTypes  []LeadBusinessTypeOption    `json:"business_types"`
-	Areas          []LeadAreaOption            `json:"areas"`
-	PaymentTerms   []LeadPaymentTermsOption    `json:"payment_terms"`
+	Employees      []LeadEmployeeOption      `json:"employees"`
+	LeadSources    []LeadSourceOption        `json:"lead_sources"`
+	LeadStatuses   []LeadStatusOption        `json:"lead_statuses"`
+	PipelineStages []LeadPipelineStageOption `json:"pipeline_stages"`
+	BusinessTypes  []LeadBusinessTypeOption  `json:"business_types"`
+	Areas          []LeadAreaOption          `json:"areas"`
+	PaymentTerms   []LeadPaymentTermsOption  `json:"payment_terms"`
 }
 
 // LeadEmployeeOption for employee dropdown

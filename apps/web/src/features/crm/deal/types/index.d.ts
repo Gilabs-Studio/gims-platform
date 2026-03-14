@@ -21,6 +21,7 @@ export interface Deal {
   assigned_employee?: DealEmployeeInfo | null;
   lead_id?: string | null;
   lead?: DealLeadInfo | null;
+  bank_account_reference?: string;
   // Optional web/visit report fields (may be present at runtime)
   website?: string;
   visit_report?: string;
@@ -141,6 +142,7 @@ export interface CreateDealData {
   contact_id?: string | null;
   assigned_to?: string | null;
   lead_id?: string | null;
+  bank_account_reference?: string;
   budget_confirmed?: boolean;
   budget_amount?: number;
   auth_confirmed?: boolean;
@@ -172,6 +174,7 @@ export interface UpdateDealData {
   customer_id?: string | null;
   contact_id?: string | null;
   assigned_to?: string | null;
+  bank_account_reference?: string;
   budget_confirmed?: boolean;
   budget_amount?: number;
   auth_confirmed?: boolean;

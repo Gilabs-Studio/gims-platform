@@ -80,7 +80,29 @@ func (u *bankAccountUsecase) GetByID(ctx context.Context, id string) (*dto.BankA
 		}
 		return nil, err
 	}
-	return u.mapper.ToResponse(item), nil
+
+	res := u.mapper.ToResponse(item)
+	history, err := u.repo.ListTransactionHistory(ctx, id, 100)
+	if err != nil {
+		return nil, err
+	}
+	if len(history) > 0 {
+		res.TransactionHistory = make([]dto.BankAccountTransactionResponse, 0, len(history))
+		for _, h := range history {
+			res.TransactionHistory = append(res.TransactionHistory, dto.BankAccountTransactionResponse{
+				ID:              h.ID,
+				TransactionType: h.TransactionType,
+				TransactionDate: h.TransactionDate.Format("2006-01-02T15:04:05+07:00"),
+				ReferenceID:     h.ReferenceID,
+				SalesOrderID:    h.SalesOrderID,
+				Amount:          h.Amount,
+				Status:          h.Status,
+				Description:     h.Description,
+			})
+		}
+	}
+
+	return res, nil
 }
 
 func (u *bankAccountUsecase) Update(ctx context.Context, id string, req *dto.UpdateBankAccountRequest) (*dto.BankAccountResponse, error) {

@@ -59,8 +59,8 @@ type PipelineSummaryData struct {
 
 // ForecastData holds weighted deal forecast
 type ForecastData struct {
-	TotalWeightedValue float64        `json:"total_weighted_value"`
-	TotalDeals         int64          `json:"total_deals"`
+	TotalWeightedValue float64         `json:"total_weighted_value"`
+	TotalDeals         int64           `json:"total_deals"`
 	ByStage            []StageForecast `json:"by_stage"`
 }
 
@@ -233,7 +233,7 @@ func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 			"pipeline_stage_id", "title", "description", "status",
 			"value", "probability",
 			"expected_close_date", "actual_close_date", "close_reason",
-			"customer_id", "contact_id", "assigned_to",
+			"customer_id", "contact_id", "assigned_to", "bank_account_reference",
 			"budget_confirmed", "budget_amount",
 			"auth_confirmed", "auth_person",
 			"need_confirmed", "need_description",

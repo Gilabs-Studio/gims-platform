@@ -119,39 +119,40 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 	}
 
 	lead := &models.Lead{
-		ID:              uuid.New().String(),
-		FirstName:       req.FirstName,
-		LastName:        req.LastName,
-		CompanyName:     req.CompanyName,
-		Email:           req.Email,
-		Phone:           req.Phone,
-		JobTitle:        req.JobTitle,
-		Address:         req.Address,
-		City:            req.City,
-		Province:        req.Province,
-		ProvinceID:      req.ProvinceID,
-		CityID:          req.CityID,
-		DistrictID:      req.DistrictID,
-		VillageName:     req.VillageName,
-		LeadSourceID:    req.LeadSourceID,
-		LeadStatusID:    statusID,
-		EstimatedValue:  req.EstimatedValue,
-		Probability:     req.Probability,
-		Website:         req.Website,
-		BudgetConfirmed: req.BudgetConfirmed,
-		BudgetAmount:    req.BudgetAmount,
-		AuthConfirmed:   req.AuthConfirmed,
-		AuthPerson:      req.AuthPerson,
-		NeedConfirmed:   req.NeedConfirmed,
-		NeedDescription: req.NeedDescription,
-		TimeConfirmed:   req.TimeConfirmed,
-		TimeExpected:    timeExpected,
-		AssignedTo:      req.AssignedTo,
-		Notes:           req.Notes,
-		BusinessTypeID:  req.BusinessTypeID,
-		AreaID:          req.AreaID,
-		PaymentTermsID:  req.PaymentTermsID,
-		CreatedBy:       &createdBy,
+		ID:                   uuid.New().String(),
+		FirstName:            req.FirstName,
+		LastName:             req.LastName,
+		CompanyName:          req.CompanyName,
+		Email:                req.Email,
+		Phone:                req.Phone,
+		JobTitle:             req.JobTitle,
+		Address:              req.Address,
+		City:                 req.City,
+		Province:             req.Province,
+		ProvinceID:           req.ProvinceID,
+		CityID:               req.CityID,
+		DistrictID:           req.DistrictID,
+		VillageName:          req.VillageName,
+		LeadSourceID:         req.LeadSourceID,
+		LeadStatusID:         statusID,
+		EstimatedValue:       req.EstimatedValue,
+		Probability:          req.Probability,
+		Website:              req.Website,
+		BankAccountReference: req.BankAccountReference,
+		BudgetConfirmed:      req.BudgetConfirmed,
+		BudgetAmount:         req.BudgetAmount,
+		AuthConfirmed:        req.AuthConfirmed,
+		AuthPerson:           req.AuthPerson,
+		NeedConfirmed:        req.NeedConfirmed,
+		NeedDescription:      req.NeedDescription,
+		TimeConfirmed:        req.TimeConfirmed,
+		TimeExpected:         timeExpected,
+		AssignedTo:           req.AssignedTo,
+		Notes:                req.Notes,
+		BusinessTypeID:       req.BusinessTypeID,
+		AreaID:               req.AreaID,
+		PaymentTermsID:       req.PaymentTermsID,
+		CreatedBy:            &createdBy,
 	}
 
 	// Calculate lead score after setting all fields
@@ -308,6 +309,9 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Website != nil {
 		lead.Website = *req.Website
 	}
+	if req.BankAccountReference != nil {
+		lead.BankAccountReference = *req.BankAccountReference
+	}
 	if req.EstimatedValue != nil {
 		lead.EstimatedValue = *req.EstimatedValue
 	}
@@ -462,21 +466,22 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 
 	// Create deal from lead data
 	newDeal := &models.Deal{
-		ID:              uuid.New().String(),
-		Title:           dealTitle,
-		Status:          models.DealStatusOpen,
-		PipelineStageID: pipelineStageID,
-		Value:           dealValue,
-		Probability:     lead.Probability,
-		LeadID:          &lead.ID,
-		AssignedTo:      lead.AssignedTo,
-		BudgetConfirmed: lead.BudgetConfirmed,
-		BudgetAmount:    lead.BudgetAmount,
-		AuthConfirmed:   lead.AuthConfirmed,
-		AuthPerson:      lead.AuthPerson,
-		NeedConfirmed:   lead.NeedConfirmed,
-		NeedDescription: lead.NeedDescription,
-		TimeConfirmed:   lead.TimeConfirmed,
+		ID:                   uuid.New().String(),
+		Title:                dealTitle,
+		Status:               models.DealStatusOpen,
+		PipelineStageID:      pipelineStageID,
+		Value:                dealValue,
+		Probability:          lead.Probability,
+		LeadID:               &lead.ID,
+		AssignedTo:           lead.AssignedTo,
+		BankAccountReference: lead.BankAccountReference,
+		BudgetConfirmed:      lead.BudgetConfirmed,
+		BudgetAmount:         lead.BudgetAmount,
+		AuthConfirmed:        lead.AuthConfirmed,
+		AuthPerson:           lead.AuthPerson,
+		NeedConfirmed:        lead.NeedConfirmed,
+		NeedDescription:      lead.NeedDescription,
+		TimeConfirmed:        lead.TimeConfirmed,
 		// Use the lead's original notes so deal mirrors lead data exactly
 		Notes:     lead.Notes,
 		CreatedBy: &convertedBy,
@@ -539,7 +544,8 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	_ = u.taskRepo.UpdateDealIDByLeadID(ctx, lead.ID, newDeal.ID)
 
 	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
-	if convertedBy != "" {		conversionActivity := &models.Activity{
+	if convertedBy != "" {
+		conversionActivity := &models.Activity{
 			Type:        "conversion",
 			DealID:      &newDeal.ID,
 			LeadID:      &lead.ID,

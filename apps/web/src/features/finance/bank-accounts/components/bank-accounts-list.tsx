@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency } from "@/lib/utils";
 
 import type { BankAccount } from "../types";
-import { useDeleteFinanceBankAccount, useFinanceBankAccounts } from "../hooks/use-finance-bank-accounts";
+import { useDeleteFinanceBankAccount, useFinanceBankAccount, useFinanceBankAccounts } from "../hooks/use-finance-bank-accounts";
 import { BankAccountForm } from "./bank-account-form";
 
 export function BankAccountsList() {
@@ -38,6 +40,8 @@ export function BankAccountsList() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [deletingItem, setDeletingItem] = useState<BankAccount | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useFinanceBankAccounts({
     page,
@@ -51,6 +55,11 @@ export function BankAccountsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteFinanceBankAccount();
+  const { data: detailData, isLoading: isLoadingDetail } = useFinanceBankAccount(detailId ?? "", {
+    enabled: detailOpen && !!detailId,
+  });
+  const detail = detailData?.data;
+  const transactions = detail?.transaction_history ?? [];
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
@@ -157,6 +166,16 @@ export function BankAccountsList() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setDetailId(item.id);
+                            setDetailOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t("actions.viewDetails")}
+                        </DropdownMenuItem>
                         {canDelete && (
                           <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
@@ -208,6 +227,67 @@ export function BankAccountsList() {
           }
         }}
       />
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent size="xl" className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("detail.title")}</DialogTitle>
+          </DialogHeader>
+
+          {isLoadingDetail ? (
+            <Skeleton className="h-28 w-full" />
+          ) : detail ? (
+            <div className="space-y-4">
+              <div className="rounded-md border p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">{t("fields.name")}: </span>{detail.name}</div>
+                <div><span className="text-muted-foreground">{t("fields.accountNumber")}: </span>{detail.account_number}</div>
+                <div><span className="text-muted-foreground">{t("fields.accountHolder")}: </span>{detail.account_holder}</div>
+                <div><span className="text-muted-foreground">{t("fields.currency")}: </span>{detail.currency}</div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold">{t("detail.transactionHistory")}</h3>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("fields.transactionDate")}</TableHead>
+                        <TableHead>{t("fields.transactionType")}</TableHead>
+                        <TableHead>{t("fields.referenceId")}</TableHead>
+                        <TableHead>{t("fields.salesOrderId")}</TableHead>
+                        <TableHead className="text-right">{t("fields.amount")}</TableHead>
+                        <TableHead>{t("fields.status")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                            {t("detail.noTransactions")}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        transactions.map((row) => (
+                          <TableRow key={`${row.transaction_type}-${row.id}`}>
+                            <TableCell>{new Date(row.transaction_date).toLocaleString()}</TableCell>
+                            <TableCell>{row.transaction_type}</TableCell>
+                            <TableCell className="font-mono text-xs">{row.reference_id}</TableCell>
+                            <TableCell className="font-mono text-xs">{row.sales_order_id ?? "-"}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                            <TableCell>{row.status}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">{tCommon("error")}</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -15,21 +15,21 @@ import (
 
 // Lead represents a sales prospect with BANT qualification scoring
 type Lead struct {
-	ID             string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Code           string  `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	FirstName      string  `gorm:"type:varchar(100);not null;index" json:"first_name"`
-	LastName       string  `gorm:"type:varchar(100);index" json:"last_name"`
-	CompanyName    string  `gorm:"type:varchar(200);index" json:"company_name"`
-	Email          string  `gorm:"type:varchar(100)" json:"email"`
-	Phone          string  `gorm:"type:varchar(30)" json:"phone"`
-	JobTitle       string  `gorm:"type:varchar(100)" json:"job_title"`
-	Address        string  `gorm:"type:text" json:"address"`
-	City           string  `gorm:"type:varchar(100)" json:"city"`
-	Province       string  `gorm:"type:varchar(100)" json:"province"`
-	ProvinceID     *string `gorm:"type:uuid;index" json:"province_id"`
-	CityID         *string `gorm:"type:uuid;index" json:"city_id"`
-	DistrictID     *string `gorm:"type:uuid;index" json:"district_id"`
-	VillageName    string  `gorm:"type:varchar(200)" json:"village_name"`
+	ID          string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Code        string  `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	FirstName   string  `gorm:"type:varchar(100);not null;index" json:"first_name"`
+	LastName    string  `gorm:"type:varchar(100);index" json:"last_name"`
+	CompanyName string  `gorm:"type:varchar(200);index" json:"company_name"`
+	Email       string  `gorm:"type:varchar(100)" json:"email"`
+	Phone       string  `gorm:"type:varchar(30)" json:"phone"`
+	JobTitle    string  `gorm:"type:varchar(100)" json:"job_title"`
+	Address     string  `gorm:"type:text" json:"address"`
+	City        string  `gorm:"type:varchar(100)" json:"city"`
+	Province    string  `gorm:"type:varchar(100)" json:"province"`
+	ProvinceID  *string `gorm:"type:uuid;index" json:"province_id"`
+	CityID      *string `gorm:"type:uuid;index" json:"city_id"`
+	DistrictID  *string `gorm:"type:uuid;index" json:"district_id"`
+	VillageName string  `gorm:"type:varchar(200)" json:"village_name"`
 
 	// Classification
 	LeadSourceID *string     `gorm:"type:uuid;index" json:"lead_source_id"`
@@ -43,51 +43,52 @@ type Lead struct {
 	EstimatedValue float64 `gorm:"type:decimal(15,2);default:0" json:"estimated_value"`
 
 	// BANT Qualification
-	BudgetConfirmed bool    `gorm:"default:false" json:"budget_confirmed"`
-	BudgetAmount    float64 `gorm:"type:decimal(15,2);default:0" json:"budget_amount"`
-	AuthConfirmed   bool    `gorm:"default:false" json:"auth_confirmed"`
-	AuthPerson      string  `gorm:"type:varchar(200)" json:"auth_person"`
-	NeedConfirmed   bool    `gorm:"default:false" json:"need_confirmed"`
-	NeedDescription string  `gorm:"type:text" json:"need_description"`
-	TimeConfirmed   bool    `gorm:"default:false" json:"time_confirmed"`
+	BudgetConfirmed bool       `gorm:"default:false" json:"budget_confirmed"`
+	BudgetAmount    float64    `gorm:"type:decimal(15,2);default:0" json:"budget_amount"`
+	AuthConfirmed   bool       `gorm:"default:false" json:"auth_confirmed"`
+	AuthPerson      string     `gorm:"type:varchar(200)" json:"auth_person"`
+	NeedConfirmed   bool       `gorm:"default:false" json:"need_confirmed"`
+	NeedDescription string     `gorm:"type:text" json:"need_description"`
+	TimeConfirmed   bool       `gorm:"default:false" json:"time_confirmed"`
 	TimeExpected    *time.Time `gorm:"type:date" json:"time_expected"`
 
 	// Assignment
 	AssignedTo       *string             `gorm:"type:uuid;index" json:"assigned_to"`
-	AssignedEmployee *orgModels.Employee  `gorm:"foreignKey:AssignedTo" json:"assigned_employee,omitempty"`
+	AssignedEmployee *orgModels.Employee `gorm:"foreignKey:AssignedTo" json:"assigned_employee,omitempty"`
 
 	// Conversion (populated after conversion)
-	CustomerID  *string                   `gorm:"type:uuid;index" json:"customer_id"`
-	Customer    *customerModels.Customer  `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
-	ContactID   *string                   `gorm:"type:uuid;index" json:"contact_id"`
-	Contact     *Contact                  `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
-	DealID      *string                   `gorm:"type:uuid;index" json:"deal_id"`
-	Deal        *Deal                     `gorm:"foreignKey:DealID;constraint:false" json:"deal,omitempty"`
-	ConvertedAt *time.Time                `json:"converted_at"`
-	ConvertedBy *string                   `gorm:"type:uuid" json:"converted_by"`
+	CustomerID  *string                  `gorm:"type:uuid;index" json:"customer_id"`
+	Customer    *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	ContactID   *string                  `gorm:"type:uuid;index" json:"contact_id"`
+	Contact     *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
+	DealID      *string                  `gorm:"type:uuid;index" json:"deal_id"`
+	Deal        *Deal                    `gorm:"foreignKey:DealID;constraint:false" json:"deal,omitempty"`
+	ConvertedAt *time.Time               `json:"converted_at"`
+	ConvertedBy *string                  `gorm:"type:uuid" json:"converted_by"`
 
 	// Sales defaults for customer conversion
 	BusinessTypeID *string                  `gorm:"type:uuid;index" json:"business_type_id"`
-	BusinessType   *orgModels.BusinessType   `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
+	BusinessType   *orgModels.BusinessType  `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	AreaID         *string                  `gorm:"type:uuid;index" json:"area_id"`
-	Area           *orgModels.Area           `gorm:"foreignKey:AreaID" json:"area,omitempty"`
+	Area           *orgModels.Area          `gorm:"foreignKey:AreaID" json:"area,omitempty"`
 	PaymentTermsID *string                  `gorm:"type:uuid;index" json:"payment_terms_id"`
-	PaymentTerms   *coreModels.PaymentTerms  `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
+	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`
 
 	// NPWP / Tax ID
 	NPWP string `gorm:"type:varchar(30)" json:"npwp"`
 
 	// External Source Data (Google Maps, etc)
-	Latitude     *float64 `gorm:"type:numeric(10,8)" json:"latitude"`
-	Longitude    *float64 `gorm:"type:numeric(11,8)" json:"longitude"`
-	Rating       *float64 `gorm:"type:numeric(3,1)" json:"rating"`
-	RatingCount  *int     `gorm:"type:int" json:"rating_count"`
-	Types        string   `gorm:"type:text" json:"types"`
-	OpeningHours string   `gorm:"type:text" json:"opening_hours"`
-	ThumbnailURL string   `gorm:"type:text" json:"thumbnail_url"`
-	CID          string   `gorm:"type:varchar(200)" json:"cid"`
-	PlaceID      string   `gorm:"type:varchar(200)" json:"place_id"`
-	Website      string   `gorm:"type:varchar(255)" json:"website"`
+	Latitude             *float64 `gorm:"type:numeric(10,8)" json:"latitude"`
+	Longitude            *float64 `gorm:"type:numeric(11,8)" json:"longitude"`
+	Rating               *float64 `gorm:"type:numeric(3,1)" json:"rating"`
+	RatingCount          *int     `gorm:"type:int" json:"rating_count"`
+	Types                string   `gorm:"type:text" json:"types"`
+	OpeningHours         string   `gorm:"type:text" json:"opening_hours"`
+	ThumbnailURL         string   `gorm:"type:text" json:"thumbnail_url"`
+	CID                  string   `gorm:"type:varchar(200)" json:"cid"`
+	PlaceID              string   `gorm:"type:varchar(200)" json:"place_id"`
+	Website              string   `gorm:"type:varchar(255)" json:"website"`
+	BankAccountReference string   `gorm:"type:varchar(255)" json:"bank_account_reference"`
 
 	// Metadata
 	Notes     string         `gorm:"type:text" json:"notes"`

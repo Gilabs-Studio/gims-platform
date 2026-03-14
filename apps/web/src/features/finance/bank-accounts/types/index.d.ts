@@ -33,6 +33,18 @@ export interface BankAccount {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  transaction_history?: BankAccountTransaction[];
+}
+
+export interface BankAccountTransaction {
+  id: string;
+  transaction_type: string;
+  transaction_date: string;
+  reference_id: string;
+  sales_order_id?: string | null;
+  amount: number;
+  status: string;
+  description: string;
 }
 
 export interface ListBankAccountsParams {

@@ -368,6 +368,15 @@ export function LeadFormDialog({
               {errors.website && <FieldError>{errors.website.message}</FieldError>}
             </Field>
 
+            <Field orientation="vertical" data-invalid={!!errors.bank_account_reference}>
+              <FieldLabel>{t("form.bankAccountReference")}</FieldLabel>
+              <Input
+                placeholder={t("form.bankAccountReferencePlaceholder")}
+                {...register("bank_account_reference")}
+              />
+              {errors.bank_account_reference && <FieldError>{errors.bank_account_reference.message}</FieldError>}
+            </Field>
+
             <div className="grid grid-cols-2 gap-4">
               <Field orientation="vertical" data-invalid={!!errors.business_type_id}>
                 <FieldLabel>{t("form.businessType")}</FieldLabel>

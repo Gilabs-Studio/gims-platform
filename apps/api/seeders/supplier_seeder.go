@@ -1,6 +1,7 @@
 package seeders
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -159,24 +160,30 @@ func SeedSupplier() error {
 			for j := range phones {
 				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&phones[j])
 			}
+		}
 
-			// Add sample bank account
-			var bca models.Bank
-			if db.Where("code = ?", "BCA").First(&bca).Error == nil {
-				bankAccount := models.SupplierBank{
-					SupplierID:    suppliers[i].ID,
-					BankID:        bca.ID,
-					AccountNumber: "1234567890",
-					AccountName:   "PT Pharma Distributor Indonesia",
-					Branch:        "KCP Jababeka",
-					IsPrimary:     true,
-				}
-				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&bankAccount)
+		var bank models.Bank
+		preferredCodes := []string{"BCA", "MANDIRI", "BNI", "BRI", "CIMB", "DANAMON", "PERMATA"}
+		preferredCode := preferredCodes[i%len(preferredCodes)]
+		if db.Where("code = ?", preferredCode).First(&bank).Error != nil {
+			if err := db.Where("is_active = ?", true).First(&bank).Error; err != nil {
+				continue
 			}
+		}
+
+		bankAccount := models.SupplierBank{
+			SupplierID:    suppliers[i].ID,
+			BankID:        bank.ID,
+			AccountNumber: fmt.Sprintf("7777000000%02d", i+1),
+			AccountName:   suppliers[i].Name,
+			Branch:        "Main Branch",
+			IsPrimary:     true,
+		}
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&bankAccount).Error; err != nil {
+			log.Printf("Warning: failed to seed supplier bank for %s: %v", suppliers[i].Name, err)
 		}
 	}
 
 	log.Println("Supplier data seeded successfully!")
 	return nil
 }
-

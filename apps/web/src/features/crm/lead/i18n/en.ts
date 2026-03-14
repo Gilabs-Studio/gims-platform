@@ -125,6 +125,8 @@ export const crmLeadEn = {
       pipelineStagePlaceholder: "Select stage (default: Qualification)",
       pipelineStageHint: "If not selected, defaults to the first stage (Qualification)",
       website: "Social Media / Link",
+      bankAccountReference: "Bank Account Reference",
+      bankAccountReferencePlaceholder: "e.g. BCA 1234567890 a.n PT Example",
       visitLink: "Visit Link",
       npwp: "NPWP / Tax ID",
       npwpPlaceholder: "Enter NPWP",
