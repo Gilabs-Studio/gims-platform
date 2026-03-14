@@ -255,7 +255,7 @@ export function AssetDetail({ id }: { id: string }) {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-blue-600 cursor-pointer"
+                            className="text-primary cursor-pointer"
                             onClick={() => handleApprove(tr.id)}
                             disabled={approveMutation.isPending}
                           >

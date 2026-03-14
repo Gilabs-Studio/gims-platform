@@ -335,10 +335,10 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
                   {t("balance.remaining")}: <span className={cn(
                     "font-semibold",
                     (selectedEmployee.remaining_balance ?? 0) <= 3 && (selectedEmployee.remaining_balance ?? 0) > 0
-                      ? "text-yellow-600"
+                      ? "text-warning"
                       : (selectedEmployee.remaining_balance ?? 0) <= 0
                         ? "text-destructive"
-                        : "text-emerald-600"
+                        : "text-success"
                   )}>{selectedEmployee.remaining_balance ?? 0}</span> {t("days")}
                 </p>
               </div>

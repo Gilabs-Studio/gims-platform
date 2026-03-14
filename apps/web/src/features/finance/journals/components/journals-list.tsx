@@ -259,7 +259,7 @@ export function JournalsList() {
                         )}
                         {canPost && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={async () => {
                               try {
                                 await postMutation.mutateAsync(item.id);
@@ -284,7 +284,7 @@ export function JournalsList() {
                         )}
                         {canReverse && item.status === "posted" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            className="cursor-pointer text-warning focus:text-warning"
                             onClick={async () => {
                               try {
                                 await reverseMutation.mutateAsync(item.id);

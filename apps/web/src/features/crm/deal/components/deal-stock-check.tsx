@@ -75,7 +75,7 @@ export function DealStockCheck({ dealId }: DealStockCheckProps) {
       {/* Overall status badge */}
       <div className="flex items-center gap-2">
         {data.all_sufficient ? (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-green-500/20">
             <CheckCircle2 className="h-3.5 w-3.5" />
             {t("stock.allSufficient")}
           </div>
@@ -114,7 +114,7 @@ export function DealStockCheck({ dealId }: DealStockCheckProps) {
                 <td className="text-right p-2">{fmt(item.available_stock)}</td>
                 <td className="text-center p-2">
                   {item.is_sufficient ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 inline-block" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success inline-block" />
                   ) : (
                     <AlertTriangle className="h-3.5 w-3.5 text-destructive inline-block" />
                   )}

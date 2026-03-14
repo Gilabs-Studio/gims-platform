@@ -202,7 +202,7 @@ export function LeaveRequestDetailModal({
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -214,7 +214,7 @@ export function LeaveRequestDetailModal({
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -226,7 +226,7 @@ export function LeaveRequestDetailModal({
                     size="icon"
                     onClick={() => setIsCancelDialogOpen(true)}
                     disabled={cancelMutation.isPending}
-                    className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
                     title={t("actions.cancel")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -441,8 +441,8 @@ export function LeaveRequestDetailModal({
                     <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 rounded-lg bg-green-500/10">
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <div className="p-2 rounded-lg bg-success/10">
+                          <CheckCircle2 className="h-5 w-5 text-success" />
                         </div>
                         <h3 className="font-semibold text-lg">{t("approvalInfo")}</h3>
                       </div>
@@ -467,8 +467,8 @@ export function LeaveRequestDetailModal({
                     <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 rounded-lg bg-red-500/10">
-                          <XCircle className="h-5 w-5 text-red-600" />
+                        <div className="p-2 rounded-lg bg-destructive/10">
+                          <XCircle className="h-5 w-5 text-destructive" />
                         </div>
                         <h3 className="font-semibold text-lg">{t("rejectionInfo")}</h3>
                       </div>
@@ -487,8 +487,8 @@ export function LeaveRequestDetailModal({
                     <div className="absolute inset-0 bg-grid-white/10 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
                     <div className="relative p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 rounded-lg bg-orange-500/10">
-                          <XCircle className="h-5 w-5 text-orange-600" />
+                        <div className="p-2 rounded-lg bg-warning/10">
+                          <XCircle className="h-5 w-5 text-warning" />
                         </div>
                         <h3 className="font-semibold text-lg">{t("cancellationInfo")}</h3>
                       </div>
@@ -521,7 +521,7 @@ export function LeaveRequestDetailModal({
                   {displayLeaveRequest.updated_at !== displayLeaveRequest.created_at && (
                     <div className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className="p-2 rounded-full bg-blue-500 text-white">
+                        <div className="p-2 rounded-full bg-primary text-white">
                           <Edit className="h-4 w-4" />
                         </div>
                         <div className="w-px h-full bg-border min-h-10" />
@@ -536,7 +536,7 @@ export function LeaveRequestDetailModal({
                   {isDetailedData && "approved_at" in displayLeaveRequest && displayLeaveRequest.approved_at && (
                     <div className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className="p-2 rounded-full bg-green-500 text-white">
+                        <div className="p-2 rounded-full bg-success text-white">
                           <CheckCircle2 className="h-4 w-4" />
                         </div>
                         <div className="w-px h-full bg-border min-h-10" />
@@ -554,7 +554,7 @@ export function LeaveRequestDetailModal({
                   {isDetailedData && "rejected_at" in displayLeaveRequest && displayLeaveRequest.rejected_at && (
                     <div className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className="p-2 rounded-full bg-red-500 text-white">
+                        <div className="p-2 rounded-full bg-destructive text-white">
                           <XCircle className="h-4 w-4" />
                         </div>
                       </div>

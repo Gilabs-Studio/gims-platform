@@ -27,8 +27,8 @@ export interface AreaFormProps {
 
 // Predefined color palette for area map rendering
 const AREA_COLORS = [
-  { label: "Blue", value: "#3b82f6" },
-  { label: "Green", value: "#10b981" },
+  { label: "Blue", value: "var(--color-primary)" },
+  { label: "Green", value: "var(--color-success)" },
   { label: "Amber", value: "#f59e0b" },
   { label: "Red", value: "#ef4444" },
   { label: "Purple", value: "#8b5cf6" },

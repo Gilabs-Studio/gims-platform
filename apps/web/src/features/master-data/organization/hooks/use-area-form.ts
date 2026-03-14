@@ -13,7 +13,7 @@ export interface UseAreaFormProps {
   area?: Area | null;
 }
 
-const DEFAULT_COLOR = "#3b82f6";
+const DEFAULT_COLOR = "var(--color-primary)";
 
 const DEFAULT_VALUES: AreaFormData = {
   name: "",

@@ -500,7 +500,7 @@ export function PurchaseOrdersList() {
 
                             {canSubmit && status === "DRAFT" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={async () => {
                                   try {
                                     await submitMutation.mutateAsync(it.id);
@@ -519,7 +519,7 @@ export function PurchaseOrdersList() {
                               <>
                                 {canApprove && (
                                   <DropdownMenuItem
-                                    className="cursor-pointer text-green-600 focus:text-green-600"
+                                    className="cursor-pointer text-success focus:text-success"
                                     onClick={async () => {
                                       try {
                                         await approveMutation.mutateAsync(it.id);
@@ -554,7 +554,7 @@ export function PurchaseOrdersList() {
 
                             {canClose && status === "APPROVED" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-orange-600 focus:text-orange-600"
+                                className="cursor-pointer text-warning focus:text-warning"
                                 onClick={async () => {
                                   try {
                                     await closeMutation.mutateAsync(it.id);
@@ -585,7 +585,7 @@ export function PurchaseOrdersList() {
 
                             {canCreateSI && status === "APPROVED" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
                                   setSiFormPOId(it.id);
                                   setSiFormOpen(true);
@@ -598,7 +598,7 @@ export function PurchaseOrdersList() {
 
                             {canCreateSIDP && status === "APPROVED" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
                                   setSiDPFormPOId(it.id);
                                   setSiDPFormOpen(true);
@@ -611,7 +611,7 @@ export function PurchaseOrdersList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                                 onClick={() => setPrintingId(it.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />

@@ -252,7 +252,7 @@ export function PurchasePaymentsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.confirm")}
@@ -275,7 +275,7 @@ export function PurchasePaymentsList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingId(item.id)}
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}

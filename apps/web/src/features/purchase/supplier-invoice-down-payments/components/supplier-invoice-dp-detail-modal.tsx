@@ -177,7 +177,7 @@ function SupplierInvoiceDPDetailView({
     now.setHours(0, 0, 0, 0);
     const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
     if (diff < 0) return "font-semibold text-destructive";
-    if (diff <= 7) return "font-semibold text-amber-500";
+    if (diff <= 7) return "font-semibold text-warning";
     return "font-medium text-foreground";
   })();
 
@@ -196,9 +196,9 @@ function SupplierInvoiceDPDetailView({
         </span>
       );
     if (diff === 0)
-      return <span className="ml-1.5 text-amber-500 text-xs font-semibold">· Due today</span>;
+      return <span className="ml-1.5 text-warning text-xs font-semibold">· Due today</span>;
     if (diff <= 7)
-      return <span className="ml-1.5 text-amber-500 text-xs font-medium">· {diff}d left</span>;
+      return <span className="ml-1.5 text-warning text-xs font-medium">· {diff}d left</span>;
     return null;
   })();
 
@@ -511,7 +511,7 @@ export function SupplierInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsCreatePaymentOpen(true)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                   title={t("actions.createPayment")}
                 >
                   <CreditCard className="h-4 w-4" />
@@ -555,7 +555,7 @@ export function SupplierInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setPrintOpen(true)}
-                  className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                  className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -575,7 +575,7 @@ export function SupplierInvoiceDPDetailModal({
                       toast.error(t("toast.failed"));
                     }
                   }}
-                  className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                   title={t("actions.approve")}
                 >
                   <CheckCircle2 className="h-4 w-4" />

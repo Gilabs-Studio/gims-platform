@@ -82,7 +82,7 @@ export function CompanyCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors"
+            className="p-1.5 rounded-full hover:bg-accent text-warning hover:text-warning transition-colors"
             title="Edit"
           >
             <Edit className="h-3.5 w-3.5" />
@@ -95,7 +95,7 @@ export function CompanyCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-red-500 hover:text-red-600 transition-colors"
+            className="p-1.5 rounded-full hover:bg-accent text-destructive hover:text-destructive transition-colors"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />

@@ -37,9 +37,9 @@ interface AssetTimelineProps {
 function getStatusColor(status: AssetStatus) {
   switch (status) {
     case "BORROWED":
-      return "bg-blue-500";
+      return "bg-primary";
     case "RETURNED":
-      return "bg-emerald-500";
+      return "bg-success";
   }
 }
 
@@ -61,11 +61,11 @@ function StatusBadge({
 }) {
   const badgeMap: Record<AssetStatus, { className: string; key: string }> = {
     BORROWED: {
-      className: "bg-blue-500/15 text-blue-700 border-blue-500/20",
+      className: "bg-primary/15 text-primary border-blue-500/20",
       key: "asset.statuses.BORROWED",
     },
     RETURNED: {
-      className: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20",
+      className: "bg-success/15 text-success border-emerald-500/20",
       key: "asset.statuses.RETURNED",
     },
   };
@@ -267,7 +267,7 @@ export function AssetTimeline({
                             variant="ghost"
                             size="sm"
                             onClick={() => onReturn(asset)}
-                            className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1" />
                             {t("asset.actions.return")}
@@ -289,7 +289,7 @@ export function AssetTimeline({
                             variant="ghost"
                             size="sm"
                             onClick={() => onDelete(asset)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                            className="text-destructive hover:text-destructive hover:bg-red-50 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-1" />
                             {t("asset.actions.delete")}

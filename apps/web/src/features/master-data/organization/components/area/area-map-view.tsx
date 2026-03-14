@@ -60,7 +60,7 @@ const TILE_LAYERS: Record<Exclude<MapStyle, "auto">, { url: string; attribution:
   },
 };
 
-const DEFAULT_AREA_COLOR = "#94a3b8";
+const DEFAULT_AREA_COLOR = "var(--color-muted-foreground)";
 const HOVER_OPACITY = 0.6;
 const SELECTED_OPACITY = 0.7;
 const DEFAULT_OPACITY = 0.35;

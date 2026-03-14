@@ -189,7 +189,7 @@ export function PurchaseOrderDetail({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -223,7 +223,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -235,7 +235,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -247,7 +247,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -259,7 +259,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleClose}
                     disabled={closeMutation.isPending}
-                    className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
                     title={t("actions.close")}
                   >
                     <Lock className="h-4 w-4" />
@@ -270,7 +270,7 @@ export function PurchaseOrderDetail({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsSIFormOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createSI")}
                   >
                     <FileText className="h-4 w-4" />

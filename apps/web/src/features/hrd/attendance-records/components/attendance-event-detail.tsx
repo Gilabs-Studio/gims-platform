@@ -26,39 +26,39 @@ interface AttendanceEventDetailProps {
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PRESENT: {
     label: "Present",
-    className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
+    className: "bg-success/10 text-success border-emerald-500/20",
   },
   LATE: {
     label: "Late",
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+    className: "bg-warning/10 text-warning border-amber-500/20",
   },
   ABSENT: {
     label: "Absent",
-    className: "bg-red-500/10 text-red-700 border-red-500/20",
+    className: "bg-destructive/10 text-destructive border-red-500/20",
   },
   LEAVE: {
     label: "Leave",
-    className: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+    className: "bg-primary/10 text-primary border-blue-500/20",
   },
   HALF_DAY: {
     label: "Half Day",
-    className: "bg-violet-500/10 text-violet-700 border-violet-500/20",
+    className: "bg-purple text-accent border-purple",
   },
   EARLY_LEAVE: {
     label: "Early Leave",
-    className: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+    className: "bg-warning/10 text-warning border-orange-500/20",
   },
   HOLIDAY: {
     label: "Holiday",
-    className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
+    className: "bg-successteal text-success border-teal-500/20",
   },
   WFH: {
     label: "Work From Home",
-    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20",
+    className: "bg-cyan text-accent border-cyan-500/20",
   },
   OFF_DAY: {
     label: "Off Day",
-    className: "bg-gray-500/10 text-gray-700 border-gray-500/20",
+    className: "bg-mutedgray text-muted-foreground border-gray-500/20",
   },
 };
 

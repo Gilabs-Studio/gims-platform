@@ -138,8 +138,8 @@ export function TargetsList() {
   };
   
   const getProgressColor = (percent: number) => {
-    if (percent >= 100) return "bg-purple-500";
-    if (percent >= 80) return "bg-green-500";
+    if (percent >= 100) return "bg-purple";
+    if (percent >= 80) return "bg-success";
     if (percent >= 50) return "bg-warning";
     return "bg-destructive";
   };
@@ -256,7 +256,7 @@ export function TargetsList() {
                 </div>
                 <div className="text-2xl font-bold">{formatCurrency(overallStats.totalActual)}</div>
                 <div className="flex items-center text-xs mt-1">
-                  <span className={cn("font-medium", overallProgress >= 100 ? "text-green-600" : "text-muted-foreground")}>
+                  <span className={cn("font-medium", overallProgress >= 100 ? "text-success" : "text-muted-foreground")}>
                       {overallProgress.toFixed(1)}% 
                   </span>
                   <span className="text-muted-foreground ml-1">{t("ofAnnualGoal")}</span>
@@ -274,7 +274,7 @@ export function TargetsList() {
                    <div className="text-2xl font-bold">{overallProgress.toFixed(0)}%</div>
                    <div className="mb-1">
                       {overallProgress >= 100 ? (
-                        <ArrowUpRight className="h-4 w-4 text-green-500" />
+                        <ArrowUpRight className="h-4 w-4 text-success" />
                       ) : (
                         <span className="text-xs text-muted-foreground">{t("common.remaining")}</span>
                       )}
@@ -402,7 +402,7 @@ export function TargetsList() {
                                            </DropdownMenuItem>
                                         )}
                                         {canUpdate && target.status === 'draft' && (
-                                           <DropdownMenuItem onClick={() => handleStatusChange(target.id, 'submitted')} className="cursor-pointer text-blue-600 focus:text-blue-700">
+                                           <DropdownMenuItem onClick={() => handleStatusChange(target.id, 'submitted')} className="cursor-pointer text-primary focus:text-primary">
                                               <Send className="h-4 w-4 mr-2" />
                                               {t("status.submitted")}
                                            </DropdownMenuItem>

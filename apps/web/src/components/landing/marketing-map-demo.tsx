@@ -80,7 +80,7 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
         <GeoJSON
           data={geojson}
           style={() => ({
-            color: "#2563EB",
+            color: "var(--color-primary)",
             weight: 1,
             opacity: 0.6,
             fillOpacity: 0.06,
@@ -102,8 +102,8 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
               center={[hub.lat, hub.lng]}
               radius={isPrimary ? 9 : 6}
               pathOptions={{
-                color: "#2563EB",
-                fillColor: "#2563EB",
+                color: "var(--color-primary)",
+                fillColor: "var(--color-primary)",
                 fillOpacity: isPrimary ? 0.85 : 0.5,
                 weight: isPrimary ? 2 : 1,
                 opacity: 0.9,
@@ -125,7 +125,7 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
           right: 6,
           zIndex: 400,
           fontSize: 9,
-          color: "#94a3b8",
+          color: "var(--color-muted-foreground)",
           pointerEvents: "none",
         }}
       >

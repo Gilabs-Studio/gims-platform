@@ -125,7 +125,7 @@ function getAttendanceVisual(
     return {
       icon: CheckCircle2,
       label: `${t("clockOut")} at ${time}`,
-      iconClass: "text-emerald-500",
+      iconClass: "text-success",
       pillClass: "border-border text-foreground bg-transparent",
     };
   }
@@ -134,7 +134,7 @@ function getAttendanceVisual(
     return {
       icon: CheckCircle2,
       label: `${t("clockIn")} at ${time}`,
-      iconClass: "text-blue-500",
+      iconClass: "text-primary",
       pillClass: "border-border text-foreground bg-transparent",
     };
   }
@@ -341,12 +341,12 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
 
         {/* Location permission prompt alert */}
         {isPrompt && (
-          <div className="mx-2 my-1 flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-400">
+          <div className="mx-2 my-1 flex items-center gap-2 rounded-md border border-amber-500/50 bg-warning/5 p-2 text-xs text-warning dark:text-warning">
             <Navigation className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1">{t("location.permissionPrompt")}</span>
             <button
               type="button"
-              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-warning/10 hover:bg-warning/20 cursor-pointer"
               onClick={requestPermission}
             >
               {t("location.enable")}
@@ -357,8 +357,8 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
         {/* Office proximity status */}
         {proximityInfo && !hasCheckedOut && (
           <div className="mx-2 my-1 flex items-center gap-1.5 text-xs">
-            <MapPin className={cn("h-3.5 w-3.5", proximityInfo.isAtOffice ? "text-emerald-500" : "text-amber-500")} />
-            <span className={cn(proximityInfo.isAtOffice ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+            <MapPin className={cn("h-3.5 w-3.5", proximityInfo.isAtOffice ? "text-success" : "text-warning")} />
+            <span className={cn(proximityInfo.isAtOffice ? "text-success dark:text-success" : "text-warning dark:text-warning")}>
               {proximityInfo.isAtOffice
                 ? t("location.atOffice")
                 : t("location.notAtOffice", { distance: proximityInfo.distance })}
@@ -444,7 +444,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer text-amber-600 dark:text-amber-400"
+              className="cursor-pointer text-warning dark:text-warning"
               onSelect={(e) => {
                 // WHY: preventDefault keeps the dropdown open so the
                 // browser's geolocation popup can appear on top of it.

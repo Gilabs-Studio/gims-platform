@@ -72,6 +72,8 @@ import {
   Coins,
   CalendarCheck,
   Building,
+  Scale,
+  Table,
   Percent,
   LayoutList,
   CheckSquare,
@@ -171,6 +173,8 @@ const iconMap: Record<string, React.ReactNode> = {
   // Chart & Analytics icons
   barchart3: <BarChart3 className="h-4 w-4" />,
   "bar-chart-3": <BarChart3 className="h-4 w-4" />,
+  table: <Table className="h-4 w-4" />,
+  "scale": <Scale className="h-4 w-4" />,
 
   // Activity & Health icons
   activity: <Activity className="h-4 w-4" />,

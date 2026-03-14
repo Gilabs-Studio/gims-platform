@@ -78,21 +78,21 @@ export function PipelineSummary() {
           label={t("openDeals")}
           value={summary.open_deals}
           sub={formatCurrency(summary.open_value)}
-          color="bg-yellow-500/10 text-yellow-600"
+          color="bg-warning/10 text-warning"
         />
         <StatCard
           icon={Trophy}
           label={t("wonDeals")}
           value={summary.won_deals}
           sub={formatCurrency(summary.won_value)}
-          color="bg-green-500/10 text-green-600"
+          color="bg-success/10 text-success"
         />
         <StatCard
           icon={XCircle}
           label={t("lostDeals")}
           value={summary.lost_deals}
           sub={formatCurrency(summary.lost_value)}
-          color="bg-red-500/10 text-red-600"
+          color="bg-destructive/10 text-destructive"
         />
       </div>
 
@@ -110,11 +110,11 @@ export function PipelineSummary() {
                     total: closedDeals,
                   })}
                 </span>
-                <span className="font-semibold text-green-600">{winRate}%</span>
+                <span className="font-semibold text-success">{winRate}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-green-500 transition-all duration-500"
+                  className="h-full rounded-full bg-success transition-all duration-500"
                   style={{ width: `${winRate}%` }}
                 />
               </div>
@@ -138,7 +138,7 @@ export function PipelineSummary() {
                       <div className="flex items-center gap-2">
                         <span
                           className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: stage.stage_color || "#6b7280" }}
+                          style={{ backgroundColor: stage.stage_color || "var(--color-muted-foreground)" }}
                         />
                         <span className="font-medium">{stage.stage_name}</span>
                       </div>
@@ -154,7 +154,7 @@ export function PipelineSummary() {
                         className="h-1.5 rounded-full transition-all duration-500"
                         style={{
                           width: `${pct}%`,
-                          backgroundColor: stage.stage_color || "#6b7280",
+                          backgroundColor: stage.stage_color || "var(--color-muted-foreground)",
                         }}
                       />
                     </div>

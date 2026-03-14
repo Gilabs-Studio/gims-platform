@@ -65,7 +65,7 @@ export function ProfitLossView() {
       label: t("net_profit_loss"),
       value: formatCurrency(netProfit),
       Icon: Wallet,
-      valueClass: netProfit >= 0 ? "text-green-600" : "text-destructive",
+      valueClass: netProfit >= 0 ? "text-success" : "text-destructive",
     },
   ];
 
@@ -170,7 +170,7 @@ export function ProfitLossView() {
           <div className="rounded-md border p-4 bg-muted/20">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold">{t("net_profit_loss")}</span>
-              <span className={`text-lg font-bold font-mono tabular-nums ${netProfit >= 0 ? "text-green-600" : "text-destructive"}`}>
+              <span className={`text-lg font-bold font-mono tabular-nums ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>
                 {formatCurrency(netProfit)}
               </span>
             </div>

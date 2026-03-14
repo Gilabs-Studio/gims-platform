@@ -126,7 +126,7 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
     return (
       <span
         className={`flex items-center gap-1 text-xs ${
-          isPositive ? "text-green-600" : "text-destructive"
+          isPositive ? "text-success" : "text-destructive"
         }`}
       >
         <Icon className="h-3 w-3" />

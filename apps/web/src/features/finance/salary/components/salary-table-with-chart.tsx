@@ -319,7 +319,7 @@ export function SalaryTableWithChart({
                             )}
                             {canApprove && hasDraft && draftSalary && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={() => onApprove(draftSalary)}
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />

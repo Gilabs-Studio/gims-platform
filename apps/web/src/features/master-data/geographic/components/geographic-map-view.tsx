@@ -77,9 +77,9 @@ const TILE_LAYERS: Record<Exclude<MapStyle, "auto">, { url: string; attribution:
 const INDONESIA_CENTER: L.LatLngExpression = [-2.5, 118.0];
 const DEFAULT_ZOOM = 5;
 const FEATURE_COLORS = [
-  "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
+  "var(--color-primary)", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
   "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1",
-  "#a855f7", "#84cc16", "#0ea5e9", "#e11d48", "#10b981",
+  "#a855f7", "#84cc16", "#0ea5e9", "#e11d48", "var(--color-success)",
   "#d97706", "#7c3aed", "#059669", "#dc2626", "#2563eb",
 ];
 const HOVER_OPACITY = 0.6;
@@ -284,7 +284,7 @@ function GeographicMapViewComponent() {
     (feature?: Feature): L.PathOptions => {
       if (!feature) return {};
       const group = String(feature.properties?.[groupKey] ?? "");
-      const color = colorMap.get(group) ?? "#94a3b8";
+      const color = colorMap.get(group) ?? "var(--color-muted-foreground)";
       return {
         fillColor: color,
         fillOpacity: DEFAULT_OPACITY,
@@ -357,7 +357,7 @@ function GeographicMapViewComponent() {
   // Imperative style update on hover
   useEffect(() => {
     layerByGroupRef.current.forEach((layers, group) => {
-      const color = colorMap.get(group) ?? "#94a3b8";
+      const color = colorMap.get(group) ?? "var(--color-muted-foreground)";
       const isHovered = group === hoveredGroup;
       const style: L.PathOptions = {
         fillColor: color,
@@ -545,7 +545,7 @@ function GeographicMapViewComponent() {
                 )}
               </div>
               {filteredGroups.map((group) => {
-                const color = colorMap.get(group) ?? "#94a3b8";
+                const color = colorMap.get(group) ?? "var(--color-muted-foreground)";
                 const count = filteredFeatures.filter(
                   (f) => f.properties?.[groupKey] === group,
                 ).length;

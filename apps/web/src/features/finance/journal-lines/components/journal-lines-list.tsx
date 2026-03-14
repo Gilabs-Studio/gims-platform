@@ -556,7 +556,7 @@ function JournalLineRow({
   const isNegativeBalance = line.running_balance < 0;
 
   return (
-    <TableRow className={isDraft ? "bg-yellow-50/50 dark:bg-yellow-950/10" : ""}>
+    <TableRow className={isDraft ? "bg-yellow-50/50 dark:bg-warning/10" : ""}>
       <TableCell className="text-muted-foreground text-xs">{index}</TableCell>
       <TableCell className="text-sm whitespace-nowrap">
         {line.entry_date ?? "-"}
@@ -593,7 +593,7 @@ function JournalLineRow({
           className={`text-right text-sm font-mono font-medium ${
             isNegativeBalance
               ? "text-destructive"
-              : "text-emerald-600 dark:text-emerald-400"
+              : "text-success dark:text-success"
           }`}
         >
           {formatCurrency(line.running_balance)}

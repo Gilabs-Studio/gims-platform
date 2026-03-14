@@ -27,17 +27,17 @@ export function StatSummaryCard({ label, data }: StatSummaryCardProps) {
           <div className="flex items-center text-xs">
             {isPositive ? (
               <ArrowUp
-                className="mr-1 size-3 text-green-500"
+                className="mr-1 size-3 text-success"
                 aria-hidden="true"
               />
             ) : (
               <ArrowDown
-                className="mr-1 size-3 text-red-500"
+                className="mr-1 size-3 text-destructive"
                 aria-hidden="true"
               />
             )}
             <span
-              className={`font-medium ${isPositive ? "text-green-500" : "text-red-500"}`}
+              className={`font-medium ${isPositive ? "text-success" : "text-destructive"}`}
             >
               {Math.abs(changePercent).toFixed(1)}%
             </span>

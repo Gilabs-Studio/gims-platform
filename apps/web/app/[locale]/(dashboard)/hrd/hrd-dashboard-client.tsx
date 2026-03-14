@@ -24,40 +24,40 @@ const hrdModules = [
     id: "attendance",
     icon: Clock,
     href: "/hrd/attendance",
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     stats: { label: "todayPresent", value: "-" },
   },
   {
     id: "workSchedules",
     icon: Calendar,
     href: "/hrd/work-schedules",
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
+    color: "text-success",
+    bgColor: "bg-success/10",
     stats: { label: "activeSchedules", value: "-" },
   },
   {
     id: "holidays",
     icon: CalendarDays,
     href: "/hrd/holidays",
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     stats: { label: "thisYear", value: "-" },
   },
   {
     id: "overtime",
     icon: Timer,
     href: "/hrd/overtime",
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
     stats: { label: "pendingApproval", value: "-" },
   },
   {
     id: "leaves",
     icon: Briefcase,
     href: "/hrd/leaves",
-    color: "text-cyan-500",
-    bgColor: "bg-cyan-500/10",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
     stats: { label: "pendingRequests", value: "-" },
     comingSoon: true,
   },
@@ -65,8 +65,8 @@ const hrdModules = [
     id: "employees",
     icon: Users,
     href: "/hrd/employees",
-    color: "text-indigo-500",
-    bgColor: "bg-indigo-500/10",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     stats: { label: "totalActive", value: "-" },
     comingSoon: true,
   },
@@ -78,28 +78,28 @@ const quickStats = [
     value: "-",
     change: "",
     icon: Users,
-    color: "text-blue-500",
+    color: "text-primary",
   },
   {
     label: "presentToday",
     value: "-",
     change: "",
     icon: UserCheck,
-    color: "text-green-500",
+    color: "text-success",
   },
   {
     label: "pendingOvertime",
     value: "-",
     change: "",
     icon: Timer,
-    color: "text-amber-500",
+    color: "text-warning",
   },
   {
     label: "upcomingHolidays",
     value: "-",
     change: "",
     icon: CalendarDays,
-    color: "text-purple-500",
+    color: "text-accent",
   },
 ];
 
@@ -131,7 +131,7 @@ export default function HrdDashboardClient() {
                   <div className="text-2xl font-bold">{stat.value}</div>
                   {stat.change && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <TrendingUp className="h-3 w-3 text-green-500" />
+                      <TrendingUp className="h-3 w-3 text-success" />
                       {stat.change}
                     </p>
                   )}

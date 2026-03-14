@@ -39,7 +39,7 @@ const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "
 const STATUS_DOT_COLOR: Record<string, string> = {
   pending: "bg-muted-foreground",
   confirmed: "bg-primary",
-  completed: "bg-green-500",
+  completed: "bg-success",
   cancelled: "bg-destructive",
 };
 

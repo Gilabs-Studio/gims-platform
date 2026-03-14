@@ -215,7 +215,7 @@ export function QuotationDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintDialogOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -249,7 +249,7 @@ export function QuotationDetailModal({
                     size="icon"
                     onClick={handleApprove}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -261,7 +261,7 @@ export function QuotationDetailModal({
                     size="icon"
                     onClick={handleReject}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -273,7 +273,7 @@ export function QuotationDetailModal({
                     size="icon"
                     onClick={handleConvert}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.convert")}
                   >
                     <FileText className="h-4 w-4" />

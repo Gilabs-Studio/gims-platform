@@ -52,7 +52,7 @@ export function ContractInfoCard({
     switch (status) {
       case "ACTIVE":
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/20">
+          <Badge className="bg-success/15 text-success border-emerald-500/20">
             <CheckCircle className="h-3 w-3 mr-1" />
             {t("contract.statuses.ACTIVE")}
           </Badge>
@@ -125,7 +125,7 @@ export function ContractInfoCard({
             {contract.is_expiring_soon && (
               <Badge
                 variant="outline"
-                className="border-amber-500 text-amber-600"
+                className="border-amber-500 text-warning"
               >
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 {t("contract.expiringInDays", {
@@ -213,7 +213,7 @@ export function ContractInfoCard({
               variant="outline"
               size="sm"
               onClick={onTerminate}
-              className="text-red-600 hover:text-red-700"
+              className="text-destructive hover:text-destructive"
             >
               <X className="h-4 w-4 mr-2" />
               {t("contract.actions.terminate")}

@@ -160,7 +160,7 @@ export function MoveStageDialog({
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{
-                    backgroundColor: deal.pipeline_stage.color || "#6b7280",
+                    backgroundColor: deal.pipeline_stage.color || "var(--color-muted-foreground)",
                   }}
                 />
               )}
@@ -192,7 +192,7 @@ export function MoveStageDialog({
                           <span
                             className="inline-block h-2 w-2 rounded-full"
                             style={{
-                              backgroundColor: stage.color || "#6b7280",
+                              backgroundColor: stage.color || "var(--color-muted-foreground)",
                             }}
                           />
                           {stage.name} ({stage.probability}%)
@@ -292,14 +292,14 @@ export function MoveStageDialog({
                         {t("moveStageConvertDescription")}
                       </p>
                       {!hasPrerequisites && isWonStage && (
-                        <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <p className="text-xs text-warning flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {!hasItems && t("moveStageConvertNoItems")}
                           {hasItems && !hasCustomer && !hasLeadData && t("moveStageConvertNoCustomer")}
                         </p>
                       )}
                       {willAutoCreateCustomer && isWonStage && (
-                        <p className="text-xs text-blue-600 flex items-center gap-1">
+                        <p className="text-xs text-primary flex items-center gap-1">
                           <Info className="h-3 w-3" />
                           {t("moveStageConvertAutoCreateCustomer")}
                         </p>

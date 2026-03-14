@@ -246,7 +246,7 @@ export function EmployeeEvaluationList() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-amber-500" />
+                      <Star className="h-3 w-3 text-warning" />
                       <span className="font-medium">{formatScore(evaluation.overall_score)}</span>
                     </div>
                   </TableCell>

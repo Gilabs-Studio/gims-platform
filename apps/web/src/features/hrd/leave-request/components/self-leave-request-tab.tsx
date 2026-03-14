@@ -265,10 +265,10 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
               <div className={cn(
                 "text-lg font-semibold",
                 (balanceData.data.remaining_balance ?? 0) <= 3 && (balanceData.data.remaining_balance ?? 0) > 0
-                  ? "text-yellow-600"
+                  ? "text-warning"
                   : (balanceData.data.remaining_balance ?? 0) <= 0
                     ? "text-destructive"
-                    : "text-emerald-600"
+                    : "text-success"
               )}>
                 {balanceData.data.remaining_balance ?? 0}
               </div>

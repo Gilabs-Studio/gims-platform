@@ -238,7 +238,7 @@ export function OrderDetailModal({
                     size="icon"
                     onClick={handleApprove}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -250,7 +250,7 @@ export function OrderDetailModal({
                     size="icon"
                     onClick={handleCancel}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50 focus-visible:ring-red-500"
                     title={t("actions.cancel")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -261,7 +261,7 @@ export function OrderDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateDOOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createDelivery")}
                   >
                     <Truck className="h-4 w-4" />
@@ -272,7 +272,7 @@ export function OrderDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateInvoiceOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.createInvoice")}
                   >
                     <Receipt className="h-4 w-4" />
@@ -486,17 +486,17 @@ export function OrderDetailModal({
                           <p className="text-xs text-muted-foreground font-medium uppercase">
                             {t("paymentOverview.downPayment")} ({financialOverview.dpCount})
                           </p>
-                          <p className="text-sm font-bold text-blue-600">{formatCurrency(financialOverview.totalDP)}</p>
+                          <p className="text-sm font-bold text-primary">{formatCurrency(financialOverview.totalDP)}</p>
                         </div>
                         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                           <p className="text-xs text-muted-foreground font-medium uppercase">
                             {t("paymentOverview.invoiced")} ({financialOverview.invoiceCount})
                           </p>
-                          <p className="text-sm font-bold text-green-600">{formatCurrency(financialOverview.totalInvoiced)}</p>
+                          <p className="text-sm font-bold text-success">{formatCurrency(financialOverview.totalInvoiced)}</p>
                         </div>
                         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                           <p className="text-xs text-muted-foreground font-medium uppercase">{t("paymentOverview.remaining")}</p>
-                          <p className={`text-sm font-bold ${financialOverview.remainingBalance > 0 ? "text-orange-600" : "text-green-600"}`}>
+                          <p className={`text-sm font-bold ${financialOverview.remainingBalance > 0 ? "text-warning" : "text-success"}`}>
                             {formatCurrency(financialOverview.remainingBalance)}
                           </p>
                         </div>

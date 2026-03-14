@@ -220,7 +220,7 @@ export function InvoiceDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreatePaymentOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createPayment")}
                   >
                     <CreditCard className="h-4 w-4" />
@@ -232,7 +232,7 @@ export function InvoiceDetailModal({
                     size="icon"
                     onClick={handleMarkAsPaid}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.markAsPaid")}
                   >
                     <DollarSign className="h-4 w-4" />
@@ -385,7 +385,7 @@ export function InvoiceDetailModal({
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("paidAmount")}</TableCell>
-                          <TableCell className="text-right text-green-600 font-medium">
+                          <TableCell className="text-right text-success font-medium">
                             {formatCurrency(displayInvoice.paid_amount ?? 0)}
                           </TableCell>
                         </TableRow>

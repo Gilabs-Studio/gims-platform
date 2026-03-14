@@ -65,7 +65,7 @@ export function EducationInfoCard({ education }: EducationInfoCardProps) {
           </TableCell>
           <TableCell>
             {education.end_date ?? (
-              <Badge className="bg-blue-500/15 text-blue-700 border-blue-500/20">
+              <Badge className="bg-primary/15 text-primary border-blue-500/20">
                 {t("education.fields.ongoing")}
               </Badge>
             )}
@@ -81,7 +81,7 @@ export function EducationInfoCard({ education }: EducationInfoCardProps) {
                 href={resolveImageUrl(education.document_path) ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate max-w-[300px]">

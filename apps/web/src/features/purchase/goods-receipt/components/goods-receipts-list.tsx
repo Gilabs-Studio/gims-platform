@@ -351,7 +351,7 @@ export function GoodsReceiptsList() {
 
                           {canSubmit && (it.status ?? "").toUpperCase() === "DRAFT" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={async () => {
                                 try {
                                   await submitMutation.mutateAsync(it.id);
@@ -368,7 +368,7 @@ export function GoodsReceiptsList() {
 
                           {canClose && ["APPROVED", "PARTIAL"].includes((it.status ?? "").toUpperCase()) && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => {
                                 setSiFormPOId(it.purchase_order?.id ?? null);
                                 setSiFormGRId(it.id);
@@ -382,7 +382,7 @@ export function GoodsReceiptsList() {
 
                           {canApprove && (it.status ?? "").toUpperCase() === "SUBMITTED" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={async () => {
                                 try {
                                   await approveMutation.mutateAsync(it.id);
@@ -416,7 +416,7 @@ export function GoodsReceiptsList() {
 
                           {canPrint && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              className="cursor-pointer text-purple focus:text-purple"
                               onClick={() => setPrintingId(it.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />

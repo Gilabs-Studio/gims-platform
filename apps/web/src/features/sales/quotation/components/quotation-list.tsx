@@ -329,7 +329,7 @@ export function QuotationList() {
                           {canUpdate && quotation.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(quotation.id, "sent")}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
@@ -340,7 +340,7 @@ export function QuotationList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(quotation.id, "approved")}
-                                  className="cursor-pointer text-green-600 focus:text-green-600"
+                                  className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -385,7 +385,7 @@ export function QuotationList() {
                                   }
                                 }
                               }}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("convertToOrder")}
@@ -394,7 +394,7 @@ export function QuotationList() {
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingQuotationId(quotation.id)}
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              className="cursor-pointer text-purple focus:text-purple"
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}

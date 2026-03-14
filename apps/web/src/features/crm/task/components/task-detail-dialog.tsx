@@ -284,7 +284,7 @@ export function TaskDetailDialog({
                   size="sm"
                   onClick={handleComplete}
                   disabled={completeMutation.isPending}
-                  className="cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                  className="cursor-pointer bg-success hover:bg-success text-white"
                 >
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                   {t("actions.complete")}

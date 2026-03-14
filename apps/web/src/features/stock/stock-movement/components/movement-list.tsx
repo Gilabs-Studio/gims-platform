@@ -248,10 +248,10 @@ export function MovementList() {
                   <TableCell className="max-w-[200px] truncate" title={item.source}>
                     {item.source}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-green-600">
+                  <TableCell className="text-right font-bold text-success">
                     {item.qty_in > 0 ? `+${item.qty_in}` : "-"}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-blue-600">
+                  <TableCell className="text-right font-bold text-primary">
                     {item.qty_out > 0 ? `-${item.qty_out}` : "-"}
                   </TableCell>
                   <TableCell className="text-right font-mono font-bold">

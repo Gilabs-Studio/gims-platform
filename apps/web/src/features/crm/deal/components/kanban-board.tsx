@@ -178,7 +178,7 @@ export function KanbanBoard({ onDealClick, onCreateDeal }: KanbanBoardProps) {
                   <div className="flex items-center gap-2">
                     <span
                       className="inline-block h-3 w-3 rounded-full shrink-0"
-                      style={{ backgroundColor: stage.color || "#6b7280" }}
+                      style={{ backgroundColor: stage.color || "var(--color-muted-foreground)" }}
                     />
                     <span className="text-sm font-medium truncate max-w-[140px]">
                       {stage.name}

@@ -197,7 +197,7 @@ export function DeliveryDetailModal({
                         toast.error(t("common.error"));
                       }
                     }}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                     disabled={updateStatus.isPending}
                   >
@@ -221,7 +221,7 @@ export function DeliveryDetailModal({
                             toast.error(t("common.error"));
                           }
                         }}
-                        className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                         title={t("actions.approve")}
                         disabled={approveMutation.isPending}
                       >
@@ -267,7 +267,7 @@ export function DeliveryDetailModal({
                         toast.error(t("common.error"));
                       }
                     }}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.prepare")}
                     disabled={updateStatus.isPending}
                   >
@@ -290,7 +290,7 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsShipDialogOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.ship")}
                   >
                     <Truck className="h-4 w-4" />
@@ -301,7 +301,7 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsDeliverDialogOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.deliver")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -312,7 +312,7 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateInvoiceOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.createInvoice")}
                   >
                     <Receipt className="h-4 w-4" />

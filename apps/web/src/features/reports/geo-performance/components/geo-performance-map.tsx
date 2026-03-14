@@ -97,7 +97,7 @@ const FREQUENCY_COLORS = [
   "#dbeafe",
   "#93c5fd",
   "#60a5fa",
-  "#3b82f6",
+  "var(--color-primary)",
   "#2563eb",
   "#1d4ed8",
   "#1e3a8a",
@@ -346,7 +346,7 @@ export function GeoPerformanceMap({ className }: GeoPerformanceMapProps) {
         fillColor,
         fillOpacity: 0.65,
         weight: 1.5,
-        color: resolvedTheme === "dark" ? "#6b7280" : "#9ca3af",
+        color: resolvedTheme === "dark" ? "var(--color-muted-foreground)" : "#9ca3af",
         opacity: 0.8,
       };
     },
@@ -365,11 +365,11 @@ export function GeoPerformanceMap({ className }: GeoPerformanceMapProps) {
         <div style="font-family: system-ui; padding: 4px 0;">
           <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">${areaData.area_name}</div>
           <div style="display: grid; grid-template-columns: auto auto; gap: 2px 12px; font-size: 12px;">
-            <span style="color: #6b7280;">${t("tooltip.totalRevenue")}:</span>
+            <span style="color: var(--color-muted-foreground);">${t("tooltip.totalRevenue")}:</span>
             <span style="font-weight: 500;">${formatCurrency(areaData.total_revenue)}</span>
-            <span style="color: #6b7280;">${t("tooltip.totalOrders")}:</span>
+            <span style="color: var(--color-muted-foreground);">${t("tooltip.totalOrders")}:</span>
             <span style="font-weight: 500;">${areaData.total_orders.toLocaleString("id-ID")}</span>
-            <span style="color: #6b7280;">${t("tooltip.avgOrderValue")}:</span>
+            <span style="color: var(--color-muted-foreground);">${t("tooltip.avgOrderValue")}:</span>
             <span style="font-weight: 500;">${formatCurrency(areaData.avg_order_value)}</span>
           </div>
         </div>

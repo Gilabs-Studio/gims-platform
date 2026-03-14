@@ -95,7 +95,7 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
         fillColor: "transparent",
         weight: 0.6,
         opacity: 0.8,
-        color: "#94a3b8",
+        color: "var(--color-muted-foreground)",
         fillOpacity: 0,
       };
     }
@@ -109,7 +109,7 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
         fillColor: "transparent",
         weight: 0.6,
         opacity: 0.8,
-        color: "#94a3b8",
+        color: "var(--color-muted-foreground)",
         fillOpacity: 0,
       };
     }
@@ -119,7 +119,7 @@ export function GeoMapLeaflet({ regions }: GeoMapLeafletProps) {
       fillColor,
       weight: 0.5,
       opacity: 1,
-      color: "#94a3b8",
+      color: "var(--color-muted-foreground)",
       fillOpacity: 0.75,
     };
   };

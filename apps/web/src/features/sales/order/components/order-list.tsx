@@ -361,7 +361,7 @@ export function OrderList() {
                           {canUpdate && order.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(order.id, "submitted")}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
@@ -372,7 +372,7 @@ export function OrderList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer text-green-600 focus:text-green-600"
+                                  className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -392,7 +392,7 @@ export function OrderList() {
                           {canCreateDO && order.status === "approved" && (
                             <DropdownMenuItem
                               onClick={() => setCreateDOForOrderId(order.id)}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                             >
                               <Truck className="h-4 w-4 mr-2" />
                               {t("actions.createDelivery")}
@@ -401,7 +401,7 @@ export function OrderList() {
                           {canCreateInvoice && order.status === "approved" && (
                             <DropdownMenuItem
                               onClick={() => setCreateInvoiceForOrderId(order.id)}
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                             >
                               <Receipt className="h-4 w-4 mr-2" />
                               {t("actions.createInvoice")}
@@ -413,7 +413,7 @@ export function OrderList() {
                                 setCreateInvoiceDPForOrderId(order.id);
                                 setCreateInvoiceDPDefaultAmount(order.total_amount ?? 0);
                               }}
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                             >
                               <Banknote className="h-4 w-4 mr-2" />
                               {t("actions.createInvoiceDP")}
@@ -422,7 +422,7 @@ export function OrderList() {
                           {canPrint && (
                             <DropdownMenuItem
                               onClick={() => setPrintingOrderId(order.id)}
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              className="cursor-pointer text-purple focus:text-purple"
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("print")}

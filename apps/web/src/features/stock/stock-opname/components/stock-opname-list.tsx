@@ -297,7 +297,7 @@ export function StockOpnameList() {
                                             <>
                                                 <DropdownMenuItem 
                                                     onClick={() => handleStatusChange(row.id, 'approved')}
-                                                    className="cursor-pointer text-green-600 focus:text-green-700 focus:bg-green-50"
+                                                    className="cursor-pointer text-success focus:text-success focus:bg-green-50"
                                                 >
                                                     <CheckCircle className="h-4 w-4 mr-2" />
                                                     {t("actions.approve")}

@@ -193,7 +193,7 @@ export function PaymentsList() {
                         )}
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={async () => {
                               try {
                                 await approveMutation.mutateAsync(item.id);

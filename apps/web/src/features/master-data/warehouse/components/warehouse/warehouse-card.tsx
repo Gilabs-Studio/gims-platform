@@ -87,7 +87,7 @@ export function WarehouseCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-accent text-warning hover:text-warning transition-colors cursor-pointer"
             title="Edit"
           >
             <Edit className="h-3.5 w-3.5" />
@@ -100,7 +100,7 @@ export function WarehouseCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-red-500 hover:text-red-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-accent text-destructive hover:text-destructive transition-colors cursor-pointer"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />

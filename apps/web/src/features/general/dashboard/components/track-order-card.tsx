@@ -60,8 +60,8 @@ export function TrackOrderCard({
       label: t("trackOrders.newOrder"),
       value: pending,
       pct: pct(pending),
-      bgClass: "bg-blue-100 dark:bg-blue-950",
-      indicatorClass: "bg-blue-400",
+      bgClass: "bg-primary dark:bg-primary",
+      indicatorClass: "bg-primary",
       trendUp: true,
     },
     {
@@ -69,8 +69,8 @@ export function TrackOrderCard({
       label: t("trackOrders.onProgress"),
       value: inTransit,
       pct: pct(inTransit),
-      bgClass: "bg-teal-100 dark:bg-teal-950",
-      indicatorClass: "bg-teal-400",
+      bgClass: "bg-successteal dark:bg-successteal",
+      indicatorClass: "bg-successteal",
       trendUp: false,
     },
     {
@@ -78,8 +78,8 @@ export function TrackOrderCard({
       label: t("trackOrders.completed"),
       value: delivered,
       pct: pct(delivered),
-      bgClass: "bg-green-100 dark:bg-green-950",
-      indicatorClass: "bg-green-400",
+      bgClass: "bg-success dark:bg-success",
+      indicatorClass: "bg-success",
       trendUp: true,
     },
     {
@@ -87,8 +87,8 @@ export function TrackOrderCard({
       label: t("trackOrders.return"),
       value: 0,
       pct: 0,
-      bgClass: "bg-orange-100 dark:bg-orange-950",
-      indicatorClass: "bg-orange-400",
+      bgClass: "bg-warning dark:bg-warning",
+      indicatorClass: "bg-warning",
       trendUp: false,
     },
   ];
@@ -135,7 +135,7 @@ export function TrackOrderCard({
                 </span>
                 <span
                   className={`flex items-center gap-0.5 text-xs ${
-                    counter.trendUp ? "text-green-500" : "text-red-500"
+                    counter.trendUp ? "text-success" : "text-destructive"
                   }`}
                 >
                   {counter.trendUp ? (

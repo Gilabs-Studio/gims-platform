@@ -37,23 +37,23 @@ const TYPE_CONFIG: Record<
   "lead-to-deal": {
     labelKey: "leadToDeal",
     className:
-      "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/50",
+      "bg-primary text-primary border-blue-200 hover:bg-primary dark:bg-primary/30 dark:text-primary dark:border-blue-800 dark:hover:bg-primary/50",
     compactClassName:
-      "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+      "bg-blue-50 text-primary border-blue-200 hover:bg-primary dark:bg-primary/20 dark:text-primary dark:border-blue-800",
   },
   "deal-to-quotation": {
     labelKey: "dealToQuotation",
     className:
-      "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800 dark:hover:bg-purple-900/50",
+      "bg-purple text-accent border-purple-200 hover:bg-purple dark:bg-purple dark:text-accent dark:border-purple-800 dark:hover:bg-purple",
     compactClassName:
-      "bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800",
+      "bg-purple-50 text-accent border-purple-200 hover:bg-purple dark:bg-purple dark:text-accent dark:border-purple-800",
   },
   "deal-to-customer": {
     labelKey: "dealToCustomer",
     className:
-      "bg-green-100 text-green-700 border-green-200 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/50",
+      "bg-success text-success border-green-200 hover:bg-success dark:bg-success/30 dark:text-success dark:border-green-800 dark:hover:bg-success/50",
     compactClassName:
-      "bg-green-50 text-green-600 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+      "bg-green-50 text-success border-green-200 hover:bg-success dark:bg-success/20 dark:text-success dark:border-green-800",
   },
 };
 

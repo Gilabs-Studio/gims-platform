@@ -199,7 +199,7 @@ export function CustomerInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsCreatePaymentOpen(true)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                   title={t("actions.createPayment")}
                 >
                   <CreditCard className="h-4 w-4" />
@@ -247,7 +247,7 @@ export function CustomerInvoiceDPDetailModal({
                     if (!row?.id) return;
                     customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
                   }}
-                  className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                  className="cursor-pointer text-accent hover:text-accent hover:bg-violet-50"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -267,7 +267,7 @@ export function CustomerInvoiceDPDetailModal({
                       toast.error(t("toast.failed"));
                     }
                   }}
-                  className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                   title={t("actions.approve")}
                 >
                   <CheckCircle2 className="h-4 w-4" />

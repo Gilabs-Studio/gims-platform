@@ -1136,7 +1136,7 @@ export function EmployeeForm({
                     >
                       <div className="flex items-center gap-2">
                         {assignment.is_supervisor ? (
-                          <Shield className="h-4 w-4 text-amber-500" />
+                          <Shield className="h-4 w-4 text-warning" />
                         ) : (
                           <User className="h-4 w-4 text-muted-foreground" />
                         )}

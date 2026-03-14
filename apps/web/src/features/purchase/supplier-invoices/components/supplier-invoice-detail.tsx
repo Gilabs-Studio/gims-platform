@@ -204,7 +204,7 @@ function SupplierInvoiceDetailView({
                         now.setHours(0, 0, 0, 0);
                         const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
                         if (diff < 0) return "font-semibold text-destructive";
-                        if (diff <= 7) return "font-semibold text-amber-500";
+                        if (diff <= 7) return "font-semibold text-warning";
                         return "font-medium";
                       })()}
                     >
@@ -227,13 +227,13 @@ function SupplierInvoiceDetailView({
                         );
                       if (diff === 0)
                         return (
-                          <span className="ml-1.5 text-amber-500 text-xs font-semibold">
+                          <span className="ml-1.5 text-warning text-xs font-semibold">
                             · Due today
                           </span>
                         );
                       if (diff <= 7)
                         return (
-                          <span className="ml-1.5 text-amber-500 text-xs font-medium">
+                          <span className="ml-1.5 text-warning text-xs font-medium">
                             · {diff}d left
                           </span>
                         );
@@ -454,10 +454,10 @@ function SupplierInvoiceDetailView({
                   )}
                   {dpDeduction > 0 && (
                     <TableRow>
-                      <TableCell className="font-medium bg-muted/50 text-emerald-600">
+                      <TableCell className="font-medium bg-muted/50 text-success">
                         DP Deduction
                       </TableCell>
-                      <TableCell className="text-right font-mono text-emerald-600">
+                      <TableCell className="text-right font-mono text-success">
                         − {formatCurrency(dpDeduction)}
                       </TableCell>
                     </TableRow>
@@ -472,7 +472,7 @@ function SupplierInvoiceDetailView({
                     <>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">Paid</TableCell>
-                        <TableCell className="text-right font-mono text-emerald-600 font-medium">
+                        <TableCell className="text-right font-mono text-success font-medium">
                           {formatCurrency(data.paid_amount)}
                         </TableCell>
                       </TableRow>
@@ -728,7 +728,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                     onClick={async () => {
                       try {
@@ -748,7 +748,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                     onClick={async () => {
                       try {
@@ -788,7 +788,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={pendingMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.pending")}
                     onClick={async () => {
                       try {
@@ -807,7 +807,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createPayment")}
                     onClick={() => setPaymentOpen(true)}
                   >
@@ -819,7 +819,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("actions.print")}
                     onClick={() => setPrintOpen(true)}
                   >

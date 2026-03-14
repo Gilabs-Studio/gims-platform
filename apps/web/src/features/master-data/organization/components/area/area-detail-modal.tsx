@@ -148,7 +148,7 @@ export function AreaDetailModal({
                 </div>
                 {area.supervisors.length === 0 ? (
                   <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <AlertTriangle className="size-8 text-warning mb-2" />
                     <p className="text-sm text-muted-foreground">{t("detail.noSupervisorWarning")}</p>
                   </div>
                 ) : (
@@ -231,7 +231,7 @@ export function AreaDetailModal({
                 </div>
                 {area.members.length === 0 ? (
                   <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <AlertTriangle className="size-8 text-warning mb-2" />
                     <p className="text-sm text-muted-foreground">{t("detail.noMembersWarning")}</p>
                   </div>
                 ) : (

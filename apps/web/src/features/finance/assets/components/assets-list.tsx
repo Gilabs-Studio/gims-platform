@@ -212,7 +212,7 @@ export function AssetsList() {
                         )}
                         {canDepreciate && item.status === "active" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            className="cursor-pointer text-primary focus:text-primary"
                             onClick={() => {
                               setActionMode("depreciate");
                               setActionAsset(item);

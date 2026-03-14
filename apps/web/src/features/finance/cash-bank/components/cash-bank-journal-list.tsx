@@ -244,7 +244,7 @@ export function CashBankJournalList() {
                           )}
                           {canUpdate && item.status === "draft" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={async () => {
                                 if (formDataQuery.isSuccess) {
                                   const selectedBank = bankAccounts.find((bank) => bank.id === item.bank_account_id);

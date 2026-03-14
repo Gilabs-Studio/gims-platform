@@ -69,7 +69,7 @@ export function AchievementChart({ target }: AchievementChartProps) {
                   labelStyle={{ color: "black" }}
                 />
                 <Legend />
-                <Bar yAxisId="left" dataKey="Target" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="Target" fill="var(--color-muted-foreground)" radius={[4, 4, 0, 0]} />
                 <Bar yAxisId="left" dataKey="Actual" fill="#0f172a" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

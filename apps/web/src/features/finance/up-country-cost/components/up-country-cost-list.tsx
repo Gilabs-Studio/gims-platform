@@ -517,7 +517,7 @@ export function UpCountryCostList() {
 
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            className="cursor-pointer text-primary focus:text-primary"
                             onClick={() => handleSubmit(item.id)}
                           >
                             <Send className="h-4 w-4 mr-2" />
@@ -529,7 +529,7 @@ export function UpCountryCostList() {
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={() => handleManagerApprove(item.id)}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -549,7 +549,7 @@ export function UpCountryCostList() {
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={() => handleFinanceApprove(item.id)}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -562,7 +562,7 @@ export function UpCountryCostList() {
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={() => handleMarkPaid(item.id)}
                             >
                               <Banknote className="h-4 w-4 mr-2" />
