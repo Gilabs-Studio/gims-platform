@@ -44,6 +44,8 @@ export interface AttendanceRecord {
   readonly work_schedule_id: string;
   readonly work_schedule_name?: string;
   readonly leave_request_id: string | null;
+  readonly late_reason: string;
+  readonly photo_url: string;
   readonly notes: string;
   readonly is_manual_entry: boolean;
   readonly manual_entry_reason: string;
@@ -63,6 +65,8 @@ export interface TodayAttendance {
   readonly is_holiday: boolean;
   readonly holiday_info: HolidayInfo | null;
   readonly current_server_time: string;
+  readonly is_late: boolean;
+  readonly late_minutes: number;
 }
 
 export interface WorkScheduleInfo {
@@ -74,6 +78,10 @@ export interface WorkScheduleInfo {
   readonly flexible_start_time?: string;
   readonly flexible_end_time?: string;
   readonly require_gps: boolean;
+  readonly gps_radius_meter: number;
+  readonly office_latitude: number;
+  readonly office_longitude: number;
+  readonly late_tolerance_minutes: number;
 }
 
 export interface HolidayInfo {
@@ -110,6 +118,8 @@ export interface ClockInRequest {
   readonly longitude?: number;
   readonly address?: string;
   readonly note?: string;
+  readonly late_reason?: string;
+  readonly photo_url?: string;
 }
 
 export interface ClockOutRequest {

@@ -28,6 +28,7 @@ import {
   AttendanceRightDrawer,
   type AttendanceDrawerTab,
 } from "@/features/hrd/attendance-records/components/attendance-right-drawer";
+import { useLocationPermission } from "@/features/hrd/attendance-records/hooks/use-location-permission";
 import { CommandPalette } from "@/features/command-palette";
 import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
 import { ActivityFeedDialog } from "@/features/crm/activity/components/activity-feed-dialog";
@@ -538,6 +539,15 @@ export const DashboardLayout = memo(function DashboardLayout({
       : undefined;
   const { data: todayData } = useTodayAttendance();
   const today = todayData?.data;
+
+  // WHY: Auto-request geolocation permission on dashboard mount so browser
+  // prompts early and we already know the state by the time user clicks clock-in
+  const { isPrompt: isLocationPrompt, requestPermission: requestLocationPermission } = useLocationPermission();
+  useEffect(() => {
+    if (isLocationPrompt) {
+      requestLocationPermission();
+    }
+  }, [isLocationPrompt, requestLocationPermission]);
 
   const showAttendanceIndicator = useMemo(() => {
     if (!today || !today.is_working_day || today.has_checked_in) return false;

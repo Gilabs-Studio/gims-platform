@@ -109,6 +109,8 @@ function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord
     is_manual_entry: event.isManualEntry ?? false,
     manual_entry_reason: "",
     approved_by: null,
+    late_reason: "",
+    photo_url: "",
     created_at: "",
     updated_at: "",
   };

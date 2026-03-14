@@ -230,6 +230,79 @@ export const hrdId = {
         totalLateMinutes: "Menit Terlambat",
         attendanceRate: "Tingkat Kehadiran",
       },
+
+      // Dialog alasan terlambat
+      lateDialog: {
+        title: "Absen Terlambat",
+        description: "Anda terlambat {minutes} menit. Mohon berikan alasan keterlambatan Anda.",
+        reasonLabel: "Alasan keterlambatan",
+        reasonPlaceholder: "Jelaskan alasan keterlambatan Anda...",
+        cancel: "Batal",
+        confirm: "Absen Masuk",
+      },
+
+      // Dialog foto bukti kehadiran
+      cameraDialog: {
+        title: "Bukti Foto Diperlukan",
+        description_WFH: "Silakan ambil foto selfie sebagai bukti kehadiran Kerja dari Rumah.",
+        description_FIELD_WORK: "Silakan ambil foto selfie sebagai bukti kehadiran Kerja Lapangan.",
+        capture: "Ambil Foto",
+        retake: "Ulangi",
+        confirm: "Gunakan Foto & Absen Masuk",
+        cancel: "Batal",
+        retry: "Coba Lagi",
+        permissionDenied: "Izin kamera ditolak. Silakan izinkan akses kamera di pengaturan browser Anda.",
+        notAvailable: "Kamera tidak tersedia di perangkat ini.",
+        uploading: "Mengunggah...",
+        uploadFailed: "Gagal mengunggah foto. Silakan coba lagi.",
+      },
+
+      // Geolokasi / izin lokasi
+      location: {
+        permissionDenied: "Akses lokasi ditolak",
+        enableInSettings: "Silakan aktifkan akses lokasi di pengaturan browser Anda untuk absen masuk/keluar.",
+        permissionPrompt: "Akses lokasi diperlukan untuk absensi.",
+        enable: "Aktifkan",
+        denied: "Lokasi ditolak",
+        atOffice: "Di kantor",
+        notAtOffice: "Di luar kantor ({distance}m jauhnya)",
+        requestPermission: "Aktifkan Akses Lokasi",
+        openSettings: "Pengaturan Lokasi",
+        deniedInstructions: "Akses lokasi diblokir. Untuk mengaktifkan: klik ikon gembok/tune di address bar → Setelan situs → Lokasi → Izinkan, lalu muat ulang halaman.",
+        settingsDialog: {
+          title: "Akses Lokasi Diblokir",
+          description: "Akses lokasi telah ditolak oleh browser Anda. Ikuti langkah-langkah di bawah untuk mengaktifkannya, lalu muat ulang halaman.",
+          stepsTitle: "Langkah untuk {browser}",
+          addressBarHint: "Cari ikon gembok/tune di sisi kiri address bar — klik untuk mengakses izin situs dengan cepat.",
+          retryPermission: "Coba Lagi Izin",
+          reloadPage: "Muat Ulang",
+          steps_chrome: {
+            1: "Klik ikon gembok/tune (🔒) di sebelah kiri address bar",
+            2: "Temukan \"Lokasi\" di daftar izin dan atur ke \"Izinkan\"",
+            3: "Klik \"Muat ulang\" atau tekan tombol di bawah untuk menerapkan perubahan",
+          },
+          steps_edge: {
+            1: "Klik ikon gembok (🔒) di sebelah kiri address bar",
+            2: "Temukan \"Lokasi\" dan ubah ke \"Izinkan\"",
+            3: "Klik \"Muat ulang\" atau tekan tombol di bawah untuk menerapkan perubahan",
+          },
+          steps_firefox: {
+            1: "Klik ikon gembok (🔒) di sebelah kiri address bar",
+            2: "Klik \"Hapus cookie dan data situs\" atau buka \"Izin\" → \"Akses Lokasi Anda\" → hapus pemblokiran",
+            3: "Muat ulang halaman menggunakan tombol di bawah",
+          },
+          steps_safari: {
+            1: "Buka menu Safari → Pengaturan → Situs Web → Lokasi",
+            2: "Temukan situs web ini dan ubah izin ke \"Izinkan\"",
+            3: "Tutup Pengaturan dan muat ulang halaman menggunakan tombol di bawah",
+          },
+          steps_other: {
+            1: "Buka pengaturan situs atau izin browser Anda",
+            2: "Temukan izin \"Lokasi\" dan atur ke \"Izinkan\" untuk situs ini",
+            3: "Muat ulang halaman menggunakan tombol di bawah",
+          },
+        },
+      },
     },
 
     // Work Schedule

@@ -9,6 +9,8 @@ type ClockInRequest struct {
 	Longitude   *float64 `json:"longitude"`
 	Address     string   `json:"address" binding:"max=500"`
 	Note        string   `json:"note" binding:"max=500"`
+	LateReason  string   `json:"late_reason" binding:"omitempty,max=500"` // Required when late + NORMAL
+	PhotoURL    string   `json:"photo_url" binding:"omitempty,max=500"`   // Required for WFH / FIELD_WORK
 }
 
 // ClockOutRequest represents the request to clock out
@@ -86,6 +88,8 @@ type AttendanceRecordResponse struct {
 	WorkScheduleID    string   `json:"work_schedule_id"`
 	WorkScheduleName  string   `json:"work_schedule_name,omitempty"`
 	LeaveRequestID    *string  `json:"leave_request_id"`
+	LateReason        string   `json:"late_reason"`
+	PhotoURL          string   `json:"photo_url"`
 	Notes             string   `json:"notes"`
 	IsManualEntry     bool     `json:"is_manual_entry"`
 	ManualEntryReason string   `json:"manual_entry_reason"`
@@ -105,6 +109,8 @@ type TodayAttendanceResponse struct {
 	IsHoliday         bool                      `json:"is_holiday"`
 	HolidayInfo       *HolidayResponse          `json:"holiday_info"`
 	CurrentServerTime string                    `json:"current_server_time"` // For client sync
+	IsLate            bool                      `json:"is_late"`             // True if current time exceeds schedule start + tolerance
+	LateMinutes       int                       `json:"late_minutes"`        // Pre-computed late minutes (0 if not late)
 }
 
 // MonthlyAttendanceStats represents monthly attendance statistics

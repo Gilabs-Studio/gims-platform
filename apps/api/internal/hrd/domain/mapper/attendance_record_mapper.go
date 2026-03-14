@@ -41,6 +41,8 @@ func (m *AttendanceRecordMapper) ToResponse(ar *models.AttendanceRecord) *dto.At
 		EarlyLeaveMinutes: ar.EarlyLeaveMinutes,
 		WorkScheduleID:    ar.WorkScheduleID,
 		LeaveRequestID:    ar.LeaveRequestID,
+		LateReason:        ar.LateReason,
+		PhotoURL:          ar.PhotoURL,
 		Notes:             ar.Notes,
 		IsManualEntry:     ar.IsManualEntry,
 		ManualEntryReason: ar.ManualEntryReason,
@@ -97,6 +99,20 @@ func (m *AttendanceRecordMapper) ToTodayResponse(
 	if ws != nil {
 		resp.WorkSchedule = wsMapper.ToResponse(ws)
 		resp.IsWorkingDay = ws.IsWorkingDay(int(now.Weekday()))
+
+		// Compute IsLate and LateMinutes only if employee hasn't checked in yet
+		if !resp.HasCheckedIn && resp.IsWorkingDay && !isHoliday {
+			scheduleStart, parseErr := time.Parse("15:04", ws.StartTime)
+			if parseErr == nil {
+				scheduleStartToday := time.Date(now.Year(), now.Month(), now.Day(),
+					scheduleStart.Hour(), scheduleStart.Minute(), 0, 0, loc)
+				scheduleStartToday = scheduleStartToday.Add(time.Duration(ws.LateToleranceMinutes) * time.Minute)
+				if now.After(scheduleStartToday) {
+					resp.IsLate = true
+					resp.LateMinutes = int(now.Sub(scheduleStartToday).Minutes())
+				}
+			}
+		}
 	}
 
 	if holiday != nil {
