@@ -6,6 +6,21 @@ export const BudgetsList = dynamic(() => import("./budgets-list").then((m) => ({
   loading: () => null,
 });
 
+export const BudgetProgressCard = dynamic(
+  () => import("./budget-progress-card").then((m) => ({ default: m.BudgetProgressCard })),
+  { loading: () => null },
+);
+
+export const BudgetOverview = dynamic(
+  () => import("./budget-overview").then((m) => ({ default: m.BudgetOverview })),
+  { loading: () => null },
+);
+
+export const BudgetDetailModal = dynamic(
+  () => import("./budget-detail-modal").then((m) => ({ default: m.BudgetDetailModal })),
+  { loading: () => null },
+);
+
 export function FinanceBudgetContainer() {
   return (
     <PageMotion>
