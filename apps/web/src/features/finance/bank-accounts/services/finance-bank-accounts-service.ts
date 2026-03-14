@@ -14,6 +14,17 @@ export const financeBankAccountsService = {
     return response.data;
   },
 
+  getTransactionHistory: async (
+    id: string,
+    params?: { page?: number; per_page?: number },
+  ): Promise<ApiResponse<BankAccount["transaction_history"] extends infer T ? NonNullable<T> : never>> => {
+    const response = await apiClient.get<ApiResponse<NonNullable<BankAccount["transaction_history"]>>>(
+      `${BASE_URL}/${id}/transaction-history`,
+      { params },
+    );
+    return response.data;
+  },
+
   create: async (data: BankAccountInput): Promise<ApiResponse<BankAccount>> => {
     const payload = {
       ...data,

@@ -11,6 +11,7 @@ export const financeBankAccountKeys = {
   list: (params?: ListBankAccountsParams) => [...financeBankAccountKeys.lists(), params] as const,
   details: () => [...financeBankAccountKeys.all, "detail"] as const,
   detail: (id: string) => [...financeBankAccountKeys.details(), id] as const,
+  history: (id: string, params?: { page?: number; per_page?: number }) => [...financeBankAccountKeys.detail(id), "history", params] as const,
 };
 
 export function useFinanceBankAccounts(params?: ListBankAccountsParams) {
@@ -25,6 +26,18 @@ export function useFinanceBankAccount(id: string, options?: { enabled?: boolean 
     queryKey: financeBankAccountKeys.detail(id),
     queryFn: () => financeBankAccountsService.getById(id),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useFinanceBankAccountHistory(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: financeBankAccountKeys.history(id, params),
+    queryFn: () => financeBankAccountsService.getTransactionHistory(id, params),
+    enabled: (options?.enabled !== undefined ? options.enabled : !!id) && !!id,
   });
 }
 

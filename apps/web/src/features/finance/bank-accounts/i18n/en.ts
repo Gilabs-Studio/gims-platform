@@ -27,6 +27,12 @@ export const financeBankAccountsEn = {
     customer: "Customer",
     supplier: "Supplier",
   },
+  filters: {
+    ownerType: "Owner Type",
+    ownerAll: "All Owners",
+    currency: "Currency",
+    currencyAll: "All Currencies",
+  },
   status: {
     active: "Active",
     inactive: "Inactive",

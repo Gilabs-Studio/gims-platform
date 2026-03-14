@@ -90,6 +90,8 @@ export interface ListBankAccountsParams {
   per_page?: number;
   search?: string;
   is_active?: boolean;
+  owner_type?: "company" | "customer" | "supplier";
+  currency_id?: string;
   sort_by?: string;
   sort_dir?: string;
 }

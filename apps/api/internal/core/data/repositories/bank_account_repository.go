@@ -13,12 +13,14 @@ import (
 )
 
 type BankAccountListParams struct {
-	Search   string
-	IsActive *bool
-	SortBy   string
-	SortDir  string
-	Limit    int
-	Offset   int
+	Search     string
+	IsActive   *bool
+	OwnerType  string
+	CurrencyID string
+	SortBy     string
+	SortDir    string
+	Limit      int
+	Offset     int
 }
 
 type BankAccountRepository interface {
@@ -27,6 +29,7 @@ type BankAccountRepository interface {
 	List(ctx context.Context, params BankAccountListParams) ([]models.BankAccount, int64, error)
 	ListUnified(ctx context.Context, params BankAccountListParams) ([]UnifiedBankAccount, int64, error)
 	ListTransactionHistory(ctx context.Context, bankAccountID string, limit int) ([]BankAccountTransaction, error)
+	ListTransactionHistoryPaginated(ctx context.Context, bankAccountID string, limit, offset int) ([]BankAccountTransaction, int64, error)
 	Update(ctx context.Context, bankAccount *models.BankAccount) error
 	Delete(ctx context.Context, id string) error
 }
@@ -309,6 +312,26 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 		items = filtered
 	}
 
+	if ownerType := strings.ToLower(strings.TrimSpace(params.OwnerType)); ownerType != "" {
+		filtered := make([]UnifiedBankAccount, 0, len(items))
+		for _, item := range items {
+			if strings.EqualFold(item.OwnerType, ownerType) {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
+	if currencyID := strings.TrimSpace(params.CurrencyID); currencyID != "" {
+		filtered := make([]UnifiedBankAccount, 0, len(items))
+		for _, item := range items {
+			if item.CurrencyID != nil && *item.CurrencyID == currencyID {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
 	if sortDir != "asc" {
 		sortDir = "desc"
@@ -347,24 +370,22 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 }
 
 func (r *bankAccountRepository) ListTransactionHistory(ctx context.Context, bankAccountID string, limit int) ([]BankAccountTransaction, error) {
+	items, _, err := r.ListTransactionHistoryPaginated(ctx, bankAccountID, limit, 0)
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Context, bankAccountID string, limit, offset int) ([]BankAccountTransaction, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
+	if offset < 0 {
+		offset = 0
+	}
 
-	const query = `
-		SELECT
-			t.id,
-			t.transaction_type,
-			t.transaction_date,
-			t.reference_type,
-			t.reference_id,
-			t.reference_number,
-			t.related_entity_type,
-			t.related_entity_id,
-			t.related_entity_label,
-			t.amount,
-			t.status,
-			t.description
+	const baseQuery = `
 		FROM (
 			SELECT
 				p.id,
@@ -439,16 +460,40 @@ func (r *bankAccountRepository) ListTransactionHistory(ctx context.Context, bank
 			LEFT JOIN supplier_invoices si ON si.id = pp.supplier_invoice_id
 			WHERE pp.bank_account_id = ? AND pp.deleted_at IS NULL
 		) t
+	`
+
+	countQuery := `SELECT COUNT(*) ` + baseQuery
+	var total int64
+	if err := r.db.WithContext(ctx).Raw(countQuery, bankAccountID, bankAccountID, bankAccountID, bankAccountID).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	const query = `
+		SELECT
+			t.id,
+			t.transaction_type,
+			t.transaction_date,
+			t.reference_type,
+			t.reference_id,
+			t.reference_number,
+			t.related_entity_type,
+			t.related_entity_id,
+			t.related_entity_label,
+			t.amount,
+			t.status,
+			t.description
+		` + baseQuery + `
 		ORDER BY t.transaction_date DESC
 		LIMIT ?
+		OFFSET ?
 	`
 
 	items := make([]BankAccountTransaction, 0)
-	if err := r.db.WithContext(ctx).Raw(query, bankAccountID, bankAccountID, bankAccountID, bankAccountID, limit).Scan(&items).Error; err != nil {
-		return nil, err
+	if err := r.db.WithContext(ctx).Raw(query, bankAccountID, bankAccountID, bankAccountID, bankAccountID, limit, offset).Scan(&items).Error; err != nil {
+		return nil, 0, err
 	}
 
-	return items, nil
+	return items, total, nil
 }
 
 func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {

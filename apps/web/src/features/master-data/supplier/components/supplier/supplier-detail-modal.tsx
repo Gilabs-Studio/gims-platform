@@ -25,8 +25,7 @@ interface SupplierDetailModalProps {
   readonly onEdit?: (supplier: Supplier) => void;
 }
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatWhatsAppLink } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 export function SupplierDetailModal({
   open,
@@ -37,9 +36,6 @@ export function SupplierDetailModal({
 }: SupplierDetailModalProps) {
   const t = useTranslations("supplier.supplier");
   const tCommon = useTranslations("supplier.common");
-  const tPhone = useTranslations("supplier.phoneNumber");
-  const tBank = useTranslations("supplier.bankAccount");
-
   const { data, isLoading } = useSupplier(supplierId ?? supplierProp?.id ?? "", {
     enabled: open && !!(supplierId || supplierProp?.id),
   });
@@ -55,6 +51,9 @@ export function SupplierDetailModal({
           size="xl"
           className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
         >
+          <DialogHeader className="sr-only">
+            <DialogTitle>{tCommon("viewDetails")}</DialogTitle>
+          </DialogHeader>
           <div className="p-5 space-y-4">
             <Skeleton className="h-7 w-48" />
             <Skeleton className="h-4 w-32" />

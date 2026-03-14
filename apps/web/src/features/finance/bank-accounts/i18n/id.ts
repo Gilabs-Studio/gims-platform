@@ -27,6 +27,12 @@ export const financeBankAccountsId = {
     customer: "Customer",
     supplier: "Supplier",
   },
+  filters: {
+    ownerType: "Tipe Pemilik",
+    ownerAll: "Semua Pemilik",
+    currency: "Mata Uang",
+    currencyAll: "Semua Mata Uang",
+  },
   status: {
     active: "Aktif",
     inactive: "Nonaktif",

@@ -23,6 +23,7 @@ interface CustomerDetailModalProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly customer?: Customer | null;
+  readonly customerId?: string | null;
   readonly onEdit?: (customer: Customer) => void;
 }
 
@@ -30,14 +31,17 @@ export function CustomerDetailModal({
   open,
   onOpenChange,
   customer,
+  customerId,
   onEdit,
 }: CustomerDetailModalProps) {
   const t = useTranslations("customer.customer");
   const tContact = useTranslations("crmContact");
 
   // Always fetch fresh detail when modal opens so relationships are populated
-  const { data: detailRes, isLoading } = useCustomer(customer?.id ?? "", {
-    enabled: open && !!customer?.id,
+  const activeCustomerId = customerId ?? customer?.id ?? "";
+
+  const { data: detailRes, isLoading } = useCustomer(activeCustomerId, {
+    enabled: open && !!activeCustomerId,
   });
 
   const entity = detailRes?.data ?? customer;

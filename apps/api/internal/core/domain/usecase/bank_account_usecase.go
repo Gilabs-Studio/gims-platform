@@ -21,6 +21,7 @@ type BankAccountUsecase interface {
 	Create(ctx context.Context, req *dto.CreateBankAccountRequest) (*dto.BankAccountResponse, error)
 	List(ctx context.Context, params repositories.BankAccountListParams) ([]*dto.BankAccountResponse, int64, error)
 	ListUnified(ctx context.Context, params repositories.BankAccountListParams) ([]*dto.UnifiedBankAccountResponse, int64, error)
+	ListTransactionHistory(ctx context.Context, id string, limit, offset int) ([]dto.BankAccountTransactionResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.BankAccountResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateBankAccountRequest) (*dto.BankAccountResponse, error)
 	Delete(ctx context.Context, id string) error
@@ -173,6 +174,40 @@ func (u *bankAccountUsecase) GetByID(ctx context.Context, id string) (*dto.BankA
 	}
 
 	return res, nil
+}
+
+func (u *bankAccountUsecase) ListTransactionHistory(ctx context.Context, id string, limit, offset int) ([]dto.BankAccountTransactionResponse, int64, error) {
+	if _, err := u.repo.FindByID(ctx, id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, 0, ErrBankAccountNotFound
+		}
+		return nil, 0, err
+	}
+
+	history, total, err := u.repo.ListTransactionHistoryPaginated(ctx, id, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := make([]dto.BankAccountTransactionResponse, 0, len(history))
+	for _, h := range history {
+		responses = append(responses, dto.BankAccountTransactionResponse{
+			ID:                 h.ID,
+			TransactionType:    h.TransactionType,
+			TransactionDate:    h.TransactionDate.Format("2006-01-02T15:04:05+07:00"),
+			ReferenceType:      h.ReferenceType,
+			ReferenceID:        h.ReferenceID,
+			ReferenceNumber:    h.ReferenceNumber,
+			RelatedEntityType:  h.RelatedEntityType,
+			RelatedEntityID:    h.RelatedEntityID,
+			RelatedEntityLabel: h.RelatedEntityLabel,
+			Amount:             h.Amount,
+			Status:             h.Status,
+			Description:        h.Description,
+		})
+	}
+
+	return responses, total, nil
 }
 
 func (u *bankAccountUsecase) Update(ctx context.Context, id string, req *dto.UpdateBankAccountRequest) (*dto.BankAccountResponse, error) {
