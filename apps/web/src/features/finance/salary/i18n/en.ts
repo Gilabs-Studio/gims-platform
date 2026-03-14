@@ -7,6 +7,7 @@ export const financeSalaryEn = {
   stats: {
     overview: "Overview",
     salaryStats: "Salary Statistics",
+    salaryTrend: "Salary Trend",
     total: "Total",
     active: "Active",
     draft: "Pending Draft",

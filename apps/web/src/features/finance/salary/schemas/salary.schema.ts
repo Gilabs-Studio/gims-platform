@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const salarySchema = z.object({
-  employee_id: z.string().uuid("Please select a valid employee"),
+  employee_id: z.string().trim().min(1, "Please select a valid employee"),
   basic_salary: z
     .number()
     .gt(0, "Basic salary must be greater than 0"),

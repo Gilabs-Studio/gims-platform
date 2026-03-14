@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useFinanceSalaryStats } from "../hooks/use-finance-salary";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { SalaryTotalSalaryChart } from "./salary-total-salary-chart";
 
 interface SalaryHeaderProps {
   readonly className?: string;
@@ -155,70 +156,86 @@ export function SalaryHeader({
             </div>
           </div>
         ) : stats ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Left Section - Salary Overview */}
-            <div className="flex flex-col h-full">
-              <h3 className="text-lg font-semibold text-muted-foreground mb-4">
-                {t("stats.overview")}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 grow">
-                {statCards?.map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-lg border p-4 bg-card h-full flex flex-col justify-center"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {card.label}
-                        </p>
-                        <p className={`text-2xl font-bold ${card.color}`}>
-                          {card.value}
-                        </p>
-                      </div>
-                      <div
-                        className={`h-8 w-8 rounded-full ${card.bg} flex items-center justify-center`}
-                      >
-                        <card.icon className={`h-4 w-4 ${card.color}`} />
+          <div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              {/* Left Section - Salary Overview */}
+              <div className="flex flex-col h-full">
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">
+                  {t("stats.overview")}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 grow">
+                  {statCards?.map((card) => (
+                    <div
+                      key={card.label}
+                      className="rounded-lg border p-4 bg-card h-full flex flex-col justify-center"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {card.label}
+                          </p>
+                          <p className={`text-2xl font-bold ${card.color}`}>
+                            {card.value}
+                          </p>
+                        </div>
+                        <div
+                          className={`h-8 w-8 rounded-full ${card.bg} flex items-center justify-center`}
+                        >
+                          <card.icon className={`h-4 w-4 ${card.color}`} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Section - Salary Statistics */}
+              <div className="flex flex-col h-full">
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">
+                  {t("stats.salaryStats")}
+                </h3>
+                <div className="flex flex-col justify-between grow rounded-lg border p-4 bg-card">
+                  {rangeStats?.map((item, idx) => (
+                    <div
+                      key={item.label}
+                      className={`flex items-center justify-between py-2 ${
+                        idx < (rangeStats?.length ?? 0) - 1
+                          ? "border-b border-border"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-10 w-10 rounded-full ${item.bg} flex items-center justify-center`}
+                        >
+                          <item.icon className={`h-5 w-5 ${item.color}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {item.label}
+                          </p>
+                          <p className={`text-2xl font-bold ${item.color}`}>
+                            {formatCurrency(item.value)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Right Section - Salary Statistics */}
-            <div className="flex flex-col h-full">
-              <h3 className="text-lg font-semibold text-muted-foreground mb-4">
-                {t("stats.salaryStats")}
-              </h3>
-              <div className="flex flex-col justify-between grow rounded-lg border p-4 bg-card">
-                {rangeStats?.map((item, idx) => (
-                  <div
-                    key={item.label}
-                    className={`flex items-center justify-between py-2 ${
-                      idx < (rangeStats?.length ?? 0) - 1
-                        ? "border-b border-border"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-full ${item.bg} flex items-center justify-center`}>
-                        <item.icon className={`h-5 w-5 ${item.color}`} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {item.label}
-                        </p>
-                        <p className={`text-2xl font-bold ${item.color}`}>
-                          {formatCurrency(item.value)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {/* Chart Section - Total salary trend */}
+            {stats?.total_salary_over_time && stats.total_salary_over_time.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">
+                  {t("stats.salaryTrend")}
+                </h3>
+                <div className="rounded-lg border bg-card p-4">
+                  <SalaryTotalSalaryChart data={stats.total_salary_over_time} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : null}
       </div>

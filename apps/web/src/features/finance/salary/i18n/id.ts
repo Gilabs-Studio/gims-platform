@@ -7,6 +7,7 @@ export const financeSalaryId = {
   stats: {
     overview: "Ikhtisar",
     salaryStats: "Statistik Gaji",
+    salaryTrend: "Tren Gaji",
     total: "Total",
     active: "Aktif",
     draft: "Draft Pending",

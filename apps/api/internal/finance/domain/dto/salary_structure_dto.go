@@ -57,13 +57,19 @@ type SalaryEmployeeGroup struct {
 
 // SalaryStructureStatsResponse contains aggregate stats
 type SalaryStructureStatsResponse struct {
-	Total         int64   `json:"total"`
-	Active        int64   `json:"active"`
-	Draft         int64   `json:"draft"`
-	Inactive      int64   `json:"inactive"`
-	AverageSalary float64 `json:"average_salary"`
-	MinSalary     float64 `json:"min_salary"`
-	MaxSalary     float64 `json:"max_salary"`
+	Total              int64                               `json:"total"`
+	Active             int64                               `json:"active"`
+	Draft              int64                               `json:"draft"`
+	Inactive           int64                               `json:"inactive"`
+	AverageSalary      float64                             `json:"average_salary"`
+	MinSalary          float64                             `json:"min_salary"`
+	MaxSalary          float64                             `json:"max_salary"`
+	TotalSalaryOverTime []SalaryStructureTotalSalaryOverTime `json:"total_salary_over_time"`
+}
+
+type SalaryStructureTotalSalaryOverTime struct {
+	Period      string  `json:"period"`
+	TotalSalary float64 `json:"total_salary"`
 }
 
 // EmployeeFormOption is a minimal employee item for dropdown selection in forms

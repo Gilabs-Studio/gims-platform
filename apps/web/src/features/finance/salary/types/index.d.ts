@@ -29,6 +29,11 @@ export interface SalaryEmployeeGroup {
 }
 
 // Stats response
+export interface SalaryTotalSalaryPoint {
+  period: string;
+  total_salary: number;
+}
+
 export interface SalaryStats {
   total: number;
   active: number;
@@ -37,6 +42,7 @@ export interface SalaryStats {
   average_salary: number;
   min_salary: number;
   max_salary: number;
+  total_salary_over_time: SalaryTotalSalaryPoint[];
 }
 
 // Create/update input

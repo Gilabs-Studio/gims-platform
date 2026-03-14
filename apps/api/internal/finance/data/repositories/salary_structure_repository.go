@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"strings"
+	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
@@ -19,13 +20,19 @@ type SalaryStructureListParams struct {
 }
 
 type SalaryStructureStatsResult struct {
-	Total         int64
-	Active        int64
-	Draft         int64
-	Inactive      int64
-	AverageSalary float64
-	MinSalary     float64
-	MaxSalary     float64
+	Total              int64
+	Active             int64
+	Draft              int64
+	Inactive           int64
+	AverageSalary      float64
+	MinSalary          float64
+	MaxSalary          float64
+	TotalSalaryOverTime []SalaryStructureTotalSalaryOverTime
+}
+
+type SalaryStructureTotalSalaryOverTime struct {
+	Period      time.Time `gorm:"column:period"`
+	TotalSalary float64   `gorm:"column:total_salary"`
 }
 
 type SalaryStructureRepository interface {
@@ -163,6 +170,44 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	result.AverageSalary = agg.Avg
 	result.MinSalary = agg.Min
 	result.MaxSalary = agg.Max
+
+// Total salary over time (by month) for charting aggregated salary trends.
+// This should reflect the sum of active employee salaries for each period,
+// carrying forward the latest salary for each employee until a new salary record applies.
+	var series []SalaryStructureTotalSalaryOverTime
+	query := `
+	WITH months AS (
+	    SELECT generate_series(
+	        (SELECT COALESCE(MIN(date_trunc('month', effective_date)), date_trunc('month', CURRENT_DATE))
+	            FROM salary_structures
+	            WHERE status IN ('active', 'inactive')
+	        ),
+	        date_trunc('month', CURRENT_DATE),
+	        INTERVAL '1 month'
+	    ) AS period
+	),
+	history AS (
+	    SELECT
+	        m.period,
+	        s.employee_id,
+	        s.basic_salary,
+	        ROW_NUMBER() OVER (PARTITION BY m.period, s.employee_id ORDER BY s.effective_date DESC) AS rn
+	    FROM months m
+	    JOIN salary_structures s
+	        ON s.status IN ('active', 'inactive')
+	        AND s.effective_date < (m.period + INTERVAL '1 month')
+	)
+	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary
+	FROM history
+	WHERE rn = 1
+	GROUP BY period
+	ORDER BY period;
+	`
+	t := r.db.WithContext(ctx).Raw(query).Scan(&series)
+	if t.Error != nil {
+		return nil, t.Error
+	}
+	result.TotalSalaryOverTime = series
 
 	return &result, nil
 }

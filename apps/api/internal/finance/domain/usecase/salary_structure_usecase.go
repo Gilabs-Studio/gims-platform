@@ -222,14 +222,23 @@ func (uc *salaryStructureUsecase) GetStats(ctx context.Context) (*dto.SalaryStru
 		return nil, err
 	}
 
+	series := make([]dto.SalaryStructureTotalSalaryOverTime, 0, len(stats.TotalSalaryOverTime))
+	for _, p := range stats.TotalSalaryOverTime {
+		series = append(series, dto.SalaryStructureTotalSalaryOverTime{
+			Period:      p.Period.Format("2006-01-02"),
+			TotalSalary: p.TotalSalary,
+		})
+	}
+
 	return &dto.SalaryStructureStatsResponse{
-		Total:         stats.Total,
-		Active:        stats.Active,
-		Draft:         stats.Draft,
-		Inactive:      stats.Inactive,
-		AverageSalary: stats.AverageSalary,
-		MinSalary:     stats.MinSalary,
-		MaxSalary:     stats.MaxSalary,
+		Total:               stats.Total,
+		Active:              stats.Active,
+		Draft:               stats.Draft,
+		Inactive:            stats.Inactive,
+		AverageSalary:       stats.AverageSalary,
+		MinSalary:           stats.MinSalary,
+		MaxSalary:           stats.MaxSalary,
+		TotalSalaryOverTime: series,
 	}, nil
 }
 
