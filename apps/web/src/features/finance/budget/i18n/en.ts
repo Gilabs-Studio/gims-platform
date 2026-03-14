@@ -2,6 +2,10 @@ export const financeBudgetEn = {
   title: "Budget",
   description: "Manage and track company budgets against actual spending.",
   search: "Search budgets...",
+  views: {
+    card: "Card View",
+    list: "List View",
+  },
   overview: {
     title: "Budget Overview",
     totalBudget: "Total Budget",

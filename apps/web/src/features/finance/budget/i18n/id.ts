@@ -2,6 +2,10 @@ export const financeBudgetId = {
   title: "Anggaran",
   description: "Kelola dan pantau anggaran perusahaan terhadap pengeluaran aktual.",
   search: "Cari anggaran...",
+  views: {
+    card: "Tampilan Kartu",
+    list: "Tampilan Daftar",
+  },
   overview: {
     title: "Ringkasan Anggaran",
     totalBudget: "Total Anggaran",

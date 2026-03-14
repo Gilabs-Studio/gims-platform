@@ -65,28 +65,28 @@ export function BudgetOverview({ budgets, isLoading, onBudgetClick }: BudgetOver
       {/* Summary stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<Wallet className="h-5 w-5 text-blue-600" />}
+          icon={<Wallet className="h-5 w-5 text-primary" />}
           label={t("overview.totalBudget")}
           value={formatCurrency(totalPlanned)}
-          color="bg-blue-50 dark:bg-blue-950/40"
+          color="bg-primary/10"
         />
         <StatCard
-          icon={<TrendingUp className="h-5 w-5 text-amber-600" />}
+          icon={<TrendingUp className="h-5 w-5 text-warning" />}
           label={t("overview.totalUsed")}
           value={formatCurrency(totalUsed)}
-          color="bg-amber-50 dark:bg-amber-950/40"
+          color="bg-warning/10"
         />
         <StatCard
-          icon={<PiggyBank className="h-5 w-5 text-green-600" />}
+          icon={<PiggyBank className="h-5 w-5 text-success" />}
           label={t("overview.totalRemaining")}
           value={formatCurrency(totalRemaining)}
-          color="bg-green-50 dark:bg-green-950/40"
+          color="bg-success/10"
         />
         <StatCard
-          icon={<BarChart3 className="h-5 w-5 text-purple-600" />}
+          icon={<BarChart3 className="h-5 w-5 text-accent" />}
           label={t("overview.utilizationRate")}
           value={`${overallUtil}%`}
-          color="bg-purple-50 dark:bg-purple-950/40"
+          color="bg-accent/10"
         />
       </div>
 
