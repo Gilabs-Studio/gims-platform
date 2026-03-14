@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Edit, Phone, Landmark } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Supplier } from "../../types";
 import { useSupplier } from "../../hooks/use-suppliers";
 import { SupplierPhoneList } from "./supplier-phone-list";
@@ -125,119 +126,142 @@ export function SupplierDetailModal({
           </div>
         </DialogHeader>
 
-        {/* Flat scrollable body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-          
-          {/* Basic Info */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3">{t("sections.basicInfo")}</h3>
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.contactPerson")}</TableCell>
-                    <TableCell>{supplier.contact_person ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.supplierType")}</TableCell>
-                    <TableCell>{supplier.supplier_type?.name ?? "-"}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">{t("form.email")}</TableCell>
-                    <TableCell>
-                      {supplier.email ? (
-                        <a href={`mailto:${supplier.email}`} className="text-primary hover:underline cursor-pointer">
-                          {supplier.email}
-                        </a>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell className="font-medium bg-muted/50">{t("form.website")}</TableCell>
-                    <TableCell>
-                      {supplier.website ? (
-                        <a href={supplier.website} target="_blank" rel="noreferrer" className="text-primary hover:underline cursor-pointer">
-                          {supplier.website}
-                        </a>
-                      ) : "-"}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
-                    <TableCell colSpan={3}>{supplier.npwp ?? "-"}</TableCell>
-                  </TableRow>
-                  {supplier.notes && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">Notes</TableCell>
-                      <TableCell colSpan={3} className="whitespace-pre-wrap">{supplier.notes}</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+        {/* Body with tabs (Details / Phones / Banks) */}
+        <div className="overflow-y-auto flex-1 px-5 py-4">
+          <Tabs defaultValue="details" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="details">{tCommon("viewDetails")}</TabsTrigger>
+              <TabsTrigger value="phones" className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5" />
+                {t("sections.phoneNumbers")}
+                {(supplier.phone_numbers?.length ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {supplier.phone_numbers?.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="banks" className="flex items-center gap-2">
+                <Landmark className="h-3.5 w-3.5" />
+                {t("sections.bankAccounts")}
+                {(supplier.bank_accounts?.length ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {supplier.bank_accounts?.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Location */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3 mt-6">{t("sections.location")}</h3>
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.address")}</TableCell>
-                    <TableCell colSpan={3}>{supplier.address ?? "-"}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.province")}</TableCell>
-                    <TableCell>{province?.name ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.city")}</TableCell>
-                    <TableCell>{city?.name ?? "-"}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
-                    <TableCell>{district?.name ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
-                    <TableCell>{village?.name ?? "-"}</TableCell>
-                  </TableRow>
-                  {areaText && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">Full Area</TableCell>
-                      <TableCell colSpan={3}>{areaText}</TableCell>
-                    </TableRow>
-                  )}
-                  {(supplier.latitude != null || supplier.longitude != null) && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">{t("sections.coordinates")}</TableCell>
-                      <TableCell colSpan={3}>
-                        {supplier.latitude}, {supplier.longitude}
-                        {" • "}
-                        <a
-                          href={`https://maps.google.com/?q=${supplier.latitude},${supplier.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline cursor-pointer"
-                        >
-                          Open in Maps
-                        </a>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+            <TabsContent value="details" className="space-y-4">
+              {/* Basic Info */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">{t("sections.basicInfo")}</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.contactPerson")}</TableCell>
+                        <TableCell>{supplier.contact_person ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.supplierType")}</TableCell>
+                        <TableCell>{supplier.supplier_type?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.email")}</TableCell>
+                        <TableCell>
+                          {supplier.email ? (
+                            <a href={`mailto:${supplier.email}`} className="text-primary hover:underline cursor-pointer">
+                              {supplier.email}
+                            </a>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.website")}</TableCell>
+                        <TableCell>
+                          {supplier.website ? (
+                            <a href={supplier.website} target="_blank" rel="noreferrer" className="text-primary hover:underline cursor-pointer">
+                              {supplier.website}
+                            </a>
+                          ) : "-"}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
+                        <TableCell colSpan={3}>{supplier.npwp ?? "-"}</TableCell>
+                      </TableRow>
+                      {supplier.notes && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">Notes</TableCell>
+                          <TableCell colSpan={3} className="whitespace-pre-wrap">{supplier.notes}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
 
-          {/* Phone Numbers */}
-          <div className="mt-6">
-            <SupplierPhoneList 
-              supplierId={supplier.id} 
-              phones={supplier.phone_numbers || []} 
-            />
-          </div>
+              {/* Location */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 mt-6">{t("sections.location")}</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.address")}</TableCell>
+                        <TableCell colSpan={3}>{supplier.address ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.province")}</TableCell>
+                        <TableCell>{province?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.city")}</TableCell>
+                        <TableCell>{city?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
+                        <TableCell>{district?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
+                        <TableCell>{village?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      {areaText && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">Full Area</TableCell>
+                          <TableCell colSpan={3}>{areaText}</TableCell>
+                        </TableRow>
+                      )}
+                      {(supplier.latitude != null || supplier.longitude != null) && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("sections.coordinates")}</TableCell>
+                          <TableCell colSpan={3}>
+                            {supplier.latitude}, {supplier.longitude}
+                            {" • "}
+                            <a
+                              href={`https://maps.google.com/?q=${supplier.latitude},${supplier.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              Open in Maps
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </TabsContent>
 
-          {/* Bank Accounts */}
-          <div className="mt-6">
-            <SupplierBankList 
-              supplierId={supplier.id} 
-              banks={supplier.bank_accounts || []} 
-            />
-          </div>
+            <TabsContent value="phones">
+              <SupplierPhoneList
+                supplierId={supplier.id}
+                phones={supplier.phone_numbers || []}
+              />
+            </TabsContent>
+
+            <TabsContent value="banks">
+              <SupplierBankList
+                supplierId={supplier.id}
+                banks={supplier.bank_accounts || []}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>

@@ -22,6 +22,7 @@ export const supplierEn = {
     updatedAt: "Updated At",
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
+    viewDetails: "View Details",
   },
   supplierType: {
     title: "Supplier Types",

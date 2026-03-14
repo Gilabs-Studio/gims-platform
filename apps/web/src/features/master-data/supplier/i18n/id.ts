@@ -24,6 +24,7 @@ export const supplierId: SupplierTranslations = {
     updatedAt: "Diperbarui Pada",
     success_update: "Berhasil memperbarui {name}",
     error_update: "Gagal memperbarui",
+    viewDetails: "Lihat Detail",
   },
   supplierType: {
     title: "Tipe Pemasok",

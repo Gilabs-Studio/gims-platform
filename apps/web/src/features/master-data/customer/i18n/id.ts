@@ -175,6 +175,8 @@ export const customerId: CustomerTranslations = {
     form: {
       bank: "Bank",
       bankPlaceholder: "Pilih bank",
+      currency: "Mata Uang",
+      currencyPlaceholder: "Pilih mata uang",
       accountNumber: "Nomor Rekening",
       accountNumberPlaceholder: "Masukkan nomor rekening",
       accountName: "Nama Pemilik Rekening",

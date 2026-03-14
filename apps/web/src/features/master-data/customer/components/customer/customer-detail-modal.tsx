@@ -18,6 +18,8 @@ import { CustomerContactsTab } from "@/features/crm/contact/components/customer-
 import { useCustomer } from "../../hooks/use-customers";
 import type { Customer } from "../../types";
 import { formatWhatsAppLink } from "@/lib/utils";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { CustomerBankList } from "./customer-bank-list";
 
 interface CustomerDetailModalProps {
   readonly open: boolean;
@@ -36,6 +38,9 @@ export function CustomerDetailModal({
 }: CustomerDetailModalProps) {
   const t = useTranslations("customer.customer");
   const tContact = useTranslations("crmContact");
+
+  // Permission-based features (must be stable across renders)
+  const canManageBanks = useUserPermission("customer.update");
 
   // Always fetch fresh detail when modal opens so relationships are populated
   const activeCustomerId = customerId ?? customer?.id ?? "";
@@ -137,6 +142,15 @@ export function CustomerDetailModal({
                 {(entity.contacts_count ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
                     {entity.contacts_count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="banks" className="flex items-center gap-1.5">
+                <Landmark className="h-3.5 w-3.5" />
+                {t("sections.bankAccounts")}
+                {(entity.bank_accounts?.length ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {entity.bank_accounts?.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -405,6 +419,16 @@ export function CustomerDetailModal({
                     </div>
                   </div>
                 </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="banks" className="py-4">
+              {entity.id && (
+                <CustomerBankList
+                  customerId={entity.id}
+                  banks={entity.bank_accounts ?? []}
+                  isReadOnly={!canManageBanks}
+                />
               )}
             </TabsContent>
 

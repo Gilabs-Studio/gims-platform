@@ -173,6 +173,8 @@ export const customerEn = {
     form: {
       bank: "Bank",
       bankPlaceholder: "Select bank",
+      currency: "Currency",
+      currencyPlaceholder: "Select currency",
       accountNumber: "Account Number",
       accountNumberPlaceholder: "Enter account number",
       accountName: "Account Name",
