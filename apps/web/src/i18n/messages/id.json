@@ -52,7 +52,8 @@
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
     "add": "Tambah",
-    "remove": "Hapus"
+    "remove": "Hapus",
+    "detail": "Detail"
   },
   "notFound": {
     "label": "404",

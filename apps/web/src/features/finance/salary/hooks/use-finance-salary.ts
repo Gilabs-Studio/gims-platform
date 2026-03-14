@@ -9,12 +9,30 @@ export const financeSalaryKeys = {
   lists: () => [...financeSalaryKeys.all, "list"] as const,
   list: (params?: ListSalaryParams) => [...financeSalaryKeys.lists(), params] as const,
   detail: (id: string) => [...financeSalaryKeys.all, "detail", id] as const,
+  groups: (params?: ListSalaryParams) => [...financeSalaryKeys.all, "grouped", params] as const,
+  stats: () => [...financeSalaryKeys.all, "stats"] as const,
+  formData: () => [...financeSalaryKeys.all, "form-data"] as const,
 };
 
 export function useFinanceSalaryList(params?: ListSalaryParams) {
   return useQuery({
     queryKey: financeSalaryKeys.list(params),
     queryFn: () => financeSalaryService.list(params),
+  });
+}
+
+export function useFinanceSalaryGroups(params?: ListSalaryParams) {
+  return useQuery({
+    queryKey: financeSalaryKeys.groups(params),
+    queryFn: () => financeSalaryService.getGrouped(params),
+  });
+}
+
+export function useFinanceSalaryStats() {
+  return useQuery({
+    queryKey: financeSalaryKeys.stats(),
+    queryFn: () => financeSalaryService.getStats(),
+    staleTime: 60_000,
   });
 }
 
@@ -32,6 +50,7 @@ export function useCreateFinanceSalary() {
     mutationFn: (data: SalaryStructureInput) => financeSalaryService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: financeSalaryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.all });
     },
   });
 }
@@ -44,6 +63,7 @@ export function useUpdateFinanceSalary() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: financeSalaryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeSalaryKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.all });
     },
   });
 }
@@ -53,7 +73,7 @@ export function useDeleteFinanceSalary() {
   return useMutation({
     mutationFn: (id: string) => financeSalaryService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.all });
     },
   });
 }
@@ -63,7 +83,15 @@ export function useApproveFinanceSalary() {
   return useMutation({
     mutationFn: (id: string) => financeSalaryService.approve(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeSalaryKeys.all });
     },
+  });
+}
+
+export function useFinanceSalaryFormData() {
+  return useQuery({
+    queryKey: financeSalaryKeys.formData(),
+    queryFn: () => financeSalaryService.getFormData(),
+    staleTime: 5 * 60_000,
   });
 }

@@ -135,6 +135,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Finance - Salary structures seeder
+	if err := SeedSalaryStructures(); err != nil {
+		return err
+	}
+
 	// Purchase → Finance E2E data (2025-2026) with correct business flows
 	if err := SeedPurchaseFinanceE2E(); err != nil {
 		return err

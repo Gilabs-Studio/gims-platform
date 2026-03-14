@@ -18,11 +18,22 @@ type SalaryStructureListParams struct {
 	SortDir    string
 }
 
+type SalaryStructureStatsResult struct {
+	Total         int64
+	Active        int64
+	Draft         int64
+	Inactive      int64
+	AverageSalary float64
+	MinSalary     float64
+	MaxSalary     float64
+}
+
 type SalaryStructureRepository interface {
 	FindByID(ctx context.Context, id string) (*financeModels.SalaryStructure, error)
 	List(ctx context.Context, params SalaryStructureListParams) ([]financeModels.SalaryStructure, int64, error)
 	GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error)
 	DeactivateAllByEmployeeID(ctx context.Context, tx *gorm.DB, employeeID string) error
+	GetStats(ctx context.Context) (*SalaryStructureStatsResult, error)
 }
 
 type salaryStructureRepository struct {
@@ -35,7 +46,10 @@ func NewSalaryStructureRepository(db *gorm.DB) SalaryStructureRepository {
 
 func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*financeModels.SalaryStructure, error) {
 	var item financeModels.SalaryStructure
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Preload("Employee").
+		Preload("Employee.User").
+		First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -43,7 +57,11 @@ func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*f
 
 func (r *salaryStructureRepository) GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error) {
 	var item financeModels.SalaryStructure
-	if err := r.db.WithContext(ctx).Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).First(&item).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Preload("Employee").
+		Preload("Employee.User").
+		Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).
+		First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -68,17 +86,17 @@ func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStruc
 		q = q.Where("status = ?", *params.Status)
 	}
 	if s := strings.TrimSpace(params.Search); s != "" {
-		// Since we don't have employee name in this table, we might need to join if we want to search by name
-		// For now searching in notes
 		like := "%" + s + "%"
-		q = q.Where("notes ILIKE ?", like)
+		// Join employees for name search
+		q = q.Joins("LEFT JOIN employees ON employees.id = salary_structures.employee_id").
+			Where("employees.name ILIKE ? OR salary_structures.notes ILIKE ?", like, like)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	sortCol := "effective_date"
+	sortCol := "salary_structures.effective_date"
 	if params.SortBy != "" {
 		sortCol = params.SortBy
 	}
@@ -93,8 +111,58 @@ func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStruc
 		q = q.Offset(params.Offset)
 	}
 
-	if err := q.Find(&items).Error; err != nil {
+	if err := q.Preload("Employee").Preload("Employee.User").Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStructureStatsResult, error) {
+	var result SalaryStructureStatsResult
+
+	type countResult struct {
+		Status string
+		Count  int64
+	}
+
+	var counts []countResult
+	if err := r.db.WithContext(ctx).
+		Model(&financeModels.SalaryStructure{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Scan(&counts).Error; err != nil {
+		return nil, err
+	}
+
+	for _, c := range counts {
+		result.Total += c.Count
+		switch c.Status {
+		case string(financeModels.SalaryStructureStatusActive):
+			result.Active = c.Count
+		case string(financeModels.SalaryStructureStatusDraft):
+			result.Draft = c.Count
+		case string(financeModels.SalaryStructureStatusInactive):
+			result.Inactive = c.Count
+		}
+	}
+
+	// Salary aggregates from active records
+	type aggResult struct {
+		Avg float64
+		Min float64
+		Max float64
+	}
+	var agg aggResult
+	if err := r.db.WithContext(ctx).
+		Model(&financeModels.SalaryStructure{}).
+		Where("status = ?", financeModels.SalaryStructureStatusActive).
+		Select("COALESCE(AVG(basic_salary), 0) as avg, COALESCE(MIN(basic_salary), 0) as min, COALESCE(MAX(basic_salary), 0) as max").
+		Scan(&agg).Error; err != nil {
+		return nil, err
+	}
+	result.AverageSalary = agg.Avg
+	result.MinSalary = agg.Min
+	result.MaxSalary = agg.Max
+
+	return &result, nil
 }

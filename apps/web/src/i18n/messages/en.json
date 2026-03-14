@@ -57,7 +57,8 @@
     "validationError": "Please check the form for errors",
     "myActivities": "My Activities",
     "add": "Add",
-    "remove": "Remove"
+    "remove": "Remove",
+    "detail": "Detail"
   },
   "notFound": {
     "label": "404",

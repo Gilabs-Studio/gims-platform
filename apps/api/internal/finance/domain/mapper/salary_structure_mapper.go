@@ -15,9 +15,25 @@ func (m *SalaryStructureMapper) ToResponse(item *financeModels.SalaryStructure) 
 	if item == nil {
 		return dto.SalaryStructureResponse{}
 	}
+
+	empInfo := dto.EmployeeInfo{
+		ID: item.EmployeeID,
+	}
+	if item.Employee != nil {
+		empInfo.ID = item.Employee.ID
+		empInfo.Name = item.Employee.Name
+		empInfo.EmployeeCode = item.Employee.EmployeeCode
+		empInfo.Email = item.Employee.Email
+		// Avatar from User if linked
+		if item.Employee.User != nil {
+			empInfo.AvatarURL = item.Employee.User.AvatarURL
+		}
+	}
+
 	return dto.SalaryStructureResponse{
 		ID:            item.ID,
 		EmployeeID:    item.EmployeeID,
+		Employee:      empInfo,
 		EffectiveDate: item.EffectiveDate,
 		BasicSalary:   item.BasicSalary,
 		Notes:         item.Notes,
