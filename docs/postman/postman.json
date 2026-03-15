@@ -9009,6 +9009,109 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Journal Entries",
+          "description": "Journal entry endpoints including domain filtered views and trial balance",
+          "item": [
+            {
+              "name": "List Journal Entries",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/journal-entries?page=1&per_page=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "journal-entries"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "domain",
+                      "value": "sales",
+                      "description": "Optional domain filter: sales|purchase|inventory|stock|cash_bank|finance",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "List journal entries. Use /finance/journal-entries/sales, /purchase, /inventory, or /cash-bank for dedicated domain feeds."
+              },
+              "response": []
+            },
+            {
+              "name": "Trial Balance",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/finance/reports/trial-balance?start_date=2025-01-01&end_date=2025-12-31",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "finance",
+                    "reports",
+                    "trial-balance"
+                  ],
+                  "query": [
+                    {
+                      "key": "start_date",
+                      "value": "2025-01-01"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2025-12-31"
+                    }
+                  ]
+                },
+                "description": "Get trial balance from posted journals only. Requires `trial_balance_report.read` permission."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },

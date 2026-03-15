@@ -75,6 +75,7 @@ export function JournalsList() {
   const canDelete = useUserPermission("journal.delete");
   const canPost = useUserPermission("journal.post");
   const canReverse = useUserPermission("journal.reverse");
+  const canViewTrialBalance = useUserPermission("trial_balance_report.read");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -126,8 +127,9 @@ export function JournalsList() {
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
 
-        {canCreate && (
+        {(canCreate || canViewTrialBalance) && (
           <div className="flex items-center gap-2">
+            {canViewTrialBalance && (
             <Button
               variant="outline"
               className="cursor-pointer"
@@ -135,6 +137,8 @@ export function JournalsList() {
             >
               {t("actions.trialBalance")}
             </Button>
+            )}
+            {canCreate && (
             <Button
               onClick={() => {
                 setFormMode("create");
@@ -146,6 +150,7 @@ export function JournalsList() {
               <Plus className="h-4 w-4 mr-2" />
               {t("actions.create")}
             </Button>
+            )}
           </div>
         )}
       </div>

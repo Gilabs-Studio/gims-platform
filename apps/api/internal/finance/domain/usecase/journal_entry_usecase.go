@@ -57,6 +57,27 @@ func parseDate(value string) (time.Time, error) {
 	return parseDateRequired(value)
 }
 
+func journalReferenceTypesForDomain(domain *string) []string {
+	if domain == nil {
+		return nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(*domain)) {
+	case "sales":
+		return []string{"SALES_INVOICE", "SALES_INVOICE_DP", "SALES_PAYMENT"}
+	case "purchase":
+		return []string{"GOODS_RECEIPT", "SUPPLIER_INVOICE", "SUPPLIER_INVOICE_DP", "PURCHASE_PAYMENT"}
+	case "inventory", "stock":
+		return []string{"STOCK_OPNAME", "INVENTORY_ADJUSTMENT"}
+	case "cash_bank":
+		return []string{"CASH_BANK", "PAYMENT"}
+	case "finance":
+		return []string{"GENERAL", "NTP", "ASSET_TXN", "ASSET_DEP", "UP_COUNTRY", "year_end_closing", "reversal"}
+	default:
+		return nil
+	}
+}
+
 func validateLines(lines []dto.JournalLineRequest) (float64, float64, error) {
 	if len(lines) < 2 {
 		return 0, 0, ErrJournalInvalidLines
@@ -329,15 +350,16 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	}
 
 	params := repositories.JournalEntryListParams{
-		Search:        req.Search,
-		Status:        req.Status,
-		StartDate:     startDate,
-		EndDate:       endDate,
-		SortBy:        req.SortBy,
-		SortDir:       req.SortDir,
-		Limit:         perPage,
-		Offset:        (page - 1) * perPage,
-		ReferenceType: req.ReferenceType,
+		Search:         req.Search,
+		Status:         req.Status,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		SortBy:         req.SortBy,
+		SortDir:        req.SortDir,
+		Limit:          perPage,
+		Offset:         (page - 1) * perPage,
+		ReferenceType:  req.ReferenceType,
+		ReferenceTypes: journalReferenceTypesForDomain(req.Domain),
 	}
 
 	items, total, err := uc.repo.List(ctx, params)
@@ -546,7 +568,7 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 
 	refType := "reversal"
 	reversalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:         time.Now().Format("2006-01-02"),
+		EntryDate:         apptime.Now().Format("2006-01-02"),
 		Description:       "Reversal of: " + entry.Description,
 		ReferenceType:     &refType,
 		ReferenceID:       &entry.ID,
@@ -564,6 +586,16 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 	posted, err := uc.Post(ctx, reversal.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to post reversal entry: %w", err)
+	}
+
+	reversalMeta := &financeModels.JournalReversal{
+		OriginalJournalEntryID: entry.ID,
+		ReversalJournalEntryID: posted.ID,
+		Reason:                 "manual reversal",
+		CreatedBy:              &actorID,
+	}
+	if err := uc.db.WithContext(ctx).Create(reversalMeta).Error; err != nil {
+		return nil, fmt.Errorf("failed to save reversal metadata: %w", err)
 	}
 
 	return posted, nil

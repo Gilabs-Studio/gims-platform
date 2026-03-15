@@ -98,6 +98,55 @@ func (h *JournalEntryHandler) List(c *gin.Context) {
 	response.SuccessResponse(c, items, meta)
 }
 
+func (h *JournalEntryHandler) ListSalesJournals(c *gin.Context) {
+	h.listByDomain(c, "sales")
+}
+
+func (h *JournalEntryHandler) ListPurchaseJournals(c *gin.Context) {
+	h.listByDomain(c, "purchase")
+}
+
+func (h *JournalEntryHandler) ListInventoryJournals(c *gin.Context) {
+	h.listByDomain(c, "inventory")
+}
+
+func (h *JournalEntryHandler) ListCashBankJournals(c *gin.Context) {
+	h.listByDomain(c, "cash_bank")
+}
+
+func (h *JournalEntryHandler) listByDomain(c *gin.Context, domain string) {
+	var req dto.ListJournalEntriesRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	req.Page = page
+	req.PerPage = perPage
+	req.Domain = &domain
+
+	items, total, err := h.uc.List(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "JOURNAL_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, items, meta)
+}
+
 func (h *JournalEntryHandler) Post(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.Post(c.Request.Context(), id)

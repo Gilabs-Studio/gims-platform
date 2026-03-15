@@ -626,7 +626,7 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	return err
 }
 

@@ -52,7 +52,8 @@ type JournalEntry struct {
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Lines []JournalLine `gorm:"foreignKey:JournalEntryID;constraint:OnDelete:CASCADE" json:"lines,omitempty"`
+	Lines       []JournalLine       `gorm:"foreignKey:JournalEntryID;constraint:OnDelete:CASCADE" json:"lines,omitempty"`
+	Attachments []JournalAttachment `gorm:"foreignKey:JournalEntryID;constraint:OnDelete:CASCADE" json:"attachments,omitempty"`
 }
 
 func (JournalEntry) TableName() string {

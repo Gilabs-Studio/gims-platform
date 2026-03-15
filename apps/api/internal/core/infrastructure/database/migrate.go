@@ -119,6 +119,8 @@ func AutoMigrate() error {
 		&finance.ChartOfAccount{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
+		&finance.JournalReversal{},
+		&finance.JournalAttachment{},
 		// Finance entities (Sprint 11)
 		&finance.Payment{},
 		&finance.PaymentAllocation{},

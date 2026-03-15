@@ -35,6 +35,7 @@ type ListJournalEntriesRequest struct {
 	Page          int                          `form:"page" binding:"omitempty,min=1"`
 	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search        string                       `form:"search"`
+	Domain        *string                      `form:"domain" binding:"omitempty,oneof=sales purchase inventory stock cash_bank finance"`
 	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted"`
 	StartDate     *string                      `form:"start_date"`
 	EndDate       *string                      `form:"end_date"`

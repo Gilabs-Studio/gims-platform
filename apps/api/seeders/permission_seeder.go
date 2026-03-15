@@ -433,6 +433,8 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.read", "View Trial Balance Report", "VIEW", "trial_balance_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
 
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
@@ -731,6 +733,16 @@ func SeedPermissions() error {
 		"stock":    "OWN",
 	}, "ALL")
 
+	assignScopedPermissionsToRole("accountant", map[string]string{
+		"finance":  "DIVISION",
+		"sales":    "OWN",
+		"purchase": "OWN",
+		"hrd":      "OWN",
+		"stock":    "OWN",
+	}, "OWN")
+
+	assignViewPermissionsToRole("auditor", "ALL")
+
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()
 
@@ -804,6 +816,37 @@ func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]stri
 		return nil
 	})
 	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
+}
+
+func assignViewPermissionsToRole(roleCode, scope string) {
+	var r role.Role
+	if err := database.DB.Where("code = ?", roleCode).First(&r).Error; err != nil {
+		log.Printf("Warning: Role %s not found, skipping view-only assignment: %v", roleCode, err)
+		return
+	}
+
+	var viewPerms []permission.Permission
+	if err := database.DB.Where("action = ?", "VIEW").Find(&viewPerms).Error; err != nil {
+		log.Printf("Warning: Failed loading VIEW permissions for %s: %v", roleCode, err)
+		return
+	}
+
+	count := 0
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range viewPerms {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+				r.ID, perm.ID, scope,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+				continue
+			}
+			count++
+		}
+		return nil
+	})
+
+	log.Printf("Assigned %d VIEW permissions to %s role (scope=%s)", count, roleCode, scope)
 }
 
 // matchesModule checks if a permission resource belongs to a given module.

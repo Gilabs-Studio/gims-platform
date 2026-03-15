@@ -546,7 +546,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	return err
 }
 

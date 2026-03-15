@@ -7,12 +7,13 @@ import (
 )
 
 const (
-	journalRead    = "journal.read"
-	journalCreate  = "journal.create"
-	journalUpdate  = "journal.update"
-	journalDelete  = "journal.delete"
-	journalPost    = "journal.post"
-	journalReverse = "journal.reverse"
+	journalRead      = "journal.read"
+	journalCreate    = "journal.create"
+	journalUpdate    = "journal.update"
+	journalDelete    = "journal.delete"
+	journalPost      = "journal.post"
+	journalReverse   = "journal.reverse"
+	trialBalanceRead = "trial_balance_report.read"
 )
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
@@ -21,6 +22,10 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.GET("/form-data", middleware.RequirePermission(journalRead), h.GetFormData)
 	g.GET("", middleware.RequirePermission(journalRead), h.List)
 	g.GET("/", middleware.RequirePermission(journalRead), h.List)
+	g.GET("/sales", middleware.RequirePermission(journalRead), h.ListSalesJournals)
+	g.GET("/purchase", middleware.RequirePermission(journalRead), h.ListPurchaseJournals)
+	g.GET("/inventory", middleware.RequirePermission(journalRead), h.ListInventoryJournals)
+	g.GET("/cash-bank", middleware.RequirePermission(journalRead), h.ListCashBankJournals)
 	g.POST("", middleware.RequirePermission(journalCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(journalCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(journalRead), h.GetByID)
@@ -32,6 +37,5 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 
 func RegisterFinanceReportRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
 	g := rg.Group("/reports")
-	// Reuse journal.read to allow journal users to view trial balance
-	g.GET("/trial-balance", middleware.RequirePermission(journalRead), h.TrialBalance)
+	g.GET("/trial-balance", middleware.RequirePermission(trialBalanceRead), h.TrialBalance)
 }
