@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { LeadGenerateSource } from "../types";
+import { leadService } from "../services/lead-service";
 
 import universalWorkflow from "../n8n/universal-workflow.json";
 
@@ -28,6 +29,10 @@ const DEFAULT_WEBHOOK_URL =
   typeof process !== "undefined"
     ? (process.env.NEXT_PUBLIC_N8N_LEADS_WEBHOOK_URL ?? "")
     : "";
+
+function toExecutionWebhookUrl(url: string): string {
+  return url.replace("/webhook-test/", "/webhook/");
+}
 
 interface UseGenerateLeadsProps {
   onSuccess?: () => void;
@@ -68,7 +73,7 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
   }, []);
 
   const setN8nWebhookUrl = useCallback((url: string) => {
-    setState((prev) => ({ ...prev, n8nWebhookUrl: url }));
+    setState((prev) => ({ ...prev, n8nWebhookUrl: toExecutionWebhookUrl(url) }));
   }, []);
 
   /** Builds the JSON payload to POST to the n8n webhook */
@@ -82,7 +87,8 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
       }
 
       return {
-        type: state.source,
+        // Encode lead source as 1/0 for the workflow (1 = LinkedIn, 0 = Google Maps)
+        type: (state.source === "linkedin" ? 1 : 0) as 0 | 1,
         keyword: state.keyword,
         city: state.city,
         limit: state.limit,
@@ -99,28 +105,17 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
   );
 
   /**
-   * Verify the n8n webhook URL is reachable by routing through the Next.js server proxy.
-   * Server-side HEAD request avoids browser CORS restrictions.
+   * Verify n8n connectivity through backend API (single source of truth).
    */
   const testN8nConnection = useCallback(async () => {
-    if (!state.n8nWebhookUrl) {
-      toast.error(t("generate.testErrorNoUrl"));
-      return;
-    }
-
     setState((prev) => ({ ...prev, isTesting: true }));
 
     try {
-      const res = await fetch("/api/n8n/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookUrl: state.n8nWebhookUrl, method: "HEAD" }),
-      });
+      const response = await leadService.testAutomationConnection();
+      const details = response.data;
 
-      const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string };
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error ?? `Status ${res.status}`);
+      if (!details?.reachable) {
+        throw new Error(details?.message ?? "n8n endpoint is not reachable");
       }
 
       toast.success(t("generate.testSuccess"));
@@ -130,17 +125,12 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
     } finally {
       setState((prev) => ({ ...prev, isTesting: false }));
     }
-  }, [state.n8nWebhookUrl, t]);
+  }, [t]);
 
   /**
-   * POST the lead generation payload to the n8n webhook via the server-side proxy.
-   * Avoids browser CORS restrictions on cross-origin POST requests.
+   * Trigger lead generation through backend API.
    */
   const triggerWorkflow = useCallback(async () => {
-    if (!state.n8nWebhookUrl) {
-      toast.error(t("generate.testErrorNoUrl"));
-      return;
-    }
     if (!state.keyword.trim()) {
       toast.error(t("generate.errorNoKeyword"));
       return;
@@ -153,41 +143,10 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
     setState((prev) => ({ ...prev, isRunning: true }));
 
     try {
-      const res = await fetch("/api/n8n/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          webhookUrl: state.n8nWebhookUrl,
-          payload: buildPayload(),
-          method: "POST",
-        }),
-      });
-
-      const data = await res.json().catch(() => ({})) as Record<string, unknown>;
-
-      if (!res.ok) {
-        throw new Error((data.error as string) || `Status ${res.status}`);
-      }
-
-      // Detect /webhook-test/ mode — workflow nodes did not run
-      if (data.test_mode) {
-        toast.warning(
-          "Workflow triggered in TEST mode — nodes did not run. " +
-          "Change your URL from /webhook-test/ to /webhook/ and activate the workflow."
-        );
-        if (onSuccess) {
-          onSuccess();
-        }
-        return;
-      }
-
-      // Proxy warning (empty upstream response)
-      if (data.triggered && data.warning) {
-        toast.warning(data.warning as string);
-        return;
-      }
-
-      const erpResult = data?.erp_result as Record<string, unknown> | undefined;
+      const response = await leadService.triggerAutomation(buildPayload());
+      const result = response.data;
+      const n8nResult = (result?.result ?? {}) as Record<string, unknown>;
+      const erpResult = n8nResult?.erp_result as Record<string, unknown> | undefined;
       const resultData = erpResult?.data as Record<string, unknown> | undefined;
       const created = (resultData?.created ?? 0) as number;
       const updated = (resultData?.updated ?? 0) as number;
@@ -203,7 +162,7 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
     } finally {
       setState((prev) => ({ ...prev, isRunning: false }));
     }
-  }, [state, buildPayload, t]);
+  }, [state.keyword, state.city, buildPayload, t, onSuccess]);
 
   /** Downloads the n8n workflow JSON for manual import into n8n */
   const downloadWorkflow = useCallback(

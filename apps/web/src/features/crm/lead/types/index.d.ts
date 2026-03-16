@@ -257,6 +257,30 @@ export interface GenerateLeadsInput {
   limit: number;
 }
 
+export interface LeadAutomationTriggerRequest {
+  type: 0 | 1;
+  keyword: string;
+  city: string;
+  limit: number;
+  lead_source_id?: string | null;
+  erp_base_url: string;
+}
+
+export interface LeadAutomationConnectionResponse {
+  reachable: boolean;
+  status: number;
+  webhook_url: string;
+  n8n_base_url: string;
+  message: string;
+}
+
+export interface LeadAutomationTriggerResponse {
+  triggered: boolean;
+  upstream_status: number;
+  executed_webhook_url: string;
+  result?: Record<string, unknown> | null;
+}
+
 export interface BulkUpsertLeadItem {
   first_name: string;
   last_name?: string;
