@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
+import { formatIDR } from "../utils/format";
 import type { DeliveryStatusData, InvoiceRow } from "../types";
 
 type InvoiceStatus = "unpaid" | "paid" | "overdue";
@@ -226,7 +227,7 @@ export function TrackOrderCard({
                               {inv.issue_date}
                             </td>
                             <td className="p-4 whitespace-nowrap font-medium">
-                              {inv.value_formatted}
+                              {formatIDR(inv.value)}
                             </td>
                             <td className="p-4 whitespace-nowrap">
                               <Badge

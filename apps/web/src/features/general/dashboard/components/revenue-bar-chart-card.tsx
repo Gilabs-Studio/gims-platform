@@ -21,11 +21,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PeriodChartData } from "../types";
 
-function formatCompact(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toFixed(0);
+function formatIDR(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 interface RevenueBarChartCardProps {
@@ -84,7 +86,7 @@ export function RevenueBarChartCard({
               {t("revenueChart.revenue")}
             </span>
             <span className="text-lg font-bold sm:text-2xl">
-              {formatCompact(revenueTotal)}
+              {formatIDR(revenueTotal)}
             </span>
           </button>
           <button
@@ -96,7 +98,7 @@ export function RevenueBarChartCard({
               {t("revenueChart.costs")}
             </span>
             <span className="text-lg font-bold sm:text-2xl">
-              {formatCompact(costsTotal)}
+              {formatIDR(costsTotal)}
             </span>
           </button>
         </div>
@@ -120,6 +122,10 @@ export function RevenueBarChartCard({
             />
             <YAxis hide />
             <Tooltip
+              cursor={{
+                fill: "hsl(var(--border))",
+                fillOpacity: 0.3,
+              }}
               contentStyle={{
                 borderRadius: 8,
                 border: "1px solid hsl(var(--border))",
@@ -127,7 +133,8 @@ export function RevenueBarChartCard({
                 color: "hsl(var(--popover-foreground))",
                 fontSize: 12,
               }}
-              formatter={(v: number) => [formatCompact(v)]}
+              formatter={(v: number) => [formatIDR(v)]}
+              labelFormatter={(label) => String(label)}
             />
             <Bar
               dataKey="value"
