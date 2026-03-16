@@ -51,6 +51,7 @@ import {
 } from "../hooks/use-recruitment";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 import { RecruitmentForm } from "./recruitment-form";
 import { RecruitmentDetailModal } from "./recruitment-detail-modal";
 import type { RecruitmentRequest, RecruitmentStatus } from "../types";
@@ -311,7 +312,7 @@ export function RecruitmentList() {
                   </TableCell>
                   <TableCell>
                     {request.request_date
-                      ? new Date(request.request_date).toLocaleDateString()
+                      ? formatDate(request.request_date)
                       : "-"}
                   </TableCell>
                   <TableCell>{request.division_name ?? "-"}</TableCell>

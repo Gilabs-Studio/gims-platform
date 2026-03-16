@@ -11,16 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { useGeneralLedger } from "../hooks/use-finance-reports";
 import { financeReportsService } from "../services/finance-reports-service";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
 import { toast } from "sonner";
 import type { GLReportRow, GLTransactionRow } from "../types";
 
 /** Safely format an ISO date string; returns "-" for null/invalid values. */
 function formatDate(value: string | null | undefined): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDateUtil(value) || "-";
 }
 
 function toApiDate(d: Date): string {

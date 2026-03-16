@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Edit } from "lucide-react";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { formatWhatsAppLink } from "@/lib/utils";
+import { formatDate, formatWhatsAppLink } from "@/lib/utils";
 import type { Company } from "../../types";
 
 interface CompanyDetailDialogProps {
@@ -109,11 +109,7 @@ export function CompanyDetailDialog({
                   <TableCell className="font-medium bg-muted/50">Created</TableCell>
                   <TableCell>
                     {company.created_at
-                      ? new Date(company.created_at).toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
+                      ? formatDate(company.created_at)
                       : "-"}
                   </TableCell>
                 </TableRow>

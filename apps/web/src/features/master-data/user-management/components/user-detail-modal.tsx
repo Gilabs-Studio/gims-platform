@@ -19,6 +19,7 @@ import { useState } from "react";
 import { UserForm } from "./user-form";
 import type { User as UserType } from "../types";
 import { useTranslations } from "next-intl";
+import { formatDate } from "@/lib/utils";
 
 interface UserDetailModalProps {
   readonly userId: string | null;
@@ -195,7 +196,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                       </div>
                       <div className="text-base font-medium">
                         {user.created_at
-                          ? new Date(user.created_at).toLocaleDateString()
+                          ? formatDate(user.created_at)
                           : t("userInfo.notAvailable")}
                       </div>
                     </div>
@@ -207,7 +208,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                       </div>
                       <div className="text-base font-medium">
                         {user.updated_at
-                          ? new Date(user.updated_at).toLocaleDateString()
+                          ? formatDate(user.updated_at)
                           : t("userInfo.notAvailable")}
                       </div>
                     </div>

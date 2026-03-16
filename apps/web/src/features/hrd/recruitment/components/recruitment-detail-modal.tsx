@@ -29,7 +29,7 @@ import type {
   RecruitmentRequest,
   RecruitmentStatus,
 } from "../types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 // Extracted outside component to avoid re-creation during render
 function InfoRow({
@@ -176,7 +176,7 @@ export function RecruitmentDetailModal({
               <Separator />
               <InfoRow label={t("requestDate")}>
                 {detail.request_date
-                  ? new Date(detail.request_date).toLocaleDateString()
+                  ? formatDate(detail.request_date)
                   : "-"}
               </InfoRow>
               <Separator />
@@ -202,7 +202,7 @@ export function RecruitmentDetailModal({
               <Separator />
               <InfoRow label={t("expectedStartDate")}>
                 {detail.expected_start_date
-                  ? new Date(detail.expected_start_date).toLocaleDateString()
+                  ? formatDate(detail.expected_start_date)
                   : "-"}
               </InfoRow>
               <Separator />

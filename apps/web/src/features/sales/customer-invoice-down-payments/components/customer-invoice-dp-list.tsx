@@ -77,9 +77,7 @@ function statusLabel(t: ReturnType<typeof useTranslations>, status: CustomerInvo
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function normalizeStatus(status?: string | null): string {

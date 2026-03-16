@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDate } from "@/lib/utils";
 
 import { useAreaDetail, useRemoveAreaEmployee } from "../../hooks/use-areas";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -119,7 +120,7 @@ export function AreaDetailModal({
                       <TableCell>{area.name}</TableCell>
                       <TableCell className="font-medium bg-muted/50 w-48">Created At</TableCell>
                       <TableCell>
-                        {area.created_at ? new Date(area.created_at).toLocaleDateString("id-ID") : "-"}
+                        {area.created_at ? formatDate(area.created_at) : "-"}
                       </TableCell>
                     </TableRow>
                     <TableRow>

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, useEffect, useMemo } from "react";
+import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -346,9 +347,7 @@ export function SalesRepCheckInMap({
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(
-                      location.check_in_time
-                    ).toLocaleDateString()}
+                    {formatDate(location.check_in_time)}
                   </span>
                 </div>
                 {location.customer?.name && (

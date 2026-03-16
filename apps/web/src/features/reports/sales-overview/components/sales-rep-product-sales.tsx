@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { useSalesRepProducts } from "../hooks/use-sales-rep-products";
 import type { SalesRepProductSold } from "../types";
@@ -112,14 +112,7 @@ export function SalesRepProductSales({
       header: t("table.lastSold"),
       accessor: (item) =>
         item.last_sold_date
-          ? new Date(item.last_sold_date).toLocaleDateString(
-              "id-ID",
-              {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              }
-            )
+          ? formatDate(item.last_sold_date)
           : "-",
       className: "text-muted-foreground text-sm",
     },
