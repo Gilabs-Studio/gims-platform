@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -602,6 +603,9 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 
 	refType := "GOODS_RECEIPT"
 	refID := gr.ID
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
 
 	lines := []finDto.JournalLineRequest{
 		{
@@ -626,7 +630,30 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 		Lines:         lines,
 	}
 
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "purchase_goods_receipt",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "purchase_goods_receipt",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "purchase_goods_receipt",
+	})
+
 	return err
 }
 

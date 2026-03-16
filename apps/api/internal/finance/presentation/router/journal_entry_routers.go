@@ -7,13 +7,22 @@ import (
 )
 
 const (
-	journalRead      = "journal.read"
-	journalCreate    = "journal.create"
-	journalUpdate    = "journal.update"
-	journalDelete    = "journal.delete"
-	journalPost      = "journal.post"
-	journalReverse   = "journal.reverse"
-	trialBalanceRead = "trial_balance_report.read"
+	journalRead              = "journal.read"
+	salesJournalRead         = "sales_journal.read"
+	purchaseJournalRead      = "purchase_journal.read"
+	adjustmentJournalRead    = "adjustment_journal.read"
+	adjustmentJournalCreate  = "adjustment_journal.create"
+	adjustmentJournalPost    = "adjustment_journal.post"
+	adjustmentJournalReverse = "adjustment_journal.reverse"
+	valuationJournalRead     = "journal_valuation.read"
+	valuationJournalRun      = "journal_valuation.run"
+	cashBankJournalRead      = "cash_bank_journal.read"
+	journalCreate            = "journal.create"
+	journalUpdate            = "journal.update"
+	journalDelete            = "journal.delete"
+	journalPost              = "journal.post"
+	journalReverse           = "journal.reverse"
+	trialBalanceRead         = "trial_balance_report.read"
 )
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
@@ -22,10 +31,20 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.GET("/form-data", middleware.RequirePermission(journalRead), h.GetFormData)
 	g.GET("", middleware.RequirePermission(journalRead), h.List)
 	g.GET("/", middleware.RequirePermission(journalRead), h.List)
-	g.GET("/sales", middleware.RequirePermission(journalRead), h.ListSalesJournals)
-	g.GET("/purchase", middleware.RequirePermission(journalRead), h.ListPurchaseJournals)
+
+	// Domain-specific read-only journal endpoints
+	g.GET("/sales", middleware.RequirePermission(salesJournalRead), h.ListSalesJournals)
+	g.GET("/purchase", middleware.RequirePermission(purchaseJournalRead), h.ListPurchaseJournals)
 	g.GET("/inventory", middleware.RequirePermission(journalRead), h.ListInventoryJournals)
-	g.GET("/cash-bank", middleware.RequirePermission(journalRead), h.ListCashBankJournals)
+	g.GET("/cash-bank", middleware.RequirePermission(cashBankJournalRead), h.ListCashBankJournals)
+
+	// Adjustment journal endpoints (operational, Finance-controlled)
+	g.GET("/adjustment", middleware.RequirePermission(adjustmentJournalRead), h.ListAdjustmentJournals)
+
+	// Valuation journal endpoints (valuation process)
+	g.GET("/valuation", middleware.RequirePermission(valuationJournalRead), h.ListValuationJournals)
+
+	// CRUD for Journal Entries (operational accounting)
 	g.POST("", middleware.RequirePermission(journalCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(journalCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(journalRead), h.GetByID)

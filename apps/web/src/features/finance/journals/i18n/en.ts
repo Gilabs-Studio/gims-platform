@@ -1,6 +1,21 @@
 export const financeJournalsEn = {
   title: "Journal Entries",
   description: "Manage journal entries.",
+  salesTitle: "Sales Journal",
+  salesDescription:
+    "Read-only posted and draft journals generated from sales transactions.",
+  purchaseTitle: "Purchase Journal",
+  purchaseDescription:
+    "Read-only journals generated from purchase transactions (Goods Receipt, Supplier Invoice, Purchase Payment).",
+  adjustmentTitle: "Adjustment Journal",
+  adjustmentDescription:
+    "Manual correction journals controlled by Finance. Supports create, post, and reverse.",
+  valuationTitle: "Journal Valuation",
+  valuationDescription:
+    "Journals from valuation processes: inventory valuation, currency revaluation, and cost adjustment.",
+  cashBankTitle: "Cash & Bank Journal",
+  cashBankDescription:
+    "Read-only monitoring view of cash and bank transaction journals.",
   search: "Search description...",
   toast: {
     created: "Journal created",
@@ -13,6 +28,7 @@ export const financeJournalsEn = {
   },
   actions: {
     create: "Create",
+    export: "Export",
     edit: "Edit",
     delete: "Delete",
     post: "Post",
@@ -33,6 +49,7 @@ export const financeJournalsEn = {
     code: "Code",
     name: "Name",
     balance: "Balance",
+    referenceType: "Reference Type",
   },
   status: {
     draft: "Draft",

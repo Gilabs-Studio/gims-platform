@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -556,6 +557,9 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 
 	refID := pay.ID
 	refType := "SALES_PAYMENT"
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
 
 	req := &finDto.CreateJournalEntryRequest{
 		EntryDate:     pay.PaymentDate,
@@ -565,8 +569,31 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 		Lines:         lines,
 	}
 
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "sales_payment",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
-	return err
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "sales_payment",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "sales_payment",
+	})
+
+	return nil
 }
 
 func (uc *salesPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesPaymentAuditTrailEntry, int64, error) {

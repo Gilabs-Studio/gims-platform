@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -19,6 +20,26 @@ import (
 
 func formatFloatKey(v float64) string {
 	return fmt.Sprintf("%.6f", v)
+}
+
+func safeStringPtr(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(*v)
+}
+
+func journalTraceKey(referenceType, referenceID *string) string {
+	rt := safeStringPtr(referenceType)
+	rid := safeStringPtr(referenceID)
+	if rt == "" && rid == "" {
+		return "unknown"
+	}
+	return rt + ":" + rid
+}
+
+func logJournalEvent(event string, fields map[string]interface{}) {
+	log.Printf("journal_observability event=%s fields=%+v", event, fields)
 }
 
 var (
@@ -73,6 +94,10 @@ func journalReferenceTypesForDomain(domain *string) []string {
 		return []string{"CASH_BANK", "PAYMENT"}
 	case "finance":
 		return []string{"GENERAL", "NTP", "ASSET_TXN", "ASSET_DEP", "UP_COUNTRY", "year_end_closing", "reversal"}
+	case "adjustment":
+		return []string{"MANUAL_ADJUSTMENT", "ADJUSTMENT", "CORRECTION"}
+	case "valuation":
+		return []string{"INVENTORY_VALUATION", "CURRENCY_REVALUATION", "COST_ADJUSTMENT"}
 	default:
 		return nil
 	}
@@ -494,13 +519,34 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		return nil, errors.New("reference type and reference id are required for PostOrUpdateJournal")
 	}
 
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	traceKey := journalTraceKey(req.ReferenceType, req.ReferenceID)
+	logJournalEvent("post_or_update.start", map[string]interface{}{
+		"trace_key":      traceKey,
+		"reference_type": safeStringPtr(req.ReferenceType),
+		"reference_id":   safeStringPtr(req.ReferenceID),
+		"line_count":     len(req.Lines),
+		"actor_id":       actorID,
+	})
+
 	var existing financeModels.JournalEntry
 	err := uc.db.WithContext(ctx).
 		Where("reference_type = ? AND reference_id = ?", req.ReferenceType, req.ReferenceID).
 		First(&existing).Error
 
 	if err == nil {
+		logJournalEvent("post_or_update.found_existing", map[string]interface{}{
+			"trace_key": traceKey,
+			"entry_id":  existing.ID,
+			"status":    existing.Status,
+		})
+
 		if existing.Status == financeModels.JournalStatusPosted {
+			logJournalEvent("post_or_update.blocked_posted_immutable", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  existing.ID,
+			})
 			return nil, ErrJournalPostedImmutable
 		}
 
@@ -514,17 +560,68 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 
 		updateres, err := uc.Update(ctx, existing.ID, updateReq)
 		if err != nil {
+			logJournalEvent("post_or_update.update_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  existing.ID,
+				"error":     err.Error(),
+			})
 			return nil, err
 		}
 
-		return uc.Post(ctx, updateres.ID)
+		posted, err := uc.Post(ctx, updateres.ID)
+		if err != nil {
+			logJournalEvent("post_or_update.post_after_update_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  updateres.ID,
+				"error":     err.Error(),
+			})
+			return nil, err
+		}
+
+		logJournalEvent("post_or_update.update_path_success", map[string]interface{}{
+			"trace_key":      traceKey,
+			"entry_id":       posted.ID,
+			"final_status":   posted.Status,
+			"reference_type": safeStringPtr(req.ReferenceType),
+			"reference_id":   safeStringPtr(req.ReferenceID),
+		})
+
+		return posted, nil
 	} else if err == gorm.ErrRecordNotFound {
 		createres, err := uc.Create(ctx, req)
 		if err != nil {
+			logJournalEvent("post_or_update.create_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"error":     err.Error(),
+			})
 			return nil, err
 		}
-		return uc.Post(ctx, createres.ID)
+
+		posted, err := uc.Post(ctx, createres.ID)
+		if err != nil {
+			logJournalEvent("post_or_update.post_after_create_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  createres.ID,
+				"error":     err.Error(),
+			})
+			return nil, err
+		}
+
+		logJournalEvent("post_or_update.create_path_success", map[string]interface{}{
+			"trace_key":      traceKey,
+			"entry_id":       posted.ID,
+			"final_status":   posted.Status,
+			"reference_type": safeStringPtr(req.ReferenceType),
+			"reference_id":   safeStringPtr(req.ReferenceID),
+		})
+
+		return posted, nil
 	}
+
+	logJournalEvent("post_or_update.lookup_failed", map[string]interface{}{
+		"trace_key": traceKey,
+		"error":     err.Error(),
+	})
 
 	return nil, err
 }

@@ -433,16 +433,28 @@ func SeedMenus() error {
 		}
 	}
 
-	// Journal Group (has sub-menus: Journal Entries, Journal Lines)
+	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {
 		return err
 	}
-	if _, err := createChildMenu("Journal Entries", "book-open", "/finance/journals", &journalMenu.ID, 1); err != nil {
-		return err
+	journalSubMenus := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Journal Entries", "file-text", "/finance/journals", 1},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
+		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
+		{"Adjustment Journal", "pencil", "/finance/journals/adjustment", 4},
+		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
+		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
 	}
-	if _, err := createChildMenu("Journal Lines", "table", "/finance/journal-lines", &journalMenu.ID, 2); err != nil {
-		return err
+	for _, sub := range journalSubMenus {
+		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
+			return err
+		}
 	}
 
 	// Finance Reports Group

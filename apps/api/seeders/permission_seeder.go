@@ -362,12 +362,33 @@ func SeedPermissions() error {
 		{"/finance/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
 
 		{"/finance/journals", "journal.read", "View Journal Entries", "VIEW", "journal"},
+		{"/finance/journals", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/journals", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
 		{"/finance/journals", "journal.create", "Create Journal Entries", "CREATE", "journal"},
 		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
 		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
 		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
 		{"/finance/journals", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
 
+		// Purchase Journal — read-only monitoring for purchase transactions
+		{"/finance/journals/purchase", "purchase_journal.read", "View Purchase Journal", "VIEW", "purchase_journal"},
+		{"/finance/journals/purchase", "purchase_journal.export", "Export Purchase Journal", "EXPORT", "purchase_journal"},
+
+		// Adjustment Journal — operational Finance correction journal
+		{"/finance/journals/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
+
+		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
+		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
+
+		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
+		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
+		{"/finance/journals/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
+
+		// Deprecated: Journal Lines page merged into Journal Entries (kept for backward compatibility)
 		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
 
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
@@ -731,6 +752,12 @@ func SeedPermissions() error {
 		"purchase": "OWN",
 		"hrd":      "OWN",
 		"stock":    "OWN",
+		// Finance journal domain pages — explicit DIVISION scope
+		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
+		//  standard module prefix, so they must be mapped explicitly)
+		"adjustment_journal": "DIVISION",
+		"journal_valuation":  "DIVISION",
+		"cash_bank_journal":  "DIVISION",
 	}, "ALL")
 
 	assignScopedPermissionsToRole("accountant", map[string]string{
@@ -739,6 +766,10 @@ func SeedPermissions() error {
 		"purchase": "OWN",
 		"hrd":      "OWN",
 		"stock":    "OWN",
+		// Finance journal domain pages — Accountant operates at DIVISION level
+		"adjustment_journal": "DIVISION",
+		"journal_valuation":  "DIVISION",
+		"cash_bank_journal":  "DIVISION",
 	}, "OWN")
 
 	assignViewPermissionsToRole("auditor", "ALL")

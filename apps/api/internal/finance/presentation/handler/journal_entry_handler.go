@@ -114,6 +114,14 @@ func (h *JournalEntryHandler) ListCashBankJournals(c *gin.Context) {
 	h.listByDomain(c, "cash_bank")
 }
 
+func (h *JournalEntryHandler) ListAdjustmentJournals(c *gin.Context) {
+	h.listByDomain(c, "adjustment")
+}
+
+func (h *JournalEntryHandler) ListValuationJournals(c *gin.Context) {
+	h.listByDomain(c, "valuation")
+}
+
 func (h *JournalEntryHandler) listByDomain(c *gin.Context, domain string) {
 	var req dto.ListJournalEntriesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
