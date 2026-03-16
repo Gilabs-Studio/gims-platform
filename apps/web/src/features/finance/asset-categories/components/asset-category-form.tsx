@@ -17,7 +17,7 @@ import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa"
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 
 import { assetCategoryFormSchema, type AssetCategoryFormValues } from "../schemas/asset-category.schema";
-import type { AssetCategory, DepreciationMethod } from "../types";
+import type { AssetCategory, AssetCategoryType, DepreciationMethod } from "../types";
 import { useCreateFinanceAssetCategory, useUpdateFinanceAssetCategory } from "../hooks/use-finance-asset-categories";
 
 type Props = {
@@ -41,7 +41,8 @@ function flattenCoa(nodes: ChartOfAccountTreeNode[]): CoaOption[] {
   return out;
 }
 
-const METHODS: DepreciationMethod[] = ["SL", "DB"];
+const METHODS: DepreciationMethod[] = ["SL", "DB", "NONE"];
+const CATEGORY_TYPES: AssetCategoryType[] = ["FIXED", "CURRENT", "INTANGIBLE", "OTHER"];
 
 export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Props) {
   const t = useTranslations("financeAssetCategories");
@@ -55,6 +56,8 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
   const defaultValues: AssetCategoryFormValues = useMemo(
     () => ({
       name: initialData?.name ?? "",
+      type: (initialData?.type as AssetCategoryType) ?? "FIXED",
+      is_depreciable: initialData?.is_depreciable ?? true,
       depreciation_method: (initialData?.depreciation_method as DepreciationMethod) ?? "SL",
       useful_life_months: initialData?.useful_life_months ?? 12,
       depreciation_rate: initialData?.depreciation_rate ?? undefined,
@@ -81,12 +84,14 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
     try {
       const payload = {
         name: values.name,
-        depreciation_method: values.depreciation_method,
-        useful_life_months: values.useful_life_months,
-        depreciation_rate: values.depreciation_rate ?? 0,
+        type: values.type,
+        is_depreciable: values.is_depreciable,
+        depreciation_method: values.is_depreciable ? values.depreciation_method : ("NONE" as DepreciationMethod),
+        useful_life_months: values.is_depreciable ? values.useful_life_months : 0,
+        depreciation_rate: values.is_depreciable ? (values.depreciation_rate ?? 0) : 0,
         asset_account_id: values.asset_account_id,
-        accumulated_depreciation_account_id: values.accumulated_depreciation_account_id,
-        depreciation_expense_account_id: values.depreciation_expense_account_id,
+        accumulated_depreciation_account_id: values.is_depreciable ? (values.accumulated_depreciation_account_id || "") : "",
+        depreciation_expense_account_id: values.is_depreciable ? (values.depreciation_expense_account_id || "") : "",
         is_active: values.is_active ?? true,
       };
 
@@ -118,6 +123,46 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <Input id="name" {...form.register("name")} />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{t("fields.type")}</Label>
+              <Select
+                value={form.watch("type")}
+                onValueChange={(v) => form.setValue("type", v as AssetCategoryType, { shouldDirty: true })}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("placeholders.select")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_TYPES.map((ct) => (
+                    <SelectItem key={ct} value={ct} className="cursor-pointer">
+                      {t(`types.${ct}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="text-sm font-medium">{t("fields.isDepreciable")}</div>
+              <Switch
+                checked={form.watch("is_depreciable") ?? true}
+                onCheckedChange={(checked) => {
+                  form.setValue("is_depreciable", checked, { shouldDirty: true });
+                  if (!checked) {
+                    form.setValue("depreciation_method", "NONE" as DepreciationMethod, { shouldDirty: true });
+                    form.setValue("useful_life_months", 0, { shouldDirty: true });
+                  } else {
+                    form.setValue("depreciation_method", "SL" as DepreciationMethod, { shouldDirty: true });
+                  }
+                }}
+                className="cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {form.watch("is_depreciable") && (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("fields.method")}</Label>
@@ -157,6 +202,8 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
               {...form.register("depreciation_rate", { valueAsNumber: true })}
             />
           </div>
+          </>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">

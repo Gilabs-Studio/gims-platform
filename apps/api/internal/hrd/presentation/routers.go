@@ -1,6 +1,8 @@
 package presentation
 
 import (
+	"context"
+
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
@@ -36,6 +38,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaRepo := repositories.NewEvaluationCriteriaRepository(db)
 	employeeEvaluationRepo := repositories.NewEmployeeEvaluationRepository(db)
 	recruitmentRepo := repositories.NewRecruitmentRequestRepository(db)
+	applicantRepo := repositories.NewRecruitmentApplicantRepository(db)
+	applicantStageRepo := repositories.NewApplicantStageRepository(db)
+	applicantActivityRepo := repositories.NewApplicantActivityRepository(db)
+
+	// Seed default applicant stages
+	_ = applicantStageRepo.SeedDefaultStages(context.Background())
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
@@ -57,6 +65,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo, auditService)
 	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(db, employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo, auditService)
 	recruitmentUC := usecase.NewRecruitmentRequestUsecase(recruitmentRepo, employeeRepo, divisionRepo, positionRepo)
+	applicantUC := usecase.NewRecruitmentApplicantUsecase(applicantRepo, applicantStageRepo, applicantActivityRepo, recruitmentRepo, employeeRepo)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -68,6 +77,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)
 	employeeEvaluationHandler := handler.NewEmployeeEvaluationHandler(employeeEvaluationUC)
 	recruitmentHandler := handler.NewRecruitmentRequestHandler(recruitmentUC)
+	applicantHandler := handler.NewRecruitmentApplicantHandler(applicantUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -83,7 +93,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.SetupEvaluationGroupRoutes(hrdGroup, evaluationGroupHandler)
 	router.SetupEvaluationCriteriaRoutes(hrdGroup, evaluationCriteriaHandler)
 	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
-	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler)
+	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler, applicantHandler)
+	router.SetupRecruitmentApplicantRoutes(hrdGroup, applicantHandler)
 
 	return &HRDDeps{
 		HolidayUC:      holidayUC,

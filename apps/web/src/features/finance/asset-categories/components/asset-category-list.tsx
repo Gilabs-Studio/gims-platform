@@ -100,6 +100,8 @@ export function AssetCategoryList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("fields.name")}</TableHead>
+              <TableHead>{t("fields.type")}</TableHead>
+              <TableHead>{t("fields.isDepreciable")}</TableHead>
               <TableHead>{t("fields.method")}</TableHead>
               <TableHead>{t("fields.usefulLifeMonths")}</TableHead>
               <TableHead>{t("fields.isActive")}</TableHead>
@@ -110,14 +112,14 @@ export function AssetCategoryList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={7}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -125,6 +127,18 @@ export function AssetCategoryList() {
               rows.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.name}</TableCell>
+                  <TableCell>{t(`types.${item.type}`)}</TableCell>
+                  <TableCell>{item.is_depreciable ? (
+                    <Badge variant="success" className="text-xs font-medium">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {tCommon("yes")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="inactive" className="text-xs font-medium">
+                      <MinusCircle className="h-3 w-3 mr-1" />
+                      {tCommon("no")}
+                    </Badge>
+                  )}</TableCell>
                   <TableCell>{t(`methods.${item.depreciation_method}`)}</TableCell>
                   <TableCell>{item.useful_life_months}</TableCell>
                   <TableCell>{item.is_active ? (

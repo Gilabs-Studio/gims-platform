@@ -4,6 +4,8 @@ export const financeAssetCategoriesEn = {
   search: "Search categories...",
   fields: {
     name: "Name",
+    type: "Type",
+    isDepreciable: "Depreciable",
     method: "Method",
     usefulLifeMonths: "Useful life (months)",
     depreciationRate: "Depreciation rate",
@@ -12,9 +14,16 @@ export const financeAssetCategoriesEn = {
     accumulatedAccount: "Accumulated depreciation account",
     expenseAccount: "Depreciation expense account",
   },
+  types: {
+    FIXED: "Fixed Asset",
+    CURRENT: "Current Asset",
+    INTANGIBLE: "Intangible Asset",
+    OTHER: "Other",
+  },
   methods: {
     SL: "Straight Line",
     DB: "Declining Balance",
+    NONE: "None",
   },
   actions: {
     create: "Create",

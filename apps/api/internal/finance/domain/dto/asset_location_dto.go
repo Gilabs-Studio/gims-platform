@@ -3,13 +3,19 @@ package dto
 import "time"
 
 type CreateAssetLocationRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
+	Address     string   `json:"address"`
+	Latitude    *float64 `json:"latitude"`
+	Longitude   *float64 `json:"longitude"`
 }
 
 type UpdateAssetLocationRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
+	Address     string   `json:"address"`
+	Latitude    *float64 `json:"latitude"`
+	Longitude   *float64 `json:"longitude"`
 }
 
 type ListAssetLocationsRequest struct {
@@ -24,6 +30,9 @@ type AssetLocationResponse struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	Address     string    `json:"address"`
+	Latitude    *float64  `json:"latitude"`
+	Longitude   *float64  `json:"longitude"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

@@ -7,8 +7,9 @@ import (
 )
 
 type CreateAssetRequest struct {
-	Code string `json:"code" binding:"required"`
-	Name string `json:"name" binding:"required"`
+	Code        string `json:"code" binding:"required"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
 
 	CategoryID string `json:"category_id" binding:"required,uuid"`
 	LocationID string `json:"location_id" binding:"required,uuid"`
@@ -19,8 +20,9 @@ type CreateAssetRequest struct {
 }
 
 type UpdateAssetRequest struct {
-	Code string `json:"code" binding:"required"`
-	Name string `json:"name" binding:"required"`
+	Code        string `json:"code" binding:"required"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
 
 	CategoryID string `json:"category_id" binding:"required,uuid"`
 	LocationID string `json:"location_id" binding:"required,uuid"`
@@ -28,7 +30,7 @@ type UpdateAssetRequest struct {
 	AcquisitionDate string                    `json:"acquisition_date" binding:"required"`
 	AcquisitionCost float64                   `json:"acquisition_cost" binding:"required,gt=0"`
 	SalvageValue    float64                   `json:"salvage_value" binding:"omitempty,gte=0"`
-	Status          financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=active disposed"`
+	Status          financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=active inactive sold disposed"`
 }
 
 type ListAssetsRequest struct {
@@ -57,6 +59,12 @@ type TransferAssetRequest struct {
 type DisposeAssetRequest struct {
 	DisposalDate string `json:"disposal_date" binding:"required"`
 	Description  string `json:"description"`
+}
+
+type SellAssetRequest struct {
+	DisposalDate string  `json:"disposal_date" binding:"required"`
+	SaleAmount   float64 `json:"sale_amount" binding:"required,gt=0"`
+	Description  string  `json:"description"`
 }
 
 type AssetDepreciationResponse struct {
@@ -101,6 +109,7 @@ type AssetResponse struct {
 	ID                      string                      `json:"id"`
 	Code                    string                      `json:"code"`
 	Name                    string                      `json:"name"`
+	Description             string                      `json:"description"`
 	CategoryID              string                      `json:"category_id"`
 	Category                *AssetCategoryResponse      `json:"category,omitempty"`
 	LocationID              string                      `json:"location_id"`

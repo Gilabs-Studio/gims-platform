@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type AssetStatus = "active" | "disposed";
+export type AssetStatus = "active" | "inactive" | "sold" | "disposed";
 
 export interface AssetCategoryLite {
   id: string;
@@ -62,6 +62,7 @@ export interface Asset {
   id: string;
   code: string;
   name: string;
+  description: string;
   category_id: string;
   category?: AssetCategoryLite | null;
   location_id: string;
@@ -95,6 +96,7 @@ export interface ListAssetsParams {
 export interface AssetInput {
   code: string;
   name: string;
+  description?: string;
   category_id: string;
   location_id: string;
   acquisition_date: string;
@@ -126,5 +128,11 @@ export interface RevalueAssetInput {
 export interface AdjustAssetInput {
   amount: number;
   transaction_date: string;
+  description?: string;
+}
+
+export interface SellAssetInput {
+  disposal_date: string;
+  sale_amount: number;
   description?: string;
 }

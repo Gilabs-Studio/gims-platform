@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { useBreadcrumb } from "@/hooks/use-breadcrumb";
 import { usePathname } from "@/i18n/routing";
 import { useDealById } from "@/features/crm/deal/hooks/use-deals";
+import { useRecruitmentRequest } from "@/features/hrd/recruitment/hooks/use-recruitment";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import { getMenuIcon } from "@/lib/menu-icons";
@@ -30,11 +31,26 @@ export function Breadcrumb() {
   const dealId = _match ? _match[1] : "";
   const { data: dealResp } = useDealById(dealId);
 
+  // Extract recruitment id if on recruitment detail route
+  const _recruitmentMatch = normalizedPath.match(/^\/hrd\/recruitment\/([^/]+)$/);
+  const recruitmentId = _recruitmentMatch ? _recruitmentMatch[1] : "";
+  const { data: recruitmentResp } = useRecruitmentRequest(recruitmentId);
+
   let overriddenItems = breadcrumbItems;
+
+  // Override with deal title
   const dealTitle = dealResp?.data?.title;
   if (dealTitle && breadcrumbItems.length > 0 && dealId) {
     overriddenItems = breadcrumbItems.map((it, idx) =>
       idx === breadcrumbItems.length - 1 ? { ...it, label: dealTitle } : it
+    );
+  }
+
+  // Override with recruitment request code
+  const recruitmentCode = recruitmentResp?.data?.request_code;
+  if (recruitmentCode && breadcrumbItems.length > 0 && recruitmentId) {
+    overriddenItems = breadcrumbItems.map((it, idx) =>
+      idx === breadcrumbItems.length - 1 ? { ...it, label: recruitmentCode } : it
     );
   }
 

@@ -424,8 +424,9 @@ func SeedMenus() error {
 		{"Asset Management", "briefcase", "/finance/assets", 10},
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 13},
-		{"Salary", "dollar-sign", "/finance/salary", 14},
+		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 14},
+		{"Salary", "dollar-sign", "/finance/salary", 15},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {

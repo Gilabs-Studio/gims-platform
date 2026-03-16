@@ -4,6 +4,8 @@ export const financeAssetCategoriesId = {
   search: "Cari kategori...",
   fields: {
     name: "Nama",
+    type: "Tipe",
+    isDepreciable: "Dapat Didepresiasi",
     method: "Metode",
     usefulLifeMonths: "Masa manfaat (bulan)",
     depreciationRate: "Tarif depresiasi",
@@ -12,9 +14,16 @@ export const financeAssetCategoriesId = {
     accumulatedAccount: "Akun akumulasi depresiasi",
     expenseAccount: "Akun beban depresiasi",
   },
+  types: {
+    FIXED: "Aset Tetap",
+    CURRENT: "Aset Lancar",
+    INTANGIBLE: "Aset Tidak Berwujud",
+    OTHER: "Lainnya",
+  },
   methods: {
     SL: "Garis Lurus",
     DB: "Saldo Menurun",
+    NONE: "Tidak Ada",
   },
   actions: {
     create: "Buat",

@@ -73,6 +73,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
 
+	// Asset Budget (CAPEX Planning)
+	assetBudgetRepo := repositories.NewAssetBudgetRepository(db)
+	assetBudgetMapper := mapper.NewAssetBudgetMapper()
+	assetBudgetUC := usecase.NewAssetBudgetUsecase(db, assetBudgetRepo, assetCategoryRepo, assetBudgetMapper)
+
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
@@ -89,6 +94,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryH := handler.NewSalaryStructureHandler(salaryUC)
 	upCountryH := handler.NewUpCountryCostHandler(upCountryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
+	assetBudgetH := handler.NewAssetBudgetHandler(assetBudgetUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -111,6 +117,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterSalaryStructureRoutes(group, salaryH)
 	router.RegisterUpCountryCostRoutes(group, upCountryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
+	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
 
 	return &FinanceDeps{
 		JournalUC: journalUC,

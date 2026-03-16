@@ -10,20 +10,32 @@ import (
 type DepreciationMethod string
 
 const (
-	DepreciationMethodStraightLine    DepreciationMethod = "SL"
+	DepreciationMethodStraightLine     DepreciationMethod = "SL"
 	DepreciationMethodDecliningBalance DepreciationMethod = "DB"
+	DepreciationMethodNone             DepreciationMethod = "NONE"
+)
+
+type AssetCategoryType string
+
+const (
+	AssetCategoryTypeFixed      AssetCategoryType = "FIXED"
+	AssetCategoryTypeCurrent    AssetCategoryType = "CURRENT"
+	AssetCategoryTypeIntangible AssetCategoryType = "INTANGIBLE"
+	AssetCategoryTypeOther      AssetCategoryType = "OTHER"
 )
 
 type AssetCategory struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
 	Name string `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
+	Type AssetCategoryType `gorm:"type:varchar(20);not null;default:'FIXED'" json:"type"`
 
 	DepreciationMethod DepreciationMethod `gorm:"type:varchar(10);not null" json:"depreciation_method"`
 	UsefulLifeMonths   int                `gorm:"not null" json:"useful_life_months"`
 	DepreciationRate   float64            `gorm:"type:numeric(8,4);default:0" json:"depreciation_rate"`
+	IsDepreciable      bool               `gorm:"default:true" json:"is_depreciable"`
 
-	AssetAccountID             string `gorm:"type:uuid;not null;index" json:"asset_account_id"`
+	AssetAccountID                   string `gorm:"type:uuid;not null;index" json:"asset_account_id"`
 	AccumulatedDepreciationAccountID string `gorm:"type:uuid;not null;index" json:"accumulated_depreciation_account_id"`
 	DepreciationExpenseAccountID     string `gorm:"type:uuid;not null;index" json:"depreciation_expense_account_id"`
 
