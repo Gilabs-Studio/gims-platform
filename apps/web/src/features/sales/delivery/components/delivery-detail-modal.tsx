@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -166,7 +167,7 @@ export function DeliveryDetailModal({
                 <div className="flex items-center gap-3">
                   {delivery && getStatusBadge(delivery.status)}
                   <span className="text-sm text-muted-foreground">
-                    {displayDelivery?.delivery_date && new Date(displayDelivery.delivery_date).toLocaleDateString()}
+                    {displayDelivery?.delivery_date && formatDate(displayDelivery.delivery_date)}
                   </span>
                 </div>
               </div>
@@ -344,7 +345,7 @@ export function DeliveryDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayDelivery.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("deliveryDate")}</TableCell>
-                        <TableCell>{new Date(displayDelivery.delivery_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(displayDelivery.delivery_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>

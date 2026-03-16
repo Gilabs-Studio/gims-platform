@@ -34,6 +34,7 @@ import { EmployeeEvaluationForm } from "./employee-evaluation-form";
 import { EmployeeEvaluationDetailModal } from "./employee-evaluation-detail-modal";
 import type { EmployeeEvaluation, EmployeeEvaluationStatus } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { formatDate } from "@/lib/utils";
 
 export function EmployeeEvaluationList() {
   const t = useTranslations("evaluation");
@@ -237,11 +238,11 @@ export function EmployeeEvaluationList() {
                   <TableCell>{getTypeBadge(evaluation.evaluation_type)}</TableCell>
                   <TableCell className="text-sm">
                     {evaluation.period_start
-                      ? new Date(evaluation.period_start).toLocaleDateString()
+                      ? formatDate(evaluation.period_start)
                       : "-"}
                     {" - "}
                     {evaluation.period_end
-                      ? new Date(evaluation.period_end).toLocaleDateString()
+                      ? formatDate(evaluation.period_end)
                       : "-"}
                   </TableCell>
                   <TableCell>

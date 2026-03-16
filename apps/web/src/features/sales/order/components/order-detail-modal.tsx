@@ -23,7 +23,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { SalesOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -205,7 +205,7 @@ export function OrderDetailModal({
                 <div className="flex items-center gap-3">
                   {order && getStatusBadge(order.status)}
                   <span className="text-sm text-muted-foreground">
-                    {displayOrder?.order_date && new Date(displayOrder.order_date).toLocaleDateString()}
+                    {displayOrder?.order_date && formatDate(displayOrder.order_date)}
                   </span>
                 </div>
               </div>
@@ -304,7 +304,7 @@ export function OrderDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayOrder.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("orderDate")}</TableCell>
-                        <TableCell>{new Date(displayOrder.order_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(displayOrder.order_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>

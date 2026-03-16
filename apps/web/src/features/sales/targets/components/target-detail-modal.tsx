@@ -24,7 +24,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type { YearlyTarget, MonthlyTarget } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -336,7 +336,7 @@ export function TargetDetailModal({
                            </div>
                            <div className="flex justify-between">
                                <span className="text-sm text-muted-foreground">{t("created")}</span>
-                               <span className="font-medium">{new Date(displayTarget.created_at).toLocaleDateString()}</span>
+                               <span className="font-medium">{formatDate(displayTarget.created_at)}</span>
                            </div>
                        </div>
                    </div>

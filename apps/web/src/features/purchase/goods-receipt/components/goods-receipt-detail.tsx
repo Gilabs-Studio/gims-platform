@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
@@ -172,7 +173,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     />
                   )}
                   <span className="text-sm text-muted-foreground">
-                    {gr?.receipt_date && new Date(gr.receipt_date).toLocaleDateString()}
+                    {gr?.receipt_date && formatDate(gr.receipt_date)}
                   </span>
                 </div>
               </div>
@@ -287,7 +288,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.code")}</TableCell>
                         <TableCell>{gr.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.receiptDate")}</TableCell>
-                        <TableCell>{gr.receipt_date ? new Date(gr.receipt_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{gr.receipt_date ? formatDate(gr.receipt_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.status")}</TableCell>

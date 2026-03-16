@@ -31,6 +31,7 @@ import {
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import type { EmployeeEvaluation, EmployeeEvaluationStatus } from "../types";
+import { formatDate } from "@/lib/utils";
 
 interface EmployeeEvaluationDetailModalProps {
   readonly open: boolean;
@@ -262,11 +263,11 @@ export function EmployeeEvaluationDetailModal({
                         <p className="text-sm text-muted-foreground">{t("evaluation.period")}</p>
                         <p className="font-medium">
                           {displayEvaluation.period_start
-                            ? new Date(displayEvaluation.period_start).toLocaleDateString()
+                            ? formatDate(displayEvaluation.period_start)
                             : "-"}{" "}
                           -{" "}
                           {displayEvaluation.period_end
-                            ? new Date(displayEvaluation.period_end).toLocaleDateString()
+                            ? formatDate(displayEvaluation.period_end)
                             : "-"}
                         </p>
                       </div>

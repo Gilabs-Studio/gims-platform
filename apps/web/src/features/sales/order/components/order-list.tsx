@@ -30,7 +30,7 @@ import { EmployeeDetailModal } from "@/features/master-data/employee/components/
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -228,7 +228,7 @@ export function OrderList() {
                   </TableCell>
                   <TableCell>
                     {order.order_date
-                      ? new Date(order.order_date).toLocaleDateString()
+                      ? formatDate(order.order_date)
                       : "-"}
                   </TableCell>
                   <TableCell>

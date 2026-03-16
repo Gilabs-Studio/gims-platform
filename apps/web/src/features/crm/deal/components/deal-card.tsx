@@ -9,7 +9,7 @@ import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import type { Deal } from "../types";
 
@@ -150,10 +150,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               <span>
-                {new Date(deal.expected_close_date).toLocaleDateString("id-ID", {
-                  day: "2-digit",
-                  month: "short",
-                })}
+                {formatDate(deal.expected_close_date)}
               </span>
             </div>
           )}

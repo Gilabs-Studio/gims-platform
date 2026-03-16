@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency, formatWhatsAppLink } from "@/lib/utils";
+import { formatCurrency, formatDate, formatWhatsAppLink } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -177,7 +177,7 @@ export function InvoiceDetailModal({
                     );
                   })()}
                   <span className="text-sm text-muted-foreground">
-                    {displayInvoice?.invoice_date && new Date(displayInvoice.invoice_date).toLocaleDateString()}
+                    {displayInvoice?.invoice_date && formatDate(displayInvoice.invoice_date)}
                   </span>
                 </div>
               </div>
@@ -258,7 +258,7 @@ export function InvoiceDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayInvoice.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("invoiceDate")}</TableCell>
-                        <TableCell>{new Date(displayInvoice.invoice_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(displayInvoice.invoice_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
@@ -268,7 +268,7 @@ export function InvoiceDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("dueDate")}</TableCell>
                         <TableCell>
                           {displayInvoice.due_date 
-                            ? new Date(displayInvoice.due_date).toLocaleDateString() 
+                            ? formatDate(displayInvoice.due_date)
                             : "-"}
                         </TableCell>
                       </TableRow>

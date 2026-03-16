@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 import type { AttendanceRecord, AttendanceStatus } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -155,12 +156,7 @@ export function AttendanceDetailModal({
                   {getStatusBadge(displayRecord.status)}
                   <span className="text-sm text-muted-foreground flex items-center">
                     <CalendarIcon className="h-3 w-3 mr-1" />
-                    {new Date(displayRecord.date).toLocaleDateString("id-ID", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {formatDate(displayRecord.date)}
                   </span>
                 </div>
               </div>

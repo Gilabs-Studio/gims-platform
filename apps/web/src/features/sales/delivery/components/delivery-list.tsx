@@ -24,7 +24,7 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -329,7 +329,7 @@ export function DeliveryList() {
                   </TableCell>
                   <TableCell>
                     {delivery.delivery_date
-                      ? new Date(delivery.delivery_date).toLocaleDateString()
+                      ? formatDate(delivery.delivery_date)
                       : "-"}
                   </TableCell>
                   <TableCell>

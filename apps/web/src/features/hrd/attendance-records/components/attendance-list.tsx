@@ -62,6 +62,7 @@ import { useTranslations } from "next-intl";
 import { AttendanceCalendar } from "./attendance-calendar";
 import { AttendanceDayView } from "./attendance-day-view";
 import { AttendanceDetailModal } from "./attendance-detail-modal";
+import { formatDate as formatDateUtil } from "@/lib/utils";
 import { AttendanceRecordForm } from "./attendance-record-form";
 import { useAttendanceCalendar } from "../hooks/use-attendance-calendar";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -267,16 +268,8 @@ export function AttendanceList() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
+  const formatDisplayDate = (dateStr: string) => {
+    return formatDateUtil(dateStr) || dateStr;
   };
 
   if (viewMode === "list" && isListError) {
@@ -437,7 +430,7 @@ export function AttendanceList() {
                         className="font-medium cursor-pointer"
                         onClick={() => setDetailRecord(record)}
                       >
-                        {formatDate(record.date)}
+                        {formatDisplayDate(record.date)}
                       </TableCell>
                       <TableCell>
                         <div>

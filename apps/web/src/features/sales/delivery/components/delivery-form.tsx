@@ -516,7 +516,7 @@ function BatchSelectionField({ control, index, error, t, open }: {
             <SelectContent>
               {batches.filter((b: InventoryBatchItem) => b.available > 0).map((batch: InventoryBatchItem) => (
                 <SelectItem key={batch.id} value={batch.id}>
-                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "-"})
+                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? formatDate(batch.expiry_date) : "-"})
                 </SelectItem>
               ))}
               {batches.length === 0 && !isLoading && (
