@@ -29,4 +29,7 @@ type EmployeeEvaluationUsecase interface {
 
 	// Delete performs soft delete on an employee evaluation (only DRAFT status)
 	Delete(ctx context.Context, id string) error
+
+	// ListAuditTrail retrieves paginated audit trail rows for an employee evaluation.
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.EvaluationAuditTrailEntry, int64, error)
 }

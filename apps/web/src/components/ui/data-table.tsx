@@ -64,6 +64,7 @@ interface DataTableProps<T> {
     readonly has_next: boolean;
     readonly has_prev: boolean;
   };
+  readonly outerClassName?: string;
   readonly onPageChange?: (page: number) => void;
   readonly onPerPageChange?: (perPage: number) => void;
   readonly perPageOptions?: readonly number[]; // e.g., [10, 20, 50, 100]
@@ -165,6 +166,7 @@ export function DataTable<T extends { id: string }>({
   sort,
   sortableColumns,
   onSortChange,
+  outerClassName,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
 
@@ -419,7 +421,7 @@ export function DataTable<T extends { id: string }>({
 
   // Desktop table view
   return (
-    <div className="border rounded-lg">
+    <div className={cn("border rounded-lg", outerClassName)}>
       {isLoading ? (
         <div className="p-4 space-y-3">
           {Array.from({ length: 5 }, (_, i) => (

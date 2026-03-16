@@ -15,6 +15,7 @@ func SetupEmployeeEvaluationRoutes(router *gin.RouterGroup, handler *handler.Emp
 
 		// CRUD routes
 		evaluations.GET("", middleware.RequirePermission("evaluation.read"), handler.GetAll)
+		evaluations.GET("/:id/audit-trail", middleware.RequirePermission("evaluation.audit_trail"), handler.AuditTrail)
 		evaluations.GET("/:id", middleware.RequirePermission("evaluation.read"), handler.GetByID)
 		evaluations.POST("", middleware.RequirePermission("evaluation.create"), handler.Create)
 		evaluations.PUT("/:id", middleware.RequirePermission("evaluation.update"), handler.Update)

@@ -17,9 +17,25 @@ import { RevenueBarChartCard } from "./revenue-bar-chart-card";
 import { StatSummaryCard } from "./stat-summary-card";
 import { BestSellingCard } from "./best-selling-card";
 import { TrackOrderCard } from "./track-order-card";
+import { TrackPurchaseOrderCard } from "./track-purchase-order-card";
 import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
 import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
+
+function formatIDR(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 interface WidgetRendererProps {
   readonly widget: WidgetConfig;
@@ -44,11 +60,36 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
     const formatted = new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
-      notation: "compact",
-      maximumFractionDigits: 1,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(total);
     return { value: total, formatted };
   }, [data?.costs_by_category]);
+
+  // Keep dashboard figures readable and consistent by avoiding compact abbreviations.
+  const revenueSummary = useMemo<KpiCardData | undefined>(() => {
+    if (!data?.kpi?.total_revenue) return undefined;
+    return {
+      ...data.kpi.total_revenue,
+      formatted: formatIDR(data.kpi.total_revenue.value),
+    };
+  }, [data?.kpi?.total_revenue]);
+
+  const ordersSummary = useMemo<KpiCardData | undefined>(() => {
+    if (!data?.kpi?.total_orders) return undefined;
+    return {
+      ...data.kpi.total_orders,
+      formatted: formatNumber(data.kpi.total_orders.value),
+    };
+  }, [data?.kpi?.total_orders]);
+
+  const balanceSummary = useMemo<KpiCardData | undefined>(() => {
+    if (!data?.balance_overview) return undefined;
+    return {
+      ...data.balance_overview,
+      formatted: formatIDR(data.balance_overview.value),
+    };
+  }, [data?.balance_overview]);
 
   switch (widget.type) {
     // ---- Legacy KPI widgets (rendered as StatSummaryCard for UI consistency) ----
@@ -97,23 +138,23 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
         />
       );
     case "stat_summary_balance":
-      return <StatSummaryCard label={t("stats.totalBalance")} data={data?.balance_overview} />;
+      return <StatSummaryCard label={t("stats.totalBalance")} data={balanceSummary} />;
     case "stat_summary_revenue":
-      return <StatSummaryCard label={t("stats.totalRevenue")} data={data?.kpi?.total_revenue} />;
+      return <StatSummaryCard label={t("stats.totalRevenue")} data={revenueSummary} />;
     case "stat_summary_expense":
       return <StatSummaryCard label={t("stats.totalExpense")} data={totalExpense} />;
     case "stat_summary_orders":
-      return <StatSummaryCard label={t("stats.totalOrders")} data={data?.kpi?.total_orders} />;
+      return <StatSummaryCard label={t("stats.totalOrders")} data={ordersSummary} />;
     case "best_selling":
       return <BestSellingCard data={data?.top_products} isLoading={isLoading} />;
     case "track_orders":
       return (
         <TrackOrderCard
-          deliveryStatus={data?.delivery_status}
-          recentInvoices={data?.recent_invoices}
           isLoading={isLoading}
         />
       );
+    case "track_purchase_orders":
+      return <TrackPurchaseOrderCard isLoading={isLoading} />;
     case "pending_approvals_sales":
       return <PendingApprovalsSalesWidget />;
     case "pending_approvals_purchase":

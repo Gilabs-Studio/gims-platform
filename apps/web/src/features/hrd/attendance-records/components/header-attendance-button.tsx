@@ -255,7 +255,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
       // Not late, clock in directly
       executeClockIn(checkInType);
     },
-    [today?.is_late, executeClockIn]
+    [today?.is_late, executeClockIn, setPendingClockInType, setShowCameraDialog, setShowLateReasonDialog]
   );
 
   const handleLateReasonConfirm = useCallback(
@@ -265,7 +265,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
       }
       setShowLateReasonDialog(false);
     },
-    [pendingClockInType, executeClockIn]
+    [pendingClockInType, executeClockIn, setShowLateReasonDialog]
   );
 
   const handleCameraConfirm = useCallback(
@@ -275,7 +275,7 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
       }
       setShowCameraDialog(false);
     },
-    [pendingClockInType, executeClockIn]
+    [pendingClockInType, executeClockIn, setShowCameraDialog]
   );
 
   const handleClockOut = useCallback(async () => {

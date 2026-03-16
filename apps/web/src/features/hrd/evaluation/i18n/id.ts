@@ -30,6 +30,8 @@ export const evaluationId = {
     tabs: {
       evaluations: "Evaluasi",
       groups: "Grup Evaluasi",
+      general: "Umum",
+      auditTrail: "Audit Trail",
     },
 
     // Status
@@ -51,6 +53,35 @@ export const evaluationId = {
       submit: "Ajukan",
       review: "Tandai Ditinjau",
       finalize: "Selesaikan",
+    },
+
+    details: {
+      summary: "Ringkasan",
+      createdAt: "Dibuat Pada",
+      updatedAt: "Diperbarui Pada",
+      criteriaCount: "Kriteria",
+      emptyDescription: "Belum ada deskripsi",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada riwayat audit",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
+      actions: {
+        create: "Buat",
+        update: "Perbarui",
+        delete: "Hapus",
+        submit: "Ajukan",
+        review: "Tinjau",
+        finalize: "Selesaikan",
+        view: "Lihat",
+        auditTrail: "Audit Trail",
+      },
     },
 
     // Evaluation Group

@@ -24,6 +24,11 @@ export const leaveRequestId = {
     tabs: {
       general: "Umum",
       timeline: "Riwayat",
+      auditTrail: "Audit Trail",
+    },
+    calendarRange: {
+      title: "Rentang Tanggal Cuti",
+      description: "Cuti dijadwalkan dari {from} sampai {to}",
     },
     employeeInfo: "Informasi Karyawan",
     employeeCode: "Kode Karyawan",
@@ -45,6 +50,27 @@ export const leaveRequestId = {
       updated: "Permintaan cuti diperbarui",
       approved: "Permintaan cuti disetujui",
       rejected: "Permintaan cuti ditolak",
+    },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada riwayat audit",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
+      actions: {
+        create: "Buat",
+        update: "Perbarui",
+        delete: "Hapus",
+        approve: "Setujui",
+        reject: "Tolak",
+        cancel: "Batalkan",
+        reapprove: "Setujui Ulang",
+        view: "Lihat",
+        auditTrail: "Audit Trail",
+      },
     },
     status: {
       label: "Status",

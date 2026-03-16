@@ -7,6 +7,8 @@ import type {
   EmployeeEvaluationListResponse,
   EmployeeEvaluationSingleResponse,
   EmployeeEvaluationFormDataResponse,
+  EvaluationAuditTrailListResponse,
+  EvaluationAuditTrailParams,
   ListEvaluationGroupsParams,
   ListEvaluationCriteriaParams,
   ListEmployeeEvaluationsParams,
@@ -48,6 +50,13 @@ export const evaluationGroupService = {
 
   async delete(id: string): Promise<{ message: string }> {
     const response = await apiClient.delete<{ message: string }>(`${GROUP_PATH}/${id}`);
+    return response.data;
+  },
+
+  async auditTrail(id: string, params?: EvaluationAuditTrailParams): Promise<EvaluationAuditTrailListResponse> {
+    const response = await apiClient.get<EvaluationAuditTrailListResponse>(`${GROUP_PATH}/${id}/audit-trail`, {
+      params,
+    });
     return response.data;
   },
 };
@@ -130,6 +139,13 @@ export const employeeEvaluationService = {
 
   async getFormData(): Promise<EmployeeEvaluationFormDataResponse> {
     const response = await apiClient.get<EmployeeEvaluationFormDataResponse>(`${EVALUATION_PATH}/form-data`);
+    return response.data;
+  },
+
+  async auditTrail(id: string, params?: EvaluationAuditTrailParams): Promise<EvaluationAuditTrailListResponse> {
+    const response = await apiClient.get<EvaluationAuditTrailListResponse>(`${EVALUATION_PATH}/${id}/audit-trail`, {
+      params,
+    });
     return response.data;
   },
 };

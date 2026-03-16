@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { formatIDR } from "../utils/format";
 import type { WarehouseOverviewData } from "../types";
 
 interface WarehouseWidgetProps {
@@ -56,9 +57,9 @@ export function WarehouseWidget({ data }: WarehouseWidgetProps) {
           <CardTitle className="text-base font-semibold">
             {t("widgets.warehouse_overview.title")}
           </CardTitle>
-          {data?.total_stock_formatted && (
+          {data?.total_stock_value !== undefined && (
             <span className="text-sm font-semibold text-primary">
-              {data.total_stock_formatted}
+              {formatIDR(data.total_stock_value)}
             </span>
           )}
         </div>
@@ -146,7 +147,7 @@ export function WarehouseWidget({ data }: WarehouseWidgetProps) {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        {wh.stock_formatted}
+                        {formatIDR(wh.stock_value)}
                       </p>
                     )}
                   </div>

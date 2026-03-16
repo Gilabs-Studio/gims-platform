@@ -59,6 +59,7 @@ export type WidgetType =
   | "stat_summary_orders"
   | "best_selling"
   | "track_orders"
+  | "track_purchase_orders"
   // Approval list widgets
   | "pending_approvals_sales"
   | "pending_approvals_purchase";

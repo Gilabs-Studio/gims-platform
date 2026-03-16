@@ -14,6 +14,7 @@ import {
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
+import { formatIDR } from "../utils/format";
 import type { TopProductRow } from "../types";
 
 interface BestSellingCardProps {
@@ -90,7 +91,7 @@ export function BestSellingCard({ data, isLoading }: BestSellingCardProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold">{row.revenue_formatted}</div>
+                  <div className="text-sm font-semibold">{formatIDR(row.revenue)}</div>
                   <div className="text-xs text-muted-foreground">
                     {row.quantity_sold} {t("bestSelling.itemsSold")}
                   </div>

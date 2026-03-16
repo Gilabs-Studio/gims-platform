@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -14,6 +15,8 @@ import (
 type LeaveRequestHandler struct {
 	leaveRequestUsecase usecase.LeaveRequestUsecase
 }
+
+const leaveRequestIDRequiredMessage = "Leave request ID is required"
 
 // NewLeaveRequestHandler creates a new LeaveRequestHandler
 func NewLeaveRequestHandler(leaveRequestUsecase usecase.LeaveRequestUsecase) *LeaveRequestHandler {
@@ -139,7 +142,7 @@ func (h *LeaveRequestHandler) ListSelf(c *gin.Context) {
 func (h *LeaveRequestHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -162,7 +165,7 @@ func (h *LeaveRequestHandler) GetByID(c *gin.Context) {
 func (h *LeaveRequestHandler) GetSelfByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -185,7 +188,7 @@ func (h *LeaveRequestHandler) GetSelfByID(c *gin.Context) {
 func (h *LeaveRequestHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -214,7 +217,7 @@ func (h *LeaveRequestHandler) Update(c *gin.Context) {
 func (h *LeaveRequestHandler) UpdateSelf(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -243,7 +246,7 @@ func (h *LeaveRequestHandler) UpdateSelf(c *gin.Context) {
 func (h *LeaveRequestHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -306,7 +309,7 @@ func (h *LeaveRequestHandler) GetMyBalance(c *gin.Context) {
 func (h *LeaveRequestHandler) Approve(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -366,7 +369,7 @@ func (h *LeaveRequestHandler) GetMyFormData(c *gin.Context) {
 func (h *LeaveRequestHandler) Reject(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -395,7 +398,7 @@ func (h *LeaveRequestHandler) Reject(c *gin.Context) {
 func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -421,7 +424,7 @@ func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
 func (h *LeaveRequestHandler) CancelSelf(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
 		return
 	}
 
@@ -467,6 +470,45 @@ func (h *LeaveRequestHandler) Reapprove(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, result, nil)
+}
+
+// AuditTrail handles GET /api/v1/hrd/leave-requests/:id/audit-trail
+func (h *LeaveRequestHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Leave request ID is required"}, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	items, total, err := h.leaveRequestUsecase.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		handleUsecaseError(c, err)
+		return
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	meta.Pagination.TotalPages = totalPages
+	meta.Pagination.HasNext = page < totalPages
+	meta.Pagination.HasPrev = page > 1
+
+	response.SuccessResponse(c, items, meta)
 }
 
 // handleUsecaseError maps usecase errors to appropriate HTTP responses

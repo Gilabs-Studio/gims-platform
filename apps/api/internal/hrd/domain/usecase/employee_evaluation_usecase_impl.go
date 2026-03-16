@@ -2,11 +2,15 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -14,27 +18,51 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type employeeEvaluationUsecase struct {
+	db             *gorm.DB
 	evaluationRepo repositories.EmployeeEvaluationRepository
 	groupRepo      repositories.EvaluationGroupRepository
 	criteriaRepo   repositories.EvaluationCriteriaRepository
 	employeeRepo   orgRepos.EmployeeRepository
+	auditService   audit.AuditService
+}
+
+const (
+	errEmployeeEvaluationNotFound = "employee evaluation not found"
+	evaluationDateLayout          = "2006-01-02"
+)
+
+type employeeEvaluationAuditRow struct {
+	ID             string    `gorm:"column:id"`
+	ActorID        string    `gorm:"column:actor_id"`
+	PermissionCode string    `gorm:"column:permission_code"`
+	TargetID       string    `gorm:"column:target_id"`
+	Action         string    `gorm:"column:action"`
+	Metadata       string    `gorm:"column:metadata"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	ActorEmail     *string   `gorm:"column:actor_email"`
+	ActorName      *string   `gorm:"column:actor_name"`
 }
 
 // NewEmployeeEvaluationUsecase creates a new instance of EmployeeEvaluationUsecase
 func NewEmployeeEvaluationUsecase(
+	db *gorm.DB,
 	evaluationRepo repositories.EmployeeEvaluationRepository,
 	groupRepo repositories.EvaluationGroupRepository,
 	criteriaRepo repositories.EvaluationCriteriaRepository,
 	employeeRepo orgRepos.EmployeeRepository,
+	auditService audit.AuditService,
 ) EmployeeEvaluationUsecase {
 	return &employeeEvaluationUsecase{
+		db:             db,
 		evaluationRepo: evaluationRepo,
 		groupRepo:      groupRepo,
 		criteriaRepo:   criteriaRepo,
 		employeeRepo:   employeeRepo,
+		auditService:   auditService,
 	}
 }
 
@@ -104,7 +132,7 @@ func (u *employeeEvaluationUsecase) GetByID(ctx context.Context, id string) (*dt
 		return nil, err
 	}
 	if eval == nil {
-		return nil, errors.New("employee evaluation not found")
+		return nil, errors.New(errEmployeeEvaluationNotFound)
 	}
 
 	// Fetch employee and evaluator data
@@ -227,11 +255,11 @@ func (u *employeeEvaluationUsecase) Create(ctx context.Context, req *dto.CreateE
 	}
 
 	// Parse dates
-	periodStart, err := time.Parse("2006-01-02", req.PeriodStart)
+	periodStart, err := time.Parse(evaluationDateLayout, req.PeriodStart)
 	if err != nil {
 		return nil, errors.New("invalid period_start format, must be YYYY-MM-DD")
 	}
-	periodEnd, err := time.Parse("2006-01-02", req.PeriodEnd)
+	periodEnd, err := time.Parse(evaluationDateLayout, req.PeriodEnd)
 	if err != nil {
 		return nil, errors.New("invalid period_end format, must be YYYY-MM-DD")
 	}
@@ -293,7 +321,14 @@ func (u *employeeEvaluationUsecase) Create(ctx context.Context, req *dto.CreateE
 	}
 
 	// Return full response
-	return u.GetByID(ctx, id)
+	out, err := u.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	u.auditService.Log(ctx, "employee_evaluation.create", id, map[string]interface{}{"after": out})
+
+	return out, nil
 }
 
 func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *dto.UpdateEmployeeEvaluationRequest) (*dto.EmployeeEvaluationResponse, error) {
@@ -302,8 +337,9 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 		return nil, err
 	}
 	if eval == nil {
-		return nil, errors.New("employee evaluation not found")
+		return nil, errors.New(errEmployeeEvaluationNotFound)
 	}
+	before := *eval
 
 	// Only DRAFT evaluations can be edited
 	if eval.Status != models.EvaluationStatusDraft {
@@ -326,14 +362,14 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 		eval.EvaluationType = models.EvaluationType(*req.EvaluationType)
 	}
 	if req.PeriodStart != nil {
-		periodStart, err := time.Parse("2006-01-02", *req.PeriodStart)
+		periodStart, err := time.Parse(evaluationDateLayout, *req.PeriodStart)
 		if err != nil {
 			return nil, errors.New("invalid period_start format, must be YYYY-MM-DD")
 		}
 		eval.PeriodStart = periodStart
 	}
 	if req.PeriodEnd != nil {
-		periodEnd, err := time.Parse("2006-01-02", *req.PeriodEnd)
+		periodEnd, err := time.Parse(evaluationDateLayout, *req.PeriodEnd)
 		if err != nil {
 			return nil, errors.New("invalid period_end format, must be YYYY-MM-DD")
 		}
@@ -381,7 +417,17 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 		return nil, fmt.Errorf("failed to update employee evaluation: %w", err)
 	}
 
-	return u.GetByID(ctx, id)
+	out, err := u.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	u.auditService.Log(ctx, "employee_evaluation.update", id, map[string]interface{}{
+		"before": before,
+		"after":  out,
+	})
+
+	return out, nil
 }
 
 func (u *employeeEvaluationUsecase) UpdateStatus(ctx context.Context, id string, req *dto.SubmitEvaluationRequest) (*dto.EmployeeEvaluationResponse, error) {
@@ -390,7 +436,7 @@ func (u *employeeEvaluationUsecase) UpdateStatus(ctx context.Context, id string,
 		return nil, err
 	}
 	if eval == nil {
-		return nil, errors.New("employee evaluation not found")
+		return nil, errors.New(errEmployeeEvaluationNotFound)
 	}
 
 	newStatus := models.EvaluationStatus(req.Status)
@@ -433,7 +479,24 @@ func (u *employeeEvaluationUsecase) UpdateStatus(ctx context.Context, id string,
 		return nil, fmt.Errorf("failed to update evaluation status: %w", err)
 	}
 
-	return u.GetByID(ctx, id)
+	out, err := u.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	action := "employee_evaluation.update"
+	switch newStatus {
+	case models.EvaluationStatusSubmitted:
+		action = "employee_evaluation.submit"
+	case models.EvaluationStatusReviewed:
+		action = "employee_evaluation.review"
+	case models.EvaluationStatusFinalized:
+		action = "employee_evaluation.finalize"
+	}
+
+	u.auditService.Log(ctx, action, id, map[string]interface{}{"after": out})
+
+	return out, nil
 }
 
 func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error {
@@ -442,7 +505,7 @@ func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error
 		return err
 	}
 	if eval == nil {
-		return errors.New("employee evaluation not found")
+		return errors.New(errEmployeeEvaluationNotFound)
 	}
 
 	// Only DRAFT evaluations can be deleted
@@ -451,6 +514,7 @@ func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error
 	}
 
 	// Delete criteria scores first
+	before := *eval
 	if err := u.evaluationRepo.DeleteCriteriaScores(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete criteria scores: %w", err)
 	}
@@ -459,5 +523,79 @@ func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error
 		return fmt.Errorf("failed to delete employee evaluation: %w", err)
 	}
 
+	u.auditService.Log(ctx, "employee_evaluation.delete", id, map[string]interface{}{"before": before})
+
 	return nil
+}
+
+func (u *employeeEvaluationUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.EvaluationAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, fmt.Errorf("db is nil")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	tx := u.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
+		Where("audit_logs.target_id = ?", id).
+		Where("audit_logs.permission_code LIKE ?", "employee_evaluation.%")
+
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	rows := make([]employeeEvaluationAuditRow, 0)
+	if err := tx.
+		Select("audit_logs.id, audit_logs.actor_id, audit_logs.permission_code, audit_logs.target_id, audit_logs.action, audit_logs.metadata, audit_logs.created_at, users.email as actor_email, users.name as actor_name").
+		Joins("LEFT JOIN users ON users.id = audit_logs.actor_id").
+		Order("audit_logs.created_at DESC").
+		Limit(perPage).
+		Offset((page - 1) * perPage).
+		Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return mapEmployeeEvaluationAuditEntries(rows), total, nil
+}
+
+func mapEmployeeEvaluationAuditEntries(rows []employeeEvaluationAuditRow) []dto.EvaluationAuditTrailEntry {
+	entries := make([]dto.EvaluationAuditTrailEntry, 0, len(rows))
+	for _, row := range rows {
+		metadata := map[string]interface{}{}
+		if strings.TrimSpace(row.Metadata) != "" {
+			_ = json.Unmarshal([]byte(row.Metadata), &metadata)
+		}
+
+		var user *dto.EvaluationAuditTrailUser
+		if row.ActorID != "" {
+			email := ""
+			name := ""
+			if row.ActorEmail != nil {
+				email = *row.ActorEmail
+			}
+			if row.ActorName != nil {
+				name = *row.ActorName
+			}
+			user = &dto.EvaluationAuditTrailUser{ID: row.ActorID, Email: email, Name: name}
+		}
+
+		entries = append(entries, dto.EvaluationAuditTrailEntry{
+			ID:             row.ID,
+			Action:         row.Action,
+			PermissionCode: row.PermissionCode,
+			TargetID:       row.TargetID,
+			Metadata:       metadata,
+			User:           user,
+			CreatedAt:      row.CreatedAt,
+		})
+	}
+
+	return entries
 }

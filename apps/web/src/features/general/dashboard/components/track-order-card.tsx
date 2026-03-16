@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Download } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,250 +9,212 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
-import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
-import type { Customer } from "@/features/master-data/customer/types";
-import type { DeliveryStatusData, InvoiceRow } from "../types";
-
-type InvoiceStatus = "unpaid" | "paid" | "overdue";
-type BadgeVariant = "info" | "success" | "destructive";
-
-const STATUS_CONFIG: Record<
-  InvoiceStatus,
-  { variant: BadgeVariant; label: string }
-> = {
-  unpaid: { variant: "info", label: "Unpaid" },
-  paid: { variant: "success", label: "Paid" },
-  overdue: { variant: "destructive", label: "Overdue" },
-};
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Package } from "lucide-react";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency } from "@/lib/utils";
+import { DOLinkedDialog } from "@/features/sales/order/components/do-linked-dialog";
+import { DOStatusBadge } from "@/features/sales/order/components/do-status-badge";
+import { InvoiceLinkedDialog } from "@/features/sales/order/components/invoice-linked-dialog";
+import { InvoiceStatusBadge } from "@/features/sales/order/components/invoice-status-badge";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import { OrderStatusBadge } from "@/features/sales/order/components/order-status-badge";
+import { useOrders } from "@/features/sales/order/hooks/use-orders";
+import type { SalesOrder } from "@/features/sales/order/types";
 
 interface TrackOrderCardProps {
-  readonly deliveryStatus?: DeliveryStatusData;
-  readonly recentInvoices?: InvoiceRow[];
   readonly isLoading?: boolean;
 }
 
 export function TrackOrderCard({
-  deliveryStatus,
-  recentInvoices,
   isLoading,
 }: TrackOrderCardProps) {
   const t = useTranslations("dashboard");
-  const [filter, setFilter] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const canViewCustomer = useHasPermission("customer.read");
+  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
+  const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
+  const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
 
-  const total = deliveryStatus?.total ?? 0;
-  const pending = deliveryStatus?.pending ?? 0;
-  const inTransit = deliveryStatus?.in_transit ?? 0;
-  const delivered = deliveryStatus?.delivered ?? 0;
+  const canViewOrder = useUserPermission("sales_order.read");
+  const canViewDO = useUserPermission("delivery_order.read");
+  const canViewInvoice = useUserPermission("customer_invoice.read");
 
-  const pct = (val: number) => (total > 0 ? (val / total) * 100 : 0);
+  const { data, isLoading: isOrdersLoading } = useOrders({
+    page: 1,
+    per_page: 8,
+    sort_by: "created_at",
+    sort_dir: "desc",
+  });
 
-  const counters = [
-    {
-      key: "new",
-      label: t("trackOrders.newOrder"),
-      value: pending,
-      pct: pct(pending),
-      bgClass: "bg-primary dark:bg-primary",
-      indicatorClass: "bg-primary",
-      trendUp: true,
-    },
-    {
-      key: "progress",
-      label: t("trackOrders.onProgress"),
-      value: inTransit,
-      pct: pct(inTransit),
-      bgClass: "bg-successteal dark:bg-successteal",
-      indicatorClass: "bg-successteal",
-      trendUp: false,
-    },
-    {
-      key: "completed",
-      label: t("trackOrders.completed"),
-      value: delivered,
-      pct: pct(delivered),
-      bgClass: "bg-success dark:bg-success",
-      indicatorClass: "bg-success",
-      trendUp: true,
-    },
-    {
-      key: "return",
-      label: t("trackOrders.return"),
-      value: 0,
-      pct: 0,
-      bgClass: "bg-warning dark:bg-warning",
-      indicatorClass: "bg-warning",
-      trendUp: false,
-    },
-  ];
+  const orders = data?.data ?? [];
 
-  const filteredInvoices = (recentInvoices ?? []).filter(
-    (inv) =>
-      !filter ||
-      inv.company.toLowerCase().includes(filter.toLowerCase()) ||
-      inv.id.toLowerCase().includes(filter.toLowerCase()),
-  );
+  const renderDOBadges = (order: SalesOrder) => {
+    if (!order.delivery_orders?.length) {
+      return <span className="text-muted-foreground text-xs">-</span>;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={canViewDO ? () => setDoDialogOrder(order) : undefined}
+        className={canViewDO ? "cursor-pointer" : "cursor-default"}
+        title={`${order.delivery_orders.length} Delivery Order(s)`}
+      >
+        <span className="flex items-center gap-1">
+          <DOStatusBadge
+            status={order.delivery_orders[0].status}
+            className="text-xs font-medium hover:opacity-80 transition-opacity"
+          />
+          {order.delivery_orders.length > 1 && (
+            <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  const renderInvoiceBadges = (order: SalesOrder) => {
+    if (!order.customer_invoices?.length) {
+      return <span className="text-muted-foreground text-xs">-</span>;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={canViewInvoice ? () => setInvoiceDialogOrder(order) : undefined}
+        className={canViewInvoice ? "cursor-pointer" : "cursor-default"}
+        title={`${order.customer_invoices.length} Invoice(s)`}
+      >
+        <span className="flex items-center gap-1">
+          <InvoiceStatusBadge
+            status={order.customer_invoices[0].status}
+            className="text-xs font-medium hover:opacity-80 transition-opacity"
+          />
+          {order.customer_invoices.length > 1 && (
+            <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
+          )}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <>
       <Card className="h-full">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{t("trackOrders.title")}</CardTitle>
-            <CardDescription className="mt-1">
-              {t("trackOrders.subtitle")}
-            </CardDescription>
-          </div>
-          <Button variant="outline" size="sm" className="cursor-pointer gap-1.5">
-            <Download className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden lg:inline">{t("trackOrders.export")}</span>
-          </Button>
-        </div>
+        <CardTitle>{t("trackOrders.title")}</CardTitle>
+        <CardDescription>{t("trackOrders.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Status counters */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {counters.map((counter) => (
-            <div key={counter.key} className="space-y-2">
-              <div className="text-2xl font-bold lg:text-3xl">
-                {isLoading ? (
-                  <div className="h-7 w-12 animate-pulse rounded bg-muted" />
-                ) : (
-                  counter.value
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {counter.label}
-                </span>
-                <span
-                  className={`flex items-center gap-0.5 text-xs ${
-                    counter.trendUp ? "text-success" : "text-destructive"
-                  }`}
-                >
-                  {counter.trendUp ? (
-                    <ArrowUp className="size-3" aria-hidden="true" />
-                  ) : (
-                    <ArrowDown className="size-3" aria-hidden="true" />
-                  )}
-                </span>
-              </div>
-              <Progress
-                value={counter.pct}
-                className={counter.bgClass}
-                indicatorClassName={counter.indicatorClass}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Filter + table */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder={t("trackOrders.filterOrders")}
-              className="max-w-sm"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
-
-          {filteredInvoices.length === 0 && !isLoading ? (
-            <div className="flex h-24 items-center justify-center rounded-md border">
-              <p className="text-sm text-muted-foreground">{t("noData")}</p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <div className="relative w-full overflow-x-auto">
-                <table className="w-full caption-bottom text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                        {t("trackOrders.customerName")}
-                      </th>
-                      <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                        {t("trackOrders.issueDate")}
-                      </th>
-                      <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                        {t("trackOrders.amount")}
-                      </th>
-                      <th className="h-10 px-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                        {t("trackOrders.status")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i} className="border-b last:border-0">
-                          <td colSpan={5} className="p-4">
-                            <div className="h-4 animate-pulse rounded bg-muted" />
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      filteredInvoices.slice(0, 8).map((inv) => {
-                        const cfg = STATUS_CONFIG[inv.status as InvoiceStatus] ?? {
-                          variant: "info" as BadgeVariant,
-                          label: inv.status,
-                        };
-                        return (
-                          <tr
-                            key={inv.id}
-                            className="border-b transition-colors last:border-0 hover:bg-muted/50"
-                          >
-                            <td className="p-4 whitespace-nowrap">
-                              {canViewCustomer && inv.customer_id ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedCustomerId(inv.customer_id!)}
-                                  className="text-sm font-medium text-primary hover:underline cursor-pointer"
-                                >
-                                  {inv.company}
-                                </button>
-                              ) : (
-                                <span className="text-sm font-medium">{inv.company}</span>
-                              )}
-                            </td>
-                            <td className="p-4 whitespace-nowrap text-muted-foreground">
-                              {inv.issue_date}
-                            </td>
-                            <td className="p-4 whitespace-nowrap font-medium">
-                              {inv.value_formatted}
-                            </td>
-                            <td className="p-4 whitespace-nowrap">
-                              <Badge
-                                variant={cfg.variant}
-                                className="rounded-full capitalize"
-                              >
-                                {cfg.label}
-                              </Badge>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("trackOrders.columns.code")}</TableHead>
+                <TableHead>{t("trackOrders.columns.status")}</TableHead>
+                <TableHead>{t("trackOrders.columns.fulfillment")}</TableHead>
+                <TableHead>{t("trackOrders.columns.do")}</TableHead>
+                <TableHead>{t("trackOrders.columns.invoice")}</TableHead>
+                <TableHead className="text-right">{t("trackOrders.columns.totalAmount")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(isLoading || isOrdersLoading) ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 6 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    {t("noData")}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell
+                      className={canViewOrder ? "font-medium text-primary hover:underline cursor-pointer" : "font-medium"}
+                      onClick={() => canViewOrder && setSelectedOrder(order)}
+                    >
+                      {order.code}
+                    </TableCell>
+                    <TableCell>
+                      <OrderStatusBadge status={order.status} className="text-xs font-medium" />
+                    </TableCell>
+                    <TableCell>
+                      {order.fulfillment ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1 text-xs">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium">
+                              {order.fulfillment.total_delivered}/{order.fulfillment.total_ordered}
+                            </span>
+                            <span className="text-muted-foreground">{t("trackOrders.fulfillment.delivered")}</span>
+                          </div>
+                          {order.fulfillment.total_pending > 0 && (
+                            <span className="text-xs text-warning">
+                              {order.fulfillment.total_pending} {t("trackOrders.fulfillment.pending")}
+                            </span>
+                          )}
+                          {order.fulfillment.total_remaining > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {order.fulfillment.total_remaining} {t("trackOrders.fulfillment.remaining")}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{renderDOBadges(order)}</TableCell>
+                    <TableCell>{renderInvoiceBadges(order)}</TableCell>
+                    <TableCell className="text-right font-mono font-medium">
+                      {formatCurrency(order.total_amount ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
 
-    {canViewCustomer && (
-      <CustomerDetailModal
-        open={!!selectedCustomerId}
-        onOpenChange={(v) => { if (!v) setSelectedCustomerId(null); }}
-        customer={selectedCustomerId ? ({ id: selectedCustomerId } as unknown as Customer) : null}
-      />
-    )}
+      {canViewOrder && selectedOrder && (
+        <OrderDetailModal
+          open={!!selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          order={selectedOrder}
+        />
+      )}
+
+      {doDialogOrder && (
+        <DOLinkedDialog
+          salesOrderId={doDialogOrder.id}
+          salesOrderCode={doDialogOrder.code}
+          open={!!doDialogOrder}
+          onOpenChange={(open) => {
+            if (!open) setDoDialogOrder(null);
+          }}
+        />
+      )}
+
+      {invoiceDialogOrder && (
+        <InvoiceLinkedDialog
+          salesOrderId={invoiceDialogOrder.id}
+          salesOrderCode={invoiceDialogOrder.code}
+          open={!!invoiceDialogOrder}
+          onOpenChange={(open) => {
+            if (!open) setInvoiceDialogOrder(null);
+          }}
+        />
+      )}
     </>
   );
 }

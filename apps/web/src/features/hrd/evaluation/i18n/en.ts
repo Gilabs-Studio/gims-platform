@@ -30,6 +30,8 @@ export const evaluationEn = {
     tabs: {
       evaluations: "Evaluations",
       groups: "Evaluation Groups",
+      general: "General",
+      auditTrail: "Audit Trail",
     },
 
     // Status
@@ -51,6 +53,35 @@ export const evaluationEn = {
       submit: "Submit",
       review: "Mark as Reviewed",
       finalize: "Finalize",
+    },
+
+    details: {
+      summary: "Summary",
+      createdAt: "Created At",
+      updatedAt: "Updated At",
+      criteriaCount: "Criteria",
+      emptyDescription: "No description available",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit trail entries",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time",
+        details: "Details",
+      },
+      actions: {
+        create: "Create",
+        update: "Update",
+        delete: "Delete",
+        submit: "Submit",
+        review: "Review",
+        finalize: "Finalize",
+        view: "View",
+        auditTrail: "Audit Trail",
+      },
     },
 
     // Evaluation Group

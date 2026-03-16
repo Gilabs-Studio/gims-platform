@@ -29,20 +29,49 @@
       "itemsSold": "items sold"
     },
     "trackOrders": {
-      "title": "Track Order Status",
-      "subtitle": "Analyze growth and changes in visitor patterns",
+      "title": "Track Sales Order",
+      "subtitle": "Monitor current sales orders and their linked fulfillment documents",
       "newOrder": "New Order",
       "onProgress": "On Progress",
       "completed": "Completed",
       "return": "Return",
       "filterOrders": "Filter orders...",
-      "columns": "Columns",
       "id": "ID",
       "customerName": "Customer Name",
       "issueDate": "Issue Date",
       "amount": "Amount",
       "status": "Status",
-      "export": "Export"
+      "export": "Export",
+      "fulfillment": {
+        "delivered": "delivered",
+        "pending": "pending",
+        "remaining": "remaining"
+      },
+      "columns": {
+        "code": "Code",
+        "status": "Status",
+        "fulfillment": "Fulfillment",
+        "do": "DO",
+        "invoice": "Invoice",
+        "totalAmount": "Total Amount"
+      }
+    },
+    "trackPurchaseOrders": {
+      "title": "Track Purchase Order",
+      "subtitle": "Monitor purchase orders and their linked receiving and invoice documents",
+      "columns": {
+        "code": "Code",
+        "status": "Status",
+        "fulfillment": "Fulfillment",
+        "gr": "GR",
+        "invoice": "Invoice",
+        "totalAmount": "Total Amount"
+      },
+      "fulfillment": {
+        "received": "received",
+        "pending": "pending",
+        "remaining": "remaining"
+      }
     },
     "widgetPicker": {
       "title": "Add Widget",

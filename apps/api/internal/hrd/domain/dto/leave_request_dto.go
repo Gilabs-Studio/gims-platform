@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 // CreateLeaveRequestDTO represents the request to create a new leave request
 type CreateLeaveRequestDTO struct {
 	EmployeeID    string  `json:"employee_id" binding:"required,uuid"`
@@ -146,6 +148,24 @@ type LeaveRequestListFilterDTO struct {
 	Search     *string `form:"search" binding:"omitempty"`     // Search by employee name, leave type, or reason
 	Page       int     `form:"page" binding:"omitempty,min=1"`
 	PerPage    int     `form:"per_page" binding:"omitempty,min=1,max=100"`
+}
+
+// LeaveRequestAuditTrailUser represents actor info in audit trail entries.
+type LeaveRequestAuditTrailUser struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// LeaveRequestAuditTrailEntry represents one audit trail row for leave request detail.
+type LeaveRequestAuditTrailEntry struct {
+	ID             string                      `json:"id"`
+	Action         string                      `json:"action"`
+	PermissionCode string                      `json:"permission_code"`
+	TargetID       string                      `json:"target_id"`
+	Metadata       map[string]interface{}      `json:"metadata"`
+	User           *LeaveRequestAuditTrailUser `json:"user"`
+	CreatedAt      time.Time                   `json:"created_at"`
 }
 
 // FormDataResponseDTO represents data for leave request form
