@@ -17,6 +17,7 @@ import { RevenueBarChartCard } from "./revenue-bar-chart-card";
 import { StatSummaryCard } from "./stat-summary-card";
 import { BestSellingCard } from "./best-selling-card";
 import { TrackOrderCard } from "./track-order-card";
+import { TrackPurchaseOrderCard } from "./track-purchase-order-card";
 import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
 import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
@@ -149,11 +150,11 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
     case "track_orders":
       return (
         <TrackOrderCard
-          deliveryStatus={data?.delivery_status}
-          recentInvoices={data?.recent_invoices}
           isLoading={isLoading}
         />
       );
+    case "track_purchase_orders":
+      return <TrackPurchaseOrderCard isLoading={isLoading} />;
     case "pending_approvals_sales":
       return <PendingApprovalsSalesWidget />;
     case "pending_approvals_purchase":
